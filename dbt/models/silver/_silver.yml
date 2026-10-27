@@ -24,11 +24,14 @@ models:
         data_tests: [not_null]
 
   - name: games
-    description: "One row per game with home and away sides and the final score."
+    description: "One row per game with home and away sides and the final score. At a neutral site both teams are listed as home by the source; the lower team id takes the home side and neutral_site is true."
     columns:
       - name: game_key
         description: "Natural key, unique per row"
         data_tests: [unique, not_null]
+      - name: neutral_site
+        description: "True when the source lists both teams as the home side (showcase games abroad, cup finals)."
+        data_tests: [not_null]
       - name: league
         description: "league"
         data_tests: [not_null]
