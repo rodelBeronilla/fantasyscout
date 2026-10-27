@@ -106,6 +106,10 @@ def land(
         return None
 
     backend = make_backend(opts.backend, opts.root, env)
+    if isinstance(backend, VolumeBackend):
+        # Fail here, loudly, rather than once per request inside the run.
+        created = backend.ensure_volume()
+        print("volume: " + ", ".join(f"{k} {v}" for k, v in created.items()))
     landing = Landing(backend, ingest_date=today, full_refresh=opts.full_refresh)
     run_id = uuid.uuid4().hex[:12]
     with ThrottledClient() as client:
@@ -126,10 +130,15 @@ def land(
         "backend": opts.backend,
         "finished_at": datetime.now(UTC).isoformat(),
     }
-    backend.write_bytes(
-        run_log_path(summary, run_id), (json.dumps(record, indent=2) + "\n").encode()
-    )
+    try:
+        backend.write_bytes(
+            run_log_path(summary, run_id), (json.dumps(record, indent=2) + "\n").encode()
+        )
+        logged = f"run {run_id} logged to {run_log_path(summary, run_id)}"
+    except Exception as exc:  # the summary must still reach the operator
+        summary.fail("_ops", "ingest_log", exc)
+        logged = f"run {run_id}: could not write the run log ({type(exc).__name__}: {exc})"
     for line in describe(summary):
         print(line)
-    print(f"run {run_id} logged to {run_log_path(summary, run_id)}")
+    print(logged)
     return summary

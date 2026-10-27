@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path, PurePosixPath
 
 import httpx
+import pytest
 
 from ingest.store import INDEX_NAME, Landing, LocalBackend, Scope, VolumeBackend
 
@@ -129,3 +130,50 @@ def test_volume_backend_uses_the_files_api(tmp_path: Path) -> None:
     again = Landing(backend, ingest_date=date(2026, 10, 27))
     assert again.already_landed_today(SCOPE, "k") is True
     backend.close()
+
+
+def test_ensure_volume_creates_missing_objects_and_tolerates_existing() -> None:
+    created: list[tuple[str, dict[str, str]]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        kind = request.url.path.rsplit("/", 1)[-1]
+        payload = json.loads(request.content)
+        created.append((kind, payload))
+        if kind == "catalogs":
+            return httpx.Response(409, json={"error_code": "ALREADY_EXISTS", "message": "exists"})
+        return httpx.Response(200, json=payload)
+
+    backend = VolumeBackend(
+        "https://dbc-1.cloud.databricks.com", "tok", transport=httpx.MockTransport(handler)
+    )
+    assert backend.ensure_volume() == {
+        "catalog": "exists",
+        "schema": "created",
+        "volume": "created",
+    }
+    assert created[0] == ("catalogs", {"name": "fantasyscout"})
+    assert created[1] == ("schemas", {"name": "raw", "catalog_name": "fantasyscout"})
+    assert created[2] == (
+        "volumes",
+        {
+            "name": "landing",
+            "catalog_name": "fantasyscout",
+            "schema_name": "raw",
+            "volume_type": "MANAGED",
+        },
+    )
+    backend.close()
+
+
+def test_ensure_volume_raises_on_real_errors() -> None:
+    backend = VolumeBackend(
+        "https://dbc-1.cloud.databricks.com",
+        "tok",
+        transport=httpx.MockTransport(
+            lambda _: httpx.Response(403, json={"error_code": "PERMISSION_DENIED"})
+        ),
+    )
+    with pytest.raises(RuntimeError, match="PERMISSION_DENIED"):
+        backend.ensure_volume()
+    with pytest.raises(ValueError, match="/Volumes/<catalog>/<schema>"):
+        VolumeBackend("https://x", "t", root="/Volumes/only").ensure_volume()

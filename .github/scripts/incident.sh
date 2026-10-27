@@ -4,8 +4,9 @@
 set -euo pipefail
 
 run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-existing=$(gh issue list --label data-incident --state open --search "\"${TITLE}\" in:title" --json number,title \
-  --jq --arg t "$TITLE" '[.[] | select(.title == $t)][0].number // empty')
+export TITLE
+existing=$(gh issue list --label data-incident --state open --limit 50 --json number,title \
+  --jq '[.[] | select(.title == env.TITLE)][0].number // empty')
 summary=$(tail -n 25 land.log 2>/dev/null || echo "(no log)")
 
 if [ "$OUTCOME" = "success" ]; then

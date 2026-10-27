@@ -94,6 +94,43 @@ class VolumeBackend:
     def close(self) -> None:
         self._client.close()
 
+    def _uc_create(self, kind: str, payload: dict[str, str]) -> str:
+        """POST one Unity Catalog object; an existing object counts as success."""
+        response = self._client.post(f"{self.host}/api/2.1/unity-catalog/{kind}", json=payload)
+        if response.status_code in (200, 201):
+            return "created"
+        if response.status_code == 409 or "ALREADY_EXISTS" in response.text:
+            return "exists"
+        msg = (
+            f"could not create {kind} {payload.get('name')}: "
+            f"HTTP {response.status_code} {response.text[:300]}"
+        )
+        raise RuntimeError(msg)
+
+    def ensure_volume(self, volume: str = "landing") -> dict[str, str]:
+        """Create the catalog, schema and managed volume behind ``root`` if they are missing.
+
+        The Files API never creates these; it answers 404 ``Catalog ... does not exist``.
+        """
+        parts = PurePosixPath(self.root).parts  # ('/', 'Volumes', catalog, schema)
+        if len(parts) != 4 or parts[1] != "Volumes":
+            msg = f"root must look like /Volumes/<catalog>/<schema>, got {self.root}"
+            raise ValueError(msg)
+        catalog, schema = parts[2], parts[3]
+        return {
+            "catalog": self._uc_create("catalogs", {"name": catalog}),
+            "schema": self._uc_create("schemas", {"name": schema, "catalog_name": catalog}),
+            "volume": self._uc_create(
+                "volumes",
+                {
+                    "name": volume,
+                    "catalog_name": catalog,
+                    "schema_name": schema,
+                    "volume_type": "MANAGED",
+                },
+            ),
+        }
+
     def _volume_path(self, path: PurePosixPath) -> str:
         return f"{self.root}/{path.as_posix()}"
 
