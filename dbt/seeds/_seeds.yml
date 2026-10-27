@@ -8,7 +8,7 @@ seeds:
       first game is landed. Abbreviations are the league stats API tricodes.
     config:
       column_types:
-        stats_team_id: varchar
+        stats_team_id: string
     columns:
       - name: league
         description: wnba or nba
@@ -56,8 +56,10 @@ seeds:
     description: Manual links between stats API and ESPN player ids when name matching fails (phase 4 reconciliation).
     config:
       column_types:
-        stats_player_id: varchar
-        espn_player_id: varchar
+        league: string
+        stats_player_id: string
+        espn_player_id: string
+        reason: string
     columns:
       - name: league
         description: wnba or nba

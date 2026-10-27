@@ -27,7 +27,7 @@ select
     rows.request_key,
     {{ sha256('rows.payload') }} as _payload_hash,
     {{ json_text('rows.row', '$[0]') }} as team_id,
-    {{ json_text('rows.row', '$[1]') }} as season,
+    {{ json_text('rows.row', '$[1]') }} as season_src,
     {{ json_text('rows.row', '$[2]') }} as league_id,
     {{ json_text('rows.row', '$[3]') }} as player,
     {{ json_text('rows.row', '$[4]') }} as nickname,
