@@ -55,7 +55,9 @@ def test_season_labels() -> None:
 def test_planner_requests_have_stable_keys_and_required_params() -> None:
     planner = StatsPlanner("wnba", "2026")
     season = {r.endpoint: r for r in planner.season_requests()}
-    assert set(season) == {"scheduleleaguev2", "commonallplayers", "leaguegamelog"}
+    assert set(season) == {"scheduleleaguev2", "commonallplayers", "leaguegamelog", "playergamelogs"}
+    assert season["playergamelogs"].key == "advanced-regular-season"
+    assert season["playergamelogs"].params["MeasureType"] == "Advanced"
     assert season["leaguegamelog"].key == "team-regular-season"
     assert season["leaguegamelog"].params["LeagueID"] == "10"
     assert season["scheduleleaguev2"].url("wnba") == "https://stats.wnba.com/stats/scheduleleaguev2"
