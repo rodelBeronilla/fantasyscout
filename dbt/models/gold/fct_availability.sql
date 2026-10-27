@@ -4,7 +4,7 @@
 #}
 
 select
-    {{ sk(['league', "cast(report_date as varchar)", 'injury_id']) }} as availability_sk,
+    {{ sk(['league', "cast(report_date as string)", 'injury_id']) }} as availability_sk,
     league,
     season,
     report_date,
@@ -13,7 +13,7 @@ select
     team_name,
     athlete_id as espn_player_id,
     athlete_name,
-    cast(null as varchar) as stats_player_id,
+    cast(null as string) as stats_player_id,
     status,
     case
         when lower(status) = 'out' then 'out'

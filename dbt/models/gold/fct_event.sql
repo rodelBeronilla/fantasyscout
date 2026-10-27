@@ -14,7 +14,7 @@
 #}
 
 select
-    {{ sk(['e.league', 'e.game_id', "cast(e.action_number as varchar)"]) }} as event_sk,
+    {{ sk(['e.league', 'e.game_id', "cast(e.action_number as string)"]) }} as event_sk,
     {{ sk(['e.league', 'e.game_id']) }} as game_sk,
     e.event_key,
     e.league,
@@ -44,8 +44,8 @@ select
     e.score_home,
     e.score_away,
     e.points_total,
-    cast(null as varchar) as lineup_home,
-    cast(null as varchar) as lineup_away,
+    cast(null as string) as lineup_home,
+    cast(null as string) as lineup_away,
     e._ingest_date
 from {{ ref('events') }} as e
 left join {{ ref('games') }} as g

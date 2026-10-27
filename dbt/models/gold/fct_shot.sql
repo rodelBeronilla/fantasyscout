@@ -11,7 +11,7 @@
 {# One row per field goal attempt with court coordinates (tenths of a foot from the basket). #}
 
 select
-    {{ sk(['s.league', 's.game_id', "cast(s.game_event_id as varchar)"]) }} as shot_sk,
+    {{ sk(['s.league', 's.game_id', "cast(s.game_event_id as string)"]) }} as shot_sk,
     {{ sk(['s.league', 's.game_id']) }} as game_sk,
     {{ sk(['s.league', 's.season', 's.team_id']) }} as team_sk,
     s.shot_key,

@@ -69,10 +69,10 @@ bio as (
 )
 
 select
-    {{ sk(['s.league', 's.player_id', "cast(s.valid_from as varchar)"]) }} as player_sk,
+    {{ sk(['s.league', 's.player_id', "cast(s.valid_from as string)"]) }} as player_sk,
     s.league,
     s.player_id as stats_player_id,
-    cast(null as varchar) as espn_player_id,
+    cast(null as string) as espn_player_id,
     coalesce(p.full_name, b.player_name) as full_name,
     b.position,
     b.height,
