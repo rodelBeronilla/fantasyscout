@@ -14,7 +14,8 @@ export interface Env {
 }
 
 const DATA_PREFIX = '/data/';
-const LATEST_KEY = 'latest.json';
+/** The two pointers the export rewrites; everything under builds/ is immutable. */
+const POINTER_KEYS = new Set(['latest.json', 'builds.json']);
 
 const CSP = [
   "default-src 'self'",
@@ -128,7 +129,7 @@ async function serveData(request: Request, env: Env, rawKey: string): Promise<Re
   headers.set('accept-ranges', 'bytes');
   headers.set(
     'cache-control',
-    key === LATEST_KEY ? 'public, max-age=60' : 'public, max-age=31536000, immutable',
+    POINTER_KEYS.has(key) ? 'public, max-age=60' : 'public, max-age=31536000, immutable',
   );
   if (!headers.has('content-type')) headers.set('content-type', contentTypeFor(key));
 

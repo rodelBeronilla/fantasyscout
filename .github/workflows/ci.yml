@@ -43,6 +43,11 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
+      - name: Build the dbt sample on DuckDB (the export tests read it)
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+        run: uv run dbt build --target duckdb --exclude tag:quality >/dev/null
       - run: uv run pytest
 
   dbt:

@@ -46,3 +46,6 @@ data/
 .DS_Store
 Thumbs.db
 dbt/.user.yml
+
+# Local data export for the dev server (fs-export build --store local)
+web/public/data/

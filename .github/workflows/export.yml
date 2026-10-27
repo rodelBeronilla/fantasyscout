@@ -1,0 +1,78 @@
+name: Export data
+
+# Publish, roll back or list the data builds in R2 by hand. The nightly build publishes on its
+# own after a passing gate (build.yml); this is for a re-export or a rollback.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: What to do
+        type: choice
+        options: [build, rollback, list]
+        default: build
+      to_build:
+        description: Rollback target build id (blank = the previous build)
+        type: string
+        default: ""
+      skip:
+        description: Tables to leave out of a build, comma-separated (for example fct_event)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    name: ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Resolve the workspace host and SQL warehouse
+        if: inputs.action == 'build'
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -euo pipefail
+          origin=$(uv run python -c "import os; from ingest.store import workspace_origin; print(workspace_origin(os.environ['DATABRICKS_HOST']))")
+          host="${origin#https://}"
+          echo "::add-mask::$host"
+          warehouse=$(curl -sf -H "Authorization: Bearer $DATABRICKS_TOKEN" "$origin/api/2.0/sql/warehouses" \
+            | uv run python -c "import json,sys; w=json.load(sys.stdin)['warehouses']; print(sorted(w, key=lambda x: x.get('creation_time', 0))[0]['id'])")
+          echo "::add-mask::$warehouse"
+          {
+            echo "DATABRICKS_ORIGIN=$origin"
+            echo "DATABRICKS_WAREHOUSE_ID=$warehouse"
+          } >> "$GITHUB_ENV"
+      - name: Run
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ACTION: ${{ inputs.action }}
+          TO_BUILD: ${{ inputs.to_build }}
+          SKIP: ${{ inputs.skip }}
+        run: |
+          set -euo pipefail
+          case "$ACTION" in
+            build) uv run fs-export build --engine databricks --store r2 --skip "$SKIP" ;;
+            rollback)
+              if [ -n "$TO_BUILD" ]; then uv run fs-export rollback --store r2 --to "$TO_BUILD";
+              else uv run fs-export rollback --store r2; fi ;;
+            list) uv run fs-export list --store r2 ;;
+          esac
+      - name: What the site now serves
+        if: always()
+        run: |
+          curl -sf https://fantasyscout.beronilla.rodeo/data/latest.json || echo "latest.json not served yet"
