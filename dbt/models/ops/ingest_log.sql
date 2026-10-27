@@ -24,5 +24,6 @@ select
     try_cast({{ json_text('payload', '$.unchanged') }} as integer) as unchanged,
     try_cast({{ json_text('payload', '$.skipped') }} as integer) as skipped,
     {{ json_array_len('payload', '$.failures') }} as failures,
+    {{ json_array_len('payload', '$.missing') }} as missing_at_source,
     _source_file
 from files

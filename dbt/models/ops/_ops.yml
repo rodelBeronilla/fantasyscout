@@ -17,3 +17,5 @@ models:
         description: "Payloads written this run"
       - name: failures
         description: "Requests that failed this run"
+      - name: missing_at_source
+        description: "Keys the source has no payload for (for example an ESPN event with no summary); not failures"
