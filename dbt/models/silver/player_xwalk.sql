@@ -242,6 +242,7 @@ select
     stats_player_id,
     espn_player_id,
     league || ':' || stats_player_id as player_xwalk_key,
+    league || ':' || espn_player_id as espn_player_key,
     method,
     similarity,
     games_matched,

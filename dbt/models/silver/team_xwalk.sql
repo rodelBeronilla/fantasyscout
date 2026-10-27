@@ -80,6 +80,7 @@ select
     stats_team_id,
     espn_team_id,
     league || ':' || stats_team_id as team_xwalk_key,
+    league || ':' || espn_team_id as espn_team_key,
     method
 from ranked
 where rk = 1

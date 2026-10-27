@@ -290,10 +290,11 @@ models:
         description: "Natural key, unique per row"
         data_tests: [unique, not_null]
       - name: espn_team_id
-        description: "ESPN team id; unique across the crosswalk"
-        data_tests:
-          - not_null
-          - unique
+        description: "ESPN team id (ESPN numbers each league from the same small range, so it is unique only within a league)"
+        data_tests: [not_null]
+      - name: espn_team_key
+        description: "League and ESPN team id; each ESPN team is paired once"
+        data_tests: [unique, not_null]
       - name: method
         description: "How the pair was found"
         data_tests:
@@ -307,10 +308,11 @@ models:
         description: "Natural key, unique per row"
         data_tests: [unique, not_null]
       - name: event_id
-        description: "ESPN event id; each event matches one game"
-        data_tests:
-          - not_null
-          - unique
+        description: "ESPN event id"
+        data_tests: [not_null]
+      - name: event_key
+        description: "League and ESPN event id; each event matches one game"
+        data_tests: [unique, not_null]
       - name: method
         description: "same_day or adjacent_day"
         data_tests:
@@ -324,10 +326,11 @@ models:
         description: "Natural key, unique per row"
         data_tests: [unique, not_null]
       - name: espn_player_id
-        description: "ESPN athlete id; each athlete matches one player"
-        data_tests:
-          - not_null
-          - unique
+        description: "ESPN athlete id"
+        data_tests: [not_null]
+      - name: espn_player_key
+        description: "League and ESPN athlete id; each athlete is paired once"
+        data_tests: [unique, not_null]
       - name: method
         description: "override, exact or fuzzy"
         data_tests:
