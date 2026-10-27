@@ -6,7 +6,7 @@ name: Build lakehouse
 
 on:
   workflow_run:
-    workflows: [Ingest]
+    workflows: [Ingest, Backfill]
     types: [completed]
   workflow_dispatch:
     inputs:
