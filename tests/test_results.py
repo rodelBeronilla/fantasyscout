@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 import duckdb
+import pytest
 
 from ops.results import (
     Gate,
@@ -155,3 +156,30 @@ def test_main_exit_codes(tmp_path: Path) -> None:
     assert main(["--engine", "duckdb", "--target-dir", str(target), "--dry-run"]) == 0
     target = artifacts(tmp_path / "blocked", chaos=True)
     assert main(["--engine", "duckdb", "--target-dir", str(target), "--dry-run"]) == 2
+
+
+def test_databricks_writer_refuses_an_empty_warehouse_and_reports_the_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import httpx
+
+    import ops.results as results_mod
+
+    with pytest.raises(RuntimeError, match="warehouse_id is empty"):
+        results_mod.write_databricks(
+            ["select 1"], origin="https://x", token="t", warehouse_id="", catalog="c"
+        )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json={"message": "Invalid warehouse id"})
+
+    original = httpx.Client
+    monkeypatch.setattr(
+        results_mod.httpx,
+        "Client",
+        lambda **kw: original(transport=httpx.MockTransport(handler), **kw),
+    )
+    with pytest.raises(RuntimeError, match=r"HTTP 400 .*Invalid warehouse id"):
+        results_mod.write_databricks(
+            ["select 1"], origin="https://x", token="t", warehouse_id="w", catalog="c"
+        )

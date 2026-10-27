@@ -13,8 +13,10 @@ SHA-256 of the last landing for every request key, so:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import threading
+import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
@@ -26,6 +28,8 @@ import httpx
 from ingest.landing import League, Sidecar, landing_key, payload_hash
 
 INDEX_NAME = "_index.json"
+_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+_WRITE_RETRIES = 4
 
 
 def workspace_origin(host: str) -> str:
@@ -174,11 +178,30 @@ class VolumeBackend:
     def _files_url(self, path: PurePosixPath) -> str:
         return f"{self.host}/api/2.0/fs/files{self._volume_path(path)}"
 
+    def _send(self, method: str, url: str, **kwargs: object) -> httpx.Response:
+        """One Files API call, retried with backoff on rate limiting and server errors.
+
+        The workspace rate-limits the Files API under a backfill's write bursts (HTTP 429
+        RESOURCE_EXHAUSTED); a payload must never be lost to that, so the call is retried a
+        few times, honouring Retry-After, before the failure is reported.
+        """
+        response: httpx.Response | None = None
+        for attempt in range(_WRITE_RETRIES + 1):
+            response = self._client.request(method, url, **kwargs)  # type: ignore[arg-type]
+            if response.status_code not in _RETRY_STATUSES or attempt == _WRITE_RETRIES:
+                break
+            delay = min(30.0, 2.0**attempt)
+            with contextlib.suppress(ValueError):
+                delay = max(delay, float(response.headers.get("retry-after", "0")))
+            time.sleep(delay)
+        assert response is not None
+        return response
+
     def _ensure_directory(self, directory: str) -> None:
         with self._dir_lock:  # writes run on several threads; create each directory once
             if directory in self._known_dirs:
                 return
-            response = self._client.put(f"{self.host}/api/2.0/fs/directories{directory}")
+            response = self._send("PUT", f"{self.host}/api/2.0/fs/directories{directory}")
             if response.status_code not in (200, 204):
                 msg = (
                     f"could not create {directory}: HTTP {response.status_code} "
@@ -192,7 +215,7 @@ class VolumeBackend:
         self._ensure_directory(self._volume_path(path))
 
     def read_bytes(self, path: PurePosixPath) -> bytes | None:
-        response = self._client.get(self._files_url(path))
+        response = self._send("GET", self._files_url(path))
         if response.status_code == 404:
             return None
         if response.status_code != 200:
@@ -202,7 +225,8 @@ class VolumeBackend:
 
     def write_bytes(self, path: PurePosixPath, body: bytes) -> None:
         self._ensure_directory(self._volume_path(path.parent))
-        response = self._client.put(
+        response = self._send(
+            "PUT",
             self._files_url(path),
             params={"overwrite": "true"},
             content=body,

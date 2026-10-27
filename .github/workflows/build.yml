@@ -58,6 +58,7 @@ jobs:
           {
             echo "DBT_DATABRICKS_HOST=$host"
             echo "DBT_DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/$warehouse"
+            echo "DBT_DATABRICKS_WAREHOUSE_ID=$warehouse"
           } >> "$GITHUB_ENV"
 
       - name: Ensure every endpoint directory exists in the landing volume
