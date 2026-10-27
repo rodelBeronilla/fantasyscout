@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: ingest_log
+    description: "One row per ingest run, parsed from the run logs the ingestors write to the landing volume."
+    columns:
+      - name: run_id
+        description: "Run id from the ingestor"
+        data_tests: [unique, not_null]
+      - name: source
+        description: "stats or espn"
+        data_tests: [not_null]
+      - name: league
+        description: "wnba or nba"
+        data_tests: [not_null]
+      - name: landed
+        description: "Payloads written this run"
+      - name: failures
+        description: "Requests that failed this run"

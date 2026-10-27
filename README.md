@@ -33,7 +33,8 @@ Built phase by phase; each phase ends with something live and a PR that passes C
 ```
 ingest/      Python ingestors, one module per source; CLI: fs-ingest
 export/      gold -> Parquet/JSON -> R2, manifest, latest pointer
-dbt/         dbt project: models/bronze|silver (gold, ops from phase 3), seeds/, macros/, sample/
+ops/         results recorder and publish gate (ops.test_results, ops.publish_gate)
+dbt/         dbt project: models/bronze|silver|gold|ops, tests/ (quality checks), seeds/, macros/, sample/
 ai/          notes generator, prompts, evals/
 notebooks/   01_shot_profiles, 02_reconciliation_audit, 03_fantasy_value_backtest
 web/         Astro app

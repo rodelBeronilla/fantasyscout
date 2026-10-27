@@ -32,6 +32,16 @@ models:
     silver:
       +schema: silver
       +materialized: table
+    gold:
+      +schema: gold
+      +materialized: table
+    ops:
+      +schema: ops
+      +materialized: table
+
+tests:
+  fantasyscout:
+    +store_failures: false
 
 seeds:
   fantasyscout:

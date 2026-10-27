@@ -18,6 +18,10 @@ on:
         description: dbt selector (default everything)
         type: string
         default: ""
+      chaos:
+        description: Chaos drill, fail one error-severity check on purpose to prove the gate and the incident path
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -65,12 +69,15 @@ jobs:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           FULL_REFRESH: ${{ inputs.full_refresh }}
           SELECT: ${{ inputs.select }}
+          CHAOS: ${{ inputs.chaos }}
         run: |
           set -o pipefail
           args=(build --target databricks)
           [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
           [ -n "$SELECT" ] && args+=(--select "$SELECT")
-          uv run dbt "${args[@]}" 2>&1 | tee land.log
+          [ "$CHAOS" = "true" ] && args+=(--vars '{chaos: true}') && echo "::warning::chaos drill: one error-severity check will fail on purpose"
+          # dbt exits non-zero on test failures; the gate step decides what that means.
+          uv run dbt "${args[@]}" 2>&1 | tee land.log || true
 
       - uses: actions/upload-artifact@v7
         if: always()
@@ -81,12 +88,23 @@ jobs:
             dbt/target/manifest.json
           retention-days: 14
 
+      - name: Record results and decide the publish gate
+        id: gate
+        if: always() && steps.build.outcome != 'skipped'
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_ORIGIN: https://${{ env.DBT_DATABRICKS_HOST }}
+          DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
+        run: |
+          set -o pipefail
+          uv run python -m ops.results --engine databricks 2>&1 | tee -a land.log
+
       - name: Report
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           TITLE: "Build failure: dbt on Databricks"
-          OUTCOME: ${{ steps.build.outcome }}
+          OUTCOME: ${{ (steps.build.outcome == 'success' && steps.gate.outcome == 'success') && 'success' || 'failure' }}
         run: uv run python .github/scripts/incident.py
 
   bundle:
