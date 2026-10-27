@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-26 (phase 0 rebuilt for the custom domain; first deploy pending)
+Last updated: 2026-10-26 (phase 0 live)
 
 ## Vision
 
@@ -22,18 +22,18 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 
 | Environment | URL | Trigger |
 | --- | --- | --- |
-| Preview | `https://fantasyscout-preview.<account>.workers.dev/` | Push to `preprod` (or run "Deploy web" on it) |
+| Preview | https://fantasyscout-preview.rodel-beronilla.workers.dev/ | Push to `preprod` (or run "Deploy web" on it) |
 | Production | https://fantasyscout.beronilla.rodeo/ (Cloudflare custom domain on Worker `fantasyscout`, ADR 0001) | Push to `main` |
 
 ## Active Sprint
 
-Phase 0, Skeleton. Code, CI, docs and ADR 0001 are done; the first deploy needs the Cloudflare secrets in GitHub Actions.
+Phase 0, Skeleton, is live (PR #2 merged 2026-10-26, issue #1): placeholder at https://fantasyscout.beronilla.rodeo/, preview Worker deployed from `preprod`, R2 bucket bound. Waiting for the owner's go-ahead for phase 1.
 
 ## Milestones
 
 | Milestone | Status |
 | --- | --- |
-| Phase 0 Skeleton | Built 2026-10-26; deploy pending |
+| Phase 0 Skeleton | Done 2026-10-26 (live, CI green) |
 | Phase 1 Ingest | Not started |
 | Phase 2 Lakehouse | Not started |
 | Phase 3 Gold + quality | Not started |
@@ -49,7 +49,6 @@ N/A, first sprint.
 
 ## Blockers
 
-- `CLOUDFLARE_API_TOKEN` (Workers Scripts edit, R2 edit, and on the `beronilla.rodeo` zone Workers Routes edit + DNS edit) and `CLOUDFLARE_ACCOUNT_ID` must be in GitHub Actions secrets before the first deploy.
 - Prerequisites before phase 1: Databricks Free Edition workspace, Tableau Public account.
 
 ## Tech Debt
@@ -58,6 +57,5 @@ N/A, first sprint.
 
 ## Next Actions
 
-1. Owner: add the Cloudflare secrets; confirm Databricks and Tableau accounts.
-2. Deploy preview (`preprod`) then production (`main`) per `docs/runbook.md`; confirm `https://fantasyscout.beronilla.rodeo/` serves the placeholder.
-3. Phase 1: stats API and ESPN ingestors, landing to the volume, blocked-IP test from a GitHub runner, ADR on where ingestion runs.
+1. Owner: confirm Databricks and Tableau accounts and give the go-ahead for phase 1.
+2. Phase 1: stats API and ESPN ingestors, landing to the volume, blocked-IP test from a GitHub runner, ADR on where ingestion runs.
