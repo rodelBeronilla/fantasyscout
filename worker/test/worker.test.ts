@@ -44,6 +44,7 @@ describe('routing', () => {
       expect(csp).toContain(`'sha256-${b64}'`);
     }
     expect(csp).not.toContain('unsafe-inline');
+    expect(csp).toContain('https://extensions.duckdb.org');
   });
 
   it('serves the home page with security headers', async () => {
