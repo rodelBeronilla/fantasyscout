@@ -10,6 +10,13 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const from = join(root, 'tests', 'fixtures', 'data');
 const to = join(root, 'dist', 'data');
 
+// `--clean` (the posttest script) removes the copy again: the 77 MB engine must not end up in
+// the dist artifact the Worker job and the deploy read (static assets are capped at 25 MiB each).
+if (process.argv.includes('--clean')) {
+  rmSync(to, { recursive: true, force: true });
+  console.log(`fixture data removed from ${to}`);
+  process.exit(0);
+}
 if (!existsSync(join(root, 'dist'))) {
   console.error('dist/ is missing: run `npm run build` first');
   process.exit(1);

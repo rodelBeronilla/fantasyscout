@@ -12,7 +12,8 @@
     "check": "astro check",
     "lint": "eslint .",
     "test": "playwright test",
-    "pretest": "node scripts/copy-fixtures.mjs"
+    "pretest": "node scripts/copy-fixtures.mjs",
+    "posttest": "node scripts/copy-fixtures.mjs --clean"
   },
   "dependencies": {
     "@astrojs/react": "^7.1.1",
