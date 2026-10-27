@@ -1,0 +1,117 @@
+// Runs inside workerd via @cloudflare/vitest-plugin, with the real assets binding
+// (web/dist must be built first) and an isolated R2 bucket per test.
+import { env, SELF } from 'cloudflare:test';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { contentRange, parseRange } from '../src/index';
+
+const ORIGIN = 'https://fantasyscout.example';
+
+describe('parseRange', () => {
+  it('parses the single-range forms DuckDB-WASM sends', () => {
+    expect(parseRange('bytes=10-19')).toEqual({ offset: 10, length: 10 });
+    expect(parseRange('bytes=10-')).toEqual({ offset: 10 });
+    expect(parseRange('bytes=-8')).toEqual({ suffix: 8 });
+  });
+
+  it('ignores absent, malformed, inverted, empty and multi-range values', () => {
+    expect(parseRange(null)).toBeUndefined();
+    expect(parseRange('bytes=-')).toBeUndefined();
+    expect(parseRange('bytes=-0')).toBeUndefined();
+    expect(parseRange('bytes=20-10')).toBeUndefined();
+    expect(parseRange('bytes=0-1,5-6')).toBeUndefined();
+    expect(parseRange('items=0-1')).toBeUndefined();
+  });
+
+  it('clamps the served window to the object size', () => {
+    expect(contentRange({ offset: 90, length: 50 }, 100)).toEqual({ start: 90, end: 99 });
+    expect(contentRange({ suffix: 500 }, 100)).toEqual({ start: 0, end: 99 });
+    expect(contentRange({ offset: 5 }, 100)).toEqual({ start: 5, end: 99 });
+  });
+});
+
+describe('routing', () => {
+  it('serves the home page with security headers', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(res.headers.get('content-security-policy')).toContain("'wasm-unsafe-eval'");
+    expect(res.headers.get('content-security-policy')).toContain('frame-src https://public.tableau.com');
+    expect(res.headers.get('strict-transport-security')).toContain('max-age=');
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(await res.text()).toContain('FantasyScout');
+  });
+
+  it('serves the 404 page for unknown paths', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/nope/`);
+    expect(res.status).toBe(404);
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(await res.text()).toContain('No such page');
+  });
+
+  it('rejects write methods', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/`, { method: 'POST' });
+    expect(res.status).toBe(405);
+    expect(res.headers.get('allow')).toBe('GET, HEAD');
+  });
+});
+
+describe('data', () => {
+  const body = new Uint8Array(100).map((_, i) => i);
+
+  beforeEach(async () => {
+    await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    await env.DATA.put('build-1/fct_shot.parquet', body);
+  });
+
+  it('serves latest.json with a short cache', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/data/latest.json`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=60');
+    expect(await res.json()).toEqual({ build_id: 'test' });
+  });
+
+  it('serves build files as immutable with a parquet content type', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toContain('immutable');
+    expect(res.headers.get('content-type')).toBe('application/vnd.apache.parquet');
+    expect(res.headers.get('content-length')).toBe('100');
+    expect(res.headers.get('accept-ranges')).toBe('bytes');
+  });
+
+  it('honours Range requests for DuckDB-WASM', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, {
+      headers: { range: 'bytes=10-19' },
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers.get('content-range')).toBe('bytes 10-19/100');
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(body.slice(10, 20));
+  });
+
+  it('honours suffix Range requests (parquet footers)', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, {
+      headers: { range: 'bytes=-8' },
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers.get('content-range')).toBe('bytes 92-99/100');
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(body.slice(92));
+  });
+
+  it('answers conditional requests with 304', async () => {
+    const first = await SELF.fetch(`${ORIGIN}/data/latest.json`);
+    const etag = first.headers.get('etag');
+    expect(etag).toBeTruthy();
+    const res = await SELF.fetch(`${ORIGIN}/data/latest.json`, {
+      headers: { 'if-none-match': etag as string },
+    });
+    expect(res.status).toBe(304);
+  });
+
+  it('returns 404 for missing objects and traversal attempts', async () => {
+    expect((await SELF.fetch(`${ORIGIN}/data/missing.json`)).status).toBe(404);
+    expect((await SELF.fetch(`${ORIGIN}/data/..%2Fsecret`)).status).toBe(404);
+    expect((await SELF.fetch(`${ORIGIN}/data/`)).status).toBe(404);
+  });
+});

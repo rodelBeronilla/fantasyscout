@@ -1,0 +1,48 @@
+# The fantasyscout Worker: static Astro build plus exported gold data from R2.
+# It holds no secrets and reads only public, exported data. See docs/architecture.md.
+#
+# Two environments share this file. Deploy with `wrangler deploy --env production|preview`.
+# Bindings are repeated per environment because wrangler does not inherit them.
+name = "fantasyscout"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+upload_source_maps = true
+
+[assets]
+directory = "../web/dist"
+binding = "ASSETS"
+not_found_handling = "404-page"
+# Always run the Worker so every response, including static files, carries the security headers.
+run_worker_first = true
+
+[[r2_buckets]]
+binding = "DATA"
+bucket_name = "fantasyscout-data"
+
+[observability]
+enabled = true
+
+# Production: the custom domain. Cloudflare creates the DNS record and certificate on first deploy.
+[env.production]
+name = "fantasyscout"
+workers_dev = false
+routes = [{ pattern = "fantasyscout.beronilla.rodeo", custom_domain = true }]
+
+[[env.production.r2_buckets]]
+binding = "DATA"
+bucket_name = "fantasyscout-data"
+
+[env.production.observability]
+enabled = true
+
+# Preview: deployed from the preprod branch, reachable on workers.dev only.
+[env.preview]
+name = "fantasyscout-preview"
+workers_dev = true
+
+[[env.preview.r2_buckets]]
+binding = "DATA"
+bucket_name = "fantasyscout-data"
+
+[env.preview.observability]
+enabled = true
