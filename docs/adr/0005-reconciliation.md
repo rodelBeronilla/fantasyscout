@@ -8,7 +8,7 @@ The league stats API is the primary source and ESPN's public JSON the second (SP
 
 ## Decision
 
-**Three crosswalks, each one row per primary-source key.**
+**Three crosswalks, each one row per primary-source key**, unique on the ESPN side within a league: ESPN numbers the teams of each league from the same small range (WNBA Dallas and an NBA team both carry id 3), so every ESPN-side key carries the league.
 
 - `silver.team_xwalk`: full team name first (both sources write "Las Vegas Aces"), then the nickname from the team seed, then the abbreviation, which the sources spell differently for a few teams.
 - `silver.game_xwalk`: same league, same two teams in either orientation (so neutral-site games match), same Eastern-time date, with the adjacent day as a fallback. ESPN publishes event times in UTC; a 10 pm Eastern tip-off is the next day in UTC, so the UTC time is converted before comparing dates. Each ESPN event is used at most once.

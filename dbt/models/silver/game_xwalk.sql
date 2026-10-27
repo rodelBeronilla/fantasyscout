@@ -78,6 +78,7 @@ select
     game_id,
     event_id,
     league || ':' || game_id as game_xwalk_key,
+    league || ':' || event_id as event_key,
     game_date,
     event_date_et,
     case when day_gap = 0 then 'same_day' else 'adjacent_day' end as method
