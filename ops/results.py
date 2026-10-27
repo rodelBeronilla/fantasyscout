@@ -192,6 +192,46 @@ def write_duckdb(path: Path, statements: list[str]) -> None:
         con.close()
 
 
+def _run_statement(
+    client: httpx.Client, *, warehouse_id: str, catalog: str, statement: str
+) -> dict[str, object]:
+    """Submit one statement to the SQL Statement Execution API and wait until it finishes."""
+    response = client.post(
+        "/api/2.0/sql/statements",
+        json={
+            "warehouse_id": warehouse_id,
+            "catalog": catalog,
+            "statement": statement,
+            "wait_timeout": "30s",
+            "format": "JSON_ARRAY",
+            "disposition": "INLINE",
+        },
+    )
+    if response.status_code != 200:
+        msg = f"statement submission failed: HTTP {response.status_code} {response.text[:500]}"
+        raise RuntimeError(msg)
+    body: dict[str, object] = response.json()
+    status = body.get("status")
+    state = status.get("state") if isinstance(status, dict) else None
+    statement_id = body["statement_id"]
+    while state in ("PENDING", "RUNNING"):
+        time.sleep(2)
+        body = client.get(f"/api/2.0/sql/statements/{statement_id}").json()
+        status = body.get("status")
+        state = status.get("state") if isinstance(status, dict) else None
+    if state != "SUCCEEDED":
+        error = ""
+        if isinstance(status, dict):
+            error = str(status.get("error", {}).get("message", ""))[:300]
+        msg = f"statement failed ({state}): {error}"
+        raise RuntimeError(msg)
+    return body
+
+
+def _databricks_client(origin: str, token: str) -> httpx.Client:
+    return httpx.Client(base_url=origin, headers={"Authorization": f"Bearer {token}"}, timeout=60)
+
+
 def write_databricks(
     statements: list[str], *, origin: str, token: str, warehouse_id: str, catalog: str
 ) -> None:
@@ -199,31 +239,89 @@ def write_databricks(
     if not warehouse_id:
         msg = "warehouse_id is empty; the workflow must export DBT_DATABRICKS_WAREHOUSE_ID"
         raise RuntimeError(msg)
-    client = httpx.Client(base_url=origin, headers={"Authorization": f"Bearer {token}"}, timeout=60)
+    client = _databricks_client(origin, token)
     for statement in statements:
-        response = client.post(
-            "/api/2.0/sql/statements",
-            json={
-                "warehouse_id": warehouse_id,
-                "catalog": catalog,
-                "statement": statement,
-                "wait_timeout": "30s",
-            },
+        _run_statement(client, warehouse_id=warehouse_id, catalog=catalog, statement=statement)
+
+
+# ---- samples of failing rows ---------------------------------------------------------
+Sample = tuple[ResultRow, str]
+
+
+def failure_samples(target_dir: Path, rows: list[ResultRow]) -> list[Sample]:
+    """(row, compiled SQL) for every failed or warned test whose compiled query dbt kept."""
+    run_results = json.loads((target_dir / "run_results.json").read_text(encoding="utf-8"))
+    code = {r["unique_id"]: r.get("compiled_code") for r in run_results["results"]}
+    return [
+        (r, str(code[r.node_id]))
+        for r in rows
+        if r.is_test and r.status in ("fail", "warn") and code.get(r.node_id)
+    ]
+
+
+def _print_sample(row: ResultRow, columns: list[str], data: list[list[object]], limit: int) -> None:
+    print(f"  sample of {row.check_name} ({min(len(data), limit)} of {row.failures} rows):")
+    print("    " + " | ".join(columns))
+    for record in data[:limit]:
+        print("    " + " | ".join("" if v is None else str(v) for v in record))
+
+
+def sample_duckdb(path: Path, samples: list[Sample], *, limit: int) -> None:
+    import duckdb  # local engine only
+
+    con = duckdb.connect(str(path), read_only=True)
+    try:
+        for row, code in samples:
+            rel = con.sql(f"select * from ({code}) as failing limit {limit}")
+            _print_sample(row, list(rel.columns), [list(r) for r in rel.fetchall()], limit)
+    finally:
+        con.close()
+
+
+def sample_databricks(
+    samples: list[Sample], *, origin: str, token: str, warehouse_id: str, catalog: str, limit: int
+) -> None:
+    client = _databricks_client(origin, token)
+    for row, code in samples:
+        statement = f"select * from ({code}) as failing limit {limit}"
+        body = _run_statement(
+            client, warehouse_id=warehouse_id, catalog=catalog, statement=statement
         )
-        if response.status_code != 200:
-            msg = f"statement submission failed: HTTP {response.status_code} {response.text[:500]}"
-            raise RuntimeError(msg)
-        body = response.json()
-        state = body["status"]["state"]
-        statement_id = body["statement_id"]
-        while state in ("PENDING", "RUNNING"):
-            time.sleep(2)
-            body = client.get(f"/api/2.0/sql/statements/{statement_id}").json()
-            state = body["status"]["state"]
-        if state != "SUCCEEDED":
-            error = body.get("status", {}).get("error", {}).get("message", "")[:300]
-            msg = f"statement failed ({state}): {error}"
-            raise RuntimeError(msg)
+        manifest = body.get("manifest")
+        schema = manifest.get("schema", {}) if isinstance(manifest, dict) else {}
+        columns = [str(c["name"]) for c in schema.get("columns", [])]
+        result = body.get("result")
+        data = result.get("data_array", []) if isinstance(result, dict) else []
+        _print_sample(row, columns, data, limit)
+
+
+def print_failure_samples(args: argparse.Namespace, rows: list[ResultRow]) -> None:
+    """Best effort: a sampling problem must never hide the gate decision."""
+    if not args.sample_failures:
+        return
+    try:
+        samples = failure_samples(args.target_dir, rows)
+        if not samples:
+            return
+        if args.engine == "duckdb":
+            sample_duckdb(args.duckdb, samples, limit=args.sample_failures)
+        else:
+            origin = os.environ.get("DATABRICKS_ORIGIN", "")
+            token = os.environ.get("DATABRICKS_TOKEN", "")
+            warehouse_id = os.environ.get("DATABRICKS_WAREHOUSE_ID", "")
+            if not (origin and token and warehouse_id):
+                print("  (failing-row samples skipped: Databricks connection not configured)")
+                return
+            sample_databricks(
+                samples,
+                origin=origin,
+                token=token,
+                warehouse_id=warehouse_id,
+                catalog=args.catalog,
+                limit=args.sample_failures,
+            )
+    except Exception as exc:
+        print(f"  (failing-row samples unavailable: {type(exc).__name__}: {str(exc)[:200]})")
 
 
 def _git_sha() -> str:
@@ -244,6 +342,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--dry-run", action="store_true", help="print the gate decision, write nothing"
     )
+    parser.add_argument(
+        "--sample-failures",
+        type=int,
+        default=10,
+        metavar="N",
+        help="print up to N failing rows of every failed check (0 disables)",
+    )
     args = parser.parse_args(argv)
 
     run_at = datetime.now(UTC).replace(tzinfo=None)
@@ -256,6 +361,7 @@ def main(argv: list[str] | None = None) -> int:
     for r in rows:
         if r.is_test and r.status in ("fail", "warn", "error"):
             print(f"  {r.severity:5} {r.status:5} {r.check_name} ({r.model}) rows={r.failures}")
+    print_failure_samples(args, rows)
     if not args.dry_run:
         statements = insert_statements(
             args.schema,

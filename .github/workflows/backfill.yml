@@ -58,7 +58,8 @@ jobs:
           # Generous windows; the game log decides which games exist.
           if [ "$LEAGUE" = "wnba" ]; then
             y=$SEASON
-            if [ "$SEASON_TYPE" = "Playoffs" ]; then echo "since=$y-09-01" >> "$GITHUB_OUTPUT"; echo "until=$y-10-31" >> "$GITHUB_OUTPUT";
+            # WNBA playoffs have started as early as mid-August (2018, 2022).
+            if [ "$SEASON_TYPE" = "Playoffs" ]; then echo "since=$y-08-01" >> "$GITHUB_OUTPUT"; echo "until=$y-10-31" >> "$GITHUB_OUTPUT";
             else echo "since=$y-05-01" >> "$GITHUB_OUTPUT"; echo "until=$y-09-30" >> "$GITHUB_OUTPUT"; fi
           else
             y1=${SEASON%-*}; y2=$((y1 + 1))

@@ -1,12 +1,15 @@
 {{ config(severity='error', tags=['quality', 'completeness']) }}
 
--- Every final game on the schedule that finished more than a day ago has a box score and
--- play-by-play in gold.
+-- Every final regular-season or playoff game on the schedule that finished more than a day
+-- ago has a box score and play-by-play in gold. Preseason, All-Star, play-in and tournament
+-- finals are on the schedule but outside what the ingestors fetch (SPEC.md scope), so they
+-- are not counted as missing.
 with final_games as (
 
-    select league, season, game_id, game_date_est
+    select league, season, game_id, game_date_est, game_type
     from {{ ref('schedule') }}
     where game_status = 3
+        and game_type in ('regular', 'playoffs')
         and game_date_est < {{ add_days(as_of_date(), -1) }}
 
 ),
@@ -27,6 +30,7 @@ select
     f.league,
     f.season,
     f.game_id,
+    f.game_type,
     f.game_date_est,
     b.game_id is not null as has_box_score,
     p.game_id is not null as has_play_by_play
