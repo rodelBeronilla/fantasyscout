@@ -63,7 +63,30 @@
   {%- endif -%}
 {%- endmacro %}
 
+{#
+  Databricks refuses a glob that matches nothing (a brand-new endpoint before its first
+  payload). The directory itself is created ahead of every build, so list it and, when it is
+  still empty, select zero rows of the right shape instead of failing the model.
+#}
+{% macro databricks__landing_has_files(source, endpoint) -%}
+  {%- if not execute -%}
+    {{ return(true) }}
+  {%- endif -%}
+  {%- set rows = run_query("LIST '" ~ landing_root() ~ "/landing/" ~ source ~ "/" ~ endpoint ~ "'") -%}
+  {{ return(rows | length > 0) }}
+{%- endmacro %}
+
 {% macro databricks__landing_files(source, endpoint) -%}
+  {%- if not databricks__landing_has_files(source, endpoint) -%}
+  select
+    cast(null as string) as _source_file,
+    cast(null as string) as payload,
+    cast(null as string) as league,
+    cast(null as string) as season,
+    cast(null as date) as _ingest_date,
+    cast(null as string) as request_key
+  where 1 = 0
+  {%- else -%}
   {%- set modified_after = bronze_modified_after() -%}
   select
     _metadata.file_path as _source_file,
@@ -81,6 +104,7 @@
     {%- endif %}
   )
   where _metadata.file_path not like '%.meta.json'
+  {%- endif -%}
 {%- endmacro %}
 
 {#
