@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-27 (phase 4 built; waiting for the go-ahead for phase 5)
+Last updated: 2026-10-27 (phase 4 done; waiting for the go-ahead for phase 5)
 
 ## Vision
 
@@ -28,7 +28,7 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 
 ## Active Sprint
 
-Phase 4, Reconciliation (issue #51): three crosswalks in silver (`team_xwalk`, `game_xwalk`, `player_xwalk` with exact, fuzzy-with-birthdate and override passes, plus `player_xwalk_review`), `player_game_reconciliation`, `ops.reconciliation` (differences with the resolution rule) and `ops.reconciliation_summary` (match and conflict rates per league and season, printed in every build log), `fct_player_game.source_agreement` and resolved values, `dim_player.espn_player_id`, a warn-severity coverage check, ADR 0005. Full backfill on Databricks: 156,899 player-games, 99.4% matched overall, eleven of thirteen seasons at or above 99% before the name-variant and played-rate refinements, every conflict rate at or below 0.2%; a read-only "Query the lakehouse" workflow prints any table into a job log. Waiting for the owner's go-ahead for phase 5.
+Phase 4, Reconciliation (issue #51): three crosswalks in silver (`team_xwalk`, `game_xwalk`, `player_xwalk` with exact, fuzzy-with-birthdate and override passes, plus `player_xwalk_review`), `player_game_reconciliation`, `ops.reconciliation` (differences with the resolution rule) and `ops.reconciliation_summary` (match and conflict rates per league and season, printed in every build log), `fct_player_game.source_agreement` and resolved values, `dim_player.espn_player_id`, a warn-severity coverage check, ADR 0005. Full backfill on Databricks (build 40547678267): 156,899 box-score lines, 99.5% matched, every season at or above 99.3% of played player-games, every conflict rate at or below 0.21%, 244 checks pass with no warning; a read-only "Query the lakehouse" workflow prints any table into a job log. Evidence on issue #51. Waiting for the owner's go-ahead for phase 5.
 
 Phase 3, Gold + quality, is done (issue #22; PRs #23 to #48). Gold star schema and fantasy marts, quality checks with the spec's severities, `ops.test_results` and `ops.publish_gate` written after every build, failing-row samples in the gate output and the incident comment. The full backfill landed on the two home runners (WNBA 2018 to 2026, NBA 2023-24 to 2026-27) and build 40533318734 passed 195 of 195 checks with the gate open; incident #25 closed itself. Chaos drill: run 40534274422 (chaos input) blocked the gate and opened an incident, run 40535051516 passed and closed it. Waiting for the owner's go-ahead for phase 4.
 
@@ -46,7 +46,7 @@ Phase 1, Ingest, is done (issue #7; PRs #8, #9, #10, #13, #14). Daily `ingest.ym
 | Phase 1 Ingest | Done 2026-10-27 (both sources landing daily; ADR 0002 accepted) |
 | Phase 2 Lakehouse | Done 2026-10-27 (issue #16): dbt build PASS=114 on DuckDB (CI) and Databricks; Asset Bundle job deployed paused |
 | Phase 3 Gold + quality | Done 2026-10-27 (issue #22): star schema, marts, checks, results table, gate; full backfill loaded, 195 checks pass on Databricks, chaos drill proven |
-| Phase 4 Reconciliation | Built 2026-10-27 (issue #51): crosswalks, ops.reconciliation, summary per league and season, source_agreement; ADR 0005 |
+| Phase 4 Reconciliation | Done 2026-10-27 (issue #51): crosswalks, ops.reconciliation, summary per league and season, source_agreement; 99.5% matched, every season ≥ 99.3% played; ADR 0005 |
 | Phase 5 Serving + app | Not started |
 | Phase 6 Analysis surfaces | Not started |
 | Phase 7 AI notes | Not started |
