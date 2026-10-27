@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Literal
 
-from ingest.http import ThrottledClient, stats_headers
+from ingest.http import CircuitOpenError, ThrottledClient, stats_headers
 from ingest.landing import League
 from ingest.run import RunSummary
 from ingest.store import Landing, LandResult, Scope
@@ -315,6 +315,8 @@ class StatsIngestor:
     def _try(self, request: Request, summary: RunSummary) -> bytes | None:
         try:
             result, body = self.fetch(request)
+        except CircuitOpenError:
+            raise  # the host stopped answering: stop the run rather than hammer it
         except Exception as exc:  # a failed request never fails the run
             summary.fail(request.endpoint, request.key, exc)
             return None
@@ -323,6 +325,16 @@ class StatsIngestor:
 
     def run(self, *, since: date | None = None, until: date | None = None) -> RunSummary:
         summary = RunSummary(SOURCE, self.planner.league, self.planner.season, self._clock())
+        try:
+            self._run(summary, since=since, until=until)
+        except CircuitOpenError as exc:
+            summary.aborted = str(exc)
+        for failure in self.landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
+        summary.pacing = self.client.pacing()
+        return summary
+
+    def _run(self, summary: RunSummary, *, since: date | None, until: date | None) -> None:
         gamelog = self.planner.gamelog_request()
         gamelog_body: bytes | None = None
         for request in self.planner.season_requests():
@@ -330,10 +342,7 @@ class StatsIngestor:
             if request == gamelog:
                 gamelog_body = body
         if gamelog_body is None:
-            # The game log failed, so there is nothing to plan games from.
-            for failure in self.landing.flush():
-                summary.fail(failure.endpoint, failure.key, failure.error)
-            return summary
+            return  # the game log failed, so there is nothing to plan games from
         games = games_in_window(gamelog_body, since=since, until=until)
         summary.games = len(games)
         team_ids: set[str] = set()
@@ -345,6 +354,3 @@ class StatsIngestor:
             self._try(request, summary)
         for request in self.planner.roster_requests(team_ids):
             self._try(request, summary)
-        for failure in self.landing.flush():
-            summary.fail(failure.endpoint, failure.key, failure.error)
-        return summary

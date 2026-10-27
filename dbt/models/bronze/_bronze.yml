@@ -239,6 +239,186 @@ models:
       - name: vtm
         description: "Source column `VTM`"
 
+  - name: stats_playergamelogs
+    description: "One row per player per game from the season game log; the request key names the measure set (advanced-..., base-...)."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: season_year
+        description: "Source column `SEASON_YEAR`"
+      - name: player_id
+        description: "Source column `PLAYER_ID`"
+      - name: player_name
+        description: "Source column `PLAYER_NAME`"
+      - name: nickname
+        description: "Source column `NICKNAME`"
+      - name: team_id
+        description: "Source column `TEAM_ID`"
+      - name: team_abbreviation
+        description: "Source column `TEAM_ABBREVIATION`"
+      - name: team_name
+        description: "Source column `TEAM_NAME`"
+      - name: game_id
+        description: "Source column `GAME_ID`"
+      - name: game_date
+        description: "Source column `GAME_DATE`"
+      - name: matchup
+        description: "Source column `MATCHUP`"
+      - name: wl
+        description: "Source column `WL`"
+      - name: min
+        description: "Source column `MIN`"
+      - name: e_off_rating
+        description: "Source column `E_OFF_RATING`"
+      - name: off_rating
+        description: "Source column `OFF_RATING`"
+      - name: sp_work_off_rating
+        description: "Source column `sp_work_OFF_RATING`"
+      - name: e_def_rating
+        description: "Source column `E_DEF_RATING`"
+      - name: def_rating
+        description: "Source column `DEF_RATING`"
+      - name: sp_work_def_rating
+        description: "Source column `sp_work_DEF_RATING`"
+      - name: e_net_rating
+        description: "Source column `E_NET_RATING`"
+      - name: net_rating
+        description: "Source column `NET_RATING`"
+      - name: sp_work_net_rating
+        description: "Source column `sp_work_NET_RATING`"
+      - name: ast_pct
+        description: "Source column `AST_PCT`"
+      - name: ast_to
+        description: "Source column `AST_TO`"
+      - name: ast_ratio
+        description: "Source column `AST_RATIO`"
+      - name: oreb_pct
+        description: "Source column `OREB_PCT`"
+      - name: dreb_pct
+        description: "Source column `DREB_PCT`"
+      - name: reb_pct
+        description: "Source column `REB_PCT`"
+      - name: tm_tov_pct
+        description: "Source column `TM_TOV_PCT`"
+      - name: e_tov_pct
+        description: "Source column `E_TOV_PCT`"
+      - name: efg_pct
+        description: "Source column `EFG_PCT`"
+      - name: ts_pct
+        description: "Source column `TS_PCT`"
+      - name: usg_pct
+        description: "Source column `USG_PCT`"
+      - name: e_usg_pct
+        description: "Source column `E_USG_PCT`"
+      - name: e_pace
+        description: "Source column `E_PACE`"
+      - name: pace
+        description: "Source column `PACE`"
+      - name: pace_per40
+        description: "Source column `PACE_PER40`"
+      - name: sp_work_pace
+        description: "Source column `sp_work_PACE`"
+      - name: pie
+        description: "Source column `PIE`"
+      - name: poss
+        description: "Source column `POSS`"
+      - name: fgm
+        description: "Source column `FGM`"
+      - name: fga
+        description: "Source column `FGA`"
+      - name: fgm_pg
+        description: "Source column `FGM_PG`"
+      - name: fga_pg
+        description: "Source column `FGA_PG`"
+      - name: fg_pct
+        description: "Source column `FG_PCT`"
+      - name: gp_rank
+        description: "Source column `GP_RANK`"
+      - name: w_rank
+        description: "Source column `W_RANK`"
+      - name: l_rank
+        description: "Source column `L_RANK`"
+      - name: w_pct_rank
+        description: "Source column `W_PCT_RANK`"
+      - name: min_rank
+        description: "Source column `MIN_RANK`"
+      - name: e_off_rating_rank
+        description: "Source column `E_OFF_RATING_RANK`"
+      - name: off_rating_rank
+        description: "Source column `OFF_RATING_RANK`"
+      - name: sp_work_off_rating_rank
+        description: "Source column `sp_work_OFF_RATING_RANK`"
+      - name: e_def_rating_rank
+        description: "Source column `E_DEF_RATING_RANK`"
+      - name: def_rating_rank
+        description: "Source column `DEF_RATING_RANK`"
+      - name: sp_work_def_rating_rank
+        description: "Source column `sp_work_DEF_RATING_RANK`"
+      - name: e_net_rating_rank
+        description: "Source column `E_NET_RATING_RANK`"
+      - name: net_rating_rank
+        description: "Source column `NET_RATING_RANK`"
+      - name: sp_work_net_rating_rank
+        description: "Source column `sp_work_NET_RATING_RANK`"
+      - name: ast_pct_rank
+        description: "Source column `AST_PCT_RANK`"
+      - name: ast_to_rank
+        description: "Source column `AST_TO_RANK`"
+      - name: ast_ratio_rank
+        description: "Source column `AST_RATIO_RANK`"
+      - name: oreb_pct_rank
+        description: "Source column `OREB_PCT_RANK`"
+      - name: dreb_pct_rank
+        description: "Source column `DREB_PCT_RANK`"
+      - name: reb_pct_rank
+        description: "Source column `REB_PCT_RANK`"
+      - name: tm_tov_pct_rank
+        description: "Source column `TM_TOV_PCT_RANK`"
+      - name: e_tov_pct_rank
+        description: "Source column `E_TOV_PCT_RANK`"
+      - name: efg_pct_rank
+        description: "Source column `EFG_PCT_RANK`"
+      - name: ts_pct_rank
+        description: "Source column `TS_PCT_RANK`"
+      - name: usg_pct_rank
+        description: "Source column `USG_PCT_RANK`"
+      - name: e_usg_pct_rank
+        description: "Source column `E_USG_PCT_RANK`"
+      - name: e_pace_rank
+        description: "Source column `E_PACE_RANK`"
+      - name: pace_rank
+        description: "Source column `PACE_RANK`"
+      - name: sp_work_pace_rank
+        description: "Source column `sp_work_PACE_RANK`"
+      - name: pie_rank
+        description: "Source column `PIE_RANK`"
+      - name: fgm_rank
+        description: "Source column `FGM_RANK`"
+      - name: fga_rank
+        description: "Source column `FGA_RANK`"
+      - name: fgm_pg_rank
+        description: "Source column `FGM_PG_RANK`"
+      - name: fga_pg_rank
+        description: "Source column `FGA_PG_RANK`"
+      - name: fg_pct_rank
+        description: "Source column `FG_PCT_RANK`"
+      - name: available_flag
+        description: "Source column `AVAILABLE_FLAG`"
+      - name: min_sec
+        description: "Source column `MIN_SEC`"
+      - name: team_count
+        description: "Source column `TEAM_COUNT`"
+
   - name: stats_boxscoretraditionalv3
     description: "One row per player per game from the v3 traditional box score, home and away."
     columns:

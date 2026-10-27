@@ -73,7 +73,7 @@ jobs:
         run: |
           set -o pipefail
           uv run fs-ingest land stats --league "${{ inputs.league }}" --season "${{ matrix.season }}" \
-            --season-type "${{ matrix.season_type }}" --shots team-season \
+            --season-type "${{ matrix.season_type }}" --shots team-season --pace adaptive \
             --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}" \
             --backend volume 2>&1 | tee land.log
       - name: Report
@@ -124,7 +124,7 @@ jobs:
           set -o pipefail
           uv run fs-ingest land espn --league "${{ inputs.league }}" --season "${{ matrix.season }}" \
             --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}" \
-            --backend volume 2>&1 | tee land.log
+            --pace adaptive --backend volume 2>&1 | tee land.log
       - name: Report
         if: always()
         env:
