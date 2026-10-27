@@ -27,7 +27,7 @@ def main() -> int:
 
     log_path = Path("land.log")
     tail = (
-        "\n".join(log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-25:])
+        "\n".join(log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-80:])
         if log_path.exists()
         else "(no log)"
     )

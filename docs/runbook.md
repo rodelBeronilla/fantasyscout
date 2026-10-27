@@ -125,6 +125,8 @@ from fantasyscout.ops.test_results where run_id = '<run_id>' and status <> 'pass
 
 Severities follow the spec: keys, arithmetic, box-score closure (except turnovers, see ADR 0003), in-season freshness and completeness are errors; minutes closure, event-to-box agreement, shot location sanity, team turnovers and ingest volume anomalies are warnings.
 
+The gate step also prints up to ten failing rows of every failed check (`--sample-failures N`, 0 disables), re-running the check's compiled query with a limit, and the incident comment carries that tail, so an incident names the rows, not only the count.
+
 ## Chaos drill
 
 Prove the gate and the incident path on demand, without touching data: run the Build lakehouse workflow with the `chaos` input ticked. The `chaos_deliberate_failure` check fails at error severity, the gate blocks, the run fails and an incident issue opens. Run the workflow again without the input; the gate passes and the issue closes itself. Do this after any change to `ops/results.py`, `incident.py` or the build workflow.
