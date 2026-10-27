@@ -58,12 +58,18 @@ jobs:
           STATS_RUNNER_LABEL: ${{ vars.STATS_RUNNER_LABEL }}
         run: |
           echo "leagues=$LEAGUES" >> "$GITHUB_OUTPUT"
-          [ "$SOURCE" != "stats" ] && echo "run_espn=true" >> "$GITHUB_OUTPUT" || echo "run_espn=false" >> "$GITHUB_OUTPUT"
+          if [ "$SOURCE" != "stats" ]; then
+            echo "run_espn=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_espn=false" >> "$GITHUB_OUTPUT"
+          fi
           if [ "$SOURCE" != "espn" ] && [ -n "$STATS_RUNNER_LABEL" ]; then
             echo "run_stats=true" >> "$GITHUB_OUTPUT"
           else
             echo "run_stats=false" >> "$GITHUB_OUTPUT"
-            [ "$SOURCE" != "espn" ] && echo "::notice::stats job skipped: STATS_RUNNER_LABEL is not set (ADR 0002)"
+            if [ "$SOURCE" != "espn" ]; then
+              echo "::notice::stats job skipped: STATS_RUNNER_LABEL is not set (ADR 0002)"
+            fi
           fi
 
   espn:
