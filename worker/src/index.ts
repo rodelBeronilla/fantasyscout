@@ -15,6 +15,8 @@ export interface Env {
 
 const DATA_PREFIX = '/data/';
 const LATEST_KEY = 'latest.json';
+/** Player pages are addressed by league and id but rendered by one page. */
+export const PLAYER_PATH = /^\/p\/(wnba|nba)\/[^/]+\/?$/;
 
 const CSP = [
   "default-src 'self'",
@@ -45,6 +47,9 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
   parquet: 'application/vnd.apache.parquet',
   csv: 'text/csv; charset=utf-8',
   txt: 'text/plain; charset=utf-8',
+  // The DuckDB-WASM engine lives in the bucket under vendor/ (too large for a static asset).
+  wasm: 'application/wasm',
+  js: 'text/javascript; charset=utf-8',
 };
 
 function withSecurityHeaders(response: Response): Response {
@@ -159,6 +164,12 @@ export default {
 
     if (url.pathname.startsWith(DATA_PREFIX)) {
       return withSecurityHeaders(await serveData(request, env, url.pathname.slice(DATA_PREFIX.length)));
+    }
+
+    // One static page serves every player: /p/{league}/{player_id}/ -> /p/ (the island reads the URL).
+    if (PLAYER_PATH.test(url.pathname)) {
+      const page = new URL('/p/', url);
+      return withSecurityHeaders(await env.ASSETS.fetch(new Request(page, request)));
     }
 
     return withSecurityHeaders(await env.ASSETS.fetch(request));

@@ -8,7 +8,14 @@ interface Props {
 }
 
 const { title, description } = Astro.props;
-const league = 'wnba';
+
+const nav = [
+  ['Board', '/'],
+  ['Streamers', '/streamers/'],
+  ['Data Health', '/health/'],
+  ['SQL', '/sql/'],
+] as const;
+const current = Astro.url.pathname;
 ---
 
 <!doctype html>
@@ -19,6 +26,7 @@ const league = 'wnba';
     <title>{title} · FantasyScout</title>
     <meta name="description" content={description} />
     <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
+    <script src="../scripts/theme.ts"></script>
   </head>
   <body>
     <a
@@ -29,35 +37,69 @@ const league = 'wnba';
     </a>
     <header class="border-b border-line">
       <nav
-        class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3"
+        class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3"
         aria-label="Primary"
       >
         <a href={href('/')} class="text-lg font-semibold tracking-tight">FantasyScout</a>
-        <div class="flex items-center gap-1 rounded-full border border-line p-1" role="group" aria-label="League">
+        <ul class="flex flex-wrap items-center gap-1 text-sm">
           {
-            LEAGUES.map((l) => (
-              <span
-                class:list={[
-                  'rounded-full px-3 py-1 text-sm',
-                  l.id === league ? 'bg-accent text-accent-fg' : 'text-muted',
-                ]}
-                aria-current={l.id === league ? 'true' : undefined}
-              >
-                {l.label}
-              </span>
+            nav.map(([label, path]) => (
+              <li>
+                <a
+                  href={href(path)}
+                  class:list={[
+                    'rounded px-2 py-1 underline-offset-4 hover:underline',
+                    current === path ? 'font-semibold' : 'text-muted',
+                  ]}
+                  aria-current={current === path ? 'page' : undefined}
+                >
+                  {label}
+                </a>
+              </li>
             ))
           }
+        </ul>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1 rounded-full border border-line p-1" role="group" aria-label="League">
+            {
+              LEAGUES.map((l) => (
+                <a
+                  href={`?league=${l.id}`}
+                  data-league={l.id}
+                  class="rounded-full px-3 py-1 text-sm text-muted aria-[current=true]:bg-accent aria-[current=true]:text-accent-fg"
+                >
+                  {l.label}
+                </a>
+              ))
+            }
+          </div>
+          <button
+            type="button"
+            data-theme-toggle
+            class="rounded-full border border-line px-3 py-1 text-sm text-muted"
+            aria-label="Toggle dark or light theme"
+            title="Toggle theme"
+          >
+            ◐
+          </button>
         </div>
       </nav>
     </header>
-    <main id="main" class="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
+    <main id="main" class="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
       <slot />
     </main>
     <footer class="border-t border-line">
-      <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-sm text-muted">
-        <span>Data as of: no build yet · Build <code data-build-id>{BUILD_ID}</code></span>
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-sm text-muted">
+        <span>
+          Data as of <span data-data-as-of>no build yet</span> · Data build
+          <a data-data-build-link href={href('/health/')} class="underline-offset-4 hover:underline"
+            ><code data-data-build-id>none</code></a
+          >
+          · App <code data-build-id>{BUILD_ID}</code>
+        </span>
         <a href={REPO_URL} class="underline-offset-4 hover:underline">Source on GitHub</a>
       </div>
     </footer>
+    <script src="../scripts/chrome.ts"></script>
   </body>
 </html>
