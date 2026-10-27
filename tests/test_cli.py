@@ -19,8 +19,22 @@ def test_land_parser_accepts_spec_flags() -> None:
     assert args.full_refresh is True
 
 
-def test_land_runs_without_fetching() -> None:
+def test_land_dry_run_exits_zero(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["land", "stats", "--dry-run"]) == 0
+    assert "leaguegamelog" in capsys.readouterr().out
+
+
+def test_land_exit_code_reflects_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import UTC, datetime
+
+    from ingest import land as land_mod
+    from ingest.run import RunSummary
+
+    clean = RunSummary("espn", "wnba", "2026", datetime(2026, 10, 27, tzinfo=UTC))
+    monkeypatch.setattr(land_mod, "land", lambda opts, **_: clean)
+    assert main(["land", "espn"]) == 0
+    clean.fail("injuries", "league", RuntimeError("HTTP 503"))
+    assert main(["land", "espn"]) == 2
 
 
 def test_probe_writes_report_and_table(

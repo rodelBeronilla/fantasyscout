@@ -1,0 +1,142 @@
+name: Ingest
+
+# Lands raw payloads in the Unity Catalog volume. ESPN runs on GitHub-hosted runners.
+# The league stats API does not answer GitHub's address ranges (ADR 0002), so that job
+# runs only when a self-hosted runner label is configured in the repository variable
+# STATS_RUNNER_LABEL. A failed run opens or updates a data-incident issue; the next
+# passing run closes it.
+
+on:
+  schedule:
+    - cron: "15 9 * * *" # daily, after the previous night's games are final
+  workflow_dispatch:
+    inputs:
+      source:
+        description: Which source to run
+        type: choice
+        options: [both, espn, stats]
+        default: both
+      league:
+        description: Which league
+        type: choice
+        options: [both, wnba, nba]
+        default: both
+      since:
+        description: First game date (YYYY-MM-DD); default is a 7-day window ending today
+        type: string
+      until:
+        description: Last game date (YYYY-MM-DD); default is today
+        type: string
+      full_refresh:
+        description: Re-fetch and re-land everything in the window
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+env:
+  LEAGUES: ${{ (inputs.league == 'wnba' && '["wnba"]') || (inputs.league == 'nba' && '["nba"]') || '["wnba","nba"]' }}
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      leagues: ${{ steps.plan.outputs.leagues }}
+      run_espn: ${{ steps.plan.outputs.run_espn }}
+      run_stats: ${{ steps.plan.outputs.run_stats }}
+    steps:
+      - id: plan
+        env:
+          SOURCE: ${{ inputs.source || 'both' }}
+          STATS_RUNNER_LABEL: ${{ vars.STATS_RUNNER_LABEL }}
+        run: |
+          echo "leagues=$LEAGUES" >> "$GITHUB_OUTPUT"
+          [ "$SOURCE" != "stats" ] && echo "run_espn=true" >> "$GITHUB_OUTPUT" || echo "run_espn=false" >> "$GITHUB_OUTPUT"
+          if [ "$SOURCE" != "espn" ] && [ -n "$STATS_RUNNER_LABEL" ]; then
+            echo "run_stats=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_stats=false" >> "$GITHUB_OUTPUT"
+            [ "$SOURCE" != "espn" ] && echo "::notice::stats job skipped: STATS_RUNNER_LABEL is not set (ADR 0002)"
+          fi
+
+  espn:
+    name: ESPN ${{ matrix.league }}
+    needs: plan
+    if: needs.plan.outputs.run_espn == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        league: ${{ fromJSON(needs.plan.outputs.leagues) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Land
+        id: land
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          SINCE: ${{ inputs.since }}
+          UNTIL: ${{ inputs.until }}
+          FULL_REFRESH: ${{ inputs.full_refresh }}
+        run: |
+          set -o pipefail
+          args=(land espn --league "${{ matrix.league }}" --backend volume)
+          [ -n "$SINCE" ] && args+=(--since "$SINCE")
+          [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
+          [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
+          uv run fs-ingest "${args[@]}" 2>&1 | tee land.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Ingest failure: espn ${{ matrix.league }}"
+          OUTCOME: ${{ steps.land.outcome }}
+        run: .github/scripts/incident.sh
+
+  stats:
+    name: Stats API ${{ matrix.league }}
+    needs: plan
+    if: needs.plan.outputs.run_stats == 'true'
+    runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1 # one request at a time per host, across leagues too
+      matrix:
+        league: ${{ fromJSON(needs.plan.outputs.leagues) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+      - run: uv sync --frozen
+      - name: Land
+        id: land
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          SINCE: ${{ inputs.since }}
+          UNTIL: ${{ inputs.until }}
+          FULL_REFRESH: ${{ inputs.full_refresh }}
+        run: |
+          set -o pipefail
+          args=(land stats --league "${{ matrix.league }}" --backend volume)
+          [ -n "$SINCE" ] && args+=(--since "$SINCE")
+          [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
+          [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
+          uv run fs-ingest "${args[@]}" 2>&1 | tee land.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Ingest failure: stats ${{ matrix.league }}"
+          OUTCOME: ${{ steps.land.outcome }}
+        run: .github/scripts/incident.sh

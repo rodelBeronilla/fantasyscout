@@ -5,6 +5,7 @@ One record per real decision, written when the decision is made. Numbered, never
 | ADR | Title | Status |
 | --- | --- | --- |
 | [0001](0001-hosting-path.md) | Host FantasyScout on its own subdomain | Accepted |
+| [0002](0002-where-ingestion-runs.md) | Where ingestion runs | Proposed |
 
 Template:
 
