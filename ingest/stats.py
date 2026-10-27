@@ -273,7 +273,8 @@ class StatsIngestor:
                 gamelog_body = body
         if gamelog_body is None:
             # The game log failed, so there is nothing to plan games from.
-            self.landing.flush()
+            for failure in self.landing.flush():
+                summary.fail(failure.endpoint, failure.key, failure.error)
             return summary
         games = games_in_window(gamelog_body, since=since, until=until)
         summary.games = len(games)
@@ -284,5 +285,6 @@ class StatsIngestor:
                 self._try(request, summary)
         for request in self.planner.roster_requests(team_ids):
             self._try(request, summary)
-        self.landing.flush()
+        for failure in self.landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
         return summary

@@ -1,0 +1,40 @@
+{# One row per player per game, typed, from the v3 traditional box score. Latest landing wins. #}
+
+select
+    league,
+    season,
+    game_id,
+    person_id as player_id,
+    league || ':' || game_id || ':' || person_id as player_game_key,
+    team_id,
+    team_tricode,
+    side,
+    first_name,
+    family_name,
+    name_i as name_short,
+    position,
+    comment,
+    jersey_num,
+    minutes as minutes_text,
+    {{ minutes_to_decimal('minutes') }} as minutes,
+    try_cast(field_goals_made as integer) as field_goals_made,
+    try_cast(field_goals_attempted as integer) as field_goals_attempted,
+    try_cast(three_pointers_made as integer) as three_pointers_made,
+    try_cast(three_pointers_attempted as integer) as three_pointers_attempted,
+    try_cast(free_throws_made as integer) as free_throws_made,
+    try_cast(free_throws_attempted as integer) as free_throws_attempted,
+    try_cast(rebounds_offensive as integer) as rebounds_offensive,
+    try_cast(rebounds_defensive as integer) as rebounds_defensive,
+    try_cast(rebounds_total as integer) as rebounds_total,
+    try_cast(assists as integer) as assists,
+    try_cast(steals as integer) as steals,
+    try_cast(blocks as integer) as blocks,
+    try_cast(turnovers as integer) as turnovers,
+    try_cast(fouls_personal as integer) as fouls_personal,
+    try_cast(points as integer) as points,
+    try_cast(plus_minus_points as integer) as plus_minus,
+    _ingest_date,
+    _source_file
+from {{ ref('stats_boxscoretraditionalv3') }}
+where game_id is not null and person_id is not null
+qualify row_number() over (partition by league, game_id, person_id order by _ingest_date desc, _source_file desc) = 1

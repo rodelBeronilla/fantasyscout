@@ -39,11 +39,41 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
-      - run: uv sync --frozen
+      - run: uv sync --frozen --group dbt
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
       - run: uv run pytest
+
+  dbt:
+    name: dbt build on DuckDB
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --group dbt
+      - name: Sample landing is current
+        run: |
+          uv run python dbt/sample/build_sample.py >/dev/null
+          git diff --exit-code -- dbt/sample || { echo "::error::dbt/sample is stale; run dbt/sample/build_sample.py and commit"; exit 1; }
+      - name: dbt build (fixtures, from scratch)
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+        run: uv run dbt build --target duckdb
+      - name: dbt build (second run exercises the incremental path)
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+        run: uv run dbt build --target duckdb
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: dbt-duckdb-run-results
+          path: dbt/target/run_results.json
+          retention-days: 7
 
   web:
     name: Web (check, lint, build, Playwright)

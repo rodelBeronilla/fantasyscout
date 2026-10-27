@@ -1,0 +1,255 @@
+version: 2
+
+models:
+  - name: team_game_box
+    description: "One row per team per game from the league game log, typed."
+    columns:
+      - name: team_game_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: season
+        description: "season"
+        data_tests: [not_null]
+      - name: game_id
+        description: "game id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "team id"
+        data_tests: [not_null]
+      - name: game_date
+        description: "game date"
+        data_tests: [not_null]
+
+  - name: games
+    description: "One row per game with home and away sides and the final score."
+    columns:
+      - name: game_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: season
+        description: "season"
+        data_tests: [not_null]
+      - name: game_id
+        description: "game id"
+        data_tests: [not_null]
+      - name: game_date
+        description: "game date"
+        data_tests: [not_null]
+
+  - name: schedule
+    description: "One row per scheduled game with status, venue and tip-off time."
+    columns:
+      - name: game_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: season
+        description: "season"
+        data_tests: [not_null]
+      - name: game_id
+        description: "game id"
+        data_tests: [not_null]
+
+  - name: player_game_box
+    description: "One row per player per game, traditional box score, typed."
+    columns:
+      - name: player_game_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: season
+        description: "season"
+        data_tests: [not_null]
+      - name: game_id
+        description: "game id"
+        data_tests: [not_null]
+      - name: player_id
+        description: "player id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "team id"
+        data_tests: [not_null]
+
+  - name: player_game_advanced
+    description: "One row per player per game, advanced box score, typed."
+    columns:
+      - name: player_game_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: season
+        description: "season"
+        data_tests: [not_null]
+      - name: game_id
+        description: "game id"
+        data_tests: [not_null]
+      - name: player_id
+        description: "player id"
+        data_tests: [not_null]
+
+  - name: events
+    description: "One row per play-by-play action, typed."
+    columns:
+      - name: event_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: season
+        description: "season"
+        data_tests: [not_null]
+      - name: game_id
+        description: "game id"
+        data_tests: [not_null]
+      - name: action_number
+        description: "action number"
+        data_tests: [not_null]
+
+  - name: shots
+    description: "One row per field goal attempt with court coordinates."
+    columns:
+      - name: shot_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: season
+        description: "season"
+        data_tests: [not_null]
+      - name: game_id
+        description: "game id"
+        data_tests: [not_null]
+      - name: game_event_id
+        description: "game event id"
+        data_tests: [not_null]
+      - name: player_id
+        description: "player id"
+        data_tests: [not_null]
+
+  - name: players
+    description: "One row per player per league from the player directory."
+    columns:
+      - name: player_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: player_id
+        description: "player id"
+        data_tests: [not_null]
+      - name: full_name
+        description: "full name"
+        data_tests: [not_null]
+
+  - name: teams
+    description: "One row per team per season, enriched from the teams seed."
+    columns:
+      - name: team_season_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: season
+        description: "season"
+        data_tests: [not_null]
+      - name: team_id
+        description: "team id"
+        data_tests: [not_null]
+      - name: abbreviation
+        description: "abbreviation"
+        data_tests: [not_null]
+
+  - name: rosters
+    description: "One row per rostered player per team per season."
+    columns:
+      - name: roster_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: season
+        description: "season"
+        data_tests: [not_null]
+      - name: team_id
+        description: "team id"
+        data_tests: [not_null]
+      - name: player_id
+        description: "player id"
+        data_tests: [not_null]
+
+  - name: espn_events
+    description: "One row per ESPN event with competitors unpacked."
+    columns:
+      - name: event_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: event_id
+        description: "event id"
+        data_tests: [not_null]
+      - name: event_date
+        description: "event date"
+        data_tests: [not_null]
+      - name: home_team_id
+        description: "home team id"
+        data_tests: [not_null]
+      - name: away_team_id
+        description: "away team id"
+        data_tests: [not_null]
+
+  - name: espn_player_game
+    description: "One row per player per game from ESPN's box score."
+    columns:
+      - name: player_game_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: event_id
+        description: "event id"
+        data_tests: [not_null]
+      - name: athlete_id
+        description: "athlete id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "team id"
+        data_tests: [not_null]
+
+  - name: injuries
+    description: "One row per injury listing from ESPN's report."
+    columns:
+      - name: injury_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "league"
+        data_tests: [not_null]
+      - name: injury_id
+        description: "injury id"
+        data_tests: [not_null]
+      - name: athlete_name
+        description: "athlete name"
+        data_tests: [not_null]
+      - name: status
+        description: "status"
+        data_tests: [not_null]

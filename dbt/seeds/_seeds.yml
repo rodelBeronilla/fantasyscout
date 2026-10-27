@@ -1,0 +1,69 @@
+version: 2
+
+seeds:
+  - name: team_reference
+    description: >
+      Team reference data for both leagues as of the 2026 WNBA and 2026-27 NBA seasons, including
+      the WNBA expansion teams. Stats API ids are filled from landed data; blank until a team's
+      first game is landed. Abbreviations are the league stats API tricodes.
+    config:
+      column_types:
+        stats_team_id: varchar
+    columns:
+      - name: league
+        description: wnba or nba
+        data_tests: [not_null]
+      - name: abbreviation
+        description: The league stats API tricode for the team
+        data_tests: [not_null]
+      - name: stats_team_id
+        description: Team id in the league stats API
+      - name: name
+        description: Franchise name without the city
+      - name: city
+        description: Market name
+      - name: conference
+        description: Eastern or Western
+      - name: note
+        description: Free text, for example "expansion team (2026)"
+
+  - name: category_config
+    description: The fantasy categories per league and how each one is computed from silver columns.
+    config:
+      column_types:
+        is_percentage: boolean
+        sort_order: integer
+    columns:
+      - name: league
+        description: wnba or nba
+      - name: category
+        description: Short label shown on the board (PTS, REB, ...)
+        data_tests: [not_null]
+      - name: column_name
+        description: Column in the player-game fact that holds the category value
+      - name: direction
+        description: positive when more is better, negative for turnovers
+      - name: is_percentage
+        description: true for volume-weighted percentages computed as numerator over denominator
+      - name: numerator_column
+        description: Makes column for percentage categories
+      - name: denominator_column
+        description: Attempts column for percentage categories
+      - name: sort_order
+        description: Display order on the board
+
+  - name: player_id_overrides
+    description: Manual links between stats API and ESPN player ids when name matching fails (phase 4 reconciliation).
+    config:
+      column_types:
+        stats_player_id: varchar
+        espn_player_id: varchar
+    columns:
+      - name: league
+        description: wnba or nba
+      - name: stats_player_id
+        description: Player id in the league stats API
+      - name: espn_player_id
+        description: Player id in ESPN's API
+      - name: reason
+        description: Why the automatic match failed

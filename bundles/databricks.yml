@@ -1,0 +1,60 @@
+# Databricks Asset Bundle: the nightly dbt build as a Databricks Job.
+#
+#   databricks bundle validate -t prod
+#   databricks bundle deploy   -t prod
+#   databricks bundle run      -t prod fantasyscout_build
+#
+# The job runs the dbt project synced from this repo on serverless compute against the SQL
+# warehouse named in var.warehouse_id. GitHub Actions remains the primary build runner
+# (.github/workflows/build.yml); this job is the same build scheduled inside the workspace.
+bundle:
+  name: fantasyscout
+
+variables:
+  warehouse_id:
+    description: SQL warehouse the dbt task connects to
+  catalog:
+    description: Unity Catalog catalog
+    default: fantasyscout
+
+sync:
+  paths:
+    - ../dbt
+
+resources:
+  jobs:
+    fantasyscout_build:
+      name: fantasyscout_build
+      description: dbt build of bronze and silver (gold and ops from phase 3) over the landing volume.
+      tags:
+        project: fantasyscout
+      schedule:
+        quartz_cron_expression: "0 45 10 * * ?" # daily, after the ingest workflow
+        timezone_id: UTC
+        pause_status: PAUSED # unpause once the GitHub Actions build and this job agree
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: dbt
+          spec:
+            client: "2"
+            dependencies:
+              - dbt-databricks>=1.10,<2
+      tasks:
+        - task_key: dbt_build
+          environment_key: dbt
+          dbt_task:
+            project_directory: dbt
+            catalog: ${var.catalog}
+            schema: bronze
+            warehouse_id: ${var.warehouse_id}
+            commands:
+              - dbt build --target databricks
+
+targets:
+  dev:
+    mode: development
+    default: true
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Shared/.bundle/fantasyscout/prod

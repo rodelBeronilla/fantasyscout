@@ -1,0 +1,866 @@
+version: 2
+
+models:
+  - name: stats_leaguegamelog
+    description: "One row per team per game from the league game log (team totals)."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: season_id
+        description: "Source column `SEASON_ID`"
+      - name: team_id
+        description: "Source column `TEAM_ID`"
+      - name: team_abbreviation
+        description: "Source column `TEAM_ABBREVIATION`"
+      - name: team_name
+        description: "Source column `TEAM_NAME`"
+      - name: game_id
+        description: "Source column `GAME_ID`"
+      - name: game_date
+        description: "Source column `GAME_DATE`"
+      - name: matchup
+        description: "Source column `MATCHUP`"
+      - name: wl
+        description: "Source column `WL`"
+      - name: min
+        description: "Source column `MIN`"
+      - name: fgm
+        description: "Source column `FGM`"
+      - name: fga
+        description: "Source column `FGA`"
+      - name: fg_pct
+        description: "Source column `FG_PCT`"
+      - name: fg3m
+        description: "Source column `FG3M`"
+      - name: fg3a
+        description: "Source column `FG3A`"
+      - name: fg3_pct
+        description: "Source column `FG3_PCT`"
+      - name: ftm
+        description: "Source column `FTM`"
+      - name: fta
+        description: "Source column `FTA`"
+      - name: ft_pct
+        description: "Source column `FT_PCT`"
+      - name: oreb
+        description: "Source column `OREB`"
+      - name: dreb
+        description: "Source column `DREB`"
+      - name: reb
+        description: "Source column `REB`"
+      - name: ast
+        description: "Source column `AST`"
+      - name: stl
+        description: "Source column `STL`"
+      - name: blk
+        description: "Source column `BLK`"
+      - name: tov
+        description: "Source column `TOV`"
+      - name: pf
+        description: "Source column `PF`"
+      - name: pts
+        description: "Source column `PTS`"
+      - name: plus_minus
+        description: "Source column `PLUS_MINUS`"
+      - name: video_available
+        description: "Source column `VIDEO_AVAILABLE`"
+
+  - name: stats_commonallplayers
+    description: "One row per player in the league's player directory for the season."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: person_id
+        description: "Source column `PERSON_ID`"
+      - name: display_last_comma_first
+        description: "Source column `DISPLAY_LAST_COMMA_FIRST`"
+      - name: display_first_last
+        description: "Source column `DISPLAY_FIRST_LAST`"
+      - name: rosterstatus
+        description: "Source column `ROSTERSTATUS`"
+      - name: from_year
+        description: "Source column `FROM_YEAR`"
+      - name: to_year
+        description: "Source column `TO_YEAR`"
+      - name: playercode
+        description: "Source column `PLAYERCODE`"
+      - name: player_slug
+        description: "Source column `PLAYER_SLUG`"
+      - name: team_id
+        description: "Source column `TEAM_ID`"
+      - name: team_city
+        description: "Source column `TEAM_CITY`"
+      - name: team_name
+        description: "Source column `TEAM_NAME`"
+      - name: team_abbreviation
+        description: "Source column `TEAM_ABBREVIATION`"
+      - name: team_code
+        description: "Source column `TEAM_CODE`"
+      - name: team_slug
+        description: "Source column `TEAM_SLUG`"
+      - name: is_nba_assigned
+        description: "Source column `IS_NBA_ASSIGNED`"
+      - name: nba_assigned_team_id
+        description: "Source column `NBA_ASSIGNED_TEAM_ID`"
+      - name: games_played_flag
+        description: "Source column `GAMES_PLAYED_FLAG`"
+
+  - name: stats_commonteamroster
+    description: "One row per rostered player per team (the Coaches result set is not loaded)."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: team_id
+        description: "Source column `TeamID`"
+      - name: season
+        description: "Source column `SEASON`"
+      - name: league_id
+        description: "Source column `LeagueID`"
+      - name: player
+        description: "Source column `PLAYER`"
+      - name: nickname
+        description: "Source column `NICKNAME`"
+      - name: player_slug
+        description: "Source column `PLAYER_SLUG`"
+      - name: num
+        description: "Source column `NUM`"
+      - name: position
+        description: "Source column `POSITION`"
+      - name: height
+        description: "Source column `HEIGHT`"
+      - name: weight
+        description: "Source column `WEIGHT`"
+      - name: birth_date
+        description: "Source column `BIRTH_DATE`"
+      - name: age
+        description: "Source column `AGE`"
+      - name: exp
+        description: "Source column `EXP`"
+      - name: school
+        description: "Source column `SCHOOL`"
+      - name: player_id
+        description: "Source column `PLAYER_ID`"
+      - name: how_acquired
+        description: "Source column `HOW_ACQUIRED`"
+      - name: supplemental_status
+        description: "Source column `SUPPLEMENTAL_STATUS`"
+
+  - name: stats_shotchartdetail
+    description: "One row per field goal attempt with court coordinates."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: grid_type
+        description: "Source column `GRID_TYPE`"
+      - name: game_id
+        description: "Source column `GAME_ID`"
+      - name: game_event_id
+        description: "Source column `GAME_EVENT_ID`"
+      - name: player_id
+        description: "Source column `PLAYER_ID`"
+      - name: player_name
+        description: "Source column `PLAYER_NAME`"
+      - name: team_id
+        description: "Source column `TEAM_ID`"
+      - name: team_name
+        description: "Source column `TEAM_NAME`"
+      - name: period
+        description: "Source column `PERIOD`"
+      - name: minutes_remaining
+        description: "Source column `MINUTES_REMAINING`"
+      - name: seconds_remaining
+        description: "Source column `SECONDS_REMAINING`"
+      - name: event_type
+        description: "Source column `EVENT_TYPE`"
+      - name: action_type
+        description: "Source column `ACTION_TYPE`"
+      - name: shot_type
+        description: "Source column `SHOT_TYPE`"
+      - name: shot_zone_basic
+        description: "Source column `SHOT_ZONE_BASIC`"
+      - name: shot_zone_area
+        description: "Source column `SHOT_ZONE_AREA`"
+      - name: shot_zone_range
+        description: "Source column `SHOT_ZONE_RANGE`"
+      - name: shot_distance
+        description: "Source column `SHOT_DISTANCE`"
+      - name: loc_x
+        description: "Source column `LOC_X`"
+      - name: loc_y
+        description: "Source column `LOC_Y`"
+      - name: shot_attempted_flag
+        description: "Source column `SHOT_ATTEMPTED_FLAG`"
+      - name: shot_made_flag
+        description: "Source column `SHOT_MADE_FLAG`"
+      - name: game_date
+        description: "Source column `GAME_DATE`"
+      - name: htm
+        description: "Source column `HTM`"
+      - name: vtm
+        description: "Source column `VTM`"
+
+  - name: stats_boxscoretraditionalv3
+    description: "One row per player per game from the v3 traditional box score, home and away."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: game_id
+        description: "Game id"
+      - name: home_team_id
+        description: "Home team id"
+      - name: away_team_id
+        description: "Away team id"
+      - name: side
+        description: "home or away"
+      - name: team_id
+        description: "The player's team id"
+      - name: team_tricode
+        description: "The player's team tricode"
+      - name: person_id
+        description: "Player field `personId`"
+      - name: first_name
+        description: "Player field `firstName`"
+      - name: family_name
+        description: "Player field `familyName`"
+      - name: name_i
+        description: "Player field `nameI`"
+      - name: player_slug
+        description: "Player field `playerSlug`"
+      - name: position
+        description: "Player field `position`"
+      - name: comment
+        description: "Player field `comment`"
+      - name: jersey_num
+        description: "Player field `jerseyNum`"
+      - name: minutes
+        description: "Statistic `minutes`"
+      - name: field_goals_made
+        description: "Statistic `fieldGoalsMade`"
+      - name: field_goals_attempted
+        description: "Statistic `fieldGoalsAttempted`"
+      - name: field_goals_percentage
+        description: "Statistic `fieldGoalsPercentage`"
+      - name: three_pointers_made
+        description: "Statistic `threePointersMade`"
+      - name: three_pointers_attempted
+        description: "Statistic `threePointersAttempted`"
+      - name: three_pointers_percentage
+        description: "Statistic `threePointersPercentage`"
+      - name: free_throws_made
+        description: "Statistic `freeThrowsMade`"
+      - name: free_throws_attempted
+        description: "Statistic `freeThrowsAttempted`"
+      - name: free_throws_percentage
+        description: "Statistic `freeThrowsPercentage`"
+      - name: rebounds_offensive
+        description: "Statistic `reboundsOffensive`"
+      - name: rebounds_defensive
+        description: "Statistic `reboundsDefensive`"
+      - name: rebounds_total
+        description: "Statistic `reboundsTotal`"
+      - name: assists
+        description: "Statistic `assists`"
+      - name: steals
+        description: "Statistic `steals`"
+      - name: blocks
+        description: "Statistic `blocks`"
+      - name: turnovers
+        description: "Statistic `turnovers`"
+      - name: fouls_personal
+        description: "Statistic `foulsPersonal`"
+      - name: points
+        description: "Statistic `points`"
+      - name: plus_minus_points
+        description: "Statistic `plusMinusPoints`"
+
+  - name: stats_boxscoreadvancedv3
+    description: "One row per player per game from the v3 advanced box score, home and away."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: game_id
+        description: "Game id"
+      - name: home_team_id
+        description: "Home team id"
+      - name: away_team_id
+        description: "Away team id"
+      - name: side
+        description: "home or away"
+      - name: team_id
+        description: "The player's team id"
+      - name: team_tricode
+        description: "The player's team tricode"
+      - name: person_id
+        description: "Player field `personId`"
+      - name: first_name
+        description: "Player field `firstName`"
+      - name: family_name
+        description: "Player field `familyName`"
+      - name: name_i
+        description: "Player field `nameI`"
+      - name: player_slug
+        description: "Player field `playerSlug`"
+      - name: position
+        description: "Player field `position`"
+      - name: comment
+        description: "Player field `comment`"
+      - name: jersey_num
+        description: "Player field `jerseyNum`"
+      - name: minutes
+        description: "Statistic `minutes`"
+      - name: estimated_offensive_rating
+        description: "Statistic `estimatedOffensiveRating`"
+      - name: offensive_rating
+        description: "Statistic `offensiveRating`"
+      - name: estimated_defensive_rating
+        description: "Statistic `estimatedDefensiveRating`"
+      - name: defensive_rating
+        description: "Statistic `defensiveRating`"
+      - name: estimated_net_rating
+        description: "Statistic `estimatedNetRating`"
+      - name: net_rating
+        description: "Statistic `netRating`"
+      - name: assist_percentage
+        description: "Statistic `assistPercentage`"
+      - name: assist_to_turnover
+        description: "Statistic `assistToTurnover`"
+      - name: assist_ratio
+        description: "Statistic `assistRatio`"
+      - name: offensive_rebound_percentage
+        description: "Statistic `offensiveReboundPercentage`"
+      - name: defensive_rebound_percentage
+        description: "Statistic `defensiveReboundPercentage`"
+      - name: rebound_percentage
+        description: "Statistic `reboundPercentage`"
+      - name: turnover_ratio
+        description: "Statistic `turnoverRatio`"
+      - name: effective_field_goal_percentage
+        description: "Statistic `effectiveFieldGoalPercentage`"
+      - name: true_shooting_percentage
+        description: "Statistic `trueShootingPercentage`"
+      - name: usage_percentage
+        description: "Statistic `usagePercentage`"
+      - name: estimated_usage_percentage
+        description: "Statistic `estimatedUsagePercentage`"
+      - name: estimated_pace
+        description: "Statistic `estimatedPace`"
+      - name: pace
+        description: "Statistic `pace`"
+      - name: pace_per40
+        description: "Statistic `pacePer40`"
+      - name: possessions
+        description: "Statistic `possessions`"
+      - name: pie
+        description: "Statistic `PIE`"
+
+  - name: stats_playbyplayv3
+    description: "One row per play-by-play action."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: game_id
+        description: "Game id"
+      - name: action_number
+        description: "Action field `actionNumber`"
+      - name: clock
+        description: "Action field `clock`"
+      - name: period
+        description: "Action field `period`"
+      - name: team_id
+        description: "Action field `teamId`"
+      - name: team_tricode
+        description: "Action field `teamTricode`"
+      - name: person_id
+        description: "Action field `personId`"
+      - name: player_name
+        description: "Action field `playerName`"
+      - name: player_name_i
+        description: "Action field `playerNameI`"
+      - name: x_legacy
+        description: "Action field `xLegacy`"
+      - name: y_legacy
+        description: "Action field `yLegacy`"
+      - name: shot_distance
+        description: "Action field `shotDistance`"
+      - name: shot_result
+        description: "Action field `shotResult`"
+      - name: is_field_goal
+        description: "Action field `isFieldGoal`"
+      - name: score_home
+        description: "Action field `scoreHome`"
+      - name: score_away
+        description: "Action field `scoreAway`"
+      - name: points_total
+        description: "Action field `pointsTotal`"
+      - name: location
+        description: "Action field `location`"
+      - name: description
+        description: "Action field `description`"
+      - name: action_type
+        description: "Action field `actionType`"
+      - name: sub_type
+        description: "Action field `subType`"
+      - name: video_available
+        description: "Action field `videoAvailable`"
+      - name: shot_value
+        description: "Action field `shotValue`"
+      - name: action_id
+        description: "Action field `actionId`"
+
+  - name: stats_scheduleleaguev2
+    description: "One row per scheduled game from the league schedule."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: season_year
+        description: "Season label from the schedule"
+      - name: game_date
+        description: "Game date text from the schedule"
+      - name: game_id
+        description: "Game field `gameId`"
+      - name: game_code
+        description: "Game field `gameCode`"
+      - name: game_status
+        description: "Game field `gameStatus`"
+      - name: game_status_text
+        description: "Game field `gameStatusText`"
+      - name: game_sequence
+        description: "Game field `gameSequence`"
+      - name: game_date_est
+        description: "Game field `gameDateEst`"
+      - name: game_time_est
+        description: "Game field `gameTimeEst`"
+      - name: game_date_time_est
+        description: "Game field `gameDateTimeEst`"
+      - name: game_date_utc
+        description: "Game field `gameDateUTC`"
+      - name: game_time_utc
+        description: "Game field `gameTimeUTC`"
+      - name: game_date_time_utc
+        description: "Game field `gameDateTimeUTC`"
+      - name: day
+        description: "Game field `day`"
+      - name: month_num
+        description: "Game field `monthNum`"
+      - name: week_number
+        description: "Game field `weekNumber`"
+      - name: week_name
+        description: "Game field `weekName`"
+      - name: if_necessary
+        description: "Game field `ifNecessary`"
+      - name: series_game_number
+        description: "Game field `seriesGameNumber`"
+      - name: game_label
+        description: "Game field `gameLabel`"
+      - name: game_sub_label
+        description: "Game field `gameSubLabel`"
+      - name: series_text
+        description: "Game field `seriesText`"
+      - name: arena_name
+        description: "Game field `arenaName`"
+      - name: arena_state
+        description: "Game field `arenaState`"
+      - name: arena_city
+        description: "Game field `arenaCity`"
+      - name: postponed_status
+        description: "Game field `postponedStatus`"
+      - name: game_subtype
+        description: "Game field `gameSubtype`"
+      - name: is_neutral
+        description: "Game field `isNeutral`"
+      - name: home_team_id
+        description: "homeTeam field `teamId`"
+      - name: home_team_name
+        description: "homeTeam field `teamName`"
+      - name: home_team_city
+        description: "homeTeam field `teamCity`"
+      - name: home_team_tricode
+        description: "homeTeam field `teamTricode`"
+      - name: home_team_slug
+        description: "homeTeam field `teamSlug`"
+      - name: home_wins
+        description: "homeTeam field `wins`"
+      - name: home_losses
+        description: "homeTeam field `losses`"
+      - name: home_score
+        description: "homeTeam field `score`"
+      - name: home_seed
+        description: "homeTeam field `seed`"
+      - name: away_team_id
+        description: "awayTeam field `teamId`"
+      - name: away_team_name
+        description: "awayTeam field `teamName`"
+      - name: away_team_city
+        description: "awayTeam field `teamCity`"
+      - name: away_team_tricode
+        description: "awayTeam field `teamTricode`"
+      - name: away_team_slug
+        description: "awayTeam field `teamSlug`"
+      - name: away_wins
+        description: "awayTeam field `wins`"
+      - name: away_losses
+        description: "awayTeam field `losses`"
+      - name: away_score
+        description: "awayTeam field `score`"
+      - name: away_seed
+        description: "awayTeam field `seed`"
+
+  - name: espn_scoreboard
+    description: "One row per ESPN event (game) per scoreboard day."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: event_id
+        description: "ESPN event id"
+      - name: event_uid
+        description: "ESPN event uid"
+      - name: event_date
+        description: "Tip-off time, ISO 8601 UTC"
+      - name: name
+        description: "Long event name"
+      - name: short_name
+        description: "Short event name (AWAY @ HOME)"
+      - name: season_year
+        description: "ESPN season year"
+      - name: season_type
+        description: "ESPN season type code (2 regular season, 3 postseason)"
+      - name: status_name
+        description: "Status name"
+      - name: status_state
+        description: "pre, in or post"
+      - name: status_completed
+        description: "true when final"
+      - name: status_period
+        description: "Current or final period"
+      - name: competition_id
+        description: "ESPN competition id"
+      - name: neutral_site
+        description: "true for neutral-site games"
+      - name: venue_name
+        description: "Venue"
+      - name: competitors
+        description: "The two competitors as JSON text (team, homeAway, score, winner)"
+
+  - name: espn_summary_players
+    description: "One row per player per game from the ESPN box score."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: event_id
+        description: "ESPN event id"
+      - name: event_date
+        description: "Tip-off time"
+      - name: team_id
+        description: "ESPN team id"
+      - name: athlete_id
+        description: "ESPN athlete id"
+      - name: athlete_name
+        description: "Display name"
+      - name: jersey
+        description: "Jersey number"
+      - name: position
+        description: "Position abbreviation"
+      - name: starter
+        description: "true for starters"
+      - name: did_not_play
+        description: "true when DNP"
+      - name: reason
+        description: "DNP reason"
+      - name: ejected
+        description: "true when ejected"
+      - name: stat_keys
+        description: "JSON array naming each position in stats"
+      - name: stats
+        description: "JSON array of stat values in stat_keys order"
+
+  - name: espn_summary_teams
+    description: "One row per team per game from the ESPN box score, team totals as JSON."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: event_id
+        description: "ESPN event id"
+      - name: team_id
+        description: "ESPN team id"
+      - name: team_abbreviation
+        description: "ESPN tricode"
+      - name: home_away
+        description: "home or away"
+      - name: statistics
+        description: "JSON array of {name, displayValue, label}"
+
+  - name: espn_summary_plays
+    description: "One row per ESPN play-by-play entry."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: event_id
+        description: "ESPN event id"
+      - name: play_id
+        description: "ESPN play id"
+      - name: sequence_number
+        description: "Order within the game"
+      - name: type_id
+        description: "Play type id"
+      - name: type_text
+        description: "Play type"
+      - name: text
+        description: "Play description"
+      - name: period
+        description: "Period number"
+      - name: clock
+        description: "Game clock"
+      - name: home_score
+        description: "Home score after the play"
+      - name: away_score
+        description: "Away score after the play"
+      - name: scoring_play
+        description: "true when points scored"
+      - name: score_value
+        description: "Points scored"
+      - name: shooting_play
+        description: "true for shot attempts"
+      - name: points_attempted
+        description: "Point value attempted"
+      - name: team_id
+        description: "ESPN team id"
+      - name: participants
+        description: "JSON array of athletes involved"
+      - name: coordinate_x
+        description: "ESPN shot x"
+      - name: coordinate_y
+        description: "ESPN shot y"
+      - name: wallclock
+        description: "Wall clock time of the play"
+
+  - name: espn_teams
+    description: "One row per ESPN team."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: team_id
+        description: "ESPN team id"
+      - name: abbreviation
+        description: "ESPN tricode"
+      - name: display_name
+        description: "Full name"
+      - name: location
+        description: "Market"
+      - name: name
+        description: "Franchise name"
+      - name: slug
+        description: "URL slug"
+      - name: is_active
+        description: "true for active franchises"
+
+  - name: espn_roster
+    description: "One row per rostered athlete per ESPN team."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: team_id
+        description: "ESPN team id"
+      - name: season_year
+        description: "ESPN season year"
+      - name: athlete_id
+        description: "ESPN athlete id"
+      - name: full_name
+        description: "Full name"
+      - name: first_name
+        description: "First name"
+      - name: last_name
+        description: "Last name"
+      - name: jersey
+        description: "Jersey number"
+      - name: position
+        description: "Position abbreviation"
+      - name: height_inches
+        description: "Height in inches"
+      - name: weight_lbs
+        description: "Weight in pounds"
+      - name: date_of_birth
+        description: "Date of birth, ISO 8601"
+      - name: age
+        description: "Age at ingest"
+
+  - name: espn_injuries
+    description: "One row per listed injury per team from ESPN's injury report."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: report_timestamp
+        description: "When ESPN published the report"
+      - name: team_id
+        description: "ESPN team id"
+      - name: team_name
+        description: "Team display name"
+      - name: injury_id
+        description: "ESPN injury id"
+      - name: athlete_id
+        description: "ESPN athlete id"
+      - name: athlete_name
+        description: "Display name"
+      - name: status
+        description: "Out, Day-To-Day, ..."
+      - name: reported_at
+        description: "When the status was set"
+      - name: injury_type
+        description: "Body part or condition"
+      - name: return_date
+        description: "Expected return date"
+      - name: fantasy_status
+        description: "ESPN fantasy status description"
+      - name: short_comment
+        description: "Short note"
+      - name: long_comment
+        description: "Long note"

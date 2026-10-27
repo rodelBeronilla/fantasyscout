@@ -1,0 +1,38 @@
+name: fantasyscout
+version: "0.1.0"
+config-version: 2
+profile: fantasyscout
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+snapshot-paths: ["snapshots"]
+
+target-path: target
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Where landed JSON lives for the DuckDB target. The sample is built from the recorded
+  # fixtures (sample/build_sample.py); point it at a real landing directory for local work.
+  # The Databricks target always reads the Unity Catalog volume (see macros/landing.sql).
+  landing_root: "{{ env_var('FS_LANDING_ROOT', 'sample') }}"
+
+models:
+  fantasyscout:
+    +persist_docs:
+      relation: true
+      columns: true
+    bronze:
+      +schema: bronze
+      +materialized: incremental
+      +incremental_strategy: append
+      +on_schema_change: append_new_columns
+    silver:
+      +schema: silver
+      +materialized: table
+
+seeds:
+  fantasyscout:
+    +schema: ops

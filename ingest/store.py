@@ -14,6 +14,8 @@ SHA-256 of the last landing for every request key, so:
 from __future__ import annotations
 
 import json
+import threading
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from pathlib import Path, PurePosixPath
@@ -90,6 +92,7 @@ class VolumeBackend:
             headers={"Authorization": f"Bearer {token}"}, transport=transport, timeout=timeout
         )
         self._known_dirs: set[str] = set()
+        self._dir_lock = threading.Lock()
 
     def close(self) -> None:
         self._client.close()
@@ -167,13 +170,17 @@ class VolumeBackend:
         return f"{self.host}/api/2.0/fs/files{self._volume_path(path)}"
 
     def _ensure_directory(self, directory: str) -> None:
-        if directory in self._known_dirs:
-            return
-        response = self._client.put(f"{self.host}/api/2.0/fs/directories{directory}")
-        if response.status_code not in (200, 204):
-            msg = f"could not create {directory}: HTTP {response.status_code} {response.text[:200]}"
-            raise RuntimeError(msg)
-        self._known_dirs.add(directory)
+        with self._dir_lock:  # writes run on several threads; create each directory once
+            if directory in self._known_dirs:
+                return
+            response = self._client.put(f"{self.host}/api/2.0/fs/directories{directory}")
+            if response.status_code not in (200, 204):
+                msg = (
+                    f"could not create {directory}: HTTP {response.status_code} "
+                    f"{response.text[:200]}"
+                )
+                raise RuntimeError(msg)
+            self._known_dirs.add(directory)
 
     def read_bytes(self, path: PurePosixPath) -> bytes | None:
         response = self._client.get(self._files_url(path))
@@ -233,15 +240,35 @@ class LandResult:
     sha256: str
 
 
-class Landing:
-    """Writes payloads and sidecars through a backend and keeps the per-scope indexes."""
+@dataclass(frozen=True)
+class WriteFailure:
+    endpoint: str
+    key: str
+    error: BaseException
 
-    def __init__(self, backend: Backend, *, ingest_date: date, full_refresh: bool = False) -> None:
+
+class Landing:
+    """Writes payloads and sidecars through a backend and keeps the per-scope indexes.
+
+    With ``workers`` > 1 the writes run on a small thread pool so uploads overlap the
+    mandatory pause between requests; ``flush()`` waits for them and reports failures.
+    """
+
+    def __init__(
+        self,
+        backend: Backend,
+        *,
+        ingest_date: date,
+        full_refresh: bool = False,
+        workers: int = 1,
+    ) -> None:
         self.backend = backend
         self.ingest_date = ingest_date
         self.full_refresh = full_refresh
         self._indexes: dict[Scope, dict[str, IndexEntry]] = {}
         self._dirty: set[Scope] = set()
+        self._pool = ThreadPoolExecutor(max_workers=workers) if workers > 1 else None
+        self._pending: list[tuple[Scope, str, Future[None]]] = []
 
     def _index(self, scope: Scope) -> dict[str, IndexEntry]:
         if scope not in self._indexes:
@@ -287,10 +314,17 @@ class Landing:
         sidecar = Sidecar.for_response(
             url=url, params=params, status=status, body=body, fetched_at=fetched_at
         )
-        self.backend.write_bytes(path, body)
-        self.backend.write_bytes(
-            sidecar.sidecar_path(path), sidecar.model_dump_json(indent=2).encode("utf-8")
-        )
+        sidecar_bytes = sidecar.model_dump_json(indent=2).encode("utf-8")
+        sidecar_path = sidecar.sidecar_path(path)
+        if self._pool is None:
+            self.backend.write_bytes(path, body)
+            self.backend.write_bytes(sidecar_path, sidecar_bytes)
+        else:
+            write = self.backend.write_bytes
+            self._pending.append((scope, key, self._pool.submit(write, path, body)))
+            self._pending.append(
+                (scope, key, self._pool.submit(write, sidecar_path, sidecar_bytes))
+            )
         index[key] = IndexEntry(
             sha256=sha,
             path=path.as_posix(),
@@ -300,11 +334,26 @@ class Landing:
         self._dirty.add(scope)
         return LandResult("landed", path, sha)
 
-    def flush(self) -> None:
-        """Persist every index touched in this run."""
+    def flush(self) -> list[WriteFailure]:
+        """Wait for queued writes, drop failed keys from the indexes, persist the indexes."""
+        failures: list[WriteFailure] = []
+        failed_keys: set[tuple[Scope, str]] = set()
+        for scope, key, future in self._pending:
+            error = future.exception()
+            if error is not None and (scope, key) not in failed_keys:
+                failed_keys.add((scope, key))
+                failures.append(WriteFailure(scope.endpoint, key, error))
+        self._pending.clear()
+        for scope, key in failed_keys:
+            self._indexes.get(scope, {}).pop(key, None)  # it is not landed; re-fetch next run
         for scope in sorted(self._dirty, key=lambda s: (s.source, s.endpoint, s.league, s.season)):
             payload = {k: asdict(v) for k, v in sorted(self._indexes[scope].items())}
             self.backend.write_bytes(
                 scope.index_path(), (json.dumps(payload, indent=2) + "\n").encode("utf-8")
             )
         self._dirty.clear()
+        return failures
+
+    def close(self) -> None:
+        if self._pool is not None:
+            self._pool.shutdown(wait=True)

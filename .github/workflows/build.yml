@@ -1,0 +1,90 @@
+name: Build lakehouse
+
+# dbt build on Databricks: bronze and silver (and, from phase 3, gold and ops) over the landed
+# volume. Runs after a successful Ingest, or by hand. A failed build opens or updates a
+# data-incident issue; the next passing build closes it.
+
+on:
+  workflow_run:
+    workflows: [Ingest]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      full_refresh:
+        description: Rebuild incremental models from scratch
+        type: boolean
+        default: false
+      select:
+        description: dbt selector (default everything)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: build-lakehouse
+  cancel-in-progress: false
+
+jobs:
+  dbt:
+    name: dbt build on Databricks
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --group dbt
+
+      - name: Resolve the workspace host and SQL warehouse
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -euo pipefail
+          origin=$(uv run python -c "import os; from ingest.store import workspace_origin; print(workspace_origin(os.environ['DATABRICKS_HOST']))")
+          host="${origin#https://}"
+          echo "::add-mask::$host"
+          warehouse=$(curl -sf -H "Authorization: Bearer $DATABRICKS_TOKEN" "$origin/api/2.0/sql/warehouses" \
+            | uv run python -c "import json,sys; w=json.load(sys.stdin)['warehouses']; print(sorted(w, key=lambda x: x.get('creation_time', 0))[0]['id'])")
+          echo "::add-mask::$warehouse"
+          {
+            echo "DBT_DATABRICKS_HOST=$host"
+            echo "DBT_DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/$warehouse"
+          } >> "$GITHUB_ENV"
+
+      - name: dbt build
+        id: build
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+          DBT_TARGET: databricks
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          FULL_REFRESH: ${{ inputs.full_refresh }}
+          SELECT: ${{ inputs.select }}
+        run: |
+          set -o pipefail
+          args=(build --target databricks)
+          [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
+          [ -n "$SELECT" ] && args+=(--select "$SELECT")
+          uv run dbt "${args[@]}" 2>&1 | tee land.log
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: dbt-run-results
+          path: |
+            dbt/target/run_results.json
+            dbt/target/manifest.json
+          retention-days: 14
+
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Build failure: dbt on Databricks"
+          OUTCOME: ${{ steps.build.outcome }}
+        run: uv run python .github/scripts/incident.py

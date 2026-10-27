@@ -181,5 +181,6 @@ class EspnIngestor:
             for team_id in team_ids:
                 self._try(self.planner.roster_request(team_id), summary)
         self._try(self.planner.injuries_request(), summary)
-        self.landing.flush()
+        for failure in self.landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
         return summary
