@@ -38,6 +38,7 @@ ai/          notes generator, prompts, evals/
 notebooks/   01_shot_profiles, 02_reconciliation_audit, 03_fantasy_value_backtest
 web/         Astro app
 worker/      Cloudflare Worker + wrangler.toml
+infra/       self-hosted runner for the jobs that need a residential address
 bundles/     Databricks Asset Bundle: jobs, schedules, targets
 dashboards/  Tableau extract script + publish README
 docs/        adr/, runbook.md, architecture.md, data-dictionary.md (generated)

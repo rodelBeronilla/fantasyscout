@@ -94,23 +94,42 @@ class VolumeBackend:
     def close(self) -> None:
         self._client.close()
 
-    def _uc_create(self, kind: str, payload: dict[str, str]) -> str:
-        """POST one Unity Catalog object; an existing object counts as success."""
-        response = self._client.post(f"{self.host}/api/2.1/unity-catalog/{kind}", json=payload)
-        if response.status_code in (200, 201):
+    def _uc_ensure(self, kind: str, full_name: str, payload: dict[str, str]) -> str:
+        """Return "exists" when the Unity Catalog object is there, else create it.
+
+        Existence is checked first: Databricks validates storage before it checks for
+        duplicates, so a blind POST can fail for a catalog that already exists.
+        """
+        base = f"{self.host}/api/2.1/unity-catalog/{kind}"
+        found = self._client.get(f"{base}/{full_name}")
+        if found.status_code == 200:
+            return "exists"
+        if found.status_code != 404:
+            msg = f"could not read {kind} {full_name}: HTTP {found.status_code} {found.text[:300]}"
+            raise RuntimeError(msg)
+        created = self._client.post(base, json=payload)
+        if created.status_code in (200, 201):
             return "created"
-        if response.status_code == 409 or "ALREADY_EXISTS" in response.text:
+        if created.status_code == 409 or "ALREADY_EXISTS" in created.text:
             return "exists"
         hint = ""
-        if kind == "catalogs" and "Default Storage" in response.text:
-            hint = (
-                " Free Edition cannot create a catalog through the API without a storage "
-                "location: create it once in the workspace UI (Catalog > Create catalog > "
-                f"name {payload.get('name')!r}, Default storage), then re-run."
+        if kind == "catalogs":
+            visible = self._client.get(base)
+            names = (
+                [c.get("name", "?") for c in visible.json().get("catalogs", [])]
+                if visible.status_code == 200
+                else []
             )
+            hint = f" Catalogs visible to this token: {names or 'none'}."
+            if "Default Storage" in created.text:
+                hint += (
+                    " Free Edition cannot create a catalog through the API without a storage "
+                    "location: create it once in the workspace UI (Catalog > Create catalog > "
+                    f"name {full_name!r}, Default storage), then re-run."
+                )
         msg = (
-            f"could not create {kind} {payload.get('name')}: "
-            f"HTTP {response.status_code} {response.text[:300]}{hint}"
+            f"could not create {kind} {full_name}: "
+            f"HTTP {created.status_code} {created.text[:300]}{hint}"
         )
         raise RuntimeError(msg)
 
@@ -125,10 +144,13 @@ class VolumeBackend:
             raise ValueError(msg)
         catalog, schema = parts[2], parts[3]
         return {
-            "catalog": self._uc_create("catalogs", {"name": catalog}),
-            "schema": self._uc_create("schemas", {"name": schema, "catalog_name": catalog}),
-            "volume": self._uc_create(
+            "catalog": self._uc_ensure("catalogs", catalog, {"name": catalog}),
+            "schema": self._uc_ensure(
+                "schemas", f"{catalog}.{schema}", {"name": schema, "catalog_name": catalog}
+            ),
+            "volume": self._uc_ensure(
                 "volumes",
+                f"{catalog}.{schema}.{volume}",
                 {
                     "name": volume,
                     "catalog_name": catalog,

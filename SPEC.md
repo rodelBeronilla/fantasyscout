@@ -225,6 +225,7 @@ fantasyscout/
   notebooks/         # 01_shot_profiles, 02_reconciliation_audit, 03_fantasy_value_backtest
   web/               # Astro app
   worker/            # Cloudflare Worker + wrangler.toml
+  infra/             # self-hosted runner definition (ADR 0002)
   bundles/           # Databricks Asset Bundle: jobs, schedules, targets dev|prod
   dashboards/        # Tableau extract script + publish README
   docs/              # adr/, runbook.md, data-dictionary.md (generated), architecture.md
