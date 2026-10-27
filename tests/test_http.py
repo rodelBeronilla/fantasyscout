@@ -174,3 +174,25 @@ def test_non_retryable_errors_are_returned_not_retried() -> None:
         response = client.get("https://stats.nba.com/stats/x")
     assert response.status_code == 403
     assert attempts == 1
+
+
+def test_cookies_set_by_the_host_are_never_sent_back() -> None:
+    sent: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        sent.append(request.headers.get("cookie", ""))
+        return httpx.Response(
+            200, json={}, headers={"set-cookie": "ak_bmsc=scored; Domain=.wnba.com; Path=/"}
+        )
+
+    client, _ft = make_client(handler)
+    with client:
+        for _ in range(3):
+            client.get("https://stats.wnba.com/stats/x")
+        assert client._client.cookies.get("ak_bmsc") == "scored", "the jar did fill up"
+    assert sent == ["", "", ""]
+
+
+def test_adaptive_policy_uses_a_shorter_read_timeout() -> None:
+    assert Throttle.adaptive().timeout == 20.0
+    assert Throttle.spec().timeout == 30.0

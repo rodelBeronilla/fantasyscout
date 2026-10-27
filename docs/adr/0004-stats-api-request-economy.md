@@ -29,3 +29,13 @@ The advanced measures agreed with the per-game v3 payload for every player of th
 - Per-game cost falls from four calls to two; a WNBA season from about 40 to 20 minutes, an NBA season from about 3.2 to 1.7 hours; the nightly run makes one advanced request per league instead of one per game.
 - Bronze `stats_playergamelogs` re-lands the whole season each day as games are added (the same pattern as the team game log); silver deduplicates.
 - The pacing rule itself is untouched; relaxing it for backfills is a separate decision for the owner.
+
+## Addendum (2026-10-27): long runs stall unless cookies are dropped
+
+The first full backfill ran at the expected pace for about an hour, then every request from both runners hung until the 30 s read timeout, on new connections too, while a fresh client in the same container, from the same address, answered the identical request in under a second. The difference was the cookie jar: the stats hosts set bot-manager cookies (`ak_bmsc`, `bm_sv`) on every answer, the long-lived client sent them back, and once the cookie was scored badly the edge accepted each request and never answered it. A run that costs 20 minutes healthy would have taken days, and nothing in the job log showed it because the ingestor only printed at the end.
+
+Decisions:
+
+- The client clears its cookie jar before every request, so each one is as anonymous as the first.
+- Backfills use a 20 s read timeout; with the circuit breaker at three consecutive timeouts, a host that stops answering ends the run in about a minute and the job fails visibly instead of looping.
+- The ingestor prints a flushed progress line every 25 requests, so the job log shows the live rate and the summary at the end is no longer the only signal.

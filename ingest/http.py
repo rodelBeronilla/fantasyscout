@@ -10,6 +10,12 @@ answers quickly and cleanly, shrinks gently towards ``min_gap``; any 429, server
 transport error or slow response widens it at once. Consecutive silent timeouts are the
 signature of an address block, so after ``breaker_timeouts`` of them the client opens its
 circuit and raises ``CircuitOpenError`` instead of continuing to hammer the host.
+
+Cookies are never sent back. The stats hosts sit behind a bot manager that sets scoring
+cookies on every answer; once a long-lived client's cookie is scored badly, every request
+carrying it is accepted and then left unanswered until the read timeout, on fresh connections
+too. A cookie-less request from the same address keeps answering in well under a second, so
+the client clears its jar before each attempt.
 """
 
 from __future__ import annotations
@@ -85,7 +91,9 @@ class Throttle:
 
     @classmethod
     def adaptive(cls, min_gap: float = 0.75) -> Throttle:
-        return cls(min_gap=min_gap)
+        # A shorter read timeout: on a healthy host the slowest answer is a few seconds, and
+        # with the breaker at three timeouts an unanswering host stops a run in about a minute.
+        return cls(min_gap=min_gap, timeout=20.0)
 
 
 class IngestHTTPError(Exception):
@@ -248,6 +256,7 @@ class ThrottledClient:
         with self._lock_for(host):
             for attempt in range(attempts):
                 self._pace(host, state)
+                self._client.cookies.clear()
                 started = self._clock()
                 try:
                     response = self._client.get(url, params=params, headers=headers)

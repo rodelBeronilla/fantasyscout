@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 import httpx
+import pytest
 
 from ingest.http import Throttle, ThrottledClient
 from ingest.run import describe
@@ -244,3 +245,17 @@ def test_open_circuit_stops_the_run_and_keeps_what_landed(tmp_path: Path) -> Non
     assert summary.pacing["stats.wnba.com"]["slowdowns"] >= 1
     text = "\n".join(describe(summary))
     assert "ABORTED" in text and "pacing stats.wnba.com" in text
+
+
+def test_progress_heartbeat_is_printed(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    planner = StatsPlanner("wnba", "2026")
+    now = datetime(2026, 10, 27, 12, tzinfo=UTC)
+    ingestor = StatsIngestor(
+        fixture_client(), Landing(LocalBackend(tmp_path), ingest_date=now.date()), planner, now=now
+    )
+    summary = ingestor.run()
+    out = capsys.readouterr().out
+    if summary.processed >= 25:
+        assert "progress stats wnba 2026: 25 requests" in out
+    else:
+        assert "progress" not in out

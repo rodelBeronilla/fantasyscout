@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 from ingest.landing import League
 from ingest.store import LandResult
@@ -38,6 +38,8 @@ class RunSummary:
     pacing: dict[str, dict[str, float | int]] = field(default_factory=dict)
     aborted: str | None = None
 
+    heartbeat_every: int = 25
+
     def record(self, result: LandResult | None) -> None:
         if result is None or result.outcome == "skipped":
             self.skipped += 1
@@ -45,9 +47,27 @@ class RunSummary:
             self.landed += 1
         else:
             self.unchanged += 1
+        self._heartbeat()
+
+    @property
+    def processed(self) -> int:
+        return self.landed + self.unchanged + self.skipped + len(self.failures) + len(self.missing)
+
+    def _heartbeat(self) -> None:
+        """A flushed progress line every ``heartbeat_every`` requests, for the live job log."""
+        if self.heartbeat_every and self.processed % self.heartbeat_every == 0:
+            elapsed = (datetime.now(UTC) - self.started_at).total_seconds()
+            rate = self.processed / elapsed if elapsed > 0 else 0.0
+            print(
+                f"progress {self.source} {self.league} {self.season}: {self.processed} requests "
+                f"({self.landed} landed, {self.skipped} skipped, {len(self.failures)} failed) "
+                f"in {elapsed / 60:.1f} min, {rate * 60:.0f}/min",
+                flush=True,
+            )
 
     def fail(self, endpoint: str, key: str, exc: BaseException) -> None:
         self.failures.append(FetchFailure(endpoint, key, f"{type(exc).__name__}: {exc}"))
+        self._heartbeat()
 
     def miss(self, endpoint: str, key: str, reason: str) -> None:
         self.missing.append(FetchFailure(endpoint, key, reason))
