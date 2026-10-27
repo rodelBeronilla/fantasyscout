@@ -1,0 +1,66 @@
+"""Shared run bookkeeping for every ingestor: what landed, what was skipped, what failed."""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+
+from ingest.landing import League
+from ingest.store import LandResult
+
+
+@dataclass
+class FetchFailure:
+    endpoint: str
+    key: str
+    reason: str
+
+
+@dataclass
+class RunSummary:
+    """Counts for one source/league/season run. A failed request never fails the run."""
+
+    source: str
+    league: League
+    season: str
+    started_at: datetime
+    landed: int = 0
+    unchanged: int = 0
+    skipped: int = 0
+    games: int = 0
+    failures: list[FetchFailure] = field(default_factory=list)
+
+    def record(self, result: LandResult | None) -> None:
+        if result is None or result.outcome == "skipped":
+            self.skipped += 1
+        elif result.outcome == "landed":
+            self.landed += 1
+        else:
+            self.unchanged += 1
+
+    def fail(self, endpoint: str, key: str, exc: BaseException) -> None:
+        self.failures.append(FetchFailure(endpoint, key, f"{type(exc).__name__}: {exc}"))
+
+    @property
+    def ok(self) -> bool:
+        return not self.failures
+
+    def to_dict(self) -> dict[str, object]:
+        data = asdict(self)
+        data["started_at"] = self.started_at.isoformat()
+        return data
+
+
+def describe(summary: RunSummary, failures_shown: int = 10) -> Sequence[str]:
+    lines = [
+        f"{summary.source} {summary.league} {summary.season}: {summary.games} games in window, "
+        f"{summary.landed} landed, {summary.unchanged} unchanged, {summary.skipped} skipped, "
+        f"{len(summary.failures)} failed"
+    ]
+    lines.extend(
+        f"  failed {f.endpoint}/{f.key}: {f.reason}" for f in summary.failures[:failures_shown]
+    )
+    if len(summary.failures) > failures_shown:
+        lines.append(f"  ... {len(summary.failures) - failures_shown} more")
+    return lines

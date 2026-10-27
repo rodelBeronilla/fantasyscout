@@ -26,10 +26,24 @@ from ingest.landing import League, Sidecar, landing_key, payload_hash
 INDEX_NAME = "_index.json"
 
 
-class Backend(Protocol):
-    """Minimal file store: read text (None when missing) and write bytes, creating parents."""
+def workspace_origin(host: str) -> str:
+    """Reduce whatever was pasted as DATABRICKS_HOST to ``https://<workspace-host>``.
 
-    def read_text(self, path: PurePosixPath) -> str | None: ...
+    People copy the URL from the browser, which may carry a path or an ``?o=`` query;
+    the REST API lives at the bare origin.
+    """
+    raw = host.strip()
+    if not raw:
+        return ""
+    if "://" not in raw:
+        raw = f"https://{raw}"
+    return f"https://{httpx.URL(raw).host}"
+
+
+class Backend(Protocol):
+    """Minimal file store: read (None when missing) and write bytes, creating parents."""
+
+    def read_bytes(self, path: PurePosixPath) -> bytes | None: ...
 
     def write_bytes(self, path: PurePosixPath, body: bytes) -> None: ...
 
@@ -43,9 +57,9 @@ class LocalBackend:
     def _resolve(self, path: PurePosixPath) -> Path:
         return self.root.joinpath(*path.parts)
 
-    def read_text(self, path: PurePosixPath) -> str | None:
+    def read_bytes(self, path: PurePosixPath) -> bytes | None:
         target = self._resolve(path)
-        return target.read_text(encoding="utf-8") if target.exists() else None
+        return target.read_bytes() if target.exists() else None
 
     def write_bytes(self, path: PurePosixPath, body: bytes) -> None:
         target = self._resolve(path)
@@ -70,7 +84,7 @@ class VolumeBackend:
         transport: httpx.BaseTransport | None = None,
         timeout: float = 60.0,
     ) -> None:
-        self.host = host.rstrip("/")
+        self.host = workspace_origin(host)
         self.root = root.rstrip("/")
         self._client = httpx.Client(
             headers={"Authorization": f"Bearer {token}"}, transport=transport, timeout=timeout
@@ -95,14 +109,14 @@ class VolumeBackend:
             raise RuntimeError(msg)
         self._known_dirs.add(directory)
 
-    def read_text(self, path: PurePosixPath) -> str | None:
+    def read_bytes(self, path: PurePosixPath) -> bytes | None:
         response = self._client.get(self._files_url(path))
         if response.status_code == 404:
             return None
         if response.status_code != 200:
             msg = f"could not read {path}: HTTP {response.status_code} {response.text[:200]}"
             raise RuntimeError(msg)
-        return response.text
+        return response.content
 
     def write_bytes(self, path: PurePosixPath, body: bytes) -> None:
         self._ensure_directory(self._volume_path(path.parent))
@@ -165,7 +179,7 @@ class Landing:
 
     def _index(self, scope: Scope) -> dict[str, IndexEntry]:
         if scope not in self._indexes:
-            text = self.backend.read_text(scope.index_path())
+            text = self.backend.read_bytes(scope.index_path())
             raw = json.loads(text) if text else {}
             self._indexes[scope] = {k: IndexEntry(**v) for k, v in raw.items()}
         return self._indexes[scope]
@@ -176,6 +190,13 @@ class Landing:
             return False
         entry = self._index(scope).get(key)
         return entry is not None and entry.ingest_date == self.ingest_date.isoformat()
+
+    def read_latest(self, scope: Scope, key: str) -> bytes | None:
+        """The most recently landed payload for a key, so planners can work without refetching."""
+        entry = self._index(scope).get(key)
+        if entry is None:
+            return None
+        return self.backend.read_bytes(PurePosixPath(entry.path))
 
     def land(
         self,

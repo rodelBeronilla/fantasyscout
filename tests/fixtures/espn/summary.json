@@ -1,0 +1,1776 @@
+{
+ "boxscore": {
+  "teams": [
+   {
+    "team": {
+     "id": "131935",
+     "uid": "s:40~l:59~t:131935",
+     "slug": "toronto-tempo",
+     "location": "Toronto",
+     "name": "Tempo",
+     "abbreviation": "TOR",
+     "displayName": "Toronto Tempo",
+     "shortDisplayName": "Tempo",
+     "color": "33476D",
+     "alternateColor": "7B1B38",
+     "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/tor.png"
+    },
+    "statistics": [
+     {
+      "name": "fieldGoalsMade-fieldGoalsAttempted",
+      "displayValue": "25-74",
+      "label": "FG"
+     },
+     {
+      "name": "fieldGoalPct",
+      "displayValue": "34",
+      "abbreviation": "FG%",
+      "label": "Field Goal %"
+     },
+     {
+      "name": "threePointFieldGoalsMade-threePointFieldGoalsAttempted",
+      "displayValue": "5-29",
+      "label": "3PT"
+     },
+     {
+      "name": "threePointFieldGoalPct",
+      "displayValue": "17",
+      "abbreviation": "3P%",
+      "label": "Three Point %"
+     },
+     {
+      "name": "freeThrowsMade-freeThrowsAttempted",
+      "displayValue": "26-30",
+      "label": "FT"
+     },
+     {
+      "name": "freeThrowPct",
+      "displayValue": "87",
+      "abbreviation": "FT%",
+      "label": "Free Throw %"
+     },
+     {
+      "name": "totalRebounds",
+      "displayValue": "40",
+      "abbreviation": "REB",
+      "label": "Rebounds"
+     },
+     {
+      "name": "offensiveRebounds",
+      "displayValue": "14",
+      "abbreviation": "OR",
+      "label": "Offensive Rebounds"
+     },
+     {
+      "name": "defensiveRebounds",
+      "displayValue": "26",
+      "abbreviation": "DR",
+      "label": "Defensive Rebounds"
+     },
+     {
+      "name": "assists",
+      "displayValue": "13",
+      "abbreviation": "AST",
+      "label": "Assists"
+     },
+     {
+      "name": "steals",
+      "displayValue": "8",
+      "abbreviation": "STL",
+      "label": "Steals"
+     },
+     {
+      "name": "blocks",
+      "displayValue": "1",
+      "abbreviation": "BLK",
+      "label": "Blocks"
+     },
+     {
+      "name": "turnovers",
+      "displayValue": "12",
+      "abbreviation": "TO",
+      "label": "Turnovers"
+     },
+     {
+      "name": "teamTurnovers",
+      "displayValue": "1",
+      "abbreviation": "TTO",
+      "label": "Team Turnovers"
+     },
+     {
+      "name": "totalTurnovers",
+      "displayValue": "13",
+      "abbreviation": "ToTO",
+      "label": "Total Turnovers"
+     },
+     {
+      "name": "technicalFouls",
+      "displayValue": "1",
+      "abbreviation": "TECH",
+      "label": "Technical Fouls"
+     },
+     {
+      "name": "totalTechnicalFouls",
+      "displayValue": "1",
+      "abbreviation": "TECH",
+      "label": "Total Technical Fouls"
+     },
+     {
+      "name": "flagrantFouls",
+      "displayValue": "0",
+      "abbreviation": "FLAG",
+      "label": "Flagrant Fouls"
+     },
+     {
+      "name": "turnoverPoints",
+      "displayValue": "19",
+      "abbreviation": "Points Conceded Off Turnovers",
+      "label": "Points Conceded Off Turnovers"
+     },
+     {
+      "name": "fastBreakPoints",
+      "displayValue": "4",
+      "abbreviation": "FBPs",
+      "label": "Fast Break Points"
+     },
+     {
+      "name": "pointsInPaint",
+      "displayValue": "38",
+      "abbreviation": "PIP",
+      "label": "Points in Paint"
+     },
+     {
+      "name": "fouls",
+      "displayValue": "17",
+      "abbreviation": "PF",
+      "label": "Fouls"
+     },
+     {
+      "name": "largestLead",
+      "displayValue": "5",
+      "abbreviation": "LL",
+      "label": "Largest Lead"
+     },
+     {
+      "name": "leadChanges",
+      "displayValue": "11",
+      "abbreviation": "LC",
+      "label": "Lead Changes"
+     },
+     {
+      "name": "leadPercentage",
+      "displayValue": "17",
+      "abbreviation": "LPCT",
+      "label": "Percent Led"
+     }
+    ],
+    "displayOrder": 1,
+    "homeAway": "away"
+   },
+   {
+    "team": {
+     "id": "18",
+     "uid": "s:40~l:59~t:18",
+     "slug": "connecticut-sun",
+     "location": "Connecticut",
+     "name": "Sun",
+     "abbreviation": "CON",
+     "displayName": "Connecticut Sun",
+     "shortDisplayName": "Sun",
+     "color": "f05023",
+     "alternateColor": "0a2240",
+     "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/con.png"
+    },
+    "statistics": [
+     {
+      "name": "fieldGoalsMade-fieldGoalsAttempted",
+      "displayValue": "37-74",
+      "label": "FG"
+     },
+     {
+      "name": "fieldGoalPct",
+      "displayValue": "50",
+      "abbreviation": "FG%",
+      "label": "Field Goal %"
+     },
+     {
+      "name": "threePointFieldGoalsMade-threePointFieldGoalsAttempted",
+      "displayValue": "7-22",
+      "label": "3PT"
+     },
+     {
+      "name": "threePointFieldGoalPct",
+      "displayValue": "32",
+      "abbreviation": "3P%",
+      "label": "Three Point %"
+     },
+     {
+      "name": "freeThrowsMade-freeThrowsAttempted",
+      "displayValue": "14-17",
+      "label": "FT"
+     },
+     {
+      "name": "freeThrowPct",
+      "displayValue": "82",
+      "abbreviation": "FT%",
+      "label": "Free Throw %"
+     },
+     {
+      "name": "totalRebounds",
+      "displayValue": "36",
+      "abbreviation": "REB",
+      "label": "Rebounds"
+     },
+     {
+      "name": "offensiveRebounds",
+      "displayValue": "10",
+      "abbreviation": "OR",
+      "label": "Offensive Rebounds"
+     },
+     {
+      "name": "defensiveRebounds",
+      "displayValue": "26",
+      "abbreviation": "DR",
+      "label": "Defensive Rebounds"
+     },
+     {
+      "name": "assists",
+      "displayValue": "19",
+      "abbreviation": "AST",
+      "label": "Assists"
+     },
+     {
+      "name": "steals",
+      "displayValue": "7",
+      "abbreviation": "STL",
+      "label": "Steals"
+     },
+     {
+      "name": "blocks",
+      "displayValue": "2",
+      "abbreviation": "BLK",
+      "label": "Blocks"
+     },
+     {
+      "name": "turnovers",
+      "displayValue": "12",
+      "abbreviation": "TO",
+      "label": "Turnovers"
+     },
+     {
+      "name": "teamTurnovers",
+      "displayValue": "0",
+      "abbreviation": "TTO",
+      "label": "Team Turnovers"
+     },
+     {
+      "name": "totalTurnovers",
+      "displayValue": "12",
+      "abbreviation": "ToTO",
+      "label": "Total Turnovers"
+     },
+     {
+      "name": "technicalFouls",
+      "displayValue": "1",
+      "abbreviation": "TECH",
+      "label": "Technical Fouls"
+     },
+     {
+      "name": "totalTechnicalFouls",
+      "displayValue": "1",
+      "abbreviation": "TECH",
+      "label": "Total Technical Fouls"
+     },
+     {
+      "name": "flagrantFouls",
+      "displayValue": "0",
+      "abbreviation": "FLAG",
+      "label": "Flagrant Fouls"
+     },
+     {
+      "name": "turnoverPoints",
+      "displayValue": "11",
+      "abbreviation": "Points Conceded Off Turnovers",
+      "label": "Points Conceded Off Turnovers"
+     },
+     {
+      "name": "fastBreakPoints",
+      "displayValue": "11",
+      "abbreviation": "FBPs",
+      "label": "Fast Break Points"
+     },
+     {
+      "name": "pointsInPaint",
+      "displayValue": "54",
+      "abbreviation": "PIP",
+      "label": "Points in Paint"
+     },
+     {
+      "name": "fouls",
+      "displayValue": "22",
+      "abbreviation": "PF",
+      "label": "Fouls"
+     },
+     {
+      "name": "largestLead",
+      "displayValue": "17",
+      "abbreviation": "LL",
+      "label": "Largest Lead"
+     },
+     {
+      "name": "leadChanges",
+      "displayValue": "11",
+      "abbreviation": "LC",
+      "label": "Lead Changes"
+     },
+     {
+      "name": "leadPercentage",
+      "displayValue": "66",
+      "abbreviation": "LPCT",
+      "label": "Percent Led"
+     }
+    ],
+    "displayOrder": 2,
+    "homeAway": "home"
+   }
+  ],
+  "players": [
+   {
+    "team": {
+     "id": "131935",
+     "uid": "s:40~l:59~t:131935",
+     "slug": "toronto-tempo",
+     "location": "Toronto",
+     "name": "Tempo",
+     "abbreviation": "TOR",
+     "displayName": "Toronto Tempo",
+     "shortDisplayName": "Tempo",
+     "color": "33476D",
+     "alternateColor": "7B1B38",
+     "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/tor.png"
+    },
+    "statistics": [
+     {
+      "names": [
+       "MIN",
+       "PTS",
+       "FG",
+       "3PT",
+       "FT",
+       "REB",
+       "AST",
+       "TO",
+       "STL",
+       "BLK",
+       "OREB",
+       "DREB",
+       "PF",
+       "+/-"
+      ],
+      "keys": [
+       "minutes",
+       "points",
+       "fieldGoalsMade-fieldGoalsAttempted",
+       "threePointFieldGoalsMade-threePointFieldGoalsAttempted",
+       "freeThrowsMade-freeThrowsAttempted",
+       "rebounds",
+       "assists",
+       "turnovers",
+       "steals",
+       "blocks",
+       "offensiveRebounds",
+       "defensiveRebounds",
+       "fouls",
+       "plusMinus"
+      ],
+      "labels": [
+       "MIN",
+       "PTS",
+       "FG",
+       "3PT",
+       "FT",
+       "REB",
+       "AST",
+       "TO",
+       "STL",
+       "BLK",
+       "OREB",
+       "DREB",
+       "PF",
+       "+/-"
+      ],
+      "descriptions": [
+       "Minutes",
+       "Points",
+       "Field Goals Made/Attempted",
+       "3-Point Field Goals Made/Attempted",
+       "Free Throws Made/Attempted",
+       "Rebounds",
+       "Assists",
+       "Turnovers",
+       "Steals",
+       "Blocks",
+       "Offensive Rebounds",
+       "Defensive Rebounds",
+       "Personal Fouls",
+       "Teams net points while player is on the court."
+      ],
+      "athletes": [
+       {
+        "active": false,
+        "athlete": {
+         "id": "2566453",
+         "uid": "s:40~l:59~a:2566453",
+         "guid": "7bce1add-eedb-11c2-3284-1351968dabf2",
+         "displayName": "Isabelle Harrison",
+         "shortName": "I. Harrison",
+         "links": [
+          {
+           "rel": [
+            "playercard",
+            "desktop",
+            "athlete"
+           ],
+           "href": "https://www.espn.com/wnba/player/_/id/2566453/isabelle-harrison",
+           "text": "Player Card"
+          }
+         ],
+         "headshot": {
+          "href": "https://a.espncdn.com/i/headshots/wnba/players/full/2566453.png",
+          "alt": "Isabelle Harrison"
+         },
+         "jersey": "21",
+         "position": {
+          "name": "Forward",
+          "displayName": "Forward",
+          "abbreviation": "F"
+         }
+        },
+        "starter": true,
+        "didNotPlay": false,
+        "reason": "COACH'S DECISION",
+        "ejected": false,
+        "stats": [
+         "23",
+         "19",
+         "7-12",
+         "0-1",
+         "5-7",
+         "10",
+         "0",
+         "4",
+         "1",
+         "0",
+         "2",
+         "8",
+         "2",
+         "0"
+        ]
+       },
+       {
+        "active": true,
+        "athlete": {
+         "id": "5345444",
+         "uid": "s:40~l:59~a:5345444",
+         "guid": "2a592264-7e41-3bf1-b764-9e18529bb8a7",
+         "displayName": "Laura Juskaite",
+         "shortName": "L. Juskaite",
+         "links": [
+          {
+           "rel": [
+            "playercard",
+            "desktop",
+            "athlete"
+           ],
+           "href": "https://www.espn.com/wnba/player/_/id/5345444/laura-juskaite",
+           "text": "Player Card"
+          }
+         ],
+         "headshot": {
+          "href": "https://a.espncdn.com/i/headshots/wnba/players/full/5345444.png",
+          "alt": "Laura Juskaite"
+         },
+         "jersey": "2",
+         "position": {
+          "name": "Forward",
+          "displayName": "Forward",
+          "abbreviation": "F"
+         }
+        },
+        "starter": true,
+        "didNotPlay": false,
+        "reason": "COACH'S DECISION",
+        "ejected": false,
+        "stats": [
+         "32",
+         "15",
+         "3-15",
+         "0-3",
+         "9-10",
+         "7",
+         "3",
+         "1",
+         "4",
+         "0",
+         "1",
+         "6",
+         "3",
+         "-3"
+        ]
+       },
+       {
+        "active": true,
+        "athlete": {
+         "id": "3142327",
+         "uid": "s:40~l:59~a:3142327",
+         "guid": "01ff0298-57dc-dfde-af86-c862df599b40",
+         "displayName": "Kia Nurse",
+         "shortName": "K. Nurse",
+         "links": [
+          {
+           "rel": [
+            "playercard",
+            "desktop",
+            "athlete"
+           ],
+           "href": "https://www.espn.com/wnba/player/_/id/3142327/kia-nurse",
+           "text": "Player Card"
+          }
+         ],
+         "headshot": {
+          "href": "https://a.espncdn.com/i/headshots/wnba/players/full/3142327.png",
+          "alt": "Kia Nurse"
+         },
+         "jersey": "11",
+         "position": {
+          "name": "Guard",
+          "displayName": "Guard",
+          "abbreviation": "G"
+         }
+        },
+        "starter": true,
+        "didNotPlay": false,
+        "reason": "COACH'S DECISION",
+        "ejected": false,
+        "stats": [
+         "29",
+         "10",
+         "2-10",
+         "2-8",
+         "4-4",
+         "2",
+         "1",
+         "1",
+         "0",
+         "0",
+         "1",
+         "1",
+         "3",
+         "-3"
+        ]
+       }
+      ],
+      "totals": [
+       "",
+       "81",
+       "25-74",
+       "5-29",
+       "26-30",
+       "40",
+       "13",
+       "12",
+       "8",
+       "1",
+       "14",
+       "26",
+       "17",
+       ""
+      ]
+     }
+    ],
+    "displayOrder": 1
+   },
+   {
+    "team": {
+     "id": "18",
+     "uid": "s:40~l:59~t:18",
+     "slug": "connecticut-sun",
+     "location": "Connecticut",
+     "name": "Sun",
+     "abbreviation": "CON",
+     "displayName": "Connecticut Sun",
+     "shortDisplayName": "Sun",
+     "color": "f05023",
+     "alternateColor": "0a2240",
+     "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/con.png"
+    },
+    "statistics": [
+     {
+      "names": [
+       "MIN",
+       "PTS",
+       "FG",
+       "3PT",
+       "FT",
+       "REB",
+       "AST",
+       "TO",
+       "STL",
+       "BLK",
+       "OREB",
+       "DREB",
+       "PF",
+       "+/-"
+      ],
+      "keys": [
+       "minutes",
+       "points",
+       "fieldGoalsMade-fieldGoalsAttempted",
+       "threePointFieldGoalsMade-threePointFieldGoalsAttempted",
+       "freeThrowsMade-freeThrowsAttempted",
+       "rebounds",
+       "assists",
+       "turnovers",
+       "steals",
+       "blocks",
+       "offensiveRebounds",
+       "defensiveRebounds",
+       "fouls",
+       "plusMinus"
+      ],
+      "labels": [
+       "MIN",
+       "PTS",
+       "FG",
+       "3PT",
+       "FT",
+       "REB",
+       "AST",
+       "TO",
+       "STL",
+       "BLK",
+       "OREB",
+       "DREB",
+       "PF",
+       "+/-"
+      ],
+      "descriptions": [
+       "Minutes",
+       "Points",
+       "Field Goals Made/Attempted",
+       "3-Point Field Goals Made/Attempted",
+       "Free Throws Made/Attempted",
+       "Rebounds",
+       "Assists",
+       "Turnovers",
+       "Steals",
+       "Blocks",
+       "Offensive Rebounds",
+       "Defensive Rebounds",
+       "Personal Fouls",
+       "Teams net points while player is on the court."
+      ],
+      "athletes": [
+       {
+        "active": true,
+        "athlete": {
+         "id": "4433408",
+         "uid": "s:40~l:59~a:4433408",
+         "guid": "60595614-8481-3d6c-98be-1a1ee34424cf",
+         "displayName": "Aaliyah Edwards",
+         "shortName": "A. Edwards",
+         "links": [
+          {
+           "rel": [
+            "playercard",
+            "desktop",
+            "athlete"
+           ],
+           "href": "https://www.espn.com/wnba/player/_/id/4433408/aaliyah-edwards",
+           "text": "Player Card"
+          }
+         ],
+         "headshot": {
+          "href": "https://a.espncdn.com/i/headshots/wnba/players/full/4433408.png",
+          "alt": "Aaliyah Edwards"
+         },
+         "jersey": "8",
+         "position": {
+          "name": "Forward",
+          "displayName": "Forward",
+          "abbreviation": "F"
+         }
+        },
+        "starter": true,
+        "didNotPlay": false,
+        "reason": "COACH'S DECISION",
+        "ejected": false,
+        "stats": [
+         "17",
+         "16",
+         "6-11",
+         "0-0",
+         "4-4",
+         "4",
+         "2",
+         "2",
+         "1",
+         "0",
+         "3",
+         "1",
+         "1",
+         "-1"
+        ]
+       },
+       {
+        "active": true,
+        "athlete": {
+         "id": "4433635",
+         "uid": "s:40~l:59~a:4433635",
+         "guid": "aa42d38c-ef50-3eb6-85e8-409671e7b517",
+         "displayName": "Diamond Miller",
+         "shortName": "D. Miller",
+         "links": [
+          {
+           "rel": [
+            "playercard",
+            "desktop",
+            "athlete"
+           ],
+           "href": "https://www.espn.com/wnba/player/_/id/4433635/diamond-miller",
+           "text": "Player Card"
+          }
+         ],
+         "headshot": {
+          "href": "https://a.espncdn.com/i/headshots/wnba/players/full/4433635.png",
+          "alt": "Diamond Miller"
+         },
+         "jersey": "1",
+         "position": {
+          "name": "Forward",
+          "displayName": "Forward",
+          "abbreviation": "F"
+         }
+        },
+        "starter": true,
+        "didNotPlay": false,
+        "reason": "COACH'S DECISION",
+        "ejected": false,
+        "stats": [
+         "17",
+         "3",
+         "1-4",
+         "1-3",
+         "0-2",
+         "1",
+         "0",
+         "0",
+         "1",
+         "0",
+         "0",
+         "1",
+         "3",
+         "-4"
+        ]
+       },
+       {
+        "active": false,
+        "athlete": {
+         "id": "5105732",
+         "uid": "s:40~l:59~a:5105732",
+         "guid": "7b77ac68-882f-3528-bac4-1d90a16ed61d",
+         "displayName": "Raegan Beers",
+         "shortName": "R. Beers",
+         "links": [
+          {
+           "rel": [
+            "playercard",
+            "desktop",
+            "athlete"
+           ],
+           "href": "https://www.espn.com/wnba/player/_/id/5105732/raegan-beers",
+           "text": "Player Card"
+          }
+         ],
+         "headshot": {
+          "href": "https://a.espncdn.com/i/headshots/wnba/players/full/5105732.png",
+          "alt": "Raegan Beers"
+         },
+         "jersey": "15",
+         "position": {
+          "name": "Forward",
+          "displayName": "Forward",
+          "abbreviation": "F"
+         }
+        },
+        "starter": true,
+        "didNotPlay": false,
+        "reason": "COACH'S DECISION",
+        "ejected": false,
+        "stats": [
+         "29",
+         "17",
+         "6-11",
+         "0-1",
+         "5-5",
+         "8",
+         "1",
+         "0",
+         "0",
+         "2",
+         "4",
+         "4",
+         "5",
+         "+13"
+        ]
+       }
+      ],
+      "totals": [
+       "",
+       "95",
+       "37-74",
+       "7-22",
+       "14-17",
+       "36",
+       "19",
+       "12",
+       "7",
+       "2",
+       "10",
+       "26",
+       "22",
+       ""
+      ]
+     }
+    ],
+    "displayOrder": 2
+   }
+  ]
+ },
+ "gameInfo": {
+  "venue": {
+   "id": "2160",
+   "guid": "c3e99b2f-69bb-3746-8aee-1393606d7487",
+   "fullName": "Mohegan Sun Arena",
+   "address": {
+    "city": "Uncasville",
+    "state": "CT"
+   },
+   "grass": false,
+   "images": [
+    {
+     "href": "https://a.espncdn.com/i/venues/wnba/day/2160.jpg",
+     "width": 2000,
+     "height": 1125,
+     "alt": "",
+     "rel": [
+      "full",
+      "day"
+     ]
+    }
+   ]
+  },
+  "attendance": 8911
+ },
+ "injuries": [
+  {
+   "team": {
+    "id": "18",
+    "uid": "s:40~l:59~t:18",
+    "displayName": "Connecticut Sun",
+    "abbreviation": "CON",
+    "links": [
+     {
+      "href": "https://www.espn.com/wnba/team/_/name/con/connecticut-sun",
+      "text": "Clubhouse"
+     },
+     {
+      "href": "https://www.espn.com/wnba/team/schedule/_/name/con",
+      "text": "Schedule"
+     }
+    ],
+    "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/con.png",
+    "logos": [
+     {
+      "href": "https://a.espncdn.com/i/teamlogos/wnba/500/con.png",
+      "width": 500,
+      "height": 500,
+      "alt": "",
+      "rel": [
+       "full",
+       "default"
+      ],
+      "lastUpdated": "2025-08-10T19:43Z"
+     },
+     {
+      "href": "https://a.espncdn.com/i/teamlogos/wnba/500-dark/con.png",
+      "width": 500,
+      "height": 500,
+      "alt": "",
+      "rel": [
+       "full",
+       "dark"
+      ],
+      "lastUpdated": "2025-08-10T19:44Z"
+     }
+    ]
+   },
+   "injuries": [
+    {
+     "status": "Out",
+     "date": "2026-09-25T00:21Z",
+     "athlete": {
+      "id": "4433792",
+      "uid": "s:40~l:59~a:4433792",
+      "guid": "cf20effc-99d1-388d-9c5f-45671adbae34",
+      "lastName": "Marshall",
+      "fullName": "Rayah Marshall",
+      "displayName": "Rayah Marshall",
+      "shortName": "R. Marshall",
+      "links": [
+       {
+        "rel": [
+         "playercard",
+         "desktop",
+         "athlete"
+        ],
+        "href": "https://www.espn.com/wnba/player/_/id/4433792/rayah-marshall",
+        "text": "Player Card"
+       }
+      ],
+      "headshot": {
+       "href": "https://a.espncdn.com/i/headshots/wnba/players/full/4433792.png",
+       "alt": "Rayah Marshall"
+      },
+      "jersey": "13",
+      "position": {
+       "name": "Center",
+       "displayName": "Center",
+       "abbreviation": "C"
+      },
+      "collegeAthlete": {
+       "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/womens-college-basketball/athletes/4433792?lang=en&region=us"
+      },
+      "status": {
+       "id": "1",
+       "name": "Active",
+       "type": "active",
+       "abbreviation": "Active"
+      }
+     },
+     "type": {
+      "id": "4",
+      "name": "INJURY_STATUS_OUT",
+      "description": "out",
+      "abbreviation": "O"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OUT",
+       "abbreviation": "OUT",
+       "displayDescription": "Out"
+      },
+      "type": "Knee",
+      "side": "Right",
+      "returnDate": "2027-05-01"
+     }
+    }
+   ]
+  }
+ ],
+ "plays": [
+  {
+   "id": "4018572156",
+   "sequenceNumber": "6",
+   "type": {
+    "id": "615",
+    "text": "Jumpball"
+   },
+   "text": "Isabelle Harrison vs. Charlisse Leger-Walker (Charlisse Leger-Walker gains possession)",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "number": 1,
+    "displayValue": "1st Quarter"
+   },
+   "clock": {
+    "displayValue": "10:00"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "18"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "4703609"
+     }
+    },
+    {
+     "athlete": {
+      "id": "2566453"
+     }
+    },
+    {
+     "athlete": {
+      "id": "4703609"
+     }
+    }
+   ],
+   "wallclock": "2026-09-24T23:03:52Z",
+   "shootingPlay": false,
+   "coordinate": {
+    "x": -214748340,
+    "y": -214748365
+   },
+   "pointsAttempted": 0,
+   "shortDescription": "Jump Ball"
+  },
+  {
+   "id": "4018572153",
+   "sequenceNumber": "3",
+   "type": {
+    "id": "92",
+    "text": "Jump Shot"
+   },
+   "text": "Diamond Miller misses 28-foot three point jumper",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "number": 1,
+    "displayValue": "1st Quarter"
+   },
+   "clock": {
+    "displayValue": "9:47"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "18"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "4433635"
+     }
+    }
+   ],
+   "wallclock": "2026-09-24T23:03:46Z",
+   "shootingPlay": true,
+   "coordinate": {
+    "x": 39,
+    "y": 24
+   },
+   "pointsAttempted": 3,
+   "shortDescription": "Missed 3PT"
+  },
+  {
+   "id": "4018572155",
+   "sequenceNumber": "5",
+   "type": {
+    "id": "155",
+    "text": "Defensive Rebound"
+   },
+   "text": "Julie Allemand defensive rebound",
+   "awayScore": 0,
+   "homeScore": 0,
+   "period": {
+    "number": 1,
+    "displayValue": "1st Quarter"
+   },
+   "clock": {
+    "displayValue": "9:46"
+   },
+   "scoringPlay": false,
+   "scoreValue": 0,
+   "team": {
+    "id": "131935"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "id": "4001679"
+     }
+    }
+   ],
+   "wallclock": "2026-09-24T23:03:47Z",
+   "shootingPlay": false,
+   "coordinate": {
+    "x": 39,
+    "y": 24
+   },
+   "pointsAttempted": 0,
+   "shortDescription": "Rebound"
+  }
+ ],
+ "header": {
+  "id": "401857215",
+  "uid": "s:40~l:59~e:401857215",
+  "season": {
+   "year": 2026,
+   "current": true,
+   "type": 2
+  },
+  "timeValid": true,
+  "competitions": [
+   {
+    "id": "401857215",
+    "uid": "s:40~l:59~e:401857215~c:401857215",
+    "date": "2026-09-24T23:00Z",
+    "neutralSite": false,
+    "conferenceCompetition": false,
+    "boxscoreAvailable": true,
+    "commentaryAvailable": false,
+    "liveAvailable": false,
+    "shotChartAvailable": true,
+    "timeoutsAvailable": true,
+    "possessionArrowAvailable": false,
+    "onWatchESPN": false,
+    "recent": false,
+    "wallclockAvailable": true,
+    "boxscoreSource": "full",
+    "playByPlaySource": "full",
+    "competitors": [
+     {
+      "id": "18",
+      "uid": "s:40~l:59~t:18",
+      "order": 0,
+      "homeAway": "home",
+      "winner": true,
+      "team": {
+       "id": "18",
+       "guid": "7c72e7ee-5064-b766-2b39-95b57e3d9a08",
+       "uid": "s:40~l:59~t:18",
+       "location": "Connecticut",
+       "name": "Sun",
+       "abbreviation": "CON",
+       "displayName": "Connecticut Sun",
+       "color": "f05023",
+       "alternateColor": "0a2240",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/wnba/500/con.png",
+         "width": 500,
+         "height": 500,
+         "alt": "",
+         "rel": [
+          "full",
+          "default"
+         ],
+         "lastUpdated": "2025-08-10T19:43Z"
+        },
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/wnba/500-dark/con.png",
+         "width": 500,
+         "height": 500,
+         "alt": "",
+         "rel": [
+          "full",
+          "dark"
+         ],
+         "lastUpdated": "2025-08-10T19:44Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/primary_logo_on_white_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_on_white_color"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/primary_logo_on_black_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_on_black_color"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/primary_logo_on_primary_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_on_primary_color"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/primary_logo_on_secondary_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_on_secondary_color"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/primary_logo_black.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_black"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/primary_logo_white.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_white"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/secondary_logo_on_white_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_on_white_color"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/secondary_logo_on_black_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_on_black_color"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/secondary_logo_on_primary_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_on_primary_color"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/secondary_logo_on_secondary_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_on_secondary_color"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/secondary_logo_black.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_black"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/7c72e7ee-5064-b766-2b39-95b57e3d9a08/logos/secondary_logo_white.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_white"
+         ],
+         "lastUpdated": "2026-02-13T16:17Z"
+        }
+       ],
+       "links": [
+        {
+         "rel": [
+          "clubhouse",
+          "desktop",
+          "team"
+         ],
+         "href": "https://www.espn.com/wnba/team/_/name/con/connecticut-sun",
+         "text": "Clubhouse"
+        }
+       ]
+      },
+      "score": "95",
+      "possession": false
+     },
+     {
+      "id": "131935",
+      "uid": "s:40~l:59~t:131935",
+      "order": 1,
+      "homeAway": "away",
+      "winner": false,
+      "team": {
+       "id": "131935",
+       "guid": "9e09cc68-e065-3a02-a870-9b4c1562ea68",
+       "uid": "s:40~l:59~t:131935",
+       "location": "Toronto",
+       "name": "Tempo",
+       "abbreviation": "TOR",
+       "displayName": "Toronto Tempo",
+       "color": "33476D",
+       "alternateColor": "7B1B38",
+       "logos": [
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/wnba/500/tor.png",
+         "width": 500,
+         "height": 500,
+         "alt": "",
+         "rel": [
+          "full",
+          "default"
+         ],
+         "lastUpdated": "2025-11-19T15:53Z"
+        },
+        {
+         "href": "https://a.espncdn.com/i/teamlogos/wnba/500-dark/tor.png",
+         "width": 500,
+         "height": 500,
+         "alt": "",
+         "rel": [
+          "full",
+          "dark"
+         ],
+         "lastUpdated": "2025-11-19T15:54Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/primary_logo_on_white_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_on_white_color"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/primary_logo_on_black_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_on_black_color"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/primary_logo_on_primary_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_on_primary_color"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/primary_logo_on_secondary_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_on_secondary_color"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/primary_logo_black.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_black"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/primary_logo_white.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "primary_logo_white"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/secondary_logo_on_white_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_on_white_color"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/secondary_logo_on_black_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_on_black_color"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/secondary_logo_on_primary_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_on_primary_color"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/secondary_logo_on_secondary_color.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_on_secondary_color"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/secondary_logo_black.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_black"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        },
+        {
+         "href": "https://a.espncdn.com/guid/9e09cc68-e065-3a02-a870-9b4c1562ea68/logos/secondary_logo_white.png",
+         "width": 4096,
+         "height": 4096,
+         "alt": "",
+         "rel": [
+          "full",
+          "secondary_logo_white"
+         ],
+         "lastUpdated": "2026-07-22T20:35Z"
+        }
+       ],
+       "links": [
+        {
+         "rel": [
+          "clubhouse",
+          "desktop",
+          "team"
+         ],
+         "href": "https://www.espn.com/wnba/team/_/name/tor/toronto-tempo",
+         "text": "Clubhouse"
+        }
+       ]
+      },
+      "score": "81",
+      "possession": false
+     }
+    ],
+    "status": {
+     "type": {
+      "id": "3",
+      "name": "STATUS_FINAL",
+      "state": "post",
+      "completed": true,
+      "description": "Final",
+      "detail": "Final",
+      "shortDetail": "Final"
+     }
+    },
+    "series": [
+     {
+      "type": "season",
+      "title": "Regular Season Series",
+      "description": "Regular Season Series",
+      "summary": "TOR wins series 2-1",
+      "completed": true,
+      "totalCompetitions": 3,
+      "competitors": [
+       {
+        "id": "18",
+        "uid": "s:40~l:59~t:18",
+        "wins": 1,
+        "ties": 0,
+        "team": {
+         "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/wnba/seasons/2026/teams/18?lang=en&region=us"
+        }
+       },
+       {
+        "id": "131935",
+        "uid": "s:40~l:59~t:131935",
+        "wins": 2,
+        "ties": 0,
+        "team": {
+         "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/wnba/seasons/2026/teams/131935?lang=en&region=us"
+        }
+       }
+      ],
+      "events": [
+       {
+        "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/wnba/events/401856978?lang=en&region=us",
+        "id": "401856978"
+       },
+       {
+        "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/wnba/events/401857003?lang=en&region=us",
+        "id": "401857003"
+       },
+       {
+        "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/wnba/events/401857215?lang=en&region=us",
+        "id": "401857215"
+       }
+      ],
+      "startDate": "2026-06-10T23:00Z"
+     }
+    ],
+    "boxscoreMinutes": true
+   }
+  ],
+  "league": {
+   "id": "59",
+   "uid": "s:40~l:59",
+   "name": "Women's National Basketball Association",
+   "abbreviation": "WNBA",
+   "shortName": "WNBA",
+   "slug": "wnba",
+   "isTournament": false,
+   "links": [
+    {
+     "rel": [
+      "index",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/",
+     "text": "Index"
+    },
+    {
+     "rel": [
+      "index",
+      "sportscenter",
+      "app",
+      "league"
+     ],
+     "href": "sportscenter://x-callback-url/showClubhouse?uid=s:40~l:59",
+     "text": "Index"
+    },
+    {
+     "rel": [
+      "schedule",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/schedule",
+     "text": "Schedule"
+    },
+    {
+     "rel": [
+      "schedule",
+      "sportscenter",
+      "app",
+      "league"
+     ],
+     "href": "sportscenter://x-callback-url/showClubhouse?uid=s:40~l:59&section=scores",
+     "text": "Schedule"
+    },
+    {
+     "rel": [
+      "standings",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/standings",
+     "text": "Standings"
+    },
+    {
+     "rel": [
+      "standings",
+      "sportscenter",
+      "app",
+      "league"
+     ],
+     "href": "sportscenter://x-callback-url/showClubhouse?uid=s:40~l:59&section=standings",
+     "text": "Standings"
+    },
+    {
+     "rel": [
+      "rankings",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/rankings",
+     "text": "Rankings"
+    },
+    {
+     "rel": [
+      "rankings",
+      "sportscenter",
+      "app",
+      "league"
+     ],
+     "href": "sportscenter://x-callback-url/showClubhouse?uid=s:40~l:59&section=rankings",
+     "text": "Rankings"
+    },
+    {
+     "rel": [
+      "scores",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/scoreboard",
+     "text": "Scores"
+    },
+    {
+     "rel": [
+      "scores",
+      "sportscenter",
+      "app",
+      "league"
+     ],
+     "href": "sportscenter://x-callback-url/showClubhouse?uid=s:40~l:59&section=scores",
+     "text": "Scores"
+    },
+    {
+     "rel": [
+      "stats",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/stats",
+     "text": "Stats"
+    },
+    {
+     "rel": [
+      "stats",
+      "sportscenter",
+      "app",
+      "league"
+     ],
+     "href": "sportscenter://x-callback-url/showClubhouse?uid=s:40~l:59&section=stats",
+     "text": "Stats"
+    },
+    {
+     "rel": [
+      "teams",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/teams",
+     "text": "Teams"
+    },
+    {
+     "rel": [
+      "athletes",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/players",
+     "text": "Players"
+    },
+    {
+     "rel": [
+      "injuries",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/injuries",
+     "text": "Injuries"
+    },
+    {
+     "rel": [
+      "odds",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/odds",
+     "text": "Odds"
+    },
+    {
+     "rel": [
+      "odds",
+      "sportscenter",
+      "app",
+      "league"
+     ],
+     "href": "sportscenter://x-callback-url/showClubhouse?uid=s:40~l:59&section=odds",
+     "text": "Odds"
+    },
+    {
+     "rel": [
+      "playoff-bracket",
+      "desktop",
+      "league"
+     ],
+     "href": "https://www.espn.com/wnba/playoff-bracket",
+     "text": "Bracket"
+    },
+    {
+     "rel": [
+      "playoff-bracket",
+      "sportscenter",
+      "app",
+      "league"
+     ],
+     "href": "sportscenter://x-callback-url/showClubhouse?uid=s:40~l:59&section=bracket",
+     "text": "Bracket"
+    }
+   ],
+   "logos": [
+    {
+     "href": "https://a.espncdn.com/i/teamlogos/leagues/500/wnba.png",
+     "rel": [
+      "full",
+      "default"
+     ]
+    },
+    {
+     "href": "https://a.espncdn.com/i/teamlogos/leagues/500-dark/wnba.png",
+     "rel": [
+      "full",
+      "dark"
+     ]
+    }
+   ]
+  }
+ }
+}

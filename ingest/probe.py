@@ -16,6 +16,18 @@ from dataclasses import asdict, dataclass, field
 import httpx
 
 from ingest.http import Throttle, ThrottledClient, stats_headers
+from ingest.store import workspace_origin
+
+__all__ = [
+    "DEFAULT_TARGETS",
+    "ProbeResult",
+    "Target",
+    "databricks_target",
+    "run_probe",
+    "to_json",
+    "to_markdown",
+    "workspace_origin",
+]
 
 _STATS_PARAMS = {
     "Counter": "1000",
@@ -74,21 +86,6 @@ DEFAULT_TARGETS: tuple[Target, ...] = (
         expect="events",
     ),
 )
-
-
-def workspace_origin(host: str) -> str:
-    """Reduce whatever was pasted as DATABRICKS_HOST to ``https://<workspace-host>``.
-
-    People copy the URL from the browser, which may carry a path or an ``?o=`` query;
-    the REST API lives at the bare origin.
-    """
-    raw = host.strip()
-    if not raw:
-        return ""
-    if "://" not in raw:
-        raw = f"https://{raw}"
-    url = httpx.URL(raw)
-    return f"https://{url.host}"
 
 
 def databricks_target(env: Mapping[str, str] = os.environ) -> Target | None:
