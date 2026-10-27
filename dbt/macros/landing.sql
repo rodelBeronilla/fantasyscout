@@ -108,11 +108,18 @@
 {%- endmacro %}
 
 {#
-  Bronze models are append-only and incremental: only ingest dates newer than what the table
-  already holds are read in.
+  Bronze models are append-only and incremental. Files from ingest dates older than the
+  table's newest are skipped outright; files from that newest date are read and only the ones
+  the table has not seen are appended, so a backfill that lands on the same day as an earlier
+  build (or several runs in one day) is still picked up. The outer query must alias the
+  landing_files() subquery as `landed`.
 #}
 {% macro bronze_incremental_filter(date_col='_ingest_date') -%}
   {% if is_incremental() -%}
-    where {{ date_col }} > (select coalesce(max(_ingest_date), cast('1900-01-01' as date)) from {{ this }})
+    where {{ date_col }} >= (select coalesce(max(_ingest_date), cast('1900-01-01' as date)) from {{ this }})
+      and not exists (
+        select 1 from {{ this }} as seen
+        where seen._source_file = landed._source_file
+      )
   {%- endif %}
 {%- endmacro %}

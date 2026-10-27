@@ -196,6 +196,9 @@ def write_databricks(
     statements: list[str], *, origin: str, token: str, warehouse_id: str, catalog: str
 ) -> None:
     """Run each statement through the SQL Statement Execution API and wait for it."""
+    if not warehouse_id:
+        msg = "warehouse_id is empty; the workflow must export DBT_DATABRICKS_WAREHOUSE_ID"
+        raise RuntimeError(msg)
     client = httpx.Client(base_url=origin, headers={"Authorization": f"Bearer {token}"}, timeout=60)
     for statement in statements:
         response = client.post(
@@ -207,7 +210,9 @@ def write_databricks(
                 "wait_timeout": "30s",
             },
         )
-        response.raise_for_status()
+        if response.status_code != 200:
+            msg = f"statement submission failed: HTTP {response.status_code} {response.text[:500]}"
+            raise RuntimeError(msg)
         body = response.json()
         state = body["status"]["state"]
         statement_id = body["statement_id"]

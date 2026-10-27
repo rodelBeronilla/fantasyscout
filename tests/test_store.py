@@ -220,3 +220,48 @@ def test_threaded_writes_overlap_and_failures_are_reported(tmp_path: Path) -> No
         (tmp_path / "landing/stats/leaguegamelog/wnba/2026" / INDEX_NAME).read_text()
     )
     assert "good" in index and "bad" not in index, "a failed write must not be indexed as landed"
+
+
+def test_volume_writes_retry_on_rate_limiting(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pathlib import PurePosixPath
+
+    from ingest import store as store_mod
+    from ingest.store import VolumeBackend
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(store_mod.time, "sleep", sleeps.append)
+    puts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal puts
+        if request.url.path.startswith("/api/2.0/fs/directories"):
+            return httpx.Response(204)
+        puts += 1
+        if puts < 3:
+            return httpx.Response(429, headers={"retry-after": "5"}, text="RESOURCE_EXHAUSTED")
+        return httpx.Response(204)
+
+    backend = VolumeBackend(
+        "https://dbc-1.cloud.databricks.com", "t", transport=httpx.MockTransport(handler)
+    )
+    backend.write_bytes(PurePosixPath("landing/stats/x/wnba/2023/2026-10-27/a.json"), b"{}")
+    assert puts == 3
+    assert sleeps and all(s >= 5 for s in sleeps), "Retry-After is honoured"
+    backend.close()
+
+
+def test_volume_writes_give_up_after_the_retries(monkeypatch: pytest.MonkeyPatch) -> None:
+    from pathlib import PurePosixPath
+
+    from ingest import store as store_mod
+    from ingest.store import VolumeBackend
+
+    monkeypatch.setattr(store_mod.time, "sleep", lambda _: None)
+    backend = VolumeBackend(
+        "https://dbc-1.cloud.databricks.com",
+        "t",
+        transport=httpx.MockTransport(lambda r: httpx.Response(503, text="busy")),
+    )
+    with pytest.raises(RuntimeError, match="HTTP 503"):
+        backend.write_bytes(PurePosixPath("landing/stats/x/wnba/2023/2026-10-27/a.json"), b"{}")
+    backend.close()
