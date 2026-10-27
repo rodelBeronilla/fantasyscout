@@ -52,6 +52,10 @@ FantasyScout is three loosely coupled systems: ingestion in GitHub Actions, tran
 
 The two sources share no ids. Three crosswalks in silver bridge them, rebuilt from the data on every build: `team_xwalk` (full name, nickname, abbreviation), `game_xwalk` (same teams on the same Eastern-time date) and `player_xwalk` (exact normalised name in the same team-game, then a fuzzy name match with birthdate confirmation, then `seeds/player_id_overrides.csv`). `player_game_reconciliation` compares thirteen values per player-game and judges it exact, minor or conflict; `ops.reconciliation` logs every differing value with the resolution (league wins, ESPN only where the league is null); `ops.reconciliation_summary` carries the match and conflict rates per league and season that Data Health shows; `fct_player_game.source_agreement` carries the verdict. Players the crosswalk cannot pair wait in `player_xwalk_review`. ADR 0005 has the reasoning, including the name-similarity function per engine.
 
+## Serving
+
+A passing gate publishes a data build to the `fantasyscout-data` bucket under `builds/<build_id>/` (one Parquet per gold model, JSON beside the small ones, the big facts per league-season, `board/` and `streamers/` per league, `health.json`, one file per player, `manifest.json`); `latest.json` is flipped last and seven builds are kept, so a rollback is one pointer rewrite (ADR 0006). The Worker serves the Astro build and streams `/data/*` from the bucket with range support; the pointers are cached for a minute, build files for a year. Every page reads `latest.json` first, so the whole site moves to a new build at once. The SQL console runs DuckDB-WASM in the browser over the build's Parquet files; its engine is served from the bucket because it is too large for a static asset. The footer of every page names the data build and links to its Data Health entry.
+
 ## Trust boundaries
 
 - The Worker holds no secrets. It reads the static build and public R2 objects. Its CSP allows `'wasm-unsafe-eval'` for DuckDB-WASM and frames only `public.tableau.com`.

@@ -58,6 +58,7 @@ jobs:
 
       # DuckDB-WASM (two wasm files of 36 and 41 MB plus their workers) exceeds the static asset
       # limit, so the SQL console loads it from the data bucket, same origin. Uploaded once per version.
+      # (wrangler's r2 object commands default to local storage; --remote targets the real bucket.)
       - name: Vendor DuckDB-WASM into the data bucket
         working-directory: web
         env:
@@ -69,11 +70,11 @@ jobs:
           dir="node_modules/@duckdb/duckdb-wasm/dist"
           for f in duckdb-mvp.wasm duckdb-eh.wasm duckdb-browser-mvp.worker.js duckdb-browser-eh.worker.js; do
             key="vendor/duckdb-wasm/$ver/$f"
-            if npx wrangler r2 object get "fantasyscout-data/$key" --file /dev/null >/dev/null 2>&1; then
+            if npx wrangler r2 object get "fantasyscout-data/$key" --remote --file /dev/null >/dev/null 2>&1; then
               echo "$key already in the bucket"
             else
               case "$f" in *.wasm) ct=application/wasm ;; *) ct=text/javascript ;; esac
-              npx wrangler r2 object put "fantasyscout-data/$key" --file "$dir/$f" --content-type "$ct"
+              npx wrangler r2 object put "fantasyscout-data/$key" --remote --file "$dir/$f" --content-type "$ct"
             fi
           done
 
