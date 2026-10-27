@@ -112,6 +112,27 @@ cd dbt && uv run dbt build --target databricks
 
 Bronze models are append-only and incremental on `_ingest_date`; a full refresh re-reads every landed file. Silver models rebuild from bronze each run and keep the latest landing per natural key.
 
+## Quality checks, results table and the publish gate
+
+Every build writes one row per model and test to `ops.test_results` (check, model, severity, status, failing rows, run id) and one row to `ops.publish_gate`. The gate passes only when no error-severity check failed and no model errored; warn-severity failures publish and are reported. In the Build lakehouse workflow a blocked gate fails the run and opens or updates the "Build failure" incident issue; the next passing build closes it.
+
+```sql
+-- what blocked the last build?
+select run_at, passed, reason from fantasyscout.ops.publish_gate order by run_at desc limit 5;
+select check_name, model, severity, status, failures
+from fantasyscout.ops.test_results where run_id = '<run_id>' and status <> 'pass';
+```
+
+Severities follow the spec: keys, arithmetic, box-score closure (except turnovers, see ADR 0003), in-season freshness and completeness are errors; minutes closure, event-to-box agreement, shot location sanity, team turnovers and ingest volume anomalies are warnings.
+
+## Chaos drill
+
+Prove the gate and the incident path on demand, without touching data: run the Build lakehouse workflow with the `chaos` input ticked. The `chaos_deliberate_failure` check fails at error severity, the gate blocks, the run fails and an incident issue opens. Run the workflow again without the input; the gate passes and the issue closes itself. Do this after any change to `ops/results.py`, `incident.py` or the build workflow.
+
+## Backfill status
+
+`select source, league, season, count(*) runs, sum(landed) landed, sum(failures) failures from fantasyscout.ops.ingest_log group by 1,2,3 order by 1,2,3` shows what has landed. `assert_completeness` lists every final scheduled game still missing a box score or play-by-play; it stays red until the backfill finishes, which is the point.
+
 ## Roll back a data build (phase 5)
 
 To be written with the export job.

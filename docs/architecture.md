@@ -41,7 +41,7 @@ FantasyScout is three loosely coupled systems: ingestion in GitHub Actions, tran
 | Landing (bronze) | Raw JSON as received, pushed to a Unity Catalog volume through the Files API | `ingest/landing.py` defines the layout |
 | Warehouse | Databricks Free Edition: Delta, Unity Catalog, one 2X-Small SQL warehouse | `dbt/` |
 | Transform | dbt Core, `dbt-databricks` target plus a `dbt-duckdb` target for CI; one SQL body per model, adapter-dispatched macros hide the engine differences | `dbt/` |
-| Quality | dbt tests, `dbt-expectations`, basketball-logic tests, `ops` schema | `dbt/tests/` |
+| Quality | dbt tests with the spec's severities, singular basketball-logic checks, `ops.test_results` and `ops.publish_gate` written after every build | `dbt/tests/`, `ops/results.py` |
 | Serving | Nightly export of gold to Parquet and JSON on R2 | `export/` |
 | Web app | Astro static build, Tailwind, React islands where needed | `web/` |
 | Edge | Cloudflare Worker with the assets binding and an R2 binding, on a custom domain | `worker/` |
@@ -66,7 +66,7 @@ The app has its own subdomain, `fantasyscout.beronilla.rodeo`, bound to the Work
 | 0. Skeleton | Live at https://fantasyscout.beronilla.rodeo/ |
 | 1. Ingest | Done: daily landing of the stats API (home runner) and ESPN (GitHub) into the `landing` volume |
 | 2. Lakehouse | Done: bronze and silver dbt models pass on DuckDB (CI) and Databricks after every ingest; Asset Bundle job deployed |
-| 3. Gold + quality | Not started |
+| 3. Gold + quality | Built: star schema and marts on both engines, quality checks with severities, `ops.test_results`, publish gate, chaos drill; backfill landing |
 | 4. Reconciliation | Not started |
 | 5. Serving + app | Not started |
 | 6. Analysis surfaces | Not started |

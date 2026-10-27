@@ -48,7 +48,23 @@
   where filename not like '%.meta.json'
 {%- endmacro %}
 
+{#
+  On Databricks an incremental run prunes the file listing itself: read_files only opens
+  files modified since the day before the table's newest ingest date, so a nightly build over
+  years of landed history reads one day of files, not all of them.
+#}
+{% macro bronze_modified_after() -%}
+  {%- if is_incremental() and execute -%}
+    {%- set rows = run_query("select cast(coalesce(max(_ingest_date), cast('1900-01-01' as date)) as string) from " ~ this) -%}
+    {%- set watermark = rows.columns[0].values()[0] -%}
+    {{ return(watermark ~ "T00:00:00Z") }}
+  {%- else -%}
+    {{ return(none) }}
+  {%- endif -%}
+{%- endmacro %}
+
 {% macro databricks__landing_files(source, endpoint) -%}
+  {%- set modified_after = bronze_modified_after() -%}
   select
     _metadata.file_path as _source_file,
     value as payload,
@@ -56,7 +72,14 @@
     {{ path_part('_metadata.file_path', 3) }} as season,
     cast({{ path_part('_metadata.file_path', 2) }} as date) as _ingest_date,
     regexp_replace({{ path_part('_metadata.file_path', 1) }}, '\\.json$', '') as request_key
-  from read_files('{{ landing_glob(source, endpoint) }}', format => 'text', wholetext => true)
+  from read_files(
+    '{{ landing_glob(source, endpoint) }}',
+    format => 'text',
+    wholetext => true
+    {%- if modified_after %},
+    modifiedAfter => '{{ modified_after }}'
+    {%- endif %}
+  )
   where _metadata.file_path not like '%.meta.json'
 {%- endmacro %}
 

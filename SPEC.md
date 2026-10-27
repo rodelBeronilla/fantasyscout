@@ -229,7 +229,8 @@ fantasyscout/
   bundles/           # Databricks Asset Bundle: jobs, schedules, targets dev|prod
   dashboards/        # Tableau extract script + publish README
   docs/              # adr/, runbook.md, data-dictionary.md (generated), architecture.md
-  .github/workflows/ # ci.yml, ingest.yml, build.yml, deploy-web.yml, notes.yml
+  ops/               # results recorder and publish gate
+  .github/workflows/ # ci.yml, ingest.yml, backfill.yml, build.yml, deploy-web.yml, notes.yml
 ```
 
 **Standards**

@@ -58,16 +58,29 @@ jobs:
         run: |
           uv run python dbt/sample/build_sample.py >/dev/null
           git diff --exit-code -- dbt/sample || { echo "::error::dbt/sample is stale; run dbt/sample/build_sample.py and commit"; exit 1; }
+      # The fixture sample is a shape fixture (a few rows per payload), not a coherent season,
+      # so the data-quality checks (tag:quality) run only against real data in the nightly build.
       - name: dbt build (fixtures, from scratch)
         working-directory: dbt
         env:
           DBT_PROFILES_DIR: .
-        run: uv run dbt build --target duckdb
+        run: uv run dbt build --target duckdb --exclude tag:quality
       - name: dbt build (second run exercises the incremental path)
         working-directory: dbt
         env:
           DBT_PROFILES_DIR: .
-        run: uv run dbt build --target duckdb
+        run: uv run dbt build --target duckdb --exclude tag:quality
+      - name: Record results and decide the publish gate (DuckDB)
+        run: uv run python -m ops.results --engine duckdb --duckdb dbt/fantasyscout.duckdb
+      - name: The chaos switch blocks the gate
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+        run: |
+          uv run dbt test --target duckdb --select tag:chaos --vars '{chaos: true}' || true
+          if uv run python -m ops.results --engine duckdb --duckdb fantasyscout.duckdb --dry-run --target-dir target; then
+            echo "::error::the chaos failure did not block the gate"; exit 1
+          fi
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

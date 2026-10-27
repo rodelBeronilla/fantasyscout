@@ -1,0 +1,188 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "One row per calendar date from 2018 to 2027, with the fantasy week and game-day flags per league."
+    columns:
+      - name: date_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: date_day
+        description: "Calendar date"
+        data_tests: [unique, not_null]
+      - name: fantasy_week
+        description: "Monday-to-Sunday week label, YYYY-Www"
+        data_tests: [not_null]
+
+  - name: dim_team
+    description: "One row per team per season."
+    columns:
+      - name: team_sk
+        description: "Surrogate key of league, season and team id"
+        data_tests: [unique, not_null]
+      - name: team_id
+        description: "League stats API team id"
+        data_tests: [not_null]
+
+  - name: dim_game
+    description: "One row per game with result and schedule context."
+    columns:
+      - name: game_sk
+        description: "Surrogate key of league and game id"
+        data_tests: [unique, not_null]
+      - name: game_id
+        description: "League stats API game id"
+        data_tests: [not_null]
+      - name: game_date
+        description: "Game date"
+        data_tests: [not_null]
+      - name: home_team_sk
+        description: "Home team"
+        data_tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: away_team_sk
+        description: "Away team"
+        data_tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+
+  - name: dim_player
+    description: "One row per player per team stint (SCD type 2 on team); valid_to is null for the current stint."
+    columns:
+      - name: player_sk
+        description: "Surrogate key of league, player id and stint start"
+        data_tests: [unique, not_null]
+      - name: stats_player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: valid_from
+        description: "First game date of the stint"
+        data_tests: [not_null]
+
+  - name: fct_player_game
+    description: "Player × game: box score, advanced line, source agreement flag."
+    columns:
+      - name: player_game_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: player_sk
+        description: "Stint the game falls in"
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
+      - name: game_sk
+        description: "Game"
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_game')
+              field: game_sk
+      - name: team_sk
+        description: "Team-season"
+        data_tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+      - name: source_agreement
+        description: "exact, minor, conflict (phase 4) or unverified"
+        data_tests:
+          - accepted_values:
+              values: [exact, minor, conflict, unverified]
+
+  - name: fct_team_game
+    description: "Team × game with possessions, pace and ratings."
+    columns:
+      - name: team_game_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: game_sk
+        description: "Game"
+        data_tests:
+          - relationships:
+              to: ref('dim_game')
+              field: game_sk
+      - name: team_sk
+        description: "Team-season"
+        data_tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
+
+  - name: fct_event
+    description: "One row per play-by-play action."
+    columns:
+      - name: event_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: game_sk
+        description: "Game"
+        data_tests:
+          - relationships:
+              to: ref('dim_game')
+              field: game_sk
+
+  - name: fct_shot
+    description: "One row per field goal attempt with court coordinates."
+    columns:
+      - name: shot_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: game_sk
+        description: "Game"
+        data_tests:
+          - relationships:
+              to: ref('dim_game')
+              field: game_sk
+
+  - name: fct_availability
+    description: "Player × report day from the injury report."
+    columns:
+      - name: availability_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: status_group
+        description: "out, day_to_day, questionable, doubtful or other"
+        data_tests:
+          - accepted_values:
+              values: [out, day_to_day, questionable, doubtful, other]
+
+  - name: mart_player_rolling
+    description: "Player × game with rolling 5, 10 and 20-game category averages; percentages volume-weighted."
+    columns:
+      - name: player_game_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+
+  - name: mart_category_zscores
+    description: "Category z-scores per league, season, window and player against the top-N pool."
+    columns:
+      - name: zscore_sk
+        description: "Surrogate key of window, league, season and player"
+        data_tests: [unique, not_null]
+      - name: window_name
+        description: "season, last_10 or last_20"
+        data_tests:
+          - accepted_values:
+              values: [season, last_10, last_20]
+
+  - name: mart_board
+    description: "The board: blended value per player for the latest season, with rest-of-season scaling."
+    columns:
+      - name: board_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: value_total
+        description: "Blended z-score total"
+        data_tests: [not_null]
+
+  - name: mart_streamers
+    description: "Players on current rosters with games in the next seven days and the minutes trend."
+    columns:
+      - name: streamer_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
