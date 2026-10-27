@@ -132,15 +132,15 @@ def test_volume_backend_uses_the_files_api(tmp_path: Path) -> None:
     backend.close()
 
 
-def test_ensure_volume_creates_missing_objects_and_tolerates_existing() -> None:
-    created: list[tuple[str, dict[str, str]]] = []
+def test_ensure_volume_checks_then_creates_missing_objects() -> None:
+    calls: list[tuple[str, str]] = []
+    present = {"/api/2.1/unity-catalog/catalogs/fantasyscout"}  # the catalog exists already
 
     def handler(request: httpx.Request) -> httpx.Response:
-        kind = request.url.path.rsplit("/", 1)[-1]
+        calls.append((request.method, request.url.path))
+        if request.method == "GET":
+            return httpx.Response(200 if request.url.path in present else 404, json={})
         payload = json.loads(request.content)
-        created.append((kind, payload))
-        if kind == "catalogs":
-            return httpx.Response(409, json={"error_code": "ALREADY_EXISTS", "message": "exists"})
         return httpx.Response(200, json=payload)
 
     backend = VolumeBackend(
@@ -151,17 +151,13 @@ def test_ensure_volume_creates_missing_objects_and_tolerates_existing() -> None:
         "schema": "created",
         "volume": "created",
     }
-    assert created[0] == ("catalogs", {"name": "fantasyscout"})
-    assert created[1] == ("schemas", {"name": "raw", "catalog_name": "fantasyscout"})
-    assert created[2] == (
-        "volumes",
-        {
-            "name": "landing",
-            "catalog_name": "fantasyscout",
-            "schema_name": "raw",
-            "volume_type": "MANAGED",
-        },
-    )
+    assert calls == [
+        ("GET", "/api/2.1/unity-catalog/catalogs/fantasyscout"),
+        ("GET", "/api/2.1/unity-catalog/schemas/fantasyscout.raw"),
+        ("POST", "/api/2.1/unity-catalog/schemas"),
+        ("GET", "/api/2.1/unity-catalog/volumes/fantasyscout.raw.landing"),
+        ("POST", "/api/2.1/unity-catalog/volumes"),
+    ]
     backend.close()
 
 
@@ -170,22 +166,31 @@ def test_ensure_volume_explains_the_free_edition_catalog_rule() -> None:
         "error_code": "INVALID_STATE",
         "message": "Metastore storage root URL does not exist. Default Storage is enabled ...",
     }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET" and request.url.path.endswith("/catalogs"):
+            return httpx.Response(200, json={"catalogs": [{"name": "workspace"}]})
+        if request.method == "GET":
+            return httpx.Response(404, json={})
+        return httpx.Response(400, json=body)
+
     backend = VolumeBackend(
-        "https://dbc-1.cloud.databricks.com",
-        "tok",
-        transport=httpx.MockTransport(lambda _: httpx.Response(400, json=body)),
+        "https://dbc-1.cloud.databricks.com", "tok", transport=httpx.MockTransport(handler)
     )
-    with pytest.raises(RuntimeError, match="create it once in the workspace UI"):
+    with pytest.raises(RuntimeError) as excinfo:
         backend.ensure_volume()
+    assert "create it once in the workspace UI" in str(excinfo.value)
+    assert "Catalogs visible to this token: ['workspace']" in str(excinfo.value)
 
 
 def test_ensure_volume_raises_on_real_errors() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            return httpx.Response(404, json={})
+        return httpx.Response(403, json={"error_code": "PERMISSION_DENIED"})
+
     backend = VolumeBackend(
-        "https://dbc-1.cloud.databricks.com",
-        "tok",
-        transport=httpx.MockTransport(
-            lambda _: httpx.Response(403, json={"error_code": "PERMISSION_DENIED"})
-        ),
+        "https://dbc-1.cloud.databricks.com", "tok", transport=httpx.MockTransport(handler)
     )
     with pytest.raises(RuntimeError, match="PERMISSION_DENIED"):
         backend.ensure_volume()

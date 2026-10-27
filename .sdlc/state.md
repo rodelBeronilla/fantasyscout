@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-27 (phase 1 ingestors built; stats API runner decision pending)
+Last updated: 2026-10-27 (phase 1 live: scheduled ingest from GitHub and the home runner)
 
 ## Vision
 
@@ -49,7 +49,6 @@ N/A, first sprint.
 
 ## Blockers
 
-- ADR 0002: the league stats API blocks GitHub-hosted runners; owner to choose a self-hosted runner at home (recommended) or ESPN-live with manual stats backfills.
 - Tableau Public account exists; needed in phase 6.
 
 ## Tech Debt
@@ -58,6 +57,5 @@ N/A, first sprint.
 
 ## Next Actions
 
-1. Owner: decide ADR 0002; if self-hosted, install the runner and set the `STATS_RUNNER_LABEL` variable.
-2. Phase 1 close-out: first scheduled stats run lands a WNBA week and an NBA week in the volume; ADR 0002 accepted.
-3. Phase 2: Databricks catalog and schemas, Asset Bundle jobs, dbt bronze and silver, DuckDB target.
+1. Phase 1 close-out: confirm the first scheduled (cron) run is green and the incident issues stay closed.
+2. Phase 2: Databricks catalog and schemas, Asset Bundle jobs, dbt bronze and silver, DuckDB target.

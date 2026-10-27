@@ -108,7 +108,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TITLE: "Ingest failure: espn ${{ matrix.league }}"
           OUTCOME: ${{ steps.land.outcome }}
-        run: .github/scripts/incident.sh
+        run: uv run python .github/scripts/incident.py
 
   stats:
     name: Stats API ${{ matrix.league }}
@@ -145,4 +145,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TITLE: "Ingest failure: stats ${{ matrix.league }}"
           OUTCOME: ${{ steps.land.outcome }}
-        run: .github/scripts/incident.sh
+        run: uv run python .github/scripts/incident.py
