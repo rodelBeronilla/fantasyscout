@@ -43,11 +43,13 @@ def workspace_origin(host: str) -> str:
 
 
 class Backend(Protocol):
-    """Minimal file store: read (None when missing) and write bytes, creating parents."""
+    """Minimal file store: read (None when missing), write bytes, and create directories."""
 
     def read_bytes(self, path: PurePosixPath) -> bytes | None: ...
 
     def write_bytes(self, path: PurePosixPath, body: bytes) -> None: ...
+
+    def ensure_directory(self, path: PurePosixPath) -> None: ...
 
 
 class LocalBackend:
@@ -62,6 +64,9 @@ class LocalBackend:
     def read_bytes(self, path: PurePosixPath) -> bytes | None:
         target = self._resolve(path)
         return target.read_bytes() if target.exists() else None
+
+    def ensure_directory(self, path: PurePosixPath) -> None:
+        self._resolve(path).mkdir(parents=True, exist_ok=True)
 
     def write_bytes(self, path: PurePosixPath, body: bytes) -> None:
         target = self._resolve(path)
@@ -181,6 +186,10 @@ class VolumeBackend:
                 )
                 raise RuntimeError(msg)
             self._known_dirs.add(directory)
+
+    def ensure_directory(self, path: PurePosixPath) -> None:
+        """Create a landing directory (and its parents) if missing; idempotent."""
+        self._ensure_directory(self._volume_path(path))
 
     def read_bytes(self, path: PurePosixPath) -> bytes | None:
         response = self._client.get(self._files_url(path))

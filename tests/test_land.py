@@ -99,3 +99,34 @@ def test_land_runs_espn_locally_and_writes_the_run_log(
     assert record["window"] == {"since": "2026-09-24", "until": "2026-09-24"}
     out = capsys.readouterr().out
     assert "1 games in window, 5 landed" in out and "failed injuries/league" in out
+
+
+def test_ensure_landing_dirs_creates_every_known_endpoint(tmp_path: Path) -> None:
+    from ingest.land import ENDPOINT_DIRS, ensure_landing_dirs
+
+    count = ensure_landing_dirs(LocalBackend(tmp_path))
+    assert count == 1 + sum(len(v) for v in ENDPOINT_DIRS.values())
+    assert (tmp_path / "landing/stats/playergamelogs").is_dir()
+    assert (tmp_path / "landing/espn/injuries").is_dir()
+    assert (tmp_path / "landing/_ops/ingest_log").is_dir()
+    assert ensure_landing_dirs(LocalBackend(tmp_path)) == count  # idempotent
+
+
+def test_volume_backend_ensure_directory_puts_once(tmp_path: Path) -> None:
+    from pathlib import PurePosixPath
+
+    from ingest.store import VolumeBackend
+
+    puts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        puts.append(request.url.path)
+        return httpx.Response(204)
+
+    backend = VolumeBackend(
+        "https://dbc-1.cloud.databricks.com", "t", transport=httpx.MockTransport(handler)
+    )
+    backend.ensure_directory(PurePosixPath("landing/stats/playergamelogs"))
+    backend.ensure_directory(PurePosixPath("landing/stats/playergamelogs"))
+    assert puts == ["/api/2.0/fs/directories/Volumes/fantasyscout/raw/landing/stats/playergamelogs"]
+    backend.close()
