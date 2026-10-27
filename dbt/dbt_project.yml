@@ -46,3 +46,9 @@ tests:
 seeds:
   fantasyscout:
     +schema: ops
+    player_id_overrides:
+      +column_types:
+        league: string
+        stats_player_id: string
+        espn_player_id: string
+        reason: string

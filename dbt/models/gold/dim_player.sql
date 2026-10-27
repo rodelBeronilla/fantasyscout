@@ -72,7 +72,7 @@ select
     {{ sk(['s.league', 's.player_id', "cast(s.valid_from as string)"]) }} as player_sk,
     s.league,
     s.player_id as stats_player_id,
-    cast(null as string) as espn_player_id,
+    px.espn_player_id,
     coalesce(p.full_name, b.player_name) as full_name,
     b.position,
     b.height,
@@ -91,3 +91,5 @@ left join bio as b
     on b.league = s.league and b.player_id = s.player_id and b.is_latest
 left join last_game as lg
     on lg.league = s.league and lg.player_id = s.player_id
+left join {{ ref('player_xwalk') }} as px
+    on px.league = s.league and px.stats_player_id = s.player_id

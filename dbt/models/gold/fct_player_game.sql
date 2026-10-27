@@ -1,6 +1,9 @@
 {#
   Player × game: traditional box score with the advanced line joined, keyed to the dimensions.
-  source_agreement is set by the reconciliation in phase 4; until then every row is 'unverified'.
+  Where ESPN also reports the player-game, source_agreement carries the reconciliation verdict
+  (exact, minor, conflict) and the resolution rule is applied: the league value wins, ESPN's
+  fills in only where the league's is null (ADR 0005). Rows ESPN does not cover are
+  'unverified'.
 #}
 
 with box as (
@@ -20,6 +23,12 @@ stint as (
     select league, stats_player_id, player_sk, valid_from, valid_to
     from {{ ref('dim_player') }}
 
+),
+
+recon as (
+
+    select * from {{ ref('player_game_reconciliation') }}
+
 )
 
 select
@@ -38,23 +47,23 @@ select
     b.side = 'home' as is_home,
     b.position,
     b.comment,
-    b.minutes,
-    b.minutes > 0 as played,
-    b.field_goals_made,
-    b.field_goals_attempted,
-    b.three_pointers_made,
-    b.three_pointers_attempted,
-    b.free_throws_made,
-    b.free_throws_attempted,
+    coalesce(b.minutes, r.espn_minutes) as minutes,
+    coalesce(b.minutes, r.espn_minutes) > 0 as played,
+    coalesce(b.field_goals_made, r.espn_field_goals_made) as field_goals_made,
+    coalesce(b.field_goals_attempted, r.espn_field_goals_attempted) as field_goals_attempted,
+    coalesce(b.three_pointers_made, r.espn_three_pointers_made) as three_pointers_made,
+    coalesce(b.three_pointers_attempted, r.espn_three_pointers_attempted) as three_pointers_attempted,
+    coalesce(b.free_throws_made, r.espn_free_throws_made) as free_throws_made,
+    coalesce(b.free_throws_attempted, r.espn_free_throws_attempted) as free_throws_attempted,
     b.rebounds_offensive,
     b.rebounds_defensive,
-    b.rebounds_total,
-    b.assists,
-    b.steals,
-    b.blocks,
-    b.turnovers,
+    coalesce(b.rebounds_total, r.espn_rebounds_total) as rebounds_total,
+    coalesce(b.assists, r.espn_assists) as assists,
+    coalesce(b.steals, r.espn_steals) as steals,
+    coalesce(b.blocks, r.espn_blocks) as blocks,
+    coalesce(b.turnovers, r.espn_turnovers) as turnovers,
     b.fouls_personal,
-    b.points,
+    coalesce(b.points, r.espn_points) as points,
     b.plus_minus,
     a.usage_percentage,
     a.true_shooting_percentage,
@@ -64,7 +73,8 @@ select
     a.net_rating as player_net_rating,
     a.pace as player_pace,
     a.pie,
-    'unverified' as source_agreement,
+    coalesce(r.source_agreement, 'unverified') as source_agreement,
+    r.espn_player_id,
     b._ingest_date
 from box as b
 left join {{ ref('games') }} as g
@@ -74,3 +84,5 @@ left join adv as a
 left join stint as s
     on s.league = b.league and s.stats_player_id = b.player_id
     and g.game_date >= s.valid_from and (s.valid_to is null or g.game_date <= s.valid_to)
+left join recon as r
+    on r.player_game_key = b.player_game_key

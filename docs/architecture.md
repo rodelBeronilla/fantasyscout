@@ -48,6 +48,10 @@ FantasyScout is three loosely coupled systems: ingestion in GitHub Actions, tran
 | BI | Tableau Public, embedded | `dashboards/` |
 | AI | Anthropic Messages API; drafts notes only, every claim re-checked against gold | `ai/` |
 
+## Reconciliation
+
+The two sources share no ids. Three crosswalks in silver bridge them, rebuilt from the data on every build: `team_xwalk` (full name, nickname, abbreviation), `game_xwalk` (same teams on the same Eastern-time date) and `player_xwalk` (exact normalised name in the same team-game, then a fuzzy name match with birthdate confirmation, then `seeds/player_id_overrides.csv`). `player_game_reconciliation` compares thirteen values per player-game and judges it exact, minor or conflict; `ops.reconciliation` logs every differing value with the resolution (league wins, ESPN only where the league is null); `ops.reconciliation_summary` carries the match and conflict rates per league and season that Data Health shows; `fct_player_game.source_agreement` carries the verdict. Players the crosswalk cannot pair wait in `player_xwalk_review`. ADR 0005 has the reasoning, including the name-similarity function per engine.
+
 ## Trust boundaries
 
 - The Worker holds no secrets. It reads the static build and public R2 objects. Its CSP allows `'wasm-unsafe-eval'` for DuckDB-WASM and frames only `public.tableau.com`.

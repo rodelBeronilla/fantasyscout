@@ -1,0 +1,30 @@
+# ADR 0005: Reconciling the two sources
+
+Status: accepted, 2026-10-27
+
+## Context
+
+The league stats API is the primary source and ESPN's public JSON the second (SPEC.md). Neither shares an id with the other: teams, games and players all need a crosswalk before a player-game can be compared. The spec asks for a player crosswalk built in three passes (exact name, fuzzy name with birthdate, manual overrides), a difference log with a resolution rule, and a `source_agreement` flag on every player-game, with at least 99% of player-games matched.
+
+## Decision
+
+**Three crosswalks, each one row per primary-source key.**
+
+- `silver.team_xwalk`: full team name first (both sources write "Las Vegas Aces"), then the nickname from the team seed, then the abbreviation, which the sources spell differently for a few teams.
+- `silver.game_xwalk`: same league, same two teams in either orientation (so neutral-site games match), same Eastern-time date, with the adjacent day as a fallback. ESPN publishes event times in UTC; a 10 pm Eastern tip-off is the next day in UTC, so the UTC time is converted before comparing dates. Each ESPN event is used at most once.
+- `silver.player_xwalk`: within matched games, (1) the same normalised name on the same team in the same game, (2) a name similarity above the threshold for players neither side matched, on the same team in the same game, with the bar lowered when the two rosters give the same birthdate, (3) `seeds/player_id_overrides.csv`, which wins over both. A pair must be the best candidate for both players. Everyone left over is in `silver.player_xwalk_review` with the closest candidate, so a reviewer can add an override.
+
+**Name normalisation** folds accents, drops generational suffixes and keeps letters only, so "A'ja Wilson" and "Aja Wilson" agree before any fuzzy matching is needed. Both token orders are tried, because the sources disagree on the order of some East Asian names ("Xu Han" against "Han Xu"), which no similarity function would rescue.
+
+**Name similarity per engine.** DuckDB has Jaro-Winkler, the function the spec names, with the spec's 0.92 threshold (0.85 with a birthdate match). Databricks SQL has no Jaro-Winkler; there the normalised Levenshtein ratio stands in, with thresholds of 0.80 and 0.70. The two functions scale differently, so the thresholds are per engine, both set so that a one-letter spelling difference in a surname passes and a different person on the same roster does not. The fuzzy pass only ever runs on players the exact pass left over, which keeps the risk of a wrong fuzzy pair small; the review table and the summary make any remaining miss visible.
+
+**Comparison and resolution.** `silver.player_game_reconciliation` lays the thirteen compared values side by side and judges each player-game: `exact` when every count agrees and minutes agree to the nearest minute (ESPN publishes whole minutes, the league mm:ss), `minor` when only minutes differ and by at most one, `conflict` otherwise. A player neither source has on the floor counts as `exact`: the league writes a line of zeros for a player who did not play and ESPN writes nothing, which is the same fact. The difference log leaves those rows out, and leaves out minutes within half a minute, because ESPN rounds to the minute. `ops.reconciliation` holds one row per differing value with both values and the resolution: the league value wins; ESPN's value is taken only where the league's is null. `fct_player_game` applies that resolution and carries `source_agreement`, `unverified` for rows ESPN does not cover. `ops.reconciliation_summary` reports match and conflict rates per league and season, and a warn-severity check flags any season under 99% matched.
+
+**First measurement** (one WNBA week, 25 games, 637 player-games, on DuckDB): every game and team matched; 205 of 205 players paired, 204 by exact name and one by reversed token order; 637 of 637 player-games matched and every one exact once a did-not-play line counted as agreement and minutes were compared to the half minute. Before those two rules, 129 did-not-play lines read as conflicts and 493 minutes differences were rounding.
+
+## Consequences
+
+- The crosswalks are rebuilt from the data on every build, so a newly landed season is matched without any manual step; overrides are the only hand-maintained input.
+- `ops.reconciliation` is a snapshot of the current comparison, not a history; the summary table is what Data Health shows, and `ops.test_results` keeps the history of the coverage check.
+- A player ESPN lists under a different name entirely (a nickname, a marriage) shows up in the review table and needs one seed row; the games before the override are matched retroactively on the next build.
+- The engine-specific similarity function means the fuzzy pass can pair slightly differently on DuckDB and Databricks; the exact pass, which covers nearly every player, is identical on both.
