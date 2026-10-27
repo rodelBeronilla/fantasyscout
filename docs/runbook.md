@@ -47,6 +47,10 @@ docker run --rm -v "C:\path\to\fantasyscout:/repo:ro" -w /w node:24-bookworm bas
   'mkdir -p /w/web && cp -r /repo/web/dist /w/web/dist && cp -r /repo/worker /w/worker && cd /w/worker && rm -rf node_modules && npm ci && npm test'
 ```
 
+## One-time: create the catalog (Free Edition)
+
+Free Edition refuses to create a catalog through the REST API unless a storage location is given, and custom locations are not allowed; the UI can create one on Default Storage. Once, in the workspace: **Catalog → Create catalog → name `fantasyscout` → Default storage → Create**. Everything below the catalog (the `raw` schema, the `landing` volume, later the bronze/silver/gold/ops schemas) is created by the code.
+
 ## Run an ingest by hand
 
 From the repo, with `DATABRICKS_HOST` and `DATABRICKS_TOKEN` in the environment for the volume backend (omit `--backend volume` to land under `./landing/` locally):

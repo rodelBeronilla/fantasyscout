@@ -165,6 +165,20 @@ def test_ensure_volume_creates_missing_objects_and_tolerates_existing() -> None:
     backend.close()
 
 
+def test_ensure_volume_explains_the_free_edition_catalog_rule() -> None:
+    body = {
+        "error_code": "INVALID_STATE",
+        "message": "Metastore storage root URL does not exist. Default Storage is enabled ...",
+    }
+    backend = VolumeBackend(
+        "https://dbc-1.cloud.databricks.com",
+        "tok",
+        transport=httpx.MockTransport(lambda _: httpx.Response(400, json=body)),
+    )
+    with pytest.raises(RuntimeError, match="create it once in the workspace UI"):
+        backend.ensure_volume()
+
+
 def test_ensure_volume_raises_on_real_errors() -> None:
     backend = VolumeBackend(
         "https://dbc-1.cloud.databricks.com",

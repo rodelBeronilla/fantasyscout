@@ -101,9 +101,16 @@ class VolumeBackend:
             return "created"
         if response.status_code == 409 or "ALREADY_EXISTS" in response.text:
             return "exists"
+        hint = ""
+        if kind == "catalogs" and "Default Storage" in response.text:
+            hint = (
+                " Free Edition cannot create a catalog through the API without a storage "
+                "location: create it once in the workspace UI (Catalog > Create catalog > "
+                f"name {payload.get('name')!r}, Default storage), then re-run."
+            )
         msg = (
             f"could not create {kind} {payload.get('name')}: "
-            f"HTTP {response.status_code} {response.text[:300]}"
+            f"HTTP {response.status_code} {response.text[:300]}{hint}"
         )
         raise RuntimeError(msg)
 
