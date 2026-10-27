@@ -8,7 +8,11 @@
     "check": "wrangler deploy --dry-run --env production && wrangler deploy --dry-run --env preview",
     "types": "wrangler types --include-runtime=false",
     "typecheck": "npm run types && tsc --noEmit",
-    "test": "npm run types && vitest run"
+    "test": "npm run types && vitest run",
+    "csp": "node scripts/csp-hashes.mjs",
+    "pretest": "npm run csp",
+    "precheck": "npm run csp",
+    "predeploy": "npm run csp"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.8",

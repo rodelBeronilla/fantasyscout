@@ -30,6 +30,22 @@ describe('parseRange', () => {
 });
 
 describe('routing', () => {
+  it('allows the scripts and style Astro inlines, by hash', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/`);
+    const csp = res.headers.get('content-security-policy') ?? '';
+    const html = await res.text();
+    const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].filter(
+      (m) => !/\ssrc=/.test(m[0].slice(0, m[0].indexOf('>') + 1)) && m[1]!.trim(),
+    );
+    expect(inline.length).toBeGreaterThan(0);
+    for (const m of inline) {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(m[1]!));
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(digest)));
+      expect(csp).toContain(`'sha256-${b64}'`);
+    }
+    expect(csp).not.toContain('unsafe-inline');
+  });
+
   it('serves the home page with security headers', async () => {
     const res = await SELF.fetch(`${ORIGIN}/`);
     expect(res.status).toBe(200);
