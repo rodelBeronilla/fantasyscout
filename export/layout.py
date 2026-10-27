@@ -66,27 +66,18 @@ OPS: tuple[TableSpec, ...] = (
 
 TABLES: tuple[TableSpec, ...] = GOLD + OPS
 
-# The board and the streamers go out per league with the player's name and team attached,
-# which is what the pages render; the Parquet keeps the bare mart.
+# The board and the streamers go out per league as well; both marts already carry the player's
+# name, position and team. (Joining the dimension again produced duplicate column names, which
+# Arrow refuses to concatenate.)
 BOARD_SQL = """
-select
-    b.*,
-    p.full_name,
-    p.position
+select b.*
 from gold.mart_board as b
-left join gold.dim_player as p
-    on p.league = b.league and p.stats_player_id = b.player_id and p.is_current
 order by b.league, b.rank_total, b.player_id
 """
 
 STREAMERS_SQL = """
-select
-    s.*,
-    p.full_name,
-    p.position
+select s.*
 from gold.mart_streamers as s
-left join gold.dim_player as p
-    on p.league = s.league and p.stats_player_id = s.player_id and p.is_current
 order by s.league, s.minutes_trend desc nulls last, s.player_id
 """
 
