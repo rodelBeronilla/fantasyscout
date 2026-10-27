@@ -1,0 +1,70 @@
+name: Query the lakehouse
+
+# Read-only: prints the rows of one table (or a filtered slice of it) into the job log, for
+# looking at silver and ops tables without a SQL console. Runs on a GitHub-hosted runner.
+
+on:
+  workflow_dispatch:
+    inputs:
+      table:
+        description: Table, schema-qualified (for example silver.team_xwalk)
+        type: string
+        required: true
+      columns:
+        description: Columns to print
+        type: string
+        default: "*"
+      where:
+        description: Filter (SQL, without the keyword), optional
+        type: string
+        default: ""
+      order_by:
+        description: Sort (SQL, without the keywords)
+        type: string
+        default: "1"
+      limit:
+        description: Maximum rows printed
+        type: string
+        default: "200"
+
+permissions:
+  contents: read
+
+jobs:
+  query:
+    name: ${{ inputs.table }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Resolve the workspace host and SQL warehouse
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -euo pipefail
+          origin=$(uv run python -c "import os; from ingest.store import workspace_origin; print(workspace_origin(os.environ['DATABRICKS_HOST']))")
+          host="${origin#https://}"
+          echo "::add-mask::$host"
+          warehouse=$(curl -sf -H "Authorization: Bearer $DATABRICKS_TOKEN" "$origin/api/2.0/sql/warehouses" \
+            | uv run python -c "import json,sys; w=json.load(sys.stdin)['warehouses']; print(sorted(w, key=lambda x: x.get('creation_time', 0))[0]['id'])")
+          echo "::add-mask::$warehouse"
+          {
+            echo "DATABRICKS_ORIGIN=$origin"
+            echo "DATABRICKS_WAREHOUSE_ID=$warehouse"
+          } >> "$GITHUB_ENV"
+      - name: Query
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          TABLE: ${{ inputs.table }}
+          COLUMNS: ${{ inputs.columns }}
+          WHERE: ${{ inputs.where }}
+          ORDER_BY: ${{ inputs.order_by }}
+          LIMIT: ${{ inputs.limit }}
+        run: |
+          uv run python -m ops.summary --engine databricks --table "$TABLE" --columns "$COLUMNS" \
+            --where "$WHERE" --order-by "$ORDER_BY" --limit "$LIMIT"
