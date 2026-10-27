@@ -42,7 +42,7 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.dim_player", "league, stats_player_id, valid_from", json=True),
     TableSpec("gold.fct_availability", "league, report_date, injury_id", json=True),
     TableSpec("gold.mart_board", "league, rank_total, player_id"),
-    TableSpec("gold.mart_category_zscores", "league, window_name, season, player_id", json=True),
+    TableSpec("gold.mart_category_zscores", "league, window_name, season, player_id"),
     TableSpec("gold.mart_player_rolling", "league, season, player_id, game_date, game_id"),
     TableSpec("gold.mart_streamers", "league, player_id"),
     TableSpec(
