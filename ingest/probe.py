@@ -76,9 +76,24 @@ DEFAULT_TARGETS: tuple[Target, ...] = (
 )
 
 
+def workspace_origin(host: str) -> str:
+    """Reduce whatever was pasted as DATABRICKS_HOST to ``https://<workspace-host>``.
+
+    People copy the URL from the browser, which may carry a path or an ``?o=`` query;
+    the REST API lives at the bare origin.
+    """
+    raw = host.strip()
+    if not raw:
+        return ""
+    if "://" not in raw:
+        raw = f"https://{raw}"
+    url = httpx.URL(raw)
+    return f"https://{url.host}"
+
+
 def databricks_target(env: Mapping[str, str] = os.environ) -> Target | None:
     """A Unity Catalog call that proves host and token work. None when they are not set."""
-    host = env.get("DATABRICKS_HOST", "").rstrip("/")
+    host = workspace_origin(env.get("DATABRICKS_HOST", ""))
     token = env.get("DATABRICKS_TOKEN", "")
     if not host or not token:
         return None
@@ -91,6 +106,10 @@ def databricks_target(env: Mapping[str, str] = os.environ) -> Target | None:
 
 
 def _check(target: Target, response: httpx.Response) -> tuple[bool, str]:
+    if 300 <= response.status_code < 400:
+        location = httpx.URL(response.headers.get("location", ""))
+        where = f"{location.host}{location.path}" if location.host else "(no Location)"
+        return False, f"HTTP {response.status_code} redirect to {where}"
     if response.status_code != 200:
         return False, f"HTTP {response.status_code}"
     try:

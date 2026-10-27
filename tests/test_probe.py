@@ -58,6 +58,37 @@ def test_databricks_target_requires_both_env_values() -> None:
     assert target.headers["Authorization"] == "Bearer secret"
 
 
+def test_workspace_origin_strips_paths_and_queries() -> None:
+    from ingest.probe import workspace_origin
+
+    assert (
+        workspace_origin("https://dbc-1.cloud.databricks.com/")
+        == "https://dbc-1.cloud.databricks.com"
+    )
+    assert (
+        workspace_origin("https://dbc-1.cloud.databricks.com/?o=123#x")
+        == "https://dbc-1.cloud.databricks.com"
+    )
+    assert (
+        workspace_origin("https://dbc-1.cloud.databricks.com/browse/folders/1?o=2")
+        == "https://dbc-1.cloud.databricks.com"
+    )
+    assert workspace_origin("dbc-1.cloud.databricks.com") == "https://dbc-1.cloud.databricks.com"
+    assert workspace_origin("  ") == ""
+
+
+def test_redirects_are_reported_with_their_destination() -> None:
+    target = Target(name="t", url="https://example.test/api", expect="k")
+    results = run_probe(
+        [target],
+        client=_client(
+            lambda _: httpx.Response(303, headers={"location": "https://example.test/login?next=x"})
+        ),
+    )
+    assert results[0].ok is False
+    assert results[0].detail == "HTTP 303 redirect to example.test/login"
+
+
 def test_reports_never_contain_headers() -> None:
     target = Target(
         name="t", url="https://example.test/x", expect="k", headers={"Authorization": "Bearer s"}
