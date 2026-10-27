@@ -196,3 +196,27 @@ def test_ensure_volume_raises_on_real_errors() -> None:
         backend.ensure_volume()
     with pytest.raises(ValueError, match="/Volumes/<catalog>/<schema>"):
         VolumeBackend("https://x", "t", root="/Volumes/only").ensure_volume()
+
+
+class FlakyBackend(LocalBackend):
+    """Fails the payload write for one key so the failure path can be asserted."""
+
+    def write_bytes(self, path: PurePosixPath, body: bytes) -> None:
+        if path.name == "bad.json":
+            raise RuntimeError("disk full")
+        super().write_bytes(path, body)
+
+
+def test_threaded_writes_overlap_and_failures_are_reported(tmp_path: Path) -> None:
+    landing = Landing(FlakyBackend(tmp_path), ingest_date=date(2026, 10, 27), workers=4)
+    assert _land(landing, "good", b"ok").outcome == "landed"
+    assert _land(landing, "bad", b"nope").outcome == "landed"  # queued; failure surfaces at flush
+    failures = landing.flush()
+    landing.close()
+    assert [(f.endpoint, f.key) for f in failures] == [("leaguegamelog", "bad")]
+    assert "disk full" in str(failures[0].error)
+    assert (tmp_path / "landing/stats/leaguegamelog/wnba/2026/2026-10-27/good.json").exists()
+    index = json.loads(
+        (tmp_path / "landing/stats/leaguegamelog/wnba/2026" / INDEX_NAME).read_text()
+    )
+    assert "good" in index and "bad" not in index, "a failed write must not be indexed as landed"

@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-27 (phase 1 done)
+Last updated: 2026-10-27 (phase 2 built)
 
 ## Vision
 
@@ -17,6 +17,7 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 | `uv run ruff check . && uv run mypy && uv run pytest` | Python checks |
 | `cd web && npm run check && npm run lint && npm run build && npm test` | Web checks and Playwright |
 | `cd worker && npm run typecheck && npm test && npm run check` | Worker checks and dry-run deploys |
+| `cd dbt && DBT_PROFILES_DIR=. uv run dbt build --target duckdb` | Lakehouse models and tests on the fixture sample |
 
 ## Deployment
 
@@ -35,7 +36,7 @@ Phase 1, Ingest, is done (issue #7; PRs #8, #9, #10, #13, #14). Daily `ingest.ym
 | --- | --- |
 | Phase 0 Skeleton | Done 2026-10-26 (live, CI green) |
 | Phase 1 Ingest | Done 2026-10-27 (both sources landing daily; ADR 0002 accepted) |
-| Phase 2 Lakehouse | Not started |
+| Phase 2 Lakehouse | Built 2026-10-27 (issue #16): bronze + silver on DuckDB and Databricks, Asset Bundle job |
 | Phase 3 Gold + quality | Not started |
 | Phase 4 Reconciliation | Not started |
 | Phase 5 Serving + app | Not started |

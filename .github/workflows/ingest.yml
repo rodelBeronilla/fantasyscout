@@ -117,12 +117,16 @@ jobs:
     runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
     strategy:
       fail-fast: false
-      max-parallel: 1 # one request at a time per host, across leagues too
+      # stats.wnba.com and stats.nba.com are different hosts, so the one-request-per-host
+      # rule holds with both leagues running at once.
+      max-parallel: 2
       matrix:
         league: ${{ fromJSON(needs.plan.outputs.leagues) }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
       - run: uv sync --frozen
       - name: Land
         id: land

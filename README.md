@@ -33,7 +33,7 @@ Built phase by phase; each phase ends with something live and a PR that passes C
 ```
 ingest/      Python ingestors, one module per source; CLI: fs-ingest
 export/      gold -> Parquet/JSON -> R2, manifest, latest pointer
-dbt/         dbt project: models/bronze|silver|gold|ops, tests/, seeds/, macros/
+dbt/         dbt project: models/bronze|silver (gold, ops from phase 3), seeds/, macros/, sample/
 ai/          notes generator, prompts, evals/
 notebooks/   01_shot_profiles, 02_reconciliation_audit, 03_fantasy_value_backtest
 web/         Astro app
@@ -48,7 +48,9 @@ docs/        adr/, runbook.md, architecture.md, data-dictionary.md (generated)
 ## Run it locally
 
 ```bash
-uv sync && uv run pytest                     # Python
+uv sync --group dbt && uv run pytest         # Python
+cd dbt && DBT_PROFILES_DIR=. uv run dbt build --target duckdb   # lakehouse models on the fixture sample
+cd ..
 cd web && npm ci && npm run build && npm test  # Astro app and Playwright
 cd ../worker && npm ci && npm test             # Worker against the real build
 ```

@@ -110,7 +110,12 @@ def land(
         # Fail here, loudly, rather than once per request inside the run.
         created = backend.ensure_volume()
         print("volume: " + ", ".join(f"{k} {v}" for k, v in created.items()))
-    landing = Landing(backend, ingest_date=today, full_refresh=opts.full_refresh)
+    landing = Landing(
+        backend,
+        ingest_date=today,
+        full_refresh=opts.full_refresh,
+        workers=4 if isinstance(backend, VolumeBackend) else 1,
+    )
     run_id = uuid.uuid4().hex[:12]
     with ThrottledClient() as client:
         if opts.source == "stats":
@@ -121,6 +126,7 @@ def land(
             summary = EspnIngestor(client, landing, EspnPlanner(opts.league, season)).run(
                 since=since, until=until
             )
+    landing.close()
 
     record = {
         **summary.to_dict(),

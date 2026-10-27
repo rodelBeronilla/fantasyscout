@@ -40,7 +40,7 @@ FantasyScout is three loosely coupled systems: ingestion in GitHub Actions, tran
 | Orchestration | GitHub Actions cron for ingest; Databricks Jobs via Asset Bundles for transforms | `.github/workflows/`, `bundles/` |
 | Landing (bronze) | Raw JSON as received, pushed to a Unity Catalog volume through the Files API | `ingest/landing.py` defines the layout |
 | Warehouse | Databricks Free Edition: Delta, Unity Catalog, one 2X-Small SQL warehouse | `dbt/` |
-| Transform | dbt Core, `dbt-databricks` target plus a `dbt-duckdb` target for CI | `dbt/` |
+| Transform | dbt Core, `dbt-databricks` target plus a `dbt-duckdb` target for CI; one SQL body per model, adapter-dispatched macros hide the engine differences | `dbt/` |
 | Quality | dbt tests, `dbt-expectations`, basketball-logic tests, `ops` schema | `dbt/tests/` |
 | Serving | Nightly export of gold to Parquet and JSON on R2 | `export/` |
 | Web app | Astro static build, Tailwind, React islands where needed | `web/` |
@@ -65,7 +65,7 @@ The app has its own subdomain, `fantasyscout.beronilla.rodeo`, bound to the Work
 | --- | --- |
 | 0. Skeleton | Live at https://fantasyscout.beronilla.rodeo/ |
 | 1. Ingest | Done: daily landing of the stats API (home runner) and ESPN (GitHub) into the `landing` volume |
-| 2. Lakehouse | Not started |
+| 2. Lakehouse | Built: bronze and silver dbt models run on DuckDB (CI) and Databricks; Asset Bundle job defined |
 | 3. Gold + quality | Not started |
 | 4. Reconciliation | Not started |
 | 5. Serving + app | Not started |

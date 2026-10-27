@@ -27,7 +27,7 @@ No number shown on the site comes from a language model. See "AI usage" in `SPEC
 Python (needs [uv](https://docs.astral.sh/uv/)):
 
 ```bash
-uv sync
+uv sync --group dbt
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
 uv run pytest
@@ -43,6 +43,16 @@ PUBLIC_BUILD_ID=local npm run build
 npx playwright install chromium   # once
 npm test
 ```
+
+dbt (DuckDB, no cloud; the sample under `dbt/sample/` is built from the fixtures):
+
+```bash
+cd dbt
+DBT_PROFILES_DIR=. uv run dbt build --target duckdb
+FS_LANDING_ROOT=/path/to/landing DBT_DUCKDB_PATH=/tmp/real.duckdb DBT_PROFILES_DIR=. uv run dbt build --target duckdb   # against real landed data
+```
+
+After changing a fixture, re-run `uv run python dbt/sample/build_sample.py` and commit the output; CI fails if the sample is stale.
 
 Worker (build the web app first; the tests serve the real `web/dist`):
 

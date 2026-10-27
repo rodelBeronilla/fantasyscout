@@ -99,6 +99,19 @@ Landed payloads are raw, so a shape change breaks bronze parsing (phase 2), not 
 2. Re-record the fixture from a residential address, trim it to a few rows, and update the parser and its tests.
 3. If an endpoint disappeared, mark it in the planner and open an ADR if a replacement endpoint changes the data model.
 
+## Build the lakehouse by hand
+
+The "Build lakehouse" workflow runs `dbt build` on Databricks after every successful ingest and by hand (Actions → Build lakehouse → Run workflow; tick "full refresh" to rebuild incremental models). Locally, against the SQL warehouse:
+
+```bash
+export DBT_PROFILES_DIR=dbt DBT_TARGET=databricks DATABRICKS_TOKEN=...
+export DBT_DATABRICKS_HOST=<workspace-host without https://>
+export DBT_DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/<id>     # GET /api/2.0/sql/warehouses
+cd dbt && uv run dbt build --target databricks
+```
+
+Bronze models are append-only and incremental on `_ingest_date`; a full refresh re-reads every landed file. Silver models rebuild from bronze each run and keep the latest landing per natural key.
+
 ## Roll back a data build (phase 5)
 
 To be written with the export job.
