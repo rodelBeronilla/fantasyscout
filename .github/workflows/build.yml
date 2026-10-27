@@ -88,3 +88,29 @@ jobs:
           TITLE: "Build failure: dbt on Databricks"
           OUTCOME: ${{ steps.build.outcome }}
         run: uv run python .github/scripts/incident.py
+
+  bundle:
+    name: Deploy the Asset Bundle
+    needs: dbt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - uses: databricks/setup-cli@main
+      - name: Validate and deploy
+        working-directory: bundles
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          RAW_HOST: ${{ secrets.DATABRICKS_HOST }}
+        run: |
+          set -euo pipefail
+          export DATABRICKS_HOST=$(uv run python -c "import os; from ingest.store import workspace_origin; print(workspace_origin(os.environ['RAW_HOST']))")
+          warehouse=$(curl -sf -H "Authorization: Bearer $DATABRICKS_TOKEN" "$DATABRICKS_HOST/api/2.0/sql/warehouses" \
+            | uv run python -c "import json,sys; w=json.load(sys.stdin)['warehouses']; print(sorted(w, key=lambda x: x.get('creation_time', 0))[0]['id'])")
+          echo "::add-mask::$warehouse"
+          databricks bundle validate -t prod --var "warehouse_id=$warehouse"
+          databricks bundle deploy   -t prod --var "warehouse_id=$warehouse"
+          databricks bundle summary  -t prod --var "warehouse_id=$warehouse" | sed -E 's#https://[^/]+#https://<workspace>#g'

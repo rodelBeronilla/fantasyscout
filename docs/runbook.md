@@ -77,7 +77,7 @@ done
 uv run fs-ingest land stats --league nba --season 2023-24 --since 2023-10-24 --until 2024-06-30 --backend volume
 ```
 
-A WNBA season is about 240 games × 4 endpoints at roughly 2.3 s per request, so budget about 40 minutes per season for the stats API.
+A WNBA season is about 240 games × 4 endpoints at roughly 2.3 s per request, so budget about 40 minutes per season for the stats API. That 2.3 s is the mandatory pacing gap, not upload time (measured 2026-10-27: overlapping uploads with the gap changed nothing); the only way to go faster is to run the two leagues at once, which the workflow does.
 
 ## Rerun a day
 

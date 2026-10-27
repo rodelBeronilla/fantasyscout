@@ -65,7 +65,7 @@ The app has its own subdomain, `fantasyscout.beronilla.rodeo`, bound to the Work
 | --- | --- |
 | 0. Skeleton | Live at https://fantasyscout.beronilla.rodeo/ |
 | 1. Ingest | Done: daily landing of the stats API (home runner) and ESPN (GitHub) into the `landing` volume |
-| 2. Lakehouse | Built: bronze and silver dbt models run on DuckDB (CI) and Databricks; Asset Bundle job defined |
+| 2. Lakehouse | Done: bronze and silver dbt models pass on DuckDB (CI) and Databricks after every ingest; Asset Bundle job deployed |
 | 3. Gold + quality | Not started |
 | 4. Reconciliation | Not started |
 | 5. Serving + app | Not started |
