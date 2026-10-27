@@ -1,0 +1,134 @@
+name: Backfill
+
+# Lands whole seasons. The stats API jobs run on the home runners (ADR 0002), one season per
+# job so each stays well under the job time limit; ESPN runs on GitHub-hosted runners. The
+# concurrency groups are shared with the daily Ingest workflow, so two jobs never hit the
+# same stats host at once.
+
+on:
+  workflow_dispatch:
+    inputs:
+      league:
+        description: League
+        type: choice
+        options: [wnba, nba]
+        required: true
+      seasons:
+        description: JSON list of season labels, e.g. ["2018","2019"] or ["2023-24","2024-25"]
+        type: string
+        required: true
+      source:
+        description: Which source
+        type: choice
+        options: [both, stats, espn]
+        default: both
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  stats:
+    name: Stats API ${{ inputs.league }} ${{ matrix.season }} ${{ matrix.season_type }}
+    if: inputs.source != 'espn'
+    runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    timeout-minutes: 330
+    concurrency:
+      group: stats-${{ inputs.league }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        season: ${{ fromJSON(inputs.seasons) }}
+        season_type: ["Regular Season", "Playoffs"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Season window
+        id: window
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASON: ${{ matrix.season }}
+          SEASON_TYPE: ${{ matrix.season_type }}
+        run: |
+          # Generous windows; the game log decides which games exist.
+          if [ "$LEAGUE" = "wnba" ]; then
+            y=$SEASON
+            if [ "$SEASON_TYPE" = "Playoffs" ]; then echo "since=$y-09-01" >> "$GITHUB_OUTPUT"; echo "until=$y-10-31" >> "$GITHUB_OUTPUT";
+            else echo "since=$y-05-01" >> "$GITHUB_OUTPUT"; echo "until=$y-09-30" >> "$GITHUB_OUTPUT"; fi
+          else
+            y1=${SEASON%-*}; y2=$((y1 + 1))
+            if [ "$SEASON_TYPE" = "Playoffs" ]; then echo "since=$y2-04-10" >> "$GITHUB_OUTPUT"; echo "until=$y2-06-30" >> "$GITHUB_OUTPUT";
+            else echo "since=$y1-10-01" >> "$GITHUB_OUTPUT"; echo "until=$y2-04-30" >> "$GITHUB_OUTPUT"; fi
+          fi
+      - name: Land
+        id: land
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
+          uv run fs-ingest land stats --league "${{ inputs.league }}" --season "${{ matrix.season }}" \
+            --season-type "${{ matrix.season_type }}" \
+            --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}" \
+            --backend volume 2>&1 | tee land.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Backfill failure: stats ${{ inputs.league }} ${{ matrix.season }} ${{ matrix.season_type }}"
+          OUTCOME: ${{ steps.land.outcome }}
+        run: uv run python .github/scripts/incident.py
+
+  espn:
+    name: ESPN ${{ inputs.league }} ${{ matrix.season }}
+    if: inputs.source != 'stats'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    concurrency:
+      group: espn-${{ inputs.league }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        season: ${{ fromJSON(inputs.seasons) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Season window
+        id: window
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASON: ${{ matrix.season }}
+        run: |
+          if [ "$LEAGUE" = "wnba" ]; then
+            echo "since=$SEASON-05-01" >> "$GITHUB_OUTPUT"; echo "until=$SEASON-10-31" >> "$GITHUB_OUTPUT"
+          else
+            y1=${SEASON%-*}; y2=$((y1 + 1))
+            echo "since=$y1-10-01" >> "$GITHUB_OUTPUT"; echo "until=$y2-06-30" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Land
+        id: land
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
+          uv run fs-ingest land espn --league "${{ inputs.league }}" --season "${{ matrix.season }}" \
+            --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}" \
+            --backend volume 2>&1 | tee land.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Backfill failure: espn ${{ inputs.league }} ${{ matrix.season }}"
+          OUTCOME: ${{ steps.land.outcome }}
+        run: uv run python .github/scripts/incident.py

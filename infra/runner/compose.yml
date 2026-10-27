@@ -1,19 +1,46 @@
-# Self-hosted GitHub Actions runner for the jobs that need a residential address (ADR 0002).
+# Self-hosted GitHub Actions runners for the jobs that need a residential address (ADR 0002).
 #
-# First start (registers the runner; the token is short-lived and never stored in a file):
+# Two runners so the two leagues (two different stats hosts) can land at the same time; each
+# job still makes one request at a time to its host, and concurrency groups in the workflows
+# keep two jobs from ever sharing a host.
+#
+# First start (registers both; the token is short-lived and never stored in a file):
 #   RUNNER_TOKEN=$(gh api -X POST repos/rodelBeronilla/fantasyscout/actions/runners/registration-token --jq .token) \
 #     docker compose -f infra/runner/compose.yml up -d
-# Later starts need no token: the registration lives in the runner-state volume.
+# Later starts need no token: the registrations live in the runner-state volumes.
 #   docker compose -f infra/runner/compose.yml up -d
 # Remove (also deregisters):
-#   docker compose -f infra/runner/compose.yml run --rm runner ./config.sh remove --token "$(gh api -X POST repos/rodelBeronilla/fantasyscout/actions/runners/remove-token --jq .token)"
+#   for s in runner-1 runner-2; do docker compose -f infra/runner/compose.yml run --rm $s ./config.sh remove --token "$(gh api -X POST repos/rodelBeronilla/fantasyscout/actions/runners/remove-token --jq .token)"; done
 #   docker compose -f infra/runner/compose.yml down -v
 
+x-runner: &runner
+  image: ghcr.io/actions/actions-runner:latest
+  restart: unless-stopped
+  command:
+    - bash
+    - -c
+    - |
+      set -e
+      cd /home/runner
+      if [ ! -f .runner ]; then
+        [ -n "$$RUNNER_TOKEN" ] || { echo "RUNNER_TOKEN is required for the first start"; exit 1; }
+        ./config.sh --unattended --replace \
+          --url "$$RUNNER_URL" --token "$$RUNNER_TOKEN" \
+          --name "$$RUNNER_NAME" --labels "$$RUNNER_LABELS" \
+          --work _work
+      fi
+      exec ./run.sh
+  # The ingest jobs are light: one HTTP request at a time plus small file uploads.
+  deploy:
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: 1g
+
 services:
-  runner:
-    image: ghcr.io/actions/actions-runner:latest
+  runner-1:
+    <<: *runner
     container_name: fantasyscout-runner
-    restart: unless-stopped
     environment:
       RUNNER_URL: https://github.com/rodelBeronilla/fantasyscout
       RUNNER_NAME: home-server
@@ -21,26 +48,18 @@ services:
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
     volumes:
       - runner-state:/home/runner
-    command:
-      - bash
-      - -c
-      - |
-        set -e
-        cd /home/runner
-        if [ ! -f .runner ]; then
-          [ -n "$$RUNNER_TOKEN" ] || { echo "RUNNER_TOKEN is required for the first start"; exit 1; }
-          ./config.sh --unattended --replace \
-            --url "$$RUNNER_URL" --token "$$RUNNER_TOKEN" \
-            --name "$$RUNNER_NAME" --labels "$$RUNNER_LABELS" \
-            --work _work
-        fi
-        exec ./run.sh
-    # The ingest jobs are light: one HTTP request at a time plus small file uploads.
-    deploy:
-      resources:
-        limits:
-          cpus: "1.0"
-          memory: 1g
+
+  runner-2:
+    <<: *runner
+    container_name: fantasyscout-runner-2
+    environment:
+      RUNNER_URL: https://github.com/rodelBeronilla/fantasyscout
+      RUNNER_NAME: home-server-2
+      RUNNER_LABELS: home
+      RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+    volumes:
+      - runner-state-2:/home/runner
 
 volumes:
   runner-state:
+  runner-state-2:
