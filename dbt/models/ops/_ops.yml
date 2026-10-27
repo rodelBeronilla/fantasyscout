@@ -42,5 +42,7 @@ models:
         description: "League and season"
         data_tests: [unique, not_null]
       - name: match_rate
-        description: "Matched player-games over all player-games"
+        description: "Matched player-games over every line of the league box score, inactive players included"
         data_tests: [not_null]
+      - name: played_match_rate
+        description: "Matched player-games over the lines where the player was on the floor; the coverage check judges this one"

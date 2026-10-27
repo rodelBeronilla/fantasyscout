@@ -16,7 +16,7 @@
 {% macro default__norm_name(col) -%}
   regexp_replace(
     translate(
-      regexp_replace(lower({{ col }}), '[ ]+(jr|sr|ii|iii|iv)[.]?$', ''),
+      regexp_replace(regexp_replace(lower({{ col }}), '[(][^)]*[)]', ''), '[ ]+(jr|sr|ii|iii|iv)[.]?$', ''),
       'áàâäãåéèêëíìîïóòôöõúùûüñçýÿ', 'aaaaaaeeeeiiiiooooouuuuncyy'
     ),
     '[^a-z]', '', 'g'
@@ -26,11 +26,35 @@
 {% macro databricks__norm_name(col) -%}
   regexp_replace(
     translate(
-      regexp_replace(lower({{ col }}), '[ ]+(jr|sr|ii|iii|iv)[.]?$', ''),
+      regexp_replace(regexp_replace(lower({{ col }}), '[(][^)]*[)]', ''), '[ ]+(jr|sr|ii|iii|iv)[.]?$', ''),
       'áàâäãåéèêëíìîïóòôöõúùûüñçýÿ', 'aaaaaaeeeeiiiiooooouuuuncyy'
     ),
     '[^a-z]', ''
   )
+{%- endmacro %}
+
+{#
+  The nickname a league roster writes in parentheses: "Asia (AD) Durr" gives "AD". Null when
+  there is none.
+#}
+{% macro nickname_in_parentheses(col) -%}
+  nullif(regexp_extract({{ col }}, '[(]([^)]+)[)]', 1), '')
+{%- endmacro %}
+
+{#
+  The first and last whitespace-separated tokens of a name, so "Cyesha Damian Goree" can meet
+  "Cyesha Goree".
+#}
+{% macro first_last_tokens(col) -%}
+  {{ return(adapter.dispatch('first_last_tokens', 'fantasyscout')(col)) }}
+{%- endmacro %}
+
+{% macro default__first_last_tokens(col) -%}
+  (string_split({{ col }}, ' ')[1] || ' ' || string_split({{ col }}, ' ')[-1])
+{%- endmacro %}
+
+{% macro databricks__first_last_tokens(col) -%}
+  (element_at(split({{ col }}, ' '), 1) || ' ' || element_at(split({{ col }}, ' '), -1))
 {%- endmacro %}
 
 {#
@@ -59,7 +83,7 @@
 {%- endmacro %}
 
 {% macro databricks__name_similarity_threshold() -%}
-  0.80
+  0.75
 {%- endmacro %}
 
 {# A confirmed birthdate lets a weaker name match through. #}
@@ -72,7 +96,7 @@
 {%- endmacro %}
 
 {% macro databricks__name_similarity_threshold_with_birthdate() -%}
-  0.70
+  0.65
 {%- endmacro %}
 
 {# Null-safe equality: two nulls agree, a null and a value do not. #}

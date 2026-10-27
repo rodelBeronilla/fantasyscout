@@ -2,8 +2,10 @@
   League stats API player id to ESPN athlete id, one row per matched player (SPEC.md,
   "Reconciliation"). Three passes over the players who appear in matched games:
 
-  1. exact: the same normalised name, in either token order ("Xu Han" is "Han Xu"), on the
-     same team in the same game;
+  1. exact: the same normalised name on the same team in the same game, in either token
+     order ("Xu Han" is "Han Xu"), by the roster's parenthesised nickname ("Asia (AD) Durr"
+     is "AD Durr"), or by first and last token alone ("Cyesha Damian Goree" is "Cyesha
+     Goree");
   2. fuzzy: among players neither pass matched, a name similarity above the engine's
      threshold within the same team-game, the bar lowered when the rosters give the same
      birthdate (ADR 0005);
@@ -31,7 +33,8 @@ stats_side as (
         tx.espn_team_id,
         b.first_name || ' ' || b.family_name as player_name,
         {{ norm_name("b.first_name || ' ' || b.family_name") }} as norm_name,
-        {{ norm_name("b.family_name || ' ' || b.first_name") }} as norm_name_reversed
+        {{ norm_name("b.family_name || ' ' || b.first_name") }} as norm_name_reversed,
+        {{ norm_name(nickname_in_parentheses('b.first_name') ~ " || ' ' || b.family_name") }} as norm_name_nick
     from {{ ref('player_game_box') }} as b
     join matched_games as g
         on g.league = b.league and g.game_id = b.game_id
@@ -49,7 +52,8 @@ espn_side as (
         e.athlete_id as espn_player_id,
         e.team_id as espn_team_id,
         e.athlete_name as player_name,
-        {{ norm_name('e.athlete_name') }} as norm_name
+        {{ norm_name('e.athlete_name') }} as norm_name,
+        {{ norm_name(first_last_tokens('e.athlete_name')) }} as norm_first_last
     from {{ ref('espn_player_game') }} as e
     join matched_games as g
         on g.league = e.league and g.event_id = e.event_id
@@ -70,7 +74,12 @@ exact_pairs as (
         on e.league = s.league
         and e.event_id = s.event_id
         and e.espn_team_id = s.espn_team_id
-        and (e.norm_name = s.norm_name or e.norm_name = s.norm_name_reversed)
+        and (
+            e.norm_name = s.norm_name
+            or e.norm_name = s.norm_name_reversed
+            or e.norm_name = s.norm_name_nick
+            or e.norm_first_last = s.norm_name
+        )
     group by s.league, s.stats_player_id, e.espn_player_id
 
 ),
@@ -133,7 +142,8 @@ fuzzy_candidates as (
         s.game_date,
         greatest(
             {{ name_similarity('s.norm_name', 'e.norm_name') }},
-            {{ name_similarity('s.norm_name_reversed', 'e.norm_name') }}
+            {{ name_similarity('s.norm_name_reversed', 'e.norm_name') }},
+            {{ name_similarity('s.norm_name', 'e.norm_first_last') }}
         ) as similarity
     from stats_unmatched as s
     join espn_unmatched as e
