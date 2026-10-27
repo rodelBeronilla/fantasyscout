@@ -60,6 +60,12 @@ jobs:
             echo "DBT_DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/$warehouse"
           } >> "$GITHUB_ENV"
 
+      - name: Ensure every endpoint directory exists in the landing volume
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: uv run fs-ingest ensure-dirs --backend volume
+
       - name: dbt build
         id: build
         working-directory: dbt

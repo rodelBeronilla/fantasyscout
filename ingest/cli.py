@@ -14,6 +14,7 @@ from pathlib import Path
 
 from ingest import land as land_mod
 from ingest import probe as probe_mod
+from ingest.store import VolumeBackend
 
 SOURCES = ("stats", "espn")
 FAILURE_EXIT = 2
@@ -28,6 +29,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_probe.add_argument(
         "--markdown", action="store_true", help="print a Markdown table instead of JSON"
     )
+
+    p_dirs = sub.add_parser(
+        "ensure-dirs", help="create every known landing directory (volume or local)"
+    )
+    p_dirs.add_argument("--backend", choices=("local", "volume"), default="local")
+    p_dirs.add_argument("--root", type=Path, default=Path("."), help="root for the local backend")
 
     p_land = sub.add_parser("land", help="fetch and land raw payloads")
     p_land.add_argument("source", choices=SOURCES, help="which provider to pull from")
@@ -113,6 +120,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "probe":
         return _run_probe(args.out, args.markdown)
+    if args.command == "ensure-dirs":
+        backend = land_mod.make_backend(args.backend, args.root)
+        if isinstance(backend, VolumeBackend):
+            backend.ensure_volume()
+        count = land_mod.ensure_landing_dirs(backend)
+        print(f"ensured {count} landing directories ({args.backend})")
+        return 0
     return _run_land(args)
 
 

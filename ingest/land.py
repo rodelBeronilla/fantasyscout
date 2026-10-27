@@ -29,6 +29,38 @@ Pace = Literal["spec", "adaptive"]
 
 RUN_LOG_DIR = PurePosixPath("landing/_ops/ingest_log")
 
+# Every endpoint a bronze model reads. Databricks read_files fails on a path that does not
+# exist yet, so these directories are created before any build and on every ingest run.
+ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
+    "stats": (
+        "scheduleleaguev2",
+        "commonallplayers",
+        "leaguegamelog",
+        "playergamelogs",
+        "boxscoretraditionalv3",
+        "boxscoreadvancedv3",
+        "playbyplayv3",
+        "shotchartdetail",
+        "commonteamroster",
+    ),
+    "espn": ("scoreboard", "summary", "teams", "roster", "injuries"),
+}
+
+
+def landing_dirs() -> list[PurePosixPath]:
+    dirs = [RUN_LOG_DIR]
+    for source, endpoints in ENDPOINT_DIRS.items():
+        dirs.extend(PurePosixPath("landing", source, endpoint) for endpoint in endpoints)
+    return dirs
+
+
+def ensure_landing_dirs(backend: Backend) -> int:
+    """Create every known landing directory; returns how many were ensured."""
+    dirs = landing_dirs()
+    for path in dirs:
+        backend.ensure_directory(path)
+    return len(dirs)
+
 
 @dataclass(frozen=True)
 class LandOptions:
@@ -119,6 +151,7 @@ def land(
         # Fail here, loudly, rather than once per request inside the run.
         created = backend.ensure_volume()
         print("volume: " + ", ".join(f"{k} {v}" for k, v in created.items()))
+    ensure_landing_dirs(backend)
     landing = Landing(
         backend,
         ingest_date=today,
