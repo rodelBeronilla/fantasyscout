@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-27 (phase 1 live: scheduled ingest from GitHub and the home runner)
+Last updated: 2026-10-27 (phase 1 done)
 
 ## Vision
 
@@ -27,14 +27,14 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 
 ## Active Sprint
 
-Phase 1, Ingest (issue #7, PR #8). Throttled client, stats API and ESPN ingestors, landing store with idempotent index, `fs-ingest land`, scheduled `ingest.yml` with incident issues. Probe showed the stats API does not answer GitHub-hosted runners (ADR 0002, decision pending); ESPN and Databricks do. A full WNBA week landed locally with zero failures and a no-op rerun.
+Phase 1, Ingest, is done (issue #7; PRs #8, #9, #10, #13, #14). Daily `ingest.yml` lands ESPN from GitHub-hosted runners and the stats API from the home runner into `fantasyscout.raw.landing`. First runs landed a WNBA week (25 games, 115 payloads) and an NBA week (49 games, 229 payloads) with zero failures; the rerun skipped all 118 WNBA payloads without a request. Incident issues open and close themselves. Waiting for the owner's go-ahead for phase 2.
 
 ## Milestones
 
 | Milestone | Status |
 | --- | --- |
 | Phase 0 Skeleton | Done 2026-10-26 (live, CI green) |
-| Phase 1 Ingest | In progress (2026-10-27): code done, ESPN scheduled from GitHub; stats API needs a residential runner (ADR 0002) |
+| Phase 1 Ingest | Done 2026-10-27 (both sources landing daily; ADR 0002 accepted) |
 | Phase 2 Lakehouse | Not started |
 | Phase 3 Gold + quality | Not started |
 | Phase 4 Reconciliation | Not started |
@@ -49,7 +49,7 @@ N/A, first sprint.
 
 ## Blockers
 
-- Tableau Public account exists; needed in phase 6.
+- None. Tableau Public account exists; needed in phase 6.
 
 ## Tech Debt
 
@@ -57,5 +57,6 @@ N/A, first sprint.
 
 ## Next Actions
 
-1. Phase 1 close-out: confirm the first scheduled (cron) run is green and the incident issues stay closed.
-2. Phase 2: Databricks catalog and schemas, Asset Bundle jobs, dbt bronze and silver, DuckDB target.
+1. Owner: go-ahead for phase 2.
+2. Watch the first cron run (09:15 UTC) stay green.
+3. Phase 2: Databricks catalog and schemas, Asset Bundle jobs, dbt bronze and silver, DuckDB target.

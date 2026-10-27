@@ -64,7 +64,7 @@ The app has its own subdomain, `fantasyscout.beronilla.rodeo`, bound to the Work
 | Phase | Status |
 | --- | --- |
 | 0. Skeleton | Live at https://fantasyscout.beronilla.rodeo/ |
-| 1. Ingest | Not started |
+| 1. Ingest | Done: daily landing of the stats API (home runner) and ESPN (GitHub) into the `landing` volume |
 | 2. Lakehouse | Not started |
 | 3. Gold + quality | Not started |
 | 4. Reconciliation | Not started |
