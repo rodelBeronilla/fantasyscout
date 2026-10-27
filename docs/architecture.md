@@ -63,7 +63,7 @@ The app has its own subdomain, `fantasyscout.beronilla.rodeo`, bound to the Work
 
 | Phase | Status |
 | --- | --- |
-| 0. Skeleton | Built; first deploy pending the Cloudflare secrets |
+| 0. Skeleton | Live at https://fantasyscout.beronilla.rodeo/ |
 | 1. Ingest | Not started |
 | 2. Lakehouse | Not started |
 | 3. Gold + quality | Not started |
