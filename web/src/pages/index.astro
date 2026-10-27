@@ -1,47 +1,21 @@
 ---
+import Board from '../components/Board';
 import Base from '../layouts/Base.astro';
-import { REPO_URL } from '../lib/site';
-
-const pages = [
-  ['Board', 'Ranked players by category z-score, with punt toggles and availability adjustment.'],
-  ['Player', 'Season line, rolling trends, shot chart and category strengths for one player.'],
-  ['Streamers', 'Games per team over the next seven days and players trending up in minutes.'],
-  ['Scouting notes', 'Weekly AI-drafted notes, every claim linked to the gold row behind it.'],
-  ['Data Health', 'Last run per pipeline, test results, freshness and reconciliation mismatches.'],
-  ['SQL console', 'Read-only DuckDB in the browser over exported gold Parquet.'],
-];
 ---
 
 <Base
-  title="Coming soon"
-  description="FantasyScout is a WNBA-first basketball data platform with a fantasy front end, built in public."
+  title="Board"
+  description="Ranked WNBA and NBA players by category z-score, with punt toggles, availability adjustment and filters by team and position."
 >
-  <section class="max-w-2xl">
-    <p class="text-sm font-medium tracking-wide text-accent uppercase">Phase 0 of 8</p>
-    <h1 class="mt-2 text-4xl font-semibold tracking-tight">A basketball data platform, built in public.</h1>
-    <p class="mt-4 text-lg text-muted">
-      FantasyScout ranks WNBA and NBA players for fantasy and shows exactly how fresh and trustworthy the
-      data behind every number is. Every figure on the site traces back to the pipeline, the checks and
-      the source rows that produced it.
+  <section>
+    <h1 class="text-2xl font-semibold tracking-tight">Board</h1>
+    <p class="mt-1 text-sm text-muted">
+      Players ranked by blended category z-scores: the current season weighs more as it goes on, the two
+      before it fill in the rest. Punt a category to drop it from the total; the adjustment scales by games
+      left and availability.
     </p>
-    <p class="mt-4 text-muted">
-      Nothing is live yet. This placeholder proves the hosting path works end to end. The data platform
-      arrives phase by phase; follow along in
-      <a href={REPO_URL} class="text-fg underline underline-offset-4">the repository</a>.
-    </p>
-  </section>
-
-  <section class="mt-12" aria-labelledby="planned">
-    <h2 id="planned" class="text-sm font-medium tracking-wide text-muted uppercase">Planned pages</h2>
-    <ul class="mt-4 grid gap-4 sm:grid-cols-2">
-      {
-        pages.map(([name, blurb]) => (
-          <li class="rounded-lg border border-line bg-card p-4">
-            <h3 class="font-semibold">{name}</h3>
-            <p class="mt-1 text-sm text-muted">{blurb}</p>
-          </li>
-        ))
-      }
-    </ul>
+    <div class="mt-6">
+      <Board client:load />
+    </div>
   </section>
 </Base>

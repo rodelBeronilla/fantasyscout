@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 test('home page renders', async ({ page }) => {
   const response = await page.goto('/');
   expect(response?.status()).toBe(200);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('basketball data platform');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Board');
   await expect(page.locator('[data-build-id]')).not.toBeEmpty();
 });
 

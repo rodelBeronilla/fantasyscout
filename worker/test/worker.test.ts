@@ -41,6 +41,15 @@ describe('routing', () => {
     expect(await res.text()).toContain('FantasyScout');
   });
 
+  it('serves the player page for any /p/{league}/{id}/ address', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/p/wnba/1629476/`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/html');
+    expect(await res.text()).toContain('FantasyScout');
+    const miss = await SELF.fetch(`${ORIGIN}/p/xyz/1/`);
+    expect(miss.status).toBe(404);
+  });
+
   it('serves the 404 page for unknown paths', async () => {
     const res = await SELF.fetch(`${ORIGIN}/nope/`);
     expect(res.status).toBe(404);

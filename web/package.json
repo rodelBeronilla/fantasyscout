@@ -11,10 +11,18 @@
     "preview": "astro preview",
     "check": "astro check",
     "lint": "eslint .",
-    "test": "playwright test"
+    "test": "playwright test",
+    "pretest": "node scripts/copy-fixtures.mjs",
+    "posttest": "node scripts/copy-fixtures.mjs --clean"
   },
   "dependencies": {
-    "astro": "^7.4.2"
+    "@astrojs/react": "^7.1.1",
+    "@duckdb/duckdb-wasm": "^1.33.1-dev57.0",
+    "@observablehq/plot": "^0.6.17",
+    "apache-arrow": "^21.2.0",
+    "astro": "^7.4.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
@@ -23,6 +31,8 @@
     "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "eslint": "^10.13.0",
     "eslint-plugin-astro": "^3.2.1",
     "tailwindcss": "^4.3.3",

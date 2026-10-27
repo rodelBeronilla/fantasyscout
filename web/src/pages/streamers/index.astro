@@ -1,0 +1,20 @@
+---
+import Streamers from '../../components/Streamers';
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="Streamers"
+  description="Games per team over the next seven days and the players trending up in minutes."
+>
+  <section>
+    <h1 class="text-2xl font-semibold tracking-tight">Streamers</h1>
+    <p class="mt-1 text-sm text-muted">
+      Who plays the most this week, and whose minutes are climbing: the five-game average against the
+      twenty-game one.
+    </p>
+    <div class="mt-6">
+      <Streamers client:load />
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,20 @@
+---
+import Health from '../../components/Health';
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="Data Health"
+  description="The build behind the site: last run per pipeline, every check, freshness, row counts and how the two sources agree."
+>
+  <section>
+    <h1 class="text-2xl font-semibold tracking-tight">Data Health</h1>
+    <p class="mt-1 text-sm text-muted">
+      Every number on the site comes from one published build. This is that build: when it ran, what its
+      checks found, what landed, and how far the two sources agree.
+    </p>
+    <div class="mt-6">
+      <Health client:load />
+    </div>
+  </section>
+</Base>

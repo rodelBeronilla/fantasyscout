@@ -1,0 +1,1 @@
+[{"build_id":"fixture","created_at":"2026-10-27T19:36:13+00:00","engine":"duckdb","git_sha":"f01c90d1ca3273cb50babd511e0ddc8bef3f2c37","manifest":"builds/fixture/manifest.json","data_as_of":{"wnba":"2026-09-24"}}]

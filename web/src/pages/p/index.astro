@@ -1,0 +1,13 @@
+---
+import PlayerPage from '../../components/PlayerPage';
+import Base from '../../layouts/Base.astro';
+// One page serves every /p/{league}/{player_id}/ address: the Worker rewrites those to this
+// file and the island reads the league and player id from the URL (ADR 0006).
+---
+
+<Base
+  title="Player"
+  description="Season line, rolling trends, shot chart, game log and category strengths for one player."
+>
+  <PlayerPage client:load />
+</Base>
