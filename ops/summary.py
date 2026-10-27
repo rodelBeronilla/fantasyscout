@@ -19,6 +19,7 @@ from ops.results import _databricks_client, _run_statement
 
 DEFAULT_COLUMNS = (
     "league, season, player_games, matched, unmatched, match_rate, "
+    "played_player_games, played_matched, played_match_rate, "
     "exact, minor, conflict, conflict_rate"
 )
 

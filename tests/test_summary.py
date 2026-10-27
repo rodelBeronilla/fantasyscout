@@ -16,6 +16,7 @@ def test_duckdb_table_is_printed(tmp_path: Path, capsys: pytest.CaptureFixture[s
     con.execute(
         "create table ops.reconciliation_summary as select 'wnba' as league, '2026' as season, "
         "637 as player_games, 637 as matched, 0 as unmatched, 1.0 as match_rate, "
+        "500 as played_player_games, 500 as played_matched, 1.0 as played_match_rate, "
         "637 as exact, 0 as minor, 0 as conflict, 0.0 as conflict_rate"
     )
     con.close()
@@ -23,7 +24,7 @@ def test_duckdb_table_is_printed(tmp_path: Path, capsys: pytest.CaptureFixture[s
     out = capsys.readouterr().out
     assert "ops.reconciliation_summary (1 rows):" in out
     assert "league | season | player_games" in out
-    assert "wnba | 2026 | 637 | 637 | 0 | 1.0000 | 637 | 0 | 0 | 0.0000" in out
+    assert "wnba | 2026 | 637 | 637 | 0 | 1.0000 | 500 | 500 | 1.0000 | 637 | 0 | 0 | 0.0000" in out
 
 
 def test_databricks_rows_are_rendered(

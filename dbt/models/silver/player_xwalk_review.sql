@@ -39,7 +39,8 @@ espn_side as (
         e.athlete_id as player_id,
         e.team_id as espn_team_id,
         e.athlete_name as player_name,
-        {{ norm_name('e.athlete_name') }} as norm_name
+        {{ norm_name('e.athlete_name') }} as norm_name,
+        {{ norm_name(first_last_tokens('e.athlete_name')) }} as norm_first_last
     from {{ ref('espn_player_game') }} as e
     join matched_games as g
         on g.league = e.league and g.event_id = e.event_id
@@ -75,7 +76,8 @@ stats_candidates as (
         e.player_name as candidate_name,
         max(greatest(
             {{ name_similarity('s.norm_name', 'e.norm_name') }},
-            {{ name_similarity('s.norm_name_reversed', 'e.norm_name') }}
+            {{ name_similarity('s.norm_name_reversed', 'e.norm_name') }},
+            {{ name_similarity('s.norm_name', 'e.norm_first_last') }}
         )) as similarity
     from stats_unmatched as s
     join espn_unmatched as e
@@ -93,7 +95,8 @@ espn_candidates as (
         s.player_name as candidate_name,
         max(greatest(
             {{ name_similarity('s.norm_name', 'e.norm_name') }},
-            {{ name_similarity('s.norm_name_reversed', 'e.norm_name') }}
+            {{ name_similarity('s.norm_name_reversed', 'e.norm_name') }},
+            {{ name_similarity('s.norm_name', 'e.norm_first_last') }}
         )) as similarity
     from espn_unmatched as e
     join stats_unmatched as s
