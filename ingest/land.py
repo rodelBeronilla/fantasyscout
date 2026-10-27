@@ -17,7 +17,7 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from ingest.espn import EspnIngestor, EspnPlanner
-from ingest.http import ThrottledClient
+from ingest.http import Throttle, ThrottledClient
 from ingest.landing import League
 from ingest.run import RunSummary, describe
 from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
@@ -25,6 +25,7 @@ from ingest.store import Backend, Landing, LocalBackend, VolumeBackend
 
 Source = Literal["stats", "espn"]
 BackendKind = Literal["local", "volume"]
+Pace = Literal["spec", "adaptive"]
 
 RUN_LOG_DIR = PurePosixPath("landing/_ops/ingest_log")
 
@@ -36,6 +37,7 @@ class LandOptions:
     season: str | None = None
     season_type: SeasonType = "Regular Season"
     shots: ShotsScope = "game"
+    pace: Pace = "spec"
     since: date | None = None
     until: date | None = None
     full_refresh: bool = False
@@ -70,7 +72,7 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
     """What a run would do, for ``--dry-run``. No network."""
     lines = [
         f"{opts.source} {opts.league} {season} ({opts.season_type}), window {since} to {until}, "
-        f"backend={opts.backend}, full_refresh={opts.full_refresh}"
+        f"backend={opts.backend}, full_refresh={opts.full_refresh}, pace={opts.pace}"
     ]
     if opts.source == "stats":
         planner = StatsPlanner(opts.league, season, opts.season_type, opts.shots)
@@ -87,6 +89,10 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         lines.append(f"  scoreboard for {days} day(s), then summary per completed event")
         lines.append("  then teams, roster per team, injuries")
     return lines
+
+
+def _announce_pace(host: str, gap: float, reason: str) -> None:
+    print(f"pace {host}: gap now {gap:.2f}s ({reason})")
 
 
 def run_log_path(summary: RunSummary, run_id: str) -> PurePosixPath:
@@ -120,7 +126,8 @@ def land(
         workers=4 if isinstance(backend, VolumeBackend) else 1,
     )
     run_id = uuid.uuid4().hex[:12]
-    with ThrottledClient() as client:
+    throttle = Throttle.adaptive() if opts.pace == "adaptive" else Throttle.spec()
+    with ThrottledClient(throttle, on_pace_change=_announce_pace) as client:
         if opts.source == "stats":
             summary = StatsIngestor(
                 client, landing, StatsPlanner(opts.league, season, opts.season_type, opts.shots)

@@ -11,7 +11,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
-from ingest.http import ThrottledClient
+from ingest.http import CircuitOpenError, ThrottledClient
 from ingest.landing import League
 from ingest.run import MissingPayloadError, RunSummary
 from ingest.store import Landing, LandResult, Scope
@@ -157,6 +157,8 @@ class EspnIngestor:
     def _try(self, request: Request, summary: RunSummary) -> bytes | None:
         try:
             result, body = self.fetch(request)
+        except CircuitOpenError:
+            raise  # the host stopped answering: stop the run rather than hammer it
         except MissingPayloadError as exc:
             summary.miss(request.endpoint, request.key, str(exc))
             return None
@@ -168,6 +170,16 @@ class EspnIngestor:
 
     def run(self, *, since: date, until: date, rosters: bool = True) -> RunSummary:
         summary = RunSummary(SOURCE, self.planner.league, self.planner.season, self._clock())
+        try:
+            self._run(summary, since=since, until=until, rosters=rosters)
+        except CircuitOpenError as exc:
+            summary.aborted = str(exc)
+        for failure in self.landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
+        summary.pacing = self.client.pacing()
+        return summary
+
+    def _run(self, summary: RunSummary, *, since: date, until: date, rosters: bool) -> None:
         events: list[Event] = []
         for day in days_between(since, until):
             body = self._try(self.planner.scoreboard_request(day), summary)
@@ -188,6 +200,3 @@ class EspnIngestor:
             for team_id in team_ids:
                 self._try(self.planner.roster_request(team_id), summary)
         self._try(self.planner.injuries_request(), summary)
-        for failure in self.landing.flush():
-            summary.fail(failure.endpoint, failure.key, failure.error)
-        return summary

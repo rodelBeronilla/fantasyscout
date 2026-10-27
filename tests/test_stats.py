@@ -55,7 +55,14 @@ def test_season_labels() -> None:
 def test_planner_requests_have_stable_keys_and_required_params() -> None:
     planner = StatsPlanner("wnba", "2026")
     season = {r.endpoint: r for r in planner.season_requests()}
-    assert set(season) == {"scheduleleaguev2", "commonallplayers", "leaguegamelog", "playergamelogs"}
+    assert set(season) == {
+        "scheduleleaguev2",
+        "commonallplayers",
+        "leaguegamelog",
+        "playergamelogs",
+    }
+    assert season["playergamelogs"].key == "advanced-regular-season"
+    assert season["playergamelogs"].params["MeasureType"] == "Advanced"
     assert season["playergamelogs"].key == "advanced-regular-season"
     assert season["playergamelogs"].params["MeasureType"] == "Advanced"
     assert season["leaguegamelog"].key == "team-regular-season"
@@ -65,7 +72,6 @@ def test_planner_requests_have_stable_keys_and_required_params() -> None:
     game = {r.endpoint: r for r in planner.game_requests("1022600330")}
     assert set(game) == {
         "boxscoretraditionalv3",
-        "boxscoreadvancedv3",
         "playbyplayv3",
         "shotchartdetail",
     }
@@ -112,7 +118,7 @@ def test_run_lands_everything_then_reruns_as_a_no_op(tmp_path: Path) -> None:
     first = StatsIngestor(
         fixture_client(), Landing(LocalBackend(tmp_path), ingest_date=now.date()), planner, now=now
     ).run()
-    expected = 3 + 4 * len(games) + len(teams)
+    expected = 4 + 3 * len(games) + len(teams)
     assert first.ok, first.failures
     assert first.games == len(games)
     assert first.landed == expected and first.unchanged == 0 and first.skipped == 0
@@ -153,7 +159,7 @@ def test_failed_endpoint_is_recorded_and_the_rest_still_lands(tmp_path: Path) ->
     planner = StatsPlanner("wnba", "2026")
     now = datetime(2026, 10, 27, 12, tzinfo=UTC)
     summary = StatsIngestor(
-        fixture_client({"boxscoreadvancedv3": 500}),
+        fixture_client({"playbyplayv3": 500}),
         Landing(LocalBackend(tmp_path), ingest_date=now.date()),
         planner,
         now=now,
@@ -161,11 +167,11 @@ def test_failed_endpoint_is_recorded_and_the_rest_still_lands(tmp_path: Path) ->
     games = games_in_window(fixture("leaguegamelog"))
     assert not summary.ok
     assert len(summary.failures) == len(games)
-    assert {f.endpoint for f in summary.failures} == {"boxscoreadvancedv3"}
+    assert {f.endpoint for f in summary.failures} == {"playbyplayv3"}
     assert "HTTP 500" in summary.failures[0].reason
-    assert summary.landed == 3 + 3 * len(games) + len({t for g in games for t in g.team_ids})
+    assert summary.landed == 4 + 2 * len(games) + len({t for g in games for t in g.team_ids})
     text = "\n".join(describe(summary))
-    assert "failed boxscoreadvancedv3/" in text and f"{len(games)} games in window" in text
+    assert "failed playbyplayv3/" in text and f"{len(games)} games in window" in text
 
 
 def test_gamelog_failure_stops_game_planning(tmp_path: Path) -> None:
@@ -176,7 +182,7 @@ def test_gamelog_failure_stops_game_planning(tmp_path: Path) -> None:
         StatsPlanner("wnba", "2026"),
         now=now,
     ).run()
-    assert summary.games == 0 and summary.landed == 2
+    assert summary.games == 0 and summary.landed == 3
     assert [f.endpoint for f in summary.failures] == ["leaguegamelog"]
 
 
@@ -184,7 +190,6 @@ def test_team_season_scope_fetches_shots_once_per_team(tmp_path: Path) -> None:
     planner = StatsPlanner("wnba", "2026", shots_scope="team-season")
     assert [r.endpoint for r in planner.game_requests("x")] == [
         "boxscoretraditionalv3",
-        "boxscoreadvancedv3",
         "playbyplayv3",
     ]
     shots = planner.shot_requests(["2", "1"])
@@ -199,9 +204,43 @@ def test_team_season_scope_fetches_shots_once_per_team(tmp_path: Path) -> None:
         fixture_client(), Landing(LocalBackend(tmp_path), ingest_date=now.date()), planner, now=now
     ).run()
     assert summary.ok, summary.failures
-    assert summary.landed == 3 + 3 * len(games) + len(teams) + len(teams)
+    assert summary.landed == 4 + 2 * len(games) + len(teams) + len(teams)
     assert (tmp_path / "landing/stats/shotchartdetail/wnba/2026/2026-10-27").exists()
     assert not any(
         p.name.startswith("1022")
         for p in (tmp_path / "landing/stats/shotchartdetail/wnba/2026/2026-10-27").iterdir()
     ), "no per-game shot payloads in team-season scope"
+
+
+def test_open_circuit_stops_the_run_and_keeps_what_landed(tmp_path: Path) -> None:
+    calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        endpoint = request.url.path.rsplit("/", 1)[-1]
+        if endpoint == "playbyplayv3":
+            raise httpx.ReadTimeout("silence")
+        return httpx.Response(200, content=fixture(endpoint))
+
+    client = ThrottledClient(
+        Throttle(breaker_timeouts=2, max_retries=5),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+        clock=lambda: 0.0,
+        rng=random.Random(0),
+    )
+    now = datetime(2026, 10, 27, 12, tzinfo=UTC)
+    summary = StatsIngestor(
+        client,
+        Landing(LocalBackend(tmp_path), ingest_date=now.date()),
+        StatsPlanner("wnba", "2026"),
+        now=now,
+    ).run()
+    assert not summary.ok
+    assert summary.aborted is not None and "likely blocked" in summary.aborted
+    assert summary.landed >= 4 + 1, "season payloads and the first box score landed before the stop"
+    assert calls <= 4 + 1 + 2, "no further requests after the circuit opened"
+    assert summary.pacing["stats.wnba.com"]["slowdowns"] >= 1
+    text = "\n".join(describe(summary))
+    assert "ABORTED" in text and "pacing stats.wnba.com" in text

@@ -46,6 +46,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="stats API only: shot charts per game (daily) or per team for the season (backfill)",
     )
     p_land.add_argument(
+        "--pace",
+        choices=("spec", "adaptive"),
+        default="spec",
+        help=(
+            "spec: 1.5-3 s between requests (daily); adaptive: starts there and earns a lower "
+            "gap while the host answers cleanly, backs off on any trouble (backfills)"
+        ),
+    )
+    p_land.add_argument(
         "--since", type=date.fromisoformat, help="first game date (default: 6 days before --until)"
     )
     p_land.add_argument("--until", type=date.fromisoformat, help="last game date (default: today)")
@@ -86,6 +95,7 @@ def _run_land(args: argparse.Namespace) -> int:
         season=args.season,
         season_type=args.season_type,
         shots=args.shots,
+        pace=args.pace,
         since=args.since,
         until=args.until,
         full_refresh=args.full_refresh,

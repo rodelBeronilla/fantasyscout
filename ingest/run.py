@@ -35,6 +35,8 @@ class RunSummary:
     games: int = 0
     failures: list[FetchFailure] = field(default_factory=list)
     missing: list[FetchFailure] = field(default_factory=list)
+    pacing: dict[str, dict[str, float | int]] = field(default_factory=dict)
+    aborted: str | None = None
 
     def record(self, result: LandResult | None) -> None:
         if result is None or result.outcome == "skipped":
@@ -52,7 +54,7 @@ class RunSummary:
 
     @property
     def ok(self) -> bool:
-        return not self.failures
+        return not self.failures and self.aborted is None
 
     def to_dict(self) -> dict[str, object]:
         data = asdict(self)
@@ -74,4 +76,12 @@ def describe(summary: RunSummary, failures_shown: int = 10) -> Sequence[str]:
     )
     if len(summary.failures) > failures_shown:
         lines.append(f"  ... {len(summary.failures) - failures_shown} more")
+    for host, stats in summary.pacing.items():
+        lines.append(
+            f"  pacing {host}: {stats['requests']} requests, gap {stats['final_gap']}s "
+            f"(min {stats['min_gap']}s, max {stats['max_gap']}s), {stats['speedups']} speed-ups, "
+            f"{stats['slowdowns']} slow-downs, {stats['rate_limited']} rate-limited"
+        )
+    if summary.aborted:
+        lines.append(f"  ABORTED: {summary.aborted}")
     return lines
