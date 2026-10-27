@@ -61,3 +61,39 @@ def test_a_missing_table_never_fails_the_build(
     duckdb.connect(str(db)).close()
     assert summary.main(["--engine", "duckdb", "--duckdb", str(db)]) == 0
     assert "unavailable" in capsys.readouterr().out
+
+
+def test_where_and_limit_shape_the_statement(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    db = tmp_path / "t.duckdb"
+    con = duckdb.connect(str(db))
+    con.execute("create schema silver")
+    con.execute(
+        "create table silver.t as select * from (values ('a', 1), ('b', 2), ('c', 3)) v(k, n)"
+    )
+    con.close()
+    assert (
+        summary.main(
+            [
+                "--engine",
+                "duckdb",
+                "--duckdb",
+                str(db),
+                "--table",
+                "silver.t",
+                "--columns",
+                "k, n",
+                "--where",
+                "n >= 2",
+                "--order-by",
+                "n desc",
+                "--limit",
+                "1",
+            ]
+        )
+        == 0
+    )
+    out = capsys.readouterr().out
+    assert "silver.t (1 rows):" in out
+    assert "c | 3" in out and "b | 2" not in out

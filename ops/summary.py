@@ -4,7 +4,8 @@
     uv run python -m ops.summary --engine duckdb --duckdb dbt/fantasyscout.duckdb
 
 Used by the build workflow to report the reconciliation match and conflict rates per league
-and season (SPEC.md phase 4) until Data Health shows them.
+and season (SPEC.md phase 4) until Data Health shows them, and by the "Query the lakehouse"
+workflow to look at any table (``--where``, ``--order-by``, ``--limit``).
 """
 
 from __future__ import annotations
@@ -80,9 +81,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--table", default="ops.reconciliation_summary")
     parser.add_argument("--columns", default=DEFAULT_COLUMNS)
     parser.add_argument("--order-by", default="league, season")
+    parser.add_argument("--where", default="", help="filter, SQL without the keyword")
+    parser.add_argument("--limit", type=int, default=200, help="maximum rows printed")
     args = parser.parse_args(argv)
 
-    statement = f"select {args.columns} from {args.table} order by {args.order_by}"
+    statement = f"select {args.columns} from {args.table}"
+    if args.where.strip():
+        statement += f" where {args.where}"
+    statement += f" order by {args.order_by} limit {max(args.limit, 1)}"
     try:
         if args.engine == "duckdb":
             columns, rows = query_duckdb(args.duckdb, statement)
@@ -98,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{args.table}: unavailable ({type(exc).__name__}: {str(exc)[:200]})")
         return 0
     print(f"{args.table} ({len(rows)} rows):")
-    for line in render(columns, rows):
+    for line in render(columns, rows, limit=max(args.limit, 1)):
         print(line)
     return 0
 
