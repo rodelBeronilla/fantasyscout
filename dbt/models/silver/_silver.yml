@@ -46,11 +46,17 @@ models:
         data_tests: [not_null]
 
   - name: schedule
-    description: "One row per scheduled game with status, venue and tip-off time."
+    description: "One row per scheduled game with status, venue and tip-off time. game_type (from the game id) separates preseason, regular season, All-Star, playoff, play-in and tournament-final games."
     columns:
       - name: game_key
         description: "Natural key, unique per row"
         data_tests: [unique, not_null]
+      - name: game_type
+        description: "preseason, regular, all_star, playoffs, play_in, tournament_final or other, from the third character of the game id."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [preseason, regular, all_star, playoffs, play_in, tournament_final, other]
       - name: league
         description: "league"
         data_tests: [not_null]

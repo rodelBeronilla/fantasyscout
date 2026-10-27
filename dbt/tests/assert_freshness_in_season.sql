@@ -6,7 +6,9 @@ with last_scheduled as (
 
     select league, max(game_date_est) as last_final_date
     from {{ ref('schedule') }}
-    where game_status = 3 and game_date_est < {{ as_of_date() }}
+    where game_status = 3
+        and game_type in ('regular', 'playoffs')  -- preseason is not ingested (SPEC.md scope)
+        and game_date_est < {{ as_of_date() }}
     group by league
 
 ),

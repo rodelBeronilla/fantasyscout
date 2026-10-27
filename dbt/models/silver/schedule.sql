@@ -1,4 +1,10 @@
-{# One row per scheduled game with status, venue and tip-off time. Latest landing wins. #}
+{#
+  One row per scheduled game with status, venue and tip-off time. Latest landing wins.
+
+  The third character of a league game id encodes the game type (1 preseason, 2 regular
+  season, 3 All-Star, 4 playoffs, 5 play-in, 6 in-season tournament final); game_type names
+  it so downstream models and checks can scope to the types the platform ingests.
+#}
 
 select
     league,
@@ -7,6 +13,15 @@ select
     league || ':' || game_id as game_key,
     season_year,
     game_code,
+    case substr(game_id, 3, 1)
+        when '1' then 'preseason'
+        when '2' then 'regular'
+        when '3' then 'all_star'
+        when '4' then 'playoffs'
+        when '5' then 'play_in'
+        when '6' then 'tournament_final'
+        else 'other'
+    end as game_type,
     try_cast(game_status as integer) as game_status,
     game_status_text,
     cast(substr(game_date_est, 1, 10) as date) as game_date_est,
