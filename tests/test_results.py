@@ -183,3 +183,51 @@ def test_databricks_writer_refuses_an_empty_warehouse_and_reports_the_body(
         results_mod.write_databricks(
             ["select 1"], origin="https://x", token="t", warehouse_id="w", catalog="c"
         )
+
+
+def test_failing_rows_are_sampled_on_duckdb(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import duckdb
+
+    from ops.results import main
+
+    db = tmp_path / "t.duckdb"
+    con = duckdb.connect(str(db))
+    con.execute("create table games as select 'wnba' as league, '1022600001' as game_id")
+    con.close()
+    nodes: dict[str, dict[str, object]] = {
+        "test.fantasyscout.assert_completeness.9": {
+            "resource_type": "test",
+            "name": "assert_completeness",
+            "config": {"severity": "error"},
+            "depends_on": {"nodes": []},
+        },
+    }
+    results: list[dict[str, object]] = [
+        {
+            "unique_id": "test.fantasyscout.assert_completeness.9",
+            "status": "fail",
+            "failures": 1,
+            "execution_time": 0.1,
+            "message": "Got 1 result",
+            "compiled_code": "select league, game_id from games",
+        }
+    ]
+    write_artifacts(tmp_path / "target", results, nodes)
+    code = main(
+        [
+            "--engine",
+            "duckdb",
+            "--duckdb",
+            str(db),
+            "--target-dir",
+            str(tmp_path / "target"),
+            "--dry-run",
+        ]
+    )
+    out = capsys.readouterr().out
+    assert code == 2
+    assert "sample of assert_completeness (1 of 1 rows):" in out
+    assert "league | game_id" in out
+    assert "wnba | 1022600001" in out
