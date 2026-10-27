@@ -30,7 +30,8 @@ const CSP = [
   `style-src 'self' ${quoted(cspHashes.styles)}`.trim(),
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self' blob: https://cloudflareinsights.com",
+  // DuckDB-WASM fetches its Parquet reader as an extension from the DuckDB extension repository.
+  "connect-src 'self' blob: https://cloudflareinsights.com https://extensions.duckdb.org",
   "worker-src 'self' blob:",
   'frame-src https://public.tableau.com',
   "frame-ancestors 'none'",

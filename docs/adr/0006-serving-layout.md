@@ -21,6 +21,7 @@ The warehouse is never exposed to the internet (SPEC.md). The site serves export
 ## Consequences
 
 - The site can be rolled back in under a minute without a deploy; the Worker caches the two pointers for 60 s and everything under `builds/` for a year.
+- The SQL console's engine (DuckDB-WASM, too large for a static asset) is served from the bucket under `vendor/`, same origin; its Parquet reader is a DuckDB extension fetched at run time from the DuckDB extension repository, the one external origin the Content-Security-Policy's `connect-src` allows. Astro's inlined island loader is allowed by hash, collected from the build before every deploy, so `'unsafe-inline'` stays out.
 - A missing ops table on a fresh engine is skipped, not fatal, so a local export works before the first gate has run.
 - The export does not diff builds; a nightly export always costs one full pull and upload. If that ever matters, the manifest's per-file SHA-256 is the hook for skipping unchanged uploads.
 - The ops tables go out with the build, so Data Health shows the state the build was published with, not a live view; the live view is the Query the lakehouse workflow.
