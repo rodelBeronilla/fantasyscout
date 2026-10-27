@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-27 (phase 3 built; backfill landing)
+Last updated: 2026-10-27 (phase 3 done; waiting for the go-ahead for phase 4)
 
 ## Vision
 
@@ -28,7 +28,9 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 
 ## Active Sprint
 
-Phase 3, Gold + quality (issue #22): gold star schema and fantasy marts, quality checks with the spec's severities, `ops.test_results` and `ops.publish_gate` after every build, chaos drill. The full backfill is landing on the two home runners; the completeness check and the gate stay red until it finishes.
+Phase 3, Gold + quality, is done (issue #22; PRs #23 to #48). Gold star schema and fantasy marts, quality checks with the spec's severities, `ops.test_results` and `ops.publish_gate` written after every build, failing-row samples in the gate output and the incident comment. The full backfill landed on the two home runners (WNBA 2018 to 2026, NBA 2023-24 to 2026-27) and build 40533318734 passed 195 of 195 checks with the gate open; incident #25 closed itself. Chaos drill: run 40534274422 (chaos input) blocked the gate and opened an incident, run 40535051516 passed and closed it. Waiting for the owner's go-ahead for phase 4.
+
+What the backfill taught (all fixed, recorded in ADR 0004 and the runbook): the stats hosts' bot-manager cookies stall a long-lived client, so the client drops cookies before every request and backfills time out reads at 20 s; bronze's incremental filter skipped same-day landings; the gate step never received the warehouse id; the Files API rate-limits write bursts (retried now); neutral-site games list both teams as home; the schedule carries preseason games the platform does not ingest (`game_type` scopes the checks); WNBA playoffs can start in August.
 
 Phase 2, Lakehouse, is done (issue #16; PRs #17, #19 and the bundle PR): 15 bronze and 13 silver dbt models with 83 tests pass on DuckDB in CI and on Databricks after every ingest. Waiting for the owner's go-ahead for phase 3.
 
@@ -41,7 +43,7 @@ Phase 1, Ingest, is done (issue #7; PRs #8, #9, #10, #13, #14). Daily `ingest.ym
 | Phase 0 Skeleton | Done 2026-10-26 (live, CI green) |
 | Phase 1 Ingest | Done 2026-10-27 (both sources landing daily; ADR 0002 accepted) |
 | Phase 2 Lakehouse | Done 2026-10-27 (issue #16): dbt build PASS=114 on DuckDB (CI) and Databricks; Asset Bundle job deployed paused |
-| Phase 3 Gold + quality | Built 2026-10-27 (issue #22): star schema, marts, checks, results table, gate; backfill in progress |
+| Phase 3 Gold + quality | Done 2026-10-27 (issue #22): star schema, marts, checks, results table, gate; full backfill loaded, 195 checks pass on Databricks, chaos drill proven |
 | Phase 4 Reconciliation | Not started |
 | Phase 5 Serving + app | Not started |
 | Phase 6 Analysis surfaces | Not started |
@@ -62,6 +64,6 @@ N/A, first sprint.
 
 ## Next Actions
 
-1. Let the backfill finish (WNBA 2018 to 2026, NBA 2023-24 to 2026-27); then confirm zero error-severity failures on Databricks and run the chaos drill.
-2. Owner: go-ahead for phase 4 (reconciliation).
-3. Phase 2 (done): Databricks catalog and schemas, Asset Bundle jobs, dbt bronze and silver, DuckDB target.
+1. Owner: go-ahead for phase 4 (reconciliation of the stats API against ESPN, discrepancy report, the reconciled view the app will read).
+2. Watch the first nightly builds after the backfill: the gate should stay open; a blocked gate now names the failing rows in the incident.
+3. Deferred from phase 3: lineup columns in `fct_event`, tracking facts, a performance timings page, an ESPN core-API fallback if summary coverage ever drops below 99%.
