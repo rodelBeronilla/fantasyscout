@@ -40,6 +40,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="stats API only",
     )
     p_land.add_argument(
+        "--shots",
+        choices=("game", "team-season"),
+        default="game",
+        help="stats API only: shot charts per game (daily) or per team for the season (backfill)",
+    )
+    p_land.add_argument(
         "--since", type=date.fromisoformat, help="first game date (default: 6 days before --until)"
     )
     p_land.add_argument("--until", type=date.fromisoformat, help="last game date (default: today)")
@@ -79,6 +85,7 @@ def _run_land(args: argparse.Namespace) -> int:
         league=args.league,
         season=args.season,
         season_type=args.season_type,
+        shots=args.shots,
         since=args.since,
         until=args.until,
         full_refresh=args.full_refresh,

@@ -20,7 +20,7 @@ from ingest.espn import EspnIngestor, EspnPlanner
 from ingest.http import ThrottledClient
 from ingest.landing import League
 from ingest.run import RunSummary, describe
-from ingest.stats import SeasonType, StatsIngestor, StatsPlanner, season_label
+from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
 from ingest.store import Backend, Landing, LocalBackend, VolumeBackend
 
 Source = Literal["stats", "espn"]
@@ -35,6 +35,7 @@ class LandOptions:
     league: League
     season: str | None = None
     season_type: SeasonType = "Regular Season"
+    shots: ShotsScope = "game"
     since: date | None = None
     until: date | None = None
     full_refresh: bool = False
@@ -72,8 +73,10 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         f"backend={opts.backend}, full_refresh={opts.full_refresh}"
     ]
     if opts.source == "stats":
-        planner = StatsPlanner(opts.league, season, opts.season_type)
+        planner = StatsPlanner(opts.league, season, opts.season_type, opts.shots)
         lines.extend(f"  {r.endpoint} key={r.key}" for r in planner.season_requests())
+        if opts.shots == "team-season":
+            lines.append("  shotchartdetail once per team for the whole season")
         lines.append(
             "  then per game in window: "
             + ", ".join(r.endpoint for r in planner.game_requests("<game>"))
@@ -120,7 +123,7 @@ def land(
     with ThrottledClient() as client:
         if opts.source == "stats":
             summary = StatsIngestor(
-                client, landing, StatsPlanner(opts.league, season, opts.season_type)
+                client, landing, StatsPlanner(opts.league, season, opts.season_type, opts.shots)
             ).run(since=since, until=until)
         else:
             summary = EspnIngestor(client, landing, EspnPlanner(opts.league, season)).run(
