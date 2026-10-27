@@ -1,0 +1,20 @@
+{
+  "name": "fantasyscout-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run --env production && wrangler deploy --dry-run --env preview",
+    "types": "wrangler types --include-runtime=false",
+    "typecheck": "npm run types && tsc --noEmit",
+    "test": "npm run types && vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.8",
+    "@cloudflare/workers-types": "^5.20261026.1",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.153.0"
+  }
+}

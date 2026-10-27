@@ -1,0 +1,15 @@
+---
+import Base from '../layouts/Base.astro';
+import { href } from '../lib/site';
+---
+
+<Base title="Not found" description="That page does not exist on FantasyScout.">
+  <section class="max-w-xl">
+    <p class="text-sm font-medium tracking-wide text-accent uppercase">404</p>
+    <h1 class="mt-2 text-3xl font-semibold tracking-tight">No such page.</h1>
+    <p class="mt-4 text-muted">
+      The link may be stale, or the page is not built yet.
+      <a href={href('/')} class="text-fg underline underline-offset-4">Back to FantasyScout</a>.
+    </p>
+  </section>
+</Base>

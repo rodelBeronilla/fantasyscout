@@ -1,0 +1,63 @@
+---
+import '../styles/global.css';
+import { BUILD_ID, LEAGUES, REPO_URL, href } from '../lib/site';
+
+interface Props {
+  title: string;
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const league = 'wnba';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title} · FantasyScout</title>
+    <meta name="description" content={description} />
+    <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-accent focus:px-3 focus:py-2 focus:text-accent-fg"
+    >
+      Skip to content
+    </a>
+    <header class="border-b border-line">
+      <nav
+        class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3"
+        aria-label="Primary"
+      >
+        <a href={href('/')} class="text-lg font-semibold tracking-tight">FantasyScout</a>
+        <div class="flex items-center gap-1 rounded-full border border-line p-1" role="group" aria-label="League">
+          {
+            LEAGUES.map((l) => (
+              <span
+                class:list={[
+                  'rounded-full px-3 py-1 text-sm',
+                  l.id === league ? 'bg-accent text-accent-fg' : 'text-muted',
+                ]}
+                aria-current={l.id === league ? 'true' : undefined}
+              >
+                {l.label}
+              </span>
+            ))
+          }
+        </div>
+      </nav>
+    </header>
+    <main id="main" class="mx-auto w-full max-w-5xl flex-1 px-4 py-10">
+      <slot />
+    </main>
+    <footer class="border-t border-line">
+      <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-sm text-muted">
+        <span>Data as of: no build yet · Build <code data-build-id>{BUILD_ID}</code></span>
+        <a href={REPO_URL} class="underline-offset-4 hover:underline">Source on GitHub</a>
+      </div>
+    </footer>
+  </body>
+</html>

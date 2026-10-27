@@ -1,0 +1,86 @@
+name: Deploy web
+
+# preprod -> wrangler environment "preview"    (Worker fantasyscout-preview on workers.dev)
+# main    -> wrangler environment "production" (Worker fantasyscout on fantasyscout.beronilla.rodeo)
+# Both Workers hold no secrets; the deploy needs only the Cloudflare token and account id.
+
+on:
+  push:
+    branches: [main, preprod]
+    paths:
+      - web/**
+      - worker/**
+      - .github/workflows/deploy-web.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+    env:
+      WRANGLER_ENV: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            worker/package-lock.json
+
+      - name: Build web
+        working-directory: web
+        run: |
+          npm ci
+          PUBLIC_BUILD_ID="${GITHUB_SHA::7}" npm run build
+
+      - name: Install worker dependencies
+        working-directory: worker
+        run: npm ci
+
+      - name: Ensure the R2 bucket exists
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx wrangler r2 bucket info fantasyscout-data >/dev/null 2>&1 \
+            || npx wrangler r2 bucket create fantasyscout-data
+
+      - name: Deploy Worker
+        id: deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: worker
+          command: deploy --env ${{ env.WRANGLER_ENV }}
+
+      - name: Smoke test
+        env:
+          URL: ${{ github.ref_name == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          echo "deployed to $URL"
+          # A new Worker, DNS record or certificate can take a little while to appear.
+          for attempt in $(seq 1 24); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/" || echo 000)
+            [ "$code" = "200" ] && break
+            echo "attempt $attempt: / returned $code, retrying in 5 s"
+            sleep 5
+          done
+          [ "$code" = "200" ] || { echo "::error::/ returned $code"; exit 1; }
+          curl -s "$URL/" | grep -q "FantasyScout" || { echo "::error::placeholder text missing"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/data/latest.json")
+          # 404 is expected until the first data export (phase 5); anything else is a Worker fault.
+          [ "$code" = "200" ] || [ "$code" = "404" ] || { echo "::error::latest.json returned $code"; exit 1; }
+          echo "::notice::$URL/ is serving (latest.json: $code)"

@@ -1,0 +1,47 @@
+# Secrets and local config: never committed. Secrets come from env vars or GitHub Actions secrets.
+.env
+.env.*
+!.env.example
+*.pem
+.dev.vars
+.dev.vars.*
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+web/dist/
+web/.astro/
+web/playwright-report/
+web/test-results/
+worker/.wrangler/
+worker/worker-configuration.d.ts
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+*.duckdb
+*.duckdb.wal
+
+# Data landed locally during development
+landing/
+data/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

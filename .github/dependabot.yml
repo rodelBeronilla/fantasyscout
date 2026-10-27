@@ -1,0 +1,44 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, "release:skip"]
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencies, "release:skip"]
+    groups:
+      python-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    labels: [dependencies, "release:skip"]
+    ignore:
+      # @astrojs/check supports TypeScript 5 and 6 only.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+    groups:
+      web-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /worker
+    schedule:
+      interval: weekly
+    labels: [dependencies, "release:skip"]
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+    groups:
+      worker-minor-patch:
+        update-types: [minor, patch]

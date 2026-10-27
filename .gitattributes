@@ -1,0 +1,5 @@
+# Normalise line endings: LF in the repo and in checkouts on every OS.
+* text=auto eol=lf
+*.png binary
+*.parquet binary
+*.duckdb binary
