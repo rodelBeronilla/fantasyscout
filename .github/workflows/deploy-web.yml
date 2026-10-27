@@ -65,7 +65,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          ver=$(node -p "require('@duckdb/duckdb-wasm/package.json').version")
+          ver=$(node -p "JSON.parse(require('fs').readFileSync('node_modules/@duckdb/duckdb-wasm/package.json', 'utf8')).version")
           dir="node_modules/@duckdb/duckdb-wasm/dist"
           for f in duckdb-mvp.wasm duckdb-eh.wasm duckdb-browser-mvp.worker.js duckdb-browser-eh.worker.js; do
             key="vendor/duckdb-wasm/$ver/$f"
