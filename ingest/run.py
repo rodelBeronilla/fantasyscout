@@ -17,6 +17,10 @@ class FetchFailure:
     reason: str
 
 
+class MissingPayloadError(Exception):
+    """The source has no payload for this key (HTTP 404); not a failure of ours."""
+
+
 @dataclass
 class RunSummary:
     """Counts for one source/league/season run. A failed request never fails the run."""
@@ -30,6 +34,7 @@ class RunSummary:
     skipped: int = 0
     games: int = 0
     failures: list[FetchFailure] = field(default_factory=list)
+    missing: list[FetchFailure] = field(default_factory=list)
 
     def record(self, result: LandResult | None) -> None:
         if result is None or result.outcome == "skipped":
@@ -41,6 +46,9 @@ class RunSummary:
 
     def fail(self, endpoint: str, key: str, exc: BaseException) -> None:
         self.failures.append(FetchFailure(endpoint, key, f"{type(exc).__name__}: {exc}"))
+
+    def miss(self, endpoint: str, key: str, reason: str) -> None:
+        self.missing.append(FetchFailure(endpoint, key, reason))
 
     @property
     def ok(self) -> bool:
@@ -56,8 +64,11 @@ def describe(summary: RunSummary, failures_shown: int = 10) -> Sequence[str]:
     lines = [
         f"{summary.source} {summary.league} {summary.season}: {summary.games} games in window, "
         f"{summary.landed} landed, {summary.unchanged} unchanged, {summary.skipped} skipped, "
-        f"{len(summary.failures)} failed"
+        f"{len(summary.missing)} missing at source, {len(summary.failures)} failed"
     ]
+    lines.extend(
+        f"  missing {m.endpoint}/{m.key}: {m.reason}" for m in summary.missing[:failures_shown]
+    )
     lines.extend(
         f"  failed {f.endpoint}/{f.key}: {f.reason}" for f in summary.failures[:failures_shown]
     )

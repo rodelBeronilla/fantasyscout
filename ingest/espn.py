@@ -13,7 +13,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from ingest.http import ThrottledClient
 from ingest.landing import League
-from ingest.run import RunSummary
+from ingest.run import MissingPayloadError, RunSummary
 from ingest.store import Landing, LandResult, Scope
 
 SOURCE = "espn"
@@ -136,6 +136,10 @@ class EspnIngestor:
             return None, self.landing.read_latest(scope, request.key)
         url = request.url(self.planner.league)
         response = self.client.get(url, params=request.params)
+        if response.status_code == 404 and request.endpoint == "summary":
+            # ESPN lists a few events (cancelled, placeholders) it never writes a summary for.
+            msg = "HTTP 404: no summary at source"
+            raise MissingPayloadError(msg)
         if response.status_code != 200:
             msg = f"HTTP {response.status_code}"
             raise RuntimeError(msg)
@@ -153,6 +157,9 @@ class EspnIngestor:
     def _try(self, request: Request, summary: RunSummary) -> bytes | None:
         try:
             result, body = self.fetch(request)
+        except MissingPayloadError as exc:
+            summary.miss(request.endpoint, request.key, str(exc))
+            return None
         except Exception as exc:  # a failed request never fails the run
             summary.fail(request.endpoint, request.key, exc)
             return None

@@ -123,3 +123,31 @@ def test_scoreboard_failure_is_recorded_and_the_rest_proceeds(tmp_path: Path) ->
     assert [f.endpoint for f in summary.failures] == ["scoreboard"]
     assert summary.games == 0
     assert summary.landed == 1  # injuries still landed
+
+
+def test_missing_summary_is_recorded_not_failed(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path.endswith("/summary"):
+            return httpx.Response(404, json={"code": 404, "message": "not found"})
+        name = "scoreboard" if path.endswith("/scoreboard") else "injuries"
+        return httpx.Response(200, content=fixture(name))
+
+    client = ThrottledClient(
+        Throttle(max_retries=0),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+        clock=lambda: 0.0,
+        rng=random.Random(0),
+    )
+    now = datetime(2026, 10, 27, 12, tzinfo=UTC)
+    summary = EspnIngestor(
+        client,
+        Landing(LocalBackend(tmp_path), ingest_date=now.date()),
+        EspnPlanner("wnba", "2026"),
+        now=now,
+    ).run(since=date(2026, 9, 24), until=date(2026, 9, 24), rosters=False)
+    assert summary.ok, "a 404 summary must not fail the run"
+    assert [m.endpoint for m in summary.missing] == ["summary"]
+    assert "no summary at source" in summary.missing[0].reason
+    assert summary.landed == 2  # scoreboard and injuries
