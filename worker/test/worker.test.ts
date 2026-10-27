@@ -71,6 +71,9 @@ describe('data', () => {
     await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), {
       httpMetadata: { contentType: 'application/json' },
     });
+    await env.DATA.put('builds.json', JSON.stringify([{ build_id: 'test' }]), {
+      httpMetadata: { contentType: 'application/json' },
+    });
     await env.DATA.put('build-1/fct_shot.parquet', body);
   });
 
@@ -79,6 +82,13 @@ describe('data', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('public, max-age=60');
     expect(await res.json()).toEqual({ build_id: 'test' });
+  });
+
+  it('serves builds.json with a short cache too', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/data/builds.json`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=60');
+    expect(await res.json()).toEqual([{ build_id: 'test' }]);
   });
 
   it('serves build files as immutable with a parquet content type', async () => {

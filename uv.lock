@@ -771,7 +771,9 @@ name = "fantasyscout"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "duckdb" },
     { name = "httpx" },
+    { name = "pyarrow" },
     { name = "pydantic", version = "2.12.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.15'" },
     { name = "pydantic", version = "2.14.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.15'" },
 ]
@@ -791,7 +793,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "duckdb", specifier = ">=1.1" },
     { name = "httpx", specifier = ">=0.28,<1" },
+    { name = "pyarrow", specifier = ">=19" },
     { name = "pydantic", specifier = ">=2.11,<3" },
 ]
 

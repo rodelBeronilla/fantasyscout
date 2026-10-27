@@ -79,6 +79,10 @@ uv run fs-ingest land stats --league nba --season 2023-24 --since 2023-10-24 --u
 
 Backfills pass `--shots team-season`: the shot chart endpoint returns a whole season for one team in one request, so shots cost one call per team instead of one per game (the payload shape is identical; silver keeps the latest landing per shot). The advanced box line comes from the season-level `playergamelogs` endpoint, one request per season, so each game costs two calls (traditional box score, play-by-play). A WNBA season is then about 240 games × 2 endpoints plus a few dozen season and team calls at roughly 2.3 s per request, about 20 minutes; an NBA season about 1.7 hours (ADR 0004). That 2.3 s is the mandatory pacing gap, not upload time (measured 2026-10-27: overlapping uploads with the gap changed nothing); the only way to go faster is to run the two leagues at once, which the workflow does.
 
+## Export and rollback
+
+Every passing nightly build publishes a data build to the `fantasyscout-data` bucket: `builds/<build_id>/` holds the Parquet and JSON files, the per-player files and `manifest.json`; `latest.json` at the root points at the current build and `builds.json` lists the seven kept. The site reads `latest.json` first, so a build is only visible once every file is up. To publish by hand, roll back, or list what is served, run the "Export data" workflow with `build`, `rollback` (optionally a build id; the default is the previous build) or `list`. A rollback rewrites only `latest.json` and takes effect within a minute (the Worker caches the pointer for 60 s). Locally, `uv run fs-export build --engine duckdb --store local --out web/public/data` writes the same layout under the dev server's `/data/`.
+
 ## Rerun a day
 
 When an incident issue names a failed run:
