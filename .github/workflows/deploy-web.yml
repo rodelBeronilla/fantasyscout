@@ -43,9 +43,11 @@ jobs:
           npm ci
           PUBLIC_BUILD_ID="${GITHUB_SHA::7}" npm run build
 
-      - name: Install worker dependencies
+      - name: Install worker dependencies and collect the CSP hashes of the build
         working-directory: worker
-        run: npm ci
+        run: |
+          npm ci
+          npm run csp
 
       - name: Ensure the R2 bucket exists
         working-directory: worker

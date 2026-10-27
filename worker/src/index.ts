@@ -8,6 +8,8 @@
  * it only reads public, exported data.
  */
 
+import cspHashes from './csp-hashes.json';
+
 export interface Env {
   ASSETS: Fetcher;
   DATA: R2Bucket;
@@ -19,13 +21,16 @@ const POINTER_KEYS = new Set(['latest.json', 'builds.json']);
 /** Player pages are addressed by league and id but rendered by one page. */
 export const PLAYER_PATH = /^\/p\/(wnba|nba)\/[^/]+\/?$/;
 
+// Hashes of the small scripts and the one style rule Astro inlines into every page, collected
+// from the build by scripts/csp-hashes.mjs. Cloudflare's own analytics beacon is allowed too.
+const quoted = (hashes: string[]) => hashes.map((h) => `'${h}'`).join(' ');
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval'",
-  "style-src 'self'",
+  `script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com ${quoted(cspHashes.scripts)}`.trim(),
+  `style-src 'self' ${quoted(cspHashes.styles)}`.trim(),
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self' blob:",
+  "connect-src 'self' blob: https://cloudflareinsights.com",
   "worker-src 'self' blob:",
   'frame-src https://public.tableau.com',
   "frame-ancestors 'none'",
