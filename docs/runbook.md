@@ -133,6 +133,8 @@ Prove the gate and the incident path on demand, without touching data: run the B
 
 `select source, league, season, count(*) runs, sum(landed) landed, sum(failures) failures from fantasyscout.ops.ingest_log group by 1,2,3 order by 1,2,3` shows what has landed. `assert_completeness` lists every final scheduled game still missing a box score or play-by-play; it stays red until the backfill finishes, which is the point.
 
+While a job runs, its log (the `Land` step, or `land.log` in the runner's work directory) carries a `progress` line every 25 requests with the running rate; a healthy stats job shows 20 to 30 requests a minute. A job whose log has not gained a line in five minutes is stalled: the pacing never pauses longer than the 30 s cooldown after a rate limit, and a host that stops answering trips the circuit breaker within about a minute and fails the job. Should a job sit silent anyway, dump the process's Python stack from the runner host (`py-spy dump --pid <pid>` in a throwaway container sharing the runner's pid namespace) and compare with a fresh request from the same container; ADR 0004 records the one stall seen so far and what fixed it.
+
 ## Roll back a data build (phase 5)
 
 To be written with the export job.

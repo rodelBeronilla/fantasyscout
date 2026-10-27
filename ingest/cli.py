@@ -117,6 +117,7 @@ def _run_land(args: argparse.Namespace) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
     args = build_parser().parse_args(argv)
     if args.command == "probe":
         return _run_probe(args.out, args.markdown)
