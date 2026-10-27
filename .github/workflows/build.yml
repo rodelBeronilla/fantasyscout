@@ -114,6 +114,17 @@ jobs:
           DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
         run: uv run python -m ops.summary --engine databricks --table ops.reconciliation_summary
 
+      # Only a passing gate publishes; a blocked gate leaves the previous build serving.
+      - name: Export gold to R2
+        if: steps.gate.outcome == 'success'
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_ORIGIN: https://${{ env.DBT_DATABRICKS_HOST }}
+          DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: uv run fs-export build --engine databricks --store r2 2>&1 | tee -a land.log
+
       - name: Report
         if: always()
         env:

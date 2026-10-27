@@ -7,10 +7,13 @@ requires-python = ">=3.12"
 dependencies = [
   "httpx>=0.28,<1",
   "pydantic>=2.11,<3",
+  "duckdb>=1.1",
+  "pyarrow>=19",
 ]
 
 [project.scripts]
 fs-ingest = "ingest.cli:main"
+fs-export = "export.cli:main"
 
 [dependency-groups]
 dbt = [
@@ -43,6 +46,10 @@ select = ["E", "F", "I", "B", "UP", "N", "W", "SIM", "RUF"]
 python_version = "3.12"
 strict = true
 packages = ["ingest", "export", "ops"]
+
+[[tool.mypy.overrides]]
+module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
