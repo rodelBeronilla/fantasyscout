@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-26 (phase 0 live)
+Last updated: 2026-10-27 (phase 1 ingestors built; stats API runner decision pending)
 
 ## Vision
 
@@ -27,14 +27,14 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 
 ## Active Sprint
 
-Phase 0, Skeleton, is live (PR #2 merged 2026-10-26, issue #1): placeholder at https://fantasyscout.beronilla.rodeo/, preview Worker deployed from `preprod`, R2 bucket bound. Waiting for the owner's go-ahead for phase 1.
+Phase 1, Ingest (issue #7, PR #8). Throttled client, stats API and ESPN ingestors, landing store with idempotent index, `fs-ingest land`, scheduled `ingest.yml` with incident issues. Probe showed the stats API does not answer GitHub-hosted runners (ADR 0002, decision pending); ESPN and Databricks do. A full WNBA week landed locally with zero failures and a no-op rerun.
 
 ## Milestones
 
 | Milestone | Status |
 | --- | --- |
 | Phase 0 Skeleton | Done 2026-10-26 (live, CI green) |
-| Phase 1 Ingest | Not started |
+| Phase 1 Ingest | In progress (2026-10-27): code done, ESPN scheduled from GitHub; stats API needs a residential runner (ADR 0002) |
 | Phase 2 Lakehouse | Not started |
 | Phase 3 Gold + quality | Not started |
 | Phase 4 Reconciliation | Not started |
@@ -49,7 +49,8 @@ N/A, first sprint.
 
 ## Blockers
 
-- Prerequisites before phase 1: Databricks Free Edition workspace, Tableau Public account.
+- ADR 0002: the league stats API blocks GitHub-hosted runners; owner to choose a self-hosted runner at home (recommended) or ESPN-live with manual stats backfills.
+- Tableau Public account exists; needed in phase 6.
 
 ## Tech Debt
 
@@ -57,5 +58,6 @@ N/A, first sprint.
 
 ## Next Actions
 
-1. Owner: confirm Databricks and Tableau accounts and give the go-ahead for phase 1.
-2. Phase 1: stats API and ESPN ingestors, landing to the volume, blocked-IP test from a GitHub runner, ADR on where ingestion runs.
+1. Owner: decide ADR 0002; if self-hosted, install the runner and set the `STATS_RUNNER_LABEL` variable.
+2. Phase 1 close-out: first scheduled stats run lands a WNBA week and an NBA week in the volume; ADR 0002 accepted.
+3. Phase 2: Databricks catalog and schemas, Asset Bundle jobs, dbt bronze and silver, DuckDB target.

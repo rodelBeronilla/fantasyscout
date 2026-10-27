@@ -1,0 +1,171 @@
+{
+ "timestamp": "2026-10-27T03:08:06Z",
+ "status": "success",
+ "season": {
+  "year": 2026,
+  "type": 3,
+  "name": "Postseason",
+  "displayName": "2026"
+ },
+ "injuries": [
+  {
+   "id": "20",
+   "displayName": "Atlanta Dream",
+   "injuries": [
+    {
+     "id": "36835",
+     "longComment": "Villa signed with Atlanta on Sept. 15 but will end the campaign without having seen any game action. She's ineligible to play in the postseason while on a developmental pact.",
+     "shortComment": "Villa (coach's decision) has been ruled out for Wednesday's game against New York.",
+     "status": "Out",
+     "date": "2026-09-23T22:50Z",
+     "athlete": {
+      "displayName": "Matilde Villa",
+      "position": {
+       "id": "3",
+       "name": "Guard",
+       "displayName": "Guard",
+       "abbreviation": "G",
+       "leaf": false
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "4",
+      "name": "INJURY_STATUS_OUT",
+      "description": "out",
+      "abbreviation": "O"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OUT",
+       "abbreviation": "OUT"
+      },
+      "type": "Coach's Decision",
+      "returnDate": "2027-05-01"
+     }
+    },
+    {
+     "id": "36415",
+     "longComment": "This is a tough blow for a Dream team that is sitting in second place in the Eastern Conference. Jones managed to play in just nine games this campaign, finishing with averages of 8.2 points, 5.6 rebounds and 2.0 assists. Look for the Dream to use a committee approach to soak up those minutes going forward.",
+     "shortComment": "Jones will miss the remainder of the season after sustaining a left leg injury against the Sun on Aug. 13, Annie Costabile of The Athletic reports.",
+     "status": "Out",
+     "date": "2026-09-17T16:08Z",
+     "athlete": {
+      "displayName": "Brionna Jones",
+      "position": {
+       "id": "7",
+       "name": "Forward",
+       "displayName": "Forward",
+       "abbreviation": "F",
+       "leaf": false
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "4",
+      "name": "INJURY_STATUS_OUT",
+      "description": "out",
+      "abbreviation": "O"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OFS",
+       "abbreviation": "OFS"
+      },
+      "type": "Leg",
+      "side": "Left",
+      "returnDate": "2027-05-01"
+     }
+    }
+   ]
+  },
+  {
+   "id": "19",
+   "displayName": "Chicago Sky",
+   "injuries": [
+    {
+     "id": "36832",
+     "longComment": "Carrington will end the season on the inactive list for a fifth consecutive contest due to a left foot injury. She'll finish the campaign having averaged 8.8 points, 3.1 rebounds, 0.6 assists and 0.6 steals in 16.2 minutes per game across 11 regular-season outings. She's set to enter unrestricted free agency this offseason following an injury-riddled year.",
+     "shortComment": "Carrington (foot) has been ruled out for Thursday's game against the Mystics.",
+     "status": "Out",
+     "date": "2026-09-23T21:28Z",
+     "athlete": {
+      "displayName": "DiJonai Carrington",
+      "position": {
+       "id": "3",
+       "name": "Guard",
+       "displayName": "Guard",
+       "abbreviation": "G",
+       "leaf": false
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "4",
+      "name": "INJURY_STATUS_OUT",
+      "description": "out",
+      "abbreviation": "O"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OUT",
+       "abbreviation": "OUT"
+      },
+      "type": "Foot",
+      "side": "Left",
+      "returnDate": "2027-05-01"
+     }
+    },
+    {
+     "id": "36831",
+     "longComment": "Coulibaly's rookie year comes to an end due to a knee injury. She'll be looking to take a step forward next year after averaging 5.2 points, 2.6 rebounds and 0.7 steals per game this year for the Sky.",
+     "shortComment": "Coulibaly (knee) is out for Thursday's game against the Mystics",
+     "status": "Out",
+     "date": "2026-09-23T21:27Z",
+     "athlete": {
+      "displayName": "Aicha Coulibaly",
+      "position": {
+       "id": "3",
+       "name": "Guard",
+       "displayName": "Guard",
+       "abbreviation": "G",
+       "leaf": false
+      }
+     },
+     "source": {
+      "id": "1",
+      "description": "basic/manual",
+      "state": "basic"
+     },
+     "type": {
+      "id": "4",
+      "name": "INJURY_STATUS_OUT",
+      "description": "out",
+      "abbreviation": "O"
+     },
+     "details": {
+      "fantasyStatus": {
+       "description": "OUT",
+       "abbreviation": "OUT"
+      },
+      "type": "Knee",
+      "side": "Right",
+      "returnDate": "2027-05-01"
+     }
+    }
+   ]
+  }
+ ]
+}

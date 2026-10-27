@@ -1,0 +1,125 @@
+{
+ "timestamp": "2026-10-27T03:08:08Z",
+ "status": "success",
+ "season": {
+  "year": 2026,
+  "displayName": "2026",
+  "type": 3,
+  "name": "Postseason"
+ },
+ "athletes": [
+  {
+   "id": "869",
+   "uid": "s:40~l:59~a:869",
+   "guid": "74bfe609-0fcb-e955-df3e-e206e06a3a6a",
+   "alternateIds": {
+    "sdr": "2205794"
+   },
+   "firstName": "DeWanna",
+   "lastName": "Bonner",
+   "fullName": "DeWanna Bonner",
+   "displayName": "DeWanna Bonner",
+   "shortName": "D. Bonner",
+   "weight": 140.0,
+   "displayWeight": "140 lbs",
+   "height": 76.0,
+   "displayHeight": "6' 4\"",
+   "age": 39,
+   "dateOfBirth": "1987-08-21T07:00Z",
+   "slug": "dewanna-bonner",
+   "jersey": "24",
+   "position": {
+    "id": "7",
+    "name": "Forward",
+    "displayName": "Forward",
+    "abbreviation": "F",
+    "leaf": false
+   },
+   "teams": [
+    {
+     "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/wnba/seasons/2026/teams/11?lang=en&region=us"
+    },
+    {
+     "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/wnba/seasons/2026/teams/20?lang=en&region=us"
+    }
+   ]
+  },
+  {
+   "id": "5208983",
+   "uid": "s:40~l:59~a:5208983",
+   "guid": "c3bdc5c0-306d-3749-90c4-fced7e62b5b0",
+   "alternateIds": {
+    "sdr": "5208983"
+   },
+   "firstName": "Isobel",
+   "lastName": "Borlase",
+   "fullName": "Isobel Borlase",
+   "displayName": "Isobel Borlase",
+   "shortName": "I. Borlase",
+   "height": 71.0,
+   "displayHeight": "5' 11\"",
+   "age": 22,
+   "dateOfBirth": "2004-09-12T07:00Z",
+   "slug": "isobel-borlase",
+   "jersey": "20",
+   "position": {
+    "id": "3",
+    "name": "Guard",
+    "displayName": "Guard",
+    "abbreviation": "G",
+    "leaf": false
+   },
+   "teams": [
+    {
+     "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/wnba/seasons/2026/teams/20?lang=en&region=us"
+    }
+   ]
+  },
+  {
+   "id": "3142250",
+   "uid": "s:40~l:59~a:3142250",
+   "guid": "6e517eae-e6cc-f3bb-5761-4b2f27775272",
+   "alternateIds": {
+    "sdr": "3142250"
+   },
+   "firstName": "Jordin",
+   "lastName": "Canada",
+   "fullName": "Jordin Canada",
+   "displayName": "Jordin Canada",
+   "shortName": "J. Canada",
+   "weight": 135.0,
+   "displayWeight": "135 lbs",
+   "height": 66.0,
+   "displayHeight": "5' 6\"",
+   "age": 31,
+   "dateOfBirth": "1995-08-11T07:00Z",
+   "slug": "jordin-canada",
+   "jersey": "3",
+   "position": {
+    "id": "3",
+    "name": "Guard",
+    "displayName": "Guard",
+    "abbreviation": "G",
+    "leaf": false
+   },
+   "teams": [
+    {
+     "$ref": "http://sports.core.api.espn.pvt/v2/sports/basketball/leagues/wnba/seasons/2026/teams/20?lang=en&region=us"
+    }
+   ]
+  }
+ ],
+ "team": {
+  "id": "20",
+  "abbreviation": "ATL",
+  "location": "Atlanta",
+  "name": "Dream",
+  "displayName": "Atlanta Dream",
+  "clubhouse": "https://www.espn.com/wnba/team/_/name/atl/atlanta-dream",
+  "color": "e31837",
+  "logo": "https://a.espncdn.com/i/teamlogos/wnba/500/atl.png",
+  "recordSummary": "30-14",
+  "seasonSummary": "2026",
+  "standingSummary": "1st in Eastern Conference Division"
+ }
+}

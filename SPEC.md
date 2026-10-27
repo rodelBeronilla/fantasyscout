@@ -258,7 +258,7 @@ Each phase ends with something live and a PR that passes CI. Stop and report at 
 
 **Prerequisites before phase 1**
 
-- A Databricks Free Edition workspace, verified for outbound internet access.
+- A Databricks Free Edition workspace with a personal access token. Free Edition limits outbound internet to a fixed set of domains regardless of account verification, so nothing in this design relies on the workspace reaching the internet: ingestion pushes files in through the Files API, and dbt connects to the SQL warehouse from GitHub Actions.
 - A Tableau Public account to publish the workbook under.
 
 ## References

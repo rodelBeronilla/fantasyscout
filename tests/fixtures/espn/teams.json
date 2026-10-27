@@ -1,0 +1,61 @@
+{
+ "sports": [
+  {
+   "id": "40",
+   "leagues": [
+    {
+     "abbreviation": "WNBA",
+     "id": "59",
+     "name": "Women's National Basketball Association",
+     "season": {
+      "displayName": "2026",
+      "year": 2026
+     },
+     "shortName": "WNBA",
+     "slug": "wnba",
+     "teams": [
+      {
+       "team": {
+        "abbreviation": "ATL",
+        "alternateColor": "5091cc",
+        "color": "e31837",
+        "displayName": "Atlanta Dream",
+        "id": "20",
+        "isActive": true,
+        "isAllStar": false,
+        "location": "Atlanta",
+        "name": "Dream",
+        "nickname": "Atlanta",
+        "shortDisplayName": "Dream",
+        "slug": "atlanta-dream",
+        "uid": "s:40~l:59~t:20"
+       }
+      },
+      {
+       "team": {
+        "abbreviation": "CHI",
+        "alternateColor": "ffd520",
+        "color": "5091cd",
+        "displayName": "Chicago Sky",
+        "id": "19",
+        "isActive": true,
+        "isAllStar": false,
+        "location": "Chicago",
+        "name": "Sky",
+        "nickname": "Chicago",
+        "shortDisplayName": "Sky",
+        "slug": "chicago-sky",
+        "uid": "s:40~l:59~t:19"
+       }
+      }
+     ],
+     "uid": "s:40~l:59",
+     "year": 2026
+    }
+   ],
+   "name": "Basketball",
+   "slug": "basketball",
+   "uid": "s:40"
+  }
+ ]
+}

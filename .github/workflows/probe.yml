@@ -1,0 +1,43 @@
+name: Probe sources
+
+# Can a GitHub-hosted runner reach the league stats API, ESPN and the Databricks workspace?
+# The answer decides where ingestion runs (ADR 0002). This job reports; it does not fail on
+# an unreachable source.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ingest/**
+      - .github/workflows/probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe from a GitHub-hosted runner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Probe
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          {
+            echo "## Source reachability from a GitHub-hosted runner"
+            echo
+            echo "Runner region: $(curl -s --max-time 10 https://api.ipify.org >/dev/null && echo 'GitHub (Azure)' || echo 'unknown')"
+            echo
+            uv run fs-ingest probe --out probe-result.json --markdown
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: probe-result
+          path: probe-result.json
+          retention-days: 30
