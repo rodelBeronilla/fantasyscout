@@ -106,6 +106,14 @@ jobs:
           set -o pipefail
           uv run python -m ops.results --engine databricks 2>&1 | tee -a land.log
 
+      - name: Reconciliation summary (match and conflict rates per league and season)
+        if: always() && steps.build.outcome != 'skipped'
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_ORIGIN: https://${{ env.DBT_DATABRICKS_HOST }}
+          DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
+        run: uv run python -m ops.summary --engine databricks --table ops.reconciliation_summary
+
       - name: Report
         if: always()
         env:

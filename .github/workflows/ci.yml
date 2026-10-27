@@ -72,6 +72,8 @@ jobs:
         run: uv run dbt build --target duckdb --exclude tag:quality
       - name: Record results and decide the publish gate (DuckDB)
         run: uv run python -m ops.results --engine duckdb --duckdb dbt/fantasyscout.duckdb
+      - name: Reconciliation summary (DuckDB)
+        run: uv run python -m ops.summary --engine duckdb --duckdb dbt/fantasyscout.duckdb
       - name: The chaos switch blocks the gate
         working-directory: dbt
         env:

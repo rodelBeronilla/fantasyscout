@@ -127,6 +127,10 @@ Severities follow the spec: keys, arithmetic, box-score closure (except turnover
 
 The gate step also prints up to ten failing rows of every failed check (`--sample-failures N`, 0 disables), re-running the check's compiled query with a limit, and the incident comment carries that tail, so an incident names the rows, not only the count.
 
+## Reconciliation review
+
+`select * from fantasyscout.ops.reconciliation_summary order by league, season` shows how much of each season ESPN covers and how the two sources agree; `warn_crosswalk_coverage` flags a season under 99% matched. `select * from fantasyscout.silver.player_xwalk_review order by games desc` lists the players the crosswalk could not pair with the closest candidate on the same team. When the candidate is the same person (a nickname, a marriage, a transliteration), add a row to `dbt/seeds/player_id_overrides.csv` (league, stats id, ESPN id, reason) and open a PR; the next build pairs every game of theirs retroactively. When a whole team is unmatched, check `silver.team_xwalk` first: a renamed team needs its nickname in `team_reference.csv`. `select stat, count(*) from fantasyscout.ops.reconciliation group by 1 order by 2 desc` shows which values the sources disagree on most; a sudden rise usually means one source changed shape.
+
 ## Chaos drill
 
 Prove the gate and the incident path on demand, without touching data: run the Build lakehouse workflow with the `chaos` input ticked. The `chaos_deliberate_failure` check fails at error severity, the gate blocks, the run fails and an incident issue opens. Run the workflow again without the input; the gate passes and the issue closes itself. Do this after any change to `ops/results.py`, `incident.py` or the build workflow.

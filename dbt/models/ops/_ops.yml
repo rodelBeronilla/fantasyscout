@@ -19,3 +19,28 @@ models:
         description: "Requests that failed this run"
       - name: missing_at_source
         description: "Keys the source has no payload for (for example an ESPN event with no summary); not failures"
+
+  - name: reconciliation
+    description: "One row per value the two sources disagree on, with both values and the resolution: the league value wins, ESPN only where the league's is null (ADR 0005). A snapshot of the current comparison."
+    columns:
+      - name: reconciliation_key
+        description: "League, game, player and stat"
+        data_tests: [unique, not_null]
+      - name: stat
+        description: "Compared measure"
+        data_tests: [not_null]
+      - name: resolution
+        description: "stats or espn"
+        data_tests:
+          - accepted_values:
+              values: [stats, espn]
+
+  - name: reconciliation_summary
+    description: "Match and conflict rates per league and season: how many of the league's player-games ESPN also reports and the crosswalk pairs, and how those pairs agree."
+    columns:
+      - name: summary_key
+        description: "League and season"
+        data_tests: [unique, not_null]
+      - name: match_rate
+        description: "Matched player-games over all player-games"
+        data_tests: [not_null]

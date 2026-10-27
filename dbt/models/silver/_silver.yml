@@ -262,3 +262,100 @@ models:
       - name: status
         description: "status"
         data_tests: [not_null]
+
+  - name: espn_team_directory
+    description: "One row per ESPN team per league from the teams endpoint."
+    columns:
+      - name: espn_team_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: display_name
+        description: "Full team name as ESPN writes it"
+        data_tests: [not_null]
+
+  - name: espn_roster_players
+    description: "One row per ESPN athlete per league from the team rosters, for names and birthdates."
+    columns:
+      - name: espn_player_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: full_name
+        description: "Athlete display name"
+        data_tests: [not_null]
+
+  - name: team_xwalk
+    description: "League stats API team id to ESPN team id, one row per stats team (ADR 0005)."
+    columns:
+      - name: team_xwalk_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: espn_team_id
+        description: "ESPN team id; unique across the crosswalk"
+        data_tests:
+          - not_null
+          - unique
+      - name: method
+        description: "How the pair was found"
+        data_tests:
+          - accepted_values:
+              values: [full_name, nickname, abbreviation]
+
+  - name: game_xwalk
+    description: "League stats API game id to ESPN event id, one row per matched game (ADR 0005)."
+    columns:
+      - name: game_xwalk_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: event_id
+        description: "ESPN event id; each event matches one game"
+        data_tests:
+          - not_null
+          - unique
+      - name: method
+        description: "same_day or adjacent_day"
+        data_tests:
+          - accepted_values:
+              values: [same_day, adjacent_day]
+
+  - name: player_xwalk
+    description: "League stats API player id to ESPN athlete id, one row per matched player: exact name, fuzzy name with birthdate, or an override (ADR 0005)."
+    columns:
+      - name: player_xwalk_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: espn_player_id
+        description: "ESPN athlete id; each athlete matches one player"
+        data_tests:
+          - not_null
+          - unique
+      - name: method
+        description: "override, exact or fuzzy"
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [override, exact, fuzzy]
+
+  - name: player_xwalk_review
+    description: "Players in matched games the crosswalk could not pair, from either side, with the closest candidate; the fix is a row in seeds/player_id_overrides.csv."
+    columns:
+      - name: review_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: side
+        description: "stats or espn"
+        data_tests:
+          - accepted_values:
+              values: [stats, espn]
+
+  - name: player_game_reconciliation
+    description: "Every player-game both sources report, side by side, with the agreement verdict (ADR 0005)."
+    columns:
+      - name: player_game_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: source_agreement
+        description: "exact, minor or conflict"
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [exact, minor, conflict]

@@ -58,6 +58,8 @@ models:
       - name: stats_player_id
         description: "League stats API player id"
         data_tests: [not_null]
+      - name: espn_player_id
+        description: "ESPN athlete id from silver.player_xwalk; null when the player is unmatched"
       - name: valid_from
         description: "First game date of the stint"
         data_tests: [not_null]
@@ -89,7 +91,7 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: source_agreement
-        description: "exact, minor, conflict (phase 4) or unverified"
+        description: "Reconciliation verdict against ESPN (ADR 0005): exact, minor (minutes only, within one), conflict, or unverified when ESPN does not report the player-game"
         data_tests:
           - accepted_values:
               values: [exact, minor, conflict, unverified]
