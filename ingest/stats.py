@@ -27,6 +27,10 @@ HOSTS: dict[League, str] = {
 LEAGUE_ID: dict[League, str] = {"wnba": "10", "nba": "00"}
 
 SeasonType = Literal["Regular Season", "Playoffs"]
+# "game": one shotchartdetail call per game (small daily windows).
+# "team-season": one call per team for the whole season (backfills: 10-40x fewer requests,
+# same payload shape, so bronze and silver are unchanged; silver keeps the latest landing per shot).
+ShotsScope = Literal["game", "team-season"]
 
 # shotchartdetail refuses requests that omit any of these, even when empty.
 _SHOTCHART_DEFAULTS = {
@@ -89,10 +93,17 @@ class GameRef:
 class StatsPlanner:
     """Builds the request list for one league-season. Pure; no network."""
 
-    def __init__(self, league: League, season: str, season_type: SeasonType = "Regular Season"):
+    def __init__(
+        self,
+        league: League,
+        season: str,
+        season_type: SeasonType = "Regular Season",
+        shots_scope: ShotsScope = "game",
+    ):
         self.league = league
         self.season = season
         self.season_type = season_type
+        self.shots_scope = shots_scope
         self.league_id = LEAGUE_ID[league]
 
     def season_requests(self) -> list[Request]:
@@ -137,7 +148,7 @@ class StatsPlanner:
             "endRange": "0",
             "rangeType": "0",
         }
-        return [
+        requests = [
             Request("boxscoretraditionalv3", game_id, v3),
             Request("boxscoreadvancedv3", game_id, v3),
             Request(
@@ -145,20 +156,34 @@ class StatsPlanner:
                 game_id,
                 {"GameID": game_id, "StartPeriod": "0", "EndPeriod": "14"},
             ),
-            Request(
-                "shotchartdetail",
-                game_id,
-                {
-                    **_SHOTCHART_DEFAULTS,
-                    "ContextMeasure": "FGA",
-                    "GameID": game_id,
-                    "LeagueID": self.league_id,
-                    "PlayerID": "0",
-                    "TeamID": "0",
-                    "Season": self.season,
-                    "SeasonType": self.season_type,
-                },
-            ),
+        ]
+        if self.shots_scope == "game":
+            requests.append(self._shot_request(game_id, game_id=game_id, team_id="0"))
+        return requests
+
+    def _shot_request(self, key: str, *, game_id: str, team_id: str) -> Request:
+        return Request(
+            "shotchartdetail",
+            key,
+            {
+                **_SHOTCHART_DEFAULTS,
+                "ContextMeasure": "FGA",
+                "GameID": game_id,
+                "LeagueID": self.league_id,
+                "PlayerID": "0",
+                "TeamID": team_id,
+                "Season": self.season,
+                "SeasonType": self.season_type,
+            },
+        )
+
+    def shot_requests(self, team_ids: Iterable[str]) -> list[Request]:
+        """Whole-season shot charts, one per team (only for the team-season scope)."""
+        if self.shots_scope != "team-season":
+            return []
+        return [
+            self._shot_request(f"{team_id}-{_slug(self.season_type)}", game_id="", team_id=team_id)
+            for team_id in sorted(set(team_ids))
         ]
 
     def roster_requests(self, team_ids: Iterable[str]) -> list[Request]:
@@ -283,6 +308,8 @@ class StatsIngestor:
             team_ids |= game.team_ids
             for request in self.planner.game_requests(game.game_id):
                 self._try(request, summary)
+        for request in self.planner.shot_requests(team_ids):
+            self._try(request, summary)
         for request in self.planner.roster_requests(team_ids):
             self._try(request, summary)
         for failure in self.landing.flush():

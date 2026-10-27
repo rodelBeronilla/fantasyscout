@@ -176,3 +176,30 @@ def test_gamelog_failure_stops_game_planning(tmp_path: Path) -> None:
     ).run()
     assert summary.games == 0 and summary.landed == 2
     assert [f.endpoint for f in summary.failures] == ["leaguegamelog"]
+
+
+def test_team_season_scope_fetches_shots_once_per_team(tmp_path: Path) -> None:
+    planner = StatsPlanner("wnba", "2026", shots_scope="team-season")
+    assert [r.endpoint for r in planner.game_requests("x")] == [
+        "boxscoretraditionalv3",
+        "boxscoreadvancedv3",
+        "playbyplayv3",
+    ]
+    shots = planner.shot_requests(["2", "1"])
+    assert [r.key for r in shots] == ["1-regular-season", "2-regular-season"]
+    assert shots[0].params["GameID"] == "" and shots[0].params["TeamID"] == "1"
+    assert StatsPlanner("wnba", "2026").shot_requests(["1"]) == []
+
+    games = games_in_window(fixture("leaguegamelog"))
+    teams = {t for g in games for t in g.team_ids}
+    now = datetime(2026, 10, 27, 12, tzinfo=UTC)
+    summary = StatsIngestor(
+        fixture_client(), Landing(LocalBackend(tmp_path), ingest_date=now.date()), planner, now=now
+    ).run()
+    assert summary.ok, summary.failures
+    assert summary.landed == 3 + 3 * len(games) + len(teams) + len(teams)
+    assert (tmp_path / "landing/stats/shotchartdetail/wnba/2026/2026-10-27").exists()
+    assert not any(
+        p.name.startswith("1022")
+        for p in (tmp_path / "landing/stats/shotchartdetail/wnba/2026/2026-10-27").iterdir()
+    ), "no per-game shot payloads in team-season scope"
