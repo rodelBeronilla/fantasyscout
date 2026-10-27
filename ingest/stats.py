@@ -119,7 +119,41 @@ class StatsPlanner:
                 {"LeagueID": self.league_id, "Season": self.season, "IsOnlyCurrentSeason": "1"},
             ),
             self.gamelog_request(),
+            self.player_gamelogs_request("Advanced"),
         ]
+
+    def player_gamelogs_request(self, measure: str) -> Request:
+        """Every player-game line of the season with the given measure set, in one request.
+
+        Replaces per-game boxscoreadvancedv3 calls: identical measures, one call per season.
+        """
+        return Request(
+            "playergamelogs",
+            f"{measure.lower()}-{_slug(self.season_type)}",
+            {
+                "DateFrom": "",
+                "DateTo": "",
+                "GameSegment": "",
+                "LastNGames": "0",
+                "LeagueID": self.league_id,
+                "Location": "",
+                "MeasureType": measure,
+                "Month": "0",
+                "OppTeamID": "0",
+                "Outcome": "",
+                "PORound": "0",
+                "PerMode": "Totals",
+                "Period": "0",
+                "PlayerID": "",
+                "Season": self.season,
+                "SeasonSegment": "",
+                "SeasonType": self.season_type,
+                "ShotClockRange": "",
+                "TeamID": "",
+                "VsConference": "",
+                "VsDivision": "",
+            },
+        )
 
     def gamelog_request(self) -> Request:
         return Request(
@@ -150,7 +184,6 @@ class StatsPlanner:
         }
         requests = [
             Request("boxscoretraditionalv3", game_id, v3),
-            Request("boxscoreadvancedv3", game_id, v3),
             Request(
                 "playbyplayv3",
                 game_id,
