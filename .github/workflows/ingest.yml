@@ -36,10 +36,6 @@ permissions:
   contents: read
   issues: write
 
-concurrency:
-  group: ingest
-  cancel-in-progress: false
-
 env:
   LEAGUES: ${{ (inputs.league == 'wnba' && '["wnba"]') || (inputs.league == 'nba' && '["nba"]') || '["wnba","nba"]' }}
 
@@ -77,6 +73,9 @@ jobs:
     needs: plan
     if: needs.plan.outputs.run_espn == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: espn-${{ matrix.league }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
@@ -115,10 +114,13 @@ jobs:
     needs: plan
     if: needs.plan.outputs.run_stats == 'true'
     runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    # One job per stats host at a time, across this workflow and Backfill. The two leagues are
+    # two hosts, so they may run at once (there are two home runners).
+    concurrency:
+      group: stats-${{ matrix.league }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
-      # stats.wnba.com and stats.nba.com are different hosts, so the one-request-per-host
-      # rule holds with both leagues running at once.
       max-parallel: 2
       matrix:
         league: ${{ fromJSON(needs.plan.outputs.leagues) }}

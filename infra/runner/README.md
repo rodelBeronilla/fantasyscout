@@ -1,6 +1,6 @@
 # Self-hosted runner
 
-The league stats API does not answer requests from GitHub-hosted runners (ADR 0002), so the `stats` job in `.github/workflows/ingest.yml` runs on a self-hosted runner with the label `home`, a single container defined in `compose.yml`. Everything else stays on GitHub-hosted runners.
+The league stats API does not answer requests from GitHub-hosted runners (ADR 0002), so the `stats` jobs in `ingest.yml` and `backfill.yml` run on self-hosted runners with the label `home`: two containers defined in `compose.yml`, one per league, because stats.wnba.com and stats.nba.com are different hosts and each job makes one request at a time to its host. Concurrency groups (`stats-wnba`, `stats-nba`) keep two jobs from sharing a host. Everything else stays on GitHub-hosted runners.
 
 ## Start
 
