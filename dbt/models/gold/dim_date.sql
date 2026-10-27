@@ -22,8 +22,8 @@ select
     {{ iso_dow('spine.date_day') }} as iso_day_of_week,
     {{ week_start('spine.date_day') }} as week_start,
     -- Fantasy weeks run Monday to Sunday, numbered within the calendar year of the Monday.
-    cast(year({{ week_start('spine.date_day') }}) as varchar) || '-W'
-        || lpad(cast(cast(({{ days_between("cast(year(" ~ week_start('spine.date_day') ~ ") || '-01-01' as date)", week_start('spine.date_day')) }} / 7) + 1 as integer) as varchar), 2, '0') as fantasy_week,
+    cast(year({{ week_start('spine.date_day') }}) as string) || '-W'
+        || lpad(cast(cast(({{ days_between("cast(year(" ~ week_start('spine.date_day') ~ ") || '-01-01' as date)", week_start('spine.date_day')) }} / 7) + 1 as integer) as string), 2, '0') as fantasy_week,
     wnba.game_date is not null as is_game_day_wnba,
     nba.game_date is not null as is_game_day_nba
 from spine
