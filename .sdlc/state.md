@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-27 (phase 2 built)
+Last updated: 2026-10-27 (phase 2 done)
 
 ## Vision
 
@@ -28,6 +28,8 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 
 ## Active Sprint
 
+Phase 2, Lakehouse, is done (issue #16; PRs #17, #19 and the bundle PR): 15 bronze and 13 silver dbt models with 83 tests pass on DuckDB in CI and on Databricks after every ingest. Waiting for the owner's go-ahead for phase 3.
+
 Phase 1, Ingest, is done (issue #7; PRs #8, #9, #10, #13, #14). Daily `ingest.yml` lands ESPN from GitHub-hosted runners and the stats API from the home runner into `fantasyscout.raw.landing`. First runs landed a WNBA week (25 games, 115 payloads) and an NBA week (49 games, 229 payloads) with zero failures; the rerun skipped all 118 WNBA payloads without a request. Incident issues open and close themselves. Waiting for the owner's go-ahead for phase 2.
 
 ## Milestones
@@ -36,7 +38,7 @@ Phase 1, Ingest, is done (issue #7; PRs #8, #9, #10, #13, #14). Daily `ingest.ym
 | --- | --- |
 | Phase 0 Skeleton | Done 2026-10-26 (live, CI green) |
 | Phase 1 Ingest | Done 2026-10-27 (both sources landing daily; ADR 0002 accepted) |
-| Phase 2 Lakehouse | Built 2026-10-27 (issue #16): bronze + silver on DuckDB and Databricks, Asset Bundle job |
+| Phase 2 Lakehouse | Done 2026-10-27 (issue #16): dbt build PASS=114 on DuckDB (CI) and Databricks; Asset Bundle job deployed paused |
 | Phase 3 Gold + quality | Not started |
 | Phase 4 Reconciliation | Not started |
 | Phase 5 Serving + app | Not started |
@@ -58,6 +60,7 @@ N/A, first sprint.
 
 ## Next Actions
 
-1. Owner: go-ahead for phase 2.
-2. Watch the first cron run (09:15 UTC) stay green.
-3. Phase 2: Databricks catalog and schemas, Asset Bundle jobs, dbt bronze and silver, DuckDB target.
+1. Owner: go-ahead for phase 3.
+2. Watch the first cron ingest (09:15 UTC) and the build that follows it stay green.
+3. Phase 3: gold star schema, all quality checks, `ops.test_results`, publish gate, incident issues on error-severity failures.
+4. Phase 2 (done): Databricks catalog and schemas, Asset Bundle jobs, dbt bronze and silver, DuckDB target.
