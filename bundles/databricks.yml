@@ -43,7 +43,8 @@ resources:
         - task_key: dbt_build
           environment_key: dbt
           dbt_task:
-            project_directory: dbt
+            # Relative to this file; the sync root becomes the repo root because ../dbt is synced.
+            project_directory: ../dbt
             catalog: ${var.catalog}
             schema: bronze
             warehouse_id: ${var.warehouse_id}
