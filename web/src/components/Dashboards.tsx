@@ -57,7 +57,7 @@ export default function Dashboards({ vizUrl }: { vizUrl: string }) {
       )}
       <section>
         <h2 className="text-sm font-medium tracking-wide text-muted uppercase">The extract behind it</h2>
-        {error && <Problem error={error} />}
+        {error ? <Problem error={error} /> : null}
         {latest === undefined && <Loading what="the extract list" />}
         {latest !== undefined && (
           <ul className="mt-2 grid gap-2 text-sm" data-testid="tableau-files">
