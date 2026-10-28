@@ -11,10 +11,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const dist = process.argv[2] ?? join(here, '..', '..', 'web', 'dist');
 const out = join(here, '..', 'src', 'csp-hashes.json');
 
-function* htmlFiles(dir) {
+// The generated dbt docs under dist/docs have their own policy (worker/src/index.ts); skip them.
+function* htmlFiles(dir, top = true) {
   for (const name of readdirSync(dir)) {
     const path = join(dir, name);
-    if (statSync(path).isDirectory()) yield* htmlFiles(path);
+    if (statSync(path).isDirectory()) {
+      if (top && (name === 'docs' || name === 'data')) continue;
+      yield* htmlFiles(path, false);
+    }
     else if (name.endsWith('.html')) yield path;
   }
 }

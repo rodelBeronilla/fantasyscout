@@ -53,3 +53,6 @@ web/public/data/
 # The Playwright fixture export is committed (a real export of the dbt sample)
 !web/tests/fixtures/data/
 !web/tests/fixtures/data/**
+
+# Rendered notebooks
+notebooks/_build/
