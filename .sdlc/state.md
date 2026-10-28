@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-27 (phase 5 done; waiting for the go-ahead for phase 6)
+Last updated: 2026-10-28 (phase 6 done; waiting for the go-ahead for phase 7)
 
 ## Vision
 
@@ -28,6 +28,8 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 
 ## Active Sprint
 
+Phase 6, Analysis surfaces, is done (issue #66). dbt docs with the lineage graph are generated at deploy time and live at `/docs/` under their own policy. Three notebooks (`01_shot_profiles`, `02_reconciliation_audit`, `03_fantasy_value_backtest`) read the published build, the local DuckDB file or the lakehouse through one helper; CI executes them against the sample on every pull request, and the build workflow executes them against every published build and renders them under it at `/notebooks/`. The League Pulse workbook's extract (`tableau/extract.py`: team pace and ratings, player value, data health) is refreshed and published with every build and linked from `/dashboards/`, which embeds the Tableau Public workbook once the owner has published it and set the `TABLEAU_VIZ_URL` repository variable (the one manual step, documented in `tableau/README.md`). Waiting for the owner's go-ahead for phase 7.
+
 Phase 5, Serving + app, is done (issue #58; PRs #59, #60, #61 and the close-out). `fs-export` publishes a data build to R2 after every passing gate (ADR 0006): Parquet and JSON per gold model, the big facts per league-season, per-league board and streamers, `health.json`, one file per player, a manifest, `latest.json` flipped last, seven builds kept, rollback by pointer. The site reads it: Board (punt toggles, availability adjustment, filters), Player (season lines, rolling trend, shot chart with league zone averages, category strengths, game log with the reconciliation verdict), Streamers, Data Health, SQL console (DuckDB-WASM over the Parquet files, ten saved queries), league and theme toggles, footer with the data build id. Lighthouse on the production home page: performance 99, LCP 1641 ms, TTI 1641 ms (mobile, simulated slow 4G). Live data build at close-out: 20261027T222649Z-4320e65. Waiting for the owner's go-ahead for phase 6.
 
 Phase 4, Reconciliation (issue #51): three crosswalks in silver (`team_xwalk`, `game_xwalk`, `player_xwalk` with exact, fuzzy-with-birthdate and override passes, plus `player_xwalk_review`), `player_game_reconciliation`, `ops.reconciliation` (differences with the resolution rule) and `ops.reconciliation_summary` (match and conflict rates per league and season, printed in every build log), `fct_player_game.source_agreement` and resolved values, `dim_player.espn_player_id`, a warn-severity coverage check, ADR 0005. Full backfill on Databricks (build 40547678267): 156,899 box-score lines, 99.5% matched, every season at or above 99.3% of played player-games, every conflict rate at or below 0.21%, 244 checks pass with no warning; a read-only "Query the lakehouse" workflow prints any table into a job log. Evidence on issue #51. Waiting for the owner's go-ahead for phase 5.
@@ -50,7 +52,7 @@ Phase 1, Ingest, is done (issue #7; PRs #8, #9, #10, #13, #14). Daily `ingest.ym
 | Phase 3 Gold + quality | Done 2026-10-27 (issue #22): star schema, marts, checks, results table, gate; full backfill loaded, 195 checks pass on Databricks, chaos drill proven |
 | Phase 4 Reconciliation | Done 2026-10-27 (issue #51): crosswalks, ops.reconciliation, summary per league and season, source_agreement; 99.5% matched, every season ≥ 99.3% played; ADR 0005 |
 | Phase 5 Serving + app | Done 2026-10-27 (issue #58): export to R2 with manifest and rollback, Board, Player, Streamers, Data Health, SQL console, Lighthouse budget in the deploy |
-| Phase 6 Analysis surfaces | Not started |
+| Phase 6 Analysis surfaces | Done 2026-10-28 (issue #66): dbt docs at /docs/, notebooks executed in CI and on every build at /notebooks/, Tableau extract and Dashboards page (manual publish pending) |
 | Phase 7 AI notes | Not started |
 | Phase 8 Polish | Not started |
 
@@ -68,6 +70,6 @@ N/A, first sprint.
 
 ## Next Actions
 
-1. Owner: go-ahead for phase 6 (analysis surfaces: three notebooks executed in CI, the Tableau Public workbook, dbt docs at /docs/).
+1. Owner: publish the League Pulse workbook on Tableau Public from the extract (tableau/README.md) and set the `TABLEAU_VIZ_URL` repository variable; then go-ahead for phase 7 (AI scouting notes with verified claims).
 2. Watch the nightly build log's reconciliation summary; any season under 99% matched warns, and `silver.player_xwalk_review` names the players to add to the overrides seed.
 3. Deferred from phase 3: lineup columns in `fct_event`, tracking facts, a performance timings page, an ESPN core-API fallback if summary coverage ever drops below 99%.

@@ -56,3 +56,6 @@ web/public/data/
 
 # Rendered notebooks
 notebooks/_build/
+
+# The Tableau extract is generated and published with each build
+tableau/extract/

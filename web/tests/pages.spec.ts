@@ -105,3 +105,9 @@ test('the notebooks page lists the three analyses', async ({ page }) => {
   await expect(items.first()).toContainText('Shot profiles');
   await expect(page.getByTestId('notebook-pending').first()).toBeVisible();
 });
+
+test('the dashboards page explains the workbook and lists the extract', async ({ page }) => {
+  await page.goto('/dashboards/');
+  await expect(page.getByTestId('tableau-pending').or(page.getByTestId('tableau-embed'))).toBeVisible();
+  await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
+});

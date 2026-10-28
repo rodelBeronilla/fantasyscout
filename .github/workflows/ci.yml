@@ -60,6 +60,10 @@ jobs:
           name: notebooks-html
           path: notebooks/_build
           retention-days: 7
+      - name: The Tableau extract builds from the sample
+        env:
+          FS_NOTEBOOK_SOURCE: local
+        run: uv run python tableau/extract.py --out tableau/extract
 
   dbt:
     name: dbt build on DuckDB
