@@ -33,6 +33,8 @@ notebooks = [
   "ipykernel>=6.29",
   "pandas>=2.2",
   "matplotlib>=3.9",
+  "google-auth>=2.35",
+  "requests>=2.32",
 ]
 
 [build-system]
@@ -52,6 +54,7 @@ select = ["E", "F", "I", "B", "UP", "N", "W", "SIM", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
 "notebooks/*" = ["E501"]
+"tableau/*" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

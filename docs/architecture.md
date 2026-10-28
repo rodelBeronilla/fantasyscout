@@ -58,7 +58,7 @@ A passing gate publishes a data build to the `fantasyscout-data` bucket under `b
 
 ## Analysis surfaces
 
-Three doors onto the same gold tables (SPEC.md): the site's pages and SQL console; the notebooks under `notebooks/`, which read the published build over HTTP (or the local DuckDB file, or the lakehouse) through one helper, execute in CI against the sample and against every published build after the export, and are rendered under the build at `/notebooks/`; and the League Pulse workbook on Tableau Public, built from a three-file extract (`tableau/extract.py`) that every build refreshes and publishes next to the data, with the one manual publish documented in `tableau/README.md` and the result embedded on `/dashboards/`. The generated dbt docs (lineage graph, model and column definitions) are produced at deploy time and served at `/docs/`.
+Three doors onto the same gold tables (SPEC.md): the site's pages and SQL console; the notebooks under `notebooks/`, which read the published build over HTTP (or the local DuckDB file, or the lakehouse) through one helper, execute in CI against the sample and against every published build after the export, and are rendered under the build at `/notebooks/`; and the League Pulse workbook on Tableau Public, built from a three-file extract (`tableau/extract.py`) that every build refreshes, publishes next to the data and pushes into a Google Sheet (`tableau/sheets.py`), the one source Tableau Public refreshes on its own; the single manual publish is documented in `tableau/README.md` and the result is embedded on `/dashboards/`. The generated dbt docs (lineage graph, model and column definitions) are produced at deploy time and served at `/docs/`.
 
 ## Trust boundaries
 

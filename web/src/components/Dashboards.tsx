@@ -49,9 +49,9 @@ export default function Dashboards({ vizUrl }: { vizUrl: string }) {
         <div className="rounded-lg border border-line bg-card p-4" data-testid="tableau-pending">
           <p className="font-medium">The League Pulse workbook is not published yet.</p>
           <p className="mt-1 text-sm text-muted">
-            Tableau Public has no publishing API, so the workbook is created and refreshed by hand from the
-            extract below; the repository&apos;s <code>tableau/README.md</code> has the steps. Once the viz URL
-            is set, it appears here.
+            Tableau Public has no publishing API, so the workbook is created once by hand from the extract
+            below, which every build also pushes into a Google Sheet that Tableau Public re-reads daily; the
+            repository&apos;s <code>tableau/README.md</code> has the steps. Once the viz URL is set, it appears here.
           </p>
         </div>
       )}
