@@ -67,6 +67,16 @@ describe('routing', () => {
     expect(miss.status).toBe(404);
   });
 
+  it('gives the dbt docs their own policy and nothing else', async () => {
+    const docs = await SELF.fetch(`${ORIGIN}/docs/manifest.json`);
+    expect(docs.headers.get('content-security-policy')).toContain("'unsafe-eval'");
+    for (const path of ['/', '/data/latest.json']) {
+      const csp = (await SELF.fetch(`${ORIGIN}${path}`)).headers.get('content-security-policy') ?? '';
+      expect(csp).not.toContain("'unsafe-inline'");
+      expect(csp).not.toContain("'unsafe-eval'");
+    }
+  });
+
   it('serves the 404 page for unknown paths', async () => {
     const res = await SELF.fetch(`${ORIGIN}/nope/`);
     expect(res.status).toBe(404);

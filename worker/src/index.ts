@@ -40,6 +40,21 @@ const CSP = [
   "object-src 'none'",
 ].join('; ');
 
+// The generated dbt docs site is a single page of inline scripts and styles (an AngularJS app)
+// that reads manifest.json and catalog.json next to it. It gets its own policy under /docs/.
+const DOCS_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+
 export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
   'content-security-policy': CSP,
   'strict-transport-security': 'max-age=31536000; includeSubDomains',
@@ -59,10 +74,13 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
   js: 'text/javascript; charset=utf-8',
 };
 
-function withSecurityHeaders(response: Response): Response {
+function withSecurityHeaders(response: Response, pathname = '/'): Response {
   const out = new Response(response.body, response);
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) {
     out.headers.set(name, value);
+  }
+  if (pathname === '/docs' || pathname.startsWith('/docs/')) {
+    out.headers.set('content-security-policy', DOCS_CSP);
   }
   return out;
 }
@@ -179,6 +197,6 @@ export default {
       return withSecurityHeaders(await env.ASSETS.fetch(new Request(page, request)));
     }
 
-    return withSecurityHeaders(await env.ASSETS.fetch(request));
+    return withSecurityHeaders(await env.ASSETS.fetch(request), url.pathname);
   },
 } satisfies ExportedHandler<Env>;

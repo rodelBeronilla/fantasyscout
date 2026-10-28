@@ -43,6 +43,23 @@ jobs:
           npm ci
           PUBLIC_BUILD_ID="${GITHUB_SHA::7}" npm run build
 
+      # dbt docs (lineage graph, model and column definitions) are generated from the sample on
+      # DuckDB, whose schema and lineage are identical to the lakehouse's, and served at /docs/.
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - name: Generate dbt docs
+        env:
+          DBT_PROFILES_DIR: .
+        run: |
+          set -euo pipefail
+          uv sync --frozen --group dbt
+          uv run python dbt/sample/build_sample.py >/dev/null
+          (cd dbt && uv run dbt build --target duckdb --exclude tag:quality >/dev/null && uv run dbt docs generate --target duckdb >/dev/null)
+          mkdir -p web/dist/docs
+          cp dbt/target/index.html dbt/target/manifest.json dbt/target/catalog.json web/dist/docs/
+          ls -la web/dist/docs
+
       - name: Install worker dependencies and collect the CSP hashes of the build
         working-directory: worker
         run: |
@@ -104,6 +121,10 @@ jobs:
           done
           [ "$code" = "200" ] || { echo "::error::/ returned $code"; exit 1; }
           curl -s "$URL/" | grep -q "FantasyScout" || { echo "::error::placeholder text missing"; exit 1; }
+          for path in /docs/ /docs/manifest.json /docs/catalog.json; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$URL$path")
+            [ "$code" = "200" ] || { echo "::error::$path returned $code"; exit 1; }
+          done
           code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/data/latest.json")
           # 404 is expected until the first data export (phase 5); anything else is a Worker fault.
           [ "$code" = "200" ] || [ "$code" = "404" ] || { echo "::error::latest.json returned $code"; exit 1; }
