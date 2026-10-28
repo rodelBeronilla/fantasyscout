@@ -125,6 +125,21 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: uv run fs-export build --engine databricks --store r2 2>&1 | tee -a land.log
 
+      - name: Execute the analysis notebooks against the published build and publish them
+        if: steps.gate.outcome == 'success'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FS_NOTEBOOK_SOURCE: published
+        run: |
+          set -euo pipefail
+          uv sync --frozen --group dbt --group notebooks
+          FS_BUILD_ID=$(uv run fs-export list --store r2 | sed -n 's/^latest: //p')
+          export FS_BUILD_ID
+          echo "notebooks read build $FS_BUILD_ID"
+          (cd notebooks && uv run jupyter nbconvert --to html --execute --output-dir _build --ExecutePreprocessor.timeout=1200 *.ipynb)
+          uv run fs-export publish-files --store r2 --subdir notebooks --build-id "$FS_BUILD_ID" notebooks/_build/*.html
+
       - name: Report
         if: always()
         env:

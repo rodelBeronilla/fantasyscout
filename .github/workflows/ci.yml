@@ -39,7 +39,7 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
-      - run: uv sync --frozen --group dbt
+      - run: uv sync --frozen --group dbt --group notebooks
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
@@ -50,6 +50,16 @@ jobs:
           uv run python dbt/sample/build_sample.py >/dev/null
           cd dbt && uv run dbt build --target duckdb --exclude tag:quality >/dev/null
       - run: uv run pytest
+      - name: Execute the analysis notebooks against the sample
+        working-directory: notebooks
+        env:
+          FS_NOTEBOOK_SOURCE: local
+        run: uv run jupyter nbconvert --to html --execute --output-dir _build --ExecutePreprocessor.timeout=600 *.ipynb
+      - uses: actions/upload-artifact@v7
+        with:
+          name: notebooks-html
+          path: notebooks/_build
+          retention-days: 7
 
   dbt:
     name: dbt build on DuckDB

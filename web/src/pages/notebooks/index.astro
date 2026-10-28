@@ -1,0 +1,21 @@
+---
+import Notebooks from '../../components/Notebooks';
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="Notebooks"
+  description="The analysis notebooks, executed against the current data build after every export."
+>
+  <section>
+    <h1 class="text-2xl font-semibold tracking-tight">Notebooks</h1>
+    <p class="mt-1 text-sm text-muted">
+      Three analyses that run on every published build: the same questions, re-asked of the newest
+      data. Each opens as a rendered page; the source lives in the repository under <code>notebooks/</code>
+      and runs locally, against the published build, or against the lakehouse.
+    </p>
+    <div class="mt-6">
+      <Notebooks client:load />
+    </div>
+  </section>
+</Base>

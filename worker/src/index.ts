@@ -72,7 +72,21 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
   // The DuckDB-WASM engine lives in the bucket under vendor/ (too large for a static asset).
   wasm: 'application/wasm',
   js: 'text/javascript; charset=utf-8',
+  // Rendered notebooks live under builds/<id>/notebooks/.
+  html: 'text/html; charset=utf-8',
 };
+
+/** Rendered notebooks are static pages with inline styles and images; no script may run. */
+const NOTEBOOK_CSP = [
+  "default-src 'none'",
+  "style-src 'unsafe-inline'",
+  "img-src data:",
+  "font-src data:",
+  "frame-ancestors 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ');
+const NOTEBOOK_PATH = /^\/data\/builds\/[^/]+\/notebooks\/[^/]+\.html$/;
 
 function withSecurityHeaders(response: Response, pathname = '/'): Response {
   const out = new Response(response.body, response);
@@ -81,6 +95,9 @@ function withSecurityHeaders(response: Response, pathname = '/'): Response {
   }
   if (pathname === '/docs' || pathname.startsWith('/docs/')) {
     out.headers.set('content-security-policy', DOCS_CSP);
+  }
+  if (NOTEBOOK_PATH.test(pathname)) {
+    out.headers.set('content-security-policy', NOTEBOOK_CSP);
   }
   return out;
 }
@@ -188,7 +205,10 @@ export default {
     }
 
     if (url.pathname.startsWith(DATA_PREFIX)) {
-      return withSecurityHeaders(await serveData(request, env, url.pathname.slice(DATA_PREFIX.length)));
+      return withSecurityHeaders(
+        await serveData(request, env, url.pathname.slice(DATA_PREFIX.length)),
+        url.pathname,
+      );
     }
 
     // One static page serves every player: /p/{league}/{player_id}/ -> /p/ (the island reads the URL).

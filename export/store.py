@@ -22,6 +22,7 @@ CONTENT_TYPES = {
     "json": "application/json",
     "parquet": "application/vnd.apache.parquet",
     "txt": "text/plain; charset=utf-8",
+    "html": "text/html; charset=utf-8",
 }
 _RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 _RETRIES = 5

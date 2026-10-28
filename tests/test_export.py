@@ -237,3 +237,21 @@ def test_databricks_source_follows_external_links() -> None:
 def test_databricks_source_refuses_an_empty_warehouse() -> None:
     with pytest.raises(RuntimeError, match="warehouse_id"):
         DatabricksSource("https://x", "t", "")
+
+
+def test_publish_files_attaches_them_to_the_latest_build(tmp_path: Path) -> None:
+    store = LocalStore(tmp_path / "bucket")
+    build_mod.publish(store, fake_build("b1"), log=lambda _: None)
+    page = tmp_path / "01_shot_profiles.html"
+    page.write_text("<html>hi</html>", encoding="utf-8")
+    keys = build_mod.publish_files(store, [page], subdir="notebooks", log=lambda _: None)
+    assert keys == ["builds/b1/notebooks/01_shot_profiles.html"]
+    assert store.get("builds/b1/notebooks/01_shot_profiles.html") == b"<html>hi</html>"
+    index = json.loads(store.get("builds/b1/notebooks/index.json") or b"{}")
+    assert index == {"build_id": "b1", "files": ["01_shot_profiles.html"]}
+    listing = (store.get("builds/b1/keys.txt") or b"").decode()
+    assert "builds/b1/notebooks/01_shot_profiles.html" in listing, "pruning will remove them too"
+    with pytest.raises(RuntimeError, match="no build"):
+        build_mod.publish_files(
+            LocalStore(tmp_path / "empty"), [page], subdir="notebooks", log=lambda _: None
+        )

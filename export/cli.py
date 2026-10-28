@@ -78,6 +78,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_list = sub.add_parser("list", help="show latest and the builds kept")
     add_store(p_list)
+
+    p_nb = sub.add_parser(
+        "publish-files", help="put extra files (notebooks, the Tableau extract) under a build"
+    )
+    add_store(p_nb)
+    p_nb.add_argument("files", nargs="+", type=Path, help="files to publish")
+    p_nb.add_argument("--subdir", required=True, help="folder under the build, e.g. notebooks")
+    p_nb.add_argument("--build-id", default=None, help="target build (default: latest)")
     return parser
 
 
@@ -105,6 +113,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "rollback":
             pointer = build_mod.rollback(store, to=args.to)
             print(f"latest is now {pointer['build_id']}")
+        elif args.command == "publish-files":
+            keys = build_mod.publish_files(
+                store, args.files, subdir=args.subdir, build_id=args.build_id
+            )
+            for key in keys:
+                print(f"  {key}")
+            print(f"published {len(keys)} file(s) under {args.subdir}")
         else:
             latest, builds = build_mod.list_builds(store)
             print(f"latest: {latest.get('build_id', 'none')}")

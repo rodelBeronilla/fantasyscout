@@ -97,3 +97,11 @@ for (const path of ['/', '/streamers/', '/health/']) {
     expect(results.violations).toEqual([]);
   });
 }
+
+test('the notebooks page lists the three analyses', async ({ page }) => {
+  await page.goto('/notebooks/');
+  const items = page.getByTestId('notebooks').locator('li');
+  await expect(items).toHaveCount(3);
+  await expect(items.first()).toContainText('Shot profiles');
+  await expect(page.getByTestId('notebook-pending').first()).toBeVisible();
+});

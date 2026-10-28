@@ -11,6 +11,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import pyarrow as pa
@@ -297,3 +298,39 @@ def rollback(store: Store, *, to: str | None = None, log: Log = print) -> dict[s
 
 def list_builds(store: Store) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     return _read_json(store, LATEST_KEY) or {}, _read_json(store, BUILDS_KEY) or []
+
+
+def publish_files(
+    store: Store,
+    files: list[Path],
+    *,
+    subdir: str,
+    build_id: str | None = None,
+    log: Log = print,
+) -> list[str]:
+    """Put extra files (rendered notebooks, the Tableau extract) under ``builds/<id>/<subdir>/``.
+
+    The folder's index.json lists them, and the build's key list grows so pruning removes them.
+    """
+    if build_id is None:
+        latest = _read_json(store, LATEST_KEY) or {}
+        build_id = latest.get("build_id")
+    if not build_id:
+        msg = "no build to attach the files to"
+        raise RuntimeError(msg)
+    prefix = f"builds/{build_id}/{subdir.strip('/')}/"
+    keys: list[str] = []
+    for file in files:
+        key = prefix + file.name
+        store.put(key, file.read_bytes())
+        keys.append(key)
+    index = {"build_id": build_id, "files": [f.name for f in files]}
+    store.put(prefix + "index.json", to_json(index))
+    # Extend the build's key list so pruning removes the notebooks with the build.
+    listing = store.get(f"builds/{build_id}/keys.txt")
+    known = listing.decode("utf-8").splitlines() if listing else []
+    extra = [k for k in [*keys, prefix + "index.json"] if k not in known]
+    if extra:
+        store.put(f"builds/{build_id}/keys.txt", "\n".join([*known, *extra]).encode("utf-8"))
+    log(f"  {subdir} -> {prefix} ({len(keys)} files)")
+    return keys

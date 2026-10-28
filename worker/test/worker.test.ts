@@ -77,6 +77,15 @@ describe('routing', () => {
     }
   });
 
+  it('serves rendered notebooks with a no-script policy', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/data/builds/b1/notebooks/01_shot_profiles.html`);
+    expect(res.status).toBe(404); // not seeded; the policy is chosen by path
+    expect(res.headers.get('content-security-policy')).toContain("default-src 'none'");
+    expect(res.headers.get('content-security-policy')).toContain("style-src 'unsafe-inline'");
+    const other = await SELF.fetch(`${ORIGIN}/data/builds/b1/health.json`);
+    expect(other.headers.get('content-security-policy')).not.toContain("default-src 'none'");
+  });
+
   it('serves the 404 page for unknown paths', async () => {
     const res = await SELF.fetch(`${ORIGIN}/nope/`);
     expect(res.status).toBe(404);
