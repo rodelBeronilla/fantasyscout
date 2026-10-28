@@ -57,7 +57,21 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
   // The DuckDB-WASM engine lives in the bucket under vendor/ (too large for a static asset).
   wasm: 'application/wasm',
   js: 'text/javascript; charset=utf-8',
+  // Rendered notebooks live under builds/<id>/notebooks/.
+  html: 'text/html; charset=utf-8',
 };
+
+/** Rendered notebooks are static pages with inline styles and images; no script may run. */
+const NOTEBOOK_CSP = [
+  "default-src 'none'",
+  "style-src 'unsafe-inline'",
+  "img-src data:",
+  "font-src data:",
+  "frame-ancestors 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ');
+const NOTEBOOK_PATH = /^\/data\/builds\/[^/]+\/notebooks\/[^/]+\.html$/;
 
 function withSecurityHeaders(response: Response): Response {
   const out = new Response(response.body, response);

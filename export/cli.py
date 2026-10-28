@@ -78,6 +78,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_list = sub.add_parser("list", help="show latest and the builds kept")
     add_store(p_list)
+
+    p_nb = sub.add_parser(
+        "publish-notebooks", help="put rendered notebook HTML files under the current build"
+    )
+    add_store(p_nb)
+    p_nb.add_argument("files", nargs="+", type=Path, help="HTML files to publish")
+    p_nb.add_argument("--build-id", default=None, help="target build (default: latest)")
     return parser
 
 
@@ -105,6 +112,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "rollback":
             pointer = build_mod.rollback(store, to=args.to)
             print(f"latest is now {pointer['build_id']}")
+        elif args.command == "publish-notebooks":
+            keys = build_mod.publish_notebooks(store, args.files, build_id=args.build_id)
+            for key in keys:
+                print(f"  {key}")
+            print(f"published {len(keys)} notebook(s)")
         else:
             latest, builds = build_mod.list_builds(store)
             print(f"latest: {latest.get('build_id', 'none')}")
