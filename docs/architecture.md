@@ -56,6 +56,10 @@ The two sources share no ids. Three crosswalks in silver bridge them, rebuilt fr
 
 A passing gate publishes a data build to the `fantasyscout-data` bucket under `builds/<build_id>/` (one Parquet per gold model, JSON beside the small ones, the big facts per league-season, `board/` and `streamers/` per league, `health.json`, one file per player, `manifest.json`); `latest.json` is flipped last and seven builds are kept, so a rollback is one pointer rewrite (ADR 0006). The Worker serves the Astro build and streams `/data/*` from the bucket with range support; the pointers are cached for a minute, build files for a year. Every page reads `latest.json` first, so the whole site moves to a new build at once. The SQL console runs DuckDB-WASM in the browser over the build's Parquet files; its engine is served from the bucket because it is too large for a static asset. The footer of every page names the data build and links to its Data Health entry.
 
+## Analysis surfaces
+
+Three doors onto the same gold tables (SPEC.md): the site's pages and SQL console; the notebooks under `notebooks/`, which read the published build over HTTP (or the local DuckDB file, or the lakehouse) through one helper, execute in CI against the sample and against every published build after the export, and are rendered under the build at `/notebooks/`; and the League Pulse workbook on Tableau Public, built from a three-file extract (`tableau/extract.py`) that every build refreshes and publishes next to the data, with the one manual publish documented in `tableau/README.md` and the result embedded on `/dashboards/`. The generated dbt docs (lineage graph, model and column definitions) are produced at deploy time and served at `/docs/`.
+
 ## Trust boundaries
 
 - The Worker holds no secrets. It reads the static build and public R2 objects. Its CSP allows `'wasm-unsafe-eval'` for DuckDB-WASM and frames only `public.tableau.com`.

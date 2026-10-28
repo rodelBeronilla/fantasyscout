@@ -39,6 +39,9 @@ jobs:
 
       - name: Build web
         working-directory: web
+        env:
+          # The Tableau Public viz URL, once the workbook is published (tableau/README.md).
+          PUBLIC_TABLEAU_VIZ_URL: ${{ vars.TABLEAU_VIZ_URL }}
         run: |
           npm ci
           PUBLIC_BUILD_ID="${GITHUB_SHA::7}" npm run build
