@@ -980,12 +980,14 @@ dev = [
     { name = "ruff" },
 ]
 notebooks = [
+    { name = "google-auth" },
     { name = "ipykernel" },
     { name = "matplotlib" },
     { name = "nbclient" },
     { name = "nbconvert" },
     { name = "nbformat" },
     { name = "pandas" },
+    { name = "requests" },
 ]
 
 [package.metadata]
@@ -1008,12 +1010,14 @@ dev = [
     { name = "ruff", specifier = ">=0.12" },
 ]
 notebooks = [
+    { name = "google-auth", specifier = ">=2.35" },
     { name = "ipykernel", specifier = ">=6.29" },
     { name = "matplotlib", specifier = ">=3.9" },
     { name = "nbclient", specifier = ">=0.10" },
     { name = "nbconvert", specifier = ">=7.16" },
     { name = "nbformat", specifier = ">=5.10" },
     { name = "pandas", specifier = ">=2.2" },
+    { name = "requests", specifier = ">=2.32" },
 ]
 
 [[package]]

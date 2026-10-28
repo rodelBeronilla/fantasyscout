@@ -153,6 +153,15 @@ jobs:
           uv run python tableau/extract.py --out tableau/extract
           uv run fs-export publish-files --store r2 --subdir tableau --build-id "$FS_BUILD_ID" tableau/extract/*.csv
 
+      # Tableau Public refreshes a Google Sheets source daily on its own, so the extract also goes
+      # into the owner's sheet. Skips itself until the sheet id and the service account are set.
+      - name: Push the extract to the League Pulse Google Sheet
+        if: steps.gate.outcome == 'success'
+        env:
+          TABLEAU_SHEET_ID: ${{ vars.TABLEAU_SHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: uv run python tableau/sheets.py --extract tableau/extract
+
       - name: Report
         if: always()
         env:

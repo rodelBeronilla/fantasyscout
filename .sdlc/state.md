@@ -70,6 +70,6 @@ N/A, first sprint.
 
 ## Next Actions
 
-1. Owner: publish the League Pulse workbook on Tableau Public from the extract (tableau/README.md) and set the `TABLEAU_VIZ_URL` repository variable; then go-ahead for phase 7 (AI scouting notes with verified claims).
+1. Owner: the Google Sheets bridge setup in tableau/README.md (service account secret `GOOGLE_SERVICE_ACCOUNT_JSON`, sheet shared with it, variable `TABLEAU_SHEET_ID`), then publish the League Pulse workbook from that sheet and set `TABLEAU_VIZ_URL`; then go-ahead for phase 7 (AI scouting notes with verified claims).
 2. Watch the nightly build log's reconciliation summary; any season under 99% matched warns, and `silver.player_xwalk_review` names the players to add to the overrides seed.
 3. Deferred from phase 3: lineup columns in `fct_event`, tracking facts, a performance timings page, an ESPN core-API fallback if summary coverage ever drops below 99%.
