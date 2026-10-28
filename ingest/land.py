@@ -127,9 +127,11 @@ def _announce_pace(host: str, gap: float, reason: str) -> None:
     print(f"pace {host}: gap now {gap:.2f}s ({reason})")
 
 
-def run_log_path(summary: RunSummary, run_id: str) -> PurePosixPath:
-    day = summary.started_at.date().isoformat()
-    return RUN_LOG_DIR / day / f"{summary.source}-{summary.league}-{summary.season}-{run_id}.json"
+def run_log_path(summary: RunSummary, run_id: str, day: date | None = None) -> PurePosixPath:
+    """The run log sits under the ingest date, like the payloads, not the wall-clock date."""
+    folder = (day or summary.started_at.date()).isoformat()
+    name = f"{summary.source}-{summary.league}-{summary.season}-{run_id}.json"
+    return RUN_LOG_DIR / folder / name
 
 
 def land(
@@ -181,9 +183,9 @@ def land(
     }
     try:
         backend.write_bytes(
-            run_log_path(summary, run_id), (json.dumps(record, indent=2) + "\n").encode()
+            run_log_path(summary, run_id, today), (json.dumps(record, indent=2) + "\n").encode()
         )
-        logged = f"run {run_id} logged to {run_log_path(summary, run_id)}"
+        logged = f"run {run_id} logged to {run_log_path(summary, run_id, today)}"
     except Exception as exc:  # the summary must still reach the operator
         summary.fail("_ops", "ingest_log", exc)
         logged = f"run {run_id}: could not write the run log ({type(exc).__name__}: {exc})"
