@@ -455,7 +455,7 @@ test('the value view groups the board into tiers by pick and round, and ranks pl
   const board = page.getByTestId('board');
   await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   const heads = board.getByTestId('tier-head');
-  await expect(heads.first()).toContainText(/Tier 1 · picks 1–\d+ \(rounds? 1/);
+  await expect(heads.first()).toContainText(/^Tier 1 · (pick 1 \(round 1\) · value [\d.]+$|picks 1–\d+ \(rounds? 1)/);
   expect(await heads.count()).toBeGreaterThan(1);
   await expect(page.getByTestId('tier-note')).toContainText('natural breaks');
   await expect(board.getByTestId('pos-rank').first()).toHaveText(/^[GFC]1$/);
