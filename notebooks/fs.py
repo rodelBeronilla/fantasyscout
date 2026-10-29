@@ -52,6 +52,7 @@ TABLES = (
     "fct_shot",
     "fct_availability",
     "mart_board",
+    "mart_player_projection",
     "mart_category_zscores",
     "mart_player_rolling",
     "mart_streamers",

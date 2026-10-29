@@ -5,14 +5,15 @@ import Base from '../layouts/Base.astro';
 
 <Base
   title="Board"
-  description="Ranked WNBA and NBA players by category z-score, with punt toggles, availability adjustment and filters by team and position."
+  description="Rostered WNBA and NBA players ranked by nine-category value above replacement, with punt toggles, availability adjustment and filters by team and position."
 >
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">Board</h1>
     <p class="mt-1 text-sm text-muted">
-      Players ranked by blended category z-scores: the current season weighs more as it goes on, the two
-      before it fill in the rest. Punt a category to drop it from the total; the adjustment scales by games
-      left and availability.
+      Rostered players ranked by nine-category value above replacement, scored on a projected per-game line:
+      this season and the two before by games played, recent seasons counting more, with short samples pulled
+      toward a replacement-level player. Punt a category to drop it from the total; rest of season scales value
+      by games left and availability.
     </p>
     <div class="mt-6">
       <Board client:only="react" />

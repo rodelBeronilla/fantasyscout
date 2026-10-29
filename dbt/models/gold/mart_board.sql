@@ -1,105 +1,135 @@
 {#
-  The draft and in-season board: one row per player per league for the latest season.
+  The draft and in-season board: one row per rostered player per league.
 
-  Blend: last season 0.55, the season before 0.15, current season 0.30 rising to 0.80 as games
-  accumulate (linear to 20 games); missing seasons hand their weight to the others. The nine
-  category z-scores are blended the same way so punt variants can be summed in the app. Only
-  players with games in one of the three seasons are listed.
+  Value is scored once, on each player's projected per-game line (mart_player_projection),
+  in two passes. Pass one standardises the nine categories over the pool_size players with
+  the most projected minutes; pass two repeats it over the pool_size players pass one values
+  most, so the means and spreads describe the players a fantasy league actually rosters.
+  Counting categories are z-scores of the projected per-game numbers (turnovers negative);
+  percentages are volume-weighted, (player pct - pool pct) x attempts per game, standardised
+  over the pool.
 
-  Alongside the blend the row carries the current season's last-ten-games z-scores and
-  per-game line, so the app can rank on recent form or raw production too.
+  Every category then has replacement level subtracted: the average category score of the
+  next `teams` players after the pool. Zero is a freely available player, so the nine values
+  sum to value above replacement and a punt build is the sum without the punted columns.
+
+  Alongside the value the row carries the current season's last-ten-games z-scores and
+  per-game line, so the app can rank on recent form or raw production too, and the projected
+  line itself.
 
   Rest of season counts regular-season games only, the games fantasy leagues score. While some
-  remain, value_rest_of_season scales the blend by the team's remaining share of its regular
-  season and by the availability multiplier, the share of those games the player is expected to
-  play given the current injury report (out: the games before the expected return, or all of
-  them without a date; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). Once the
-  regular season is over (playoffs or the off-season) season_complete is true and
-  value_rest_of_season equals the blend. games_next_7 counts playoff games too.
+  remain, ros_factor is the team's remaining share of its regular season times the
+  availability multiplier, the share of those games the player is expected to play given the
+  current injury report (out: the games before the expected return, or all of them without a
+  date; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season
+  scales value above replacement by it; a value below replacement is left as it is, since a
+  missing game from a player not worth rostering costs nothing. Once the regular season is
+  over (playoffs or the off-season) season_complete is true and ros_factor is 1.
+  games_next_7 counts playoff games too.
 #}
 
-{% set zcols = ['z_points', 'z_rebounds_total', 'z_assists', 'z_steals', 'z_blocks', 'z_three_pointers_made', 'z_turnovers', 'z_field_goal_pct', 'z_free_throw_pct', 'z_total'] %}
+{% set cats = ['points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made', 'turnovers'] %}
+{% set zcols = ['z_points', 'z_rebounds_total', 'z_assists', 'z_steals', 'z_blocks', 'z_three_pointers_made', 'z_turnovers', 'z_field_goal_pct', 'z_free_throw_pct'] %}
 {% set pgcols = ['minutes_pg', 'points_pg', 'rebounds_total_pg', 'assists_pg', 'steals_pg', 'blocks_pg', 'three_pointers_made_pg', 'turnovers_pg', 'field_goal_pct', 'free_throw_pct'] %}
+{% set projcols = ['proj_minutes_pg', 'proj_points_pg', 'proj_rebounds_total_pg', 'proj_assists_pg', 'proj_steals_pg', 'proj_blocks_pg', 'proj_three_pointers_made_pg', 'proj_turnovers_pg', 'proj_field_goal_pct', 'proj_free_throw_pct'] %}
 
-with season_z as (
+with base as (
+
+    select
+        p.*,
+        count(*) over (partition by p.league) as players,
+        -- the pool, never so large that no one is left to set replacement level
+        least({{ fantasy_setting('pool_size', 'p.league') }}, greatest(count(*) over (partition by p.league) - {{ fantasy_setting('teams', 'p.league') }}, 1)) as pool,
+        {{ fantasy_setting('teams', 'p.league') }} as teams,
+        row_number() over (partition by p.league order by p.proj_minutes_pg desc, p.player_id) as pool_rank_0
+    from {{ ref('mart_player_projection') }} as p
+
+),
+
+{% for n in [1, 2] %}
+moments_{{ n }} as (
 
     select
         *,
-        dense_rank() over (partition by league order by season desc) as season_rank
-    from {{ ref('mart_category_zscores') }}
-    where window_name = 'season'
+        {%- for c in cats %}
+        avg(case when pool_rank_{{ n - 1 }} <= pool then proj_{{ c }}_pg end) over (partition by league) as mean_{{ c }}_{{ n }},
+        stddev_samp(case when pool_rank_{{ n - 1 }} <= pool then proj_{{ c }}_pg end) over (partition by league) as sd_{{ c }}_{{ n }},
+        {%- endfor %}
+        sum(case when pool_rank_{{ n - 1 }} <= pool then proj_fgm_pg end) over (partition by league)
+            / nullif(sum(case when pool_rank_{{ n - 1 }} <= pool then proj_fga_pg end) over (partition by league), 0) as pool_fg_{{ n }},
+        sum(case when pool_rank_{{ n - 1 }} <= pool then proj_ftm_pg end) over (partition by league)
+            / nullif(sum(case when pool_rank_{{ n - 1 }} <= pool then proj_fta_pg end) over (partition by league), 0) as pool_ft_{{ n }}
+    from {{ 'base' if n == 1 else 'ranked_1' }}
 
 ),
 
-current_season as (
-
-    select league, season from season_z where season_rank = 1 group by league, season
-
-),
-
-players as (
-
-    select league, player_id from season_z where season_rank <= 3 group by league, player_id
-
-),
-
-blended as (
+impacts_{{ n }} as (
 
     select
-        p.league,
-        cs.season,
-        p.player_id,
-        cur.games as games_current,
-        cur.in_pool,
-        0.30 + 0.50 * least(coalesce(cur.games, 0), 20) / 20.0 as w_cur_raw,
-        cur.games is not null as has_cur,
-        prev.games is not null as has_prev,
-        prev2.games is not null as has_prev2,
-        {%- for c in pgcols %}
-        cur.{{ c }} as cur_{{ c }},
+        *,
+        coalesce((proj_field_goal_pct - pool_fg_{{ n }}) * proj_fga_pg, 0) as fg_impact_{{ n }},
+        coalesce((proj_free_throw_pct - pool_ft_{{ n }}) * proj_fta_pg, 0) as ft_impact_{{ n }}
+    from moments_{{ n }}
+
+),
+
+scored_{{ n }} as (
+
+    select
+        *,
+        {%- for c in cats %}
+        coalesce({% if c == 'turnovers' %}-{% endif %}(proj_{{ c }}_pg - mean_{{ c }}_{{ n }}) / nullif(sd_{{ c }}_{{ n }}, 0), 0) as z_{{ c }}_{{ n }},
         {%- endfor %}
+        coalesce(fg_impact_{{ n }} / nullif(stddev_samp(case when pool_rank_{{ n - 1 }} <= pool then fg_impact_{{ n }} end) over (partition by league), 0), 0) as z_field_goal_pct_{{ n }},
+        coalesce(ft_impact_{{ n }} / nullif(stddev_samp(case when pool_rank_{{ n - 1 }} <= pool then ft_impact_{{ n }} end) over (partition by league), 0), 0) as z_free_throw_pct_{{ n }}
+    from impacts_{{ n }}
+
+),
+
+ranked_{{ n }} as (
+
+    select
+        *,
+        row_number() over (
+            partition by league
+            order by {% for z in zcols %}{{ z }}_{{ n }}{{ " + " if not loop.last }}{% endfor %} desc, player_id
+        ) as pool_rank_{{ n }}
+    from scored_{{ n }}
+
+),
+{% endfor %}
+
+replacement as (
+
+    select
+        league,
         {%- for z in zcols %}
-        cur.{{ z }} as cur_{{ z }},
-        prev.{{ z }} as prev_{{ z }},
-        prev2.{{ z }} as prev2_{{ z }}{{ "," if not loop.last }}
+        avg({{ z }}_2) as repl_{{ z }}{{ "," if not loop.last }}
         {%- endfor %}
-    from players as p
-    join current_season as cs on cs.league = p.league
-    left join season_z as cur on cur.league = p.league and cur.player_id = p.player_id and cur.season_rank = 1
-    left join season_z as prev on prev.league = p.league and prev.player_id = p.player_id and prev.season_rank = 2
-    left join season_z as prev2 on prev2.league = p.league and prev2.player_id = p.player_id and prev2.season_rank = 3
+    from ranked_2
+    where pool_rank_2 > pool and pool_rank_2 <= pool + teams
+    group by league
 
 ),
 
-weights as (
+valued as (
 
     select
-        *,
-        case when has_cur then w_cur_raw else 0 end as w_cur0,
-        case when has_prev then 0.55 * (1 - case when has_cur then w_cur_raw else 0 end) / 0.70 else 0 end as w_prev0,
-        case when has_prev2 then 0.15 * (1 - case when has_cur then w_cur_raw else 0 end) / 0.70 else 0 end as w_prev20
-    from blended
+        r.*,
+        r.pool_rank_2 <= r.pool as in_pool,
+        {%- for z in zcols %}
+        r.{{ z }}_2 - coalesce(rp.repl_{{ z }}, 0) as {{ z }}{{ "," if not loop.last }}
+        {%- endfor %}
+    from ranked_2 as r
+    left join replacement as rp on rp.league = r.league
 
 ),
 
-normalised as (
+season_lines as (
 
-    select
-        *,
-        w_cur0 / nullif(w_cur0 + w_prev0 + w_prev20, 0) as w_cur,
-        w_prev0 / nullif(w_cur0 + w_prev0 + w_prev20, 0) as w_prev,
-        w_prev20 / nullif(w_cur0 + w_prev0 + w_prev20, 0) as w_prev2
-    from weights
-
-),
-
-recent as (
-
-    -- The current season's last ten games, for the "recent form" view.
     select z.*
     from {{ ref('mart_category_zscores') }} as z
-    join current_season as cs on cs.league = z.league and cs.season = z.season
-    where z.window_name = 'last_10'
+    join (select distinct league, season from base) as cs on cs.league = z.league and cs.season = z.season
 
 ),
 
@@ -122,7 +152,7 @@ remaining as (
                   and s.game_status <> 3 and not coalesce(s.if_necessary, false) then 1 else 0 end) as games_next_7,
         sum(case when s.game_type = 'regular' then 1 else 0 end) as games_scheduled
     from schedule_sides as s
-    join current_season as cs on cs.league = s.league and cs.season = s.season
+    join (select distinct league, season from base) as cs on cs.league = s.league and cs.season = s.season
     where s.game_type in ('regular', 'playoffs')
     group by s.league, s.season, s.team_id
 
@@ -153,11 +183,9 @@ games_before_return as (
     -- For a player ruled out with a return date: the team's remaining games before that date.
     select i.league, i.stats_player_id, count(*) as games_missed
     from injury as i
-    join {{ ref('dim_player') }} as p
-        on p.league = i.league and p.stats_player_id = i.stats_player_id and p.is_current
+    join base as b on b.league = i.league and b.player_id = i.stats_player_id
     join schedule_sides as s
-        on s.league = i.league and s.team_id = p.team_id
-    join current_season as cs on cs.league = s.league and cs.season = s.season
+        on s.league = b.league and s.season = b.season and s.team_id = b.team_id
     where i.status_group = 'out' and i.expected_return is not null
         and s.game_type = 'regular' and s.game_status <> 3
         and s.game_date_est >= {{ as_of_date() }} and s.game_date_est < i.expected_return
@@ -165,9 +193,9 @@ games_before_return as (
 
 ),
 
-current_stint as (
+names as (
 
-    select league, stats_player_id, player_sk, team_id, full_name, position
+    select league, stats_player_id, player_sk, full_name, position
     from {{ ref('dim_player') }}
     where is_current
 
@@ -176,12 +204,11 @@ current_stint as (
 assembled as (
 
     select
-        n.*,
-        cs.player_sk,
-        cs.full_name,
-        cs.position,
-        cs.team_id,
-        t.abbreviation as team_abbreviation,
+        v.*,
+        nm.player_sk,
+        nm.full_name,
+        nm.position,
+        coalesce(t.abbreviation, t_prev.abbreviation) as team_abbreviation,
         cast(coalesce(r.games_remaining, 0) as integer) as games_remaining,
         cast(coalesce(r.games_next_7, 0) as integer) as games_next_7,
         cast(r.games_scheduled as integer) as games_scheduled,
@@ -200,18 +227,35 @@ assembled as (
                     when 'day_to_day' then 0.25
                     else 0 end) * 1.0 / r.games_remaining)
         end as availability_multiplier,
-        {%- for z in zcols %}
-        coalesce(n.w_cur * n.cur_{{ z }}, 0) + coalesce(n.w_prev * n.prev_{{ z }}, 0) + coalesce(n.w_prev2 * n.prev2_{{ z }}, 0) as blend_{{ z }},
+        {%- for c in pgcols %}
+        sl.{{ c }} as cur_{{ c }},
+        {%- endfor %}
+        {%- for z in zcols + ['z_total'] %}
         rc.{{ z }} as recent_{{ z }}{{ "," if not loop.last }}
         {%- endfor %}
-    from normalised as n
-    left join current_stint as cs on cs.league = n.league and cs.stats_player_id = n.player_id
-    left join {{ ref('teams') }} as t on t.league = n.league and t.season = n.season and t.team_id = cs.team_id
-    left join remaining as r on r.league = n.league and r.season = n.season and r.team_id = cs.team_id
-    left join league_state as ls on ls.league = n.league
-    left join injury as i on i.league = n.league and i.stats_player_id = n.player_id
-    left join games_before_return as gbr on gbr.league = n.league and gbr.stats_player_id = n.player_id
-    left join recent as rc on rc.league = n.league and rc.player_id = n.player_id
+    from valued as v
+    left join names as nm on nm.league = v.league and nm.stats_player_id = v.player_id
+    left join {{ ref('teams') }} as t on t.league = v.league and t.season = v.roster_season and t.team_id = v.team_id
+    left join {{ ref('teams') }} as t_prev on t_prev.league = v.league and t_prev.season = v.season and t_prev.team_id = v.team_id
+    left join remaining as r on r.league = v.league and r.season = v.season and r.team_id = v.team_id
+    left join league_state as ls on ls.league = v.league
+    left join injury as i on i.league = v.league and i.stats_player_id = v.player_id
+    left join games_before_return as gbr on gbr.league = v.league and gbr.stats_player_id = v.player_id
+    left join season_lines as sl on sl.league = v.league and sl.player_id = v.player_id and sl.window_name = 'season'
+    left join season_lines as rc on rc.league = v.league and rc.player_id = v.player_id and rc.window_name = 'last_10'
+
+),
+
+totals as (
+
+    select
+        *,
+        {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} as z_total,
+        case
+            when season_complete then 1.0
+            else availability_multiplier * coalesce(games_remaining * 1.0 / nullif(games_scheduled, 0), 1.0)
+        end as ros_factor
+    from assembled
 
 )
 
@@ -226,18 +270,25 @@ select
     team_id,
     team_abbreviation,
     games_current,
+    games_prev,
+    games_prev2,
     in_pool,
     w_cur,
     w_prev,
     w_prev2,
-    {%- for z in zcols %}
-    blend_{{ z }} as {{ z }},
+    w_prior,
+    sample_weight,
+    {%- for z in zcols + ['z_total'] %}
+    {{ z }},
     {%- endfor %}
-    {%- for z in zcols %}
+    {%- for z in zcols + ['z_total'] %}
     recent_{{ z }},
     {%- endfor %}
     {%- for c in pgcols %}
     cur_{{ c }} as {{ c }},
+    {%- endfor %}
+    {%- for c in projcols %}
+    {{ c }},
     {%- endfor %}
     injury_status,
     injury_group,
@@ -249,10 +300,8 @@ select
     games_next_7,
     games_scheduled,
     season_complete,
-    blend_z_total as value_total,
-    case
-        when season_complete then blend_z_total
-        else blend_z_total * availability_multiplier * coalesce(games_remaining * 1.0 / nullif(games_scheduled, 0), 1.0)
-    end as value_rest_of_season,
-    rank() over (partition by league order by blend_z_total desc) as rank_total
-from assembled
+    ros_factor,
+    z_total as value_total,
+    case when z_total > 0 then z_total * ros_factor else z_total end as value_rest_of_season,
+    rank() over (partition by league order by z_total desc, player_id) as rank_total
+from totals

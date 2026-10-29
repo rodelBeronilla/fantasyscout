@@ -19,6 +19,7 @@ builds/fixture/ingest_log.json
 builds/fixture/ingest_log.parquet
 builds/fixture/mart_board.parquet
 builds/fixture/mart_category_zscores.parquet
+builds/fixture/mart_player_projection.parquet
 builds/fixture/mart_player_rolling.parquet
 builds/fixture/mart_schedule_upcoming.parquet
 builds/fixture/mart_streamers.parquet
