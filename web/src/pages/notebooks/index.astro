@@ -15,7 +15,7 @@ import Base from '../../layouts/Base.astro';
       and runs locally, against the published build, or against the lakehouse.
     </p>
     <div class="mt-6">
-      <Notebooks client:load />
+      <Notebooks client:only="react" />
     </div>
   </section>
 </Base>

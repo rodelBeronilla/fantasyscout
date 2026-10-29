@@ -9,5 +9,5 @@ import Base from '../../layouts/Base.astro';
   title="Player"
   description="Season line, rolling trends, shot chart, game log and category strengths for one player."
 >
-  <PlayerPage client:load />
+  <PlayerPage client:only="react" />
 </Base>

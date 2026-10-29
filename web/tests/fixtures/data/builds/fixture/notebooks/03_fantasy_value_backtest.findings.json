@@ -1,0 +1,127 @@
+{
+ "title": "Fantasy value backtest",
+ "leagues": {
+  "wnba": {
+   "headline": "Last season's rank predicts the next with a rank correlation of 0.70 on average; 13 of the top 20 in 2025 stayed top 20 in 2026.",
+   "facts": [
+    {
+     "label": "Season pairs",
+     "value": "8"
+    },
+    {
+     "label": "Rank correlation, latest pair",
+     "value": "0.63 (2025 to 2026)"
+    },
+    {
+     "label": "Best and worst pair",
+     "value": "0.82 / 0.56"
+    },
+    {
+     "label": "Biggest riser",
+     "value": "Bridget Carleton: +5.36"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Riser",
+     "2025 value",
+     "2026 value",
+     "Change"
+    ],
+    "rows": [
+     [
+      "Bridget Carleton",
+      -1.5,
+      3.86,
+      5.36
+     ],
+     [
+      "Dominique Malonga",
+      -2.88,
+      2.21,
+      5.09
+     ],
+     [
+      "Marina Mabrey",
+      -1.49,
+      3.27,
+      4.77
+     ],
+     [
+      "Jessica Shepard",
+      -3.52,
+      1.16,
+      4.68
+     ],
+     [
+      "Natasha Howard",
+      -0.64,
+      3.49,
+      4.13
+     ]
+    ]
+   }
+  },
+  "nba": {
+   "headline": "Last season's rank predicts the next with a rank correlation of 0.78 on average; 13 of the top 20 in 2024-25 stayed top 20 in 2025-26.",
+   "facts": [
+    {
+     "label": "Season pairs",
+     "value": "2"
+    },
+    {
+     "label": "Rank correlation, latest pair",
+     "value": "0.78 (2024-25 to 2025-26)"
+    },
+    {
+     "label": "Best and worst pair",
+     "value": "0.79 / 0.78"
+    },
+    {
+     "label": "Biggest riser",
+     "value": "Nickeil Alexander-Walker: +7.05"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Riser",
+     "2024-25 value",
+     "2025-26 value",
+     "Change"
+    ],
+    "rows": [
+     [
+      "Nickeil Alexander-Walker",
+      -3.76,
+      3.29,
+      7.05
+     ],
+     [
+      "Keyonte George",
+      -2.7,
+      3.27,
+      5.97
+     ],
+     [
+      "Scottie Barnes",
+      1.86,
+      5.75,
+      3.89
+     ],
+     [
+      "Michael Porter Jr.",
+      0.59,
+      3.9,
+      3.31
+     ],
+     [
+      "Stephon Castle",
+      -4.32,
+      -1.21,
+      3.12
+     ]
+    ]
+   }
+  }
+ }
+}

@@ -44,12 +44,59 @@ test('a player page renders the season line, shot chart and game log', async ({ 
   await expect(page.getByTestId('season-lines').locator('tbody tr').first()).toBeVisible();
   await expect(page.getByTestId('game-log').locator('tbody tr').first()).toBeVisible();
   await expect(page.getByTestId('shot-chart')).toBeVisible();
+  await expect(page.getByTestId('trend-chart')).toBeVisible();
+  // plus-minus is filled in, with a sign
+  await expect(page.getByTestId('game-log').locator('tbody')).toContainText(/[+-]\d/);
 });
 
-test('streamers lists games in the next seven days and the minutes trend', async ({ page }) => {
+test('streamers shows the week grid and the candidates', async ({ page }) => {
   await page.goto('/streamers/');
-  await expect(page.getByTestId('trending')).toBeVisible();
-  await expect(page.getByRole('heading', { name: /games in the next 7 days/i })).toBeVisible();
+  await expect(page.getByTestId('season-note')).toBeVisible();
+  const grid = page.getByTestId('week-grid');
+  await expect(grid).toBeVisible();
+  await expect(grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: /^ATL$/ }) })).toContainText('v GSV');
+  const rows = page.getByTestId('trending').locator('tbody tr');
+  await expect(rows.first()).toBeVisible();
+  expect(await rows.count()).toBeGreaterThan(10);
+});
+
+test('streamers can be filtered by position and re-sorted', async ({ page }) => {
+  await page.goto('/streamers/');
+  const rows = page.getByTestId('trending').locator('tbody tr');
+  await expect(rows.first()).toBeVisible();
+  await page.getByLabel('Position C').check({ force: true });
+  const positions = await rows.locator('td:nth-child(3)').allInnerTexts();
+  expect(positions.length).toBeGreaterThan(0);
+  expect(positions.every((p) => p.includes('C'))).toBe(true);
+  await page.getByRole('button', { name: /^PTS/ }).click();
+  const pts = (await rows.locator('td:nth-child(10)').allInnerTexts()).map(Number);
+  expect(pts[0]).toBeGreaterThanOrEqual(pts[pts.length - 1] ?? 0);
+});
+
+test('the board switches between blended, recent and per-game views', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await expect(page.getByTestId('season-note')).toContainText('regular season is over');
+  await page.getByRole('radio', { name: 'Per game' }).click();
+  await expect(board.locator('thead')).toContainText('MIN');
+  await expect(board.locator('thead')).not.toContainText('Total');
+  await page.getByRole('button', { name: /^PTS/ }).click();
+  const pts = (await board.locator('tbody tr td:nth-child(7)').allInnerTexts()).map(Number);
+  expect(pts[0]).toBeGreaterThanOrEqual(pts[1] ?? 0);
+  await page.getByRole('radio', { name: 'Last 10 games' }).click();
+  await expect(board.locator('thead')).toContainText('Total');
+});
+
+test('the board filters by position and shows injury tags', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await page.getByTestId('board-more').click();
+  await expect(page.getByTestId('injury-tag').first()).toBeVisible();
+  await page.getByLabel('Position G').check({ force: true });
+  const positions = await board.locator('tbody tr td:nth-child(4)').allInnerTexts();
+  expect(positions.every((p) => p.includes('G'))).toBe(true);
 });
 
 test('data health shows the build, its checks and the reconciliation table', async ({ page }) => {
@@ -70,6 +117,9 @@ test('the SQL console runs a saved query in the browser', async ({ page, browser
   await page.getByTestId('sql-input').fill('select count(*) as teams from dim_team');
   await page.getByTestId('sql-run').click();
   await expect(page.getByTestId('sql-results').locator('tbody tr').first()).toHaveText(/^[1-9]\d*$/);
+  await page.getByTestId('sql-input').fill('select max(game_date) as last_game from dim_game');
+  await page.getByTestId('sql-run').click();
+  await expect(page.getByTestId('sql-results').locator('tbody tr').first()).toHaveText(/^\d{4}-\d{2}-\d{2}$/);
 });
 
 test('the league toggle switches the board to the NBA', async ({ page }) => {
@@ -89,7 +139,7 @@ test('the theme toggle flips between dark and light', async ({ page }) => {
   expect(await html.getAttribute('data-theme')).not.toBe(first);
 });
 
-for (const path of ['/', '/streamers/', '/health/']) {
+for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/']) {
   test(`${path} has no accessibility violations`, async ({ page }) => {
     await page.goto(path);
     await expect(page.locator('main table').first()).toBeVisible();
@@ -98,12 +148,15 @@ for (const path of ['/', '/streamers/', '/health/']) {
   });
 }
 
-test('the notebooks page lists the three analyses', async ({ page }) => {
+test('the notebooks page shows each analysis with its findings for the league', async ({ page }) => {
   await page.goto('/notebooks/');
-  const items = page.getByTestId('notebooks').locator('li');
-  await expect(items).toHaveCount(3);
-  await expect(items.first()).toContainText('Shot profiles');
-  await expect(page.getByTestId('notebook-pending').first()).toBeVisible();
+  const cards = page.getByTestId('notebooks').locator('section');
+  await expect(cards).toHaveCount(3);
+  await expect(page.getByTestId('findings')).toHaveCount(3);
+  await expect(page.getByTestId('findings').first()).toContainText('points per 100');
+  await expect(page.getByRole('link', { name: /open the full notebook/i }).first()).toBeVisible();
+  await page.goto('/notebooks/?league=nba');
+  await expect(page.getByTestId('findings').nth(2)).toContainText('rank correlation');
 });
 
 test('the dashboards page explains the workbook and lists the extract', async ({ page }) => {
@@ -111,3 +164,14 @@ test('the dashboards page explains the workbook and lists the extract', async ({
   await expect(page.getByTestId('tableau-pending').or(page.getByTestId('tableau-embed'))).toBeVisible();
   await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
 });
+
+for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/']) {
+  test(`${path} has no horizontal scroll on a phone`, async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'mobile project only');
+    await page.goto(path);
+    await page.locator('main h1, main [data-testid]').first().waitFor();
+    await page.waitForTimeout(500);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    expect(overflow).toBe(false);
+  });
+}

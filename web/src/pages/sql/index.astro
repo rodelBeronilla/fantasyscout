@@ -14,7 +14,7 @@ import Base from '../../layouts/Base.astro';
       this page. Read only. The first query loads the engine, which takes a few seconds.
     </p>
     <div class="mt-6">
-      <SqlConsole client:load />
+      <SqlConsole client:only="react" />
     </div>
   </section>
 </Base>

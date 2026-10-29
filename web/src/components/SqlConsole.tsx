@@ -4,6 +4,7 @@
  * big for a static asset, so it is served from the data bucket under /data/vendor/ by the
  * deploy; same origin, so the Worker's CSP stays at 'self' plus 'wasm-unsafe-eval'.
  */
+import { DataType } from 'apache-arrow';
 import { useEffect, useRef, useState } from 'react';
 
 import { absoluteBuildUrl, dataHref, getLatest, getManifest, type Latest, type Manifest } from '../lib/data';
@@ -167,8 +168,23 @@ export default function SqlConsole() {
     const started = performance.now();
     try {
       const result = await conn.query(text);
-      setColumns(result.schema.fields.map((f) => f.name));
-      setRows(result.toArray().slice(0, 500).map((r) => Object.values(r.toJSON())));
+      const fields = result.schema.fields;
+      setColumns(fields.map((f) => f.name));
+      // Arrow hands dates and timestamps over as epoch milliseconds; show them as dates.
+      const kinds = fields.map((f) => (DataType.isDate(f.type) ? 'date' : DataType.isTimestamp(f.type) ? 'ts' : ''));
+      setRows(
+        result
+          .toArray()
+          .slice(0, 500)
+          .map((r) =>
+            Object.values(r.toJSON()).map((v, i) => {
+              if (v === null || v === undefined) return v;
+              if (kinds[i] === 'date') return new Date(Number(v)).toISOString().slice(0, 10);
+              if (kinds[i] === 'ts') return new Date(Number(v)).toISOString().replace('T', ' ').slice(0, 19);
+              return typeof v === 'bigint' ? v.toString() : v;
+            }),
+          ),
+      );
       setElapsed(performance.now() - started);
     } catch (e: unknown) {
       setQueryError(e instanceof Error ? e.message : String(e));
@@ -240,7 +256,7 @@ export default function SqlConsole() {
           </pre>
         )}
         {columns.length > 0 && (
-          <div className="mt-3 overflow-x-auto rounded-lg border border-line">
+          <div className="mt-3 overflow-x-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Scrollable table">
             <table className="w-full text-sm" data-testid="sql-results">
               <thead className="bg-card">
                 <tr>

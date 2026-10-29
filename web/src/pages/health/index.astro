@@ -14,7 +14,7 @@ import Base from '../../layouts/Base.astro';
       checks found, what landed, and how far the two sources agree.
     </p>
     <div class="mt-6">
-      <Health client:load />
+      <Health client:only="react" />
     </div>
   </section>
 </Base>
