@@ -197,6 +197,15 @@ games_before_return as (
 
 ),
 
+team_names as (
+
+    -- a team's latest abbreviation, for the previous team of a player who moved
+    select league, team_id, abbreviation
+    from {{ ref('teams') }}
+    qualify row_number() over (partition by league, team_id order by season desc) = 1
+
+),
+
 names as (
 
     select league, stats_player_id, player_sk, full_name, position,
@@ -215,6 +224,7 @@ assembled as (
         nm.position,
         coalesce(cast(floor({{ days_between('nm.birth_date', as_of_date()) }} / 365.25) as integer), v.age) as age_years,
         coalesce(t.abbreviation, t_prev.abbreviation) as team_abbreviation,
+        pt.abbreviation as prev_team_abbreviation,
         cast(coalesce(r.games_remaining, 0) as integer) as games_remaining,
         cast(coalesce(r.games_next_7, 0) as integer) as games_next_7,
         cast(r.games_scheduled as integer) as games_scheduled,
@@ -247,6 +257,7 @@ assembled as (
     left join {{ ref('teams') }} as t_prev on t_prev.league = v.league and t_prev.season = v.season and t_prev.team_id = v.team_id
     left join remaining as r on r.league = v.league and r.season = v.season and r.team_id = v.team_id
     left join league_state as ls on ls.league = v.league
+    left join team_names as pt on pt.league = v.league and pt.team_id = v.prev_team_id
     left join injury as i on i.league = v.league and i.stats_player_id = v.player_id
     left join games_before_return as gbr on gbr.league = v.league and gbr.stats_player_id = v.player_id
     left join season_lines as sl on sl.league = v.league and sl.player_id = v.player_id and sl.window_name = 'season'
@@ -306,6 +317,8 @@ select
     {%- endfor %}
     age_years as age,
     is_rookie,
+    is_new_team,
+    prev_team_abbreviation,
     {%- for c in pgcols %}
     cur_{{ c }} as {{ c }},
     {%- endfor %}

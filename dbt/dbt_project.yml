@@ -38,6 +38,15 @@ vars:
     wnba: {teams: 10, roster_spots: 10, prior_games: 5, minutes_recency: [1.0, 0.06, 0.02], durability_games: 60}
   fantasy_recency: [1.0, 0.25, 0.08]
   fantasy_durability: {typical_share: 0.8}
+  # A past season spent mostly on another team: the share of its minutes weight it keeps.
+  fantasy_team_change: 0.25
+  # Matchups (mart_schedule_upcoming): value per game per standard deviation of the opponent's
+  # defensive rating and of the expected pace, from replaying past seasons (ADR 0003); team
+  # ratings blend this season to date with last season, last season counting as prior_games.
+  fantasy_matchup:
+    nba: {defense: 0.21, pace: 0.08}
+    wnba: {defense: 0.14, pace: 0.06}
+    prior_games: 10
 
 models:
   fantasyscout:

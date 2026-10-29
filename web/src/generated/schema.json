@@ -200,11 +200,23 @@
   "fantasy_durability": {
    "typical_share": 0.8
   },
+  "fantasy_matchup": {
+   "nba": {
+    "defense": 0.21,
+    "pace": 0.08
+   },
+   "prior_games": 10,
+   "wnba": {
+    "defense": 0.14,
+    "pace": 0.06
+   }
+  },
   "fantasy_recency": [
    1.0,
    0.25,
    0.08
-  ]
+  ],
+  "fantasy_team_change": 0.25
  },
  "generic_tests": 197,
  "layers": [
@@ -8100,7 +8112,9 @@
      "notes": [
       "Team × game: totals from the game log, possessions, pace and ratings with the opponent joined."
      ],
-     "read_by": [],
+     "read_by": [
+      "mart_schedule_upcoming"
+     ],
      "reads": [
       "team_game_box"
      ]
@@ -8497,6 +8511,18 @@
        "name": "is_rookie",
        "tests": [],
        "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "is_new_team",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "prev_team_abbreviation",
+       "tests": [],
+       "type": "varchar"
       },
       {
        "description": "",
@@ -8998,6 +9024,18 @@
       },
       {
        "description": "",
+       "name": "prev_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "is_new_team",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
        "name": "games_current",
        "tests": [],
        "type": "integer"
@@ -9175,7 +9213,7 @@
      "notes": [
       "One projected line per player on a current roster: what the board scores.",
       "The projection separates how much a player plays from what they do while playing:",
-      "- Minutes per game: each season's minutes per game counted by games played times a minutes recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in the current season shows within a few games where the league's roles move a lot (WNBA).",
+      "- Minutes per game: each season's minutes per game counted by games played times a minutes recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in the current season shows within a few games where the league's roles move a lot (WNBA). A past season spent mostly on another team counts for var fantasy_team_change (0.25) of its minutes weight: the role was a different team's. Per-minute production carries over.",
       "- Production per minute: each season's totals over its minutes, counted by minutes played times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of 60 games at 8 minutes counts for far less than 60 games at 34.",
       "- Per-game line: production per minute times projected minutes.",
       "- Games share (durability): the share of their team's regular-season games a player played in the seasons they appeared in, by the same recency, regressed toward a typical share by durability_games games (var fantasy.<league>.durability_games, fantasy_durability). Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out.",
@@ -9544,18 +9582,32 @@
        "name": "game_datetime_utc",
        "tests": [],
        "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "home_matchup",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "away_matchup",
+       "tests": [],
+       "type": "double"
       }
      ],
      "description": "Regular-season and playoff games of the next fourteen days, confirmed games only.",
      "materialized": "table",
      "name": "mart_schedule_upcoming",
      "notes": [
-      "The games of the next fourteen days per league, for the Streamers week grid and the board's games-next-seven column. Only regular-season and playoff games count, and an \"if necessary\" playoff game is left out until it is confirmed (the league stops flagging it once it is on)."
+      "The games of the next fourteen days per league, for the Streamers week grid and the board's games-next-seven column. Only regular-season and playoff games count, and an \"if necessary\" playoff game is left out until it is confirmed (the league stops flagging it once it is on).",
+      "Each side of a game carries a matchup value: how much a player's value per game moves with the opponent's defence and the game's expected pace, from replaying past seasons (ADR 0003: one standard deviation of opponent defence is worth about 0.2 value per game in the NBA, against a game-to-game swing of about 2.5; var fantasy_matchup). A team's defensive rating and pace blend this season to date with last season, last season counting as prior_games games, so early in a season (and for a reworked roster) the current games take over as they accumulate; early on, last season's team defence was the better guide. Ratings are standardised over the league's teams. A player's past results against an opponent predicted nothing (correlation 0.00 to 0.04) and are not used."
      ],
      "read_by": [
       "mart_streamers"
      ],
      "reads": [
+      "fct_team_game",
       "schedule"
      ]
     },
@@ -9768,6 +9820,18 @@
        "name": "board_value",
        "tests": [],
        "type": "double"
+      },
+      {
+       "description": "",
+       "name": "is_new_team",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "prev_team_abbreviation",
+       "tests": [],
+       "type": "varchar"
       },
       {
        "description": "",

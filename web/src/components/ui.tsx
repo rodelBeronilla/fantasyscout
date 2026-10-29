@@ -172,6 +172,19 @@ export function Note({ children, testid }: { children: ReactNode; testid?: strin
   );
 }
 
+/** A player whose current team differs from last season's: the projection leans on this season's role. */
+export function NewTeam({ from }: { from: string | null | undefined }) {
+  return (
+    <span
+      className="rounded border border-accent px-1 text-[10px] text-accent"
+      title={`New team${from ? `: was on ${from} last season` : ''}. Minutes from seasons on another team count for less.`}
+      data-testid="new-team"
+    >
+      NEW{from ? ` · ${from}` : ''}
+    </span>
+  );
+}
+
 /** A watchlist toggle: a star button that says what it does and whether it is on. */
 export function Star({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
   return (

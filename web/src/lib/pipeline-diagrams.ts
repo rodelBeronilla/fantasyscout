@@ -10,6 +10,7 @@ const fantasy = schema.fantasy as {
   fantasy: Record<string, { teams: number; roster_spots: number; prior_games: number; durability_games: number; minutes_recency: number[] }>;
   fantasy_recency: number[];
   fantasy_durability: { typical_share: number };
+  fantasy_team_change: number;
 };
 const nba = fantasy.fantasy['nba']!;
 const wnba = fantasy.fantasy['wnba']!;
@@ -186,7 +187,7 @@ export function valueActivity(): Promise<string> {
     a1 [${act}, label="Per-season lines for this season and the two before\\n(mart_category_zscores)", URL="/schema/#m-mart_category_zscores"];
     a2 [${act}, label="Keep players on their team's latest roster landing"];
     a3 [${act}, label="Production per minute\\nseasons weighted by minutes × ${fantasy.fantasy_recency.join(' / ')}"];
-    a4 [${act}, label="Minutes per game\\ngames × ${nba.minutes_recency.join(' / ')} (NBA), × ${wnba.minutes_recency.join(' / ')} (WNBA)"];
+    a4 [${act}, label="Minutes per game\\ngames × ${nba.minutes_recency.join(' / ')} (NBA), × ${wnba.minutes_recency.join(' / ')} (WNBA)\\na past season on another team × ${fantasy.fantasy_team_change}"];
     a5 [${act}, label="Games share (regular season)\\nregressed to ${fantasy.fantasy_durability.typical_share} by ${nba.durability_games} (NBA) / ${wnba.durability_games} (WNBA) games"];
     a6 [${act}, label="Add ${nba.prior_games} (NBA) / ${wnba.prior_games} (WNBA) games of a replacement-level player\\nper-game line = rate × minutes", URL="/schema/#m-mart_player_projection"];
     a7 [${act}, label="Pass 1: z-scores over the ${nba.teams * nba.roster_spots} NBA / ${wnba.teams * wnba.roster_spots} WNBA players with most projected minutes"];

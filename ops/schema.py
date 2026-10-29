@@ -200,7 +200,13 @@ def build(
     ]
     fantasy = {
         k: project_vars[k]
-        for k in ("fantasy", "fantasy_recency", "fantasy_durability")
+        for k in (
+            "fantasy",
+            "fantasy_recency",
+            "fantasy_durability",
+            "fantasy_team_change",
+            "fantasy_matchup",
+        )
         if k in project_vars
     }
     return {

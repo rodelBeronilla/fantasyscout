@@ -5,7 +5,9 @@
 
   - Minutes per game: each season's minutes per game counted by games played times a minutes
     recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in
-    the current season shows within a few games where the league's roles move a lot (WNBA).
+    the current season shows within a few games where the league's roles move a lot (WNBA). A
+    past season spent mostly on another team counts for var fantasy_team_change (0.25) of its
+    minutes weight: the role was a different team's. Per-minute production carries over.
   - Production per minute: each season's totals over its minutes, counted by minutes played
     times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of
     60 games at 8 minutes counts for far less than 60 games at 34.
@@ -55,6 +57,20 @@ team_regular_games as (
         group by league, season, team_id
     ) as per_team
     group by league, season
+
+),
+
+season_team as (
+
+    -- the team a player played most games for in each season
+    select league, season, player_id, team_id
+    from (
+        select league, season, player_id, team_id, count(*) as games
+        from {{ ref('fct_player_game') }}
+        where played
+        group by league, season, player_id, team_id
+    ) as per_team
+    qualify row_number() over (partition by league, season, player_id order by games desc, team_id) = 1
 
 ),
 
@@ -173,16 +189,32 @@ weighted as (
         sum({{ fantasy_recency('season_rank') }} * games_regular) as regular_games_weight,
         sum(case when games_regular > 0 then {{ fantasy_recency('season_rank') }} * team_games else 0 end) as team_games_weight,
         -- minutes per game: games by minutes recency
-        sum({{ fantasy_minutes_recency('season_rank') }} * games) as minutes_games_weight,
-        sum({{ fantasy_minutes_recency('season_rank') }} * games * coalesce(minutes_pg, 0)) as minutes_weighted,
+        sum({{ fantasy_minutes_recency('season_rank') }} * role_factor * games) as minutes_games_weight,
+        sum({{ fantasy_minutes_recency('season_rank') }} * role_factor * games * coalesce(minutes_pg, 0)) as minutes_weighted,
         -- production per minute: minutes by production recency
         sum(case when season_rank = 1 then {{ fantasy_recency('season_rank') }} * games * coalesce(minutes_pg, 0) else 0 end) as rate_weight_cur,
         sum(case when season_rank = 2 then {{ fantasy_recency('season_rank') }} * games * coalesce(minutes_pg, 0) else 0 end) as rate_weight_prev,
         sum(case when season_rank = 3 then {{ fantasy_recency('season_rank') }} * games * coalesce(minutes_pg, 0) else 0 end) as rate_weight_prev2,
         {%- for s in production %}
-        sum({{ fantasy_recency('season_rank') }} * games * coalesce({{ s }}_pg, 0)) as wsum_{{ s }}{{ "," if not loop.last }}
+        sum({{ fantasy_recency('season_rank') }} * games * coalesce({{ s }}_pg, 0)) as wsum_{{ s }},
         {%- endfor %}
-    from seasons
+        -- the latest earlier season's team, for the new-team flag
+        max(case when season_rank = prev_rank then season_team_id end) as prev_team_id
+    from (
+        select
+            z.*,
+            st.team_id as season_team_id,
+            -- a past season on another team says less about the current role: its minutes count
+            -- for fantasy_team_change (0.25) of their weight; per-minute production carries over
+            case
+                when z.season_rank > 1 and st.team_id is not null and st.team_id <> cr.team_id then {{ var('fantasy_team_change') }}
+                else 1.0
+            end as role_factor,
+            min(case when z.season_rank > 1 and z.games > 0 then z.season_rank end) over (partition by z.league, z.player_id) as prev_rank
+        from seasons as z
+        join current_roster as cr on cr.league = z.league and cr.player_id = z.player_id
+        left join season_team as st on st.league = z.league and st.season = z.season and st.player_id = z.player_id
+    ) as with_team
     where season_rank <= 3 and games > 0
     group by league, player_id
 
@@ -237,6 +269,8 @@ select
     roster_season,
     age,
     is_rookie,
+    prev_team_id,
+    coalesce(prev_team_id <> team_id, false) as is_new_team,
     games_current,
     games_prev,
     games_prev2,

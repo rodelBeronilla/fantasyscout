@@ -67,3 +67,15 @@ Consequences: values are on a new scale (zero is replacement, not the pool avera
 | WNBA | Season total: top 30 / rostered pool | 0.665 / 0.762 | 0.699 / 0.767 |
 
 Past games played predict future games played only weakly: durability helped the NBA season-total ranking, while for the WNBA every regression strength from 5 to 120 games scored within a tenth of a point, hence the heavy 60.
+
+**Context: team changes, matchups, early samples, short games (2026-10-29).** Asked how the board accounts for players on new teams, how players are used now, injured games, upcoming opponents and a small current-season sample, the same seasons were replayed at a twentieth, a tenth, a quarter and half of the way in. Rank correlation is among players who changed teams:
+
+| Idea | NBA: pool / top / changed teams | WNBA: pool / top / changed teams | Decision |
+| --- | --- | --- | --- |
+| As before | 0.746 / 0.645 / 0.730 | 0.719 / 0.714 / 0.727 | |
+| A past season's minutes × 0.25 when on another team | 0.747 / 0.652 / 0.747 | 0.719 / 0.708 / 0.735 | Built (`fantasy_team_change`) |
+| The same for per-minute production too | 0.740 / 0.652 / 0.730 | 0.715 / 0.704 / 0.689 | No: production carries over between teams |
+| The current season counted × 1.5 | 0.746 / 0.628 / 0.737 | 0.721 / 0.718 / 0.726 | No: fewer of the top tier |
+| Games under half a player's usual minutes dropped (often injury exits, 9% of games) | 0.769 vs 0.774 | 0.752 vs 0.748 | No |
+
+A player's game-to-game swing is about 2.5 in value per game. The opponent's defensive rating and the expected pace explain 0.2% to 1.4% of it. One standard deviation of opponent defence is worth about 0.21 per game in the NBA and 0.14 in the WNBA, and pace about 0.08 and 0.06. That is small, but it tells a streamer two otherwise equal players apart, so `mart_schedule_upcoming` carries a matchup value per side (`fantasy_matchup`). Early in a season, last season's team defence predicted a game better than the first games did, so team ratings blend this season to date with last season counting as 10 games. A reworked roster takes over as its games accumulate. A player's past results against a given opponent correlated 0.00 to 0.04 with the next meeting, which is noise, so they are not used. Board and streamers show a new-team badge with the previous team.

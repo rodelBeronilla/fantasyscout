@@ -7,7 +7,7 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
-import { Card, Chip, InjuryTag, Loading, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
+import { Card, Chip, InjuryTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface StreamerRow {
   player_id: string;
@@ -30,6 +30,8 @@ interface StreamerRow {
   value_trend: number | null;
   board_rank: number | null;
   board_value: number | null;
+  is_new_team: boolean | null;
+  prev_team_abbreviation: string | null;
   points_avg_5: number | null;
   rebounds_total_avg_5: number | null;
   assists_avg_5: number | null;
@@ -52,6 +54,8 @@ interface Game {
   home_team_tricode: string;
   away_team_id: string;
   away_team_tricode: string;
+  home_matchup: number | null;
+  away_matchup: number | null;
 }
 
 interface Team {
@@ -66,6 +70,10 @@ interface Candidate extends StreamerRow {
   games_window: number;
   games_picked: number;
   fit: number | null;
+  /** Average matchup over the window's games: value per game the opponents' defence and pace add. */
+  matchup: number | null;
+  /** Last-ten value per game over the window's games, plus each game's matchup. */
+  window_value: number | null;
 }
 
 type Health = 'all' | 'no_out' | 'healthy';
@@ -195,18 +203,23 @@ export default function Streamers() {
   const days = useMemo(() => Array.from({ length: horizon }, (_, i) => addDays(start, i)), [start, horizon]);
   const inWeek = games.some((g) => g.days_ahead <= 6);
 
-  // Each team's game dates inside the window.
-  const teamDates = useMemo(() => {
+  // Each team's game dates inside the window, and the matchup of each of those games.
+  const { teamDates, teamMatchups } = useMemo(() => {
     const inRange = new Set(days);
-    const m = new Map<string, Set<string>>();
+    const dates = new Map<string, Set<string>>();
+    const matchups = new Map<string, number[]>();
     for (const g of games) {
       if (!inRange.has(g.game_date)) continue;
-      for (const id of [g.home_team_id, g.away_team_id]) {
-        if (!m.has(id)) m.set(id, new Set());
-        m.get(id)?.add(g.game_date);
+      for (const [id, mu] of [
+        [g.home_team_id, g.home_matchup],
+        [g.away_team_id, g.away_matchup],
+      ] as const) {
+        if (!dates.has(id)) dates.set(id, new Set());
+        dates.get(id)?.add(g.game_date);
+        if (typeof mu === 'number') matchups.set(id, [...(matchups.get(id) ?? []), mu]);
       }
     }
-    return m;
+    return { teamDates: dates, teamMatchups: matchups };
   }, [games, days]);
 
   const candidates = useMemo<Candidate[]>(
@@ -214,14 +227,18 @@ export default function Streamers() {
       (rows ?? []).map((r) => {
         const dates = (r.team_id && teamDates.get(r.team_id)) || new Set<string>();
         const parts = [...needs].map((c) => r[`last_10_${c}`]).filter((v): v is number => typeof v === 'number');
+        const mus = (r.team_id && teamMatchups.get(r.team_id)) || [];
+        const muSum = mus.reduce((s, v) => s + v, 0);
         return {
           ...r,
           games_window: dates.size,
           games_picked: [...pickedDays].filter((d) => dates.has(d)).length,
           fit: needs.size && parts.length ? parts.reduce((s, v) => s + v, 0) : null,
+          matchup: mus.length ? muSum / mus.length : null,
+          window_value: r.last_10_z_total === null || !dates.size ? null : r.last_10_z_total * dates.size + muSum,
         };
       }),
-    [rows, teamDates, pickedDays, needs],
+    [rows, teamDates, teamMatchups, pickedDays, needs],
   );
 
   const list = useMemo(() => {
@@ -268,8 +285,8 @@ export default function Streamers() {
     } else if (sortKey === 'fit') setSortKey('minutes_trend');
   };
   const exportCsv = () => {
-    const header = ['player', 'team', 'position', `games_next_${horizon}`, 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'last_game'];
-    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.position, r.games_window, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.last_10_z_total, r.value_trend, r.fit, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.last_game_date]);
+    const header = ['player', 'team', 'new_team_from', 'position', `games_next_${horizon}`, 'matchup', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'last_game'];
+    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.last_10_z_total, r.value_trend, r.fit, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.last_game_date]);
     downloadCsv(`fantasyscout-${league}-streamers.csv`, toCsv(header, body));
   };
   const select = 'rounded border border-line bg-card px-2 py-1';
@@ -427,6 +444,8 @@ export default function Streamers() {
                 {col('field_goal_pct_5', 'FG%')}
                 {needs.size > 0 && col('fit', 'Need fit', 'Last-ten z-score summed over the categories you need')}
                 {pickedDays.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
+                {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
+                {inWeek && col('window_value', 'Window value', 'Last-ten value per game times games in the window, plus each game’s matchup')}
                 {col('board_rank', 'Board #', 'Rank on the board; inside a league-sized pool usually means rostered')}
                 <Th>Last game</Th>
               </tr>
@@ -440,6 +459,7 @@ export default function Streamers() {
                       <a href={href(`/p/${league}/${r.player_id}/`)} className="underline-offset-4 hover:underline">
                         {r.full_name ?? r.player_id}
                       </a>
+                      {r.is_new_team && <NewTeam from={r.prev_team_abbreviation} />}
                       <InjuryTag group={r.injury_group} status={r.injury_status} />
                     </span>
                   </Td>
@@ -472,6 +492,12 @@ export default function Streamers() {
                       {r.games_picked}/{pickedDays.size}
                     </Td>
                   )}
+                  {inWeek && (
+                    <Td right>
+                      <Signed value={r.matchup} />
+                    </Td>
+                  )}
+                  {inWeek && <Td right>{fmt(r.window_value, 2)}</Td>}
                   <Td right>{r.board_rank ?? '–'}</Td>
                   <Td>{day(r.last_game_date)}</Td>
                 </tr>
