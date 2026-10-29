@@ -92,6 +92,13 @@ jobs:
         run: uv run dbt build --target duckdb --exclude tag:quality
       - name: Record results and decide the publish gate (DuckDB)
         run: uv run python -m ops.results --engine duckdb --duckdb dbt/fantasyscout.duckdb
+      # The Schema and Pipeline pages render web/src/generated/schema.json; it must match the project.
+      - name: The app's schema file is current
+        env:
+          DBT_PROFILES_DIR: .
+        run: |
+          (cd dbt && uv run dbt docs generate --target duckdb >/dev/null)
+          uv run python -m ops.schema --check
       - name: Reconciliation summary (DuckDB)
         run: uv run python -m ops.summary --engine duckdb --duckdb dbt/fantasyscout.duckdb
       - name: The chaos switch blocks the gate

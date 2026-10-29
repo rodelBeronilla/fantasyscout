@@ -1,0 +1,217 @@
+---
+import Base from '../../layouts/Base.astro';
+import schema from '../../generated/schema.json';
+import { href } from '../../lib/site';
+
+interface Column {
+  name: string;
+  type: string;
+  description: string;
+  tests: string[];
+}
+interface Model {
+  name: string;
+  materialized: string;
+  description: string;
+  notes: string[];
+  reads: string[];
+  read_by: string[];
+  checks: string[];
+  columns: Column[];
+}
+
+const LAYER_ABOUT: Record<string, string> = {
+  bronze:
+    'The landed JSON as rows: one incremental model per source endpoint, appending only files not loaded before, each row carrying the file it came from and the day it landed.',
+  silver:
+    'Typed, deduplicated and keyed (the latest landing wins), with the cross-source work: team, game and player crosswalks, the reconciliation of the two box scores, and lineups from substitutions.',
+  gold: 'The star schema the app, the notebooks and the dashboards read: dimensions, facts, and the fantasy marts (z-scores, the projection, the board, streamers).',
+  ops: 'How the pipeline is doing: the ingest run log and the reconciliation of the two sources. The build adds test_results and publish_gate after every run.',
+};
+
+const layers = schema.layers as { name: string; models: Model[] }[];
+const all = layers.flatMap((l) => l.models.map((m) => ({ ...m, layer: l.name })));
+const layerOf = new Map(all.map((m) => [m.name, m.layer]));
+const columnCount = all.reduce((n, m) => n + m.columns.length, 0);
+const checks = schema.checks as { name: string; severity: string; tags: string[]; about: string; reads: string[] }[];
+const seeds = schema.seeds as { name: string; description: string; columns: Column[] }[];
+const anchor = (name: string) => `m-${name}`;
+const docsLink = (name: string) => href(`/docs/#!/model/model.fantasyscout.${name}`);
+---
+
+<Base
+  title="Schema"
+  description="Every model in the lakehouse by layer: what it holds, how it is computed, its columns with types and tests, and what it reads."
+>
+  <section>
+    <h1 class="text-2xl font-semibold tracking-tight">Schema</h1>
+    <p class="mt-1 max-w-3xl text-sm text-muted">
+      Every model in the lakehouse, generated from the dbt project: {all.length} models in four layers, {columnCount} columns,
+      {schema.generic_tests} column tests and {checks.length} data-quality checks. Each model's notes are the comment at the
+      top of its SQL, where the method is written down. CI fails when this page falls behind the project. The lineage graph
+      is in the <a href={href('/docs/')} class="underline underline-offset-4">dbt docs</a>, and how the layers fit together is
+      on the <a href={href('/pipeline/')} class="underline underline-offset-4">Pipeline</a> page.
+    </p>
+
+    <nav class="mt-4 flex flex-wrap gap-2 text-sm" aria-label="Layers">
+      {
+        layers.map((l) => (
+          <a href={`#${l.name}`} class="rounded-full border border-line px-3 py-1 hover:bg-card">
+            {l.name} · {l.models.length}
+          </a>
+        ))
+      }
+      <a href="#checks" class="rounded-full border border-line px-3 py-1 hover:bg-card">checks · {checks.length}</a>
+      <a href="#seeds" class="rounded-full border border-line px-3 py-1 hover:bg-card">seeds · {seeds.length}</a>
+    </nav>
+
+    {
+      layers.map((l) => (
+        <section id={l.name} class="mt-8" data-testid={`layer-${l.name}`}>
+          <h2 class="text-lg font-semibold tracking-tight">{l.name}</h2>
+          <p class="mt-1 max-w-3xl text-sm text-muted">{LAYER_ABOUT[l.name]}</p>
+          <div class="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
+            {l.models.map((m) => (
+              <details id={anchor(m.name)} class="min-w-0 rounded-lg border border-line bg-card" data-testid="model">
+                <summary class="cursor-pointer px-4 py-2">
+                  <span class="font-mono text-sm font-medium">{m.name}</span>
+                  <span class="ml-2 text-xs text-muted">
+                    {m.materialized} · {m.columns.length} columns{m.checks.length ? ` · ${m.checks.length} checks` : ''}
+                  </span>
+                  {m.description && <span class="block text-sm text-muted">{m.description}</span>}
+                </summary>
+                <div class="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line px-4 py-3 text-sm">
+                  {m.notes.length > 0 && (
+                    <div class="grid max-w-3xl gap-2">
+                      {m.notes.map((p) => (p.startsWith('- ') ? <p class="pl-4">• {p.slice(2)}</p> : <p>{p}</p>))}
+                    </div>
+                  )}
+                  <dl class="grid gap-1 text-xs">
+                    {m.reads.length > 0 && (
+                      <div>
+                        <dt class="inline text-muted">Reads </dt>
+                        <dd class="inline">
+                          {m.reads.map((r, i) => (
+                            <>
+                              {i > 0 && ', '}
+                              {layerOf.has(r) ? (
+                                <a href={`#${anchor(r)}`} class="font-mono underline underline-offset-4">
+                                  {r}
+                                </a>
+                              ) : (
+                                <a href="#seeds" class="font-mono underline underline-offset-4">
+                                  {r}
+                                </a>
+                              )}
+                            </>
+                          ))}
+                        </dd>
+                      </div>
+                    )}
+                    {m.read_by.length > 0 && (
+                      <div>
+                        <dt class="inline text-muted">Read by </dt>
+                        <dd class="inline">
+                          {m.read_by.map((r, i) => (
+                            <>
+                              {i > 0 && ', '}
+                              <a href={`#${anchor(r)}`} class="font-mono underline underline-offset-4">
+                                {r}
+                              </a>
+                            </>
+                          ))}
+                        </dd>
+                      </div>
+                    )}
+                    {m.checks.length > 0 && (
+                      <div>
+                        <dt class="inline text-muted">Checked by </dt>
+                        <dd class="inline font-mono">{m.checks.join(', ')}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  <p class="text-xs">
+                    <a href={docsLink(m.name)} class="underline underline-offset-4">
+                      Lineage and SQL in the dbt docs
+                    </a>
+                  </p>
+                  <div class="overflow-x-auto rounded border border-line" tabindex="0" role="region" aria-label={`Columns of ${m.name}`}>
+                    <table class="w-full text-xs">
+                      <thead class="bg-bg text-left text-muted">
+                        <tr>
+                          <th class="px-2 py-1 font-medium">Column</th>
+                          <th class="px-2 py-1 font-medium">Type</th>
+                          <th class="px-2 py-1 font-medium">Tests</th>
+                          <th class="px-2 py-1 font-medium">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {m.columns.map((c) => (
+                          <tr class="border-t border-line align-top">
+                            <td class="px-2 py-1 font-mono whitespace-nowrap">{c.name}</td>
+                            <td class="px-2 py-1 font-mono whitespace-nowrap text-muted">{c.type || '–'}</td>
+                            <td class="px-2 py-1 whitespace-nowrap">{c.tests.join(', ') || '–'}</td>
+                            <td class="px-2 py-1">{c.description || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </details>
+            ))}
+          </div>
+        </section>
+      ))
+    }
+
+    <section id="checks" class="mt-8" data-testid="checks-list">
+      <h2 class="text-lg font-semibold tracking-tight">Data-quality checks</h2>
+      <p class="mt-1 max-w-3xl text-sm text-muted">
+        Checks run after every build on the real data. An error-severity failure closes the publish gate: nothing is exported
+        and an incident issue opens with samples of the failing rows. A warning is recorded and shown on Data Health. Column
+        tests (keys, not null, relationships, accepted values) run on every pull request as well.
+      </p>
+      <div class="mt-3 overflow-x-auto rounded-lg border border-line" tabindex="0" role="region" aria-label="Data-quality checks">
+        <table class="w-full text-sm">
+          <thead class="bg-card text-left text-muted">
+            <tr>
+              <th class="px-3 py-2 font-medium">Check</th>
+              <th class="px-3 py-2 font-medium">Severity</th>
+              <th class="px-3 py-2 font-medium">What it holds</th>
+              <th class="px-3 py-2 font-medium">Reads</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              checks.map((c) => (
+                <tr class="border-t border-line align-top">
+                  <td class="px-3 py-2 font-mono text-xs whitespace-nowrap">{c.name}</td>
+                  <td class:list={['px-3 py-2', c.severity === 'error' ? 'text-bad' : 'text-warn']}>{c.severity}</td>
+                  <td class="px-3 py-2">{c.about}</td>
+                  <td class="px-3 py-2 font-mono text-xs">{c.reads.join(', ')}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="seeds" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight">Seeds</h2>
+      <p class="mt-1 max-w-3xl text-sm text-muted">Small reference tables kept in the repository and loaded by dbt.</p>
+      <div class="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
+        {
+          seeds.map((s) => (
+            <div class="min-w-0 rounded-lg border border-line bg-card px-4 py-2 text-sm">
+              <span class="font-mono font-medium">{s.name}</span>
+              {s.description && <span class="ml-2 text-muted">{s.description}</span>}
+              <span class="block text-xs text-muted">{s.columns.map((c) => c.name).join(', ')}</span>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+  </section>
+</Base>

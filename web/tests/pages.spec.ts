@@ -166,6 +166,17 @@ for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/']) {
   });
 }
 
+// Static pages: nothing loads after the first paint. The schema page is checked with every model open.
+for (const path of ['/pipeline/', '/schema/']) {
+  test(`${path} has no accessibility violations`, async ({ page }) => {
+    await page.goto(path);
+    await expect(page.locator('main h1')).toBeVisible();
+    await page.evaluate(() => document.querySelectorAll('details').forEach((d) => d.setAttribute('open', '')));
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(results.violations).toEqual([]);
+  });
+}
+
 test('the notebooks page shows each analysis with its findings for the league', async ({ page }) => {
   await page.goto('/notebooks/');
   const cards = page.getByTestId('notebooks').locator('section');
@@ -183,7 +194,7 @@ test('the dashboards page explains the workbook and lists the extract', async ({
   await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
 });
 
-for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/']) {
+for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/']) {
   test(`${path} has no horizontal scroll on a phone`, async ({ page, isMobile }) => {
     test.skip(!isMobile, 'mobile project only');
     await page.goto(path);
@@ -193,3 +204,28 @@ for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/sql/',
     expect(overflow).toBe(false);
   });
 }
+
+test('the pipeline page draws every stage and links each box to how it works', async ({ page }) => {
+  await page.goto('/pipeline/');
+  const diagram = page.getByTestId('pipeline-diagram');
+  await expect(diagram).toBeVisible();
+  expect(await diagram.locator('a').count()).toBe(15);
+  const stages = page.getByTestId('pipeline-stages').locator(':scope > section');
+  await expect(stages).toHaveCount(11);
+  await expect(page.getByTestId('pipeline-stages')).toContainText('replacement');
+  await diagram.locator('a[href="#gate"]').click();
+  await expect(page).toHaveURL(/#gate$/);
+});
+
+test('the schema page lists every layer, and a model opens to its notes and columns', async ({ page }) => {
+  await page.goto('/schema/');
+  for (const layer of ['bronze', 'silver', 'gold', 'ops']) {
+    await expect(page.getByTestId(`layer-${layer}`).getByTestId('model').first()).toBeVisible();
+  }
+  const board = page.locator('#m-mart_board');
+  await board.locator('summary').click();
+  await expect(board).toContainText('value above replacement');
+  await expect(board.locator('table')).toContainText('value_total');
+  await expect(board).toContainText('mart_player_projection');
+  await expect(page.getByTestId('checks-list').locator('tbody tr').first()).toBeVisible();
+});
