@@ -19,10 +19,10 @@ test('punting a category removes it from the total', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
   await expect(board.locator('tbody tr').first()).toBeVisible();
-  const before = await board.locator('tbody tr').first().locator('td').last().innerText();
+  const before = await board.locator('tbody tr').first().locator('td').nth(-2).innerText();
   await page.locator('fieldset label', { hasText: /^PTS$/ }).click();
   await expect(board.locator('thead s')).toHaveText('PTS');
-  const after = await board.locator('tbody tr').first().locator('td').last().innerText();
+  const after = await board.locator('tbody tr').first().locator('td').nth(-2).innerText();
   expect(after).not.toBe(before);
 });
 
@@ -33,10 +33,10 @@ test('counting games played scales the total by the projected games share', asyn
   const first = board.locator('tbody tr').first();
   await expect(first).toBeVisible();
   const name = await first.locator('a').innerText();
-  const withGames = Number(await first.locator('td').last().innerText());
+  const withGames = Number(await first.locator('td').nth(-2).innerText());
   await page.getByLabel('Count games played').uncheck();
   const row = board.locator('tbody tr', { hasText: name }).first();
-  const perGame = Number(await row.locator('td').last().innerText());
+  const perGame = Number(await row.locator('td').nth(-2).innerText());
   expect(perGame).toBeGreaterThan(withGames);
 });
 
@@ -96,14 +96,14 @@ test('the board switches between value, recent, projected and per-game views', a
   await expect(board.locator('thead')).toContainText('MIN');
   await expect(board.locator('thead')).not.toContainText('Total');
   await page.getByRole('button', { name: /^PTS/ }).click();
-  const pts = (await board.locator('tbody tr td:nth-child(7)').allInnerTexts()).map(Number);
+  const pts = (await board.locator('tbody tr td:nth-child(8)').allInnerTexts()).map(Number);
   expect(pts[0]).toBeGreaterThanOrEqual(pts[1] ?? 0);
   await page.getByRole('radio', { name: 'Last 10 games' }).click();
   await expect(board.locator('thead')).toContainText('Total');
   await page.getByRole('radio', { name: 'Projected line' }).click();
   await expect(board.locator('thead')).toContainText('MIN');
   await expect(board.locator('thead')).not.toContainText('Total');
-  await expect(board.locator('tbody tr').first().locator('td:nth-child(6)')).toHaveText(/^\d+(\.\d+)?$/);
+  await expect(board.locator('tbody tr').first().locator('td:nth-child(7)')).toHaveText(/^\d+(\.\d+)?$/);
 });
 
 test('the board filters by position and shows injury tags', async ({ page }) => {
@@ -259,4 +259,73 @@ test('a punted category is struck through on its chip', async ({ page }) => {
   expect(await chip.evaluate((el) => getComputedStyle(el).textDecorationLine)).not.toContain('line-through');
   await chip.click();
   expect(await chip.evaluate((el) => getComputedStyle(el).textDecorationLine)).toContain('line-through');
+});
+
+test('the board ranks by this season and the last twenty games, and filters to rookies', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await page.getByRole('radio', { name: 'This season' }).click();
+  await expect(board.locator('thead')).toContainText('Total');
+  await page.getByRole('radio', { name: 'Last 20 games' }).click();
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await page.getByRole('radio', { name: 'Value' }).click();
+  const all = await board.locator('tbody tr').count();
+  await page.getByLabel('Rookies only').check();
+  const rookies = board.locator('tbody tr');
+  await expect(rookies.first()).toContainText('R');
+  expect(await rookies.count()).toBeLessThan(all);
+  await page.getByLabel('Rookies only').uncheck();
+  await page.getByLabel('League format').selectOption('8');
+  await expect(board.locator('thead s')).toHaveText('TO');
+});
+
+test('the watchlist keeps starred players across visits, and compare lines players up', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  const first = board.locator('tbody tr').first();
+  const name = await first.locator('a').innerText();
+  await first.getByTestId('watch').click();
+  await page.reload();
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await page.getByLabel(/Watchlist only/).check();
+  await expect(board.locator('tbody tr')).toHaveCount(1);
+  await expect(board.locator('tbody tr').first()).toContainText(name);
+  await page.getByLabel(/Watchlist only/).uncheck();
+  const rows = board.locator('tbody tr');
+  await rows.nth(0).getByRole('checkbox', { name: /^Compare / }).check();
+  await rows.nth(1).getByRole('checkbox', { name: /^Compare / }).check();
+  const compare = page.getByTestId('compare');
+  await expect(compare).toContainText('Compare (2/4)');
+  await expect(compare.locator('thead')).toContainText(name);
+  await expect(compare.locator('tbody')).toContainText('PTS (proj)');
+});
+
+test('the board exports what it shows as CSV', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('board').locator('tbody tr').first()).toBeVisible();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('board-csv').click()]);
+  expect(download.suggestedFilename()).toBe('fantasyscout-wnba-board-value.csv');
+  const text = await (await download.createReadStream()).toArray();
+  const lines = Buffer.concat(text).toString('utf8').trim().split(String.fromCharCode(10));
+  expect(lines[0]).toContain('rank,player,team');
+  expect(lines.length).toBeGreaterThan(10);
+});
+
+test('streamers rank by the categories you need and leave out likely rostered players', async ({ page }) => {
+  await page.goto('/streamers/');
+  const table = page.getByTestId('trending');
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  const all = await table.locator('tbody tr').count();
+  await page.getByLabel('Need BLK').check({ force: true });
+  await page.getByLabel('Need REB').check({ force: true });
+  await expect(table.locator('thead')).toContainText('Need fit');
+  await page.getByLabel(/Likely available/).selectOption('60');
+  const after = await table.locator('tbody tr').count();
+  expect(after).toBeLessThanOrEqual(all);
+  const ranks = (await table.locator('tbody tr td:nth-last-child(2)').allInnerTexts()).filter((t) => t !== '–').map(Number);
+  expect(ranks.every((r) => r > 60)).toBe(true);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('streamers-csv').click()]);
+  expect(download.suggestedFilename()).toBe('fantasyscout-wnba-streamers.csv');
 });

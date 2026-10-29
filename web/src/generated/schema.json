@@ -8314,7 +8314,31 @@
       },
       {
        "description": "",
+       "name": "season_z_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
        "name": "recent_z_rebounds_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "season_z_rebounds_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_rebounds_total",
        "tests": [],
        "type": "double"
       },
@@ -8326,7 +8350,31 @@
       },
       {
        "description": "",
+       "name": "season_z_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
        "name": "recent_z_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "season_z_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_steals",
        "tests": [],
        "type": "double"
       },
@@ -8338,7 +8386,31 @@
       },
       {
        "description": "",
+       "name": "season_z_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
        "name": "recent_z_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "season_z_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_three_pointers_made",
        "tests": [],
        "type": "double"
       },
@@ -8350,7 +8422,31 @@
       },
       {
        "description": "",
+       "name": "season_z_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
        "name": "recent_z_field_goal_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "season_z_field_goal_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_field_goal_pct",
        "tests": [],
        "type": "double"
       },
@@ -8362,9 +8458,45 @@
       },
       {
        "description": "",
+       "name": "season_z_free_throw_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_free_throw_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
        "name": "recent_z_total",
        "tests": [],
        "type": "double"
+      },
+      {
+       "description": "",
+       "name": "season_z_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last20_z_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "age",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "is_rookie",
+       "tests": [],
+       "type": "boolean"
       },
       {
        "description": "",
@@ -8596,10 +8728,12 @@
       "The draft and in-season board: one row per rostered player per league.",
       "Value is scored once, on each player's projected per-game line (mart_player_projection: per-minute production times projected minutes), in two passes. Pass one standardises the nine categories over the pool_size players with the most projected minutes; pass two repeats it over the pool_size players pass one values most, so the means and spreads describe the players a fantasy league actually rosters. Counting categories are z-scores of the projected per-game numbers (turnovers negative); percentages are volume-weighted, (player pct - pool pct) x attempts per game, standardised over the pool.",
       "Every category then has replacement level subtracted: the average category score of the next `teams` players after the pool. Zero is a freely available player, so the nine values sum to value per game above replacement (value_per_game) and a punt build is the sum without the punted columns. value_total counts games: value per game times the projected share of team games the player plays (games_share), since a missed game is filled by a replacement-level player; a value below replacement is left as it is.",
-      "Alongside the value the row carries the current season's last-ten-games z-scores and per-game line, so the app can rank on recent form or raw production too, and the projected line itself.",
+      "Alongside the value the row carries the current season's z-scores over the whole season and the last twenty and ten games, the per-game line, the projected line itself, and the player's age and rookie status from the roster, so the app can rank on recent form or raw production too and filter the way a fantasy manager does.",
       "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current injury report (out: the games before the expected return, or all of them without a date; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. games_next_7 counts playoff games too."
      ],
-     "read_by": [],
+     "read_by": [
+      "mart_streamers"
+     ],
      "reads": [
       "dim_player",
       "fct_availability",
@@ -8849,6 +8983,18 @@
        "name": "roster_season",
        "tests": [],
        "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "age",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "is_rookie",
+       "tests": [],
+       "type": "boolean"
       },
       {
        "description": "",
@@ -9559,6 +9705,72 @@
       },
       {
        "description": "",
+       "name": "last_10_z_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10_z_rebounds_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10_z_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10_z_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10_z_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10_z_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10_z_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10_z_field_goal_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10_z_free_throw_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "board_rank",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "",
+       "name": "board_value",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
        "name": "points_avg_5",
        "tests": [],
        "type": "double"
@@ -9630,13 +9842,15 @@
      "notes": [
       "Streaming candidates: one row per player active in the league's current season, with the team's games over the next seven days, the minutes trend and recent production.",
       "Active means at least three games this season and a game within the last thirty days of the league's season so far, so players from earlier seasons never appear.",
-      "The trends compare recent games with a baseline: minutes over the last five games, value over the last ten. The baseline is the player's games this season before the window, blended with the player's latest earlier season (last season, or the one before for a player who missed it) counted as up to 10 games. Early in a season the window is the whole season, so the baseline is last season; late in a season it is mostly this one. A player with neither (a rookie's first games) has no trend rather than a misleading zero. The value baseline uses the season z-score, which includes the window; with few games before the window it is weighted toward last season accordingly. While the league is between seasons the same columns describe who finished the season strongly, and season_complete says so."
+      "The trends compare recent games with a baseline: minutes over the last five games, value over the last ten. The baseline is the player's games this season before the window, blended with the player's latest earlier season (last season, or the one before for a player who missed it) counted as up to 10 games. Early in a season the window is the whole season, so the baseline is last season; late in a season it is mostly this one. A player with neither (a rookie's first games) has no trend rather than a misleading zero.",
+      "Each row also carries the last-ten-games z-score per category, for ranking by the categories a manager needs, and the player's board rank and value, for leaving out players a league of a given size has most likely rostered (null for a player not on a current roster). The value baseline uses the season z-score, which includes the window; with few games before the window it is weighted toward last season accordingly. While the league is between seasons the same columns describe who finished the season strongly, and season_complete says so."
      ],
      "read_by": [],
      "reads": [
       "dim_player",
       "fct_availability",
       "fct_player_game",
+      "mart_board",
       "mart_category_zscores",
       "mart_player_rolling",
       "mart_schedule_upcoming",

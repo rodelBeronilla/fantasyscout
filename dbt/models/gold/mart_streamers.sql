@@ -10,13 +10,18 @@
   with the player's latest earlier season (last season, or the one before for a player who
   missed it) counted as up to 10 games. Early in a season the window is
   the whole season, so the baseline is last season; late in a season it is mostly this one. A
-  player with neither (a rookie's first games) has no trend rather than a misleading zero. The
+  player with neither (a rookie's first games) has no trend rather than a misleading zero.
+
+  Each row also carries the last-ten-games z-score per category, for ranking by the categories
+  a manager needs, and the player's board rank and value, for leaving out players a league of
+  a given size has most likely rostered (null for a player not on a current roster). The
   value baseline uses the season z-score, which includes the window; with few games before the
   window it is weighted toward last season accordingly. While the league is between seasons the
   same columns describe who finished the season strongly, and season_complete says so.
 #}
 
 {% set prior = 10 %}
+{% set cats = ['points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made', 'turnovers', 'field_goal_pct', 'free_throw_pct'] %}
 
 with current_season as (
 
@@ -68,7 +73,10 @@ season_line as (
 
 recent_value as (
 
-    select z.league, z.player_id, z.z_total as last_10_z_total
+    select z.league, z.player_id, z.z_total as last_10_z_total,
+        {%- for c in cats %}
+        z.z_{{ c }} as last_10_z_{{ c }}{{ "," if not loop.last }}
+        {%- endfor %}
     from {{ ref('mart_category_zscores') }} as z
     join current_season as cs on cs.league = z.league and cs.season = z.season
     where z.window_name = 'last_10'
@@ -174,6 +182,11 @@ select
     rv.last_10_z_total,
     b.value_baseline,
     rv.last_10_z_total - b.value_baseline as value_trend,
+    {%- for c in cats %}
+    rv.last_10_z_{{ c }},
+    {%- endfor %}
+    bd.rank_total as board_rank,
+    bd.value_total as board_value,
     lr.points_avg_5,
     lr.rebounds_total_avg_5,
     lr.assists_avg_5,
@@ -195,5 +208,6 @@ left join current_stint as cs on cs.league = lr.league and cs.stats_player_id = 
 left join {{ ref('teams') }} as t on t.league = lr.league and t.season = lr.season and t.team_id = cs.team_id
 left join upcoming as u on u.league = lr.league and u.team_id = cs.team_id
 left join injury as i on i.league = lr.league and i.stats_player_id = lr.player_id
+left join {{ ref('mart_board') }} as bd on bd.league = lr.league and bd.player_id = lr.player_id
 where sl.games >= 3
     and lr.game_date >= {{ add_days('llg.last_game_date', -30) }}

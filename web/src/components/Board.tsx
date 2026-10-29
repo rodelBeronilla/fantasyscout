@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { downloadCsv, toCsv } from '../lib/csv';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
-import { Chip, InjuryTag, Loading, Note, Problem, Signed, SortTh, Td, Th } from './ui';
+import { useWatchlist } from '../lib/watchlist';
+import { Chip, InjuryTag, Loading, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface BoardRow {
   player_id: string;
@@ -27,24 +29,15 @@ interface BoardRow {
   injury_type: string | null;
   expected_return: string | null;
   injury_note: string | null;
-  minutes_pg: number | null;
-  points_pg: number | null;
-  rebounds_total_pg: number | null;
-  assists_pg: number | null;
-  steals_pg: number | null;
-  blocks_pg: number | null;
-  three_pointers_made_pg: number | null;
-  turnovers_pg: number | null;
-  field_goal_pct: number | null;
-  free_throw_pct: number | null;
-  games_prev: number | null;
-  w_prior: number | null;
   games_share: number | null;
   value_per_game: number | null;
+  age: number | null;
+  is_rookie: boolean | null;
+  proj_minutes_pg: number | null;
   [key: string]: unknown;
 }
 
-type View = 'value' | 'recent' | 'projected' | 'pergame';
+type View = 'value' | 'season' | 'last20' | 'recent' | 'projected' | 'pergame';
 
 const VIEWS: { id: View; label: string; help: string }[] = [
   {
@@ -52,6 +45,8 @@ const VIEWS: { id: View; label: string; help: string }[] = [
     label: 'Value',
     help: 'Category value per game above replacement from each player’s projected line, times the share of games they are projected to play; zero is a player you could pick up for free.',
   },
+  { id: 'season', label: 'This season', help: 'Category z-scores over this season’s games.' },
+  { id: 'last20', label: 'Last 20 games', help: 'Category z-scores over each player’s last twenty games this season.' },
   { id: 'recent', label: 'Last 10 games', help: 'Category z-scores over each player’s last ten games this season.' },
   {
     id: 'projected',
@@ -81,15 +76,20 @@ function lineColumns(view: View): { key: string; label: string; kind: 'num' | 'p
 
 const isLine = (view: View) => view === 'pergame' || view === 'projected';
 
+const Z_PREFIX: Partial<Record<View, string>> = { season: 'season_', last20: 'last20_', recent: 'recent_' };
+
+function zKey(view: View, category: string): string {
+  return `${Z_PREFIX[view] ?? ''}${category}`;
+}
+
+type Availability = 'all' | 'no_out' | 'healthy';
+
 const PAGE = 100;
+const COMPARE_MAX = 4;
 
 function num(row: BoardRow, key: string): number | null {
   const v = row[key];
   return typeof v === 'number' && !Number.isNaN(v) ? v : null;
-}
-
-function zKey(view: View, category: string): string {
-  return view === 'recent' ? `recent_${category}` : category;
 }
 
 export default function Board() {
@@ -103,11 +103,16 @@ export default function Board() {
   const [team, setTeam] = useState('');
   const [positions, setPositions] = useState<Set<PositionLetter>>(new Set());
   const [minGames, setMinGames] = useState(0);
-  const [hideOut, setHideOut] = useState(false);
+  const [minMinutes, setMinMinutes] = useState(0);
+  const [availability, setAvailability] = useState<Availability>('all');
+  const [rookiesOnly, setRookiesOnly] = useState(false);
+  const [watchOnly, setWatchOnly] = useState(false);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
+  const [compare, setCompare] = useState<string[]>([]);
+  const { watched, toggleWatched } = useWatchlist(league);
 
   useEffect(() => {
     let live = true;
@@ -151,12 +156,16 @@ export default function Board() {
   }, [rows, view, punts, restOfSeason, countGames]);
 
   const ranked = useMemo(() => {
+    const q = query.toLowerCase();
     const filtered = scored
       .filter(({ row }) => !team || row.team_abbreviation === team)
       .filter(({ row }) => eligibleAt(row.position, positions))
       .filter(({ row }) => (row.games_current ?? 0) >= minGames)
-      .filter(({ row }) => !hideOut || row.injury_group !== 'out')
-      .filter(({ row }) => !query || (row.full_name ?? '').toLowerCase().includes(query.toLowerCase()))
+      .filter(({ row }) => (row.proj_minutes_pg ?? 0) >= minMinutes)
+      .filter(({ row }) => availability === 'all' || (availability === 'no_out' ? row.injury_group !== 'out' : !row.injury_group))
+      .filter(({ row }) => !rookiesOnly || row.is_rookie === true)
+      .filter(({ row }) => !watchOnly || watched.has(row.player_id))
+      .filter(({ row }) => !q || (row.full_name ?? '').toLowerCase().includes(q))
       .filter(({ value }) => view === 'value' || value !== null);
     const get = (s: (typeof filtered)[number]): number | string | null => {
       if (sortKey === 'value') return s.value;
@@ -166,7 +175,7 @@ export default function Board() {
       return num(s.row, sortKey);
     };
     return sortRows(filtered, get, sortDir);
-  }, [scored, team, positions, minGames, hideOut, query, sortKey, sortDir, view]);
+  }, [scored, team, positions, minGames, minMinutes, availability, rookiesOnly, watchOnly, watched, query, sortKey, sortDir, view]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
@@ -183,10 +192,43 @@ export default function Board() {
     setSortKey('value');
     setSortDir('desc');
   };
+  const eightCat = punts.has('z_turnovers');
+  const setFormat = (eight: boolean) => {
+    const next = new Set(punts);
+    if (eight) next.add('z_turnovers');
+    else next.delete('z_turnovers');
+    setPunts(next);
+  };
+  const toggleCompare = (id: string) =>
+    setCompare((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length >= COMPARE_MAX ? c : [...c, id]));
   const showNext7 = !meta.complete;
   const categoryColumns = isLine(view)
-    ? lineColumns(view).map((c) => ({ key: c.key, label: c.label }))
-    : CATEGORIES.map((c) => ({ key: zKey(view, c), label: CATEGORY_LABELS[c] ?? c, category: c }));
+    ? lineColumns(view).map((c) => ({ key: c.key, label: c.label, kind: c.kind as 'num' | 'pct' | 'z' }))
+    : CATEGORIES.map((c) => ({ key: zKey(view, c), label: CATEGORY_LABELS[c] ?? c, category: c, kind: 'z' as const }));
+  const byId = new Map(rows.map((r) => [r.player_id, r]));
+  const compared = compare.map((id) => byId.get(id)).filter((r): r is BoardRow => !!r);
+  const valueOf = new Map(scored.map((s) => [s.row.player_id, s.value]));
+
+  const exportCsv = () => {
+    const header = ['rank', 'player', 'team', 'position', 'age', 'rookie', 'games', 'games_share', ...categoryColumns.map((c) => c.label)];
+    if (!isLine(view)) header.push('total');
+    const body = ranked.map(({ row, value }, i) => {
+      const cells: (string | number | boolean | null)[] = [
+        i + 1,
+        row.full_name,
+        row.team_abbreviation,
+        row.position,
+        row.age,
+        row.is_rookie,
+        row.games_current,
+        row.games_share,
+        ...categoryColumns.map((c) => ('category' in c && punts.has(c.category as string) ? null : num(row, c.key))),
+      ];
+      if (!isLine(view)) cells.push(value);
+      return cells;
+    });
+    downloadCsv(`fantasyscout-${league}-board-${view}.csv`, toCsv(header, body));
+  };
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
@@ -224,7 +266,18 @@ export default function Board() {
 
       {!isLine(view) && (
         <fieldset className="flex flex-wrap items-center gap-2">
-          <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Punt (drop from the total)</legend>
+          <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Format and punts (drop from the total)</legend>
+          <label className="text-sm">
+            <span className="sr-only">League format</span>
+            <select
+              value={eightCat ? '8' : '9'}
+              onChange={(e) => setFormat(e.target.value === '8')}
+              className="rounded border border-line bg-card px-2 py-1"
+            >
+              <option value="9">9-cat</option>
+              <option value="8">8-cat (no TO)</option>
+            </select>
+          </label>
           {CATEGORIES.map((c) => (
             <Chip key={c} checked={punts.has(c)} strike onChange={() => setPunts(toggle(punts, c))}>
               {CATEGORY_LABELS[c]}
@@ -250,7 +303,7 @@ export default function Board() {
         </fieldset>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3" data-testid="board-filters">
         <label className="text-sm">
           <span className="sr-only">Search player</span>
           <input
@@ -289,12 +342,92 @@ export default function Board() {
             ))}
           </select>
         </label>
+        <label className="text-sm" title="Projected minutes per game">
+          Min MPG{' '}
+          <select value={minMinutes} onChange={(e) => setMinMinutes(Number(e.target.value))} className="rounded border border-line bg-card px-2 py-1">
+            {[0, 15, 20, 25, 30].map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          <span className="sr-only">Availability</span>
+          <select
+            value={availability}
+            onChange={(e) => setAvailability(e.target.value as Availability)}
+            className="rounded border border-line bg-card px-2 py-1"
+          >
+            <option value="all">Everyone</option>
+            <option value="no_out">Hide players ruled out</option>
+            <option value="healthy">Healthy only</option>
+          </select>
+        </label>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={hideOut} onChange={(e) => setHideOut(e.target.checked)} />
-          Hide players ruled out
+          <input type="checkbox" checked={rookiesOnly} onChange={(e) => setRookiesOnly(e.target.checked)} />
+          Rookies only
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={watchOnly} onChange={(e) => setWatchOnly(e.target.checked)} />
+          Watchlist only ({watched.size})
         </label>
         <span className="text-sm text-muted">{ranked.length} players</span>
+        <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="board-csv">
+          Export CSV
+        </button>
       </div>
+
+      {compared.length > 0 && (
+        <section className="min-w-0 rounded-lg border border-line bg-card p-3" aria-labelledby="compare-h" data-testid="compare">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="compare-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+              Compare ({compared.length}/{COMPARE_MAX})
+            </h2>
+            <button type="button" onClick={() => setCompare([])} className="rounded border border-line px-2 py-0.5 text-xs hover:bg-bg">
+              Clear
+            </button>
+          </div>
+          <div className="table-scroll mt-2 max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Player comparison">
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <Th>{isLine(view) ? 'Value view' : (VIEWS.find((v) => v.id === view)?.label ?? '')}</Th>
+                  {compared.map((r) => (
+                    <Th key={r.player_id} right>
+                      {r.full_name}
+                    </Th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...CATEGORIES.map((c) => ({ label: CATEGORY_LABELS[c] ?? c, get: (r: BoardRow) => (punts.has(c) ? null : num(r, zKey(isLine(view) ? 'value' : view, c))), kind: 'z' })),
+                  { label: 'Total', get: (r: BoardRow) => (isLine(view) ? r.value_total : (valueOf.get(r.player_id) ?? null)), kind: 'z' },
+                  { label: 'GP%', get: (r: BoardRow) => r.games_share, kind: 'pct' },
+                  ...LINE.map((l) => ({ label: `${l.label} (proj)`, get: (r: BoardRow) => num(r, `proj_${l.key}`), kind: l.kind })),
+                ].map((m) => {
+                  const values = compared.map((r) => m.get(r));
+                  const better = m.label.startsWith('TO (') ? Math.min : Math.max;
+                  const known = values.filter((v): v is number => typeof v === 'number');
+                  const best = known.length > 1 ? better(...known) : null;
+                  return (
+                    <tr key={m.label} className="border-t border-line">
+                      <Td>{m.label}</Td>
+                      {values.map((v, i) => (
+                        <Td key={compared[i]?.player_id} right>
+                          <span className={best !== null && v === best ? 'font-semibold' : ''}>
+                            {m.kind === 'z' ? <Signed value={v} /> : m.kind === 'pct' ? pct(v) : fmt(v)}
+                          </span>
+                        </Td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <div className="table-scroll max-h-[70vh] overflow-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Scrollable table">
         <table className="w-full text-sm" data-testid="board">
@@ -309,6 +442,9 @@ export default function Board() {
               </SortTh>
               <SortTh active={sortKey === 'pos'} dir={sortDir} onClick={() => sortBy('pos', 'asc')}>
                 Pos
+              </SortTh>
+              <SortTh right active={sortKey === 'age'} dir={sortDir} onClick={() => sortBy('age', 'asc')}>
+                Age
               </SortTh>
               <SortTh right active={sortKey === 'games_current'} dir={sortDir} onClick={() => sortBy('games_current')} title="Games this season">
                 GP
@@ -336,6 +472,9 @@ export default function Board() {
                   Total
                 </SortTh>
               )}
+              <Th>
+                <span title={`Pick up to ${COMPARE_MAX} players to compare`}>Cmp</span>
+              </Th>
             </tr>
           </thead>
           <tbody>
@@ -343,19 +482,28 @@ export default function Board() {
               <tr key={row.player_id} className="border-t border-line">
                 <Td right>{i + 1}</Td>
                 <Td>
-                  <a href={href(`/p/${league}/${row.player_id}/`)} className="underline-offset-4 hover:underline">
-                    {row.full_name ?? row.player_id}
-                  </a>
-                  <InjuryTag
-                    group={row.injury_group}
-                    status={row.injury_status}
-                    detail={[row.injury_type, row.expected_return ? `return ${day(row.expected_return)}` : null, row.injury_note]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  />
+                  <span className="flex items-center gap-1 whitespace-nowrap">
+                    <Star on={watched.has(row.player_id)} label={row.full_name ?? row.player_id} onToggle={() => toggleWatched(row.player_id)} />
+                    <a href={href(`/p/${league}/${row.player_id}/`)} className="underline-offset-4 hover:underline">
+                      {row.full_name ?? row.player_id}
+                    </a>
+                    {row.is_rookie && (
+                      <span className="rounded border border-line px-1 text-[10px] text-muted" title="Rookie">
+                        R
+                      </span>
+                    )}
+                    <InjuryTag
+                      group={row.injury_group}
+                      status={row.injury_status}
+                      detail={[row.injury_type, row.expected_return ? `return ${day(row.expected_return)}` : null, row.injury_note]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    />
+                  </span>
                 </Td>
                 <Td>{row.team_abbreviation ?? '–'}</Td>
                 <Td>{row.position ?? '–'}</Td>
+                <Td right>{row.age ?? '–'}</Td>
                 <Td right>{row.games_current ?? 0}</Td>
                 {view === 'value' && <Td right>{pct(row.games_share)}</Td>}
                 {showNext7 && <Td right>{row.games_next_7 ?? 0}</Td>}
@@ -375,6 +523,15 @@ export default function Board() {
                     <strong>{fmt(value, 2)}</strong>
                   </Td>
                 )}
+                <Td>
+                  <input
+                    type="checkbox"
+                    aria-label={`Compare ${row.full_name ?? row.player_id}`}
+                    checked={compare.includes(row.player_id)}
+                    disabled={!compare.includes(row.player_id) && compare.length >= COMPARE_MAX}
+                    onChange={() => toggleCompare(row.player_id)}
+                  />
+                </Td>
               </tr>
             ))}
           </tbody>

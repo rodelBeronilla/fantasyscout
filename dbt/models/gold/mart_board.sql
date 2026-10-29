@@ -16,9 +16,10 @@
   share of team games the player plays (games_share), since a missed game is filled by a
   replacement-level player; a value below replacement is left as it is.
 
-  Alongside the value the row carries the current season's last-ten-games z-scores and
-  per-game line, so the app can rank on recent form or raw production too, and the projected
-  line itself.
+  Alongside the value the row carries the current season's z-scores over the whole season and
+  the last twenty and ten games, the per-game line, the projected line itself, and the
+  player's age and rookie status from the roster, so the app can rank on recent form or raw
+  production too and filter the way a fantasy manager does.
 
   Rest of season counts regular-season games only, the games fantasy leagues score. While some
   remain, ros_factor is the team's remaining share of its regular season times the
@@ -198,7 +199,8 @@ games_before_return as (
 
 names as (
 
-    select league, stats_player_id, player_sk, full_name, position
+    select league, stats_player_id, player_sk, full_name, position,
+        {{ stats_birth_date('birth_date') }} as birth_date
     from {{ ref('dim_player') }}
     where is_current
 
@@ -211,6 +213,7 @@ assembled as (
         nm.player_sk,
         nm.full_name,
         nm.position,
+        coalesce(cast(floor({{ days_between('nm.birth_date', as_of_date()) }} / 365.25) as integer), v.age) as age_years,
         coalesce(t.abbreviation, t_prev.abbreviation) as team_abbreviation,
         cast(coalesce(r.games_remaining, 0) as integer) as games_remaining,
         cast(coalesce(r.games_next_7, 0) as integer) as games_next_7,
@@ -234,6 +237,8 @@ assembled as (
         sl.{{ c }} as cur_{{ c }},
         {%- endfor %}
         {%- for z in zcols + ['z_total'] %}
+        sl.{{ z }} as season_{{ z }},
+        l20.{{ z }} as last20_{{ z }},
         rc.{{ z }} as recent_{{ z }}{{ "," if not loop.last }}
         {%- endfor %}
     from valued as v
@@ -246,6 +251,7 @@ assembled as (
     left join games_before_return as gbr on gbr.league = v.league and gbr.stats_player_id = v.player_id
     left join season_lines as sl on sl.league = v.league and sl.player_id = v.player_id and sl.window_name = 'season'
     left join season_lines as rc on rc.league = v.league and rc.player_id = v.player_id and rc.window_name = 'last_10'
+    left join season_lines as l20 on l20.league = v.league and l20.player_id = v.player_id and l20.window_name = 'last_20'
 
 ),
 
@@ -295,7 +301,11 @@ select
     {%- endfor %}
     {%- for z in zcols + ['z_total'] %}
     recent_{{ z }},
+    season_{{ z }},
+    last20_{{ z }},
     {%- endfor %}
+    age_years as age,
+    is_rookie,
     {%- for c in pgcols %}
     cur_{{ c }} as {{ c }},
     {%- endfor %}
