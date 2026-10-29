@@ -123,7 +123,10 @@ jobs:
             sleep 5
           done
           [ "$code" = "200" ] || { echo "::error::/ returned $code"; exit 1; }
-          curl -s "$URL/" | grep -q "FantasyScout" || { echo "::error::placeholder text missing"; exit 1; }
+          # Save the page first: piping into grep -q under pipefail fails once the page is larger
+          # than what curl has written when grep finds its match and exits.
+          curl -s "$URL/" -o home.html
+          grep -q "FantasyScout" home.html || { echo "::error::placeholder text missing"; exit 1; }
           for path in /docs/ /docs/manifest.json /docs/catalog.json; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "$URL$path")
             [ "$code" = "200" ] || { echo "::error::$path returned $code"; exit 1; }
