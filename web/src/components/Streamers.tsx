@@ -7,6 +7,7 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
+import { owners, useLeague } from '../lib/fantasy-league';
 import { Card, Chip, InjuryTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface StreamerRow {
@@ -169,12 +170,16 @@ export default function Streamers() {
   const [minGames, setMinGames] = useState(0);
   const [minMinutes, setMinMinutes] = useState(0);
   const [health, setHealth] = useState<Health>('no_out');
-  const [rostered, setRostered] = useState(0);
+  const [rosteredChoice, setRostered] = useState<number | null>(null);
   const [watchOnly, setWatchOnly] = useState(false);
   const [sortKey, setSortKey] = useState('minutes_trend');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
   const { watched, toggleWatched } = useWatchlist(league);
+  // With the league's rosters in, leave out exactly the players on them (-1); otherwise a board-rank cut.
+  const [setup] = useLeague(league);
+  const owner = useMemo(() => owners(setup), [setup]);
+  const rostered = rosteredChoice ?? (owner.size ? -1 : 0);
 
   useEffect(() => {
     let live = true;
@@ -248,7 +253,7 @@ export default function Streamers() {
       .filter((r) => r.games_window >= minGames)
       .filter((r) => (r.minutes_avg_5 ?? 0) >= minMinutes)
       .filter((r) => health === 'all' || (health === 'no_out' ? r.injury_group !== 'out' : !r.injury_group))
-      .filter((r) => !rostered || r.board_rank === null || r.board_rank > rostered)
+      .filter((r) => (rostered === -1 ? !owner.has(r.player_id) : !rostered || r.board_rank === null || r.board_rank > rostered))
       .filter((r) => pickedDays.size === 0 || r.games_picked > 0)
       .filter((r) => !watchOnly || watched.has(r.player_id));
     return sortRows(filtered, (r) => {
@@ -256,7 +261,7 @@ export default function Streamers() {
       const v = r[sortKey];
       return typeof v === 'number' ? v : null;
     }, sortDir);
-  }, [candidates, positions, team, minGames, minMinutes, health, rostered, pickedDays, watchOnly, watched, sortKey, sortDir]);
+  }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, pickedDays, watchOnly, watched, sortKey, sortDir]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="streamers" />;
@@ -403,6 +408,7 @@ export default function Streamers() {
             <label className="text-sm" title="Leave out players ranked inside this many on the board: in a league that size they are most likely rostered">
               Likely available{' '}
               <select value={rostered} onChange={(e) => setRostered(Number(e.target.value))} className={select}>
+                {owner.size > 0 && <option value={-1}>not on a roster in my league</option>}
                 {ROSTERED[league].map((n) => (
                   <option key={n} value={n}>
                     {n ? `outside the top ${n}` : 'everyone'}

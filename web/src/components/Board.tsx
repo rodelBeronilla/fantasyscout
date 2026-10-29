@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
 import { fetchBuildJson, type League } from '../lib/data';
@@ -7,9 +7,9 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
-import { type Mark, useLeagueSettings, useMarks } from '../lib/fantasy-league';
-import { categoryValues, fitWeights, pointValues, primaryPosition, tierStarts } from '../lib/league-value';
-import { LeagueSettingsPanel, MyTeamPanel } from './BoardPanels';
+import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
+import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
+import { DraftBar, LeagueBar } from './LeagueParts';
 import { Chip, InjuryTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface BoardRow {
@@ -48,7 +48,7 @@ const VIEWS: { id: View; label: string; help: string }[] = [
   {
     id: 'value',
     label: 'Value',
-    help: 'Category value per game above replacement from each player’s projected line, times the share of games they are projected to play; zero is a player you could pick up for free.',
+    help: 'Value per game above replacement in your league, from each player’s projected line, times the share of games they are projected to play. Zero is a player you could pick up for free.',
   },
   { id: 'season', label: 'This season', help: 'Category z-scores over this season’s games.' },
   { id: 'last20', label: 'Last 20 games', help: 'Category z-scores over each player’s last twenty games this season.' },
@@ -88,6 +88,7 @@ function zKey(view: View, category: string): string {
 }
 
 type Availability = 'all' | 'no_out' | 'healthy';
+type Show = 'available' | 'mine' | 'all';
 
 const PAGE = 100;
 const COMPARE_MAX = 4;
@@ -97,25 +98,66 @@ function num(row: BoardRow, key: string): number | null {
   return typeof v === 'number' && !Number.isNaN(v) ? v : null;
 }
 
-/** Mine and Taken toggles for a draft or a waiver run. */
-function MarkButtons({ name, mark, onMark }: { name: string; mark: Mark | undefined; onMark: (m: Mark | null) => void }) {
-  const button = (m: Mark, label: string) => (
-    <button
-      type="button"
-      aria-pressed={mark === m}
-      aria-label={`${mark === m ? 'Unmark' : 'Mark'} ${name} as ${m}`}
-      onClick={() => onMark(mark === m ? null : m)}
-      className={`ml-1 rounded border px-1 text-[10px] ${mark === m ? 'border-accent bg-accent text-accent-fg' : 'border-line text-muted hover:text-fg'}`}
-      data-testid={`mark-${m}`}
-    >
-      {label}
-    </button>
-  );
+const select = 'rounded border border-line bg-card px-2 py-1';
+
+/** A row of mutually exclusive buttons. */
+function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { id: T; label: string; title?: string }[];
+  onChange: (id: T) => void;
+}) {
   return (
-    <span className="whitespace-nowrap">
-      {button('mine', 'Mine')}
-      {button('taken', 'Taken')}
-    </span>
+    <div className="inline-flex flex-wrap rounded-lg border border-line bg-card p-0.5" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={value === o.id}
+          title={o.title}
+          onClick={() => onChange(o.id)}
+          className={`rounded-md px-3 py-1 text-sm ${value === o.id ? 'bg-accent text-accent-fg' : 'text-muted hover:text-fg'}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function roundsLabel(t: Tier): string {
+  return t.firstRound === t.lastRound ? `round ${t.firstRound}` : `rounds ${t.firstRound}–${t.lastRound}`;
+}
+
+/** The row that opens a tier: where its picks fall in a draft, its value range, and how many are left. */
+function TierHead({ tier, columns, left, size }: { tier: Tier | null; columns: number; left: number | null; size: number }) {
+  return (
+    <tr className="border-t-2 border-accent bg-bg" data-testid="tier-head">
+      <td colSpan={columns} className="px-2 pt-2 pb-1 text-xs">
+        <span className="sticky left-2 inline-block">
+          {tier ? (
+            <>
+              <strong className="text-accent">Tier {tier.tier}</strong>{' '}
+              <span className="text-muted">
+                · picks {tier.start + 1}–{tier.end + 1} ({roundsLabel(tier)}) · value {fmt(tier.high, 1)} to {fmt(tier.low, 1)}
+                {left !== null ? ` · ${left} of ${size} available` : ''}
+              </span>
+            </>
+          ) : (
+            <>
+              <strong>Beyond the rostered pool</strong>{' '}
+              <span className="text-muted">· players a league this size leaves on waivers</span>
+            </>
+          )}
+        </span>
+      </td>
+    </tr>
   );
 }
 
@@ -140,17 +182,18 @@ export default function Board() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
   const [compare, setCompare] = useState<string[]>([]);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [showChoice, setShowChoice] = useState<Show | null>(null);
   const { watched, toggleWatched } = useWatchlist(league);
-  const [settings, setSettings] = useLeagueSettings(league);
-  const { marks, setMark, clearMarks } = useMarks(league);
-  const [show, setShow] = useState<'all' | 'available' | 'mine'>('all');
-  const points = settings.scoring === 'points';
-  const pool = settings.teams * settings.rosterSpots;
+  const [setup, updateLeague] = useLeague(league);
+  const owner = useMemo(() => owners(setup), [setup]);
+  const hasRosters = owner.size > 0;
+  // With rosters in, the board starts on the players still available.
+  const show: Show = showChoice ?? (hasRosters ? 'available' : 'all');
+  const points = setup.scoring === 'points';
+  const pool = setup.teams * setup.rosterSpots;
   // 8-cat leagues drop turnovers; on top of that, the manager's own punts.
-  const punted = useMemo(
-    () => (settings.scoring === 'cats8' ? new Set([...punts, 'z_turnovers']) : punts),
-    [punts, settings.scoring],
-  );
+  const punted = useMemo(() => (setup.scoring === 'cats8' ? new Set([...punts, 'z_turnovers']) : punts), [punts, setup.scoring]);
   const activeCats = useMemo(() => CATEGORIES.filter((c) => !punted.has(c)), [punted]);
   const views = points ? VIEWS.filter((v) => v.id === 'value' || v.id === 'projected') : VIEWS;
   useEffect(() => {
@@ -180,16 +223,16 @@ export default function Board() {
 
   // Category values above this league's replacement level, and points if the league scores points.
   const leagueCats = useMemo(
-    () => (rows && !points ? categoryValues(rows, activeCats, pool, settings.teams) : null),
-    [rows, points, activeCats, pool, settings.teams],
+    () => (rows && !points ? categoryValues(rows, activeCats, pool, setup.teams) : null),
+    [rows, points, activeCats, pool, setup.teams],
   );
   const leaguePoints = useMemo(
-    () => (rows && points ? pointValues(rows, settings.weights, pool, settings.teams) : null),
-    [rows, points, settings.weights, pool, settings.teams],
+    () => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null),
+    [rows, points, setup.weights, pool, setup.teams],
   );
 
   // The manager's team: its category totals set how much each category counts in Fit.
-  const myTeam = useMemo(() => (rows ?? []).filter((r) => marks.get(r.player_id) === 'mine'), [rows, marks]);
+  const myTeam = useMemo(() => (rows ?? []).filter((r) => owner.get(r.player_id) === setup.mine), [rows, owner, setup.mine]);
   const teamTotals = useMemo(() => {
     if (!leagueCats || myTeam.length === 0) return null;
     return Object.fromEntries(activeCats.map((c) => [c, myTeam.reduce((s, r) => s + (leagueCats.get(r.player_id)?.[c] ?? 0), 0)]));
@@ -228,8 +271,8 @@ export default function Board() {
     });
   }, [rows, view, activeCats, restOfSeason, countGames, leagueCats, leaguePoints, weights]);
 
-  // Position rank and tiers, over the whole league in the current value order.
-  const { posRank, tierOf } = useMemo(() => {
+  // Position ranks and tiers, over every player in the current value order.
+  const { posRank, tiers } = useMemo(() => {
     const order = [...scored].filter((s) => s.value !== null).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
     const counts = new Map<string, number>();
     const rank = new Map<string, string>();
@@ -239,15 +282,17 @@ export default function Board() {
       counts.set(p, (counts.get(p) ?? 0) + 1);
       rank.set(s.row.player_id, `${p}${counts.get(p)}`);
     }
-    const starts = tierStarts(order.map((s) => s.value ?? 0));
-    const tiers = new Map<string, { tier: number; start: boolean }>();
-    let tier = 0;
-    order.slice(0, 150).forEach((s, i) => {
-      if (starts.has(i)) tier += 1;
-      tiers.set(s.row.player_id, { tier, start: starts.has(i) });
-    });
-    return { posRank: rank, tierOf: tiers };
-  }, [scored]);
+    if (view !== 'value') return { posRank: rank, tiers: null };
+    const list = leagueTiers(order.map((s) => s.value ?? 0), setup.teams, setup.rosterSpots);
+    const of = new Map<string, number>();
+    const left = new Map<number, number>();
+    for (const t of list) {
+      const members = order.slice(t.start, t.end + 1);
+      for (const s of members) of.set(s.row.player_id, t.tier);
+      left.set(t.tier, members.filter((s) => !owner.has(s.row.player_id)).length);
+    }
+    return { posRank: rank, tiers: { list, of, left } };
+  }, [scored, view, setup.teams, setup.rosterSpots, owner]);
 
   const ranked = useMemo(() => {
     const q = query.toLowerCase();
@@ -260,7 +305,7 @@ export default function Board() {
       .filter(({ row }) => !rookiesOnly || row.is_rookie === true)
       .filter(({ row }) => !movedOnly || row.is_new_team === true)
       .filter(({ row }) => !watchOnly || watched.has(row.player_id))
-      .filter(({ row }) => show === 'all' || (show === 'mine' ? marks.get(row.player_id) === 'mine' : !marks.has(row.player_id)))
+      .filter(({ row }) => show === 'all' || (show === 'mine' ? owner.get(row.player_id) === setup.mine : !owner.has(row.player_id)))
       .filter(({ row }) => !q || (row.full_name ?? '').toLowerCase().includes(q))
       .filter(({ value }) => view === 'value' || value !== null);
     const get = (s: (typeof filtered)[number]): number | string | null => {
@@ -273,7 +318,7 @@ export default function Board() {
       return num(s.row, sortKey);
     };
     return sortRows(filtered, get, sortDir);
-  }, [scored, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly, watched, show, marks, query, sortKey, sortDir, view, leaguePoints]);
+  }, [scored, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly, watched, show, owner, setup.mine, query, sortKey, sortDir, view, leaguePoints]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
@@ -285,7 +330,7 @@ export default function Board() {
       setSortDir(defaultDir);
     }
   };
-  const resetSort = (v: View) => {
+  const pickView = (v: View) => {
     setView(v);
     setSortKey('value');
     setSortDir('desc');
@@ -306,16 +351,36 @@ export default function Board() {
     return num(row, zKey(view, c));
   };
   const showFit = view === 'value' && !points && myTeam.length > 0;
-  const showTiers = view === 'value' && sortKey === 'value' && sortDir === 'desc';
+  const showTiers = tiers !== null && sortKey === 'value' && sortDir === 'desc';
   const fitOf = new Map(scored.map((s) => [s.row.player_id, s.fit]));
   const byId = new Map(rows.map((r) => [r.player_id, r]));
   const compared = compare.map((id) => byId.get(id)).filter((r): r is BoardRow => !!r);
   const valueOf = new Map(scored.map((s) => [s.row.player_id, s.value]));
+  const columns = 6 + (view === 'value' ? 1 : 0) + (showNext7 ? 1 : 0) + categoryColumns.length + (showFit ? 1 : 0) + (isLine(view) ? 0 : 1) + 1;
+  const lastPick = setup.picks.at(-1);
+  const ownerName = (id: string) => {
+    const t = owner.get(id);
+    return t === undefined ? null : t === setup.mine ? 'Mine' : (setup.names[t] ?? null);
+  };
+
+  // Filters and options behind the Filters button, each shown as a chip while it applies.
+  const active: { label: string; clear: () => void }[] = [
+    ...(!isLine(view) && !points ? [...punts].map((c) => ({ label: `Punt ${CATEGORY_LABELS[c] ?? c}`, clear: () => setPunts(toggle(punts, c)) })) : []),
+    ...(view === 'value' && !countGames ? [{ label: 'Games played not counted', clear: () => setCountGames(true) }] : []),
+    ...(view === 'value' && restOfSeason && !meta.complete ? [{ label: 'Rest of season', clear: () => setRestOfSeason(false) }] : []),
+    ...(team ? [{ label: `Team ${team}`, clear: () => setTeam('') }] : []),
+    ...(minGames ? [{ label: `${minGames}+ games`, clear: () => setMinGames(0) }] : []),
+    ...(minMinutes ? [{ label: `${minMinutes}+ MPG`, clear: () => setMinMinutes(0) }] : []),
+    ...(availability !== 'all' ? [{ label: availability === 'healthy' ? 'Healthy only' : 'No players ruled out', clear: () => setAvailability('all') }] : []),
+    ...(rookiesOnly ? [{ label: 'Rookies', clear: () => setRookiesOnly(false) }] : []),
+    ...(movedOnly ? [{ label: 'Changed teams', clear: () => setMovedOnly(false) }] : []),
+    ...(watchOnly ? [{ label: 'Watchlist', clear: () => setWatchOnly(false) }] : []),
+  ];
 
   const exportCsv = () => {
     const header = ['rank', 'player', 'team', 'position', 'age', 'rookie', 'new_team_from', 'games', 'games_share', ...categoryColumns.map((c) => c.label)];
     if (!isLine(view)) header.push('total');
-    header.push('mark');
+    header.push('tier', 'fantasy_team');
     const body = ranked.map(({ row, value }, i) => {
       const cells: (string | number | boolean | null)[] = [
         i + 1,
@@ -332,98 +397,161 @@ export default function Board() {
         ),
       ];
       if (!isLine(view)) cells.push(value);
-      cells.push(marks.get(row.player_id) ?? null);
+      const t = owner.get(row.player_id);
+      cells.push(tiers?.of.get(row.player_id) ?? null, t === undefined ? null : (setup.names[t] ?? null));
       return cells;
     });
     downloadCsv(`fantasyscout-${league}-board-${view}.csv`, toCsv(header, body));
   };
 
+  const body: ReactNode[] = [];
+  let currentTier: number | undefined;
+  ranked.slice(0, shown).forEach(({ row, value }, i) => {
+    if (showTiers) {
+      const t = tiers.of.get(row.player_id) ?? 0;
+      if (t !== currentTier) {
+        const tier = tiers.list[t - 1] ?? null;
+        body.push(
+          <TierHead
+            key={`tier-${t}`}
+            tier={tier}
+            columns={columns}
+            left={hasRosters && tier ? (tiers.left.get(t) ?? 0) : null}
+            size={tier ? tier.end - tier.start + 1 : 0}
+          />,
+        );
+        currentTier = t;
+      }
+    }
+    const held = ownerName(row.player_id);
+    body.push(
+      <tr key={row.player_id} className={`border-t border-line ${held === 'Mine' ? 'bg-good/10' : held ? 'text-muted' : ''}`} data-player={row.player_id}>
+        <Td right>{i + 1}</Td>
+        <Td>
+          <span className="flex items-center gap-1 whitespace-nowrap">
+            <Star on={watched.has(row.player_id)} label={row.full_name ?? row.player_id} onToggle={() => toggleWatched(row.player_id)} />
+            <a href={href(`/p/${league}/${row.player_id}/`)} className="underline-offset-4 hover:underline">
+              {row.full_name ?? row.player_id}
+            </a>
+            {row.is_rookie && (
+              <span className="rounded border border-line px-1 text-[10px] text-muted" title="Rookie">
+                R
+              </span>
+            )}
+            {row.is_new_team && <NewTeam from={row.prev_team_abbreviation} />}
+            <InjuryTag
+              group={row.injury_group}
+              status={row.injury_status}
+              detail={[row.injury_type, row.expected_return ? `return ${day(row.expected_return)}` : null, row.injury_note].filter(Boolean).join(' · ')}
+            />
+            {held && (
+              <span
+                className={`max-w-[9rem] truncate rounded border px-1 text-[10px] ${held === 'Mine' ? 'border-good text-good' : 'border-line'}`}
+                title={held === 'Mine' ? 'On your team' : `On ${held}`}
+                data-testid="owner"
+              >
+                {held}
+              </span>
+            )}
+          </span>
+        </Td>
+        <Td>{row.team_abbreviation ?? '–'}</Td>
+        <Td>
+          {row.position ?? '–'}
+          {posRank.get(row.player_id) && (
+            <span className="ml-1 text-[10px] text-muted" title="Rank among players at this position" data-testid="pos-rank">
+              {posRank.get(row.player_id)}
+            </span>
+          )}
+        </Td>
+        <Td right>{row.age ?? '–'}</Td>
+        <Td right>{row.games_current ?? 0}</Td>
+        {view === 'value' && <Td right>{pct(row.games_share)}</Td>}
+        {showNext7 && <Td right>{row.games_next_7 ?? 0}</Td>}
+        {categoryColumns.map((c) => (
+          <Td key={c.key} right>
+            {c.kind === 'fpts' ? (
+              fmt(leaguePoints?.get(row.player_id)?.fpts ?? null, 1)
+            ) : c.kind === 'z' ? (
+              <Signed value={c.category ? catValue(row, c.category) : null} />
+            ) : c.kind === 'pct' ? (
+              pct(num(row, c.key))
+            ) : (
+              fmt(num(row, c.key))
+            )}
+          </Td>
+        ))}
+        {showFit && (
+          <Td right>
+            <Signed value={fitOf.get(row.player_id) ?? null} />
+          </Td>
+        )}
+        {!isLine(view) && (
+          <Td right>
+            <strong>{fmt(value, 2)}</strong>
+          </Td>
+        )}
+        <Td>
+          <span className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              aria-label={`Compare ${row.full_name ?? row.player_id}`}
+              checked={compare.includes(row.player_id)}
+              disabled={!compare.includes(row.player_id) && compare.length >= COMPARE_MAX}
+              onChange={() => toggleCompare(row.player_id)}
+            />
+            {setup.drafting && !held && (
+              <button
+                type="button"
+                onClick={() => updateLeague((s) => draftPick(s, row.player_id))}
+                className="rounded border border-accent px-1.5 text-xs text-accent hover:bg-accent hover:text-accent-fg"
+                aria-label={`Draft ${row.full_name ?? row.player_id}`}
+                data-testid="draft"
+              >
+                Draft
+              </button>
+            )}
+          </span>
+        </Td>
+      </tr>,
+    );
+  });
+
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       {meta.complete ? (
         <Note testid="season-note">
-          The {LEAGUE_LABEL[league]} {meta.season} regular season is over. Values project next season from this one and
-          the two before it, for players on a current roster; rest-of-season ranking returns when the next schedule is
-          out.
+          The {LEAGUE_LABEL[league]} {meta.season} regular season is over. Values project next season from this one and the two before it, for
+          players on a current roster; rest-of-season ranking returns when the next schedule is out.
         </Note>
       ) : (
         <Note testid="season-note">
-          {LEAGUE_LABEL[league]} {meta.season}: up to {meta.maxGames} game{meta.maxGames === 1 ? '' : 's'} played and up to{' '}
-          {meta.remaining} left per team.
+          {LEAGUE_LABEL[league]} {meta.season}: up to {meta.maxGames} game{meta.maxGames === 1 ? '' : 's'} played and up to {meta.remaining} left
+          per team.
           {meta.maxGames < 20 ? ' Projections count this season by games played, so a few games move a value only a little.' : ''}
           {meta.injured ? ` ${meta.injured} players are on the current injury report.` : ''}
         </Note>
       )}
 
-      <LeagueSettingsPanel league={league} settings={settings} onChange={setSettings} />
-
-      <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Value view">
-        {views.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            role="radio"
-            aria-checked={view === v.id}
-            title={v.help}
-            onClick={() => resetSort(v.id)}
-            className={`rounded-full border px-3 py-1 text-sm ${view === v.id ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
-          >
-            {v.label}
-          </button>
-        ))}
-        <span className="text-xs text-muted">{VIEWS.find((v) => v.id === view)?.help}</span>
-      </div>
-
-      {!isLine(view) && (
-        <fieldset className="flex flex-wrap items-center gap-2">
-          <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Punt (drop from the total)</legend>
-          {!points &&
-            CATEGORIES.map((c) => (
-              <Chip key={c} checked={punted.has(c)} strike onChange={() => setPunts(toggle(punts, c))}>
-                {CATEGORY_LABELS[c]}
-              </Chip>
-            ))}
-          {view === 'value' && (
-            <label className="ml-2 flex items-center gap-2 text-sm" title="Multiply value per game by the projected share of team games played">
-              <input type="checkbox" checked={countGames} onChange={(e) => setCountGames(e.target.checked)} />
-              Count games played
-            </label>
-          )}
-          {view === 'value' && (
-            <label className={`ml-2 flex items-center gap-2 text-sm ${meta.complete ? 'text-muted' : ''}`}>
-              <input
-                type="checkbox"
-                checked={restOfSeason && !meta.complete}
-                disabled={meta.complete}
-                onChange={(e) => setRestOfSeason(e.target.checked)}
-              />
-              Rest of season (value above replacement × games left × availability)
-            </label>
-          )}
-        </fieldset>
+      <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={view === 'value' ? weakest : []} />
+      {setup.drafting && (
+        <DraftBar
+          setup={setup}
+          lastName={lastPick ? (byId.get(lastPick.player)?.full_name ?? null) : null}
+          onUndo={() => updateLeague(undoPick)}
+          onEnd={() => updateLeague((s) => ({ ...s, drafting: false }))}
+        />
       )}
 
-      <div className="flex flex-wrap items-center gap-3" data-testid="board-filters">
+      <div className="grid gap-1">
+        <Segmented label="Value view" value={view} options={views.map((v) => ({ id: v.id, label: v.label, title: v.help }))} onChange={pickView} />
+        <p className="text-xs text-muted">{VIEWS.find((v) => v.id === view)?.help}</p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2" data-testid="board-filters">
         <label className="text-sm">
           <span className="sr-only">Search player</span>
-          <input
-            type="search"
-            placeholder="Search player"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="rounded border border-line bg-card px-2 py-1"
-          />
-        </label>
-        <label className="text-sm">
-          <span className="sr-only">Team</span>
-          <select value={team} onChange={(e) => setTeam(e.target.value)} className="rounded border border-line bg-card px-2 py-1">
-            <option value="">All teams</option>
-            {meta.teams.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
+          <input type="search" placeholder="Search player" value={query} onChange={(e) => setQuery(e.target.value)} className={`${select} w-40`} />
         </label>
         <div className="flex items-center gap-1" role="group" aria-label="Position">
           {POSITION_LETTERS.map((p) => (
@@ -432,84 +560,142 @@ export default function Board() {
             </Chip>
           ))}
         </div>
-        <label className="text-sm">
-          Min games{' '}
-          <select value={minGames} onChange={(e) => setMinGames(Number(e.target.value))} className="rounded border border-line bg-card px-2 py-1">
-            {[0, 5, 10, 20].map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm" title="Projected minutes per game">
-          Min MPG{' '}
-          <select value={minMinutes} onChange={(e) => setMinMinutes(Number(e.target.value))} className="rounded border border-line bg-card px-2 py-1">
-            {[0, 15, 20, 25, 30].map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="sr-only">Availability</span>
-          <select
-            value={availability}
-            onChange={(e) => setAvailability(e.target.value as Availability)}
-            className="rounded border border-line bg-card px-2 py-1"
-          >
-            <option value="all">Everyone</option>
-            <option value="no_out">Hide players ruled out</option>
-            <option value="healthy">Healthy only</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={rookiesOnly} onChange={(e) => setRookiesOnly(e.target.checked)} />
-          Rookies only
-        </label>
-        <label className="flex items-center gap-2 text-sm" title="Players whose current team differs from last season's">
-          <input type="checkbox" checked={movedOnly} onChange={(e) => setMovedOnly(e.target.checked)} />
-          Changed teams
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={watchOnly} onChange={(e) => setWatchOnly(e.target.checked)} />
-          Watchlist only ({watched.size})
-        </label>
-        <label className="text-sm" title="Mark players Mine or Taken in the last column during a draft or on waivers">
-          Show{' '}
-          <select value={show} onChange={(e) => setShow(e.target.value as typeof show)} className="rounded border border-line bg-card px-2 py-1" aria-label="Show">
-            <option value="all">Everyone</option>
-            <option value="available">Available (not mine or taken)</option>
-            <option value="mine">My team</option>
-          </select>
-        </label>
-        <span className="text-sm text-muted">{ranked.length} players</span>
-        {[...marks.values()].includes('taken') && (
-          <button type="button" onClick={() => clearMarks('taken')} className="rounded border border-line px-2 py-1 text-xs hover:bg-card">
-            Clear taken
-          </button>
+        {hasRosters && (
+          <Segmented
+            label="Show"
+            value={show}
+            options={[
+              { id: 'available', label: 'Available' },
+              { id: 'mine', label: 'My team' },
+              { id: 'all', label: 'Everyone' },
+            ]}
+            onChange={setShowChoice}
+          />
         )}
+        <button
+          type="button"
+          aria-expanded={optionsOpen}
+          aria-controls="board-options"
+          onClick={() => setOptionsOpen(!optionsOpen)}
+          className={`rounded border px-3 py-1 text-sm ${optionsOpen ? 'border-accent' : 'border-line'} hover:bg-card`}
+          data-testid="board-options-toggle"
+        >
+          Filters{active.length ? ` (${active.length})` : ''} {optionsOpen ? '▴' : '▾'}
+        </button>
+        <span className="ml-auto text-sm text-muted">{ranked.length} players</span>
         <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="board-csv">
           Export CSV
         </button>
       </div>
 
-      {myTeam.length > 0 && (
-        <MyTeamPanel
-          players={myTeam}
-          totals={view === 'value' && !points ? teamTotals : null}
-          weakest={weakest}
-          points={
-            points && leaguePoints
-              ? myTeam.reduce(
-                  (acc, r) => ({ fpts: acc.fpts + (leaguePoints.get(r.player_id)?.fpts ?? 0), value: acc.value + (leaguePoints.get(r.player_id)?.value ?? 0) }),
-                  { fpts: 0, value: 0 },
-                )
-              : null
-          }
-          onClear={() => clearMarks('mine')}
-        />
+      {optionsOpen && (
+        <div id="board-options" className="grid gap-4 rounded-lg border border-line bg-card p-3 text-sm md:grid-cols-2" data-testid="board-options">
+          <fieldset className="grid content-start gap-2">
+            <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Players</legend>
+            <div className="flex flex-wrap items-center gap-3">
+              <label>
+                <span className="sr-only">NBA or WNBA team</span>
+                <select value={team} onChange={(e) => setTeam(e.target.value)} className={select} aria-label="Team">
+                  <option value="">All teams</option>
+                  {meta.teams.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span className="sr-only">Health</span>
+                <select value={availability} onChange={(e) => setAvailability(e.target.value as Availability)} className={select} aria-label="Health">
+                  <option value="all">Any health</option>
+                  <option value="no_out">Hide players ruled out</option>
+                  <option value="healthy">Healthy only</option>
+                </select>
+              </label>
+              <label>
+                Min games{' '}
+                <select value={minGames} onChange={(e) => setMinGames(Number(e.target.value))} className={select}>
+                  {[0, 5, 10, 20].map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label title="Projected minutes per game">
+                Min MPG{' '}
+                <select value={minMinutes} onChange={(e) => setMinMinutes(Number(e.target.value))} className={select}>
+                  {[0, 15, 20, 25, 30].map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={rookiesOnly} onChange={(e) => setRookiesOnly(e.target.checked)} />
+                Rookies only
+              </label>
+              <label className="flex items-center gap-2" title="Players whose current team differs from last season's">
+                <input type="checkbox" checked={movedOnly} onChange={(e) => setMovedOnly(e.target.checked)} />
+                Changed teams
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={watchOnly} onChange={(e) => setWatchOnly(e.target.checked)} />
+                Watchlist only ({watched.size})
+              </label>
+            </div>
+          </fieldset>
+          {!isLine(view) && (
+            <fieldset className="grid content-start gap-2">
+              <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">{points ? 'Value' : 'Punt (drop from the total)'}</legend>
+              {!points && (
+                <div className="flex flex-wrap gap-1">
+                  {CATEGORIES.map((c) => (
+                    <Chip key={c} checked={punted.has(c)} strike onChange={() => setPunts(toggle(punts, c))}>
+                      {CATEGORY_LABELS[c]}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+              {view === 'value' && (
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="flex items-center gap-2" title="Multiply value per game by the projected share of team games played">
+                    <input type="checkbox" checked={countGames} onChange={(e) => setCountGames(e.target.checked)} />
+                    Count games played
+                  </label>
+                  <label className={`flex items-center gap-2 ${meta.complete ? 'text-muted' : ''}`} title="Value above replacement × games left × availability">
+                    <input type="checkbox" checked={restOfSeason && !meta.complete} disabled={meta.complete} onChange={(e) => setRestOfSeason(e.target.checked)} />
+                    Rest of season
+                  </label>
+                </div>
+              )}
+            </fieldset>
+          )}
+        </div>
+      )}
+
+      {active.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1" data-testid="active-filters">
+          {active.map((f) => (
+            <button
+              key={f.label}
+              type="button"
+              onClick={f.clear}
+              className="rounded-full border border-accent px-2.5 py-0.5 text-xs text-accent hover:bg-accent hover:text-accent-fg"
+              aria-label={`Remove ${f.label}`}
+            >
+              {f.label} ×
+            </button>
+          ))}
+          {active.length > 1 && (
+            <button type="button" onClick={() => active.forEach((f) => f.clear())} className="px-2 text-xs text-muted underline-offset-4 hover:underline">
+              Clear all
+            </button>
+          )}
+        </div>
       )}
 
       {compared.length > 0 && (
@@ -535,7 +721,12 @@ export default function Board() {
                 </tr>
               </thead>
               <tbody>
-                {[...CATEGORIES.map((c) => ({ label: CATEGORY_LABELS[c] ?? c, get: (r: BoardRow) => (punted.has(c) ? null : (leagueCats?.get(r.player_id)?.[c] ?? num(r, zKey(isLine(view) ? 'value' : view, c)))), kind: 'z' })),
+                {[
+                  ...CATEGORIES.map((c) => ({
+                    label: CATEGORY_LABELS[c] ?? c,
+                    get: (r: BoardRow) => (punted.has(c) ? null : (leagueCats?.get(r.player_id)?.[c] ?? num(r, zKey(isLine(view) ? 'value' : view, c)))),
+                    kind: 'z',
+                  })),
                   { label: 'Total', get: (r: BoardRow) => (isLine(view) ? r.value_total : (valueOf.get(r.player_id) ?? null)), kind: 'z' },
                   { label: 'GP%', get: (r: BoardRow) => r.games_share, kind: 'pct' },
                   ...LINE.map((l) => ({ label: `${l.label} (proj)`, get: (r: BoardRow) => num(r, `proj_${l.key}`), kind: l.kind })),
@@ -602,7 +793,13 @@ export default function Board() {
                 );
               })}
               {showFit && (
-                <SortTh right active={sortKey === 'fit'} dir={sortDir} onClick={() => sortBy('fit')} title="Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)">
+                <SortTh
+                  right
+                  active={sortKey === 'fit'}
+                  dir={sortDir}
+                  onClick={() => sortBy('fit')}
+                  title="Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)"
+                >
                   Fit
                 </SortTh>
               )}
@@ -611,108 +808,19 @@ export default function Board() {
                   Total
                 </SortTh>
               )}
-              <Th>
-                <span title={`Compare up to ${COMPARE_MAX} players; mark players Mine or Taken during a draft or on waivers`}>Cmp · Pick</span>
-              </Th>
+              <Th>{setup.drafting ? 'Cmp · Draft' : 'Cmp'}</Th>
             </tr>
           </thead>
-          <tbody>
-            {ranked.slice(0, shown).map(({ row, value }, i) => {
-              const tier = showTiers ? tierOf.get(row.player_id) : undefined;
-              const mark = marks.get(row.player_id);
-              return (
-              <tr
-                key={row.player_id}
-                className={`border-t ${tier?.start && i > 0 ? 'border-t-2 border-accent' : 'border-line'} ${mark === 'mine' ? 'bg-good/10' : mark === 'taken' ? 'opacity-50' : ''}`}
-                data-tier={tier?.tier}
-              >
-                <Td right>
-                  {i + 1}
-                  {tier?.start && (
-                    <span className="block text-[10px] font-semibold text-accent" data-testid="tier-start">
-                      Tier {tier.tier}
-                    </span>
-                  )}
-                </Td>
-                <Td>
-                  <span className="flex items-center gap-1 whitespace-nowrap">
-                    <Star on={watched.has(row.player_id)} label={row.full_name ?? row.player_id} onToggle={() => toggleWatched(row.player_id)} />
-                    <a href={href(`/p/${league}/${row.player_id}/`)} className="underline-offset-4 hover:underline">
-                      {row.full_name ?? row.player_id}
-                    </a>
-                    {row.is_rookie && (
-                      <span className="rounded border border-line px-1 text-[10px] text-muted" title="Rookie">
-                        R
-                      </span>
-                    )}
-                    {row.is_new_team && <NewTeam from={row.prev_team_abbreviation} />}
-                    <InjuryTag
-                      group={row.injury_group}
-                      status={row.injury_status}
-                      detail={[row.injury_type, row.expected_return ? `return ${day(row.expected_return)}` : null, row.injury_note]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    />
-                  </span>
-                </Td>
-                <Td>{row.team_abbreviation ?? '–'}</Td>
-                <Td>
-                  {row.position ?? '–'}
-                  {posRank.get(row.player_id) && (
-                    <span className="ml-1 text-[10px] text-muted" title="Rank among players at this position" data-testid="pos-rank">
-                      {posRank.get(row.player_id)}
-                    </span>
-                  )}
-                </Td>
-                <Td right>{row.age ?? '–'}</Td>
-                <Td right>{row.games_current ?? 0}</Td>
-                {view === 'value' && <Td right>{pct(row.games_share)}</Td>}
-                {showNext7 && <Td right>{row.games_next_7 ?? 0}</Td>}
-                {isLine(view)
-                  ? lineColumns(view).map((c) => (
-                      <Td key={c.key} right>
-                        {c.kind === 'pct' ? pct(num(row, c.key)) : fmt(num(row, c.key))}
-                      </Td>
-                    ))
-                  : categoryColumns.map((c) => (
-                      <Td key={c.key} right>
-                        {c.kind === 'fpts' ? (
-                          fmt(leaguePoints?.get(row.player_id)?.fpts ?? null, 1)
-                        ) : c.kind === 'z' ? (
-                          <Signed value={c.category ? catValue(row, c.category) : null} />
-                        ) : c.kind === 'pct' ? (
-                          pct(num(row, c.key))
-                        ) : (
-                          fmt(num(row, c.key))
-                        )}
-                      </Td>
-                    ))}
-                {showFit && (
-                  <Td right>
-                    <Signed value={fitOf.get(row.player_id) ?? null} />
-                  </Td>
-                )}
-                {!isLine(view) && (
-                  <Td right>
-                    <strong>{fmt(value, 2)}</strong>
-                  </Td>
-                )}
-                <Td>
-                  <input
-                    type="checkbox"
-                    aria-label={`Compare ${row.full_name ?? row.player_id}`}
-                    checked={compare.includes(row.player_id)}
-                    disabled={!compare.includes(row.player_id) && compare.length >= COMPARE_MAX}
-                    onChange={() => toggleCompare(row.player_id)}
-                  />
-                  <MarkButtons name={row.full_name ?? row.player_id} mark={mark} onMark={(m) => setMark(row.player_id, m)} />
-                </Td>
-              </tr>
-              );
-            })}
-          </tbody>
+          <tbody>{body}</tbody>
         </table>
       </div>
+      {showTiers && (
+        <p className="text-xs text-muted" data-testid="tier-note">
+          Tiers split the {pool} players a league of {setup.teams} teams × {setup.rosterSpots} rosters into {tiers.list.length} groups where their
+          values naturally separate (Jenks natural breaks), about one per round. Players in a tier are close in value, so when a tier is nearly gone,
+          take its last player before the drop to the next.
+        </p>
+      )}
       {ranked.length > shown && (
         <button
           type="button"
