@@ -192,6 +192,12 @@ models:
       - name: proj_points_pg
         description: "Projected points per game"
         data_tests: [not_null]
+      - name: games_share
+        description: "Projected share of team games played, regressed toward a typical share"
+        data_tests: [not_null]
+      - name: proj_minutes_pg
+        description: "Projected minutes per game"
+        data_tests: [not_null]
 
   - name: mart_board
     description: "The board: value above replacement per rostered player from the projected line, recent form, the per-game line, injury status and rest-of-season scaling."
@@ -199,8 +205,11 @@ models:
       - name: board_sk
         description: "Surrogate key"
         data_tests: [unique, not_null]
+      - name: value_per_game
+        description: "Sum of the nine category values per game above replacement (zero is a freely available player)"
+        data_tests: [not_null]
       - name: value_total
-        description: "Sum of the nine category values above replacement (zero is a freely available player)"
+        description: "Value per game above replacement times the projected share of team games played"
         data_tests: [not_null]
       - name: ros_factor
         description: "Remaining share of the team's regular season times availability (1.0 once the regular season is over)"

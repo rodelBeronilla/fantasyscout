@@ -1,15 +1,28 @@
 {#
-  One projected per-game line per player on a current roster: what the board scores.
+  One projected line per player on a current roster: what the board scores.
 
-  Inputs are each player's per-game lines in the league's current season and the two before
-  it. Each season counts by games played times a recency weight (var fantasy_recency: 1.0,
-  0.25, 0.08, chosen by backtest, ADR 0003), and every projection also starts from
-  prior_games games of a replacement-level line (var fantasy: 3 NBA, 5 WNBA). So a three-game sample moves a
-  projection only part of the way, a full season moves it most of the way, and a missing
-  season simply adds nothing; nothing hands its weight to anything else.
+  The projection separates how much a player plays from what they do while playing:
 
-  The replacement-level line is the average per-game line of the players just outside a
-  fantasy league's rosters by total minutes (ranks pool_size + 1 to pool_size + teams) in the
+  - Minutes per game: each season's minutes per game counted by games played times a minutes
+    recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in
+    the current season shows within a few games where the league's roles move a lot (WNBA).
+  - Production per minute: each season's totals over its minutes, counted by minutes played
+    times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of
+    60 games at 8 minutes counts for far less than 60 games at 34.
+  - Per-game line: production per minute times projected minutes.
+  - Games share (durability): the share of their team's regular-season games a player played
+    in the seasons they appeared in, by the same recency, regressed toward a typical share by
+    durability_games games (var fantasy.<league>.durability_games, fantasy_durability).
+    Regular season only: playoff games would make every team that missed the playoffs look
+    as if its players sat out.
+
+  Every projection also starts from prior_games games of a replacement-level player (var
+  fantasy: 3 NBA, 5 WNBA), at that player's minutes and per-minute production, so a short
+  sample moves a projection only part of the way and a missing season adds nothing. All
+  settings were chosen by backtest (ADR 0003).
+
+  The replacement-level line is the average line of the players just outside a fantasy
+  league's rosters by total minutes (ranks pool_size + 1 to pool_size + teams) in the
   league's latest complete regular season.
 
   Current roster: the player is on their team's latest roster landing for the league's latest
@@ -18,16 +31,43 @@
   in the three seasons are projected.
 #}
 
-{% set stats = ['minutes', 'points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made', 'turnovers', 'fgm', 'fga', 'ftm', 'fta'] %}
+{% set production = ['points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made', 'turnovers', 'fgm', 'fga', 'ftm', 'fta'] %}
+{% set durability = var('fantasy_durability') %}
 
-with seasons as (
+with regular_games as (
+
+    -- regular-season games: the third character of a league game id is 2
+    select league, season, player_id, count(*) as games_regular
+    from {{ ref('fct_player_game') }}
+    where played and substr(game_id, 3, 1) = '2'
+    group by league, season, player_id
+
+),
+
+team_regular_games as (
+
+    -- a team's regular-season games, the most any team has played (the current season so far)
+    select league, season, max(games) as team_games
+    from (
+        select league, season, team_id, count(distinct game_id) as games
+        from {{ ref('fct_player_game') }}
+        where substr(game_id, 3, 1) = '2'
+        group by league, season, team_id
+    ) as per_team
+    group by league, season
+
+),
+
+seasons as (
 
     select
-        league,
-        season,
-        player_id,
-        games,
-        dense_rank() over (partition by league order by season desc) as season_rank,
+        z.league,
+        z.season,
+        z.player_id,
+        z.games,
+        dense_rank() over (partition by z.league order by z.season desc) as season_rank,
+        coalesce(rg.games_regular, 0) as games_regular,
+        tg.team_games,
         minutes_pg,
         points_pg,
         rebounds_total_pg,
@@ -40,8 +80,10 @@ with seasons as (
         fga_pg,
         coalesce(free_throw_pct, 0) * fta_pg as ftm_pg,
         fta_pg
-    from {{ ref('mart_category_zscores') }}
-    where window_name = 'season'
+    from {{ ref('mart_category_zscores') }} as z
+    left join regular_games as rg on rg.league = z.league and rg.season = z.season and rg.player_id = z.player_id
+    left join team_regular_games as tg on tg.league = z.league and tg.season = z.season
+    where z.window_name = 'season'
 
 ),
 
@@ -77,7 +119,8 @@ replacement_line as (
 
     select
         league,
-        {%- for s in stats %}
+        avg(minutes_pg) as prior_minutes_pg,
+        {%- for s in production %}
         avg({{ s }}_pg) as prior_{{ s }}_pg{{ "," if not loop.last }}
         {%- endfor %}
     from (
@@ -119,45 +162,65 @@ weighted as (
         cast(sum(case when season_rank = 1 then games else 0 end) as integer) as games_current,
         cast(sum(case when season_rank = 2 then games else 0 end) as integer) as games_prev,
         cast(sum(case when season_rank = 3 then games else 0 end) as integer) as games_prev2,
-        sum(case when season_rank = 1 then {{ fantasy_recency('season_rank') }} * games else 0 end) as weight_cur,
-        sum(case when season_rank = 2 then {{ fantasy_recency('season_rank') }} * games else 0 end) as weight_prev,
-        sum(case when season_rank = 3 then {{ fantasy_recency('season_rank') }} * games else 0 end) as weight_prev2,
-        {%- for s in stats %}
+        sum(case when season_rank = 1 then games * minutes_pg else 0 end) as minutes_current,
+        sum(case when season_rank = 2 then games * minutes_pg else 0 end) as minutes_prev,
+        sum(case when season_rank = 3 then games * minutes_pg else 0 end) as minutes_prev2,
+        -- games by production recency (sample size), and regular-season games against the
+        -- team's for durability, over the seasons the player appeared in the regular season
+        sum({{ fantasy_recency('season_rank') }} * games) as sample_weight,
+        sum({{ fantasy_recency('season_rank') }} * games_regular) as regular_games_weight,
+        sum(case when games_regular > 0 then {{ fantasy_recency('season_rank') }} * team_games else 0 end) as team_games_weight,
+        -- minutes per game: games by minutes recency
+        sum({{ fantasy_minutes_recency('season_rank') }} * games) as minutes_games_weight,
+        sum({{ fantasy_minutes_recency('season_rank') }} * games * coalesce(minutes_pg, 0)) as minutes_weighted,
+        -- production per minute: minutes by production recency
+        sum(case when season_rank = 1 then {{ fantasy_recency('season_rank') }} * games * coalesce(minutes_pg, 0) else 0 end) as rate_weight_cur,
+        sum(case when season_rank = 2 then {{ fantasy_recency('season_rank') }} * games * coalesce(minutes_pg, 0) else 0 end) as rate_weight_prev,
+        sum(case when season_rank = 3 then {{ fantasy_recency('season_rank') }} * games * coalesce(minutes_pg, 0) else 0 end) as rate_weight_prev2,
+        {%- for s in production %}
         sum({{ fantasy_recency('season_rank') }} * games * coalesce({{ s }}_pg, 0)) as wsum_{{ s }}{{ "," if not loop.last }}
         {%- endfor %}
     from seasons
-    where season_rank <= 3
+    where season_rank <= 3 and games > 0
     group by league, player_id
-    having sum(games) > 0
 
 ),
 
 projected as (
 
     select
-        w.league,
+        w.*,
         cs.season,
-        w.player_id,
         cr.team_id,
         cr.roster_season,
-        w.games_current,
-        w.games_prev,
-        w.games_prev2,
-        w.weight_cur + w.weight_prev + w.weight_prev2 as sample_weight,
         {{ fantasy_setting('prior_games', 'w.league') }} as prior_games,
-        w.weight_cur / (w.weight_cur + w.weight_prev + w.weight_prev2 + {{ fantasy_setting('prior_games', 'w.league') }}) as w_cur,
-        w.weight_prev / (w.weight_cur + w.weight_prev + w.weight_prev2 + {{ fantasy_setting('prior_games', 'w.league') }}) as w_prev,
-        w.weight_prev2 / (w.weight_cur + w.weight_prev + w.weight_prev2 + {{ fantasy_setting('prior_games', 'w.league') }}) as w_prev2,
-        {{ fantasy_setting('prior_games', 'w.league') }}
-            / (w.weight_cur + w.weight_prev + w.weight_prev2 + {{ fantasy_setting('prior_games', 'w.league') }}) as w_prior,
-        {%- for s in stats %}
-        (w.wsum_{{ s }} + {{ fantasy_setting('prior_games', 'w.league') }} * coalesce(rl.prior_{{ s }}_pg, 0))
-            / (w.weight_cur + w.weight_prev + w.weight_prev2 + {{ fantasy_setting('prior_games', 'w.league') }}) as proj_{{ s }}_pg{{ "," if not loop.last }}
+        -- the prior's minutes: prior_games games of a replacement-level player
+        {{ fantasy_setting('prior_games', 'w.league') }} * rl.prior_minutes_pg as prior_minutes,
+        (w.minutes_weighted + {{ fantasy_setting('prior_games', 'w.league') }} * rl.prior_minutes_pg)
+            / (w.minutes_games_weight + {{ fantasy_setting('prior_games', 'w.league') }}) as proj_minutes_pg,
+        least(1.0, (w.regular_games_weight + {{ fantasy_setting('durability_games', 'w.league') }} * {{ durability['typical_share'] }})
+            / (w.team_games_weight + {{ fantasy_setting('durability_games', 'w.league') }})) as games_share,
+        {%- for s in production %}
+        rl.prior_{{ s }}_pg{{ "," if not loop.last }}
         {%- endfor %}
     from weighted as w
     join current_roster as cr on cr.league = w.league and cr.player_id = w.player_id
     join current_season as cs on cs.league = w.league
-    left join replacement_line as rl on rl.league = w.league
+    join replacement_line as rl on rl.league = w.league
+
+),
+
+rated as (
+
+    select
+        *,
+        rate_weight_cur + rate_weight_prev + rate_weight_prev2 + prior_minutes as rate_weight,
+        {%- for s in production %}
+        -- per minute: weighted totals plus the prior's totals, over weighted minutes plus the prior's minutes
+        (wsum_{{ s }} + prior_games * prior_{{ s }}_pg)
+            / nullif(rate_weight_cur + rate_weight_prev + rate_weight_prev2 + prior_minutes, 0) * proj_minutes_pg as proj_{{ s }}_pg{{ "," if not loop.last }}
+        {%- endfor %}
+    from projected
 
 )
 
@@ -171,12 +234,16 @@ select
     games_current,
     games_prev,
     games_prev2,
+    minutes_current,
+    minutes_prev,
+    minutes_prev2,
     sample_weight,
     prior_games,
-    w_cur,
-    w_prev,
-    w_prev2,
-    w_prior,
+    rate_weight_cur / rate_weight as w_cur,
+    rate_weight_prev / rate_weight as w_prev,
+    rate_weight_prev2 / rate_weight as w_prev2,
+    prior_minutes / rate_weight as w_prior,
+    games_share,
     proj_minutes_pg,
     proj_points_pg,
     proj_rebounds_total_pg,
@@ -191,4 +258,4 @@ select
     proj_fta_pg,
     proj_fgm_pg / nullif(proj_fga_pg, 0) as proj_field_goal_pct,
     proj_ftm_pg / nullif(proj_fta_pg, 0) as proj_free_throw_pct
-from projected
+from rated

@@ -39,6 +39,8 @@ interface BoardRow {
   free_throw_pct: number | null;
   games_prev: number | null;
   w_prior: number | null;
+  games_share: number | null;
+  value_per_game: number | null;
   [key: string]: unknown;
 }
 
@@ -48,13 +50,13 @@ const VIEWS: { id: View; label: string; help: string }[] = [
   {
     id: 'value',
     label: 'Value',
-    help: 'Category value above replacement from each player’s projected line; zero is a player you could pick up for free.',
+    help: 'Category value per game above replacement from each player’s projected line, times the share of games they are projected to play; zero is a player you could pick up for free.',
   },
   { id: 'recent', label: 'Last 10 games', help: 'Category z-scores over each player’s last ten games this season.' },
   {
     id: 'projected',
     label: 'Projected line',
-    help: 'The per-game line the value is scored on: this season and the two before by games played, recent seasons counting more, starting from a replacement-level line.',
+    help: 'The per-game line the value is scored on: production per minute (seasons weighted by minutes played) times projected minutes, recent seasons counting more, starting from a replacement-level player.',
   },
   { id: 'pergame', label: 'Per game', help: 'This season’s per-game line; percentages are makes over attempts.' },
 ];
@@ -97,6 +99,7 @@ export default function Board() {
   const [view, setView] = useState<View>('value');
   const [punts, setPunts] = useState<Set<string>>(new Set());
   const [restOfSeason, setRestOfSeason] = useState(false);
+  const [countGames, setCountGames] = useState(true);
   const [team, setTeam] = useState('');
   const [positions, setPositions] = useState<Set<PositionLetter>>(new Set());
   const [minGames, setMinGames] = useState(0);
@@ -138,13 +141,14 @@ export default function Board() {
         const parts = active.map((c) => num(r, zKey(view, c)));
         value = parts.every((p) => p === null) ? null : parts.reduce<number>((s, p) => s + (p ?? 0), 0);
         // Only value above replacement scales: a game missed by a player not worth rostering costs nothing.
-        if (value !== null && value > 0 && view === 'value' && restOfSeason && !r.season_complete) {
-          value *= r.ros_factor ?? 1;
+        if (value !== null && value > 0 && view === 'value') {
+          if (countGames) value *= r.games_share ?? 1;
+          if (restOfSeason && !r.season_complete) value *= r.ros_factor ?? 1;
         }
       }
       return { row: r, value };
     });
-  }, [rows, view, punts, restOfSeason]);
+  }, [rows, view, punts, restOfSeason, countGames]);
 
   const ranked = useMemo(() => {
     const filtered = scored
@@ -227,6 +231,12 @@ export default function Board() {
             </Chip>
           ))}
           {view === 'value' && (
+            <label className="ml-2 flex items-center gap-2 text-sm" title="Multiply value per game by the projected share of team games played">
+              <input type="checkbox" checked={countGames} onChange={(e) => setCountGames(e.target.checked)} />
+              Count games played
+            </label>
+          )}
+          {view === 'value' && (
             <label className={`ml-2 flex items-center gap-2 text-sm ${meta.complete ? 'text-muted' : ''}`}>
               <input
                 type="checkbox"
@@ -303,6 +313,11 @@ export default function Board() {
               <SortTh right active={sortKey === 'games_current'} dir={sortDir} onClick={() => sortBy('games_current')} title="Games this season">
                 GP
               </SortTh>
+              {view === 'value' && (
+                <SortTh right active={sortKey === 'games_share'} dir={sortDir} onClick={() => sortBy('games_share')} title="Projected share of team games played">
+                  GP%
+                </SortTh>
+              )}
               {showNext7 && (
                 <SortTh right active={sortKey === 'games_next_7'} dir={sortDir} onClick={() => sortBy('games_next_7')} title="Team games in the next 7 days">
                   Next 7
@@ -342,6 +357,7 @@ export default function Board() {
                 <Td>{row.team_abbreviation ?? '–'}</Td>
                 <Td>{row.position ?? '–'}</Td>
                 <Td right>{row.games_current ?? 0}</Td>
+                {view === 'value' && <Td right>{pct(row.games_share)}</Td>}
                 {showNext7 && <Td right>{row.games_next_7 ?? 0}</Td>}
                 {isLine(view)
                   ? lineColumns(view).map((c) => (
