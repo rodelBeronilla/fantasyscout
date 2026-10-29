@@ -121,6 +121,8 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          # The owner's Yahoo account, kept as a secret (a repository variable of the same name works too).
+          OWNER_YAHOO_GUID: ${{ secrets.OWNER_YAHOO_GUID }}
         run: |
           set -euo pipefail
           if [ -z "$YAHOO_CLIENT_ID" ] || [ -z "$YAHOO_CLIENT_SECRET" ]; then
@@ -128,8 +130,9 @@ jobs:
             exit 0
           fi
           umask 077
-          jq -n --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET" \
-            '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret}' > "$RUNNER_TEMP/yahoo.json"
+          jq -n --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET" --arg owner "$OWNER_YAHOO_GUID" \
+            '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret, OWNER_YAHOO_GUID: $owner} | with_entries(select(.value != ""))' \
+            > "$RUNNER_TEMP/yahoo.json"
           npx wrangler secret bulk "$RUNNER_TEMP/yahoo.json" --env "$WRANGLER_ENV"
           rm -f "$RUNNER_TEMP/yahoo.json"
 
