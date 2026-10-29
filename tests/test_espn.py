@@ -151,3 +151,35 @@ def test_missing_summary_is_recorded_not_failed(tmp_path: Path) -> None:
     assert [m.endpoint for m in summary.missing] == ["summary"]
     assert "no summary at source" in summary.missing[0].reason
     assert summary.landed == 2  # scoreboard and injuries
+
+
+def test_settled_days_and_summaries_are_not_fetched_again(tmp_path: Path) -> None:
+    """The fixture's event is played 2026-09-24; a landing two days later or more is final."""
+    planner = EspnPlanner("wnba", "2026")
+
+    def run_on(day: date) -> tuple[int, int]:
+        calls: dict[str, int] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            name = request.url.path.rsplit("/", 1)[-1]
+            calls[name] = calls.get(name, 0) + 1
+            return httpx.Response(200, content=fixture(name))
+
+        client = ThrottledClient(
+            Throttle(max_retries=0),
+            transport=httpx.MockTransport(handler),
+            sleep=lambda _: None,
+            clock=lambda: 0.0,
+            rng=random.Random(0),
+        )
+        now = datetime(day.year, day.month, day.day, 12, tzinfo=UTC)
+        summary = EspnIngestor(
+            client, Landing(LocalBackend(tmp_path), ingest_date=day), planner, now=now
+        ).run(since=date(2026, 9, 24), until=date(2026, 9, 24), rosters=False)
+        assert summary.ok, summary.failures
+        assert summary.games == 1, "a settled scoreboard still plans the games"
+        return calls.get("scoreboard", 0), calls.get("summary", 0)
+
+    assert run_on(date(2026, 9, 25)) == (1, 1)
+    assert run_on(date(2026, 9, 26)) == (1, 1)
+    assert run_on(date(2026, 9, 27)) == (0, 0)

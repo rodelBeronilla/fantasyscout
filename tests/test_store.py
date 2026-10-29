@@ -265,3 +265,31 @@ def test_volume_writes_give_up_after_the_retries(monkeypatch: pytest.MonkeyPatch
     with pytest.raises(RuntimeError, match="HTTP 503"):
         backend.write_bytes(PurePosixPath("landing/stats/x/wnba/2023/2026-10-27/a.json"), b"{}")
     backend.close()
+
+
+def test_an_index_written_before_checked_dates_still_reads(tmp_path: Path) -> None:
+    """Older indexes have no checked_date: the landing date stands in for it."""
+    scope = Scope("stats", "boxscoretraditionalv3", "wnba", "2026")
+    old = {"g1": {"sha256": "x", "path": "p", "ingest_date": "2026-09-25", "size_bytes": 1}}
+    target = tmp_path / scope.index_path().as_posix()
+    target.parent.mkdir(parents=True)
+    target.write_text(json.dumps(old))
+    landing = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 9, 27))
+    assert landing.settled(scope, "g1", played=date(2026, 9, 24)) is False
+    assert landing.settled(scope, "g1", played=date(2026, 9, 23)) is True
+    assert landing.settled(scope, "missing", played=date(2026, 9, 1)) is False
+
+
+def test_an_unchanged_payload_counts_as_checked_today(tmp_path: Path) -> None:
+    scope = Scope("stats", "boxscoretraditionalv3", "wnba", "2026")
+    fetched = datetime(2026, 9, 25, 12, tzinfo=UTC)
+    first = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 9, 25))
+    first.land(scope, "g1", b"{}", url="u", params={}, status=200, fetched_at=fetched)
+    first.flush()
+    later = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 9, 26))
+    result = later.land(scope, "g1", b"{}", url="u", params={}, status=200, fetched_at=fetched)
+    later.flush()
+    assert result.outcome == "unchanged"
+    reread = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 9, 26))
+    assert reread.already_landed_today(scope, "g1")
+    assert reread.settled(scope, "g1", played=date(2026, 9, 24))

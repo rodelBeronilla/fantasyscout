@@ -296,3 +296,46 @@ def test_progress_heartbeat_is_printed(tmp_path: Path, capsys: pytest.CaptureFix
         assert "progress stats wnba 2026: 25 requests" in out
     else:
         assert "progress" not in out
+
+
+def counting_client() -> tuple[ThrottledClient, dict[str, int]]:
+    """The fixture client, counting requests per endpoint."""
+    calls: dict[str, int] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        endpoint = request.url.path.rsplit("/", 1)[-1]
+        calls[endpoint] = calls.get(endpoint, 0) + 1
+        return httpx.Response(200, content=fixture(endpoint))
+
+    client = ThrottledClient(
+        Throttle(max_retries=0),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+        clock=lambda: 0.0,
+        rng=random.Random(0),
+    )
+    return client, calls
+
+
+def test_a_finished_game_is_fetched_until_settled_then_left_alone(tmp_path: Path) -> None:
+    """Fixture games are played 2026-09-24; stat corrections are in two days later."""
+    planner = StatsPlanner("wnba", "2026")
+    games = len(games_in_window(fixture("leaguegamelog")))
+    per_game = ("boxscoretraditionalv3", "playbyplayv3", "shotchartdetail")
+
+    def run_on(day: date, *, full_refresh: bool = False) -> dict[str, int]:
+        client, calls = counting_client()
+        now = datetime(day.year, day.month, day.day, 12, tzinfo=UTC)
+        landing = Landing(LocalBackend(tmp_path), ingest_date=day, full_refresh=full_refresh)
+        summary = StatsIngestor(client, landing, planner, now=now).run()
+        assert summary.ok, summary.failures
+        return calls
+
+    for day in (date(2026, 9, 25), date(2026, 9, 26)):  # the morning after, and once settled
+        calls = run_on(day)
+        assert all(calls.get(e) == games for e in per_game), calls
+    later = run_on(date(2026, 9, 27))
+    assert not any(later.get(e) for e in per_game), "a settled game is not fetched again"
+    assert later.get("leaguegamelog") == 1 and later.get("commonteamroster")
+    refreshed = run_on(date(2026, 9, 28), full_refresh=True)
+    assert all(refreshed.get(e) == games for e in per_game), refreshed

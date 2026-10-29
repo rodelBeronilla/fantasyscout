@@ -18,8 +18,8 @@ import json
 import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from dataclasses import asdict, dataclass, replace
+from datetime import date, datetime, timedelta
 from pathlib import Path, PurePosixPath
 from typing import Literal, Protocol
 
@@ -28,6 +28,9 @@ import httpx
 from ingest.landing import League, Sidecar, landing_key, payload_hash
 
 INDEX_NAME = "_index.json"
+# Days after a game by which the leagues' stat corrections are in: a game's payload landed this
+# long after it was played is final, and fetching it again returns the same bytes.
+SETTLE_DAYS = 2
 _RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 _WRITE_RETRIES = 4
 
@@ -243,6 +246,13 @@ class IndexEntry:
     path: str
     ingest_date: str
     size_bytes: int
+    # The last ingest date the payload was fetched and found the same (or landed). Indexes
+    # written before this field existed fall back to ingest_date.
+    checked_date: str = ""
+
+    @property
+    def last_checked(self) -> date:
+        return date.fromisoformat(self.checked_date or self.ingest_date)
 
 
 @dataclass(frozen=True)
@@ -315,7 +325,17 @@ class Landing:
         if self.full_refresh:
             return False
         entry = self._index(scope).get(key)
-        return entry is not None and entry.ingest_date == self.ingest_date.isoformat()
+        return entry is not None and entry.last_checked == self.ingest_date
+
+    def settled(self, scope: Scope, key: str, played: date, days: int = SETTLE_DAYS) -> bool:
+        """True when a game's payload was landed at least ``days`` after the game was played.
+
+        A full refresh treats nothing as settled.
+        """
+        if self.full_refresh:
+            return False
+        entry = self._index(scope).get(key)
+        return entry is not None and entry.last_checked >= played + timedelta(days=days)
 
     def read_latest(self, scope: Scope, key: str) -> bytes | None:
         """The most recently landed payload for a key, so planners can work without refetching."""
@@ -342,6 +362,9 @@ class Landing:
         index = self._index(scope)
         previous = index.get(key)
         if previous is not None and previous.sha256 == sha and not self.full_refresh:
+            # Same bytes: nothing to write, but the payload was confirmed today.
+            index[key] = replace(previous, checked_date=self.ingest_date.isoformat())
+            self._dirty.add(scope)
             return LandResult("unchanged", PurePosixPath(previous.path), sha)
 
         sidecar = Sidecar.for_response(
@@ -363,6 +386,7 @@ class Landing:
             path=path.as_posix(),
             ingest_date=self.ingest_date.isoformat(),
             size_bytes=len(body),
+            checked_date=self.ingest_date.isoformat(),
         )
         self._dirty.add(scope)
         return LandResult("landed", path, sha)

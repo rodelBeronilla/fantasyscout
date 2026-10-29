@@ -130,8 +130,20 @@ class EspnIngestor:
     def _scope(self, endpoint: str) -> Scope:
         return Scope(SOURCE, endpoint, self.planner.league, self.planner.season)
 
-    def fetch(self, request: Request) -> tuple[LandResult | None, bytes | None]:
+    def fetch(
+        self, request: Request, played: date | None = None
+    ) -> tuple[LandResult | None, bytes | None]:
+        """Land one request; skipped (result None) when landed today or, for a day or game
+        played on ``played``, when its payload is settled. A settled scoreboard returns its
+        landed body, which the run still plans games from."""
         scope = self._scope(request.endpoint)
+        if played is not None and self.landing.settled(scope, request.key, played):
+            body = (
+                self.landing.read_latest(scope, request.key)
+                if request.endpoint == "scoreboard"
+                else None
+            )
+            return None, body
         if self.landing.already_landed_today(scope, request.key):
             return None, self.landing.read_latest(scope, request.key)
         url = request.url(self.planner.league)
@@ -154,9 +166,11 @@ class EspnIngestor:
         )
         return result, response.content
 
-    def _try(self, request: Request, summary: RunSummary) -> bytes | None:
+    def _try(
+        self, request: Request, summary: RunSummary, played: date | None = None
+    ) -> bytes | None:
         try:
-            result, body = self.fetch(request)
+            result, body = self.fetch(request, played)
         except CircuitOpenError:
             raise  # the host stopped answering: stop the run rather than hammer it
         except MissingPayloadError as exc:
@@ -182,7 +196,7 @@ class EspnIngestor:
     def _run(self, summary: RunSummary, *, since: date, until: date, rosters: bool) -> None:
         events: list[Event] = []
         for day in days_between(since, until):
-            body = self._try(self.planner.scoreboard_request(day), summary)
+            body = self._try(self.planner.scoreboard_request(day), summary, played=day)
             if body is not None:
                 events.extend(events_from_scoreboard(body))
         seen: set[str] = set()
@@ -193,7 +207,9 @@ class EspnIngestor:
                 completed.append(event)
         summary.games = len(completed)
         for event in completed:
-            self._try(self.planner.summary_request(event.event_id), summary)
+            self._try(
+                self.planner.summary_request(event.event_id), summary, played=event.event_date
+            )
         if rosters:
             teams_body = self._try(self.planner.teams_request(), summary)
             team_ids: Iterable[str] = team_ids_from_teams(teams_body) if teams_body else ()
