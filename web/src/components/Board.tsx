@@ -429,6 +429,17 @@ export default function Board() {
         <Td right>{i + 1}</Td>
         <Td>
           <span className="flex items-center gap-1 whitespace-nowrap">
+            {setup.drafting && !held && (
+              <button
+                type="button"
+                onClick={() => updateLeague((s) => draftPick(s, row.player_id))}
+                className="rounded border border-accent px-1.5 text-xs text-accent hover:bg-accent hover:text-accent-fg"
+                aria-label={`Draft ${row.full_name ?? row.player_id}`}
+                data-testid="draft"
+              >
+                Draft
+              </button>
+            )}
             <Star on={watched.has(row.player_id)} label={row.full_name ?? row.player_id} onToggle={() => toggleWatched(row.player_id)} />
             <a href={href(`/p/${league}/${row.player_id}/`)} className="underline-offset-4 hover:underline">
               {row.full_name ?? row.player_id}
@@ -492,26 +503,13 @@ export default function Board() {
           </Td>
         )}
         <Td>
-          <span className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              aria-label={`Compare ${row.full_name ?? row.player_id}`}
-              checked={compare.includes(row.player_id)}
-              disabled={!compare.includes(row.player_id) && compare.length >= COMPARE_MAX}
-              onChange={() => toggleCompare(row.player_id)}
-            />
-            {setup.drafting && !held && (
-              <button
-                type="button"
-                onClick={() => updateLeague((s) => draftPick(s, row.player_id))}
-                className="rounded border border-accent px-1.5 text-xs text-accent hover:bg-accent hover:text-accent-fg"
-                aria-label={`Draft ${row.full_name ?? row.player_id}`}
-                data-testid="draft"
-              >
-                Draft
-              </button>
-            )}
-          </span>
+          <input
+            type="checkbox"
+            aria-label={`Compare ${row.full_name ?? row.player_id}`}
+            checked={compare.includes(row.player_id)}
+            disabled={!compare.includes(row.player_id) && compare.length >= COMPARE_MAX}
+            onChange={() => toggleCompare(row.player_id)}
+          />
         </Td>
       </tr>,
     );
@@ -808,7 +806,7 @@ export default function Board() {
                   Total
                 </SortTh>
               )}
-              <Th>{setup.drafting ? 'Cmp · Draft' : 'Cmp'}</Th>
+              <Th>Cmp</Th>
             </tr>
           </thead>
           <tbody>{body}</tbody>
