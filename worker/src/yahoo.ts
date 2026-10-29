@@ -38,6 +38,27 @@ export interface Tokens {
 
 type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;
 
+/** Requests from a Worker carry no User-Agent unless given one, and Yahoo's edge can turn those away. */
+const USER_AGENT = 'FantasyScout/1.0 (+https://fantasyscout.beronilla.rodeo)';
+
+/** What Yahoo said about a failed request: its JSON error description, or the page's text, kept short. */
+export async function yahooError(res: Response): Promise<string> {
+  const body = await res.text().catch(() => '');
+  try {
+    const parsed = JSON.parse(body) as { error?: { description?: string } | string; error_description?: string };
+    const described = typeof parsed.error === 'string' ? parsed.error : (parsed.error?.description ?? parsed.error_description);
+    if (described) return described.slice(0, 300);
+  } catch {
+    // not JSON: an XML or HTML error page
+  }
+  const text = body
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return (text || res.statusText || 'no detail').slice(0, 300);
+}
+
 function json(status: number, body: unknown, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -111,10 +132,15 @@ async function tokenRequest(env: Required<YahooEnv>, body: Record<string, string
     headers: {
       authorization: `Basic ${btoa(`${env.YAHOO_CLIENT_ID}:${env.YAHOO_CLIENT_SECRET}`)}`,
       'content-type': 'application/x-www-form-urlencoded',
+      'user-agent': USER_AGENT,
     },
     body: new URLSearchParams(body).toString(),
   });
-  if (!res.ok) throw new Error(`Yahoo token request failed (${res.status})`);
+  if (!res.ok) {
+    const detail = await yahooError(res);
+    console.error(`yahoo token ${body['grant_type']}: ${res.status} ${detail}`);
+    throw new Error(`Yahoo token request failed (${res.status}): ${detail}`);
+  }
   const data = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number };
   return {
     access: data.access_token,
@@ -298,11 +324,16 @@ export async function handleYahoo(request: Request, env: YahooEnv, fetcher: Fetc
       return json(401, { error: 'The Yahoo sign-in has expired' }, { 'set-cookie': cookie(TOKEN_COOKIE, '', 0) });
     }
   }
-  const get = async (resource: string) => {
+  const get = async (resource: string, what: string) => {
     const res = await fetcher(`${API}/${resource}${resource.includes('?') ? '&' : '?'}format=json`, {
-      headers: { authorization: `Bearer ${tokens.access}`, accept: 'application/json' },
+      headers: { authorization: `Bearer ${tokens.access}`, accept: 'application/json', 'user-agent': USER_AGENT },
     });
-    if (!res.ok) throw Object.assign(new Error(`Yahoo returned ${res.status}`), { status: res.status });
+    if (!res.ok) {
+      const detail = await yahooError(res);
+      // Logged without the token: the status, the resource and Yahoo's explanation.
+      console.error(`yahoo ${resource}: ${res.status} ${detail}`);
+      throw Object.assign(new Error(`Yahoo returned ${res.status} for ${what}: ${detail}`), { status: res.status });
+    }
     return res.json();
   };
   const respond = (status: number, body: unknown) => {
@@ -313,12 +344,12 @@ export async function handleYahoo(request: Request, env: YahooEnv, fetcher: Fetc
 
   try {
     if (path === '/api/yahoo/leagues') {
-      return respond(200, parseLeagues(await get('users;use_login=1/games;game_codes=nba/leagues')));
+      return respond(200, parseLeagues(await get('users;use_login=1/games;game_codes=nba/leagues', 'your leagues')));
     }
     const match = /^\/api\/yahoo\/league\/(\d+\.l\.\d+)$/.exec(path);
     if (match) {
       const key = match[1]!;
-      const [settings, rosters] = await Promise.all([get(`league/${key};out=settings`), get(`league/${key}/teams/roster`)]);
+      const [settings, rosters] = await Promise.all([get(`league/${key};out=settings`, 'the league settings'), get(`league/${key}/teams/roster`, 'the rosters')]);
       return respond(200, parseLeague(settings, rosters));
     }
   } catch (e) {

@@ -237,3 +237,31 @@ describe('the sign-in and the league routes', () => {
     expect(readCookie(get('/'), 'fs_yahoo')).toBeNull();
   });
 });
+
+describe('when Yahoo refuses', () => {
+  const signedIn = () => sealTokens({ refresh: 'r', access: 'a', expires: Date.now() + 60_000 }, ENV.YAHOO_CLIENT_SECRET);
+
+  it('passes Yahoo’s own explanation through, naming the request that failed', async () => {
+    const fetcher = async () => Response.json({ error: { lang: 'en-US', description: 'You are not allowed to view this page because it is private.' } }, { status: 403 });
+    const res = (await handleYahoo(get('/api/yahoo/leagues', `fs_yahoo=${await signedIn()}`), ENV, fetcher))!;
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: 'Yahoo returned 403 for your leagues: You are not allowed to view this page because it is private.' });
+  });
+
+  it('reads the text of an HTML error page and keeps it short', async () => {
+    const page = `<html><head><style>p{}</style></head><body><h1>Request denied</h1><p>${'x'.repeat(600)}</p></body></html>`;
+    const fetcher = async () => new Response(page, { status: 403, statusText: 'Forbidden' });
+    const res = (await handleYahoo(get('/api/yahoo/league/466.l.1234', `fs_yahoo=${await signedIn()}`), ENV, fetcher))!;
+    const { error } = (await res.json()) as { error: string };
+    expect(error).toMatch(/^Yahoo returned 403 for the (league settings|rosters): Request denied x+$/);
+    expect(error.length).toBeLessThan(400);
+  });
+
+  it('sends a User-Agent on every Yahoo request', async () => {
+    const { calls, fetcher } = fakeYahoo();
+    const expired = await sealTokens({ refresh: 'r', access: 'old', expires: Date.now() - 1 }, ENV.YAHOO_CLIENT_SECRET);
+    await handleYahoo(get('/api/yahoo/league/466.l.1234', `fs_yahoo=${expired}`), ENV, fetcher);
+    expect(calls).toHaveLength(3);
+    for (const call of calls) expect(new Headers(call.init?.headers).get('user-agent')).toMatch(/^FantasyScout\//);
+  });
+});
