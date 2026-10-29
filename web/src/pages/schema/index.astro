@@ -1,6 +1,8 @@
 ---
+import Diagram from '../../components/Diagram.astro';
 import Base from '../../layouts/Base.astro';
 import schema from '../../generated/schema.json';
+import { erLegend, goldEr, lineage } from '../../lib/schema-diagrams';
 import { href } from '../../lib/site';
 
 interface Column {
@@ -37,6 +39,7 @@ const checks = schema.checks as { name: string; severity: string; tags: string[]
 const seeds = schema.seeds as { name: string; description: string; columns: Column[] }[];
 const anchor = (name: string) => `m-${name}`;
 const docsLink = (name: string) => href(`/docs/#!/model/model.fantasyscout.${name}`);
+const [er, flow] = await Promise.all([goldEr(), lineage()]);
 ---
 
 <Base
@@ -64,6 +67,29 @@ const docsLink = (name: string) => href(`/docs/#!/model/model.fantasyscout.${nam
       <a href="#checks" class="rounded-full border border-line px-3 py-1 hover:bg-card">checks · {checks.length}</a>
       <a href="#seeds" class="rounded-full border border-line px-3 py-1 hover:bg-card">seeds · {seeds.length}</a>
     </nav>
+
+    <section id="er" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight">Gold star schema</h2>
+      <p class="mt-1 max-w-3xl text-sm text-muted">
+        What the app, the notebooks and the dashboards read: facts, dimensions and marts (each header names its kind and
+        has its own colour), with primary keys, foreign keys and natural keys; every entity links to its columns below.
+      </p>
+      <Diagram id="er" svg={er} title="Entity-relationship diagram (UML class notation)" caption={erLegend} />
+    </section>
+
+    <section id="lineage" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight">Lineage</h2>
+      <p class="mt-1 max-w-3xl text-sm text-muted">
+        Every model and what it is built from, left to right: seeds and bronze, silver, gold and ops. Each box links to the
+        model's notes and columns below.
+      </p>
+      <Diagram
+        id="lineage"
+        svg={flow}
+        title="Model lineage by layer"
+        caption="Arrows point from a model to the models built from it. Generated from the dbt project on every change."
+      />
+    </section>
 
     {
       layers.map((l) => (

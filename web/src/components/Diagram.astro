@@ -1,0 +1,22 @@
+---
+/**
+ * A diagram rendered at build time (src/lib/diagram.ts) in a scrollable, labelled region, with a
+ * caption that says how to read it.
+ */
+interface Props {
+  svg: string;
+  id: string;
+  title: string;
+  caption: string;
+}
+const { svg, id, title, caption } = Astro.props;
+---
+
+<figure class="mt-4 min-w-0" aria-labelledby={`${id}-title`} data-testid={`diagram-${id}`}>
+  <div class="overflow-auto rounded-lg border border-line bg-card p-3" tabindex="0" role="region" aria-label={title}>
+    <Fragment set:html={svg} />
+  </div>
+  <figcaption class="mt-2 text-xs text-muted">
+    <span id={`${id}-title`} class="font-medium text-fg">{title}.</span>{' '}{caption}
+  </figcaption>
+</figure>

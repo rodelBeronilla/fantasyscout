@@ -1,147 +1,140 @@
 ---
+import Diagram from '../../components/Diagram.astro';
 import Base from '../../layouts/Base.astro';
 import schema from '../../generated/schema.json';
+import { dailyRun, dataFlow, deployment, valueActivity } from '../../lib/pipeline-diagrams';
 import { href } from '../../lib/site';
 
 const count = (layer: string) => schema.layers.find((l) => l.name === layer)?.models.length ?? 0;
-const checks = schema.checks as { severity: string }[];
-const errors = checks.filter((c) => c.severity === 'error').length;
-const warns = checks.length - errors;
+const checks = schema.checks as { name: string; severity: string }[];
+const errorChecks = checks.filter((c) => c.severity === 'error');
+const warnChecks = checks.filter((c) => c.severity !== 'error');
 const f = schema.fantasy as {
   fantasy: Record<string, { teams: number; roster_spots: number; prior_games: number; durability_games: number; minutes_recency: number[] }>;
   fantasy_recency: number[];
   fantasy_durability: { typical_share: number };
 };
+const nba = f.fantasy['nba']!;
+const wnba = f.fantasy['wnba']!;
 const m = (name: string) => href(`/schema/#m-${name}`);
 
-// The diagram: boxes on a 720-wide canvas, top to bottom in the order data moves.
-interface Box {
-  id: string;
-  x: number;
-  y: number;
-  w: number;
-  title: string;
-  sub: string;
-  tone?: 'accent';
-}
-const H = 52;
-const boxes: Box[] = [
-  { id: 'sources', x: 40, y: 10, w: 300, title: 'League stats API', sub: 'stats.wnba.com · stats.nba.com · 9 endpoints' },
-  { id: 'sources', x: 380, y: 10, w: 300, title: 'ESPN public API', sub: 'scoreboard · summary · rosters · injuries' },
-  { id: 'ingest', x: 40, y: 94, w: 300, title: 'Ingest on the home runner', sub: 'paced client, daily 09:15 UTC + backfills' },
-  { id: 'ingest', x: 380, y: 94, w: 300, title: 'Ingest on GitHub runners', sub: 'same client, same schedule' },
-  { id: 'landing', x: 190, y: 178, w: 340, title: 'Landing', sub: 'raw JSON as fetched · Unity Catalog volume' },
-  { id: 'bronze', x: 190, y: 262, w: 340, title: `Bronze · ${count('bronze')} models`, sub: 'incremental, one model per endpoint' },
-  { id: 'silver', x: 190, y: 346, w: 340, title: `Silver · ${count('silver')} models`, sub: 'typed, deduplicated, crosswalks, lineups' },
-  { id: 'gold', x: 100, y: 430, w: 300, title: `Gold · ${count('gold')} models`, sub: 'star schema + fantasy marts' },
-  { id: 'ops', x: 430, y: 430, w: 250, title: `Ops · ${count('ops')} models`, sub: 'run log, reconciliation' },
-  { id: 'gate', x: 190, y: 514, w: 340, title: 'Quality gate', sub: `${errors} blocking + ${warns} warning checks`, tone: 'accent' },
-  { id: 'export', x: 190, y: 598, w: 340, title: 'Export to R2', sub: 'immutable build, pointer flipped last' },
-  { id: 'serving', x: 10, y: 682, w: 165, title: 'Worker + app', sub: 'board, players, health' },
-  { id: 'serving', x: 190, y: 682, w: 165, title: 'SQL console', sub: 'DuckDB in the browser' },
-  { id: 'analysis', x: 370, y: 682, w: 165, title: 'Notebooks', sub: 'run on every build' },
-  { id: 'analysis', x: 550, y: 682, w: 165, title: 'Tableau', sub: 'via a Google Sheet' },
-];
-const at = (i: number) => boxes[i]!;
-const bottom = (b: Box) => ({ x: b.x + b.w / 2, y: b.y + H });
-const top = (b: Box) => ({ x: b.x + b.w / 2, y: b.y });
-const edges: [number, number][] = [
-  [0, 2], [1, 3], [2, 4], [3, 4], [4, 5], [5, 6], [6, 7], [6, 8], [7, 9], [8, 9], [9, 10], [10, 11], [10, 12], [10, 13], [10, 14],
-];
-const paths = edges.map(([a, b]) => {
-  const s = bottom(at(a));
-  const e = top(at(b));
-  const mid = (s.y + e.y) / 2;
-  return `M${s.x},${s.y} C${s.x},${mid} ${e.x},${mid} ${e.x},${e.y - 4}`;
-});
-const VIEW_H = 682 + H + 10;
+const [dfd, deploy, activity] = await Promise.all([dataFlow(), deployment(), valueActivity()]);
+const sequence = dailyRun();
+const link = 'underline underline-offset-4';
 ---
 
 <Base
   title="Pipeline"
-  description="How data moves from the league and ESPN APIs to the site: ingestion, the lakehouse layers, reconciliation, the fantasy methods, the quality gate, the export and serving."
+  description="How data moves from the league and ESPN APIs to this site: a data-flow diagram, a deployment diagram, the sequence of a daily run, how board value is computed, and every stage in detail."
 >
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">Pipeline</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">
-      End to end, from two public APIs to this site. Data is fetched once a day, landed as the raw JSON, modelled in dbt on
-      Databricks through bronze, silver and gold, checked, and published only when the checks pass. Every box links to how
-      that stage works; every model is on the <a href={href('/schema/')} class="underline underline-offset-4">Schema</a> page.
+      End to end, from two public APIs to this site. Raw responses land unchanged; dbt models them on Databricks through
+      bronze, silver and gold; a quality gate decides whether the night's build is published; the published build in
+      Cloudflare R2 is what every page, notebook and dashboard reads. The diagrams are drawn when the site is built, and
+      every model they name is on the <a href={href('/schema/')} class={link}>Schema</a> page.
     </p>
 
-    <figure class="mt-6 overflow-x-auto rounded-lg border border-line bg-card p-2" tabindex="0" aria-labelledby="pipeline-caption">
-      <figcaption id="pipeline-caption" class="sr-only">
-        Pipeline diagram: sources, ingest, landing, bronze, silver, gold and ops, the quality gate, the export, and the
-        surfaces that read it. Each box links to its section below.
-      </figcaption>
-      <svg viewBox={`0 0 720 ${VIEW_H}`} class="mx-auto w-full max-w-3xl min-w-[560px]" data-testid="pipeline-diagram">
-        <defs>
-          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-            <path d="M0,0 L10,5 L0,10 z" class="fill-muted" />
-          </marker>
-        </defs>
-        <g class="stroke-muted" fill="none" stroke-width="1.5">
-          {paths.map((d) => <path d={d} marker-end="url(#arrow)" />)}
-        </g>
-        {
-          boxes.map((b) => (
-            <a href={`#${b.id}`}>
-              <rect
-                x={b.x}
-                y={b.y}
-                width={b.w}
-                height={H}
-                rx="8"
-                class:list={[b.tone === 'accent' ? 'fill-bg stroke-accent' : 'fill-bg stroke-line']}
-                stroke-width={b.tone === 'accent' ? 2 : 1}
-              />
-              <text x={b.x + b.w / 2} y={b.y + 22} text-anchor="middle" class="fill-fg text-[14px] font-semibold">
-                {b.title}
-              </text>
-              <text x={b.x + b.w / 2} y={b.y + 40} text-anchor="middle" class="fill-muted text-[11px]">
-                {b.sub}
-              </text>
-            </a>
-          ))
-        }
-      </svg>
-    </figure>
+    <nav class="mt-4 flex flex-wrap gap-2 text-sm" aria-label="On this page">
+      <a href="#data-flow" class="rounded-full border border-line px-3 py-1 hover:bg-card">Data flow</a>
+      <a href="#deployment" class="rounded-full border border-line px-3 py-1 hover:bg-card">Deployment</a>
+      <a href="#daily-run" class="rounded-full border border-line px-3 py-1 hover:bg-card">A daily run</a>
+      <a href="#value" class="rounded-full border border-line px-3 py-1 hover:bg-card">Board value</a>
+      <a href="#stages" class="rounded-full border border-line px-3 py-1 hover:bg-card">Stages</a>
+      <a href="#workflows" class="rounded-full border border-line px-3 py-1 hover:bg-card">Other workflows</a>
+      <a href="#gaps" class="rounded-full border border-line px-3 py-1 hover:bg-card">Known gaps</a>
+    </nav>
 
-    <div class="mt-8 grid max-w-3xl grid-cols-[minmax(0,1fr)] gap-8 text-sm leading-relaxed" data-testid="pipeline-stages">
+    <section id="data-flow" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight">Data flow</h2>
+      <Diagram
+        id="dfd"
+        svg={dfd}
+        title="Data-flow diagram"
+        caption="Bold boxes are external entities, rounded boxes are processes, cylinders are data stores; arrows carry the labelled data. The dashed arrow from the gate is a condition: nothing is exported when it is closed. Processes and stores link to their sections."
+      />
+    </section>
+
+    <section id="deployment" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight">Deployment</h2>
+      <Diagram
+        id="deployment"
+        svg={deploy}
+        title="UML deployment diagram"
+        caption="Each shaded box is an environment the pipeline runs in; three-dimensional boxes are where code executes, folded notes are the jobs that run there, cylinders are stores. Arrows are labelled with the interface used."
+      />
+    </section>
+
+    <section id="daily-run" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight">A daily run</h2>
+      <Diagram
+        id="sequence"
+        svg={sequence}
+        title="UML sequence diagram"
+        caption="Time runs downward. Solid arrows with filled heads are calls, dashed arrows are replies, open heads are messages that do not wait. The alt fragment runs only when the gate is open."
+      />
+    </section>
+
+    <section id="value" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight">How board value is computed</h2>
+      <Diagram
+        id="activity"
+        svg={activity}
+        title="UML activity diagram"
+        caption="From the per-season lines to the value and rest-of-season value on the board. Bars fork and join work that runs independently: production per minute and minutes per game meet at the projection, and the games share joins at the value. Diamonds are decisions. Settings are read from the project, so the numbers here are the ones in use."
+      />
+    </section>
+
+    <div id="stages" class="mt-10 grid max-w-3xl grid-cols-[minmax(0,1fr)] gap-8 text-sm leading-relaxed" data-testid="pipeline-stages">
       <section id="sources">
         <h2 class="text-lg font-semibold tracking-tight">1. Sources</h2>
         <p class="mt-2">
-          Two public sources, both leagues. The league stats API is the system of record for games, box scores, play-by-play,
-          shots, schedules and rosters: nine endpoints (schedule, player directory, game logs, traditional and advanced box
-          scores, play-by-play, shot charts, team rosters). ESPN's public JSON adds a second box score per game for
-          reconciliation, team and roster directories, and the injury report.
+          The league stats API (stats.wnba.com, stats.nba.com) is the system of record. Eight endpoints are fetched: the
+          season schedule, the player directory, the team game log, the player game logs (the advanced line, once per
+          season), traditional box scores, play-by-play, shot charts and team rosters. A ninth landing folder,
+          advanced box scores per game, holds files from before the game logs replaced it and is still read.
+        </p>
+        <p class="mt-2">
+          ESPN's public site API has five: scoreboards (what games are matched against), game summaries (a second box score
+          for reconciliation), team and roster directories, and the injury report. Summaries also carry plays and team
+          lines, which are landed but not used yet.
         </p>
       </section>
 
       <section id="ingest">
         <h2 class="text-lg font-semibold tracking-tight">2. Ingest</h2>
         <p class="mt-2">
-          A daily workflow at 09:15 UTC, after the night's games are final, plus a backfill workflow that fans out one job per
-          league, season and season type. The stats hosts refuse cloud runner addresses, so stats requests run on self-hosted
-          runner containers at home; ESPN runs on GitHub-hosted runners (ADR 0002).
+          The Ingest workflow runs daily at 09:15 UTC over the seven days ending that day, and on demand for any league,
+          source or date range. ESPN jobs run on GitHub-hosted runners, one per league in parallel. The stats hosts refuse
+          cloud runner addresses, so stats jobs run on two self-hosted runner containers at home, and only when the
+          repository variable naming that runner is set (ADR 0002). One stats job per league runs at a time, shared with the
+          Backfill workflow, which fetches whole seasons one season and season type at a time.
         </p>
         <ul class="mt-2 list-disc space-y-1 pl-5">
           <li>
-            <strong>Pacing.</strong> One client paces each host: 1.5 to 3 s between requests with ±30% jitter for daily runs.
-            Backfills use an adaptive pace that only speeds up after ten clean, fast responses in a row, slows down twofold on
-            a 429 and 1.5-fold on an error, and opens a circuit after three timeouts in a row.
+            <strong>Pacing.</strong> Every request goes through one paced client. The gap between requests starts at 2.25 s,
+            with ±30% jitter, and adapts: ten clean, fast answers in a row shrink it by a tenth, an answer slower than 3 s
+            widens it by a fifth, an error, timeout or retryable status by half, a 429 doubles it and adds the server's
+            Retry-After and a 30 s pause. Daily runs keep the gap between 1.5 and 3 s with a 30 s read timeout; backfills may
+            go down to 0.75 s with a 20 s timeout. Up to five retries back off from 1 to 60 s, and three timeouts in a row
+            open a circuit that ends the run.
           </li>
           <li>
-            <strong>Bot-manager cookies.</strong> The client drops its cookies before every request; a long-lived session's
-            cookies made every request hang to the read timeout.
+            <strong>Cookies.</strong> The client clears its cookies before every attempt: the stats hosts' bot-manager
+            cookies made a long-lived session's requests hang until they timed out (ADR 0004).
           </li>
           <li>
-            <strong>Request economy (ADR 0004).</strong> Shots are fetched per team-season and the advanced line per season
-            from the game logs, instead of per game.
+            <strong>Request economy (ADR 0004).</strong> The advanced line comes from the player game logs once per season
+            instead of per game. Backfills fetch shot charts per team and season; daily runs fetch one per game.
           </li>
           <li>
-            <strong>Idempotent.</strong> A run skips every payload already landed; a source that answers "not found" is
-            recorded as missing at source, not as a failure. Each run writes a log the Data Health page reads.
+            <strong>Idempotent.</strong> A payload already landed that day is not requested again, and one whose content
+            hash matches its last landing is not written again; a full refresh bypasses both.
+          </li>
+          <li>
+            <strong>Failures.</strong> Only a missing ESPN game summary (404) counts as missing at source. Any other failed
+            request fails the job, which opens an incident issue, and stops that day's build (see Known gaps).
           </li>
         </ul>
       </section>
@@ -149,92 +142,99 @@ const VIEW_H = 682 + H + 10;
       <section id="landing">
         <h2 class="text-lg font-semibold tracking-tight">3. Landing</h2>
         <p class="mt-2">
-          Each response is stored exactly as fetched, as JSON in a Unity Catalog volume, under source, endpoint, league,
-          season and landing date. Nothing is transformed on the way in, so any model can be rebuilt from scratch from what
-          landed.
+          Successful responses are stored as fetched, as JSON in the Unity Catalog volume
+          <code>raw/landing/&lt;source&gt;/&lt;endpoint&gt;/&lt;league&gt;/&lt;season&gt;/&lt;date&gt;/</code>, each with a
+          <code>.meta.json</code> sidecar (URL, parameters, status, size, SHA-256, fetch time) and an <code>_index.json</code>
+          per scope. Every run also writes a run log under <code>landing/_ops/ingest_log/</code>. Nothing is transformed on
+          the way in, so every dbt model can be rebuilt from what landed; the gate's history and the seeds are the
+          exceptions.
         </p>
       </section>
 
       <section id="bronze">
         <h2 class="text-lg font-semibold tracking-tight">4. Bronze</h2>
         <p class="mt-2">
-          The dbt project runs on Databricks after every ingest and on DuckDB in CI, from the same SQL: engine differences
-          (JSON access, file listing, hashing, dates, fuzzy matching) live in adapter-dispatched macros. Bronze turns landed
-          files into rows, one incremental model per endpoint. Each run appends only files newer than what it holds and not
-          loaded before, and every row keeps its source file and landing date.
+          The Build workflow starts when an Ingest or Backfill run succeeds, on a GitHub-hosted runner, one build at a time:
+          it makes sure every landing folder exists, then runs dbt on the Databricks SQL warehouse. The same project runs on
+          DuckDB in CI over a small sample; engine differences (JSON access, file listing, hashing, dates, fuzzy matching)
+          live in adapter-dispatched macros, and the fuzzy matching thresholds differ by engine.
+        </p>
+        <p class="mt-2">
+          Bronze has {count('bronze')} incremental models, appending rows: one per endpoint, three for ESPN's game summary
+          (players, plays, teams). Each run reads files landed on or after its newest landing date that it has not loaded,
+          and every row keeps its source file, landing date, request key and payload hash.
         </p>
       </section>
 
       <section id="silver">
         <h2 class="text-lg font-semibold tracking-tight">5. Silver</h2>
         <p class="mt-2">
-          Typed and deduplicated (the latest landing wins), with keys tested unique. Game types come from the game id, and a
-          neutral-site game that both teams list as home is folded into one.
+          {count('silver')} tables: typed and deduplicated (the latest landing wins), keys tested unique, the game type read
+          from the game id, and a neutral-site game that both teams list as home folded into one.
         </p>
         <ul class="mt-2 list-disc space-y-1 pl-5">
           <li>
-            <strong>Reconciliation (ADR 0005).</strong> <a href={m('team_xwalk')} class="underline underline-offset-4">Teams</a>
-            and <a href={m('game_xwalk')} class="underline underline-offset-4">games</a> are matched across sources on team
-            and Eastern game date. <a href={m('player_xwalk')} class="underline underline-offset-4">Players</a> match by
-            exact name in either order, nickname or first and last name, then by fuzzy name similarity with birth date, then
-            by a hand-kept override seed, keeping mutual best matches only. Every player-game's two box scores are compared
-            stat by stat as exact, minor or conflict; the league's figure wins unless it is missing.
+            <strong>Crosswalks (ADR 0005).</strong> <a href={m('team_xwalk')} class={link}>Teams</a> match ESPN to the league
+            by full name, then nickname from the team seed, then abbreviation.
+            <a href={m('game_xwalk')} class={link}>Games</a> match on the same two teams and the same Eastern date (the next
+            or previous day when none), each ESPN game used once. <a href={m('player_xwalk')} class={link}>Players</a> match by
+            the override seed first; then by exact name (either order, nickname, first and last) on the same team in a
+            matched game; then by fuzzy name similarity, where a matching birth date lowers the bar; keeping mutual best
+            matches. The rest wait in <a href={m('player_xwalk_review')} class={link}>player_xwalk_review</a>.
           </li>
           <li>
-            <strong>Lineups.</strong> <a href={m('event_lineups')} class="underline underline-offset-4">event_lineups</a>
-            puts the five players a side on the floor for every play-by-play action. Substitutions name only the player
-            leaving by id; the player coming on is matched to the box score by ranked name rules (given-name prefixes,
-            suffixes, changed names, reversed names), and events are ordered by game clock because the feed logs some
-            substitutions late.
+            <strong>Reconciliation.</strong> <a href={m('player_game_reconciliation')} class={link}>Each player-game</a> gets
+            one verdict across twelve counts and minutes: exact (counts agree, minutes within half a minute, or neither
+            source has the player playing), minor (counts agree, minutes within one), or conflict. Each differing value is a
+            row in <a href={m('reconciliation')} class={link}>ops.reconciliation</a>, and the league's figure wins unless it
+            is missing.
+          </li>
+          <li>
+            <strong>Lineups.</strong> <a href={m('event_lineups')} class={link}>event_lineups</a> puts five players a side
+            on the floor for every play-by-play action. Substitutions name only the player leaving; the one coming on is
+            matched to the box score by five ranked name rules (given-name prefixes, suffixes, changed names, reversed
+            names, the last word of a longer name). Events are ordered by game clock, period starters come from the box
+            score in the first period and are inferred after it.
           </li>
         </ul>
       </section>
 
       <section id="gold">
-        <h2 class="text-lg font-semibold tracking-tight">6. Gold and the fantasy methods</h2>
+        <h2 class="text-lg font-semibold tracking-tight">6. Gold</h2>
         <p class="mt-2">
-          A star schema: <a href={m('dim_player')} class="underline underline-offset-4">players</a> with team history as
-          slowly changing stints from where they actually played, teams, games and dates; facts per player-game, team-game,
-          play-by-play action with lineups, shot, and injury listing. On top, the fantasy marts.
+          {count('gold')} models. The star schema: <a href={m('dim_player')} class={link}>players</a> with team history as
+          stints from where they actually played, teams, games and dates; facts per player-game, team-game, play-by-play
+          action with lineups, shot (those two are incremental merges) and injury listing. The marts: category z-scores
+          per window, rolling averages, the projection, the board, streamers and the upcoming schedule.
         </p>
         <ul class="mt-2 list-disc space-y-1 pl-5">
           <li>
-            <strong>Category z-scores</strong> (<a href={m('mart_category_zscores')} class="underline underline-offset-4">mart_category_zscores</a>):
-            per season and over the last 10 and 20 games, against a pool of the top 180 NBA or 90 WNBA players by minutes.
-            Counting categories use per-game averages, turnovers count negative, and percentages are volume-weighted:
-            (player % minus pool %) times attempts per game.
+            <strong>Category z-scores</strong> (<a href={m('mart_category_zscores')} class={link}>mart_category_zscores</a>)
+            for each season and the last 10 and 20 games, against the 180 NBA or 90 WNBA players with the most minutes in the
+            window: per-game counting stats, turnovers negative, percentages volume-weighted as (player % − pool %) ×
+            attempts per game.
           </li>
           <li>
-            <strong>Projection</strong> (<a href={m('mart_player_projection')} class="underline underline-offset-4">mart_player_projection</a>),
-            for players on a current roster only. Production per minute, with seasons weighted by minutes played and a recency of
-            {f.fantasy_recency.join(', ')} (this season, last, the one before). Minutes per game, by games played, with a minutes
-            recency of {f.fantasy.nba?.minutes_recency.join(', ')} in the NBA and {f.fantasy.wnba?.minutes_recency.join(', ')} in the
-            WNBA, whose roles move more. The per-game line is the rate times the minutes. Every projection starts from
-            {f.fantasy.nba?.prior_games} (NBA) or {f.fantasy.wnba?.prior_games} (WNBA) games of a replacement-level player, so
-            short samples move it only part of the way.
+            <strong>Projection and value</strong>, as the activity diagram above shows: production per minute (minutes ×
+            {f.fantasy_recency.join(', ')} by season), minutes per game (games × {nba.minutes_recency.join(', ')} in the NBA,
+            {wnba.minutes_recency.join(', ')} in the WNBA), {nba.prior_games} or {wnba.prior_games} games of a
+            replacement-level player, two scoring passes over a {nba.teams}×{nba.roster_spots} or {wnba.teams}×{wnba.roster_spots}
+            league's pool, replacement level subtracted, then value above replacement times the games share (capped at 1).
+            Values below replacement are never scaled.
           </li>
           <li>
-            <strong>Value above replacement</strong> (<a href={m('mart_board')} class="underline underline-offset-4">mart_board</a>):
-            the projections are scored in two passes against the players a fantasy league rosters
-            ({f.fantasy.nba?.teams} teams × {f.fantasy.nba?.roster_spots} in the NBA, {f.fantasy.wnba?.teams} × {f.fantasy.wnba?.roster_spots}
-            in the WNBA), and each category has replacement level, the next players after that pool, subtracted. Zero is a
-            freely available player, and a punt build is the sum without the punted categories.
+            <strong>Availability.</strong> ESPN's injury report is linked to players by name within the team. Out with no
+            return date removes all remaining games; doubtful counts 0.75 of a game, questionable 0.5, day-to-day 0.25. Once
+            the regular season is over, rest of season is the value itself.
           </li>
           <li>
-            <strong>Games played.</strong> The share of team regular-season games a player played, regressed toward
-            {Math.round(f.fantasy_durability.typical_share * 100)}% by {f.fantasy.nba?.durability_games} (NBA) or
-            {f.fantasy.wnba?.durability_games} (WNBA) games, turns value per game into value.
+            <strong>Streamers</strong> (<a href={m('mart_streamers')} class={link}>mart_streamers</a>) compare each current
+            player's last five games (minutes) and last ten (value) with their earlier games blended with their latest
+            earlier season, and carry the board rank and the schedule ahead.
           </li>
           <li>
-            <strong>Availability and rest of season.</strong> Injury listings are linked to players by name within the team.
-            Rest of season scales value above replacement by the team's remaining regular-season games and the share of them
-            the player is expected to play (out until the expected return, doubtful 0.75 of a game, questionable 0.5,
-            day-to-day 0.25).
-          </li>
-          <li>
-            <strong>Chosen by backtest.</strong> The weights and priors were picked by replaying past seasons before they
-            started and a tenth, a quarter and half way in, and scoring how much of each predicted top tier and rostered pool
-            finished there (ADR 0003).
+            <strong>Settings chosen by backtest</strong> (ADR 0003): WNBA 2021 to 2026 and NBA 2024-25 and 2025-26, replayed
+            before each season and a tenth, a quarter and half way in.
           </li>
         </ul>
       </section>
@@ -242,54 +242,97 @@ const VIEW_H = 682 + H + 10;
       <section id="ops">
         <h2 class="text-lg font-semibold tracking-tight">7. Ops</h2>
         <p class="mt-2">
-          The ingest run log, every reconciliation difference with how it was resolved, and the match and conflict rates per
-          league and season, printed in every build log and shown on <a href={href('/health/')} class="underline underline-offset-4">Data Health</a>.
-          A read-only workflow prints any table into a job log for investigation.
+          {count('ops')} dbt models: the ingest run log (read straight from the landing run logs), every reconciliation
+          difference, and match and conflict rates per league and season (printed in every build log). Two more tables are
+          written by the gate script, not dbt: <code>test_results</code> and <code>publish_gate</code>. Data Health shows
+          the gate, the checks, the latest 100 ingest runs and the reconciliation rates; the individual differences are in
+          the SQL console and the reconciliation notebook.
         </p>
       </section>
 
       <section id="gate">
         <h2 class="text-lg font-semibold tracking-tight">8. Quality gate</h2>
         <p class="mt-2">
-          After every build, {schema.generic_tests} column tests and {checks.length}
-          <a href={href('/schema/#checks')} class="underline underline-offset-4">data-quality checks</a> run on the real data:
-          completeness against the schedule, in-season freshness, box-score arithmetic and closure, rostered players and sane
-          values on the board, and warnings for volume anomalies, crosswalk coverage, injury links and lineup completeness.
-          The results are written to <code>ops.test_results</code> and <code>ops.publish_gate</code>. An error-severity
-          failure closes the gate: nothing is exported, and an incident issue opens with samples of the failing rows and closes
-          itself on the next passing build.
+          dbt builds and tests together, layer by layer, so a failing test skips the models downstream of it. There are
+          {schema.generic_tests} column tests (keys, not null, relationships, accepted values), all blocking, and
+          {checks.length} <a href={href('/schema/#checks')} class={link}>data-quality checks</a>: {errorChecks.length} blocking
+          (completeness against the schedule, in-season freshness, box-score arithmetic and closure, rostered players and
+          sane values on the board, and a chaos check that fails only in a drill) and {warnChecks.length} warnings (volume
+          anomalies, crosswalk coverage, injury links, lineup completeness, event and box agreement, minutes closure, shot
+          locations, team turnovers).
+        </p>
+        <p class="mt-2">
+          The gate script records every model and test result and closes the gate on any blocking failure or model error;
+          then nothing is exported. An incident issue opens with the end of the job log, including sample failing rows, is
+          commented on while it recurs and closes itself on the next passing build. CI runs the column tests on every change;
+          the data-quality checks need real data and run only in the nightly build.
         </p>
       </section>
 
       <section id="export">
         <h2 class="text-lg font-semibold tracking-tight">9. Export (ADR 0006)</h2>
         <p class="mt-2">
-          A passing build is exported to Cloudflare R2 as an immutable build folder: Parquet for every gold and ops table (the
-          big facts split per league and season), compact JSON for what the pages render (rounded to four decimals), one file
-          per player, a health summary, and a manifest. <code>latest.json</code> is rewritten last, so a reader never sees a
-          half-written build; seven builds are kept, and rolling back is rewriting the pointer.
+          A passing build is read from the warehouse as Arrow and written to R2 as <code>builds/&lt;id&gt;/</code>: Parquet
+          for every gold and ops table and the category seed (the big facts split per league and season); compact JSON for
+          the board, streamers and schedule, rounded to four decimals; JSON for the dimensions, injuries, reconciliation
+          rates, run log and gate; one file per player; <code>health.json</code>; a manifest with each file's rows and
+          SHA-256. Then <code>builds.json</code>, then <code>latest.json</code>, so a reader never sees a half-written build;
+          seven builds are kept. Rolling back rewrites <code>latest.json</code> (Export workflow).
         </p>
       </section>
 
       <section id="serving">
         <h2 class="text-lg font-semibold tracking-tight">10. Serving</h2>
         <p class="mt-2">
-          A Cloudflare Worker serves this static Astro site and the build files from R2: build files are cached as immutable,
-          the pointer for a minute. The content security policy allows no inline code except what it lists by hash. Pages
-          render their data in the browser; the SQL console runs DuckDB compiled to WebAssembly over the build's Parquet files.
-          Every change runs page tests, accessibility checks and a phone-width check, and every deploy a load-time budget.
+          A Cloudflare Worker serves this static Astro site and, under <code>/data/</code>, the R2 bucket with range
+          requests. The pointers (<code>latest.json</code>, <code>builds.json</code>) are cached for a minute and fetched
+          without the browser cache; every build file is cached for a year as immutable. Player pages
+          <code>/p/&lt;league&gt;/&lt;id&gt;/</code> are rewritten to one page. The content security policy allows inline
+          code only by hash, WebAssembly for DuckDB, DuckDB's extension host and the Tableau embed; the dbt docs and the
+          notebook pages have their own policies. Pages read the build in the browser; the Schema and Pipeline pages are
+          built from the project instead. The SQL console loads DuckDB-WASM from R2 and reads the build's Parquet by range.
+        </p>
+        <p class="mt-2">
+          The site deploys when its code changes, never when data does: production from <code>main</code>, a preview Worker
+          from <code>preprod</code> reading the same bucket. Every change runs page tests on desktop and phone, accessibility
+          checks and a phone-width check against fixture data; every deploy runs Lighthouse three times on the home page and
+          holds the median LCP under 2 s.
         </p>
       </section>
 
       <section id="analysis">
         <h2 class="text-lg font-semibold tracking-tight">11. Analysis</h2>
         <p class="mt-2">
-          Three <a href={href('/notebooks/')} class="underline underline-offset-4">notebooks</a> (shot profiles, the
-          reconciliation audit, a fantasy value backtest) run against every published build and publish their findings. A
-          Tableau extract is pushed into a Google Sheet after every export, so the
-          <a href={href('/dashboards/')} class="underline underline-offset-4">dashboard</a> refreshes itself.
+          After a passing nightly build, three <a href={href('/notebooks/')} class={link}>notebooks</a> (shot profiles, the
+          reconciliation audit, a value backtest) run against the published build over HTTPS and write their pages and
+          findings back into it. The Tableau extract does the same: three CSVs into the build and into a Google Sheet, which
+          Tableau Public re-reads about daily for the <a href={href('/dashboards/')} class={link}>dashboard</a>.
         </p>
       </section>
     </div>
+
+    <section id="workflows" class="mt-10 max-w-3xl text-sm leading-relaxed">
+      <h2 class="text-lg font-semibold tracking-tight">Other workflows</h2>
+      <ul class="mt-2 list-disc space-y-1 pl-5">
+        <li><strong>Backfill:</strong> whole seasons per league, serially, on the same runners and client as Ingest.</li>
+        <li><strong>Export data:</strong> build, roll back or list published builds by hand.</li>
+        <li><strong>Query the lakehouse:</strong> read-only; prints any table, filtered and ordered, into a job log.</li>
+        <li><strong>Probe sources:</strong> checks from a GitHub runner that the stats API, ESPN and Databricks answer.</li>
+        <li><strong>CI:</strong> secret scan; ruff, mypy, pytest; the dbt sample built twice (the second run takes the incremental path) with the gate; the schema file's freshness; notebooks and the extract on the sample; page tests; Worker tests and a dry-run deploy.</li>
+        <li><strong>Databricks job:</strong> every build also deploys a scheduled Databricks job of the same dbt project, kept paused.</li>
+      </ul>
+    </section>
+
+    <section id="gaps" class="mt-10 max-w-3xl text-sm leading-relaxed" data-testid="known-gaps">
+      <h2 class="text-lg font-semibold tracking-tight">Known gaps</h2>
+      <p class="mt-2 text-muted">Found by checking this page against the code; tracked to be fixed.</p>
+      <ul class="mt-2 list-disc space-y-1 pl-5">
+        <li>One failed request in any ingest job skips that day's whole build.</li>
+        <li>A build exported by hand from the Export workflow does not check the gate.</li>
+        <li>Notebook pages and the Tableau extract are added to a build after it is already live.</li>
+        <li>A failure after the gate (export, notebooks, extract, sheet) opens no incident.</li>
+        <li>A rollback is replaced by the next nightly build, and is not recorded in <code>builds.json</code>.</li>
+      </ul>
+    </section>
   </section>
 </Base>

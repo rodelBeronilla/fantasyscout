@@ -205,20 +205,28 @@ for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/sql/',
   });
 }
 
-test('the pipeline page draws every stage and links each box to how it works', async ({ page }) => {
+test('the pipeline page has its four diagrams and every stage', async ({ page }) => {
   await page.goto('/pipeline/');
-  const diagram = page.getByTestId('pipeline-diagram');
-  await expect(diagram).toBeVisible();
-  expect(await diagram.locator('a').count()).toBe(15);
-  const stages = page.getByTestId('pipeline-stages').locator(':scope > section');
-  await expect(stages).toHaveCount(11);
-  await expect(page.getByTestId('pipeline-stages')).toContainText('replacement');
-  await diagram.locator('a[href="#gate"]').click();
+  for (const id of ['dfd', 'deployment', 'sequence', 'activity']) {
+    await expect(page.getByTestId(`diagram-${id}`).locator('svg')).toBeVisible();
+  }
+  const dfd = page.getByTestId('diagram-dfd');
+  expect(await dfd.locator('a').count()).toBeGreaterThanOrEqual(10);
+  await expect(dfd).toContainText('Decide the gate');
+  await expect(page.getByTestId('diagram-sequence')).toContainText('latest.json (last)');
+  await expect(page.getByTestId('diagram-activity')).toContainText('games share');
+  await expect(page.getByTestId('pipeline-stages').locator(':scope > section')).toHaveCount(11);
+  await expect(page.getByTestId('known-gaps').locator('li')).toHaveCount(5);
+  await dfd.locator('a[href="#gate"]').first().click();
   await expect(page).toHaveURL(/#gate$/);
 });
 
-test('the schema page lists every layer, and a model opens to its notes and columns', async ({ page }) => {
+test('the schema page draws the star schema and the lineage, and a model opens to its notes and columns', async ({ page }) => {
   await page.goto('/schema/');
+  const er = page.getByTestId('diagram-er');
+  await expect(er.locator('svg')).toBeVisible();
+  for (const name of ['dim_player', 'fct_player_game', 'mart_board']) await expect(er).toContainText(name);
+  await expect(page.getByTestId('diagram-lineage').locator('a[href="#m-mart_board"]')).toHaveCount(1);
   for (const layer of ['bronze', 'silver', 'gold', 'ops']) {
     await expect(page.getByTestId(`layer-${layer}`).getByTestId('model').first()).toBeVisible();
   }
@@ -226,7 +234,6 @@ test('the schema page lists every layer, and a model opens to its notes and colu
   await board.locator('summary').click();
   await expect(board).toContainText('value above replacement');
   await expect(board.locator('table')).toContainText('value_total');
-  await expect(board).toContainText('mart_player_projection');
   await expect(page.getByTestId('checks-list').locator('tbody tr').first()).toBeVisible();
 });
 

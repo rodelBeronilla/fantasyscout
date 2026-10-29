@@ -10203,6 +10203,62 @@
    "name": "ops"
   }
  ],
+ "relationships": [
+  {
+   "column": "away_team_sk",
+   "field": "team_sk",
+   "from": "dim_game",
+   "to": "dim_team"
+  },
+  {
+   "column": "home_team_sk",
+   "field": "team_sk",
+   "from": "dim_game",
+   "to": "dim_team"
+  },
+  {
+   "column": "game_sk",
+   "field": "game_sk",
+   "from": "fct_event",
+   "to": "dim_game"
+  },
+  {
+   "column": "game_sk",
+   "field": "game_sk",
+   "from": "fct_player_game",
+   "to": "dim_game"
+  },
+  {
+   "column": "player_sk",
+   "field": "player_sk",
+   "from": "fct_player_game",
+   "to": "dim_player"
+  },
+  {
+   "column": "team_sk",
+   "field": "team_sk",
+   "from": "fct_player_game",
+   "to": "dim_team"
+  },
+  {
+   "column": "game_sk",
+   "field": "game_sk",
+   "from": "fct_shot",
+   "to": "dim_game"
+  },
+  {
+   "column": "game_sk",
+   "field": "game_sk",
+   "from": "fct_team_game",
+   "to": "dim_game"
+  },
+  {
+   "column": "team_sk",
+   "field": "team_sk",
+   "from": "fct_team_game",
+   "to": "dim_team"
+  }
+ ],
  "seeds": [
   {
    "columns": [

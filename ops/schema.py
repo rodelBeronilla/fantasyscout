@@ -10,7 +10,8 @@ Reads dbt's ``manifest.json`` (models, descriptions, lineage, tests) and ``catal
 deterministic JSON file: every model by layer with its description, the comment block at the
 top of its SQL (where the method is written down), columns with types, descriptions and
 tests, what it reads and what reads it; the seeds; the singular data-quality checks with
-their severities; and the fantasy settings from ``dbt_project.yml``.
+their severities; the tested relationships (foreign keys); and the fantasy settings from
+``dbt_project.yml``.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ LAYERS = ("bronze", "silver", "gold", "ops")
 PROJECT = "fantasyscout"
 
 _JINJA_COMMENT = re.compile(r"\{#(.*?)#\}", re.S)
+_REF = re.compile(r"ref\(['\"]([^'\"]+)['\"]\)")
 
 
 def _paragraphs(text: str) -> list[str]:
@@ -96,6 +98,7 @@ def build(
     names = {k: v["name"] for k, v in {**models, **seeds}.items()}
 
     column_tests: dict[tuple[str, str], list[str]] = {}
+    relationships: list[dict[str, str]] = []
     singular: list[dict[str, Any]] = []
     model_checks: dict[str, list[str]] = {}
     for test in tests.values():
@@ -106,6 +109,17 @@ def build(
             attached = test.get("attached_node")
             if column and attached in names:
                 column_tests.setdefault((names[attached], column), []).append(meta["name"])
+                if meta["name"] == "relationships":
+                    to = _REF.search(str(meta.get("kwargs", {}).get("to", "")))
+                    if to:
+                        relationships.append(
+                            {
+                                "from": names[attached],
+                                "column": column,
+                                "to": to.group(1),
+                                "field": str(meta["kwargs"].get("field", "")),
+                            }
+                        )
             continue
         severity = str(test["config"].get("severity", "error")).lower()
         singular.append(
@@ -193,6 +207,7 @@ def build(
         "layers": layers,
         "seeds": seed_list,
         "checks": sorted(singular, key=lambda t: (t["severity"], t["name"])),
+        "relationships": sorted(relationships, key=lambda r: (r["from"], r["column"])),
         "generic_tests": sum(len(v) for v in column_tests.values()),
         "fantasy": fantasy,
     }
