@@ -226,7 +226,7 @@ export default function Board() {
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Punt (drop from the total)</legend>
           {CATEGORIES.map((c) => (
-            <Chip key={c} checked={punts.has(c)} onChange={() => setPunts(toggle(punts, c))}>
+            <Chip key={c} checked={punts.has(c)} strike onChange={() => setPunts(toggle(punts, c))}>
               {CATEGORY_LABELS[c]}
             </Chip>
           ))}
@@ -296,7 +296,7 @@ export default function Board() {
         <span className="text-sm text-muted">{ranked.length} players</span>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Scrollable table">
+      <div className="table-scroll max-h-[70vh] overflow-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Scrollable table">
         <table className="w-full text-sm" data-testid="board">
           <thead className="bg-card">
             <tr>

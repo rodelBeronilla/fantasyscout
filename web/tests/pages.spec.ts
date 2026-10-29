@@ -229,3 +229,34 @@ test('the schema page lists every layer, and a model opens to its notes and colu
   await expect(board).toContainText('mart_player_projection');
   await expect(page.getByTestId('checks-list').locator('tbody tr').first()).toBeVisible();
 });
+
+test('the board header stays in view while its rows scroll', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  const region = page.locator('.table-scroll', { has: board });
+  await region.evaluate((el) => el.scrollTo({ top: 800 }));
+  const regionBox = await region.boundingBox();
+  const headBox = await board.locator('thead th').first().boundingBox();
+  expect(Math.abs((headBox?.y ?? 0) - (regionBox?.y ?? -100))).toBeLessThan(2);
+});
+
+for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/notebooks/', '/schema/']) {
+  test(`every table on ${path} keeps its header in view`, async ({ page }) => {
+    await page.goto(path);
+    await expect(page.locator('main table').first()).toBeAttached();
+    const tables = await page.locator('main table').count();
+    expect(await page.locator('main .table-scroll table').count()).toBe(tables);
+    const position = await page.locator('main table thead th').first().evaluate((th) => getComputedStyle(th).position);
+    expect(position).toBe('sticky');
+  });
+}
+
+test('a punted category is struck through on its chip', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('board').locator('tbody tr').first()).toBeVisible();
+  const chip = page.locator('fieldset label', { hasText: /^PTS$/ });
+  expect(await chip.evaluate((el) => getComputedStyle(el).textDecorationLine)).not.toContain('line-through');
+  await chip.click();
+  expect(await chip.evaluate((el) => getComputedStyle(el).textDecorationLine)).toContain('line-through');
+});

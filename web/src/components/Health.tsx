@@ -161,7 +161,7 @@ export default function Health() {
       <Card title={`Checks (${int(health.check_counts.pass)} pass, ${int(health.check_counts.warn)} warn, ${int((health.check_counts.fail ?? 0) + (health.check_counts.error ?? 0))} fail)`} id="checks">
         {notable.length === 0 && !showAllChecks && <p className="text-sm text-muted">Every check passed in this build.</p>}
         {checks.length > 0 && (
-          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+          <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
             <table className="w-full text-sm" data-testid="checks">
               <thead>
                 <tr>
@@ -198,7 +198,7 @@ export default function Health() {
       </Card>
 
       <Card title="Last ingest run per source and league" id="ingest">
-        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
           <table className="w-full text-sm" data-testid="ingest">
             <thead>
               <tr>
@@ -235,7 +235,7 @@ export default function Health() {
       </Card>
 
       <Card title="Reconciliation: league stats API against ESPN" id="reconciliation">
-        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
           <table className="w-full text-sm" data-testid="reconciliation">
             <thead>
               <tr>
