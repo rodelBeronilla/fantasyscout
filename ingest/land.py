@@ -77,6 +77,8 @@ class LandOptions:
     backend: BackendKind = "local"
     root: Path = Path(".")
     window_days: int = 7
+    # Days of upcoming ESPN scoreboards a daily run lands after the window, for betting lines.
+    ahead_days: int = 7
 
 
 def default_season(league: League, today: date) -> str:
@@ -120,6 +122,9 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         days = (until - since).days + 1
         lines.append(f"  scoreboard for {days} day(s), then summary per completed event")
         lines.append("  then teams, roster per team, injuries")
+        lines.append(
+            f"  and, when the window ends today, {opts.ahead_days} days of upcoming scoreboards"
+        )
     return lines
 
 
@@ -168,8 +173,10 @@ def land(
                 client, landing, StatsPlanner(opts.league, season, opts.season_type, opts.shots)
             ).run(since=since, until=until)
         else:
+            # Only a run that ends today looks ahead; a backfill's window is in the past.
+            ahead = opts.ahead_days if until == today else 0
             summary = EspnIngestor(client, landing, EspnPlanner(opts.league, season)).run(
-                since=since, until=until
+                since=since, until=until, ahead=ahead
             )
     landing.close()
 

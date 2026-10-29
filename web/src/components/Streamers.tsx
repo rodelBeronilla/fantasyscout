@@ -57,6 +57,25 @@ interface Game {
   away_team_tricode: string;
   home_matchup: number | null;
   away_matchup: number | null;
+  /** The betting line, where the sportsbooks have posted one (silver game_lines). */
+  home_spread?: number | null;
+  over_under?: number | null;
+  home_implied_points?: number | null;
+  away_implied_points?: number | null;
+}
+
+/** A team's side of a game in the week grid: the opponent, and the points the line implies. */
+interface GridCell {
+  label: string;
+  implied: number | null;
+  line: string | null;
+}
+
+function lineText(g: Game): string | null {
+  if (typeof g.over_under !== 'number' || typeof g.home_spread !== 'number') return null;
+  const favourite = g.home_spread <= 0 ? g.home_team_tricode : g.away_team_tricode;
+  const spread = g.home_spread === 0 ? 'even' : `${favourite} -${Math.abs(g.home_spread)}`;
+  return `Over/under ${g.over_under}, ${spread}`;
 }
 
 interface Team {
@@ -73,6 +92,8 @@ interface Candidate extends StreamerRow {
   fit: number | null;
   /** Average matchup over the window's games: value per game the opponents' defence and pace add. */
   matchup: number | null;
+  /** Points the betting lines imply the team scores, averaged over the window's games with a line. */
+  implied_points: number | null;
   /** Last-ten value per game over the window's games, plus each game's matchup. */
   window_value: number | null;
 }
@@ -96,12 +117,13 @@ function weekday(iso: string): string {
 
 function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string[]; days: string[]; picked: Set<string> }) {
   const inRange = new Set(days);
-  const byTeamDay = new Map<string, string>();
+  const byTeamDay = new Map<string, GridCell>();
   const perDay = new Map<string, number>();
   for (const g of games) {
     if (!inRange.has(g.game_date)) continue;
-    byTeamDay.set(`${g.home_team_tricode}|${g.game_date}`, `v ${g.away_team_tricode}`);
-    byTeamDay.set(`${g.away_team_tricode}|${g.game_date}`, `@ ${g.home_team_tricode}`);
+    const line = lineText(g);
+    byTeamDay.set(`${g.home_team_tricode}|${g.game_date}`, { label: `v ${g.away_team_tricode}`, implied: g.home_implied_points ?? null, line });
+    byTeamDay.set(`${g.away_team_tricode}|${g.game_date}`, { label: `@ ${g.home_team_tricode}`, implied: g.away_implied_points ?? null, line });
     perDay.set(g.game_date, (perDay.get(g.game_date) ?? 0) + 2);
   }
   const counts = new Map(teams.map((t) => [t, days.filter((d) => byTeamDay.has(`${t}|${d}`)).length]));
@@ -142,8 +164,17 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
               {days.map((d) => {
                 const cell = byTeamDay.get(`${t}|${d}`);
                 return (
-                  <td key={d} className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${cell ? 'bg-accent/10 font-medium' : 'text-muted'}`}>
-                    {cell ?? '·'}
+                  <td
+                    key={d}
+                    className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${cell ? 'bg-accent/10 font-medium' : 'text-muted'}`}
+                    title={cell?.line ? `${cell.line}: ${t} implied ${cell.implied} points` : undefined}
+                  >
+                    {cell?.label ?? '·'}
+                    {cell && typeof cell.implied === 'number' && (
+                      <div className="text-[10px] font-normal text-muted" data-testid="implied-points">
+                        {Math.round(cell.implied)} pts
+                      </div>
+                    )}
                   </td>
                 );
               })}
@@ -209,22 +240,24 @@ export default function Streamers() {
   const inWeek = games.some((g) => g.days_ahead <= 6);
 
   // Each team's game dates inside the window, and the matchup of each of those games.
-  const { teamDates, teamMatchups } = useMemo(() => {
+  const { teamDates, teamMatchups, teamImplied } = useMemo(() => {
     const inRange = new Set(days);
     const dates = new Map<string, Set<string>>();
     const matchups = new Map<string, number[]>();
+    const implied = new Map<string, number[]>();
     for (const g of games) {
       if (!inRange.has(g.game_date)) continue;
-      for (const [id, mu] of [
-        [g.home_team_id, g.home_matchup],
-        [g.away_team_id, g.away_matchup],
+      for (const [id, mu, pts] of [
+        [g.home_team_id, g.home_matchup, g.home_implied_points],
+        [g.away_team_id, g.away_matchup, g.away_implied_points],
       ] as const) {
         if (!dates.has(id)) dates.set(id, new Set());
         dates.get(id)?.add(g.game_date);
         if (typeof mu === 'number') matchups.set(id, [...(matchups.get(id) ?? []), mu]);
+        if (typeof pts === 'number') implied.set(id, [...(implied.get(id) ?? []), pts]);
       }
     }
-    return { teamDates: dates, teamMatchups: matchups };
+    return { teamDates: dates, teamMatchups: matchups, teamImplied: implied };
   }, [games, days]);
 
   const candidates = useMemo<Candidate[]>(
@@ -234,16 +267,18 @@ export default function Streamers() {
         const parts = [...needs].map((c) => r[`last_10_${c}`]).filter((v): v is number => typeof v === 'number');
         const mus = (r.team_id && teamMatchups.get(r.team_id)) || [];
         const muSum = mus.reduce((s, v) => s + v, 0);
+        const pts = (r.team_id && teamImplied.get(r.team_id)) || [];
         return {
           ...r,
           games_window: dates.size,
           games_picked: [...pickedDays].filter((d) => dates.has(d)).length,
           fit: needs.size && parts.length ? parts.reduce((s, v) => s + v, 0) : null,
           matchup: mus.length ? muSum / mus.length : null,
+          implied_points: pts.length ? pts.reduce((s, v) => s + v, 0) / pts.length : null,
           window_value: r.last_10_z_total === null || !dates.size ? null : r.last_10_z_total * dates.size + muSum,
         };
       }),
-    [rows, teamDates, teamMatchups, pickedDays, needs],
+    [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs],
   );
 
   const list = useMemo(() => {
@@ -290,8 +325,8 @@ export default function Streamers() {
     } else if (sortKey === 'fit') setSortKey('minutes_trend');
   };
   const exportCsv = () => {
-    const header = ['player', 'team', 'new_team_from', 'position', `games_next_${horizon}`, 'matchup', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'last_game'];
-    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.last_10_z_total, r.value_trend, r.fit, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.last_game_date]);
+    const header = ['player', 'team', 'new_team_from', 'position', `games_next_${horizon}`, 'matchup', 'implied_team_points', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'last_game'];
+    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.last_10_z_total, r.value_trend, r.fit, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.last_game_date]);
     downloadCsv(`fantasyscout-${league}-streamers.csv`, toCsv(header, body));
   };
   const select = 'rounded border border-line bg-card px-2 py-1';
@@ -451,6 +486,7 @@ export default function Streamers() {
                 {needs.size > 0 && col('fit', 'Need fit', 'Last-ten z-score summed over the categories you need')}
                 {pickedDays.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
                 {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
+                {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
                 {inWeek && col('window_value', 'Window value', 'Last-ten value per game times games in the window, plus each game’s matchup')}
                 {col('board_rank', 'Board #', 'Rank on the board; inside a league-sized pool usually means rostered')}
                 <Th>Last game</Th>
@@ -503,6 +539,7 @@ export default function Streamers() {
                       <Signed value={r.matchup} />
                     </Td>
                   )}
+                  {inWeek && <Td right>{fmt(r.implied_points, 1)}</Td>}
                   {inWeek && <Td right>{fmt(r.window_value, 2)}</Td>}
                   <Td right>{r.board_rank ?? '–'}</Td>
                   <Td>{day(r.last_game_date)}</Td>

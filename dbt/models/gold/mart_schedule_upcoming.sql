@@ -12,6 +12,11 @@
   accumulate; early on, last season's team defence was the better guide. Ratings are
   standardised over the league's teams. A player's past results against an opponent predicted
   nothing (correlation 0.00 to 0.04) and are not used.
+
+  Each game also carries its betting line where the sportsbooks have posted one (silver
+  game_lines): the home spread, the over/under, and the points each side is implied to score.
+  The line is shown alongside the matchup value and does not change it until a backtest says it
+  adds to it.
 #}
 
 {% set m = var('fantasy_matchup') %}
@@ -98,6 +103,26 @@ standardised as (
             / nullif(stddev_samp(pace) over (partition by league, season), 0) as pace_z
     from blended
 
+),
+
+lines as (
+
+    select
+        gl.league,
+        gl.event_date_et,
+        th.stats_team_id as home_team_id,
+        ta.stats_team_id as away_team_id,
+        gl.home_spread,
+        gl.over_under,
+        gl.home_implied_points,
+        gl.away_implied_points,
+        gl.provider,
+        gl.observed_date
+    from {{ ref('game_lines') }} as gl
+    join {{ ref('team_xwalk') }} as th on th.league = gl.league and th.espn_team_id = gl.espn_home_team_id
+    join {{ ref('team_xwalk') }} as ta on ta.league = gl.league and ta.espn_team_id = gl.espn_away_team_id
+    where gl.event_date_et >= {{ add_days(as_of_date(), -1) }}
+
 )
 
 select
@@ -121,7 +146,20 @@ select
     coalesce(
         case u.league {% for lg, b in m.items() if lg != 'prior_games' %} when '{{ lg }}' then {{ b['defense'] }} * coalesce(h.def_z, 0) + {{ b['pace'] }} * (coalesce(h.pace_z, 0) + coalesce(a.pace_z, 0)) / 2{% endfor %} end,
         0
-    ) as away_matchup
+    ) as away_matchup,
+    -- The line, from the event listed the same way round or, at a neutral site, the other way.
+    coalesce(ls.home_spread, -lf.home_spread) as home_spread,
+    coalesce(ls.over_under, lf.over_under) as over_under,
+    coalesce(ls.home_implied_points, lf.away_implied_points) as home_implied_points,
+    coalesce(ls.away_implied_points, lf.home_implied_points) as away_implied_points,
+    coalesce(ls.provider, lf.provider) as line_provider,
+    coalesce(ls.observed_date, lf.observed_date) as line_as_of
 from upcoming as u
 left join standardised as h on h.league = u.league and h.season = u.season and h.team_id = u.home_team_id
 left join standardised as a on a.league = u.league and a.season = u.season and a.team_id = u.away_team_id
+left join lines as ls
+    on ls.league = u.league and ls.event_date_et = u.game_date
+    and ls.home_team_id = u.home_team_id and ls.away_team_id = u.away_team_id
+left join lines as lf
+    on lf.league = u.league and lf.event_date_et = u.game_date
+    and lf.home_team_id = u.away_team_id and lf.away_team_id = u.home_team_id

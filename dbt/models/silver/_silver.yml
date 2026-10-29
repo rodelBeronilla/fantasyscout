@@ -319,6 +319,38 @@ models:
           - accepted_values:
               values: [same_day, adjacent_day]
 
+  - name: game_lines
+    description: "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard."
+    columns:
+      - name: event_key
+        description: "League and ESPN event id"
+        data_tests: [unique, not_null]
+      - name: event_date_et
+        description: "The game's date in US Eastern time, to match the league schedule"
+      - name: espn_home_team_id
+        description: "ESPN team id of the home side"
+      - name: espn_away_team_id
+        description: "ESPN team id of the away side"
+      - name: home_spread
+        description: "The home team's point spread; negative when the home team is favoured"
+      - name: over_under
+        description: "The game's total points line"
+      - name: home_moneyline
+        description: "The home team's moneyline (American odds)"
+      - name: away_moneyline
+        description: "The away team's moneyline (American odds)"
+      - name: line_type
+        description: "closing (from the game summary) or latest (from the most recent scoreboard)"
+        data_tests:
+          - accepted_values:
+              values: [closing, latest]
+      - name: observed_date
+        description: "Ingest date the line was taken from"
+      - name: home_implied_points
+        description: "Points the home team is implied to score: (over_under - home_spread) / 2"
+      - name: away_implied_points
+        description: "Points the away team is implied to score: (over_under + home_spread) / 2"
+
   - name: player_xwalk
     description: "League stats API player id to ESPN athlete id, one row per matched player: exact name, fuzzy name with birthdate, or an override (ADR 0005)."
     columns:

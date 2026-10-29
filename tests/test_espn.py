@@ -183,3 +183,20 @@ def test_settled_days_and_summaries_are_not_fetched_again(tmp_path: Path) -> Non
     assert run_on(date(2026, 9, 25)) == (1, 1)
     assert run_on(date(2026, 9, 26)) == (1, 1)
     assert run_on(date(2026, 9, 27)) == (0, 0)
+
+
+def test_a_daily_run_lands_the_upcoming_scoreboards_for_their_lines(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 24, 12, tzinfo=UTC)
+    summary = EspnIngestor(
+        fixture_client(),
+        Landing(LocalBackend(tmp_path), ingest_date=now.date()),
+        EspnPlanner("wnba", "2026"),
+        now=now,
+    ).run(since=date(2026, 9, 24), until=date(2026, 9, 24), rosters=False, ahead=2)
+    assert summary.ok, summary.failures
+    days = sorted(
+        p.stem
+        for p in (tmp_path / "landing/espn/scoreboard/wnba/2026").rglob("2026*.json")
+        if not p.name.endswith(".meta.json")
+    )
+    assert days == ["20260924", "20260925", "20260926"]

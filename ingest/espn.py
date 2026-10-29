@@ -182,10 +182,14 @@ class EspnIngestor:
         summary.record(result)
         return body
 
-    def run(self, *, since: date, until: date, rosters: bool = True) -> RunSummary:
+    def run(self, *, since: date, until: date, rosters: bool = True, ahead: int = 0) -> RunSummary:
+        """Land the window's scoreboards and summaries, then (with ``ahead``) the scoreboards of
+        that many days after ``until``: upcoming games carry the betting lines (game_lines)."""
         summary = RunSummary(SOURCE, self.planner.league, self.planner.season, self._clock())
         try:
             self._run(summary, since=since, until=until, rosters=rosters)
+            for day in days_between(until + timedelta(days=1), until + timedelta(days=ahead)):
+                self._try(self.planner.scoreboard_request(day), summary)
         except CircuitOpenError as exc:
             summary.aborted = str(exc)
         for failure in self.landing.flush():

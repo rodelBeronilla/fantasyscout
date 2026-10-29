@@ -532,3 +532,21 @@ test('the SQL console asks the public to sign in as the owner, and every page cr
     await expect(page.getByTestId('source-credit')).toContainText('Statistics from NBA.com and WNBA.com');
   }
 });
+
+test('streamers show the points the betting lines imply, in the grid and per player', async ({ page }) => {
+  // The fixture build predates the lines: give every game one, home favoured by 4.5 in a 160 total.
+  await page.route('**/schedule/wnba.json', async (route) => {
+    const games = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    const lined = games.map((g) => ({ ...g, home_spread: -4.5, over_under: 160, home_implied_points: 82.25, away_implied_points: 77.75 }));
+    await route.fulfill({ json: lined });
+  });
+  await page.goto('/streamers/');
+  const grid = page.getByTestId('week-grid');
+  await expect(grid.getByTestId('implied-points').first()).toHaveText(/^(82|78) pts$/);
+  const atl = grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: /^ATL$/ }) });
+  await expect(atl.locator('td[title]').first()).toHaveAttribute('title', /^Over\/under 160, \w+ -4\.5: ATL implied (82\.25|77\.75) points$/);
+  const table = page.getByTestId('trending');
+  await expect(table.locator('thead')).toContainText('Team pts');
+  // A player with games in the window shows the average of their team's implied points.
+  await expect(table.locator('tbody td', { hasText: /^(82\.3|77\.8|80\.0)$/ }).first()).toBeVisible();
+});
