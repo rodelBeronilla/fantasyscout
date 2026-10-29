@@ -131,7 +131,7 @@ export default function PlayerPage() {
   const strengths = seasonZ.find((z) => z.window_name === 'season');
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <header>
         <p className="text-sm font-medium tracking-wide text-accent uppercase">
           {target.league.toUpperCase()} · {player.team.abbreviation ?? '–'} {player.team.name ?? ''}
@@ -149,7 +149,7 @@ export default function PlayerPage() {
       </header>
 
       <Card title="Season lines" id="seasons">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
           <table className="w-full text-sm" data-testid="season-lines">
             <thead>
               <tr>
@@ -279,7 +279,7 @@ export default function PlayerPage() {
             ))}
           </select>
         </label>
-        <div className="mt-3 overflow-x-auto">
+        <div className="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
           <table className="w-full text-sm" data-testid="game-log">
             <thead>
               <tr>

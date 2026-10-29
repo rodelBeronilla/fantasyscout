@@ -17,7 +17,7 @@ const vizUrl = import.meta.env.PUBLIC_TABLEAU_VIZ_URL ?? '';
       data-health trend, built in Tableau Public from an extract of the gold tables that every build refreshes.
     </p>
     <div class="mt-6">
-      <Dashboards client:load vizUrl={vizUrl} />
+      <Dashboards client:only="react" vizUrl={vizUrl} />
     </div>
   </section>
 </Base>

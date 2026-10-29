@@ -138,7 +138,7 @@ jobs:
           export FS_BUILD_ID
           echo "notebooks read build $FS_BUILD_ID"
           (cd notebooks && uv run jupyter nbconvert --to html --execute --output-dir _build --ExecutePreprocessor.timeout=1200 *.ipynb)
-          uv run fs-export publish-files --store r2 --subdir notebooks --build-id "$FS_BUILD_ID" notebooks/_build/*.html
+          uv run fs-export publish-files --store r2 --subdir notebooks --build-id "$FS_BUILD_ID" notebooks/_build/*.html notebooks/_build/*.findings.json
 
       - name: Refresh the Tableau extract and publish it with the build
         if: steps.gate.outcome == 'success'

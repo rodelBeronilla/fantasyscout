@@ -4,6 +4,11 @@ Three analyses over the gold tables, executed against the newest published build
 export and rendered at `/notebooks/` on the site; CI executes them against the fixture sample on
 every pull request, so a notebook that stops running fails the build.
 
+Each notebook covers both leagues and ends by saving its headline findings
+(`_build/<name>.findings.json`: a headline, a few key figures and a short table per league). The
+build publishes them with the rendered pages, and `/notebooks/` shows them for the league chosen in
+the header, linking to the full notebook.
+
 | Notebook | Question |
 | --- | --- |
 | `01_shot_profiles` | Where do players shoot from, and how well, compared with the league in the same zone? |

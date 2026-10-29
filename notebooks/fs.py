@@ -135,3 +135,22 @@ def connect(source: str | None = None) -> duckdb.DuckDBPyConnection:
 def describe(con: duckdb.DuckDBPyConnection) -> str:
     """A one-line note of what the notebook read, for its first cell."""
     return _NOTES.get(id(con), "Reading an in-memory copy of the gold tables.")
+
+
+def leagues(con: duckdb.DuckDBPyConnection) -> list[str]:
+    """The leagues present in this copy of gold, WNBA first."""
+    found = {r[0] for r in con.sql("select distinct league from fct_player_game").fetchall()}
+    return [lg for lg in ("wnba", "nba") if lg in found]
+
+
+def save_findings(name: str, findings: dict) -> Path:
+    """Headline findings next to the rendered notebook, for the site's Notebooks page.
+
+    The shape is {"title", "leagues": {league: {"headline", "facts": [{"label", "value"}],
+    "table": {"columns": [...], "rows": [[...]]}}}}; values are plain JSON.
+    """
+    out = Path.cwd() / "_build"
+    out.mkdir(exist_ok=True)
+    path = out / f"{name}.findings.json"
+    path.write_text(json.dumps(findings, default=str, indent=1), encoding="utf-8")
+    return path

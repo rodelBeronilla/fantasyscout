@@ -15,7 +15,7 @@ import Base from '../layouts/Base.astro';
       left and availability.
     </p>
     <div class="mt-6">
-      <Board client:load />
+      <Board client:only="react" />
     </div>
   </section>
 </Base>

@@ -25,3 +25,5 @@ The warehouse is never exposed to the internet (SPEC.md). The site serves export
 - A missing ops table on a fresh engine is skipped, not fatal, so a local export works before the first gate has run.
 - The export does not diff builds; a nightly export always costs one full pull and upload. If that ever matters, the manifest's per-file SHA-256 is the hook for skipping unchanged uploads.
 - The ops tables go out with the build, so Data Health shows the state the build was published with, not a live view; the live view is the Query the lakehouse workflow.
+- Charts are drawn as plain SVG by the pages themselves (the shot chart, the rolling trend). A charting library that styles its output inline conflicts with the site's policy, which allows no inline styles; drawing the two charts directly keeps the policy strict and the bundle small.
+- Every data island renders in the browser only: they read the league from the address and remembered settings, which the server cannot know, so server-rendered markup could never match.

@@ -1,0 +1,115 @@
+{
+ "title": "Shot profiles",
+ "leagues": {
+  "wnba": {
+   "headline": "In 2026, a Restricted Area attempt is worth 128 points per 100 shots, against 76 from Mid-Range.",
+   "facts": [
+    {
+     "label": "Season",
+     "value": "2026"
+    },
+    {
+     "label": "Best zone",
+     "value": "Restricted Area: 128.5 pts / 100"
+    },
+    {
+     "label": "Share of shots from three",
+     "value": "37.1%"
+    },
+    {
+     "label": "Biggest edge among volume shooters",
+     "value": "Paige Bueckers: +22.5 pts / 100"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Player",
+     "Attempts",
+     "Edge (pts / 100)"
+    ],
+    "rows": [
+     [
+      "Paige Bueckers",
+      686,
+      22.5
+     ],
+     [
+      "A'ja Wilson",
+      814,
+      16.5
+     ],
+     [
+      "Jackie Young",
+      672,
+      14.1
+     ],
+     [
+      "Kelsey Mitchell",
+      784,
+      13.6
+     ],
+     [
+      "Caitlin Clark",
+      683,
+      4.8
+     ]
+    ]
+   }
+  },
+  "nba": {
+   "headline": "In 2025-26, a Restricted Area attempt is worth 134 points per 100 shots, against 83 from Mid-Range.",
+   "facts": [
+    {
+     "label": "Season",
+     "value": "2025-26 (2026-27 is only 10,006 shots in, so this uses 2025-26)"
+    },
+    {
+     "label": "Best zone",
+     "value": "Restricted Area: 133.9 pts / 100"
+    },
+    {
+     "label": "Share of shots from three",
+     "value": "41.5%"
+    },
+    {
+     "label": "Biggest edge among volume shooters",
+     "value": "Shai Gilgeous-Alexander: +13.0 pts / 100"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Player",
+     "Attempts",
+     "Edge (pts / 100)"
+    ],
+    "rows": [
+     [
+      "Shai Gilgeous-Alexander",
+      1599,
+      13.0
+     ],
+     [
+      "Luka Don\u010di\u0107",
+      1457,
+      11.7
+     ],
+     [
+      "Jamal Murray",
+      1484,
+      8.7
+     ],
+     [
+      "Anthony Edwards",
+      1411,
+      7.3
+     ],
+     [
+      "Donovan Mitchell",
+      1782,
+      5.1
+     ]
+    ]
+   }
+  }
+ }
+}
