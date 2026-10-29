@@ -524,6 +524,10 @@ test('the SQL console asks the public to sign in as the owner, and every page cr
   await expect(box.getByRole('link', { name: 'Sign in with Yahoo' })).toHaveAttribute('href', '/auth/owner/start');
   await expect(box.getByTestId('signin-note')).toContainText('set the repository variable OWNER_YAHOO_GUID to ABC123');
   await expect(page.getByTestId('sql-run')).toHaveCount(0);
+  await expect(box.getByRole('link', { name: 'Sign in with Yahoo (OpenID)' })).toHaveCount(0);
+  await page.goto('/sql/?signin=noid&fields=access_token,expires_in');
+  await expect(page.getByTestId('signin-note')).toContainText('(it sent access_token,expires_in)');
+  await expect(page.getByRole('link', { name: 'Sign in with Yahoo (OpenID)' })).toHaveAttribute('href', '/auth/owner/start?openid=1');
   await page.route('**/api/owner/status', (r) => r.fulfill({ json: { configured: false, owner: false } }));
   await page.goto('/sql/');
   await expect(page.getByTestId('console-private')).toBeVisible();

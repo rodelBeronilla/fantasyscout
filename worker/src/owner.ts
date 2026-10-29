@@ -3,13 +3,14 @@
  * public. The published Parquet tables (the comprehensive statistics that the SQL console and
  * the notebooks query) are served only to the owner:
  *
- *  - in a browser, after signing in with the owner's Yahoo account: the Yahoo app's OAuth
- *    sign-in names the account (xoauth_yahoo_guid), and only OWNER_YAHOO_GUID gets the
- *    owner's cookie (HMAC-signed, HttpOnly). No Yahoo token is kept;
+ *  - in a browser, after signing in with the owner's Yahoo account: the sign-in names the
+ *    account (accountOf below), and only OWNER_YAHOO_GUID gets the owner's cookie
+ *    (HMAC-signed, HttpOnly). No Yahoo token is kept;
  *  - in CI, with a reader key derived from the Yahoo client secret, which CI holds as an
  *    Actions secret: HMAC-SHA256(secret, "fantasyscout ci reader"), hex.
  *
  *   GET /auth/owner/start      -> Yahoo's sign-in, with a state value held in a cookie
+ *                                 (?openid=1 asks for the OpenID scope, which names the account)
  *   GET /auth/yahoo/callback   -> (with that state) check the account, set the owner's cookie
  *   GET /auth/owner/logout     -> clear the cookie
  *   GET /api/owner/status      -> { configured, owner }
@@ -18,7 +19,9 @@
  * (yahoo.ts); the owner's state cookie tells the two apart. Without the Yahoo app's credentials
  * nobody is the owner and the Parquet tables are served to no one.
  */
-import { AUTH_URL, type Credentials, type Fetcher, readCookie, tokenRequest } from './yahoo';
+import { AUTH_URL, type Credentials, type Fetcher, readCookie, type TokenReply, tokenReply } from './yahoo';
+
+const USERINFO_URL = 'https://api.login.yahoo.com/openid/v1/userinfo';
 
 export interface OwnerEnv {
   YAHOO_CLIENT_ID?: string;
@@ -45,6 +48,41 @@ export function isPrivateData(pathname: string): boolean {
 
 const credentials = (env: OwnerEnv): Credentials | null =>
   env.YAHOO_CLIENT_ID && env.YAHOO_CLIENT_SECRET ? { YAHOO_CLIENT_ID: env.YAHOO_CLIENT_ID, YAHOO_CLIENT_SECRET: env.YAHOO_CLIENT_SECRET } : null;
+
+/** The claims of a JSON Web Token, unverified: see accountOf for why that is enough here. */
+function jwtClaims(token: string): Record<string, unknown> | null {
+  const part = token.split('.')[1];
+  if (!part) return null;
+  try {
+    const text = atob(part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '='));
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The Yahoo account behind a sign-in, from wherever Yahoo puts it: the legacy xoauth_yahoo_guid
+ * field, the OpenID token's subject (sent when the sign-in asked for the openid scope), or the
+ * OpenID user info endpoint. The token reply comes straight from Yahoo's token endpoint over TLS,
+ * authenticated with the client secret, so the OpenID token's claims are taken as Yahoo's word
+ * without checking its signature (OpenID Connect Core 3.1.3.7 allows this).
+ */
+export async function accountOf(reply: TokenReply, fetcher: Fetcher): Promise<string | undefined> {
+  if (typeof reply.xoauth_yahoo_guid === 'string' && reply.xoauth_yahoo_guid) return reply.xoauth_yahoo_guid;
+  const sub = typeof reply['id_token'] === 'string' ? jwtClaims(reply['id_token'])?.['sub'] : undefined;
+  if (typeof sub === 'string' && sub) return sub;
+  try {
+    const res = await fetcher(USERINFO_URL, { headers: { authorization: `Bearer ${reply.access_token}`, accept: 'application/json' } });
+    if (res.ok) {
+      const info = (await res.json()) as { sub?: unknown };
+      if (typeof info.sub === 'string' && info.sub) return info.sub;
+    }
+  } catch {
+    // no user info: the account stays unknown
+  }
+  return undefined;
+}
 
 const b64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const hex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -116,6 +154,7 @@ export async function handleOwner(request: Request, env: OwnerEnv, fetcher: Fetc
       redirect_uri: `${url.origin}/auth/yahoo/callback`,
       response_type: 'code',
       state,
+      ...(url.searchParams.get('openid') === '1' ? { scope: 'openid' } : {}),
     }).toString();
     return redirect(auth.toString(), [cookie(STATE_COOKIE, state, 600)]);
   }
@@ -126,14 +165,24 @@ export async function handleOwner(request: Request, env: OwnerEnv, fetcher: Fetc
   const clearState = cookie(STATE_COOKIE, '', 0);
   const state = url.searchParams.get('state');
   const code = url.searchParams.get('code');
+  // Yahoo refused the sign-in itself (an unknown scope, say): pass its reason on.
+  const refused = url.searchParams.get('error_description') ?? url.searchParams.get('error');
+  if (refused && state === expected) {
+    return redirect(`/sql/?signin=yahooerror&detail=${encodeURIComponent(refused.slice(0, 200))}`, [clearState]);
+  }
   if (!creds || !code || state !== expected) return redirect('/sql/?signin=failed', [clearState]);
-  let guid: string | undefined;
+  let reply: TokenReply;
   try {
-    ({ guid } = await tokenRequest(creds, { grant_type: 'authorization_code', code, redirect_uri: `${url.origin}/auth/yahoo/callback` }, fetcher));
+    reply = await tokenReply(creds, { grant_type: 'authorization_code', code, redirect_uri: `${url.origin}/auth/yahoo/callback` }, fetcher);
   } catch {
     return redirect('/sql/?signin=failed', [clearState]);
   }
-  if (!guid) return redirect('/sql/?signin=noid', [clearState]);
+  const guid = await accountOf(reply, fetcher);
+  if (!guid) {
+    // Say which fields Yahoo did send (names only), so the missing permission can be found.
+    const fields = Object.keys(reply).sort().join(',');
+    return redirect(`/sql/?signin=noid&fields=${encodeURIComponent(fields)}`, [clearState]);
+  }
   if (!env.OWNER_YAHOO_GUID || guid !== env.OWNER_YAHOO_GUID) {
     // Not the owner, or no owner named yet: show the account's id, which the owner sets once.
     return redirect(`/sql/?signin=notowner&account=${encodeURIComponent(guid)}`, [clearState]);

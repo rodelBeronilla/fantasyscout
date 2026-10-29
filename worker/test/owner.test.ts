@@ -37,7 +37,9 @@ describe("the owner's sign-in", () => {
 
   it('refuses a forged state, says when Yahoo names no account, and leaves other callbacks to the import', async () => {
     expect((await handleOwner(callback('owner-abc', 'owner-xyz'), ENV, yahooAs('OWNERGUID')))!.headers.get('location')).toBe('/sql/?signin=failed');
-    expect((await handleOwner(callback('owner-abc'), ENV, yahooAs()))!.headers.get('location')).toBe('/sql/?signin=noid');
+    expect((await handleOwner(callback('owner-abc'), ENV, yahooAs()))!.headers.get('location')).toBe(
+      '/sql/?signin=noid&fields=access_token%2Cexpires_in%2Crefresh_token',
+    );
     const failing = async () => new Response('no', { status: 400 });
     expect((await handleOwner(callback('owner-abc'), ENV, failing))!.headers.get('location')).toBe('/sql/?signin=failed');
     expect(await handleOwner(new Request(`${ORIGIN}/auth/yahoo/callback?code=c&state=s`), ENV)).toBeNull();
@@ -50,5 +52,35 @@ describe("the owner's sign-in", () => {
     expect(await isOwner(new Request(ORIGIN, { headers: { authorization: `Bearer ${key}` } }), ENV)).toBe(true);
     expect(await isOwner(new Request(ORIGIN, { headers: { authorization: 'Bearer client-secret' } }), ENV)).toBe(false);
     expect(await isOwner(new Request(ORIGIN, { headers: { authorization: `Bearer ${key}` } }), {})).toBe(false);
+  });
+
+  it('reads the account from the OpenID token when Yahoo sends one', async () => {
+    const claims = btoa(JSON.stringify({ sub: 'OWNERGUID', iss: 'https://api.login.yahoo.com' })).replace(/=+$/, '');
+    const withIdToken = async () => Response.json({ access_token: 'a', expires_in: 3600, id_token: `eyJhbGciOiJFUzI1NiJ9.${claims}.sig` });
+    const res = (await handleOwner(callback('owner-abc'), ENV, withIdToken))!;
+    expect(res.headers.get('location')).toBe('/sql/');
+    expect(ownerCookie(res)).toMatch(/^fs_owner=/);
+  });
+
+  it("falls back to Yahoo's OpenID user info for the account", async () => {
+    const calls: string[] = [];
+    const fetcher = async (url: string) => {
+      calls.push(url);
+      return url.includes('/openid/v1/userinfo') ? Response.json({ sub: 'SOMEONE' }) : Response.json({ access_token: 'a', expires_in: 3600 });
+    };
+    const res = (await handleOwner(callback('owner-abc'), ENV, fetcher))!;
+    expect(res.headers.get('location')).toBe('/sql/?signin=notowner&account=SOMEONE');
+    expect(calls.at(-1)).toBe('https://api.login.yahoo.com/openid/v1/userinfo');
+  });
+
+  it("passes Yahoo's refusal on, and asks for the OpenID scope when told to", async () => {
+    const refused = new Request(`${ORIGIN}/auth/yahoo/callback?error=invalid_scope&error_description=Scope%20not%20allowed&state=owner-abc`, {
+      headers: { cookie: 'fs_owner_state=owner-abc' },
+    });
+    expect((await handleOwner(refused, ENV))!.headers.get('location')).toBe('/sql/?signin=yahooerror&detail=Scope%20not%20allowed');
+    const start = (await handleOwner(new Request(`${ORIGIN}/auth/owner/start?openid=1`), ENV))!;
+    expect(new URL(start.headers.get('location')!).searchParams.get('scope')).toBe('openid');
+    const plain = (await handleOwner(new Request(`${ORIGIN}/auth/owner/start`), ENV))!;
+    expect(new URL(plain.headers.get('location')!).searchParams.has('scope')).toBe(false);
   });
 });
