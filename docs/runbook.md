@@ -43,7 +43,7 @@ Rolling back the Worker does not touch R2 data; data rollback is a separate step
 The Parquet tables, and so the SQL console, are private to the site's owner (ADR 0008). The owner signs in with their Yahoo account through the Yahoo app (`YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`).
 
 1. Open `/sql/` and choose **Sign in with Yahoo**. Until the owner is named, the page shows the account's id.
-2. Set that id as the repository variable `OWNER_YAHOO_GUID` (Settings, then Secrets and variables, then Actions, then Variables).
+2. Save that id as the Actions secret `OWNER_YAHOO_GUID`. A repository variable of the same name also works, but use one or the other, not both.
 3. Re-run Deploy web, then sign in again.
 
 The nightly notebooks and the Tableau extract read the tables with a key derived from `YAHOO_CLIENT_SECRET`. Rotating the client secret in the Yahoo app (update the Actions secret, then re-run Deploy web) rotates that key and signs every browser out.
