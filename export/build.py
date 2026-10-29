@@ -120,12 +120,13 @@ def assemble(
         manifest_tables[spec.table] = {"rows": table.num_rows, "files": paths}
         log(f"  {spec.table}: {table.num_rows} rows, {len(paths)} file(s)")
 
-    # Per-league board and streamers with names attached.
-    for name, sql in (("board", layout.BOARD_SQL), ("streamers", layout.STREAMERS_SQL)):
+    # Per-league board, streamers and upcoming schedule, compact for the pages.
+    for name, sql in layout.PER_LEAGUE_JSON:
         table = source.query(sql)
         for league in layout.LEAGUES:
             part = table.filter(pc.equal(table.column("league"), league))
-            add(f"{name}/{league}.json", to_json(rows_of(part)), part.num_rows)
+            rows = rows_of(part, digits=layout.JSON_DIGITS)
+            add(f"{name}/{league}.json", to_json(rows), part.num_rows)
 
     # Data Health in one file.
     data_as_of = {

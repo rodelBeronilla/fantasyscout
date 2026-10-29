@@ -42,9 +42,16 @@ def _plain(value: Any) -> Any:
     return value
 
 
-def rows_of(table: pa.Table) -> list[dict[str, Any]]:
-    """The table as a list of JSON-safe dicts, in row order."""
-    return [{k: _plain(v) for k, v in row.items()} for row in table.to_pylist()]
+def rows_of(table: pa.Table, digits: int | None = None) -> list[dict[str, Any]]:
+    """The table as JSON-safe dicts, in row order; floats rounded when ``digits`` is set."""
+
+    def cell(value: Any) -> Any:
+        plain = _plain(value)
+        if digits is not None and isinstance(plain, float):
+            return round(plain, digits)
+        return plain
+
+    return [{k: cell(v) for k, v in row.items()} for row in table.to_pylist()]
 
 
 def to_json(value: Any) -> bytes:

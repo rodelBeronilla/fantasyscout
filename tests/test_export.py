@@ -255,3 +255,9 @@ def test_publish_files_attaches_them_to_the_latest_build(tmp_path: Path) -> None
         build_mod.publish_files(
             LocalStore(tmp_path / "empty"), [page], subdir="notebooks", log=lambda _: None
         )
+
+
+def test_rows_can_round_floats_for_compact_json() -> None:
+    table = pa.table({"x": [1.234567891, None], "n": [3, 4]})
+    assert rows_of(table, digits=4) == [{"x": 1.2346, "n": 3}, {"x": None, "n": 4}]
+    assert rows_of(table)[0]["x"] == 1.234567891

@@ -152,6 +152,11 @@ models:
         data_tests:
           - accepted_values:
               values: [out, day_to_day, questionable, doubtful, other]
+      - name: stats_player_id
+        description: "League player id, linked by name within the team (ESPN roster and crosswalk, or the league roster); null when no match"
+      - name: is_current
+        description: "True for the rows of the latest injury report per league"
+        data_tests: [not_null]
 
   - name: mart_player_rolling
     description: "Player × game with rolling 5, 10 and 20-game category averages; percentages volume-weighted."
@@ -173,7 +178,7 @@ models:
               values: [season, last_10, last_20]
 
   - name: mart_board
-    description: "The board: blended value per player for the latest season, with rest-of-season scaling."
+    description: "The board: blended value per player for the latest season, recent form, the per-game line, injury status and rest-of-season scaling."
     columns:
       - name: board_sk
         description: "Surrogate key"
@@ -181,9 +186,28 @@ models:
       - name: value_total
         description: "Blended z-score total"
         data_tests: [not_null]
+      - name: availability_multiplier
+        description: "Share of the team's remaining regular-season games the player is expected to play (1.0 once the regular season is over)"
+        data_tests: [not_null]
+      - name: season_complete
+        description: "True when the league has no regular-season games left (playoffs or off-season)"
+        data_tests: [not_null]
+      - name: value_rest_of_season
+        description: "Blend scaled by remaining schedule share and availability; equals the blend between seasons"
+        data_tests: [not_null]
+
+  - name: mart_schedule_upcoming
+    description: "Regular-season and playoff games of the next fourteen days, confirmed games only."
+    columns:
+      - name: upcoming_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: days_ahead
+        description: "Days from the build date"
+        data_tests: [not_null]
 
   - name: mart_streamers
-    description: "Players on current rosters with games in the next seven days and the minutes trend."
+    description: "Players active in the league's current season with games in the next seven days, the minutes and value trend, recent production and injury status."
     columns:
       - name: streamer_sk
         description: "Surrogate key"
