@@ -16,6 +16,7 @@ from ingest.stats import (
     games_in_window,
     parse_result_set,
     season_label,
+    teams_in_payload,
 )
 from ingest.store import Landing, LocalBackend
 
@@ -45,6 +46,36 @@ def fixture_client(status_for: dict[str, int] | None = None) -> ThrottledClient:
         clock=lambda: 0.0,
         rng=random.Random(0),
     )
+
+
+def every_team() -> set[str]:
+    """The teams a run fetches rosters for: the season's game log and the player directory."""
+    return teams_in_payload(fixture("leaguegamelog")) | teams_in_payload(
+        fixture("commonallplayers")
+    )
+
+
+def test_teams_in_payload_skips_players_without_a_team() -> None:
+    teams = teams_in_payload(fixture("commonallplayers"))
+    assert teams and "0" not in teams
+    assert teams_in_payload(None) == set()
+
+
+def test_rosters_land_for_every_team_with_no_games_in_the_window(tmp_path: Path) -> None:
+    """Out of season there are no games, yet the board drafts from these rosters."""
+    now = datetime(2026, 12, 1, 12, tzinfo=UTC)
+    summary = StatsIngestor(
+        fixture_client(),
+        Landing(LocalBackend(tmp_path), ingest_date=now.date()),
+        StatsPlanner("wnba", "2026"),
+        now=now,
+    ).run(since=date(2026, 11, 24), until=date(2026, 12, 1))
+    assert summary.ok, summary.failures
+    assert summary.games == 0
+    rosters = {
+        p.stem for p in (tmp_path / "landing/stats/commonteamroster/wnba/2026").rglob("*.json")
+    }
+    assert every_team() <= rosters
 
 
 def test_season_labels() -> None:
@@ -113,7 +144,7 @@ def test_games_in_window_filters_and_groups_both_team_rows() -> None:
 def test_run_lands_everything_then_reruns_as_a_no_op(tmp_path: Path) -> None:
     planner = StatsPlanner("wnba", "2026")
     games = games_in_window(fixture("leaguegamelog"))
-    teams = {t for g in games for t in g.team_ids}
+    teams = every_team()
     now = datetime(2026, 10, 27, 12, tzinfo=UTC)
 
     first = StatsIngestor(
@@ -170,12 +201,12 @@ def test_failed_endpoint_is_recorded_and_the_rest_still_lands(tmp_path: Path) ->
     assert len(summary.failures) == len(games)
     assert {f.endpoint for f in summary.failures} == {"playbyplayv3"}
     assert "HTTP 500" in summary.failures[0].reason
-    assert summary.landed == 4 + 2 * len(games) + len({t for g in games for t in g.team_ids})
+    assert summary.landed == 4 + 2 * len(games) + len(every_team())
     text = "\n".join(describe(summary))
     assert "failed playbyplayv3/" in text and f"{len(games)} games in window" in text
 
 
-def test_gamelog_failure_stops_game_planning(tmp_path: Path) -> None:
+def test_gamelog_failure_stops_game_planning_but_rosters_still_land(tmp_path: Path) -> None:
     now = datetime(2026, 10, 27, 12, tzinfo=UTC)
     summary = StatsIngestor(
         fixture_client({"leaguegamelog": 403}),
@@ -183,8 +214,14 @@ def test_gamelog_failure_stops_game_planning(tmp_path: Path) -> None:
         StatsPlanner("wnba", "2026"),
         now=now,
     ).run()
-    assert summary.games == 0 and summary.landed == 3
+    # The other three season requests, then a roster per team in the player directory.
+    directory = teams_in_payload(fixture("commonallplayers"))
+    assert summary.games == 0 and summary.landed == 3 + len(directory)
     assert [f.endpoint for f in summary.failures] == ["leaguegamelog"]
+    rosters = {
+        p.stem for p in (tmp_path / "landing/stats/commonteamroster/wnba/2026").rglob("*.json")
+    }
+    assert directory <= rosters
 
 
 def test_team_season_scope_fetches_shots_once_per_team(tmp_path: Path) -> None:
@@ -205,7 +242,7 @@ def test_team_season_scope_fetches_shots_once_per_team(tmp_path: Path) -> None:
         fixture_client(), Landing(LocalBackend(tmp_path), ingest_date=now.date()), planner, now=now
     ).run()
     assert summary.ok, summary.failures
-    assert summary.landed == 4 + 2 * len(games) + len(teams) + len(teams)
+    assert summary.landed == 4 + 2 * len(games) + len(teams) + len(every_team())
     assert (tmp_path / "landing/stats/shotchartdetail/wnba/2026/2026-10-27").exists()
     assert not any(
         p.name.startswith("1022")
