@@ -132,7 +132,23 @@ export async function openTokens(sealed: string | null, secret: string): Promise
   }
 }
 
+/** The token endpoint's reply, parsed, for callers that need more than the tokens. */
+export type TokenReply = Record<string, unknown> & { access_token: string; refresh_token?: string; expires_in?: number; xoauth_yahoo_guid?: string };
+
 export async function tokenRequest(env: Credentials, body: Record<string, string>, fetcher: Fetcher): Promise<Tokens> {
+  return tokensFrom(await tokenReply(env, body, fetcher), body);
+}
+
+function tokensFrom(data: TokenReply, body: Record<string, string>): Tokens {
+  return {
+    access: data.access_token,
+    refresh: data.refresh_token ?? body['refresh_token'] ?? '',
+    expires: Date.now() + Math.max(60, (data.expires_in ?? 3600) - 60) * 1000,
+    ...(data.xoauth_yahoo_guid ? { guid: data.xoauth_yahoo_guid } : {}),
+  };
+}
+
+export async function tokenReply(env: Credentials, body: Record<string, string>, fetcher: Fetcher): Promise<TokenReply> {
   const res = await fetcher(TOKEN_URL, {
     method: 'POST',
     headers: {
@@ -147,13 +163,7 @@ export async function tokenRequest(env: Credentials, body: Record<string, string
     console.error(`yahoo token ${body['grant_type']}: ${res.status} ${detail}`);
     throw new Error(`Yahoo token request failed (${res.status}): ${detail}`);
   }
-  const data = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number; xoauth_yahoo_guid?: string };
-  return {
-    access: data.access_token,
-    refresh: data.refresh_token ?? body['refresh_token'] ?? '',
-    expires: Date.now() + Math.max(60, (data.expires_in ?? 3600) - 60) * 1000,
-    ...(data.xoauth_yahoo_guid ? { guid: data.xoauth_yahoo_guid } : {}),
-  };
+  return (await res.json()) as TokenReply;
 }
 
 /**

@@ -295,7 +295,9 @@ function signInNote(params: URLSearchParams): string | null {
       return `That Yahoo account (id ${account}) is not the site's owner. If it is yours, set the repository variable OWNER_YAHOO_GUID to ${account} and re-run Deploy web.`;
     }
     case 'noid':
-      return 'Yahoo signed you in but did not say which account it was, so the owner could not be checked.';
+      return `Yahoo signed you in but did not say which account it was (it sent ${params.get('fields') || 'no fields'}). Try signing in with OpenID, which asks Yahoo to name the account.`;
+    case 'yahooerror':
+      return `Yahoo refused the sign-in: ${params.get('detail') ?? 'no reason given'}. If it names the scope, the Yahoo app needs the OpenID Connect permission.`;
     case 'failed':
       return 'The Yahoo sign-in did not complete; try again.';
     case 'unavailable':
@@ -313,7 +315,9 @@ function signInNote(params: URLSearchParams): string | null {
  */
 export default function SqlConsole() {
   const [access, setAccess] = useState<Access>('checking');
-  const note = signInNote(new URLSearchParams(window.location.search));
+  const params = new URLSearchParams(window.location.search);
+  const note = signInNote(params);
+  const offerOpenId = ['noid', 'yahooerror'].includes(params.get('signin') ?? '');
   useEffect(() => {
     fetch(href('/api/owner/status'), { headers: { accept: 'application/json' } })
       .then((res) => (res.ok ? (res.json() as Promise<{ configured: boolean; owner: boolean }>) : Promise.reject(new Error(String(res.status)))))
@@ -341,9 +345,16 @@ export default function SqlConsole() {
             {note}
           </p>
         )}
-        <a href={href('/auth/owner/start')} className="justify-self-start rounded border border-accent bg-accent px-3 py-1 text-accent-fg">
-          Sign in with Yahoo
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <a href={href('/auth/owner/start')} className="rounded border border-accent bg-accent px-3 py-1 text-accent-fg">
+            Sign in with Yahoo
+          </a>
+          {offerOpenId && (
+            <a href={href('/auth/owner/start?openid=1')} className="rounded border border-accent px-3 py-1 text-accent">
+              Sign in with Yahoo (OpenID)
+            </a>
+          )}
+        </div>
       </div>
     );
   }
