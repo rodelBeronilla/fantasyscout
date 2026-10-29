@@ -24,6 +24,7 @@ from ingest.lineups import LineupsIngestor
 from ingest.run import RunSummary, describe
 from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
 from ingest.store import Backend, Landing, LocalBackend, VolumeBackend
+from ingest.transactions import TransactionsIngestor
 
 Source = Literal["stats", "espn", "reports"]
 BackendKind = Literal["local", "volume"]
@@ -45,8 +46,8 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
         "shotchartdetail",
         "commonteamroster",
     ),
-    "espn": ("scoreboard", "summary", "teams", "roster", "injuries"),
-    "league": ("injury_report", "daily_lineups"),
+    "espn": ("scoreboard", "summary", "teams", "roster", "injuries", "transactions"),
+    "league": ("injury_report", "daily_lineups", "player_movement"),
 }
 
 
@@ -127,6 +128,8 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         )
         if opts.league == "nba":
             lines.append("  and today's starting lineups (Expected, then Confirmed before tip-off)")
+            lines.append("  and the NBA's player movement feed (the last 180 days)")
+        lines.append("  and ESPN's latest 100 transactions")
     else:
         days = (until - since).days + 1
         lines.append(f"  scoreboard for {days} day(s), then summary per completed event")
@@ -184,6 +187,7 @@ def land(
         elif opts.source == "reports":
             summary = InjuryReportIngestor(client, landing, opts.league, season).run()
             LineupsIngestor(client, landing, opts.league, season).land_into(summary)
+            TransactionsIngestor(client, landing, opts.league, season).land_into(summary)
             for failure in landing.flush():
                 summary.fail(failure.endpoint, failure.key, failure.error)
             summary.pacing = client.pacing()

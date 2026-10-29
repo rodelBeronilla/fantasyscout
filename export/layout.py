@@ -43,6 +43,7 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.fct_availability", "league, report_date, injury_id", json=True),
     TableSpec("gold.fct_injury_status", "league, stats_player_id, injury_id, status_from"),
     TableSpec("gold.fct_player_status", "league, stats_player_id", json=True),
+    TableSpec("gold.fct_transaction", "league, transaction_date desc, team_id, player_id"),
     TableSpec("gold.mart_board", "league, rank_total, player_id"),
     TableSpec("gold.mart_player_projection", "league, player_id"),
     TableSpec("gold.mart_category_zscores", "league, window_name, season, player_id"),
@@ -247,7 +248,26 @@ from gold.mart_schedule_upcoming
 order by league, game_date, game_id
 """
 
-PER_LEAGUE_JSON = (("board", BOARD_SQL), ("streamers", STREAMERS_SQL), ("schedule", SCHEDULE_SQL))
+# The latest moves per league, for Streamers' recent moves and the player pages.
+TRANSACTIONS_SQL = """
+select league, transaction_date, team_abbreviation, player_id, move_type, description, source
+from (
+    select *,
+        row_number() over (
+            partition by league order by transaction_date desc, transaction_sk
+        ) as rn
+    from gold.fct_transaction
+) as t
+where rn <= 150
+order by league, transaction_date desc, team_abbreviation
+"""
+
+PER_LEAGUE_JSON = (
+    ("board", BOARD_SQL),
+    ("streamers", STREAMERS_SQL),
+    ("schedule", SCHEDULE_SQL),
+    ("transactions", TRANSACTIONS_SQL),
+)
 JSON_DIGITS = 4
 
 # The latest build's checks, one row per check, for Data Health.

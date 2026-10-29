@@ -172,7 +172,7 @@ def assemble(
     )
     player_count = 0
     # Optional: a build without it still writes player files, without the injury history.
-    optional = ("fct_injury_status",)
+    optional = ("fct_injury_status", "fct_transaction")
     if all(n in tables for n in needed):
         maker = PlayerFiles({n: tables[n] for n in (*needed, *optional) if n in tables})
         try:

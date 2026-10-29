@@ -853,6 +853,52 @@ models:
       - name: stats
         description: "JSON array of stat values in stat_keys order"
 
+  - name: espn_transactions
+    description: "ESPN's transactions feed: one row per team and day as ESPN writes it, per landed payload (the latest hundred)."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The day the feed was landed"
+      - name: transaction_at
+        description: "The day of the move, as ESPN gives it"
+      - name: description
+        description: "The moves of the day, as ESPN writes them"
+      - name: espn_team_id
+        description: "ESPN team id"
+      - name: team_abbreviation
+        description: "ESPN's team abbreviation"
+
+  - name: league_player_movement
+    description: "The NBA's player movement feed, the last 180 days as landed: one row per move with league ids."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The day the feed was landed"
+      - name: transaction_date
+        description: "The day of the move"
+      - name: transaction_type
+        description: "Signing, Waive, Trade, ContractConverted or AwardOnWaivers"
+      - name: description
+        description: "The move as the league writes it"
+      - name: team_id
+        description: "League team id (written as a decimal in the feed)"
+      - name: player_id
+        description: "League player id (written as a decimal in the feed)"
+
   - name: league_daily_lineups
     description: "The NBA's daily starting lineups: one row per player per team per game per landed file."
     columns:

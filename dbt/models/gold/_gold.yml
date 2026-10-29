@@ -141,6 +141,15 @@ models:
               to: ref('dim_game')
               field: game_sk
 
+  - name: fct_transaction
+    description: "Transactions for the site: the NBA's movement feed, ESPN's feed for the WNBA, and the NBA moves only ESPN carries (G League assignments, recalls, suspensions)."
+    columns:
+      - name: transaction_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: player_id
+        description: "League player id where the source names one (the NBA's feed); null for ESPN's lines"
+
   - name: fct_starting_lineup
     description: "Each player's role in today's game from the league's starting lineups (NBA only): starter, bench or inactive, and whether it is confirmed."
     columns:

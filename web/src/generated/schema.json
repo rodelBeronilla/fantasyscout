@@ -237,7 +237,7 @@
   ],
   "fantasy_team_change": 0.25
  },
- "generic_tests": 219,
+ "generic_tests": 224,
  "layers": [
   {
    "models": [
@@ -1265,6 +1265,73 @@
        "type": "varchar"
       },
       {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The day the feed was landed",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The day of the move, as ESPN gives it",
+       "name": "transaction_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The moves of the day, as ESPN writes them",
+       "name": "description",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN team id",
+       "name": "espn_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's team abbreviation",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "ESPN's transactions feed: one row per team and day as ESPN writes it, per landed payload (the latest hundred).",
+     "materialized": "incremental",
+     "name": "espn_transactions",
+     "notes": [],
+     "read_by": [
+      "transactions"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
        "description": "nba (the WNBA publishes no lineups file)",
        "name": "league",
        "tests": [],
@@ -1470,6 +1537,79 @@
      "notes": [],
      "read_by": [
       "official_injury_report"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The day the feed was landed",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The day of the move",
+       "name": "transaction_date",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Signing, Waive, Trade, ContractConverted or AwardOnWaivers",
+       "name": "transaction_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The move as the league writes it",
+       "name": "description",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id (written as a decimal in the feed)",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id (written as a decimal in the feed)",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The NBA's player movement feed, the last 180 days as landed: one row per move with league ids.",
+     "materialized": "incremental",
+     "name": "league_player_movement",
+     "notes": [],
+     "read_by": [
+      "transactions"
      ],
      "reads": []
     },
@@ -7318,7 +7458,8 @@
       "game_xwalk",
       "mart_schedule_upcoming",
       "player_xwalk",
-      "player_xwalk_review"
+      "player_xwalk_review",
+      "transactions"
      ],
      "reads": [
       "espn_team_directory",
@@ -7415,6 +7556,7 @@
      "read_by": [
       "dim_team",
       "fct_player_status",
+      "fct_transaction",
       "mart_board",
       "mart_streamers",
       "team_xwalk"
@@ -7422,6 +7564,90 @@
      "reads": [
       "stats_leaguegamelog",
       "team_reference"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "League, source, date, team, player and a hash of the description",
+       "name": "transaction_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "transaction_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "transaction_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "description",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "g_league, recall, trade, waive, signing, suspension or other",
+       "name": "move_type",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "source_team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "nba (the league's movement feed) or espn",
+       "name": "source",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Transactions from the NBA's movement feed (with player ids) and ESPN's feed (both leagues, one line per team and day), sorted by their wording.",
+     "materialized": "table",
+     "name": "transactions",
+     "notes": [
+      "Transactions from both sources, one row per move. The NBA's movement feed names the player and team by league id (signings, waivers, trades, conversions, waiver claims); ESPN's feed covers both leagues as one line per team and day, and is the only one with G League assignments and recalls. move_type sorts either by its wording."
+     ],
+     "read_by": [
+      "fct_transaction"
+     ],
+     "reads": [
+      "espn_transactions",
+      "league_player_movement",
+      "team_xwalk"
      ]
     }
    ],
@@ -9361,6 +9587,79 @@
      ],
      "reads": [
       "team_game_box"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key",
+       "name": "transaction_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "transaction_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id where the source names one (the NBA's feed); null for ESPN's lines",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "move_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "description",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "source",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Transactions for the site: the NBA's movement feed, ESPN's feed for the WNBA, and the NBA moves only ESPN carries (G League assignments, recalls, suspensions).",
+     "materialized": "table",
+     "name": "fct_transaction",
+     "notes": [
+      "Transactions for the site: the NBA's movement feed, which names the player, and ESPN's feed for the WNBA and for the NBA moves the league's feed does not carry (G League assignments and recalls, suspensions). Each with the team's abbreviation."
+     ],
+     "read_by": [],
+     "reads": [
+      "teams",
+      "transactions"
      ]
     },
     {

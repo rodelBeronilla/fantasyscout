@@ -38,6 +38,8 @@ PAYLOADS = [
     ("espn", "injuries", "injuries", "wnba", "2026", "league"),
     ("league", "injury_report", "injury_report", "wnba", "2026", "2026-07-27T20-00"),
     ("league", "daily_lineups", "daily_lineups", "nba", "2026-27", "2026-10-29T19"),
+    ("espn", "transactions", "transactions", "wnba", "2026", "2026-10-29"),
+    ("league", "player_movement", "player_movement", "nba", "2026-27", "2026-10-29"),
 ]
 
 

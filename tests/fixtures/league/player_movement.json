@@ -1,0 +1,265 @@
+{
+ "NBA_Player_Movement": {
+  "columns": [
+   {
+    "Name": "Transaction_Type",
+    "DataType": "String"
+   },
+   {
+    "Name": "TRANSACTION_DATE",
+    "DataType": "DateTime"
+   },
+   {
+    "Name": "TRANSACTION_DESCRIPTION",
+    "DataType": "String"
+   },
+   {
+    "Name": "TEAM_ID",
+    "DataType": "Decimal"
+   },
+   {
+    "Name": "TEAM_SLUG",
+    "DataType": "String"
+   },
+   {
+    "Name": "PLAYER_ID",
+    "DataType": "Decimal"
+   },
+   {
+    "Name": "PLAYER_SLUG",
+    "DataType": "String"
+   },
+   {
+    "Name": "Additional_Sort",
+    "DataType": "Decimal"
+   },
+   {
+    "Name": "GroupSort",
+    "DataType": "String"
+   }
+  ],
+  "rows": [
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-19T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Houston Rockets waived guard Sean Pedulla.",
+    "TEAM_ID": 1610612745.0,
+    "TEAM_SLUG": "rockets",
+    "PLAYER_ID": 1642951.0,
+    "PLAYER_SLUG": "sean-pedulla",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1155842"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-19T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Los Angeles Lakers waived forward Dalton Knecht.",
+    "TEAM_ID": 1610612747.0,
+    "TEAM_SLUG": "lakers",
+    "PLAYER_ID": 1642261.0,
+    "PLAYER_SLUG": "dalton-knecht",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1155843"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-19T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Memphis Grizzlies waived guard Walter Clayton Jr..",
+    "TEAM_ID": 1610612763.0,
+    "TEAM_SLUG": "grizzlies",
+    "PLAYER_ID": 1642383.0,
+    "PLAYER_SLUG": "walter-clayton-jr",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1155844"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-19T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Memphis Grizzlies waived guard Micah Peavy.",
+    "TEAM_ID": 1610612763.0,
+    "TEAM_SLUG": "grizzlies",
+    "PLAYER_ID": 1642877.0,
+    "PLAYER_SLUG": "micah-peavy",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1155845"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-19T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Milwaukee Bucks waived guard Kevin Porter Jr..",
+    "TEAM_ID": 1610612749.0,
+    "TEAM_SLUG": "bucks",
+    "PLAYER_ID": 1629645.0,
+    "PLAYER_SLUG": "kevin-porter-jr",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1155846"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-19T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Phoenix Suns waived forward CJ Huntley.",
+    "TEAM_ID": 1610612756.0,
+    "TEAM_SLUG": "suns",
+    "PLAYER_ID": 1643047.0,
+    "PLAYER_SLUG": "cj-huntley",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1155847"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-19T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Sacramento Kings waived guard Adam Flagler.",
+    "TEAM_ID": 1610612758.0,
+    "TEAM_SLUG": "kings",
+    "PLAYER_ID": 1641745.0,
+    "PLAYER_SLUG": "adam-flagler",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1155849"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-19T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Phoenix Suns waived guard Koby Brea.",
+    "TEAM_ID": 1610612756.0,
+    "TEAM_SLUG": "suns",
+    "PLAYER_ID": 1642886.0,
+    "PLAYER_SLUG": "koby-brea",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1155850"
+   },
+   {
+    "Transaction_Type": "Signing",
+    "TRANSACTION_DATE": "2026-10-21T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Dallas Mavericks signed guard Walter Clayton Jr. to a Two-Way Contract.",
+    "TEAM_ID": 1610612742.0,
+    "TEAM_SLUG": "mavericks",
+    "PLAYER_ID": 1642383.0,
+    "PLAYER_SLUG": "walter-clayton-jr",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Signing 1156189"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-21T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Utah Jazz waived forward Blake Hinson.",
+    "TEAM_ID": 1610612762.0,
+    "TEAM_SLUG": "jazz",
+    "PLAYER_ID": 1642396.0,
+    "PLAYER_SLUG": "blake-hinson",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1156182"
+   },
+   {
+    "Transaction_Type": "Signing",
+    "TRANSACTION_DATE": "2026-10-23T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Sacramento Kings signed guard Sean Pedulla to a Two-Way Contract.",
+    "TEAM_ID": 1610612758.0,
+    "TEAM_SLUG": "kings",
+    "PLAYER_ID": 1642951.0,
+    "PLAYER_SLUG": "sean-pedulla",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Signing 1156765"
+   },
+   {
+    "Transaction_Type": "Signing",
+    "TRANSACTION_DATE": "2026-10-23T00:00:00",
+    "TRANSACTION_DESCRIPTION": "New York Knicks signed forward Dalton Knecht to a Two-Way Contract.",
+    "TEAM_ID": 1610612752.0,
+    "TEAM_SLUG": "knicks",
+    "PLAYER_ID": 1642261.0,
+    "PLAYER_SLUG": "dalton-knecht",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Signing 1156891"
+   },
+   {
+    "Transaction_Type": "Signing",
+    "TRANSACTION_DATE": "2026-10-23T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Utah Jazz signed guard Kobe Bufkin to a Two-Way Contract.",
+    "TEAM_ID": 1610612762.0,
+    "TEAM_SLUG": "jazz",
+    "PLAYER_ID": 1641723.0,
+    "PLAYER_SLUG": "kobe-bufkin",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Signing 1156892"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-23T00:00:00",
+    "TRANSACTION_DESCRIPTION": "New York Knicks waived guard Kevin McCullar Jr..",
+    "TEAM_ID": 1610612752.0,
+    "TEAM_SLUG": "knicks",
+    "PLAYER_ID": 1641755.0,
+    "PLAYER_SLUG": "kevin-mccullar-jr",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1156695"
+   },
+   {
+    "Transaction_Type": "Signing",
+    "TRANSACTION_DATE": "2026-10-24T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Oklahoma City Thunder signed guard Micah Peavy to a Two-Way Contract.",
+    "TEAM_ID": 1610612760.0,
+    "TEAM_SLUG": "thunder",
+    "PLAYER_ID": 1642877.0,
+    "PLAYER_SLUG": "micah-peavy",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Signing 1156894"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-24T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Oklahoma City Thunder waived guard Otega Oweh.",
+    "TEAM_ID": 1610612760.0,
+    "TEAM_SLUG": "thunder",
+    "PLAYER_ID": 1642923.0,
+    "PLAYER_SLUG": "otega-oweh",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1156893"
+   },
+   {
+    "Transaction_Type": "Signing",
+    "TRANSACTION_DATE": "2026-10-27T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Minnesota Timberwolves signed forward Enrique Freeman to a Two-Way Contract.",
+    "TEAM_ID": 1610612750.0,
+    "TEAM_SLUG": "timberwolves",
+    "PLAYER_ID": 1642402.0,
+    "PLAYER_SLUG": "enrique-freeman",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Signing 1157080"
+   },
+   {
+    "Transaction_Type": "Signing",
+    "TRANSACTION_DATE": "2026-10-28T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Los Angeles Lakers signed center Lawson Lovering to a Two-Way Contract.",
+    "TEAM_ID": 1610612747.0,
+    "TEAM_SLUG": "lakers",
+    "PLAYER_ID": 1643133.0,
+    "PLAYER_SLUG": "lawson-lovering",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Signing 1157098"
+   },
+   {
+    "Transaction_Type": "Waive",
+    "TRANSACTION_DATE": "2026-10-28T00:00:00",
+    "TRANSACTION_DESCRIPTION": "Los Angeles Lakers waived forward AK Okereke.",
+    "TEAM_ID": 1610612747.0,
+    "TEAM_SLUG": "lakers",
+    "PLAYER_ID": 1643758.0,
+    "PLAYER_SLUG": "ak-okereke",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Waive 1157095"
+   },
+   {
+    "Transaction_Type": "Signing",
+    "TRANSACTION_DATE": "2026-10-29T00:00:00",
+    "TRANSACTION_DESCRIPTION": "LA Clippers signed guard Blake Wesley to a 10-Day Contract.",
+    "TEAM_ID": 1610612746.0,
+    "TEAM_SLUG": "clippers",
+    "PLAYER_ID": 1631104.0,
+    "PLAYER_SLUG": "blake-wesley",
+    "Additional_Sort": 0.0,
+    "GroupSort": "Signing 1157124"
+   }
+  ]
+ },
+ "since": "2026-05-02"
+}
