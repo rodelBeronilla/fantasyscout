@@ -24,7 +24,8 @@ with box as (
 
     select league, game_id, team_id, player_id, side, starter,
         {{ norm_name('family_name') }} as norm_family, {{ norm_name('first_name') }} as norm_first,
-        {{ norm_name('family_name', keep_suffix=true) }} as full_family
+        {{ norm_name('family_name', keep_suffix=true) }} as full_family,
+        {{ norm_name("regexp_extract(family_name, '^([^-]+)-', 1)") }} as family_head
     from {{ ref('player_game_box') }}
 
 ),
@@ -51,6 +52,7 @@ subs as (
         {{ norm_name("regexp_replace(e.in_raw, '^[A-Za-z]+[.] +', '')") }} as in_norm,
         nullif({{ norm_name("regexp_extract(e.in_raw, '^([A-Za-z]+)[.] ', 1)") }}, '') as in_prefix,
         {{ norm_name("regexp_replace(e.in_raw, '^[A-Za-z]+[.] +', '')", keep_suffix=true) }} as in_full,
+        {{ norm_name("regexp_extract(regexp_replace(e.in_raw, '^[A-Za-z]+[.] +', ''), '^([^-]+)-', 1)") }} as in_head,
         {{ norm_name("regexp_extract(e.in_raw, '([^ ]+)$', 1)") }} as in_last
     from (
         select *, regexp_extract(description, 'SUB: (.+) FOR ', 1) as in_raw
@@ -63,9 +65,10 @@ subs as (
 subs_in as (
 
     -- rank 0: surname (and the given-name prefix, when there is one), suffix and all, so that
-    -- "Carter Jr." is not his teammate Carter; 1: the same without the suffix; 2: given name, for
-    -- names the feed writes in the other order; 3: the last word of a longer name, only without
-    -- a prefix
+    -- "Carter Jr." is not his teammate Carter; 1: the same without the suffix; 2: the first part
+    -- of a hyphenated surname, for a name that changed (the box score carries the current
+    -- "Laney-Hamilton", a 2019 substitution says "Laney"); 3: given name, for names the feed
+    -- writes in the other order; 4: the last word of a longer name, only without a prefix
     select league, game_id, period, action_number, team_id, in_id
     from (
         select s.league, s.game_id, s.period, s.action_number, s.team_id, b.player_id as in_id,
@@ -74,8 +77,11 @@ subs_in as (
                     and b.full_family = s.in_full then 0
                 when (s.in_prefix is null or substr(b.norm_first, 1, length(s.in_prefix)) = s.in_prefix)
                     and b.norm_family = s.in_norm then 1
-                when b.norm_first = s.in_norm then 2
-                when s.in_prefix is null and b.norm_family = s.in_last then 3
+                when (s.in_prefix is null or substr(b.norm_first, 1, length(s.in_prefix)) = s.in_prefix)
+                    and ((b.family_head <> '' and b.family_head = s.in_norm)
+                        or (s.in_head <> '' and s.in_head = b.norm_family)) then 2
+                when b.norm_first = s.in_norm then 3
+                when s.in_prefix is null and b.norm_family = s.in_last then 4
             end as match_rank
         from subs as s
         join box as b
