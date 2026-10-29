@@ -123,7 +123,10 @@ jobs:
           DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: uv run fs-export build --engine databricks --store r2 2>&1 | tee -a land.log
+        # pipefail: without it tee's exit status hides a failed export and the job goes green.
+        run: |
+          set -o pipefail
+          uv run fs-export build --engine databricks --store r2 2>&1 | tee -a land.log
 
       - name: Execute the analysis notebooks against the published build and publish them
         if: steps.gate.outcome == 'success'
