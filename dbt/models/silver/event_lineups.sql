@@ -3,8 +3,9 @@
 
   The league's play-by-play names only the player leaving on a substitution ("SUB: Key FOR
   Fagbenle", with the leaving player's id); the player coming on is matched by surname to the
-  game's box score for that team. When two teammates share a surname the feed adds the initial
-  ("SUB: K. Mitchell FOR T. Mitchell"), which must match the given name too; names the feed
+  game's box score for that team. When two teammates share a surname the feed adds the start of
+  the given name ("SUB: K. Mitchell FOR T. Mitchell", "SUB: Jay. Williams FOR Mitchell"), which
+  must match the given name too; names the feed
   writes in the other order ("Xu" for Han Xu) match by given name, and a name with more words
   ("J.J. Redick") by its last word. A player's time on the floor is a set of intervals within a
   period: a period starter is on from the start, a substitution in opens an interval and one
@@ -46,8 +47,8 @@ subs as (
     select
         e.league, e.game_id, e.period, e.action_number, e.team_id,
         e.player_id as out_id,
-        {{ norm_name("regexp_replace(e.in_raw, '^[A-Za-z][.] +', '')") }} as in_norm,
-        nullif(lower(regexp_extract(e.in_raw, '^([A-Za-z])[.] ', 1)), '') as in_initial,
+        {{ norm_name("regexp_replace(e.in_raw, '^[A-Za-z]+[.] +', '')") }} as in_norm,
+        nullif({{ norm_name("regexp_extract(e.in_raw, '^([A-Za-z]+)[.] ', 1)") }}, '') as in_prefix,
         {{ norm_name("regexp_extract(e.in_raw, '([^ ]+)$', 1)") }} as in_last
     from (
         select *, regexp_extract(description, 'SUB: (.+) FOR ', 1) as in_raw
@@ -59,18 +60,25 @@ subs as (
 
 subs_in as (
 
-    select s.league, s.game_id, s.period, s.action_number, s.team_id, b.player_id as in_id
-    from subs as s
-    join box as b
-        on b.league = s.league and b.game_id = s.game_id and b.team_id = s.team_id
-        and (
-            (b.norm_family = s.in_norm and (s.in_initial is null or substr(b.norm_first, 1, 1) = s.in_initial))
-            or b.norm_first = s.in_norm
-            or b.norm_family = s.in_last
-        )
+    -- rank 0: surname (and the given-name prefix, when there is one); 1: given name, for names
+    -- the feed writes in the other order; 2: the last word of a longer name, only without a prefix
+    select league, game_id, period, action_number, team_id, in_id
+    from (
+        select s.league, s.game_id, s.period, s.action_number, s.team_id, b.player_id as in_id,
+            case
+                when b.norm_family = s.in_norm
+                    and (s.in_prefix is null or substr(b.norm_first, 1, length(s.in_prefix)) = s.in_prefix) then 0
+                when b.norm_first = s.in_norm then 1
+                when s.in_prefix is null and b.norm_family = s.in_last then 2
+            end as match_rank
+        from subs as s
+        join box as b
+            on b.league = s.league and b.game_id = s.game_id and b.team_id = s.team_id
+    ) as m
+    where match_rank is not null
     qualify row_number() over (
-        partition by s.league, s.game_id, s.action_number
-        order by case when b.norm_family = s.in_norm then 0 when b.norm_first = s.in_norm then 1 else 2 end, b.player_id
+        partition by league, game_id, action_number
+        order by match_rank, in_id
     ) = 1
 
 ),
