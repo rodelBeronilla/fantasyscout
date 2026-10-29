@@ -19,6 +19,8 @@ Every gold and ops table is a view with its bare name (``fct_shot``, ``mart_boar
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 import urllib.request
@@ -104,6 +106,18 @@ def connect(source: str | None = None) -> duckdb.DuckDBPyConnection:
         manifest = _get_json(f"{SITE}/data/{latest['manifest']}")
         base = f"{SITE}/data/builds/{latest['build_id']}"
         con.execute("install httpfs; load httpfs")
+        # The Parquet tables are private to the site's owner (ADR 0008). CI reads them with a key
+        # derived from the Yahoo client secret it holds; the Worker derives the same (owner.ts).
+        secret = os.environ.get("FS_READER_SECRET", "")
+        if secret:
+            key = hmac.new(secret.encode(), b"fantasyscout ci reader", hashlib.sha256).hexdigest()
+            con.execute(
+                "create secret fs_owner (type http, scope '"
+                + SITE
+                + "', extra_http_headers map {'Authorization': 'Bearer "
+                + key
+                + "'})"
+            )
         for table, info in manifest["tables"].items():
             name = table.split(".", 1)[1]
             files = [f"'{base}/{f}'" for f in info["files"] if f.endswith(".parquet")]

@@ -107,11 +107,13 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
-          # YAHOO_IMPORT (repository variable) opens the Yahoo league import once Yahoo approves the app.
-          command: deploy --env ${{ env.WRANGLER_ENV }}${{ vars.YAHOO_IMPORT && format(' --var YAHOO_IMPORT:{0}', vars.YAHOO_IMPORT) || '' }}
+          # YAHOO_IMPORT (repository variable) opens the Yahoo league import once Yahoo approves the app;
+          # OWNER_YAHOO_GUID (repository variable) names the owner's Yahoo account (ADR 0008).
+          command: deploy --env ${{ env.WRANGLER_ENV }}${{ vars.YAHOO_IMPORT && format(' --var YAHOO_IMPORT:{0}', vars.YAHOO_IMPORT) || '' }}${{ vars.OWNER_YAHOO_GUID && format(' --var OWNER_YAHOO_GUID:{0}', vars.OWNER_YAHOO_GUID) || '' }}
 
-      # The optional Yahoo league import needs the Yahoo app's credentials as Worker secrets.
-      # They come from the repository's Actions secrets; without them the import stays off.
+      # The Yahoo app's credentials sign the owner in, which guards the private Parquet tables
+      # (ADR 0008), and serve the optional league import (ADR 0007). They come from Actions
+      # secrets; without them the tables are closed to everyone, the notebooks included.
       - name: Give the Worker the Yahoo app's credentials, when they are set
         working-directory: worker
         env:
@@ -122,11 +124,12 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$YAHOO_CLIENT_ID" ] || [ -z "$YAHOO_CLIENT_SECRET" ]; then
-            echo "::notice::YAHOO_CLIENT_ID and YAHOO_CLIENT_SECRET are not set; the Yahoo import stays off"
+            echo "::warning::YAHOO_CLIENT_ID and YAHOO_CLIENT_SECRET are not set: nobody can sign in as the owner, and the Parquet tables are closed to everyone"
             exit 0
           fi
           umask 077
-          jq -n --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET"             '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret}' > "$RUNNER_TEMP/yahoo.json"
+          jq -n --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET" \
+            '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret}' > "$RUNNER_TEMP/yahoo.json"
           npx wrangler secret bulk "$RUNNER_TEMP/yahoo.json" --env "$WRANGLER_ENV"
           rm -f "$RUNNER_TEMP/yahoo.json"
 

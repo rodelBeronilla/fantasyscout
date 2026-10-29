@@ -1,18 +1,21 @@
 /**
  * FantasyScout edge Worker.
  *
- *   /data/<key>                 -> object <key> from the R2 bucket, with Range support for DuckDB-WASM
+ *   /data/<key>                 -> object <key> from the R2 bucket, with Range support for DuckDB-WASM;
+ *                                  the Parquet tables only for the signed-in owner (owner.ts, ADR 0008)
+ *   /auth/owner/*, /api/owner/* -> the owner's sign-in, with the owner's Yahoo account (owner.ts)
  *   /auth/yahoo/*, /api/yahoo/* -> the Yahoo Fantasy league import (yahoo.ts)
  *   /*                          -> static files from the Astro build (assets binding)
  *
- * Every response carries the security headers below. The data it serves is public and exported;
- * its only secrets are the Yahoo app's client id and secret, for the optional league import.
+ * Every response carries the security headers below. Its secrets are the Yahoo app's client id
+ * and secret, which sign the owner in (guarding the bulk Parquet tables) and serve the league import.
  */
 
 import cspHashes from './csp-hashes.json';
+import { handleOwner, isOwner, isPrivateData, type OwnerEnv } from './owner';
 import { handleYahoo, type YahooEnv } from './yahoo';
 
-export interface Env extends YahooEnv {
+export interface Env extends YahooEnv, OwnerEnv {
   ASSETS: Fetcher;
   DATA: R2Bucket;
 }
@@ -152,7 +155,7 @@ function isSafeKey(key: string): boolean {
   return key.split('/').every((part) => part !== '' && part !== '.' && part !== '..');
 }
 
-async function serveData(request: Request, env: Env, rawKey: string): Promise<Response> {
+async function serveData(request: Request, env: Env, rawKey: string, isPrivate = false): Promise<Response> {
   let key: string;
   try {
     key = decodeURIComponent(rawKey);
@@ -177,7 +180,7 @@ async function serveData(request: Request, env: Env, rawKey: string): Promise<Re
   headers.set('accept-ranges', 'bytes');
   headers.set(
     'cache-control',
-    POINTER_KEYS.has(key) ? 'public, max-age=60' : 'public, max-age=31536000, immutable',
+    POINTER_KEYS.has(key) ? 'public, max-age=60' : `${isPrivate ? 'private' : 'public'}, max-age=31536000, immutable`,
   );
   if (!headers.has('content-type')) headers.set('content-type', contentTypeFor(key));
 
@@ -206,12 +209,22 @@ export default {
       return withSecurityHeaders(res);
     }
 
+    // Before the league import: the owner's sign-in shares its Yahoo callback.
+    const owner = await handleOwner(request, env);
+    if (owner) return withSecurityHeaders(owner, url.pathname);
+
     const yahoo = await handleYahoo(request, env);
     if (yahoo) return withSecurityHeaders(yahoo, url.pathname);
 
     if (url.pathname.startsWith(DATA_PREFIX)) {
+      const isPrivate = isPrivateData(url.pathname);
+      if (isPrivate && !(await isOwner(request, env))) {
+        const res = text(401, 'The raw tables are private: sign in on the SQL page.');
+        res.headers.set('cache-control', 'private, no-store');
+        return withSecurityHeaders(res, url.pathname);
+      }
       return withSecurityHeaders(
-        await serveData(request, env, url.pathname.slice(DATA_PREFIX.length)),
+        await serveData(request, env, url.pathname.slice(DATA_PREFIX.length), isPrivate),
         url.pathname,
       );
     }

@@ -16,6 +16,7 @@ export const DUCKDB_VERSION: string = __DUCKDB_VERSION__;
 export function duckdbFile(name: string): string {
   return dataHref(`vendor/duckdb-wasm/${DUCKDB_VERSION}/${name}`);
 }
+import { href } from '../lib/site';
 import { Loading, Problem, Td, Th } from './ui';
 
 type DuckModule = typeof import('@duckdb/duckdb-wasm');
@@ -128,7 +129,7 @@ async function openDatabase(latest: Latest, manifest: Manifest): Promise<{ conn:
   return { conn, views: views.sort() };
 }
 
-export default function SqlConsole() {
+function Console() {
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [error, setError] = useState<unknown>(null);
   const [views, setViews] = useState<string[]>([]);
@@ -280,6 +281,78 @@ export default function SqlConsole() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+type Access = 'checking' | 'owner' | 'signin' | 'closed';
+
+/** What the sign-in came back with, from the Worker's redirect. */
+function signInNote(params: URLSearchParams): string | null {
+  switch (params.get('signin')) {
+    case 'notowner': {
+      const account = params.get('account') ?? '';
+      return `That Yahoo account (id ${account}) is not the site's owner. If it is yours, set the repository variable OWNER_YAHOO_GUID to ${account} and re-run Deploy web.`;
+    }
+    case 'noid':
+      return 'Yahoo signed you in but did not say which account it was, so the owner could not be checked.';
+    case 'failed':
+      return 'The Yahoo sign-in did not complete; try again.';
+    case 'unavailable':
+      return 'Signing in is not set up on this site.';
+    default:
+      return null;
+  }
+}
+
+/**
+ * The console reads the full tables, which only the site's owner may load (ADR 0008): the Worker
+ * serves the Parquet files to the owner, signed in with their Yahoo account, and to no one else.
+ * Without the Worker (local development, the test server) there is nothing to sign in to, and the
+ * console opens.
+ */
+export default function SqlConsole() {
+  const [access, setAccess] = useState<Access>('checking');
+  const note = signInNote(new URLSearchParams(window.location.search));
+  useEffect(() => {
+    fetch(href('/api/owner/status'), { headers: { accept: 'application/json' } })
+      .then((res) => (res.ok ? (res.json() as Promise<{ configured: boolean; owner: boolean }>) : Promise.reject(new Error(String(res.status)))))
+      .then((s) => setAccess(s.owner ? 'owner' : s.configured ? 'signin' : 'closed'))
+      .catch(() => setAccess('owner'));
+  }, []);
+
+  if (access === 'checking') return <Loading what="the console" />;
+  if (access === 'closed') {
+    return (
+      <p className="rounded-lg border border-line bg-card p-4 text-sm" data-testid="console-private">
+        The SQL console is private to the site&apos;s owner.
+      </p>
+    );
+  }
+  if (access === 'signin') {
+    return (
+      <div className="grid max-w-xl gap-3 rounded-lg border border-line bg-card p-4 text-sm" data-testid="owner-signin">
+        <p>
+          The console queries the full tables behind the site: every box score, play and shot. The sources&apos; terms keep a database like that off a
+          public site, so it is open to the site&apos;s owner only. Everything derived from it, from the board to the notebooks, stays public.
+        </p>
+        {note && (
+          <p role="alert" className="text-bad" data-testid="signin-note">
+            {note}
+          </p>
+        )}
+        <a href={href('/auth/owner/start')} className="justify-self-start rounded border border-accent bg-accent px-3 py-1 text-accent-fg">
+          Sign in with Yahoo
+        </a>
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-2">
+      <Console />
+      <a href={href('/auth/owner/logout')} className="justify-self-start text-xs text-muted underline underline-offset-4">
+        Sign out
+      </a>
     </div>
   );
 }

@@ -95,6 +95,13 @@ const current = Astro.url.pathname;
       <slot />
     </main>
     <footer class="border-t border-line">
+      <p class="mx-auto max-w-6xl px-4 pt-4 text-sm" data-testid="source-credit">
+        Statistics from <a href="https://www.nba.com/stats" class="underline underline-offset-4">NBA.com</a>{' and '}<a
+          href="https://stats.wnba.com"
+          class="underline underline-offset-4">WNBA.com</a
+        >. Schedules, rosters and injuries from <a href="https://www.espn.com" class="underline underline-offset-4">ESPN</a>.
+        FantasyScout is free, non-commercial and not affiliated with the NBA, the WNBA or ESPN.
+      </p>
       <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-sm text-muted">
         <span>
           Data as of <span data-data-as-of>no build yet</span> · Data build

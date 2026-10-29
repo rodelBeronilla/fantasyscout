@@ -515,3 +515,20 @@ test('the Yahoo import shows as coming soon until it is live, then imports setti
   await page.goto('/?league=nba');
   await expect(page.getByTestId('league-bar')).toContainText('Brick City (2/13)');
 });
+
+test('the SQL console asks the public to sign in as the owner, and every page credits the sources', async ({ page }) => {
+  await page.route('**/api/owner/status', (r) => r.fulfill({ json: { configured: true, owner: false } }));
+  await page.goto('/sql/?signin=notowner&account=ABC123');
+  const box = page.getByTestId('owner-signin');
+  await expect(box).toContainText("open to the site's owner only");
+  await expect(box.getByRole('link', { name: 'Sign in with Yahoo' })).toHaveAttribute('href', '/auth/owner/start');
+  await expect(box.getByTestId('signin-note')).toContainText('set the repository variable OWNER_YAHOO_GUID to ABC123');
+  await expect(page.getByTestId('sql-run')).toHaveCount(0);
+  await page.route('**/api/owner/status', (r) => r.fulfill({ json: { configured: false, owner: false } }));
+  await page.goto('/sql/');
+  await expect(page.getByTestId('console-private')).toBeVisible();
+  for (const path of ['/', '/streamers/', '/league/']) {
+    await page.goto(path);
+    await expect(page.getByTestId('source-credit')).toContainText('Statistics from NBA.com and WNBA.com');
+  }
+});

@@ -5,13 +5,14 @@ import Base from '../../layouts/Base.astro';
 
 <Base
   title="SQL console"
-  description="A read-only DuckDB in your browser over the exported gold tables, with saved example queries."
+  description="A read-only DuckDB in your browser over the full exported tables, open to the site's owner."
 >
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">SQL console</h1>
     <p class="mt-1 text-sm text-muted">
       DuckDB runs in your browser and reads the build's Parquet files over range requests; nothing leaves
-      this page. Read only. The first query loads the engine, which takes a few seconds.
+      this page. Read only, and private to the site's owner: the full tables stay off the public site. The
+      first query loads the engine, which takes a few seconds.
     </p>
     <div class="mt-6">
       <SqlConsole client:only="react" />

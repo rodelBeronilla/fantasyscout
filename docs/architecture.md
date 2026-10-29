@@ -55,7 +55,7 @@ The two sources share no ids. Three crosswalks in silver bridge them, rebuilt fr
 
 ## Serving
 
-A passing gate publishes a data build to the `fantasyscout-data` bucket under `builds/<build_id>/` (one Parquet per gold model, JSON beside the small ones, the big facts per league-season, `board/` and `streamers/` per league, `health.json`, one file per player, `manifest.json`); `latest.json` is flipped last and seven builds are kept, so a rollback is one pointer rewrite (ADR 0006). The Worker serves the Astro build and streams `/data/*` from the bucket with range support; the pointers are cached for a minute, build files for a year. Every page reads `latest.json` first, so the whole site moves to a new build at once. The SQL console runs DuckDB-WASM in the browser over the build's Parquet files; its engine is served from the bucket because it is too large for a static asset. The footer of every page names the data build and links to its Data Health entry.
+A passing gate publishes a data build to the `fantasyscout-data` bucket under `builds/<build_id>/` (one Parquet per gold model, JSON beside the small ones, the big facts per league-season, `board/` and `streamers/` per league, `health.json`, one file per player, `manifest.json`); `latest.json` is flipped last and seven builds are kept, so a rollback is one pointer rewrite (ADR 0006). The Worker serves the Astro build and streams `/data/*` from the bucket with range support; the pointers are cached for a minute, build files for a year. Every page reads `latest.json` first, so the whole site moves to a new build at once. The SQL console runs DuckDB-WASM in the browser over the build's Parquet files; its engine is served from the bucket because it is too large for a static asset. The Parquet files are private to the site's owner (ADR 0008): the Worker serves them only to the owner, signed in with their Yahoo account, or to CI with a key derived from the Yahoo client secret, while the JSON the pages read stays public. The footer of every page names the data build and links to its Data Health entry.
 
 ## Analysis surfaces
 
@@ -63,9 +63,10 @@ Three doors onto the same gold tables (SPEC.md): the site's pages and SQL consol
 
 ## Trust boundaries
 
-- The Worker reads the static build and public R2 objects. Its only secrets are the Yahoo app's client id and secret, for the optional league import (ADR 0007): the manager's Yahoo tokens stay in an encrypted HttpOnly cookie and never reach the page. Its CSP allows `'wasm-unsafe-eval'` for DuckDB-WASM and frames only `public.tableau.com`.
+- The Worker reads the static build and the R2 bucket. Its secrets are the Yahoo app's client id and secret, which sign the owner in to the private Parquet tables (ADR 0008) and serve the optional league import (ADR 0007); the manager's Yahoo tokens stay in an encrypted HttpOnly cookie and never reach the page.
+- Every page credits NBA.com and WNBA.com for statistics and ESPN for schedules, rosters and injuries (ADR 0008). Its CSP allows `'wasm-unsafe-eval'` for DuckDB-WASM and frames only `public.tableau.com`.
 - The export job is the only writer to R2 and runs only after the publish gate passes. `latest.json` flips last, so a half-uploaded build is never visible. The last seven builds stay for rollback.
-- Secrets live in GitHub Actions secrets only: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `ANTHROPIC_API_KEY`, and optionally `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`, which the deploy copies into the Worker.
+- Secrets live in GitHub Actions secrets only: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `ANTHROPIC_API_KEY`, and `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`, which the deploy copies into the Worker.
 - Raw payloads from the stats APIs are never redistributed; only derived gold tables are published.
 
 ## Hosting

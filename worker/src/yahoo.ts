@@ -24,7 +24,7 @@ export interface YahooEnv {
   YAHOO_IMPORT?: string;
 }
 
-const AUTH_URL = 'https://api.login.yahoo.com/oauth2/request_auth';
+export const AUTH_URL = 'https://api.login.yahoo.com/oauth2/request_auth';
 const TOKEN_URL = 'https://api.login.yahoo.com/oauth2/get_token';
 const API = 'https://fantasysports.yahooapis.com/fantasy/v2';
 const TOKEN_COOKIE = 'fs_yahoo';
@@ -38,9 +38,11 @@ export interface Tokens {
   access?: string;
   /** When the access token expires, in ms since the epoch. */
   expires?: number;
+  /** The Yahoo account the tokens belong to (Yahoo's xoauth_yahoo_guid). */
+  guid?: string;
 }
 
-type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;
+export type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;
 
 /** Requests from a Worker carry no User-Agent unless given one, and Yahoo's edge can turn those away. */
 const USER_AGENT = 'FantasyScout/1.0 (+https://fantasyscout.beronilla.rodeo)';
@@ -130,7 +132,7 @@ export async function openTokens(sealed: string | null, secret: string): Promise
   }
 }
 
-async function tokenRequest(env: Credentials, body: Record<string, string>, fetcher: Fetcher): Promise<Tokens> {
+export async function tokenRequest(env: Credentials, body: Record<string, string>, fetcher: Fetcher): Promise<Tokens> {
   const res = await fetcher(TOKEN_URL, {
     method: 'POST',
     headers: {
@@ -145,11 +147,12 @@ async function tokenRequest(env: Credentials, body: Record<string, string>, fetc
     console.error(`yahoo token ${body['grant_type']}: ${res.status} ${detail}`);
     throw new Error(`Yahoo token request failed (${res.status}): ${detail}`);
   }
-  const data = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number };
+  const data = (await res.json()) as { access_token: string; refresh_token?: string; expires_in?: number; xoauth_yahoo_guid?: string };
   return {
     access: data.access_token,
     refresh: data.refresh_token ?? body['refresh_token'] ?? '',
     expires: Date.now() + Math.max(60, (data.expires_in ?? 3600) - 60) * 1000,
+    ...(data.xoauth_yahoo_guid ? { guid: data.xoauth_yahoo_guid } : {}),
   };
 }
 
@@ -279,7 +282,7 @@ export function parseLeague(settingsBody: unknown, rostersBody: unknown): YahooL
   };
 }
 
-type Credentials = Required<Pick<YahooEnv, 'YAHOO_CLIENT_ID' | 'YAHOO_CLIENT_SECRET'>>;
+export type Credentials = Required<Pick<YahooEnv, 'YAHOO_CLIENT_ID' | 'YAHOO_CLIENT_SECRET'>>;
 const configured = (env: YahooEnv): env is YahooEnv & Credentials => !!env.YAHOO_CLIENT_ID && !!env.YAHOO_CLIENT_SECRET;
 
 /** Handles /auth/yahoo/* and /api/yahoo/*; anything else returns null. */

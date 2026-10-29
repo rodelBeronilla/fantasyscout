@@ -11,6 +11,7 @@ One record per real decision, written when the decision is made. Numbered, never
 | [0005](0005-reconciliation.md) | Reconciling the two sources | Accepted |
 | [0006](0006-serving-layout.md) | How gold reaches the site | Accepted |
 | [0007](0007-yahoo-league-import.md) | Importing a Yahoo Fantasy league | Accepted |
+| [0008](0008-stats-terms-and-private-tables.md) | The statistics' terms, source credit and the private tables | Accepted |
 
 Template:
 
