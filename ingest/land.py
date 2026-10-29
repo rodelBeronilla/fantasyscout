@@ -115,7 +115,7 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
             "  then per game in window: "
             + ", ".join(r.endpoint for r in planner.game_requests("<game>"))
         )
-        lines.append("  then commonteamroster per team seen in the window")
+        lines.append("  then commonteamroster for every team in the season or the player directory")
     else:
         days = (until - since).days + 1
         lines.append(f"  scoreboard for {days} day(s), then summary per completed event")

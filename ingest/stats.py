@@ -271,6 +271,17 @@ def games_in_window(
     ]
 
 
+def teams_in_payload(payload: bytes | None) -> set[str]:
+    """Every team id in a payload's first result set (a season game log, the player directory).
+
+    Zero and blank ids (players without a team) are left out.
+    """
+    if payload is None:
+        return set()
+    teams = {str(row.get("TEAM_ID", "")) for row in parse_result_set(payload)}
+    return {t for t in teams if t and t != "0"}
+
+
 class StatsIngestor:
     """Fetches planned requests and lands them. A failed request is recorded, never raised."""
 
@@ -336,14 +347,18 @@ class StatsIngestor:
 
     def _run(self, summary: RunSummary, *, since: date | None, until: date | None) -> None:
         gamelog = self.planner.gamelog_request()
-        gamelog_body: bytes | None = None
-        for request in self.planner.season_requests():
-            body = self._try(request, summary)
-            if request == gamelog:
-                gamelog_body = body
-        if gamelog_body is None:
-            return  # the game log failed, so there is nothing to plan games from
-        games = games_in_window(gamelog_body, since=since, until=until)
+        season = [
+            (request, self._try(request, summary)) for request in self.planner.season_requests()
+        ]
+        gamelog_body = next((body for request, body in season if request == gamelog), None)
+        directory_body = next(
+            (body for request, body in season if request.endpoint == "commonallplayers"), None
+        )
+        games = (
+            games_in_window(gamelog_body, since=since, until=until)
+            if gamelog_body is not None
+            else []
+        )
         summary.games = len(games)
         team_ids: set[str] = set()
         for game in games:
@@ -352,5 +367,10 @@ class StatsIngestor:
                 self._try(request, summary)
         for request in self.planner.shot_requests(team_ids):
             self._try(request, summary)
-        for request in self.planner.roster_requests(team_ids):
+        # Every team's roster, every run, not only teams that played in the window: out of
+        # season (free agency, the draft, trades before opening night) there are no games,
+        # yet the board drafts from these rosters. Teams come from the whole season's game log
+        # and from the current player directory, which also names a team before its first game.
+        all_teams = team_ids | teams_in_payload(gamelog_body) | teams_in_payload(directory_body)
+        for request in self.planner.roster_requests(all_teams):
             self._try(request, summary)
