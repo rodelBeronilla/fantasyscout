@@ -135,16 +135,28 @@ jobs:
 
       # The spec's budget: pages load from R2 data in under 2 s on 4G. Lighthouse's default mobile
       # profile simulates a slow 4G link with a 4x CPU slowdown, stricter than a plain 4G test.
-      - name: Lighthouse (mobile, simulated 4G)
+      # A shared runner's CPU and network vary from run to run, so the page is measured three
+      # times and the budget applies to the median.
+      - name: Lighthouse (mobile, simulated 4G, median of three)
         env:
           URL: ${{ github.ref_name == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
         run: |
           set -euo pipefail
-          npx --yes lighthouse@12 "$URL/" --quiet --chrome-flags="--headless=new --no-sandbox"             --only-categories=performance --output=json --output-path=./lh-home.json
+          for i in 1 2 3; do
+            npx --yes lighthouse@12 "$URL/" --quiet --chrome-flags="--headless=new --no-sandbox" \
+              --only-categories=performance --output=json --output-path="./lh-home-$i.json"
+          done
           node -e '
-            const r = require("./lh-home.json");
-            const a = r.audits;
-            const lcp = a["largest-contentful-paint"].numericValue, tti = a["interactive"].numericValue;
-            console.log(`performance ${Math.round(r.categories.performance.score * 100)} | LCP ${Math.round(lcp)} ms | TTI ${Math.round(tti)} ms | speed index ${Math.round(a["speed-index"].numericValue)} ms`);
-            if (lcp > 2000) { console.error("::error::LCP over the 2 s budget"); process.exit(1); }
+            const runs = [1, 2, 3].map((i) => require(`./lh-home-${i}.json`));
+            const pick = (r) => ({
+              perf: Math.round(r.categories.performance.score * 100),
+              lcp: r.audits["largest-contentful-paint"].numericValue,
+              tti: r.audits["interactive"].numericValue,
+              si: r.audits["speed-index"].numericValue,
+            });
+            const all = runs.map(pick);
+            for (const m of all) console.log(`performance ${m.perf} | LCP ${Math.round(m.lcp)} ms | TTI ${Math.round(m.tti)} ms | speed index ${Math.round(m.si)} ms`);
+            const lcp = all.map((m) => m.lcp).sort((a, b) => a - b)[1];
+            console.log(`median LCP ${Math.round(lcp)} ms`);
+            if (lcp > 2000) { console.error("::error::median LCP over the 2 s budget"); process.exit(1); }
           '

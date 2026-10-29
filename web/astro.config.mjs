@@ -16,8 +16,10 @@ export default defineConfig({
   trailingSlash: 'always',
   integrations: [react()],
   build: {
-    // Keep styles and scripts in files so the Worker's CSP can stay at 'self' (no inline code).
-    inlineStylesheets: 'never',
+    // The stylesheet is inlined: it is small, and a render-blocking file cost a round trip
+    // before first paint. The Worker's CSP allows each inline style by its SHA-256 hash
+    // (worker/scripts/csp-hashes.mjs), so nothing inline runs without being listed.
+    inlineStylesheets: 'always',
   },
   vite: {
     plugins: [tailwindcss()],
