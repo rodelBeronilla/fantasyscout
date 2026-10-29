@@ -81,7 +81,7 @@ Backfills pass `--shots team-season`: the shot chart endpoint returns a whole se
 
 ## Export and rollback
 
-Every passing nightly build publishes a data build to the `fantasyscout-data` bucket: `builds/<build_id>/` holds the Parquet and JSON files, the per-player files and `manifest.json`; `latest.json` at the root points at the current build and `builds.json` lists the seven kept. The site reads `latest.json` first, so a build is only visible once every file is up. To publish by hand, roll back, or list what is served, run the "Export data" workflow with `build`, `rollback` (optionally a build id; the default is the previous build) or `list`. A rollback rewrites only `latest.json` and takes effect within a minute (the Worker caches the pointer for 60 s). Locally, `uv run fs-export build --engine duckdb --store local --out web/public/data` writes the same layout under the dev server's `/data/`.
+Every passing nightly build publishes a data build to the `fantasyscout-data` bucket: `builds/<build_id>/` holds the Parquet and JSON files, the per-player files and `manifest.json`; `latest.json` at the root points at the current build and `builds.json` lists the seven kept. The site reads `latest.json` first, so a build is only visible once every file is up. The nightly build stages a build, adds the notebooks and the Tableau extract to it, then promotes it (`builds.json`, then `latest.json`). To publish by hand, roll back, release a rollback or list what is served, run the "Export data" workflow with `build`, `rollback`, `unpin` or `list`. A hand-made `build` checks the latest publish gate first and refuses when it did not pass; set `ignore_gate` only in an emergency. A rollback pins the site until `unpin` (see "Roll back a data build"). Locally, `uv run fs-export build --engine duckdb --store local --out web/public/data` writes the same layout under the dev server's `/data/`.
 
 ## Rerun a day
 
@@ -145,6 +145,22 @@ Prove the gate and the incident path on demand, without touching data: run the B
 
 While a job runs, its log (the `Land` step, or `land.log` in the runner's work directory) carries a `progress` line every 25 requests with the running rate; a healthy stats job shows 20 to 30 requests a minute. A job whose log has not gained a line in five minutes is stalled: the pacing never pauses longer than the 30 s cooldown after a rate limit, and a host that stops answering trips the circuit breaker within about a minute and fails the job. Should a job sit silent anyway, dump the process's Python stack from the runner host (`py-spy dump --pid <pid>` in a throwaway container sharing the runner's pid namespace) and compare with a fresh request from the same container; ADR 0004 records the one stall seen so far and what fixed it.
 
-## Roll back a data build (phase 5)
+## Roll back a data build
 
-To be written with the export job.
+Run the "Export data" workflow with `rollback`. Leave the build id blank to go back one build,
+or give one from `list`. The site serves it within a minute, because the Worker caches
+`latest.json` for 60 s.
+
+A rollback **pins** the site. `latest.json` and that build's entry in `builds.json` say so, and
+`list` shows it. While the pin holds, nightly builds still run, publish their files and are
+recorded in `builds.json`, but they do not go live. Pruning never removes the pinned build.
+
+When the problem is fixed, run the workflow with `unpin`. Leave the build id blank to go live
+with the newest build, or name one.
+
+Locally, the same commands are:
+
+```
+uv run fs-export rollback --store r2 [--to <id>]
+uv run fs-export unpin --store r2 [--to <id>]
+```
