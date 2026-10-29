@@ -10,7 +10,7 @@ select
     nickname,
     player_slug,
     num as jersey,
-    position,
+    {{ clean_text('position') }} as position,
     height,
     try_cast(weight as integer) as weight_lbs,
     birth_date,

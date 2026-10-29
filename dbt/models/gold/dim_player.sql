@@ -44,6 +44,21 @@ stints as (
 
 ),
 
+box_position as (
+
+    -- The position a player is listed at when starting, most often, in the latest season
+    -- they started a game: a fallback when neither roster carries one.
+    select league, player_id, position
+    from (
+        select league, player_id, season, position, count(*) as n
+        from {{ ref('player_game_box') }}
+        where position is not null
+        group by league, player_id, season, position
+    ) as counted
+    qualify row_number() over (partition by league, player_id order by season desc, n desc, position) = 1
+
+),
+
 last_game as (
 
     select league, player_id, max(game_date) as last_game_date
@@ -74,7 +89,7 @@ select
     s.player_id as stats_player_id,
     px.espn_player_id,
     coalesce(p.full_name, b.player_name) as full_name,
-    b.position,
+    coalesce(b.position, er.position, bp.position) as position,
     b.height,
     b.weight_lbs,
     b.birth_date,
@@ -93,3 +108,7 @@ left join last_game as lg
     on lg.league = s.league and lg.player_id = s.player_id
 left join {{ ref('player_xwalk') }} as px
     on px.league = s.league and px.stats_player_id = s.player_id
+left join {{ ref('espn_roster_players') }} as er
+    on er.league = s.league and er.athlete_id = px.espn_player_id
+left join box_position as bp
+    on bp.league = s.league and bp.player_id = s.player_id

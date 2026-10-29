@@ -12,7 +12,9 @@ select
     first_name,
     family_name,
     name_i as name_short,
-    position,
+    {{ clean_text('position') }} as position,
+    -- the v3 box score gives starters a position and leaves the bench blank
+    {{ clean_text('position') }} is not null as starter,
     comment,
     jersey_num,
     minutes as minutes_text,
@@ -32,7 +34,8 @@ select
     try_cast(turnovers as integer) as turnovers,
     try_cast(fouls_personal as integer) as fouls_personal,
     try_cast(points as integer) as points,
-    try_cast(plus_minus_points as integer) as plus_minus,
+    -- the v3 box score writes plus-minus as "-5.0"; a direct integer cast fails silently
+    cast(try_cast(plus_minus_points as double) as integer) as plus_minus,
     _ingest_date,
     _source_file
 from {{ ref('stats_boxscoretraditionalv3') }}

@@ -8,7 +8,7 @@ select
     first_name,
     last_name,
     team_id,
-    position,
+    {{ clean_text('position') }} as position,
     jersey,
     {{ espn_birth_date('date_of_birth') }} as birth_date,
     _ingest_date,

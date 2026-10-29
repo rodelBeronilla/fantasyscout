@@ -362,3 +362,13 @@ models:
           - not_null
           - accepted_values:
               values: [exact, minor, conflict]
+
+  - name: event_lineups
+    description: "The five players on the floor for each side at every play-by-play action (substitution intervals; period starters inferred after the first period)."
+    columns:
+      - name: event_key
+        description: "Natural key, unique per row"
+        data_tests: [unique, not_null]
+      - name: lineup_complete
+        description: "Both sides have exactly five players"
+        data_tests: [not_null]

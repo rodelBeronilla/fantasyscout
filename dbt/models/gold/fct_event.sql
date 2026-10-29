@@ -3,14 +3,16 @@
         materialized='incremental',
         incremental_strategy='merge',
         unique_key='event_key',
+        on_schema_change='append_new_columns',
         partition_by=(['league', 'season'] if target.type == 'databricks' else none),
         zorder=(['game_id'] if target.type == 'databricks' else none),
     )
 }}
 
 {#
-  One row per play-by-play action. The lineup on the floor needs substitution tracking across
-  periods and is added with the lineup model in a later phase; the columns are reserved here.
+  One row per play-by-play action, with the five players on the floor for each side
+  (silver.event_lineups: comma-separated league player ids, sorted; lineup_complete when both
+  sides have five).
 #}
 
 select
@@ -44,12 +46,15 @@ select
     e.score_home,
     e.score_away,
     e.points_total,
-    cast(null as string) as lineup_home,
-    cast(null as string) as lineup_away,
+    l.lineup_home,
+    l.lineup_away,
+    coalesce(l.lineup_complete, false) as lineup_complete,
     e._ingest_date
 from {{ ref('events') }} as e
 left join {{ ref('games') }} as g
     on g.league = e.league and g.game_id = e.game_id
+left join {{ ref('event_lineups') }} as l
+    on l.event_key = e.event_key
 {% if is_incremental() %}
 where e._ingest_date >= (select coalesce(max(_ingest_date), cast('1900-01-01' as date)) from {{ this }})
 {% endif %}

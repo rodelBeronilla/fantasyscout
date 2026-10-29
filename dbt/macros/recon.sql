@@ -156,3 +156,21 @@
 {% macro espn_birth_date(col) -%}
   try_cast(substr({{ col }}, 1, 10) as date)
 {%- endmacro %}
+
+{# The values of a group joined into one sorted, comma-separated string (lineups). #}
+{% macro sorted_join(col) -%}
+  {{ return(adapter.dispatch('sorted_join', 'fantasyscout')(col)) }}
+{%- endmacro %}
+
+{% macro default__sorted_join(col) -%}
+  string_agg({{ col }}, ',' order by {{ col }})
+{%- endmacro %}
+
+{% macro databricks__sorted_join(col) -%}
+  array_join(array_sort(collect_list({{ col }})), ',')
+{%- endmacro %}
+
+{# A text value made empty-safe: blank strings and the literal 'null' become null. #}
+{% macro clean_text(col) -%}
+  nullif(nullif(trim({{ col }}), ''), 'null')
+{%- endmacro %}

@@ -3,6 +3,10 @@ version: "0.1.0"
 config-version: 2
 profile: fantasyscout
 
+# No usage tracking from the CLI, and none in the generated docs site.
+flags:
+  send_anonymous_usage_stats: false
+
 model-paths: ["models"]
 macro-paths: ["macros"]
 seed-paths: ["seeds"]
