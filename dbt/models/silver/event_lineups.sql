@@ -3,8 +3,9 @@
 
   The league's play-by-play names only the player leaving on a substitution ("SUB: Key FOR
   Fagbenle", with the leaving player's id); the player coming on is matched by surname to the
-  game's box score for that team. When two teammates share a surname the feed adds the initial
-  ("SUB: K. Mitchell FOR T. Mitchell"), which must match the given name too; names the feed
+  game's box score for that team. When two teammates share a surname the feed adds the start of
+  the given name ("SUB: K. Mitchell FOR T. Mitchell", "SUB: Jay. Williams FOR Mitchell"), which
+  must match the given name too; names the feed
   writes in the other order ("Xu" for Han Xu) match by given name, and a name with more words
   ("J.J. Redick") by its last word. A player's time on the floor is a set of intervals within a
   period: a period starter is on from the start, a substitution in opens an interval and one
@@ -46,8 +47,8 @@ subs as (
     select
         e.league, e.game_id, e.period, e.action_number, e.team_id,
         e.player_id as out_id,
-        {{ norm_name("regexp_replace(e.in_raw, '^[A-Za-z][.] +', '')") }} as in_norm,
-        nullif(lower(regexp_extract(e.in_raw, '^([A-Za-z])[.] ', 1)), '') as in_initial,
+        {{ norm_name("regexp_replace(e.in_raw, '^[A-Za-z]+[.] +', '')") }} as in_norm,
+        nullif({{ norm_name("regexp_extract(e.in_raw, '^([A-Za-z]+)[.] ', 1)") }}, '') as in_prefix,
         {{ norm_name("regexp_extract(e.in_raw, '([^ ]+)$', 1)") }} as in_last
     from (
         select *, regexp_extract(description, 'SUB: (.+) FOR ', 1) as in_raw
@@ -64,7 +65,7 @@ subs_in as (
     join box as b
         on b.league = s.league and b.game_id = s.game_id and b.team_id = s.team_id
         and (
-            (b.norm_family = s.in_norm and (s.in_initial is null or substr(b.norm_first, 1, 1) = s.in_initial))
+            (b.norm_family = s.in_norm and (s.in_prefix is null or substr(b.norm_first, 1, length(s.in_prefix)) = s.in_prefix))
             or b.norm_first = s.in_norm
             or b.norm_family = s.in_last
         )
