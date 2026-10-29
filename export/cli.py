@@ -2,6 +2,8 @@
 
     fs-export build --engine duckdb --store local --out web/public/data
     fs-export build --engine databricks --store r2
+    fs-export build --engine databricks --store r2 --stage   # upload only; prints "staged <id>"
+    fs-export promote --store r2 --build-id BUILD_ID          # record it and flip latest.json
     fs-export rollback --store r2 [--to BUILD_ID]
     fs-export list --store r2
 
@@ -71,6 +73,16 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="comma-separated table names to leave out (for example fct_event)",
     )
+    p_build.add_argument(
+        "--stage",
+        action="store_true",
+        help="upload the build without pointing latest.json at it (promote it afterwards)",
+    )
+
+    p_promote = sub.add_parser("promote", help="record a staged build and point latest at it")
+    add_store(p_promote)
+    p_promote.add_argument("--build-id", required=True)
+    p_promote.add_argument("--keep", type=int, default=7, help="builds kept for rollback")
 
     p_roll = sub.add_parser("rollback", help="point latest at an earlier build")
     add_store(p_roll)
@@ -108,8 +120,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             finally:
                 source.close()
             print(f"publishing {build.build_id} ({len(build.files)} files) to {args.store}")
-            latest = build_mod.publish(store, build, keep=args.keep)
-            print(f"published {latest['build_id']}; data as of {latest['data_as_of']}")
+            if args.stage:
+                build_mod.stage(store, build)
+                print(f"staged {build.build_id}")
+            else:
+                latest = build_mod.publish(store, build, keep=args.keep)
+                print(f"published {latest['build_id']}; data as of {latest['data_as_of']}")
+        elif args.command == "promote":
+            latest = build_mod.promote(store, args.build_id, keep=args.keep)
+            print(f"promoted {args.build_id}; latest is {latest['build_id']}")
         elif args.command == "rollback":
             pointer = build_mod.rollback(store, to=args.to)
             print(f"latest is now {pointer['build_id']}")

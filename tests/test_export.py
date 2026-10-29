@@ -170,6 +170,25 @@ def test_publish_flips_latest_last_and_prunes_beyond_keep(tmp_path: Path) -> Non
     assert any("pruned b1" in line for line in log)
 
 
+def test_a_staged_build_goes_live_only_when_promoted(tmp_path: Path) -> None:
+    """#96 item 3: notebooks and the extract are added before latest.json points at the build."""
+    store = LocalStore(tmp_path)
+    build_mod.publish(store, fake_build("b0"), log=lambda _: None)
+    build_mod.stage(store, fake_build("b1"), log=lambda _: None)
+    assert json.loads(store.get("latest.json") or b"{}")["build_id"] == "b0"
+    assert [b["build_id"] for b in json.loads(store.get("builds.json") or b"[]")] == ["b0"]
+    extra = tmp_path / "findings.json"
+    extra.write_text("{}", encoding="utf-8")
+    build_mod.publish_files(store, [extra], subdir="notebooks", build_id="b1", log=lambda _: None)
+    latest = build_mod.promote(store, "b1", log=lambda _: None)
+    assert latest["build_id"] == "b1"
+    assert json.loads(store.get("latest.json") or b"{}")["build_id"] == "b1"
+    assert [b["build_id"] for b in json.loads(store.get("builds.json") or b"[]")] == ["b1", "b0"]
+    assert store.get("builds/b1/notebooks/findings.json") == b"{}"
+    with pytest.raises(RuntimeError, match="not staged"):
+        build_mod.promote(store, "nope", log=lambda _: None)
+
+
 def test_rollback_points_at_the_previous_build_and_prune_keeps_it(tmp_path: Path) -> None:
     store = LocalStore(tmp_path)
     for i in range(3):
