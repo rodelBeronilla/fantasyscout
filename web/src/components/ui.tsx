@@ -171,3 +171,20 @@ export function Note({ children, testid }: { children: ReactNode; testid?: strin
     </p>
   );
 }
+
+/** A watchlist toggle: a star button that says what it does and whether it is on. */
+export function Star({ on, label, onToggle }: { on: boolean; label: string; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      aria-label={on ? `Remove ${label} from the watchlist` : `Add ${label} to the watchlist`}
+      title={on ? 'On your watchlist' : 'Add to your watchlist'}
+      onClick={onToggle}
+      className={`leading-none ${on ? 'text-warn' : 'text-muted hover:text-fg'}`}
+      data-testid="watch"
+    >
+      {on ? '★' : '☆'}
+    </button>
+  );
+}

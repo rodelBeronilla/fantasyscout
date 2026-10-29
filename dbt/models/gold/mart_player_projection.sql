@@ -138,7 +138,7 @@ replacement_line as (
 
 latest_landing as (
 
-    select league, season, team_id, player_id, _ingest_date
+    select league, season, team_id, player_id, age, experience, _ingest_date
     from {{ ref('rosters') }}
     qualify season = max(season) over (partition by league)
         and _ingest_date = max(_ingest_date) over (partition by league, season, team_id)
@@ -148,7 +148,9 @@ latest_landing as (
 current_roster as (
 
     -- A player on two teams' latest landings (traded between them) belongs to the newer one.
-    select league, season as roster_season, team_id, player_id
+    select league, season as roster_season, team_id, player_id, age,
+        -- the league lists a rookie's experience as R
+        upper(trim(experience)) = 'R' as is_rookie
     from latest_landing
     qualify row_number() over (partition by league, player_id order by _ingest_date desc, team_id) = 1
 
@@ -193,6 +195,8 @@ projected as (
         cs.season,
         cr.team_id,
         cr.roster_season,
+        cr.age,
+        cr.is_rookie,
         {{ fantasy_setting('prior_games', 'w.league') }} as prior_games,
         -- the prior's minutes: prior_games games of a replacement-level player
         {{ fantasy_setting('prior_games', 'w.league') }} * rl.prior_minutes_pg as prior_minutes,
@@ -231,6 +235,8 @@ select
     player_id,
     team_id,
     roster_season,
+    age,
+    is_rookie,
     games_current,
     games_prev,
     games_prev2,
