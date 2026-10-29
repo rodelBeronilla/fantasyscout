@@ -8,10 +8,13 @@ import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortD
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
-import { Card, Chip, InjuryTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
+import { Card, Chip, InjuryTag, LineupTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface StreamerRow {
   player_id: string;
+  /** Today's role from the league's starting lineups (NBA): starter, bench or inactive. */
+  lineup_role?: string | null;
+  lineup_confirmed?: boolean | null;
   full_name: string | null;
   position: string | null;
   team_id: string | null;
@@ -203,6 +206,7 @@ export default function Streamers() {
   const [health, setHealth] = useState<Health>('no_out');
   const [rosteredChoice, setRostered] = useState<number | null>(null);
   const [watchOnly, setWatchOnly] = useState(false);
+  const [startersOnly, setStartersOnly] = useState(false);
   const [sortKey, setSortKey] = useState('minutes_trend');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
@@ -290,13 +294,14 @@ export default function Streamers() {
       .filter((r) => health === 'all' || (health === 'no_out' ? r.injury_group !== 'out' : !r.injury_group))
       .filter((r) => (rostered === -1 ? !owner.has(r.player_id) : !rostered || r.board_rank === null || r.board_rank > rostered))
       .filter((r) => pickedDays.size === 0 || r.games_picked > 0)
-      .filter((r) => !watchOnly || watched.has(r.player_id));
+      .filter((r) => !watchOnly || watched.has(r.player_id))
+      .filter((r) => !startersOnly || r.lineup_role === 'starter');
     return sortRows(filtered, (r) => {
       if (sortKey === 'name') return r.full_name;
       const v = r[sortKey];
       return typeof v === 'number' ? v : null;
     }, sortDir);
-  }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, pickedDays, watchOnly, watched, sortKey, sortDir]);
+  }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, pickedDays, watchOnly, watched, startersOnly, sortKey, sortDir]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="streamers" />;
@@ -455,6 +460,12 @@ export default function Streamers() {
               <input type="checkbox" checked={watchOnly} onChange={(e) => setWatchOnly(e.target.checked)} />
               Watchlist only ({watched.size})
             </label>
+            {rows.some((r) => r.lineup_role) && (
+              <label className="flex items-center gap-2 text-sm" title="From the league's starting lineups for today's games (NBA)">
+                <input type="checkbox" checked={startersOnly} onChange={(e) => setStartersOnly(e.target.checked)} />
+                Starting today
+              </label>
+            )}
             <span className="text-sm text-muted">{list.length} players</span>
             <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="streamers-csv">
               Export CSV
@@ -502,6 +513,7 @@ export default function Streamers() {
                         {r.full_name ?? r.player_id}
                       </a>
                       {r.is_new_team && <NewTeam from={r.prev_team_abbreviation} />}
+                      <LineupTag role={r.lineup_role} confirmed={r.lineup_confirmed} />
                       <InjuryTag group={r.injury_group} status={r.injury_status} />
                     </span>
                   </Td>

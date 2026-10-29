@@ -237,7 +237,7 @@
   ],
   "fantasy_team_change": 0.25
  },
- "generic_tests": 214,
+ "generic_tests": 219,
  "layers": [
   {
    "models": [
@@ -1252,6 +1252,109 @@
      "notes": [],
      "read_by": [
       "espn_team_directory"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "nba (the WNBA publishes no lineups file)",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The game day and the Eastern hour of the run, YYYY-MM-DDTHH",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League game id",
+       "name": "game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Tip-off or game state as the file gives it",
+       "name": "game_status_text",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "home or away",
+       "name": "side",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Player name",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The starting position for the five starters; blank for the bench",
+       "name": "position",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Expected until the team confirms it, then Confirmed",
+       "name": "lineup_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Active or Inactive",
+       "name": "roster_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the league last updated the player's entry",
+       "name": "updated_at",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The NBA's daily starting lineups: one row per player per team per game per landed file.",
+     "materialized": "incremental",
+     "name": "league_daily_lineups",
+     "notes": [],
+     "read_by": [
+      "starting_lineups"
      ],
      "reads": []
     },
@@ -6825,6 +6928,122 @@
      "checks": [],
      "columns": [
       {
+       "description": "League, game and player",
+       "name": "lineup_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "position",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "True for the five players the file gives a starting position",
+       "name": "is_starter",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "lineup_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "True once the team has confirmed its lineup",
+       "name": "is_confirmed",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "roster_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "True for a player ruled inactive for the game",
+       "name": "is_inactive",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "updated_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "file_key",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The NBA's starting lineups per game day, from the latest file landed for the day: one row per player per game.",
+     "materialized": "table",
+     "name": "starting_lineups",
+     "notes": [
+      "The NBA's starting lineups per game day, from the latest file landed for the day: one row per player per game. A starter is a player the file gives a position; lineup_status is Expected until the team confirms it (Confirmed, about half an hour before tip-off); roster_status Inactive marks a player ruled out of the game."
+     ],
+     "read_by": [
+      "fct_starting_lineup"
+     ],
+     "reads": [
+      "league_daily_lineups"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "league",
        "name": "league",
        "tests": [
@@ -8788,6 +9007,95 @@
      ]
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key",
+       "name": "starting_lineup_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "starter, bench or inactive",
+       "name": "lineup_role",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "True once the team has confirmed its lineup",
+       "name": "is_confirmed",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "starting_position",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "updated_at",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Each player's role in today's game from the league's starting lineups (NBA only): starter, bench or inactive, and whether it is confirmed.",
+     "materialized": "table",
+     "name": "fct_starting_lineup",
+     "notes": [
+      "Each player's role in today's game from the league's starting lineups (NBA only): starter, bench or inactive, and whether the team has confirmed it. The board and Streamers show it next to the player. Only the latest game day on or after the build date counts."
+     ],
+     "read_by": [
+      "mart_board",
+      "mart_streamers"
+     ],
+     "reads": [
+      "starting_lineups"
+     ]
+    },
+    {
      "checks": [
       "assert_box_closure",
       "warn_minutes_closure",
@@ -9665,6 +9973,18 @@
        "type": "timestamp"
       },
       {
+       "description": "starter, bench or inactive in today's game, from the league's starting lineups (NBA only); null without one",
+       "name": "lineup_role",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "True once the team has confirmed today's lineup",
+       "name": "lineup_confirmed",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
        "description": "Share of the team's remaining regular-season games the player is expected to play (1.0 once the regular season is over)",
        "name": "availability_multiplier",
        "tests": [
@@ -9753,6 +10073,7 @@
      "reads": [
       "dim_player",
       "fct_player_status",
+      "fct_starting_lineup",
       "mart_category_zscores",
       "mart_player_projection",
       "schedule",
@@ -10927,6 +11248,18 @@
        "name": "injury_group",
        "tests": [],
        "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "lineup_role",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "lineup_confirmed",
+       "tests": [],
+       "type": "boolean"
       }
      ],
      "description": "Players active in the league's current season with games in the next seven days, the minutes and value trend, recent production and injury status.",
@@ -10943,6 +11276,7 @@
       "dim_player",
       "fct_player_game",
       "fct_player_status",
+      "fct_starting_lineup",
       "mart_board",
       "mart_category_zscores",
       "mart_player_rolling",

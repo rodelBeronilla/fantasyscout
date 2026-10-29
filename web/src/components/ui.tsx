@@ -201,3 +201,26 @@ export function Star({ on, label, onToggle }: { on: boolean; label: string; onTo
     </button>
   );
 }
+
+/** Today's role from the league's starting lineups (NBA): a starter, or ruled inactive. */
+export function LineupTag({ role, confirmed }: { role: string | null | undefined; confirmed: boolean | null | undefined }) {
+  if (role === 'starter') {
+    return (
+      <span
+        className={`rounded border px-1 text-[10px] font-semibold ${confirmed ? 'border-good bg-good text-bg' : 'border-good text-good'}`}
+        title={confirmed ? 'Starting today: confirmed by the team' : 'Expected to start today (not yet confirmed)'}
+        data-testid="lineup-tag"
+      >
+        {confirmed ? 'START' : 'START?'}
+      </span>
+    );
+  }
+  if (role === 'inactive') {
+    return (
+      <span className="rounded border border-bad px-1 text-[10px] font-semibold text-bad" title="Ruled inactive for today's game" data-testid="lineup-tag">
+        INACT
+      </span>
+    );
+  }
+  return null;
+}

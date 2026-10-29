@@ -238,6 +238,8 @@ assembled as (
         i.status_source as injury_source,
         i.official_game_date,
         i.official_report_at,
+        lu.lineup_role,
+        lu.is_confirmed as lineup_confirmed,
         case
             when coalesce(ls.season_complete, true) or coalesce(r.games_remaining, 0) = 0 or i.espn_status_group is null then 1.0
             else greatest(0.0, (r.games_remaining - case i.espn_status_group
@@ -264,6 +266,7 @@ assembled as (
     left join team_names as pt on pt.league = v.league and pt.team_id = v.prev_team_id
     left join injury as i on i.league = v.league and i.stats_player_id = v.player_id
     left join games_before_return as gbr on gbr.league = v.league and gbr.stats_player_id = v.player_id
+    left join {{ ref('fct_starting_lineup') }} as lu on lu.league = v.league and lu.player_id = v.player_id
     left join season_lines as sl on sl.league = v.league and sl.player_id = v.player_id and sl.window_name = 'season'
     left join season_lines as rc on rc.league = v.league and rc.player_id = v.player_id and rc.window_name = 'last_10'
     left join season_lines as l20 on l20.league = v.league and l20.player_id = v.player_id and l20.window_name = 'last_20'
@@ -339,6 +342,8 @@ select
     injury_source,
     official_game_date,
     official_report_at,
+    lineup_role,
+    lineup_confirmed,
     availability_multiplier,
     games_remaining,
     games_next_7,

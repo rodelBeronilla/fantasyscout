@@ -601,3 +601,23 @@ test("the board shows the league's official injury report status for the next ga
   await expect(tag).toBeVisible();
   await expect(tag).toHaveAttribute('title', /^Probable · Official report for Oct 30, 2026 \(18:45 ET\)/);
 });
+
+test("streamers mark today's starters and inactives from the league's lineups, and filter to starters", async ({ page }) => {
+  // The fixture build predates the lineups: give the first rows a role.
+  await page.route('**/streamers/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    const roles = [
+      { lineup_role: 'starter', lineup_confirmed: true },
+      { lineup_role: 'starter', lineup_confirmed: false },
+      { lineup_role: 'inactive', lineup_confirmed: true },
+    ];
+    await route.fulfill({ json: rows.map((r, i) => ({ ...r, ...(roles[i] ?? {}) })) });
+  });
+  await page.goto('/streamers/');
+  const table = page.getByTestId('trending');
+  await expect(table.getByTestId('lineup-tag').filter({ hasText: /^START$/ })).toHaveCount(1);
+  await expect(table.getByTestId('lineup-tag').filter({ hasText: 'START?' })).toHaveCount(1);
+  await expect(table.getByTestId('lineup-tag').filter({ hasText: 'INACT' })).toHaveCount(1);
+  await page.getByLabel('Starting today').check();
+  await expect(table.locator('tbody tr')).toHaveCount(2);
+});

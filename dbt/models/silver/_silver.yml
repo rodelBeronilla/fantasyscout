@@ -338,6 +338,19 @@ models:
           - accepted_values:
               values: [same_day, adjacent_day]
 
+  - name: starting_lineups
+    description: "The NBA's starting lineups per game day, from the latest file landed for the day: one row per player per game."
+    columns:
+      - name: lineup_key
+        description: "League, game and player"
+        data_tests: [unique, not_null]
+      - name: is_starter
+        description: "True for the five players the file gives a starting position"
+      - name: is_confirmed
+        description: "True once the team has confirmed its lineup"
+      - name: is_inactive
+        description: "True for a player ruled inactive for the game"
+
   - name: official_injury_report
     description: "The leagues' official injury reports, typed: one row per player (or team not yet submitted) per game per report, with the league's newest report marked."
     columns:
