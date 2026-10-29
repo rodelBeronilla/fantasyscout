@@ -1,0 +1,251 @@
+{
+ "league": "wnba",
+ "report": "Injury-Report_2026-07-27_08_00PM.pdf",
+ "published_et": "2026-07-27T20:00:00-04:00",
+ "url": "https://ak-static.cms.nba.com/referee/wnba_injury/Injury-Report_2026-07-27_08_00PM.pdf",
+ "pdf_sha256": "44a20ba8fedb24363355acaa37e4adcb69262a0c4a9bc7ef7807ff31a1a7d456",
+ "rows": [
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "07:30",
+   "matchup": "CON@WAS",
+   "team": "Connecticut Sun",
+   "player_name": "Aaliyah Edwards",
+   "player_name_listed": "Edwards, Aaliyah",
+   "status": "Probable",
+   "reason": "Injury/Illness - Right Knee; -",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "07:30",
+   "matchup": "CON@WAS",
+   "team": "Connecticut Sun",
+   "player_name": "Brittney Griner",
+   "player_name_listed": "Griner, Brittney",
+   "status": "Out",
+   "reason": "Injury/Illness - Left Knee; -",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "07:30",
+   "matchup": "CON@WAS",
+   "team": "Connecticut Sun",
+   "player_name": "Saniya Rivers",
+   "player_name_listed": "Rivers, Saniya",
+   "status": "Probable",
+   "reason": "Injury/Illness - Left Ankle; -",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "08:00",
+   "matchup": "TOR@MIN",
+   "team": "Toronto Tempo",
+   "player_name": "Isabelle Harrison",
+   "player_name_listed": "Harrison, Isabelle",
+   "status": "Questionable",
+   "reason": "Injury/Illness - Left Knee; Soreness",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "08:00",
+   "matchup": "TOR@MIN",
+   "team": "Toronto Tempo",
+   "player_name": "Kiki Rice",
+   "player_name_listed": "Rice, Kiki",
+   "status": "Questionable",
+   "reason": "Injury/Illness - Left Ankle; Injury",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "08:00",
+   "matchup": "TOR@MIN",
+   "team": "Toronto Tempo",
+   "player_name": "Nyara Sabally",
+   "player_name_listed": "Sabally, Nyara",
+   "status": "Questionable",
+   "reason": "Injury/Illness - Rib Cage; Injury",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "08:00",
+   "matchup": "TOR@MIN",
+   "team": "Toronto Tempo",
+   "player_name": "Brittney Sykes",
+   "player_name_listed": "Sykes, Brittney",
+   "status": "Out",
+   "reason": "Injury/Illness - Left Foot; Injury",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "08:00",
+   "matchup": "TOR@MIN",
+   "team": "Minnesota Lynx",
+   "player_name": "Emma Cechova",
+   "player_name_listed": "Cechova, Emma",
+   "status": "Out",
+   "reason": "Injury/Illness - Right Knee; Right Knee",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "09:30",
+   "matchup": "IND@SEA",
+   "team": "Indiana Fever",
+   "player_name": "Caitlin Clark",
+   "player_name_listed": "Clark, Caitlin",
+   "status": "Probable",
+   "reason": "Injury/Illness - Back; Back",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "09:30",
+   "matchup": "IND@SEA",
+   "team": "Indiana Fever",
+   "player_name": "Damiris Dantas",
+   "player_name_listed": "Dantas, Damiris",
+   "status": "Out",
+   "reason": "Injury/Illness - Left Knee; NWT",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "09:30",
+   "matchup": "IND@SEA",
+   "team": "Indiana Fever",
+   "player_name": "Bree Hall",
+   "player_name_listed": "Hall, Bree",
+   "status": "Probable",
+   "reason": "Injury/Illness - Left Ankle; Ankle",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "09:30",
+   "matchup": "IND@SEA",
+   "team": "Seattle Storm",
+   "player_name": "Ezi Magbegor",
+   "player_name_listed": "Magbegor, Ezi",
+   "status": "Out",
+   "reason": "Injury/Illness - Face Injury; Injury/Illness",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "09:30",
+   "matchup": "IND@SEA",
+   "team": "Seattle Storm",
+   "player_name": "Taina Mair",
+   "player_name_listed": "Mair, Taina",
+   "status": "Out",
+   "reason": "Coach's Decision - Coach's Decision",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "09:30",
+   "matchup": "IND@SEA",
+   "team": "Seattle Storm",
+   "player_name": "Dominique Malonga",
+   "player_name_listed": "Malonga, Dominique",
+   "status": "Questionable",
+   "reason": "Injury/Illness - Back; Injury/Illness",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "10:00",
+   "matchup": "NYL@LAS",
+   "team": "New York Liberty",
+   "player_name": "Leonie Fiebich",
+   "player_name_listed": "Fiebich, Leonie",
+   "status": "Out",
+   "reason": "Injury/Illness - Left Foot; L. Foot",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "10:00",
+   "matchup": "NYL@LAS",
+   "team": "New York Liberty",
+   "player_name": "Marine Johannes",
+   "player_name_listed": "Johannes, Marine",
+   "status": "Questionable",
+   "reason": "Injury/Illness - Left Ankle; L. Ankle",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "10:00",
+   "matchup": "NYL@LAS",
+   "team": "New York Liberty",
+   "player_name": "Satou Sabally",
+   "player_name_listed": "Sabally, Satou",
+   "status": "Out",
+   "reason": "Concussion Protocol",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "10:00",
+   "matchup": "NYL@LAS",
+   "team": "Los Angeles Sparks",
+   "player_name": null,
+   "player_name_listed": null,
+   "status": null,
+   "reason": "NOT YET SUBMITTED",
+   "not_submitted": true
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "10:00",
+   "matchup": "PDX@LVA",
+   "team": "Portland Fire",
+   "player_name": "Sarah Ashlee Barker",
+   "player_name_listed": "Barker, Sarah Ashlee",
+   "status": "Out",
+   "reason": "Injury/Illness - Left Knee; Injury",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "10:00",
+   "matchup": "PDX@LVA",
+   "team": "Portland Fire",
+   "player_name": "Sania Feagin",
+   "player_name_listed": "Feagin, Sania",
+   "status": "Out",
+   "reason": "Injury/Illness - Left Knee; Injury",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "10:00",
+   "matchup": "PDX@LVA",
+   "team": "Las Vegas Aces",
+   "player_name": "Kierstan Bell",
+   "player_name_listed": "Bell, Kierstan",
+   "status": "Out",
+   "reason": "Injury/Illness - Right Leg; injury",
+   "not_submitted": false
+  },
+  {
+   "game_date": "07/28/2026",
+   "game_time_et": "10:00",
+   "matchup": "PDX@LVA",
+   "team": "Las Vegas Aces",
+   "player_name": "Cheyenne Parker-Tyus",
+   "player_name_listed": "Parker-Tyus, Cheyenne",
+   "status": "Out",
+   "reason": "Concussion Protocol",
+   "not_submitted": false
+  }
+ ]
+}

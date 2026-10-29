@@ -107,13 +107,10 @@ league_state as (
 
 injury as (
 
+    -- The official report for the next game where it lists the player, else ESPN.
     select league, stats_player_id, status, status_group
-    from {{ ref('fct_availability') }}
-    where is_current and stats_player_id is not null
-    qualify row_number() over (
-        partition by league, stats_player_id
-        order by case status_group when 'out' then 0 when 'doubtful' then 1 when 'questionable' then 2 when 'day_to_day' then 3 else 4 end
-    ) = 1
+    from {{ ref('fct_player_status') }}
+    where status_group is not null
 
 ),
 

@@ -141,6 +141,30 @@ models:
               to: ref('dim_game')
               field: game_sk
 
+  - name: fct_player_status
+    description: "Each player's current status: the league's official injury report for the next game it covers, else ESPN's injury listing. ESPN's own status stays alongside for the rest of the season."
+    columns:
+      - name: player_status_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: status_group
+        description: "out, doubtful, questionable, probable or day_to_day; null when the official report lists the player Available"
+      - name: status_source
+        description: "official (the league's report) or espn"
+        data_tests:
+          - accepted_values:
+              values: [official, espn]
+      - name: espn_status_group
+        description: "ESPN's status group, which the board's rest-of-season multiplier reads"
+      - name: official_status
+        description: "The official report's status for the next game it covers"
+      - name: official_reason
+        description: "The official report's reason"
+      - name: official_game_date
+        description: "The game the official status is for"
+      - name: official_report_at
+        description: "When that report was published, Eastern time"
+
   - name: fct_injury_status
     description: "Each player's injury statuses over time: one row per run of the same status on an injury listing, from the daily reports."
     columns:
@@ -231,6 +255,12 @@ models:
     columns:
       - name: injury_news
         description: "ESPN's news on the player's current injury"
+      - name: injury_source
+        description: "official when the league's injury report sets the status for the next game, else espn"
+      - name: official_game_date
+        description: "The game the official status is for"
+      - name: official_report_at
+        description: "When the official report was published, Eastern time"
       - name: injury_since
         description: "Ingest date of the first report with the injury's current status"
 

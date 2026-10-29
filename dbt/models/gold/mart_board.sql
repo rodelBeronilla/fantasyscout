@@ -172,14 +172,12 @@ league_state as (
 
 injury as (
 
+    -- The status shown: the official report for the next game, else ESPN (fct_player_status).
+    -- The rest-of-season multiplier reads ESPN's listing (espn_status_group): the official
+    -- report speaks only to the next game.
     select league, stats_player_id, status, status_group, injury_type, expected_return, short_comment,
-        long_comment, status_since
-    from {{ ref('fct_availability') }}
-    where is_current and stats_player_id is not null
-    qualify row_number() over (
-        partition by league, stats_player_id
-        order by case status_group when 'out' then 0 when 'doubtful' then 1 when 'questionable' then 2 when 'day_to_day' then 3 else 4 end
-    ) = 1
+        long_comment, status_since, espn_status_group, status_source, official_game_date, official_report_at
+    from {{ ref('fct_player_status') }}
 
 ),
 
@@ -191,7 +189,7 @@ games_before_return as (
     join base as b on b.league = i.league and b.player_id = i.stats_player_id
     join schedule_sides as s
         on s.league = b.league and s.season = b.season and s.team_id = b.team_id
-    where i.status_group = 'out' and i.expected_return is not null
+    where i.espn_status_group = 'out' and i.expected_return is not null
         and s.game_type = 'regular' and s.game_status <> 3
         and s.game_date_est >= {{ as_of_date() }} and s.game_date_est < i.expected_return
     group by i.league, i.stats_player_id
@@ -237,9 +235,12 @@ assembled as (
         i.short_comment as injury_note,
         i.long_comment as injury_news,
         i.status_since as injury_since,
+        i.status_source as injury_source,
+        i.official_game_date,
+        i.official_report_at,
         case
-            when coalesce(ls.season_complete, true) or coalesce(r.games_remaining, 0) = 0 or i.status_group is null then 1.0
-            else greatest(0.0, (r.games_remaining - case i.status_group
+            when coalesce(ls.season_complete, true) or coalesce(r.games_remaining, 0) = 0 or i.espn_status_group is null then 1.0
+            else greatest(0.0, (r.games_remaining - case i.espn_status_group
                     when 'out' then coalesce(gbr.games_missed, case when i.expected_return is null then r.games_remaining else 0 end)
                     when 'doubtful' then 0.75
                     when 'questionable' then 0.5
@@ -335,6 +336,9 @@ select
     injury_note,
     injury_news,
     injury_since,
+    injury_source,
+    official_game_date,
+    official_report_at,
     availability_multiplier,
     games_remaining,
     games_next_7,

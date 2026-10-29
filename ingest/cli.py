@@ -16,7 +16,7 @@ from ingest import land as land_mod
 from ingest import probe as probe_mod
 from ingest.store import VolumeBackend
 
-SOURCES = ("stats", "espn")
+SOURCES = ("stats", "espn", "reports")
 FAILURE_EXIT = 2
 
 

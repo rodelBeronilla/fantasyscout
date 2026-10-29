@@ -96,3 +96,11 @@ Players outside the pool form a waiver group. The top of the distribution is ste
 ESPN's scoreboards carry the sportsbook line for upcoming games, and its game summaries carry the closing line for finished ones, in both leagues. Both were landed and discarded until now. `silver.game_lines` keeps one line per game: the home spread, the over/under, and each side's implied points, (total ∓ spread) / 2. The closing line wins over earlier scoreboards. The daily ESPN run now also lands the next seven days' scoreboards, so upcoming games have their current line.
 
 `mart_schedule_upcoming` carries the line beside the matchup value. Streamers shows each team's implied points in the week grid and as a Team pts column. The line does not change the matchup value or the window value yet. The closing lines on past summaries make the backtest possible: whether implied team points predict a player's production beyond the defence-and-pace matchup. It runs before the line moves any score.
+
+## Addendum (2026-10-29): the leagues' official injury reports
+
+The NBA publishes an official injury report every 15 minutes on game days, and the WNBA publishes reports on the same host. Teams file by 5 pm the day before a game. A report lists every player's status for the next game (Out, Doubtful, Questionable, Probable, Available) with the league's reason, G League assignments and two-way players included, and marks a team that has not filed yet.
+
+The ingest lands the newest report as parsed JSON (`ingest/injury_report.py`, which parses the PDF from word positions). It lands one in the morning run and one in an evening run at 7 pm ET, after teams file and before tip-off. `silver.official_injury_report` types it, and `gold.fct_player_status` gives each player one current status. The official report wins for the next game it covers; otherwise ESPN's listing applies.
+
+The official status speaks only to the next game, so the board shows it but the rest-of-season availability multiplier keeps reading ESPN's listing and expected return. A one-game "Rest" or G League "Out" does not erase a season's value. Official rows link to players by name within the team. `warn_official_injury_links` reports more than five unlinked players on the newest report.
