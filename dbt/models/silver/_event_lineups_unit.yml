@@ -1,0 +1,36 @@
+unit_tests:
+  - name: event_lineups_matches_abbreviated_given_names
+    description: >
+      Teammates who share a surname are told apart by the start of the given name
+      ("K. Mitchell", "Jal. Williams"); the substitution belongs to the lineup before it.
+    model: event_lineups
+    given:
+      - input: ref('player_game_box')
+        rows:
+          - {league: wnba, game_id: g1, team_id: '100', side: home, player_id: '1', starter: true, first_name: Tiffany, family_name: Mitchell}
+          - {league: wnba, game_id: g1, team_id: '100', side: home, player_id: '2', starter: true, first_name: Ann, family_name: Abel}
+          - {league: wnba, game_id: g1, team_id: '100', side: home, player_id: '3', starter: true, first_name: Bea, family_name: Bell}
+          - {league: wnba, game_id: g1, team_id: '100', side: home, player_id: '4', starter: true, first_name: Cat, family_name: Cole}
+          - {league: wnba, game_id: g1, team_id: '100', side: home, player_id: '5', starter: true, first_name: Dee, family_name: Dunn}
+          - {league: wnba, game_id: g1, team_id: '100', side: home, player_id: '6', starter: false, first_name: Kelsey, family_name: Mitchell}
+          - {league: wnba, game_id: g1, team_id: '100', side: home, player_id: '7', starter: false, first_name: Jaylin, family_name: Williams}
+          - {league: wnba, game_id: g1, team_id: '100', side: home, player_id: '8', starter: false, first_name: Jalen, family_name: Williams}
+          - {league: wnba, game_id: g1, team_id: '200', side: away, player_id: '11', starter: true, first_name: Eve, family_name: Eads}
+          - {league: wnba, game_id: g1, team_id: '200', side: away, player_id: '12', starter: true, first_name: Fay, family_name: Ford}
+          - {league: wnba, game_id: g1, team_id: '200', side: away, player_id: '13', starter: true, first_name: Gia, family_name: Gray}
+          - {league: wnba, game_id: g1, team_id: '200', side: away, player_id: '14', starter: true, first_name: Hal, family_name: Hart}
+          - {league: wnba, game_id: g1, team_id: '200', side: away, player_id: '15', starter: true, first_name: Ivy, family_name: Irwin}
+      - input: ref('events')
+        rows:
+          - {league: wnba, season: '2026', game_id: g1, event_key: e1, period: 1, clock: PT10M00.00S, action_number: 1, team_id: '0', player_id: '0', action_type: period, description: Start of 1st Period}
+          - {league: wnba, season: '2026', game_id: g1, event_key: e2, period: 1, clock: PT09M00.00S, action_number: 2, team_id: '100', player_id: '1', action_type: Substitution, description: 'SUB: K. Mitchell FOR T. Mitchell'}
+          - {league: wnba, season: '2026', game_id: g1, event_key: e3, period: 1, clock: PT08M00.00S, action_number: 3, team_id: '100', player_id: '6', action_type: Made Shot, description: K. Mitchell Layup}
+          - {league: wnba, season: '2026', game_id: g1, event_key: e4, period: 1, clock: PT07M00.00S, action_number: 4, team_id: '100', player_id: '2', action_type: Substitution, description: 'SUB: Jal. Williams FOR Abel'}
+          - {league: wnba, season: '2026', game_id: g1, event_key: e5, period: 1, clock: PT06M00.00S, action_number: 5, team_id: '100', player_id: '8', action_type: Made Shot, description: Jal. Williams Layup}
+    expect:
+      rows:
+        - {event_key: e1, lineup_home: '1,2,3,4,5', lineup_away: '11,12,13,14,15', lineup_complete: true}
+        - {event_key: e2, lineup_home: '1,2,3,4,5', lineup_away: '11,12,13,14,15', lineup_complete: true}
+        - {event_key: e3, lineup_home: '2,3,4,5,6', lineup_away: '11,12,13,14,15', lineup_complete: true}
+        - {event_key: e4, lineup_home: '2,3,4,5,6', lineup_away: '11,12,13,14,15', lineup_complete: true}
+        - {event_key: e5, lineup_home: '3,4,5,6,8', lineup_away: '11,12,13,14,15', lineup_complete: true}

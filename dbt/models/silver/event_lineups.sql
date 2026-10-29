@@ -60,18 +60,25 @@ subs as (
 
 subs_in as (
 
-    select s.league, s.game_id, s.period, s.action_number, s.team_id, b.player_id as in_id
-    from subs as s
-    join box as b
-        on b.league = s.league and b.game_id = s.game_id and b.team_id = s.team_id
-        and (
-            (b.norm_family = s.in_norm and (s.in_prefix is null or substr(b.norm_first, 1, length(s.in_prefix)) = s.in_prefix))
-            or b.norm_first = s.in_norm
-            or b.norm_family = s.in_last
-        )
+    -- rank 0: surname (and the given-name prefix, when there is one); 1: given name, for names
+    -- the feed writes in the other order; 2: the last word of a longer name, only without a prefix
+    select league, game_id, period, action_number, team_id, in_id
+    from (
+        select s.league, s.game_id, s.period, s.action_number, s.team_id, b.player_id as in_id,
+            case
+                when b.norm_family = s.in_norm
+                    and (s.in_prefix is null or substr(b.norm_first, 1, length(s.in_prefix)) = s.in_prefix) then 0
+                when b.norm_first = s.in_norm then 1
+                when s.in_prefix is null and b.norm_family = s.in_last then 2
+            end as match_rank
+        from subs as s
+        join box as b
+            on b.league = s.league and b.game_id = s.game_id and b.team_id = s.team_id
+    ) as m
+    where match_rank is not null
     qualify row_number() over (
-        partition by s.league, s.game_id, s.action_number
-        order by case when b.norm_family = s.in_norm then 0 when b.norm_first = s.in_norm then 1 else 2 end, b.player_id
+        partition by league, game_id, action_number
+        order by match_rank, in_id
     ) = 1
 
 ),
