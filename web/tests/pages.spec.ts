@@ -283,8 +283,10 @@ test('the board ranks by this season and the last twenty games, and filters to r
   await expect(rookies.first()).toContainText('R');
   expect(await rookies.count()).toBeLessThan(all);
   await page.getByLabel('Rookies only').uncheck();
-  await page.getByLabel('League format').selectOption('8');
+  await page.getByTestId('league-settings').locator('summary').click();
+  await page.getByLabel('Scoring').selectOption('cats8');
   await expect(board.locator('thead s')).toHaveText('TO');
+  await page.getByLabel('Scoring').selectOption('cats9');
 });
 
 test('the watchlist keeps starred players across visits, and compare lines players up', async ({ page }) => {
@@ -352,3 +354,61 @@ for (const [path, testid] of [['/', 'board'], ['/streamers/', 'trending']]) {
     expect(after).toEqual(before);
   });
 }
+
+test('league settings re-measure value for the league, and points leagues score fantasy points', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  const first = board.locator('tbody tr').first();
+  const before = Number(await first.locator('td').nth(-2).innerText());
+  await page.getByTestId('league-settings').locator('summary').click();
+  await page.getByLabel('Teams in the league').fill('6');
+  await page.getByLabel('Roster spots').fill('8');
+  await expect(page.getByTestId('league-summary')).toHaveText('6 teams × 8, 9-cat');
+  const smaller = Number(await board.locator('tbody tr').first().locator('td').nth(-2).innerText());
+  expect(smaller).not.toBe(before);
+  await page.getByLabel('Scoring').selectOption('points');
+  await expect(board.locator('thead')).toContainText('FPts/G');
+  await expect(page.getByTestId('point-weights')).toBeVisible();
+  await page.reload();
+  await expect(board.locator('thead')).toContainText('FPts/G');
+  await expect(page.getByTestId('league-summary')).toHaveText('6 teams × 8, Points');
+  await page.getByTestId('league-settings').locator('summary').click();
+  await page.getByRole('button', { name: 'Reset' }).click();
+  await expect(page.getByTestId('league-summary')).toHaveText('10 teams × 10, 9-cat');
+});
+
+test('marking my team and taken players gives best available, a category profile and Fit', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  const rows = board.locator('tbody tr');
+  const mineName = await rows.nth(0).locator('a').innerText();
+  const takenName = await rows.nth(1).locator('a').innerText();
+  await rows.nth(0).getByTestId('mark-mine').click();
+  await rows.nth(1).getByTestId('mark-taken').click();
+  await rows.nth(2).getByTestId('mark-mine').click();
+  const team = page.getByTestId('my-team');
+  await expect(team).toContainText('My team (2 players)');
+  await expect(team).toContainText(mineName);
+  await expect(team.getByTestId('category-profile')).toContainText('Weakest');
+  await expect(board.locator('thead')).toContainText('Fit');
+  await page.getByLabel('Show').selectOption('available');
+  await expect(board.locator('tbody')).not.toContainText(mineName);
+  await expect(board.locator('tbody')).not.toContainText(takenName);
+  await board.getByRole('button', { name: /^Fit/ }).click();
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId('my-team')).toContainText('My team (2 players)');
+  await page.getByRole('button', { name: 'Clear my team' }).click();
+  await expect(page.getByTestId('my-team')).toHaveCount(0);
+});
+
+test('the value view breaks the board into tiers and ranks players by position', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await expect(board.getByTestId('tier-start').first()).toHaveText('Tier 1');
+  expect(await board.getByTestId('tier-start').count()).toBeGreaterThan(1);
+  await expect(board.getByTestId('pos-rank').first()).toHaveText(/^[GFC]1$/);
+});
