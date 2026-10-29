@@ -473,3 +473,41 @@ test('/league/ has no accessibility violations', async ({ page }) => {
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(results.violations).toEqual([]);
 });
+
+test('a Yahoo league imports its settings, teams and rosters, and the card stays hidden until the import is configured', async ({ page }) => {
+  await page.goto('/league/?league=nba');
+  await expect(page.getByTestId('team-card').first()).toBeVisible();
+  await expect(page.getByTestId('yahoo-import')).toHaveCount(0);
+
+  // The fixture build's NBA board is empty: stand the WNBA players in for it.
+  await page.route('**/board/nba.json', async (r) => r.fulfill({ response: await r.fetch({ url: r.request().url().replace(/\/nba\.json$/, '/wnba.json') }) }));
+  await page.goto('/?league=nba');
+  const rows = page.getByTestId('board').locator('tbody tr[data-player]');
+  await expect(rows.first()).toBeVisible();
+  const [a, b, c] = await Promise.all([0, 1, 2].map((i) => rows.nth(i).locator('a').innerText()));
+  const league = {
+    name: 'Hoops Club',
+    settings: { teams: 4, rosterSpots: 13, scoring: 'cats8', weights: null },
+    teams: [
+      { name: 'Dunk Tank', mine: false, players: [{ name: a, team: 'X', position: 'G' }, { name: 'Not A Player', team: 'X', position: 'G' }] },
+      { name: 'Brick City', mine: true, players: [{ name: b, team: 'X', position: 'F' }, { name: c, team: 'X', position: 'C' }] },
+      { name: 'Third', mine: false, players: [] },
+      { name: 'Fourth', mine: false, players: [] },
+    ],
+  };
+  await page.route('**/api/yahoo/status', (r) => r.fulfill({ json: { configured: true, connected: true } }));
+  await page.route('**/api/yahoo/leagues', (r) => r.fulfill({ json: [{ key: '466.l.1234', name: 'Hoops Club', season: '2025', teams: 4 }] }));
+  await page.route('**/api/yahoo/league/466.l.1234', (r) => r.fulfill({ json: league }));
+  await page.goto('/league/?league=nba');
+  const card = page.getByTestId('yahoo-import');
+  await expect(card.getByLabel('Yahoo league')).toHaveValue('466.l.1234');
+  await card.getByRole('button', { name: 'Import this league' }).click();
+  await expect(page.getByTestId('yahoo-note')).toHaveText('Imported Hoops Club: 4 teams, 3 of 4 players matched. Not on the board: Not A Player.');
+  await expect(page.getByTestId('team-card')).toHaveCount(4);
+  await expect(page.getByLabel('Name of team 2')).toHaveValue('Brick City');
+  await expect(page.getByLabel('Brick City is my team')).toBeChecked();
+  await expect(page.getByLabel('Scoring')).toHaveValue('cats8');
+  await expect(page.getByLabel('Roster spots')).toHaveValue('13');
+  await page.goto('/?league=nba');
+  await expect(page.getByTestId('league-bar')).toContainText('Brick City (2/13)');
+});

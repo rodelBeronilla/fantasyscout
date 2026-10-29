@@ -109,6 +109,26 @@ jobs:
           workingDirectory: worker
           command: deploy --env ${{ env.WRANGLER_ENV }}
 
+      # The optional Yahoo league import needs the Yahoo app's credentials as Worker secrets.
+      # They come from the repository's Actions secrets; without them the import stays off.
+      - name: Give the Worker the Yahoo app's credentials, when they are set
+        working-directory: worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
+          YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "$YAHOO_CLIENT_ID" ] || [ -z "$YAHOO_CLIENT_SECRET" ]; then
+            echo "::notice::YAHOO_CLIENT_ID and YAHOO_CLIENT_SECRET are not set; the Yahoo import stays off"
+            exit 0
+          fi
+          umask 077
+          jq -n --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET"             '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret}' > "$RUNNER_TEMP/yahoo.json"
+          npx wrangler secret bulk "$RUNNER_TEMP/yahoo.json" --env "$WRANGLER_ENV"
+          rm -f "$RUNNER_TEMP/yahoo.json"
+
       - name: Smoke test
         env:
           URL: ${{ github.ref_name == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
@@ -131,10 +151,12 @@ jobs:
             code=$(curl -s -o /dev/null -w '%{http_code}' "$URL$path")
             [ "$code" = "200" ] || { echo "::error::$path returned $code"; exit 1; }
           done
-          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/data/latest.json")
+          latest=$(curl -s -o /dev/null -w '%{http_code}' "$URL/data/latest.json")
           # 404 is expected until the first data export (phase 5); anything else is a Worker fault.
-          [ "$code" = "200" ] || [ "$code" = "404" ] || { echo "::error::latest.json returned $code"; exit 1; }
-          echo "::notice::$URL/ is serving (latest.json: $code)"
+          [ "$latest" = "200" ] || [ "$latest" = "404" ] || { echo "::error::latest.json returned $latest"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/yahoo/status")
+          [ "$code" = "200" ] || { echo "::error::/api/yahoo/status returned $code"; exit 1; }
+          echo "::notice::$URL/ is serving (latest.json: $latest)"
 
       # The spec's budget: pages load from R2 data in under 2 s on 4G. Lighthouse's default mobile
       # profile simulates a slow 4G link with a 4x CPU slowdown, stricter than a plain 4G test.

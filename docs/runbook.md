@@ -38,6 +38,20 @@ Rolling back the Worker does not touch R2 data; data rollback is a separate step
 2. Update the GitHub Actions secret. Re-run the latest deploy or build workflow to prove the new value works.
 3. Revoke the old one at the provider. Check the next scheduled run is green.
 
+## Turn on the Yahoo league import
+
+The League page can import an NBA league from Yahoo once the Worker has a Yahoo app's credentials (ADR 0007).
+
+1. At developer.yahoo.com/apps, create an app with:
+   - **Application type:** web application.
+   - **Redirect URI:** `https://fantasyscout.beronilla.rodeo/auth/yahoo/callback`.
+   - **API permissions:** Fantasy Sports, read.
+2. Add its client id and client secret as the Actions secrets `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`.
+3. Re-run the latest Deploy web run on main. The step "Give the Worker the Yahoo app's credentials" copies them into the Worker, and `/api/yahoo/status` should report `"configured":true`.
+4. On the League page (NBA), sign in with Yahoo and import a league.
+
+To turn it off, delete the two secrets and remove them from the Worker (`wrangler secret delete YAHOO_CLIENT_ID --env production`, and the same for the secret). Rotating the client secret signs everyone out.
+
 ## Run the checks locally
 
 See `CONTRIBUTING.md`. On Windows, Worker tests need the Visual C++ Redistributable for workerd; otherwise run them in a Linux container (the slim image lacks the CA certificates workerd needs):

@@ -12,6 +12,7 @@ import { categoryValues, pointValues } from '../lib/league-value';
 import { href } from '../lib/site';
 import { CategoryProfile, DraftBar, LeagueSettingsForm } from './LeagueParts';
 import { Card, Loading, Problem, Td, Th } from './ui';
+import YahooImport from './YahooImport';
 
 interface PlayerRow {
   player_id: string;
@@ -283,6 +284,8 @@ export default function LeagueSetup() {
           <option key={label} value={label} />
         ))}
       </datalist>
+
+      <YahooImport league={league} players={rows} hasRosters={rostered > 0} onImport={(next) => update(() => next)} />
 
       <Card title="Settings" id="settings">
         <LeagueSettingsForm league={league} setup={setup} onChange={update} />
