@@ -3,17 +3,38 @@
   team's games over the next seven days, the minutes trend and recent production.
 
   Active means at least three games this season and a game within the last thirty days of
-  the league's season so far, so players from earlier seasons never appear. The trend compares
-  the last five games with the player's season average (minutes and value); while the league is
-  between seasons the same columns describe who finished the season strongly, and
-  season_complete says so.
+  the league's season so far, so players from earlier seasons never appear.
+
+  The trends compare recent games with a baseline: minutes over the last five games, value
+  over the last ten. The baseline is the player's games this season before the window, blended
+  with the player's latest earlier season (last season, or the one before for a player who
+  missed it) counted as up to 10 games. Early in a season the window is
+  the whole season, so the baseline is last season; late in a season it is mostly this one. A
+  player with neither (a rookie's first games) has no trend rather than a misleading zero. The
+  value baseline uses the season z-score, which includes the window; with few games before the
+  window it is weighted toward last season accordingly. While the league is between seasons the
+  same columns describe who finished the season strongly, and season_complete says so.
 #}
+
+{% set prior = 10 %}
 
 with current_season as (
 
     select league, max(season) as season
     from {{ ref('fct_player_game') }}
     group by league
+
+),
+
+previous_season as (
+
+    -- the player's latest earlier season with games: last season, or the one before for a
+    -- player who missed last season
+    select z.league, z.player_id, z.games, z.minutes_pg, z.z_total
+    from {{ ref('mart_category_zscores') }} as z
+    join current_season as c on c.league = z.league and z.season < c.season
+    where z.window_name = 'season' and z.games > 0
+    qualify row_number() over (partition by z.league, z.player_id order by z.season desc) = 1
 
 ),
 
@@ -94,6 +115,39 @@ current_stint as (
     from {{ ref('dim_player') }}
     where is_current
 
+),
+
+windows as (
+
+    -- games this season before each window, and last season's weight
+    select
+        lr.league,
+        lr.player_id,
+        greatest(sl.games - lr.games_in_window_5, 0) as games_before_5,
+        greatest(sl.games - least(sl.games, 10), 0) as games_before_10,
+        (sl.minutes_pg * sl.games - lr.minutes_avg_5 * lr.games_in_window_5)
+            / nullif(greatest(sl.games - lr.games_in_window_5, 0), 0) as minutes_before_5,
+        sl.season_z_total,
+        least(coalesce(ps.games, 0), {{ prior }}) as prior_weight,
+        ps.minutes_pg as prior_minutes,
+        ps.z_total as prior_z
+    from latest_rolling as lr
+    join season_line as sl on sl.league = lr.league and sl.player_id = lr.player_id
+    left join previous_season as ps on ps.league = lr.league and ps.player_id = lr.player_id
+
+),
+
+baselines as (
+
+    select
+        league,
+        player_id,
+        (coalesce(games_before_5 * minutes_before_5, 0) + coalesce(prior_weight * prior_minutes, 0))
+            / nullif(games_before_5 + case when prior_minutes is null then 0 else prior_weight end, 0) as minutes_baseline,
+        (coalesce(games_before_10 * season_z_total, 0) + coalesce(prior_weight * prior_z, 0))
+            / nullif(games_before_10 + case when prior_z is null then 0 else prior_weight end, 0) as value_baseline
+    from windows
+
 )
 
 select
@@ -114,10 +168,12 @@ select
     sl.minutes_pg as minutes_season,
     lr.minutes_avg_5,
     lr.minutes_avg_10,
-    lr.minutes_avg_5 - sl.minutes_pg as minutes_trend,
+    b.minutes_baseline,
+    lr.minutes_avg_5 - b.minutes_baseline as minutes_trend,
     sl.season_z_total,
     rv.last_10_z_total,
-    rv.last_10_z_total - sl.season_z_total as value_trend,
+    b.value_baseline,
+    rv.last_10_z_total - b.value_baseline as value_trend,
     lr.points_avg_5,
     lr.rebounds_total_avg_5,
     lr.assists_avg_5,
@@ -131,6 +187,7 @@ select
     i.status_group as injury_group
 from latest_rolling as lr
 join league_last_game as llg on llg.league = lr.league
+join baselines as b on b.league = lr.league and b.player_id = lr.player_id
 join league_state as ls on ls.league = lr.league
 left join season_line as sl on sl.league = lr.league and sl.player_id = lr.player_id
 left join recent_value as rv on rv.league = lr.league and rv.player_id = lr.player_id

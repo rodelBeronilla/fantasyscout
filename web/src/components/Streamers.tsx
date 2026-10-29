@@ -21,6 +21,8 @@ interface StreamerRow {
   minutes_season: number | null;
   minutes_avg_5: number | null;
   minutes_trend: number | null;
+  minutes_baseline: number | null;
+  value_baseline: number | null;
   season_z_total: number | null;
   last_10_z_total: number | null;
   value_trend: number | null;
@@ -200,12 +202,13 @@ export default function Streamers() {
         <Note testid="season-note">
           No {LEAGUE_LABEL[league]} regular-season games in the next seven days
           {inWeek ? ' (playoff games only)' : ''}. The list below is who finished the {season} season strongly: their last five
-          games against their season average.
+          games against their baseline, the rest of the season blended with the one before.
         </Note>
       ) : (
         <Note testid="season-note">
-          The next seven days of the {LEAGUE_LABEL[league]} schedule, and players whose last five games beat their {season} season
-          average. A team with four games, or a game on a light day, is worth more to a streamer.
+          The next seven days of the {LEAGUE_LABEL[league]} schedule, and players whose last five games beat their baseline: their
+          earlier {season} games, blended with last season, which is all there is early on. A team with four games, or a game on
+          a light day, is worth more to a streamer.
         </Note>
       )}
 
@@ -253,10 +256,10 @@ export default function Streamers() {
                 <Th>Pos</Th>
                 {inWeek && col('games_next_7', 'Next 7', 'Team games in the next seven days')}
                 {col('minutes_avg_5', 'Min (5)', 'Minutes per game, last five games')}
-                {col('minutes_season', 'Min (season)')}
-                {col('minutes_trend', 'Min trend', 'Last five games minus season average')}
+                {col('minutes_baseline', 'Min (base)', 'Minutes per game before the last five games, blended with last season')}
+                {col('minutes_trend', 'Min trend', 'Last five games minus the baseline')}
                 {col('last_10_z_total', 'Value (10)', 'Total category z-score over the last ten games')}
-                {col('value_trend', 'Value trend', 'Last-ten value minus season value')}
+                {col('value_trend', 'Value trend', 'Last-ten value minus the baseline (this season blended with last)')}
                 {col('points_avg_5', 'PTS')}
                 {col('rebounds_total_avg_5', 'REB')}
                 {col('assists_avg_5', 'AST')}
@@ -280,7 +283,7 @@ export default function Streamers() {
                   <Td>{r.position ?? '–'}</Td>
                   {inWeek && <Td right>{r.games_next_7}</Td>}
                   <Td right>{fmt(r.minutes_avg_5)}</Td>
-                  <Td right>{fmt(r.minutes_season)}</Td>
+                  <Td right>{fmt(r.minutes_baseline)}</Td>
                   <Td right>
                     <Signed value={r.minutes_trend} digits={1} />
                   </Td>
