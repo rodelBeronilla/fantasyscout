@@ -26,6 +26,20 @@ test('punting a category removes it from the total', async ({ page }) => {
   expect(after).not.toBe(before);
 });
 
+test('counting games played scales the total by the projected games share', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('thead')).toContainText('GP%');
+  const first = board.locator('tbody tr').first();
+  await expect(first).toBeVisible();
+  const name = await first.locator('a').innerText();
+  const withGames = Number(await first.locator('td').last().innerText());
+  await page.getByLabel('Count games played').uncheck();
+  const row = board.locator('tbody tr', { hasText: name }).first();
+  const perGame = Number(await row.locator('td').last().innerText());
+  expect(perGame).toBeGreaterThan(withGames);
+});
+
 test('the footer shows the data build and links to its Data Health entry', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('[data-data-build-id]')).toHaveText('fixture');

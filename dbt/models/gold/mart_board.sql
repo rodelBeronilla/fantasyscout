@@ -1,8 +1,8 @@
 {#
   The draft and in-season board: one row per rostered player per league.
 
-  Value is scored once, on each player's projected per-game line (mart_player_projection),
-  in two passes. Pass one standardises the nine categories over the pool_size players with
+  Value is scored once, on each player's projected per-game line (mart_player_projection:
+  per-minute production times projected minutes), in two passes. Pass one standardises the nine categories over the pool_size players with
   the most projected minutes; pass two repeats it over the pool_size players pass one values
   most, so the means and spreads describe the players a fantasy league actually rosters.
   Counting categories are z-scores of the projected per-game numbers (turnovers negative);
@@ -11,7 +11,10 @@
 
   Every category then has replacement level subtracted: the average category score of the
   next `teams` players after the pool. Zero is a freely available player, so the nine values
-  sum to value above replacement and a punt build is the sum without the punted columns.
+  sum to value per game above replacement (value_per_game) and a punt build is the sum
+  without the punted columns. value_total counts games: value per game times the projected
+  share of team games the player plays (games_share), since a missed game is filled by a
+  replacement-level player; a value below replacement is left as it is.
 
   Alongside the value the row carries the current season's last-ten-games z-scores and
   per-game line, so the app can rank on recent form or raw production too, and the projected
@@ -252,6 +255,11 @@ totals as (
         *,
         {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} as z_total,
         case
+            when {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} > 0
+                then ({% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %}) * games_share
+            else {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %}
+        end as season_value,
+        case
             when season_complete then 1.0
             else availability_multiplier * coalesce(games_remaining * 1.0 / nullif(games_scheduled, 0), 1.0)
         end as ros_factor
@@ -272,6 +280,10 @@ select
     games_current,
     games_prev,
     games_prev2,
+    minutes_current,
+    minutes_prev,
+    minutes_prev2,
+    games_share,
     in_pool,
     w_cur,
     w_prev,
@@ -301,7 +313,8 @@ select
     games_scheduled,
     season_complete,
     ros_factor,
-    z_total as value_total,
-    case when z_total > 0 then z_total * ros_factor else z_total end as value_rest_of_season,
-    rank() over (partition by league order by z_total desc, player_id) as rank_total
+    z_total as value_per_game,
+    season_value as value_total,
+    case when season_value > 0 then season_value * ros_factor else season_value end as value_rest_of_season,
+    rank() over (partition by league order by season_value desc, player_id) as rank_total
 from totals

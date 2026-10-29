@@ -25,16 +25,19 @@ vars:
 
   # The fantasy league the board values players for (mart_player_projection, mart_board):
   # teams x roster spots is the pool of rostered players; replacement level is the next
-  # `teams` players. prior_games is how many games of a replacement-level line every
+  # `teams` players. prior_games is how many games of a replacement-level player every
   # projection starts from, so a short sample moves a projection only part of the way.
-  # recency weights the current season and the two before it, per game played. Both were
-  # chosen by backtest over 2021-2026 (ADR 0003): they put the most of each predicted top tier
-  # and rostered pool into the actual ones, before a season and a tenth, a quarter and half
-  # way in.
+  # fantasy_recency weights per-minute production in the current season and the two before
+  # it; minutes_recency weights minutes per game (the WNBA's roles move more between
+  # seasons, so its current season counts for much more); durability_games regresses the
+  # share of team games played toward typical_share. All were chosen by backtest over
+  # 2021-2026 (ADR 0003), to put the most of each predicted top tier and rostered pool into
+  # the actual ones, before a season and a tenth, a quarter and half way in.
   fantasy:
-    nba: {teams: 12, roster_spots: 13, prior_games: 3}
-    wnba: {teams: 10, roster_spots: 10, prior_games: 5}
+    nba: {teams: 12, roster_spots: 13, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
+    wnba: {teams: 10, roster_spots: 10, prior_games: 5, minutes_recency: [1.0, 0.06, 0.02], durability_games: 60}
   fantasy_recency: [1.0, 0.25, 0.08]
+  fantasy_durability: {typical_share: 0.8}
 
 models:
   fantasyscout:

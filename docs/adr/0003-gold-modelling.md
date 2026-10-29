@@ -56,3 +56,14 @@ The first board blended each season's z-scores, which had three faults on the li
 The gain is at the top of the board and in who is worth rostering at all; ordering inside the pool is unchanged. Recency weights from 0.15 to 0.5 for last season and priors from 0 to 20 games were tried. A heavier prior helped the WNBA at every checkpoint. For the NBA, priors above 3 games lost rostered-pool hits early in the season.
 
 Consequences: values are on a new scale (zero is replacement, not the pool average), the projected line is published with the board and shown in the app, and the settings live in the `fantasy` and `fantasy_recency` vars.
+
+**Minutes and games played (2026-10-29).** The projection now separates how much a player plays from what they do while playing. Minutes per game are counted by games played times a minutes recency weight. That weight is the production weight for the NBA, and 1.0, 0.06 and 0.02 for the WNBA, whose roles move more between seasons, so a change of role there shows within a few games. Production is per minute, counted by minutes played, so 60 games at 8 minutes count for far less than 60 at 34. The per-game line is the rate times projected minutes. A games share, the share of team regular-season games played in the seasons the player appeared, regressed toward 0.8 by 10 NBA or 60 WNBA games, turns value per game (`value_per_game`) into `value_total`; the app can switch it off. Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out. Backtest against the previous projection, same checkpoints, with a second target of value per game above replacement times the share of games played:
+
+| League | Measure | Previous | Minutes and games |
+| --- | --- | --- | --- |
+| NBA | Per game: top 50 / rostered pool | 0.650 / 0.747 | 0.650 / 0.747 |
+| NBA | Season total: top 50 / rostered pool | 0.580 / 0.759 | 0.590 / 0.762 |
+| WNBA | Per game: top 30 / rostered pool | 0.665 / 0.710 | 0.697 / 0.712 |
+| WNBA | Season total: top 30 / rostered pool | 0.665 / 0.762 | 0.699 / 0.767 |
+
+Past games played predict future games played only weakly: durability helped the NBA season-total ranking, while for the WNBA every regression strength from 5 to 120 games scored within a tenth of a point, hence the heavy 60.

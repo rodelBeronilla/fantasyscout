@@ -10,10 +10,11 @@ import Base from '../layouts/Base.astro';
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">Board</h1>
     <p class="mt-1 text-sm text-muted">
-      Rostered players ranked by nine-category value above replacement, scored on a projected per-game line:
-      this season and the two before by games played, recent seasons counting more, with short samples pulled
-      toward a replacement-level player. Punt a category to drop it from the total; rest of season scales value
-      by games left and availability.
+      Rostered players ranked by nine-category value above replacement, scored on a projected per-game line
+      (production per minute times projected minutes, this season and the two before, recent seasons counting
+      more, short samples pulled toward a replacement-level player) and counted over the share of games each
+      player is projected to play. Punt a category to drop it from the total; rest of season scales value by
+      games left and availability.
     </p>
     <div class="mt-6">
       <Board client:only="react" />
