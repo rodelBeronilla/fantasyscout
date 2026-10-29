@@ -102,6 +102,42 @@ def test_r2_store_uses_the_object_endpoint_and_retries() -> None:
     store.close()
 
 
+def test_r2_store_retries_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) -> None:
+    import export.store as store_mod
+
+    monkeypatch.setattr(store_mod.time, "sleep", lambda _: None)
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise httpx.RemoteProtocolError("Server disconnected without sending a response.")
+        return httpx.Response(200, json={"success": True})
+
+    store = R2Store("acct", "tok", transport=httpx.MockTransport(handler), sleep=0.0)
+    store.put("builds/b1/manifest.json", b"{}")
+    assert attempts == 3
+    store.close()
+
+
+def test_r2_store_raises_when_the_connection_keeps_dropping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import export.store as store_mod
+
+    monkeypatch.setattr(store_mod.time, "sleep", lambda _: None)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("unreachable")
+
+    store = R2Store("acct", "tok", transport=httpx.MockTransport(handler), sleep=0.0)
+    with pytest.raises(httpx.ConnectError):
+        store.put("builds/b1/manifest.json", b"{}")
+    assert store.requests == store_mod._RETRIES + 1
+    store.close()
+
+
 # ---- publish, prune, rollback (no warehouse needed) -----------------------------------------
 
 

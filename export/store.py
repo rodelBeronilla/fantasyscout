@@ -92,10 +92,18 @@ class R2Store:
         for attempt in range(_RETRIES + 1):
             with self._lock:
                 self.requests += 1
-            response = self._client.request(method, url, **kwargs)  # type: ignore[arg-type]
+            delay = min(30.0, self._sleep * 2**attempt)
+            try:
+                response = self._client.request(method, url, **kwargs)  # type: ignore[arg-type]
+            except httpx.TransportError:
+                # A dropped connection, a connect or read timeout: the API is reachable again
+                # moments later, so it is retried like a 429 or a 5xx, and raised at the end.
+                if attempt == _RETRIES:
+                    raise
+                time.sleep(delay)
+                continue
             if response.status_code not in _RETRY_STATUSES or attempt == _RETRIES:
                 return response
-            delay = min(30.0, self._sleep * 2**attempt)
             with contextlib.suppress(ValueError):
                 delay = max(delay, float(response.headers.get("retry-after", "0")))
             time.sleep(delay)
