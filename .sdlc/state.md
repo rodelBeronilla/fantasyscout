@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-28 (phase 6 done; waiting for the go-ahead for phase 7)
+Last updated: 2026-10-29 (League page and Yahoo import; phase 7 still waits for the go-ahead)
 
 ## Vision
 
@@ -27,6 +27,17 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 | Production | https://fantasyscout.beronilla.rodeo/ (Cloudflare custom domain on Worker `fantasyscout`, ADR 0001) | Push to `main` |
 
 ## Active Sprint
+
+League tools (issues #110, #111; PRs #112 and the Yahoo PR), 2026-10-29.
+
+- **League page.** `/league/` holds the manager's league in the browser (`fantasyscout:league:<league>`): settings, teams in draft order and their rosters. Rosters fill by search, by paste or by a snake draft with undo, and a team strength table compares the teams. A league file saves and loads it.
+- **Board.**
+  - It reads the league: Available, My team or Everyone; owner tags; Fit; a Draft button during a draft.
+  - Its secondary filters sit behind a Filters button, with removable chips for the active ones.
+  - Tiers are Jenks natural breaks over the rostered pool, one per roster spot, labelled with their picks, rounds, values and how many players are still available.
+- **Yahoo import (ADR 0007).** The Worker signs the manager in to Yahoo and reads their NBA leagues. Tokens stay in an encrypted HttpOnly cookie. The import is off until the owner registers a Yahoo app and adds `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET` (runbook: "Turn on the Yahoo league import").
+
+Earlier the same day: manager board (#107, PRs #108, #109); staged hand exports (#105, #106); documentation audit gaps (#104); projection context (#103).
 
 Board rework and documentation (issues #80, #82, #83, #85; PRs #81, #84, #86, #87), 2026-10-29. The board lists only players on each team's latest roster and values them above replacement from one projected line per player: per-minute production (seasons weighted by minutes and recency) times projected minutes, from a replacement-level prior, scored in two passes against a fantasy league's rostered pool, and counted over the projected share of regular-season games played. The settings (`fantasy`, `fantasy_recency`, `fantasy_durability` vars) were chosen by backtest; results in ADR 0003. `/pipeline/` draws the design end to end with the methods per stage, and `/schema/` lists every model, column, type and test from `web/src/generated/schema.json` (regenerate with `dbt docs generate` and `python -m ops.schema`; CI checks it). Deploys gate on the median of three Lighthouse runs, with the stylesheet inlined (median LCP about 0.9 s). Live data build 20261029T052437Z-f03e5ae, 271 checks pass.
 
@@ -76,4 +87,5 @@ N/A, first sprint.
 
 1. Owner: the Google Sheets bridge setup in tableau/README.md (service account secret `GOOGLE_SERVICE_ACCOUNT_JSON`, sheet shared with it, variable `TABLEAU_SHEET_ID`), then publish the League Pulse workbook from that sheet and set `TABLEAU_VIZ_URL`; then go-ahead for phase 7 (AI scouting notes with verified claims).
 2. Watch the nightly build log's reconciliation summary; any season under 99% matched warns, and `silver.player_xwalk_review` names the players to add to the overrides seed.
-3. Deferred from phase 3: tracking facts, a performance timings page, an ESPN core-API fallback if summary coverage ever drops below 99%.
+3. Owner, optional: register a Yahoo developer app (redirect URI https://fantasyscout.beronilla.rodeo/auth/yahoo/callback, Fantasy Sports read) and add the `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET` Actions secrets to turn on the Yahoo league import; then sign in on the League page (NBA) to verify it end to end.
+4. Deferred from phase 3: tracking facts, a performance timings page, an ESPN core-API fallback if summary coverage ever drops below 99%.

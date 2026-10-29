@@ -170,3 +170,14 @@ describe('data', () => {
     expect((await SELF.fetch(`${ORIGIN}/data/`)).status).toBe(404);
   });
 });
+
+describe('the Yahoo league import', () => {
+  it('answers through the Worker with the security headers, and says when it is not configured', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/api/yahoo/status`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(res.headers.get('x-frame-options')).toBe('DENY');
+    expect(await res.json()).toEqual({ configured: false, connected: false });
+    expect((await SELF.fetch(`${ORIGIN}/auth/yahoo/start`, { redirect: 'manual' })).status).toBe(404);
+  });
+});

@@ -23,9 +23,10 @@ FantasyScout is three loosely coupled systems: ingestion in GitHub Actions, tran
                                            manifest.json, then flip latest.json
                            │
                            ▼
-          Cloudflare Worker "fantasyscout" at fantasyscout.beronilla.rodeo  (worker/, no secrets)
+          Cloudflare Worker "fantasyscout" at fantasyscout.beronilla.rodeo  (worker/)
             /*          static Astro build (web/dist)
             /data/*     R2 objects, Range-aware, immutable per build
+            /auth/yahoo/*, /api/yahoo/*   optional Yahoo league import (ADR 0007)
                            │
                            ▼
            Browser: Astro pages, React islands, DuckDB-WASM over Parquet
@@ -62,9 +63,9 @@ Three doors onto the same gold tables (SPEC.md): the site's pages and SQL consol
 
 ## Trust boundaries
 
-- The Worker holds no secrets. It reads the static build and public R2 objects. Its CSP allows `'wasm-unsafe-eval'` for DuckDB-WASM and frames only `public.tableau.com`.
+- The Worker reads the static build and public R2 objects. Its only secrets are the Yahoo app's client id and secret, for the optional league import (ADR 0007): the manager's Yahoo tokens stay in an encrypted HttpOnly cookie and never reach the page. Its CSP allows `'wasm-unsafe-eval'` for DuckDB-WASM and frames only `public.tableau.com`.
 - The export job is the only writer to R2 and runs only after the publish gate passes. `latest.json` flips last, so a half-uploaded build is never visible. The last seven builds stay for rollback.
-- Secrets live in GitHub Actions secrets only: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `ANTHROPIC_API_KEY`.
+- Secrets live in GitHub Actions secrets only: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `ANTHROPIC_API_KEY`, and optionally `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`, which the deploy copies into the Worker.
 - Raw payloads from the stats APIs are never redistributed; only derived gold tables are published.
 
 ## Hosting

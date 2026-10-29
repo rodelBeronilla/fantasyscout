@@ -1,16 +1,18 @@
 /**
  * FantasyScout edge Worker.
  *
- *   /data/<key>  -> object <key> from the R2 bucket, with Range support for DuckDB-WASM
- *   /*           -> static files from the Astro build (assets binding)
+ *   /data/<key>                 -> object <key> from the R2 bucket, with Range support for DuckDB-WASM
+ *   /auth/yahoo/*, /api/yahoo/* -> the Yahoo Fantasy league import (yahoo.ts)
+ *   /*                          -> static files from the Astro build (assets binding)
  *
- * Every response carries the security headers below. The Worker has no secrets:
- * it only reads public, exported data.
+ * Every response carries the security headers below. The data it serves is public and exported;
+ * its only secrets are the Yahoo app's client id and secret, for the optional league import.
  */
 
 import cspHashes from './csp-hashes.json';
+import { handleYahoo, type YahooEnv } from './yahoo';
 
-export interface Env {
+export interface Env extends YahooEnv {
   ASSETS: Fetcher;
   DATA: R2Bucket;
 }
@@ -203,6 +205,9 @@ export default {
       res.headers.set('allow', 'GET, HEAD');
       return withSecurityHeaders(res);
     }
+
+    const yahoo = await handleYahoo(request, env);
+    if (yahoo) return withSecurityHeaders(yahoo, url.pathname);
 
     if (url.pathname.startsWith(DATA_PREFIX)) {
       return withSecurityHeaders(
