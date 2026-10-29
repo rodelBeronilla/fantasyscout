@@ -64,6 +64,17 @@ class ProbeResult:
 
 REPORT_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0"}
 
+
+def cdn_headers(site: str) -> dict[str, str]:
+    """What a browser on the league's site sends; the CDN refuses bare clients."""
+    return {
+        **REPORT_HEADERS,
+        "Referer": f"https://{site}/",
+        "Origin": f"https://{site}",
+        "Accept": "application/json",
+    }
+
+
 DEFAULT_TARGETS: tuple[Target, ...] = (
     Target(
         name="stats-wnba",
@@ -96,6 +107,31 @@ DEFAULT_TARGETS: tuple[Target, ...] = (
         expect="Injury-Report_",
         headers=REPORT_HEADERS,
         json=False,
+    ),
+    # The leagues' CDN (issue #139): box scores, play-by-play and schedules for both leagues.
+    Target(
+        name="cdn-nba-boxscore",
+        url="https://cdn.nba.com/static/json/liveData/boxscore/boxscore_0022500500.json",
+        expect="game",
+        headers=cdn_headers("www.nba.com"),
+    ),
+    Target(
+        name="cdn-wnba-boxscore",
+        url="https://cdn.wnba.com/static/json/liveData/boxscore/boxscore_1022600150.json",
+        expect="game",
+        headers=cdn_headers("www.wnba.com"),
+    ),
+    Target(
+        name="cdn-nba-schedule",
+        url="https://cdn.nba.com/static/json/staticData/scheduleLeagueV2_1.json",
+        expect="leagueSchedule",
+        headers=cdn_headers("www.nba.com"),
+    ),
+    Target(
+        name="cdn-wnba-schedule",
+        url="https://cdn.wnba.com/static/json/staticData/scheduleLeagueV2_1.json",
+        expect="leagueSchedule",
+        headers=cdn_headers("www.wnba.com"),
     ),
     Target(
         name="injury-report-wnba-pdf",
