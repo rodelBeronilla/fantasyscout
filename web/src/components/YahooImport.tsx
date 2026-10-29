@@ -1,7 +1,7 @@
 /**
  * Import a Yahoo Fantasy league into the League page. The Worker holds the sign-in (an HttpOnly
- * cookie) and calls Yahoo; this card only sees league data. It shows nothing until the Worker
- * reports the import configured.
+ * cookie) and calls Yahoo; this card only sees league data. Until the Worker reports the import
+ * live (Yahoo has approved the app), the card says it is coming soon.
  */
 import { useEffect, useState } from 'react';
 
@@ -12,6 +12,7 @@ import { Card } from './ui';
 
 interface Status {
   configured: boolean;
+  live: boolean;
   connected: boolean;
 }
 
@@ -91,11 +92,11 @@ export default function YahooImport({
   useEffect(() => {
     getJson<Status>('/api/yahoo/status')
       .then(setStatus)
-      .catch(() => setStatus({ configured: false, connected: false }));
+      .catch(() => setStatus({ configured: false, live: false, connected: false }));
   }, []);
 
   useEffect(() => {
-    if (!status?.connected || league !== 'nba') return;
+    if (!status?.live || !status.connected || league !== 'nba') return;
     getJson<LeagueSummary[]>('/api/yahoo/leagues')
       .then((list) => {
         setLeagues(list);
@@ -104,7 +105,25 @@ export default function YahooImport({
       .catch((e: unknown) => setNote(e instanceof Error ? e.message : String(e)));
   }, [status, league]);
 
-  if (!status?.configured) return null;
+  if (!status) return null;
+  if (!status.live) {
+    // Parked until Yahoo approves the app for its Fantasy API; Yahoo runs NBA leagues only.
+    if (league !== 'nba') return null;
+    return (
+      <Card title="Import from Yahoo" id="yahoo">
+        <div className="grid gap-1 text-sm" data-testid="yahoo-soon">
+          <p>
+            <span className="mr-2 rounded-full border border-accent px-2 py-0.5 text-xs font-medium text-accent">Coming soon</span>
+            Bring in a Yahoo league&apos;s settings, team names and every roster in one step.
+          </p>
+          <p className="text-muted">
+            Yahoo is reviewing FantasyScout&apos;s access to its Fantasy API. Until then, open <strong className="text-fg">Paste a roster</strong> on each
+            team below and paste the player names from your league&apos;s team pages, one per line.
+          </p>
+        </div>
+      </Card>
+    );
+  }
 
   const run = async () => {
     const summary = leagues?.find((l) => l.key === chosen);

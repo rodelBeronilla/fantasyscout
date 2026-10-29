@@ -107,7 +107,8 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
-          command: deploy --env ${{ env.WRANGLER_ENV }}
+          # YAHOO_IMPORT (repository variable) opens the Yahoo league import once Yahoo approves the app.
+          command: deploy --env ${{ env.WRANGLER_ENV }}${{ vars.YAHOO_IMPORT && format(' --var YAHOO_IMPORT:{0}', vars.YAHOO_IMPORT) || '' }}
 
       # The optional Yahoo league import needs the Yahoo app's credentials as Worker secrets.
       # They come from the repository's Actions secrets; without them the import stays off.

@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { handleYahoo, openTokens, parseLeague, parseLeagues, readCookie, sealTokens, simplify } from '../src/yahoo';
 
 const ORIGIN = 'https://fantasyscout.example';
-const ENV = { YAHOO_CLIENT_ID: 'client-id', YAHOO_CLIENT_SECRET: 'client-secret' };
+const ENV = { YAHOO_CLIENT_ID: 'client-id', YAHOO_CLIENT_SECRET: 'client-secret', YAHOO_IMPORT: 'on' };
 
 // Shapes as Yahoo's Fantasy API returns them with format=json.
 const LEAGUES = {
@@ -173,9 +173,18 @@ describe('the token cookie', () => {
 describe('the sign-in and the league routes', () => {
   it('reports that it is not configured until the secrets are set', async () => {
     const status = await handleYahoo(get('/api/yahoo/status'), {});
-    expect(await status?.json()).toEqual({ configured: false, connected: false });
+    expect(await status?.json()).toEqual({ configured: false, live: false, connected: false });
     expect((await handleYahoo(get('/auth/yahoo/start'), {}))?.status).toBe(404);
     expect(await handleYahoo(get('/league/'), ENV)).toBeNull();
+  });
+
+  it('stays closed with the secrets set until YAHOO_IMPORT is on', async () => {
+    const parked = { YAHOO_CLIENT_ID: 'client-id', YAHOO_CLIENT_SECRET: 'client-secret' };
+    const status = await handleYahoo(get('/api/yahoo/status'), parked);
+    expect(await status?.json()).toEqual({ configured: true, live: false, connected: false });
+    for (const path of ['/auth/yahoo/start', '/auth/yahoo/callback?code=c&state=s', '/api/yahoo/leagues']) {
+      expect((await handleYahoo(get(path), { ...parked, YAHOO_IMPORT: 'off' }))?.status).toBe(404);
+    }
   });
 
   it('signs in with a checked state, keeps the tokens sealed in a cookie, and reads a league', async () => {
@@ -202,7 +211,7 @@ describe('the sign-in and the league routes', () => {
     expect(back.headers.getSetCookie().find((c) => c.startsWith('fs_yahoo='))).toMatch(/HttpOnly; Secure; SameSite=Lax/);
 
     const status = await handleYahoo(get('/api/yahoo/status', `fs_yahoo=${sealed}`), ENV, fetcher);
-    expect(await status!.json()).toEqual({ configured: true, connected: true });
+    expect(await status!.json()).toEqual({ configured: true, live: true, connected: true });
     const leagues = await handleYahoo(get('/api/yahoo/leagues', `fs_yahoo=${sealed}`), ENV, fetcher);
     expect(await leagues!.json()).toHaveLength(2);
     const league = await handleYahoo(get('/api/yahoo/league/466.l.1234', `fs_yahoo=${sealed}`), ENV, fetcher);

@@ -474,10 +474,14 @@ test('/league/ has no accessibility violations', async ({ page }) => {
   expect(results.violations).toEqual([]);
 });
 
-test('a Yahoo league imports its settings, teams and rosters, and the card stays hidden until the import is configured', async ({ page }) => {
+test('the Yahoo import shows as coming soon until it is live, then imports settings, teams and rosters', async ({ page }) => {
   await page.goto('/league/?league=nba');
   await expect(page.getByTestId('team-card').first()).toBeVisible();
+  await expect(page.getByTestId('yahoo-soon')).toContainText('Coming soon');
   await expect(page.getByTestId('yahoo-import')).toHaveCount(0);
+  await page.goto('/league/?league=wnba');
+  await expect(page.getByTestId('team-card').first()).toBeVisible();
+  await expect(page.getByTestId('yahoo-soon')).toHaveCount(0);
 
   // The fixture build's NBA board is empty: stand the WNBA players in for it.
   await page.route('**/board/nba.json', async (r) => r.fulfill({ response: await r.fetch({ url: r.request().url().replace(/\/nba\.json$/, '/wnba.json') }) }));
@@ -495,7 +499,7 @@ test('a Yahoo league imports its settings, teams and rosters, and the card stays
       { name: 'Fourth', mine: false, players: [] },
     ],
   };
-  await page.route('**/api/yahoo/status', (r) => r.fulfill({ json: { configured: true, connected: true } }));
+  await page.route('**/api/yahoo/status', (r) => r.fulfill({ json: { configured: true, live: true, connected: true } }));
   await page.route('**/api/yahoo/leagues', (r) => r.fulfill({ json: [{ key: '466.l.1234', name: 'Hoops Club', season: '2025', teams: 4 }] }));
   await page.route('**/api/yahoo/league/466.l.1234', (r) => r.fulfill({ json: league }));
   await page.goto('/league/?league=nba');

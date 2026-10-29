@@ -177,7 +177,7 @@ describe('the Yahoo league import', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(res.headers.get('x-frame-options')).toBe('DENY');
-    expect(await res.json()).toEqual({ configured: false, connected: false });
+    expect(await res.json()).toEqual({ configured: false, live: false, connected: false });
     expect((await SELF.fetch(`${ORIGIN}/auth/yahoo/start`, { redirect: 'manual' })).status).toBe(404);
   });
 });
