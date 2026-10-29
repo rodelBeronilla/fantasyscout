@@ -11,13 +11,17 @@
  *   /api/yahoo/leagues            -> the manager's NBA leagues this season
  *   /api/yahoo/league/<key>       -> one league: settings, teams and rosters, by player name
  *
- * Yahoo has no WNBA game, so the import is NBA only. Without YAHOO_CLIENT_ID and
- * YAHOO_CLIENT_SECRET set as Worker secrets, every route reports that it is not configured.
+ * Yahoo has no WNBA game, so the import is NBA only. The import is live only with
+ * YAHOO_CLIENT_ID and YAHOO_CLIENT_SECRET set as Worker secrets and the YAHOO_IMPORT variable
+ * set to "on" (Yahoo must first approve the app for its Fantasy API). Until then the status
+ * route says so and every other route is closed.
  */
 
 export interface YahooEnv {
   YAHOO_CLIENT_ID?: string;
   YAHOO_CLIENT_SECRET?: string;
+  /** "on" once Yahoo has approved the app; anything else keeps the import closed. */
+  YAHOO_IMPORT?: string;
 }
 
 const AUTH_URL = 'https://api.login.yahoo.com/oauth2/request_auth';
@@ -126,7 +130,7 @@ export async function openTokens(sealed: string | null, secret: string): Promise
   }
 }
 
-async function tokenRequest(env: Required<YahooEnv>, body: Record<string, string>, fetcher: Fetcher): Promise<Tokens> {
+async function tokenRequest(env: Credentials, body: Record<string, string>, fetcher: Fetcher): Promise<Tokens> {
   const res = await fetcher(TOKEN_URL, {
     method: 'POST',
     headers: {
@@ -275,15 +279,18 @@ export function parseLeague(settingsBody: unknown, rostersBody: unknown): YahooL
   };
 }
 
-const configured = (env: YahooEnv): env is Required<YahooEnv> => !!env.YAHOO_CLIENT_ID && !!env.YAHOO_CLIENT_SECRET;
+type Credentials = Required<Pick<YahooEnv, 'YAHOO_CLIENT_ID' | 'YAHOO_CLIENT_SECRET'>>;
+const configured = (env: YahooEnv): env is YahooEnv & Credentials => !!env.YAHOO_CLIENT_ID && !!env.YAHOO_CLIENT_SECRET;
 
 /** Handles /auth/yahoo/* and /api/yahoo/*; anything else returns null. */
 export async function handleYahoo(request: Request, env: YahooEnv, fetcher: Fetcher = fetch): Promise<Response | null> {
   const url = new URL(request.url);
   const path = url.pathname;
   if (!path.startsWith('/auth/yahoo/') && !path.startsWith('/api/yahoo/')) return null;
-  if (!configured(env)) {
-    return path === '/api/yahoo/status' ? json(200, { configured: false, connected: false }) : json(404, { error: 'Yahoo import is not configured' });
+  if (!configured(env) || env.YAHOO_IMPORT !== 'on') {
+    return path === '/api/yahoo/status'
+      ? json(200, { configured: configured(env), live: false, connected: false })
+      : json(404, { error: 'The Yahoo import is not available yet' });
   }
   const redirectUri = `${url.origin}/auth/yahoo/callback`;
 
@@ -311,7 +318,7 @@ export async function handleYahoo(request: Request, env: YahooEnv, fetcher: Fetc
   if (path === '/auth/yahoo/logout') return redirect(RETURN_PATH, [cookie(TOKEN_COOKIE, '', 0)]);
 
   let tokens = await openTokens(readCookie(request, TOKEN_COOKIE), env.YAHOO_CLIENT_SECRET);
-  if (path === '/api/yahoo/status') return json(200, { configured: true, connected: !!tokens });
+  if (path === '/api/yahoo/status') return json(200, { configured: true, live: true, connected: !!tokens });
   if (!tokens) return json(401, { error: 'Not signed in to Yahoo' });
 
   // A fresh access token when the one in the cookie is missing or about to expire.

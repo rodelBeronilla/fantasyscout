@@ -57,6 +57,8 @@ To get access:
 2. Sign the API access agreement Yahoo sends through DocuSign.
 3. Submit the app's Client ID at https://sports.yahoo.com/developer/application-confirmation/.
 
+Until then the import stays parked: the League page shows it as coming soon and the Worker keeps its Yahoo routes closed. Once Yahoo approves, set the repository variable `YAHOO_IMPORT` to `on` (Settings, then Secrets and variables, then Actions, then Variables) and re-run Deploy web on main.
+
 Some approved apps only worked once they were recreated after approval. If so, put the new app's Client ID and Client Secret in the two secrets, re-run Deploy web, then sign out of Yahoo on the League page and sign in again. The old sign-in is tied to the old app.
 
 To turn it off, delete the two secrets and remove them from the Worker (`wrangler secret delete YAHOO_CLIENT_ID --env production`, and the same for the secret). Rotating the client secret signs everyone out.
