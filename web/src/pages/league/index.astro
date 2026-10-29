@@ -1,0 +1,21 @@
+---
+import LeagueSetup from '../../components/LeagueSetup';
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="League"
+  description="Set up your fantasy league: scoring, teams in draft order and every roster, with a snake draft and each team's strength by category."
+>
+  <section>
+    <h1 class="text-2xl font-semibold tracking-tight">League</h1>
+    <p class="mt-1 max-w-3xl text-sm text-muted">
+      Your league as the board sees it: its size and scoring set what a player is worth, its rosters set who is still
+      available, and your team's weak categories set the board's Fit column. Add players by name, paste a roster from
+      your league's site, or run the draft here pick by pick.
+    </p>
+    <div class="mt-6">
+      <LeagueSetup client:only="react" />
+    </div>
+  </section>
+</Base>

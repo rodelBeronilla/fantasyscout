@@ -1,20 +1,21 @@
 ---
 import Board from '../components/Board';
 import Base from '../layouts/Base.astro';
+import { href } from '../lib/site';
 ---
 
 <Base
   title="Board"
-  description="Rostered WNBA and NBA players ranked by nine-category value above replacement, with punt toggles, availability adjustment and filters by team and position."
+  description="WNBA and NBA players ranked by value above replacement in your league, with tiers, who is still available, punts and filters."
 >
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">Board</h1>
-    <p class="mt-1 text-sm text-muted">
-      Rostered players ranked by nine-category value above replacement, scored on a projected per-game line
-      (production per minute times projected minutes, this season and the two before, recent seasons counting
-      more, short samples pulled toward a replacement-level player) and counted over the share of games each
-      player is projected to play. Punt a category to drop it from the total; rest of season scales value by
-      games left and availability.
+    <p class="mt-1 max-w-3xl text-sm text-muted">
+      Players ranked by value above replacement in your league, scored on a projected per-game line and counted over
+      the games each player is projected to play. Set up your league's size, scoring and rosters on the <a
+        href={href('/league/')}
+        class="underline underline-offset-4">League page</a
+      > to see who is still available and what your team needs.
     </p>
     <div class="mt-6">
       <Board client:only="react" />

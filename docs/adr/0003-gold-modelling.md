@@ -79,3 +79,14 @@ Past games played predict future games played only weakly: durability helped the
 | Games under half a player's usual minutes dropped (often injury exits, 9% of games) | 0.769 vs 0.774 | 0.752 vs 0.748 | No |
 
 A player's game-to-game swing is about 2.5 in value per game. The opponent's defensive rating and the expected pace explain 0.2% to 1.4% of it. One standard deviation of opponent defence is worth about 0.21 per game in the NBA and 0.14 in the WNBA, and pace about 0.08 and 0.06. That is small, but it tells a streamer two otherwise equal players apart, so `mart_schedule_upcoming` carries a matchup value per side (`fantasy_matchup`). Early in a season, last season's team defence predicted a game better than the first games did, so team ratings blend this season to date with last season counting as 10 games. A reworked roster takes over as its games accumulate. A player's past results against a given opponent correlated 0.00 to 0.04 with the next meeting, which is noise, so they are not used. Board and streamers show a new-team badge with the previous team.
+
+## Addendum (2026-10-29): the league, rosters and tiers
+
+**The league lives on its own page.** The `/league/` page holds the manager's league: its size, scoring and point weights, its teams in draft order, and each team's roster. Players are added by search or by pasting a roster as any fantasy host lists it; names are matched without accents, punctuation or suffixes. A snake draft runs there or on the board, with undo. The board, Streamers and the League page all read one record per league, kept in the browser (`fantasyscout:league:<league>`), and a change in one tab reaches the others. A league file moves it between browsers. Nothing is sent to a server, so the gold layer stays the same for everyone and the league-specific arithmetic (replacement level, tiers, Fit) runs on the client against the published board.
+
+**Tiers are measured in the league's picks.** The earlier tiers started wherever one player's value fell well below the next one's. They had no meaning in a manager's league, and their number depended on noise near the top. Now the players a league this size rosters (teams × roster spots) are split into one group per roster spot, at the cuts that minimise squared deviation within the groups. That is the exact one-dimensional optimum (Jenks natural breaks), found by dynamic programming in O(k·n²), which takes a few milliseconds for 156 players and 13 tiers. Each tier is labelled with:
+- its picks and the draft rounds they fall in;
+- its range of values;
+- once rosters are in, how many of its players are still available.
+
+Players outside the pool form a waiver group. The top of the distribution is steep, so its tiers are small: the elite players are separated one by one, while the flatter middle forms tiers about one round wide.

@@ -45,20 +45,77 @@ export function pointValues(rows: Row[], weights: PointWeights, pool: number, te
 }
 
 /**
- * Tier breaks over values sorted high to low: a new tier starts where the drop to the next
- * player is at least 2.5 times the median drop among the top `span` (at most 12 tiers).
+ * Exact one-dimensional clustering (Jenks natural breaks): the split of values, sorted high to
+ * low, into at most `k` runs with the least squared deviation within the runs. Returns the index
+ * each run starts at.
  */
-export function tierStarts(values: number[], span = 150): Set<number> {
-  const top = values.slice(0, span);
-  const gaps = top.slice(1).map((v, i) => (top[i] ?? 0) - v).filter((g) => g >= 0);
-  const sorted = [...gaps].sort((a, b) => a - b);
-  const median = sorted.length ? (sorted[Math.floor(sorted.length / 2)] ?? 0) : 0;
-  const threshold = Math.max(median * 2.5, 1e-6);
-  const starts = new Set<number>([0]);
-  for (let i = 1; i < top.length && starts.size < 12; i += 1) {
-    if ((top[i - 1] ?? 0) - (top[i] ?? 0) >= threshold) starts.add(i);
+export function naturalBreaks(values: number[], k: number): number[] {
+  const n = values.length;
+  if (n === 0) return [];
+  const runs = Math.max(1, Math.min(k, n));
+  const s1 = [0];
+  const s2 = [0];
+  for (const v of values) {
+    s1.push((s1.at(-1) ?? 0) + v);
+    s2.push((s2.at(-1) ?? 0) + v * v);
   }
-  return starts;
+  // Squared deviation of values[i..j] about their mean.
+  const cost = (i: number, j: number) => {
+    const sum = (s1[j + 1] ?? 0) - (s1[i] ?? 0);
+    return (s2[j + 1] ?? 0) - (s2[i] ?? 0) - (sum * sum) / (j - i + 1);
+  };
+  let prev = values.map((_, j) => cost(0, j));
+  const back: number[][] = [];
+  for (let m = 1; m < runs; m += 1) {
+    const cur = new Array<number>(n).fill(Infinity);
+    const from = new Array<number>(n).fill(m);
+    for (let j = m; j < n; j += 1) {
+      for (let i = m; i <= j; i += 1) {
+        const c = (prev[i - 1] ?? Infinity) + cost(i, j);
+        if (c < (cur[j] ?? Infinity)) {
+          cur[j] = c;
+          from[j] = i;
+        }
+      }
+    }
+    back.push(from);
+    prev = cur;
+  }
+  const starts = [0];
+  let j = n - 1;
+  for (let m = runs - 1; m >= 1; m -= 1) {
+    const i = back[m - 1]?.[j] ?? 0;
+    starts.push(i);
+    j = i - 1;
+  }
+  return [...new Set(starts)].sort((a, b) => a - b);
+}
+
+export interface Tier {
+  tier: number;
+  /** First and last player of the tier, as positions in the value order (from 0). */
+  start: number;
+  end: number;
+  high: number;
+  low: number;
+  /** Rounds of a draft in this league the tier's picks fall in (from 1). */
+  firstRound: number;
+  lastRound: number;
+}
+
+/**
+ * Tiers for a league: the players a league this size rosters (teams x roster spots), split into
+ * one tier per roster spot where their values naturally separate, so a tier is a run of players
+ * of about the same value and its picks say where it goes in a draft.
+ */
+export function leagueTiers(values: number[], teams: number, rosterSpots: number): Tier[] {
+  const pool = values.slice(0, teams * rosterSpots);
+  const starts = naturalBreaks(pool, rosterSpots);
+  const round = (i: number) => Math.floor(i / teams) + 1;
+  return starts.map((start, t) => {
+    const end = (starts[t + 1] ?? pool.length) - 1;
+    return { tier: t + 1, start, end, high: pool[start] ?? 0, low: pool[end] ?? 0, firstRound: round(start), lastRound: round(end) };
+  });
 }
 
 /**

@@ -8,7 +8,7 @@ test('the board ranks players and links to player pages', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
   await expect(board).toBeVisible();
-  const rows = board.locator('tbody tr');
+  const rows = board.locator('tbody tr[data-player]');
   await expect(rows.first()).toBeVisible();
   expect(await rows.count()).toBeGreaterThan(0);
   const firstLink = rows.first().locator('a');
@@ -18,11 +18,13 @@ test('the board ranks players and links to player pages', async ({ page }) => {
 test('punting a category removes it from the total', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr').first()).toBeVisible();
-  const before = await board.locator('tbody tr').first().locator('td').nth(-2).innerText();
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
+  const before = await board.locator('tbody tr[data-player]').first().locator('td').nth(-2).innerText();
+  await page.getByTestId('board-options-toggle').click();
   await page.locator('fieldset label', { hasText: /^PTS$/ }).click();
   await expect(board.locator('thead s')).toHaveText('PTS');
-  const after = await board.locator('tbody tr').first().locator('td').nth(-2).innerText();
+  await expect(page.getByTestId('active-filters')).toContainText('Punt PTS');
+  const after = await board.locator('tbody tr[data-player]').first().locator('td').nth(-2).innerText();
   expect(after).not.toBe(before);
 });
 
@@ -30,12 +32,13 @@ test('counting games played scales the total by the projected games share', asyn
   await page.goto('/');
   const board = page.getByTestId('board');
   await expect(board.locator('thead')).toContainText('GP%');
-  const first = board.locator('tbody tr').first();
+  const first = board.locator('tbody tr[data-player]').first();
   await expect(first).toBeVisible();
   const name = await first.locator('a').innerText();
   const withGames = Number(await first.locator('td').nth(-2).innerText());
+  await page.getByTestId('board-options-toggle').click();
   await page.getByLabel('Count games played').uncheck();
-  const row = board.locator('tbody tr', { hasText: name }).first();
+  const row = board.locator('tbody tr[data-player]', { hasText: name }).first();
   const perGame = Number(await row.locator('td').nth(-2).innerText());
   expect(perGame).toBeGreaterThan(withGames);
 });
@@ -50,7 +53,7 @@ test('the footer shows the data build and links to its Data Health entry', async
 
 test('a player page renders the season line, shot chart and game log', async ({ page }) => {
   await page.goto('/');
-  const first = page.getByTestId('board').locator('tbody tr').first().locator('a');
+  const first = page.getByTestId('board').locator('tbody tr[data-player]').first().locator('a');
   const name = await first.innerText();
   await first.click();
   await expect(page).toHaveURL(/\/p\/wnba\/\d+\//);
@@ -90,30 +93,30 @@ test('streamers can be filtered by position and re-sorted', async ({ page }) => 
 test('the board switches between value, recent, projected and per-game views', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   await expect(page.getByTestId('season-note')).toContainText('regular season is over');
   await page.getByRole('radio', { name: 'Per game' }).click();
   await expect(board.locator('thead')).toContainText('MIN');
   await expect(board.locator('thead')).not.toContainText('Total');
   await page.getByRole('button', { name: /^PTS/ }).click();
-  const pts = (await board.locator('tbody tr td:nth-child(8)').allInnerTexts()).map(Number);
+  const pts = (await board.locator('tbody tr[data-player] td:nth-child(8)').allInnerTexts()).map(Number);
   expect(pts[0]).toBeGreaterThanOrEqual(pts[1] ?? 0);
   await page.getByRole('radio', { name: 'Last 10 games' }).click();
   await expect(board.locator('thead')).toContainText('Total');
   await page.getByRole('radio', { name: 'Projected line' }).click();
   await expect(board.locator('thead')).toContainText('MIN');
   await expect(board.locator('thead')).not.toContainText('Total');
-  await expect(board.locator('tbody tr').first().locator('td:nth-child(7)')).toHaveText(/^\d+(\.\d+)?$/);
+  await expect(board.locator('tbody tr[data-player]').first().locator('td:nth-child(7)')).toHaveText(/^\d+(\.\d+)?$/);
 });
 
 test('the board filters by position and shows injury tags', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   await page.getByTestId('board-more').click();
   await expect(page.getByTestId('injury-tag').first()).toBeVisible();
   await page.getByLabel('Position G').check({ force: true });
-  const positions = await board.locator('tbody tr td:nth-child(4)').allInnerTexts();
+  const positions = await board.locator('tbody tr[data-player] td:nth-child(4)').allInnerTexts();
   expect(positions.every((p) => p.includes('G'))).toBe(true);
 });
 
@@ -194,7 +197,7 @@ test('the dashboards page explains the workbook and lists the extract', async ({
   await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
 });
 
-for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/']) {
+for (const path of ['/', '/league/', '/streamers/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/']) {
   test(`${path} has no horizontal scroll on a phone`, async ({ page, isMobile }) => {
     test.skip(!isMobile, 'mobile project only');
     await page.goto(path);
@@ -240,7 +243,7 @@ test('the schema page draws the star schema and the lineage, and a model opens t
 test('the board header stays in view while its rows scroll', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   const region = page.locator('.table-scroll', { has: board });
   await region.evaluate((el) => el.scrollTo({ top: 800 }));
   const regionBox = await region.boundingBox();
@@ -262,6 +265,7 @@ for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/notebo
 test('a punted category is struck through on its chip', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('board').locator('tbody tr').first()).toBeVisible();
+  await page.getByTestId('board-options-toggle').click();
   const chip = page.locator('fieldset label', { hasText: /^PTS$/ });
   expect(await chip.evaluate((el) => getComputedStyle(el).textDecorationLine)).not.toContain('line-through');
   await chip.click();
@@ -271,38 +275,37 @@ test('a punted category is struck through on its chip', async ({ page }) => {
 test('the board ranks by this season and the last twenty games, and filters to rookies', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   await page.getByRole('radio', { name: 'This season' }).click();
   await expect(board.locator('thead')).toContainText('Total');
   await page.getByRole('radio', { name: 'Last 20 games' }).click();
-  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   await page.getByRole('radio', { name: 'Value' }).click();
-  const all = await board.locator('tbody tr').count();
+  const all = await board.locator('tbody tr[data-player]').count();
+  await page.getByTestId('board-options-toggle').click();
   await page.getByLabel('Rookies only').check();
-  const rookies = board.locator('tbody tr');
+  const rookies = board.locator('tbody tr[data-player]');
   await expect(rookies.first()).toContainText('R');
   expect(await rookies.count()).toBeLessThan(all);
-  await page.getByLabel('Rookies only').uncheck();
-  await page.getByTestId('league-settings').locator('summary').click();
-  await page.getByLabel('Scoring').selectOption('cats8');
-  await expect(board.locator('thead s')).toHaveText('TO');
-  await page.getByLabel('Scoring').selectOption('cats9');
+  await page.getByRole('button', { name: 'Remove Rookies' }).click();
+  expect(await board.locator('tbody tr[data-player]').count()).toBe(all);
 });
 
 test('the watchlist keeps starred players across visits, and compare lines players up', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr').first()).toBeVisible();
-  const first = board.locator('tbody tr').first();
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
+  const first = board.locator('tbody tr[data-player]').first();
   const name = await first.locator('a').innerText();
   await first.getByTestId('watch').click();
   await page.reload();
-  await expect(board.locator('tbody tr').first()).toBeVisible();
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
+  await page.getByTestId('board-options-toggle').click();
   await page.getByLabel(/Watchlist only/).check();
-  await expect(board.locator('tbody tr')).toHaveCount(1);
-  await expect(board.locator('tbody tr').first()).toContainText(name);
+  await expect(board.locator('tbody tr[data-player]')).toHaveCount(1);
+  await expect(board.locator('tbody tr[data-player]').first()).toContainText(name);
   await page.getByLabel(/Watchlist only/).uncheck();
-  const rows = board.locator('tbody tr');
+  const rows = board.locator('tbody tr[data-player]');
   await rows.nth(0).getByRole('checkbox', { name: /^Compare / }).check();
   await rows.nth(1).getByRole('checkbox', { name: /^Compare / }).check();
   const compare = page.getByTestId('compare');
@@ -355,60 +358,118 @@ for (const [path, testid] of [['/', 'board'], ['/streamers/', 'trending']]) {
   });
 }
 
-test('league settings re-measure value for the league, and points leagues score fantasy points', async ({ page }) => {
+test('the League page sets the league the board values for, and points leagues score fantasy points', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr').first()).toBeVisible();
-  const first = board.locator('tbody tr').first();
+  const first = board.locator('tbody tr[data-player]').first();
+  await expect(first).toBeVisible();
   const before = Number(await first.locator('td').nth(-2).innerText());
-  await page.getByTestId('league-settings').locator('summary').click();
+  await expect(page.getByTestId('league-summary')).toHaveText('10 teams × 10, 9-cat');
+  await page.getByRole('link', { name: /Set up your league/ }).click();
+  await expect(page).toHaveURL(/\/league\//);
   await page.getByLabel('Teams in the league').fill('6');
   await page.getByLabel('Roster spots').fill('8');
+  await expect(page.getByTestId('team-card')).toHaveCount(6);
+  await page.goto('/');
   await expect(page.getByTestId('league-summary')).toHaveText('6 teams × 8, 9-cat');
-  const smaller = Number(await board.locator('tbody tr').first().locator('td').nth(-2).innerText());
+  const smaller = Number(await board.locator('tbody tr[data-player]').first().locator('td').nth(-2).innerText());
   expect(smaller).not.toBe(before);
+  await page.goto('/league/');
+  await page.getByLabel('Scoring').selectOption('cats8');
+  await page.goto('/');
+  await expect(board.locator('thead s')).toHaveText('TO');
+  await page.goto('/league/');
   await page.getByLabel('Scoring').selectOption('points');
-  await expect(board.locator('thead')).toContainText('FPts/G');
   await expect(page.getByTestId('point-weights')).toBeVisible();
-  await page.reload();
+  await page.goto('/');
   await expect(board.locator('thead')).toContainText('FPts/G');
   await expect(page.getByTestId('league-summary')).toHaveText('6 teams × 8, Points');
-  await page.getByTestId('league-settings').locator('summary').click();
-  await page.getByRole('button', { name: 'Reset' }).click();
-  await expect(page.getByTestId('league-summary')).toHaveText('10 teams × 10, 9-cat');
+  await page.goto('/league/');
+  await page.getByRole('button', { name: 'Reset settings' }).click();
+  await expect(page.getByLabel('Teams in the league')).toHaveValue('10');
 });
 
-test('marking my team and taken players gives best available, a category profile and Fit', async ({ page }) => {
+test('rosters on the League page give the board who is available, owners, Fit and what is left in each tier', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr').first()).toBeVisible();
-  const rows = board.locator('tbody tr');
-  const mineName = await rows.nth(0).locator('a').innerText();
-  const takenName = await rows.nth(1).locator('a').innerText();
-  await rows.nth(0).getByTestId('mark-mine').click();
-  await rows.nth(1).getByTestId('mark-taken').click();
-  await rows.nth(2).getByTestId('mark-mine').click();
-  const team = page.getByTestId('my-team');
-  await expect(team).toContainText('My team (2 players)');
-  await expect(team).toContainText(mineName);
-  await expect(team.getByTestId('category-profile')).toContainText('Weakest');
+  const rows = board.locator('tbody tr[data-player]');
+  await expect(rows.first()).toBeVisible();
+  const [a, b, c] = await Promise.all([0, 1, 2].map((i) => rows.nth(i).locator('a').innerText()));
+  await page.goto('/league/');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${a}\n${c}\nNobody Atall`);
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toHaveText('Added 2. Not found: Nobody Atall.');
+  await page.getByLabel('Name of team 2').fill('Rivals');
+  await cards.nth(1).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Rivals').fill(b ?? '');
+  await cards.nth(1).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(1).getByTestId('roster')).toContainText(b ?? '');
+  await expect(page.getByTestId('team-strength')).toContainText('Rivals');
+  await expect(page.getByTestId('category-profile')).toBeVisible();
+  await page.goto('/');
+  await expect(page.getByTestId('league-bar')).toContainText('Team 1 (2/10)');
+  await expect(page.getByRole('radio', { name: 'Available' })).toHaveAttribute('aria-checked', 'true');
+  await expect(rows.first()).toBeVisible();
+  await expect(board.locator('tbody')).not.toContainText(a ?? '');
+  await expect(board.locator('tbody')).not.toContainText(b ?? '');
   await expect(board.locator('thead')).toContainText('Fit');
-  await page.getByLabel('Show').selectOption('available');
-  await expect(board.locator('tbody')).not.toContainText(mineName);
-  await expect(board.locator('tbody')).not.toContainText(takenName);
-  await board.getByRole('button', { name: /^Fit/ }).click();
-  await expect(board.locator('tbody tr').first()).toBeVisible();
-  await page.reload();
-  await expect(page.getByTestId('my-team')).toContainText('My team (2 players)');
-  await page.getByRole('button', { name: 'Clear my team' }).click();
-  await expect(page.getByTestId('my-team')).toHaveCount(0);
+  await expect(board.getByTestId('tier-head').first()).toContainText('available');
+  await page.getByRole('radio', { name: 'My team' }).click();
+  await expect(rows).toHaveCount(2);
+  await page.getByRole('radio', { name: 'Everyone' }).click();
+  await expect(rows.filter({ hasText: b ?? '' }).getByTestId('owner')).toHaveText('Rivals');
+  await page.goto('/streamers/');
+  await expect(page.getByLabel(/Likely available/)).toHaveValue('-1');
 });
 
-test('the value view breaks the board into tiers and ranks players by position', async ({ page }) => {
+test('a draft on the League page snakes pick by pick, here and on the board, with undo', async ({ page }) => {
+  await page.goto('/league/');
+  await page.getByLabel('Teams in the league').fill('4');
+  await page.getByRole('button', { name: 'Start a draft' }).click();
+  const bar = page.getByTestId('draft-bar');
+  await expect(bar).toContainText('Round 1, pick 1 (#1): Team 1 is your team');
+  const best = page.getByTestId('best-available').locator('li');
+  await best.first().getByRole('button', { name: /^Draft / }).click();
+  await expect(bar).toContainText('Round 1, pick 2 (#2): Team 2 is on the clock');
+  await expect(page.getByTestId('pick-log')).toContainText('#1 R1 Team 1');
+  for (let i = 0; i < 3; i += 1) await best.first().getByRole('button', { name: /^Draft / }).click();
+  // The order reverses: the last team in round one picks first in round two.
+  await expect(bar).toContainText('Round 2, pick 1 (#5): Team 4 is on the clock');
+  await page.goto('/');
+  await expect(page.getByTestId('draft-bar')).toContainText('(#5)');
+  const rows = page.getByTestId('board').locator('tbody tr[data-player]');
+  const name = await rows.first().locator('a').innerText();
+  await rows.first().getByTestId('draft').click();
+  await expect(page.getByTestId('draft-bar')).toContainText(`Last pick: ${name}`);
+  await expect(page.getByTestId('draft-bar')).toContainText('(#6)');
+  await page.getByRole('button', { name: 'Undo last pick' }).click();
+  await expect(page.getByTestId('draft-bar')).toContainText('(#5)');
+  await page.getByRole('button', { name: 'End draft' }).click();
+  await expect(page.getByTestId('draft-bar')).toHaveCount(0);
+});
+
+test('the value view groups the board into tiers by pick and round, and ranks players by position', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr').first()).toBeVisible();
-  await expect(board.getByTestId('tier-start').first()).toHaveText('Tier 1');
-  expect(await board.getByTestId('tier-start').count()).toBeGreaterThan(1);
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
+  const heads = board.getByTestId('tier-head');
+  await expect(heads.first()).toContainText(/Tier 1 · picks 1–\d+ \(rounds? 1/);
+  expect(await heads.count()).toBeGreaterThan(1);
+  await expect(page.getByTestId('tier-note')).toContainText('natural breaks');
   await expect(board.getByTestId('pos-rank').first()).toHaveText(/^[GFC]1$/);
+  await page.getByRole('radio', { name: 'Per game' }).click();
+  await expect(heads).toHaveCount(0);
+});
+
+test('/league/ has no accessibility violations', async ({ page }) => {
+  await page.goto('/league/');
+  await page.getByRole('button', { name: 'Start a draft' }).click();
+  const best = page.getByTestId('best-available').locator('li');
+  await best.first().getByRole('button', { name: /^Draft / }).click();
+  await best.first().getByRole('button', { name: /^Draft / }).click();
+  await expect(page.getByTestId('team-strength')).toBeVisible();
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+  expect(results.violations).toEqual([]);
 });
