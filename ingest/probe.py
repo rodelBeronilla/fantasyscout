@@ -115,6 +115,12 @@ DEFAULT_TARGETS: tuple[Target, ...] = (
         expect="games",
         headers=stats_headers("nba"),
     ),
+    Target(
+        name="nba-player-movement",
+        url="https://stats.nba.com/js/data/playermovement/NBA_Player_Movement.json",
+        expect="NBA_Player_Movement",
+        headers=stats_headers("nba"),
+    ),
     # The leagues' CDN (issue #139): box scores, play-by-play and schedules for both leagues.
     Target(
         name="cdn-nba-boxscore",

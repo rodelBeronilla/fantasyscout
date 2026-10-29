@@ -81,6 +81,57 @@ function lineText(g: Game): string | null {
   return `Over/under ${g.over_under}, ${spread}`;
 }
 
+/** A signing, waiver, trade or G League move (gold fct_transaction). */
+interface Move {
+  transaction_date: string;
+  team_abbreviation: string | null;
+  player_id: string | null;
+  move_type: string;
+  description: string;
+}
+
+const MOVE_LABEL: Record<string, string> = {
+  signing: 'Signed',
+  waive: 'Waived',
+  trade: 'Trade',
+  g_league: 'G League',
+  recall: 'Recalled',
+  suspension: 'Suspended',
+  other: 'Other',
+};
+
+/** The league's moves of the last two weeks: who just got signed, waived, traded or sent down. */
+function RecentMoves({ moves, league, start }: { moves: Move[]; league: League; start: string }) {
+  const since = addDays(start, -14);
+  const recent = moves.filter((m) => m.transaction_date >= since).slice(0, 30);
+  if (!recent.length) return null;
+  return (
+    <Card title="Recent moves" id="moves">
+      <p className="mb-2 text-xs text-muted">
+        Signings, waivers, trades and G League moves of the last two weeks: a new role on a new team, or minutes opening up behind a player who left.
+      </p>
+      <ul className="grid gap-1 text-sm" data-testid="recent-moves">
+        {recent.map((m) => (
+          <li key={`${m.transaction_date}-${m.team_abbreviation}-${m.description}`} className="flex flex-wrap items-baseline gap-x-2">
+            <span className="w-20 shrink-0 text-xs text-muted">{day(m.transaction_date)}</span>
+            <span className="w-10 shrink-0 font-medium">{m.team_abbreviation ?? '–'}</span>
+            <span className="rounded border border-line px-1 text-[10px] text-muted">{MOVE_LABEL[m.move_type] ?? m.move_type}</span>
+            <span className="min-w-0 flex-1">
+              {m.player_id ? (
+                <a href={href(`/p/${league}/${m.player_id}/`)} className="underline-offset-4 hover:underline">
+                  {m.description}
+                </a>
+              ) : (
+                m.description
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 interface Team {
   league: string;
   season: string;
@@ -193,6 +244,7 @@ export default function Streamers() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<StreamerRow[] | null>(null);
   const [games, setGames] = useState<Game[]>([]);
+  const [moves, setMoves] = useState<Move[]>([]);
   const [teams, setTeams] = useState<string[]>([]);
   const [start, setStart] = useState<string>(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<unknown>(null);
@@ -223,11 +275,14 @@ export default function Streamers() {
       fetchBuildJson<Game[]>(`schedule/${league}.json`).catch(() => [] as Game[]),
       fetchBuildJson<Team[]>('dim_team.json'),
       getLatest(),
+      // Older builds have no transactions file.
+      fetchBuildJson<Move[]>(`transactions/${league}.json`).catch(() => [] as Move[]),
     ])
-      .then(([s, g, t, latest]) => {
+      .then(([s, g, t, latest, mv]) => {
         if (!live) return;
         setRows(s);
         setGames(g);
+        setMoves(mv);
         const latestSeason = t.filter((x) => x.league === league).reduce((m, x) => (x.season > m ? x.season : m), '');
         setTeams([...new Set(t.filter((x) => x.league === league && x.season === latestSeason).map((x) => x.abbreviation))]);
         // The grid starts on the build day: the schedule's days_ahead counts from it.
@@ -566,6 +621,8 @@ export default function Streamers() {
           </button>
         )}
       </Card>
+
+      {start && <RecentMoves moves={moves} league={league} start={start} />}
     </div>
   );
 }

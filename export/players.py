@@ -139,6 +139,19 @@ class PlayerFiles:
             if "fct_injury_status" in self._names
             else {}
         )
+        moves = (
+            self._grouped(
+                """
+                select league, player_id, transaction_date, team_abbreviation, move_type,
+                    description
+                from fct_transaction
+                where player_id is not null
+                order by league, player_id, transaction_date desc
+                """
+            )
+            if "fct_transaction" in self._names
+            else {}
+        )
         shots = self._grouped(
             """
             select s.league, s.player_id, s.loc_x, s.loc_y, s.shot_made, s.is_three,
@@ -232,6 +245,10 @@ class PlayerFiles:
                     ),
                     None,
                 ),
+                "moves": [
+                    {k: v for k, v in m.items() if k not in ("league", "player_id")}
+                    for m in moves.get(key, [])
+                ],
                 "injury_history": [
                     {k: v for k, v in r.items() if k not in ("league", "player_id")}
                     for r in injuries.get(key, [])

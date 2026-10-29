@@ -91,6 +91,8 @@ interface PlayerFile {
     injury_news?: string | null;
     injury_since?: string | null;
   } | null;
+  /** The player's signings, waivers and trades from the league's feed, newest first (NBA). */
+  moves?: { transaction_date: string; team_abbreviation: string | null; move_type: string; description: string }[];
   /** Each status the player's injury listings have held, newest first (absent in older builds). */
   injury_history?: { injury_id: string; status: string; status_group: string; status_from: string; status_to: string; reports: number }[];
   shots: [number, number, number, number][];
@@ -197,6 +199,19 @@ export default function PlayerPage() {
       </header>
 
       {player.board?.injury_group && <InjuryCard board={player.board} history={player.injury_history ?? []} />}
+
+      {(player.moves ?? []).length > 0 && (
+        <Card title="Moves" id="moves">
+          <ul className="grid gap-1 text-sm" data-testid="player-moves">
+            {(player.moves ?? []).map((m) => (
+              <li key={`${m.transaction_date}-${m.description}`}>
+                <span className="mr-2 text-xs text-muted">{day(m.transaction_date)}</span>
+                {m.description}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Card title="Season lines" id="seasons">
         <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">

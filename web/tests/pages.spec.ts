@@ -621,3 +621,28 @@ test("streamers mark today's starters and inactives from the league's lineups, a
   await page.getByLabel('Starting today').check();
   await expect(table.locator('tbody tr')).toHaveCount(2);
 });
+
+test("streamers list the league's recent moves, and a player's page lists theirs", async ({ page }) => {
+  const today = new Date().toISOString().slice(0, 10);
+  await page.route('**/transactions/wnba.json', (route) =>
+    route.fulfill({
+      json: [
+        { transaction_date: today, team_abbreviation: 'GS', player_id: null, move_type: 'signing', description: 'Signed C Aminata Gueye to a hardship contract.' },
+        { transaction_date: '2020-01-01', team_abbreviation: 'LV', player_id: null, move_type: 'waive', description: 'An old move.' },
+      ],
+    }),
+  );
+  await page.route('**/schedule/wnba.json', (route) => route.fulfill({ json: [] }));
+  await page.goto('/streamers/');
+  const moves = page.getByTestId('recent-moves');
+  await expect(moves.locator('li')).toHaveCount(1);
+  await expect(moves).toContainText('Signed C Aminata Gueye');
+  await expect(moves).toContainText('Signed');
+
+  await page.route(/\/players\/wnba\/[^/]+\.json$/, async (route) => {
+    const file = (await (await route.fetch()).json()) as Record<string, unknown>;
+    await route.fulfill({ json: { ...file, moves: [{ transaction_date: '2026-10-20', team_abbreviation: 'NYL', move_type: 'signing', description: 'New York Liberty signed guard X.' }] } });
+  });
+  await page.goto('/p/wnba/1628932/');
+  await expect(page.getByTestId('player-moves')).toContainText('New York Liberty signed guard X.');
+});

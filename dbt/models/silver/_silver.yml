@@ -338,6 +338,20 @@ models:
           - accepted_values:
               values: [same_day, adjacent_day]
 
+  - name: transactions
+    description: "Transactions from the NBA's movement feed (with player ids) and ESPN's feed (both leagues, one line per team and day), sorted by their wording."
+    columns:
+      - name: transaction_key
+        description: "League, source, date, team, player and a hash of the description"
+        data_tests: [unique, not_null]
+      - name: move_type
+        description: "g_league, recall, trade, waive, signing, suspension or other"
+        data_tests:
+          - accepted_values:
+              values: [g_league, recall, trade, waive, signing, suspension, other]
+      - name: source
+        description: "nba (the league's movement feed) or espn"
+
   - name: starting_lineups
     description: "The NBA's starting lineups per game day, from the latest file landed for the day: one row per player per game."
     columns:

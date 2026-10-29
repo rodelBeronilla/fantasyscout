@@ -1,0 +1,176 @@
+{
+ "timestamp": "2026-10-29T23:49:05Z",
+ "status": "success",
+ "season": {
+  "year": 2026,
+  "type": 3,
+  "name": "Postseason",
+  "displayName": "2026"
+ },
+ "requestedYear": {
+  "year": 2026,
+  "displayName": "2026"
+ },
+ "count": 124,
+ "pageIndex": 1,
+ "pageSize": 100,
+ "pageCount": 2,
+ "transactions": [
+  {
+   "date": "2026-10-23T07:00Z",
+   "description": "Announced Kelly Krauskopf stepped down as president. Fired general manager Amber Cox",
+   "team": {
+    "id": "5",
+    "location": "Indiana",
+    "name": "Fever",
+    "abbreviation": "IND",
+    "displayName": "Indiana Fever",
+    "color": "002d62",
+    "alternateColor": "e03a3e"
+   }
+  },
+  {
+   "date": "2026-09-20T07:00Z",
+   "description": "Signed C Aminata Gueye to a Rest-of-Season Hardship contract. Waived C Nadia Fingall.",
+   "team": {
+    "id": "129689",
+    "location": "Golden State",
+    "name": "Valkyries",
+    "abbreviation": "GS",
+    "displayName": "Golden State Valkyries",
+    "color": "b38fcf",
+    "alternateColor": "000000"
+   }
+  },
+  {
+   "date": "2026-09-19T07:00Z",
+   "description": "Signed C Kamila Borkowska and F Maria Gakdeng to player development contracts.",
+   "team": {
+    "id": "131935",
+    "location": "Toronto",
+    "name": "Tempo",
+    "abbreviation": "TOR",
+    "displayName": "Toronto Tempo",
+    "color": "33476D",
+    "alternateColor": "7B1B38"
+   }
+  },
+  {
+   "date": "2026-09-18T07:00Z",
+   "description": "Released F Saylor Poffenbarger. Signed G Shay Ciezki to a rest of season contract. Signed F Saylor Poffenbarger to a player development contract.",
+   "team": {
+    "id": "11",
+    "location": "Phoenix",
+    "name": "Mercury",
+    "abbreviation": "PHX",
+    "displayName": "Phoenix Mercury",
+    "color": "3c286e",
+    "alternateColor": "fa4b0a"
+   }
+  },
+  {
+   "date": "2026-09-16T07:00Z",
+   "description": "Waived G Sug Sutton.",
+   "team": {
+    "id": "3",
+    "location": "Dallas",
+    "name": "Wings",
+    "abbreviation": "DAL",
+    "displayName": "Dallas Wings",
+    "color": "002b5c",
+    "alternateColor": "c4d600"
+   }
+  },
+  {
+   "date": "2026-09-12T07:00Z",
+   "description": "Set F Cecilia Zandalasini as active.",
+   "team": {
+    "id": "129689",
+    "location": "Golden State",
+    "name": "Valkyries",
+    "abbreviation": "GS",
+    "displayName": "Golden State Valkyries",
+    "color": "b38fcf",
+    "alternateColor": "000000"
+   }
+  },
+  {
+   "date": "2026-08-29T07:00Z",
+   "description": "Signed C Kalani Brown to a rest-of-season hardship contract.",
+   "team": {
+    "id": "17",
+    "location": "Las Vegas",
+    "name": "Aces",
+    "abbreviation": "LV",
+    "displayName": "Las Vegas Aces",
+    "color": "a7a8aa",
+    "alternateColor": "000000"
+   }
+  },
+  {
+   "date": "2026-08-29T07:00Z",
+   "description": "Acquired G/F Aaliyah Nye off waivers. Released F Alissa Pili. Waived G Kate Martin.",
+   "team": {
+    "id": "6",
+    "location": "Los Angeles",
+    "name": "Sparks",
+    "abbreviation": "LA",
+    "displayName": "Los Angeles Sparks",
+    "color": "552583",
+    "alternateColor": "fdb927"
+   }
+  },
+  {
+   "date": "2026-08-27T07:00Z",
+   "description": "Released G Jaylyn Sherrod. Signed F/G DeWanna Bonner to a rest-of-season contract. Waived G/F Aaliyah.",
+   "team": {
+    "id": "20",
+    "location": "Atlanta",
+    "name": "Dream",
+    "abbreviation": "ATL",
+    "displayName": "Atlanta Dream",
+    "color": "e31837",
+    "alternateColor": "5091cc"
+   }
+  },
+  {
+   "date": "2026-08-26T07:00Z",
+   "description": "Signed G Hailey Van Lith to a seven-day contract.",
+   "team": {
+    "id": "18",
+    "location": "Connecticut",
+    "name": "Sun",
+    "abbreviation": "CON",
+    "displayName": "Connecticut Sun",
+    "color": "f05023",
+    "alternateColor": "0a2240"
+   }
+  },
+  {
+   "date": "2026-08-25T07:00Z",
+   "description": "Signed F Saylor Poffenbarger to a seven-day contract.",
+   "team": {
+    "id": "11",
+    "location": "Phoenix",
+    "name": "Mercury",
+    "abbreviation": "PHX",
+    "displayName": "Phoenix Mercury",
+    "color": "3c286e",
+    "alternateColor": "fa4b0a"
+   }
+  },
+  {
+   "date": "2026-08-24T07:00Z",
+   "description": "Signed G Kiana Williams to a seven-day contract.",
+   "team": {
+    "id": "131935",
+    "location": "Toronto",
+    "name": "Tempo",
+    "abbreviation": "TOR",
+    "displayName": "Toronto Tempo",
+    "color": "33476D",
+    "alternateColor": "7B1B38"
+   }
+  }
+ ]
+}
