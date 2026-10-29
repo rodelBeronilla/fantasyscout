@@ -101,3 +101,38 @@ figure svg {
   background-color: var(--card);
   box-shadow: inset 0 -1px 0 var(--line);
 }
+
+/* Diagrams (src/lib/diagram.ts): Graphviz and sequence SVGs carry placeholder colours, mapped
+   to the theme here. CSS rules override SVG presentation attributes, so no inline styles. */
+.dg {
+  max-width: none;
+  height: auto;
+}
+.dg text {
+  fill: var(--fg);
+}
+/* Graphviz measures its labels in Helvetica/Arial, so only our own sequence layout takes the page font. */
+.dg-seq text {
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+.dg [fill='#fffff0'] { fill: var(--card); }
+.dg [fill='#fffff1'] { fill: var(--bg); }
+.dg [fill='#fffff2'] { fill: color-mix(in srgb, var(--accent) 14%, var(--card)); }
+.dg [fill='#fffff3'] { fill: color-mix(in srgb, var(--good) 14%, var(--card)); }
+.dg [fill='#fffff4'] { fill: color-mix(in srgb, var(--warn) 14%, var(--card)); }
+.dg [fill='#000010'] { fill: var(--line); }
+.dg [fill='#000011'] { fill: var(--fg); }
+.dg [fill='#000012'] { fill: var(--muted); }
+.dg [fill='#000013'] { fill: var(--accent); }
+.dg [fill='#000014'] { fill: var(--good); }
+.dg [fill='#000015'] { fill: var(--warn); }
+.dg [stroke='#000010'] { stroke: var(--line); }
+.dg [stroke='#000011'] { stroke: var(--fg); }
+.dg [stroke='#000012'] { stroke: var(--muted); }
+.dg [stroke='#000013'] { stroke: var(--accent); }
+.dg [stroke='#000014'] { stroke: var(--good); }
+.dg [stroke='#000015'] { stroke: var(--warn); }
+.dg .dg-head { font-size: 12px; font-weight: 600; }
+.dg .dg-msg { font-size: 11px; }
+.dg .dg-small { font-size: 10px; fill: var(--muted); }
+.dg a:hover text { text-decoration: underline; }
