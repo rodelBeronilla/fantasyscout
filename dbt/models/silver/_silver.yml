@@ -338,6 +338,31 @@ models:
           - accepted_values:
               values: [same_day, adjacent_day]
 
+  - name: official_injury_report
+    description: "The leagues' official injury reports, typed: one row per player (or team not yet submitted) per game per report, with the league's newest report marked."
+    columns:
+      - name: official_injury_key
+        description: "League, report, team, player and game date"
+        data_tests: [unique, not_null]
+      - name: published_at_et
+        description: "When the league published the report, Eastern time"
+        data_tests: [not_null]
+      - name: game_date
+        description: "The game the listing is for"
+      - name: status
+        description: "Out, Doubtful, Questionable, Probable or Available; null for a team not yet submitted"
+      - name: reason_group
+        description: "injury, g_league, rest, personal, suspension, not_with_team or other"
+        data_tests:
+          - accepted_values:
+              values: [injury, g_league, rest, personal, suspension, not_with_team, other]
+      - name: injury_detail
+        description: "The reason without its 'Injury/Illness - ' prefix"
+      - name: not_submitted
+        description: "True for a team that had not filed when the report was published"
+      - name: is_latest
+        description: "True for the rows of the league's newest report"
+
   - name: game_lines
     description: "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard."
     columns:

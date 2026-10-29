@@ -34,6 +34,10 @@ interface BoardRow {
   injury_note: string | null;
   injury_news?: string | null;
   injury_since?: string | null;
+  /** official when the league's injury report sets the status for the next game, else espn. */
+  injury_source?: string | null;
+  official_game_date?: string | null;
+  official_report_at?: string | null;
   games_share: number | null;
   value_per_game: number | null;
   age: number | null;
@@ -456,6 +460,9 @@ export default function Board() {
               group={row.injury_group}
               status={row.injury_status}
               detail={[
+                row.injury_source === 'official' && row.official_game_date
+                  ? `Official report for ${day(row.official_game_date)}${row.official_report_at ? ` (${row.official_report_at.slice(11, 16)} ET)` : ''}`
+                  : null,
                 row.injury_type,
                 row.injury_since ? `since ${day(row.injury_since)}` : null,
                 row.expected_return ? `return ${day(row.expected_return)}` : null,

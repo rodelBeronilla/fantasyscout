@@ -47,6 +47,8 @@ class Target:
     expect: str
     params: Mapping[str, str] = field(default_factory=dict)
     headers: Mapping[str, str] = field(default_factory=dict)
+    # False for a page or a file: then ``expect`` must appear in the first bytes of the body.
+    json: bool = True
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,8 @@ class ProbeResult:
     bytes: int
     detail: str
 
+
+REPORT_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130.0"}
 
 DEFAULT_TARGETS: tuple[Target, ...] = (
     Target(
@@ -85,6 +89,21 @@ DEFAULT_TARGETS: tuple[Target, ...] = (
         url="https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
         expect="events",
     ),
+    # The leagues' official injury reports: the NBA's index page and a WNBA report PDF.
+    Target(
+        name="injury-report-nba-index",
+        url="https://official.nba.com/nba-injury-report-2026-27-season/",
+        expect="Injury-Report_",
+        headers=REPORT_HEADERS,
+        json=False,
+    ),
+    Target(
+        name="injury-report-wnba-pdf",
+        url="https://ak-static.cms.nba.com/referee/wnba_injury/Injury-Report_2026-07-27_08_00PM.pdf",
+        expect="%PDF",
+        headers=REPORT_HEADERS,
+        json=False,
+    ),
 )
 
 
@@ -109,6 +128,9 @@ def _check(target: Target, response: httpx.Response) -> tuple[bool, str]:
         return False, f"HTTP {response.status_code} redirect to {where}"
     if response.status_code != 200:
         return False, f"HTTP {response.status_code}"
+    if not target.json:
+        found = target.expect.encode() in response.content[:200_000]
+        return found, f"body {'with' if found else 'without'} '{target.expect}'"
     try:
         payload = response.json()
     except ValueError:

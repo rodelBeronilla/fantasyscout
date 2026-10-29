@@ -579,3 +579,25 @@ test("an injured player's page shows the injury, since when, the news and how th
   await expect(card.getByTestId('injury-news')).toHaveText('Out after an MRI on the knee.');
   await expect(card.getByTestId('injury-history').locator('li')).toHaveCount(2);
 });
+
+test("the board shows the league's official injury report status for the next game", async ({ page }) => {
+  // The fixture build predates the official reports: mark the first injured player as listed on one.
+  await page.route('**/board/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    const i = rows.findIndex((r) => r['injury_group']);
+    rows[i] = {
+      ...rows[i],
+      injury_status: 'Probable',
+      injury_group: 'probable',
+      injury_source: 'official',
+      official_game_date: '2026-10-30',
+      official_report_at: '2026-10-29T18:45:00',
+    };
+    await route.fulfill({ json: rows });
+  });
+  await page.goto('/');
+  await page.getByTestId('board-more').click();
+  const tag = page.getByTestId('board').getByTestId('injury-tag').filter({ hasText: 'PROB' }).first();
+  await expect(tag).toBeVisible();
+  await expect(tag).toHaveAttribute('title', /^Probable · Official report for Oct 30, 2026 \(18:45 ET\)/);
+});

@@ -13,12 +13,13 @@ export function eligibleAt(position: string | null | undefined, letters: Readonl
     .some((p) => letters.has(p as PositionLetter));
 }
 
-export type InjuryGroup = 'out' | 'doubtful' | 'questionable' | 'day_to_day' | 'other';
+export type InjuryGroup = 'out' | 'doubtful' | 'questionable' | 'probable' | 'day_to_day' | 'other';
 
 export const INJURY_LABEL: Record<InjuryGroup, string> = {
   out: 'OUT',
   doubtful: 'DOUBT',
   questionable: 'Q',
+  probable: 'PROB',
   day_to_day: 'DTD',
   other: 'INJ',
 };

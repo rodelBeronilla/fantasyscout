@@ -853,6 +853,44 @@ models:
       - name: stats
         description: "JSON array of stat values in stat_keys order"
 
+  - name: league_injury_report
+    description: "The leagues' official injury reports as parsed at ingest: one row per player, or team not yet submitted, per landed report."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The report's publication time, the key it was landed under"
+      - name: report
+        description: "The report's file name, Injury-Report_<date>_<time>.pdf"
+      - name: published_et
+        description: "When the league published the report, Eastern time (ISO 8601)"
+      - name: pdf_sha256
+        description: "SHA-256 of the PDF the rows were parsed from"
+      - name: game_date
+        description: "Game date as the report writes it, MM/DD/YYYY"
+      - name: game_time_et
+        description: "Tip-off, Eastern time, as the report writes it"
+      - name: matchup
+        description: "AWAY@HOME tricodes"
+      - name: team
+        description: "Full team name"
+      - name: player_name
+        description: "First Last"
+      - name: player_name_listed
+        description: "The name as listed, Last, First"
+      - name: status
+        description: "Out, Doubtful, Questionable, Probable or Available"
+      - name: reason
+        description: "The league's reason, such as 'Injury/Illness - Left Ankle; Sprain' or 'G League - Two-Way'"
+      - name: not_submitted
+        description: "true for a team that has not filed its report yet"
+
   - name: espn_scoreboard_odds
     description: "The betting line on each ESPN scoreboard event (upcoming games carry one), one row per event per scoreboard landing."
     columns:

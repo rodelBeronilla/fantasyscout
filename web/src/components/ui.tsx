@@ -88,7 +88,7 @@ export function InjuryTag({
   detail?: string | null;
 }) {
   if (!group) return null;
-  const label = { out: 'OUT', doubtful: 'DOUBT', questionable: 'Q', day_to_day: 'DTD' }[group] ?? 'INJ';
+  const label = { out: 'OUT', doubtful: 'DOUBT', questionable: 'Q', probable: 'PROB', day_to_day: 'DTD' }[group] ?? 'INJ';
   const tone = group === 'out' ? 'border-bad text-bad' : 'border-warn text-warn';
   return (
     <span

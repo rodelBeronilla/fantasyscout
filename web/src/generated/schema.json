@@ -158,6 +158,16 @@
    ]
   },
   {
+   "about": "Players on the league's newest injury report, for upcoming games, that could not be linked to a league player id (by name within the team). A few two-way or newly signed players are expected; more means a team name or a name form the link does not handle.",
+   "name": "warn_official_injury_links",
+   "reads": [
+    "fct_player_status",
+    "official_injury_report"
+   ],
+   "severity": "warn",
+   "tags": []
+  },
+  {
    "about": "Court coordinates inside the half court (tenths of a foot from the basket) and the three-point flag consistent with distance: a three is at least 21 feet out, a two at most 24.",
    "name": "warn_shot_location_sanity",
    "reads": [
@@ -227,7 +237,7 @@
   ],
   "fantasy_team_change": 0.25
  },
- "generic_tests": 207,
+ "generic_tests": 214,
  "layers": [
   {
    "models": [
@@ -1242,6 +1252,121 @@
      "notes": [],
      "read_by": [
       "espn_team_directory"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The report's publication time, the key it was landed under",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The report's file name, Injury-Report_<date>_<time>.pdf",
+       "name": "report",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the league published the report, Eastern time (ISO 8601)",
+       "name": "published_et",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the PDF the rows were parsed from",
+       "name": "pdf_sha256",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Game date as the report writes it, MM/DD/YYYY",
+       "name": "game_date",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Tip-off, Eastern time, as the report writes it",
+       "name": "game_time_et",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "AWAY@HOME tricodes",
+       "name": "matchup",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Full team name",
+       "name": "team",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "First Last",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The name as listed, Last, First",
+       "name": "player_name_listed",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Out, Doubtful, Questionable, Probable or Available",
+       "name": "status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The league's reason, such as 'Injury/Illness - Left Ankle; Sprain' or 'G League - Two-Way'",
+       "name": "reason",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "true for a team that has not filed its report yet",
+       "name": "not_submitted",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The leagues' official injury reports as parsed at ingest: one row per player, or team not yet submitted, per landed report.",
+     "materialized": "incremental",
+     "name": "league_injury_report",
+     "notes": [],
+     "read_by": [
+      "official_injury_report"
      ],
      "reads": []
     },
@@ -4952,6 +5077,153 @@
      ]
     },
     {
+     "checks": [
+      "warn_official_injury_links"
+     ],
+     "columns": [
+      {
+       "description": "League, report, team, player and game date",
+       "name": "official_injury_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "report",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the league published the report, Eastern time",
+       "name": "published_at_et",
+       "tests": [
+        "not_null"
+       ],
+       "type": "timestamp"
+      },
+      {
+       "description": "The game the listing is for",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "game_time_et",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "matchup",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "away_tricode",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "home_tricode",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "player_name_listed",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Out, Doubtful, Questionable, Probable or Available; null for a team not yet submitted",
+       "name": "status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "reason",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "injury, g_league, rest, personal, suspension, not_with_team or other",
+       "name": "reason_group",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The reason without its 'Injury/Illness - ' prefix",
+       "name": "injury_detail",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "True for a team that had not filed when the report was published",
+       "name": "not_submitted",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "True for the rows of the league's newest report",
+       "name": "is_latest",
+       "tests": [],
+       "type": "boolean"
+      }
+     ],
+     "description": "The leagues' official injury reports, typed: one row per player (or team not yet submitted) per game per report, with the league's newest report marked.",
+     "materialized": "table",
+     "name": "official_injury_report",
+     "notes": [
+      "The leagues' official injury reports, typed: one row per player (or team not yet submitted) per game per report. A report that landed on more than one day appears once. is_latest marks the league's newest report, the one the site reads.",
+      "reason_group sorts the league's reasons: injury (Injury/Illness), g_league (an assignment or a two-way player), rest, personal, suspension, not_with_team, or other; injury_detail is the reason without its \"Injury/Illness - \" prefix."
+     ],
+     "read_by": [
+      "fct_player_status"
+     ],
+     "reads": [
+      "league_injury_report"
+     ]
+    },
+    {
      "checks": [],
      "columns": [
       {
@@ -6923,6 +7195,7 @@
      ],
      "read_by": [
       "dim_team",
+      "fct_player_status",
       "mart_board",
       "mart_streamers",
       "team_xwalk"
@@ -7301,6 +7574,7 @@
      "read_by": [
       "fct_availability",
       "fct_player_game",
+      "fct_player_status",
       "mart_board",
       "mart_streamers"
      ],
@@ -7553,8 +7827,7 @@
      ],
      "read_by": [
       "fct_injury_status",
-      "mart_board",
-      "mart_streamers"
+      "fct_player_status"
      ],
      "reads": [
       "dim_player",
@@ -8181,6 +8454,149 @@
       "player_game_advanced",
       "player_game_box",
       "player_game_reconciliation"
+     ]
+    },
+    {
+     "checks": [
+      "warn_official_injury_links"
+     ],
+     "columns": [
+      {
+       "description": "Surrogate key",
+       "name": "player_status_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "stats_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "out, doubtful, questionable, probable or day_to_day; null when the official report lists the player Available",
+       "name": "status_group",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "official (the league's report) or espn",
+       "name": "status_source",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "injury_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "expected_return",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "short_comment",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "long_comment",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "status_since",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "espn_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's status group, which the board's rest-of-season multiplier reads",
+       "name": "espn_status_group",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The official report's status for the next game it covers",
+       "name": "official_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The official report's reason",
+       "name": "official_reason",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "official_reason_group",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The game the official status is for",
+       "name": "official_game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "official_matchup",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When that report was published, Eastern time",
+       "name": "official_report_at",
+       "tests": [],
+       "type": "timestamp"
+      }
+     ],
+     "description": "Each player's current status: the league's official injury report for the next game it covers, else ESPN's injury listing. ESPN's own status stays alongside for the rest of the season.",
+     "materialized": "table",
+     "name": "fct_player_status",
+     "notes": [
+      "Each player's current status, one row per player with one. The league's official injury report wins for the next game it covers (it is filed by the teams, several times a day); otherwise ESPN's injury listing (fct_availability). The official report speaks only to the next game, so the ESPN listing's own status, expected return and news stay alongside for the rest of the season: the board's availability multiplier reads espn_status_group, not status.",
+      "Official rows are linked to the league player id by name within the team, the team by its full name. An official \"Available\" clears the status for that game."
+     ],
+     "read_by": [
+      "mart_board",
+      "mart_streamers"
+     ],
+     "reads": [
+      "dim_player",
+      "fct_availability",
+      "official_injury_report",
+      "teams"
      ]
     },
     {
@@ -9231,6 +9647,24 @@
        "type": "date"
       },
       {
+       "description": "official when the league's injury report sets the status for the next game, else espn",
+       "name": "injury_source",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The game the official status is for",
+       "name": "official_game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "When the official report was published, Eastern time",
+       "name": "official_report_at",
+       "tests": [],
+       "type": "timestamp"
+      },
+      {
        "description": "Share of the team's remaining regular-season games the player is expected to play (1.0 once the regular season is over)",
        "name": "availability_multiplier",
        "tests": [
@@ -9318,7 +9752,7 @@
      ],
      "reads": [
       "dim_player",
-      "fct_availability",
+      "fct_player_status",
       "mart_category_zscores",
       "mart_player_projection",
       "schedule",
@@ -10507,8 +10941,8 @@
      "read_by": [],
      "reads": [
       "dim_player",
-      "fct_availability",
       "fct_player_game",
+      "fct_player_status",
       "mart_board",
       "mart_category_zscores",
       "mart_player_rolling",

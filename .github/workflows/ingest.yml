@@ -3,18 +3,19 @@ name: Ingest
 # Lands raw payloads in the Unity Catalog volume. ESPN runs on GitHub-hosted runners.
 # The league stats API does not answer GitHub's address ranges (ADR 0002), so that job
 # runs only when a self-hosted runner label is configured in the repository variable
-# STATS_RUNNER_LABEL. A failed run opens or updates a data-incident issue; the next
-# passing run closes it.
+# STATS_RUNNER_LABEL. The leagues' official injury reports run on GitHub-hosted runners too.
+# A failed run opens or updates a data-incident issue; the next passing run closes it.
 
 on:
   schedule:
     - cron: "15 9 * * *" # daily, after the previous night's games are final
+    - cron: "0 23 * * *" # evening: the injury reports only, after teams file (5 pm ET) and before tip-off
   workflow_dispatch:
     inputs:
       source:
         description: Which source to run
         type: choice
-        options: [both, espn, stats]
+        options: [both, espn, stats, reports]
         default: both
       league:
         description: Which league
@@ -47,13 +48,25 @@ jobs:
       leagues: ${{ steps.plan.outputs.leagues }}
       run_espn: ${{ steps.plan.outputs.run_espn }}
       run_stats: ${{ steps.plan.outputs.run_stats }}
+      run_reports: ${{ steps.plan.outputs.run_reports }}
     steps:
       - id: plan
         env:
-          SOURCE: ${{ inputs.source || 'both' }}
+          # The evening schedule runs the injury reports only.
+          SOURCE: ${{ (github.event.schedule == '0 23 * * *' && 'reports') || inputs.source || 'both' }}
           STATS_RUNNER_LABEL: ${{ vars.STATS_RUNNER_LABEL }}
         run: |
           echo "leagues=$LEAGUES" >> "$GITHUB_OUTPUT"
+          if [ "$SOURCE" = "both" ] || [ "$SOURCE" = "reports" ]; then
+            echo "run_reports=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_reports=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$SOURCE" = "reports" ]; then
+            echo "run_espn=false" >> "$GITHUB_OUTPUT"
+            echo "run_stats=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ "$SOURCE" != "stats" ]; then
             echo "run_espn=true" >> "$GITHUB_OUTPUT"
           else
@@ -106,6 +119,40 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TITLE: "Ingest failure: espn ${{ matrix.league }}"
+          OUTCOME: ${{ steps.land.outcome }}
+        run: uv run python .github/scripts/incident.py
+
+  reports:
+    name: Injury report ${{ matrix.league }}
+    needs: plan
+    if: needs.plan.outputs.run_reports == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: reports-${{ matrix.league }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        league: ${{ fromJSON(needs.plan.outputs.leagues) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Land
+        id: land
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
+          uv run fs-ingest land reports --league "${{ matrix.league }}" --backend volume 2>&1 | tee land.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Ingest failure: injury report ${{ matrix.league }}"
           OUTCOME: ${{ steps.land.outcome }}
         run: uv run python .github/scripts/incident.py
 
