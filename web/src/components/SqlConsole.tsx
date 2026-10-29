@@ -16,6 +16,7 @@ export const DUCKDB_VERSION: string = __DUCKDB_VERSION__;
 export function duckdbFile(name: string): string {
   return dataHref(`vendor/duckdb-wasm/${DUCKDB_VERSION}/${name}`);
 }
+import { href } from '../lib/site';
 import { Loading, Problem, Td, Th } from './ui';
 
 type DuckModule = typeof import('@duckdb/duckdb-wasm');
@@ -128,7 +129,7 @@ async function openDatabase(latest: Latest, manifest: Manifest): Promise<{ conn:
   return { conn, views: views.sort() };
 }
 
-export default function SqlConsole() {
+function Console() {
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [error, setError] = useState<unknown>(null);
   const [views, setViews] = useState<string[]>([]);
@@ -280,6 +281,64 @@ export default function SqlConsole() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+type Access = 'checking' | 'owner' | 'signin' | 'closed';
+
+/**
+ * The console reads the full tables, which only the site's owner may load (ADR 0008): the Worker
+ * serves the Parquet files to a signed-in owner and to no one else. Without the Worker (local
+ * development, the test server) there is nothing to sign in to, and the console opens.
+ */
+export default function SqlConsole() {
+  const [access, setAccess] = useState<Access>('checking');
+  const failed = new URLSearchParams(window.location.search).get('signin') === 'failed';
+  useEffect(() => {
+    fetch(href('/api/owner/status'), { headers: { accept: 'application/json' } })
+      .then((res) => (res.ok ? (res.json() as Promise<{ configured: boolean; owner: boolean }>) : Promise.reject(new Error(String(res.status)))))
+      .then((s) => setAccess(s.owner ? 'owner' : s.configured ? 'signin' : 'closed'))
+      .catch(() => setAccess('owner'));
+  }, []);
+
+  if (access === 'checking') return <Loading what="the console" />;
+  if (access === 'closed') {
+    return (
+      <p className="rounded-lg border border-line bg-card p-4 text-sm" data-testid="console-private">
+        The SQL console is private to the site&apos;s owner.
+      </p>
+    );
+  }
+  if (access === 'signin') {
+    return (
+      <form method="post" action={href('/auth/owner')} className="grid max-w-md gap-3 rounded-lg border border-line bg-card p-4 text-sm" data-testid="owner-signin">
+        <p>
+          The console queries the full tables behind the site: every box score, play and shot. The sources&apos; terms keep a database like that off a
+          public site, so it is open to the site&apos;s owner only. Everything derived from it, from the board to the notebooks, stays public.
+        </p>
+        <label className="grid gap-1">
+          <span className="text-xs text-muted">Owner key</span>
+          <input type="password" name="key" required autoComplete="current-password" className="rounded border border-line bg-bg px-2 py-1" />
+        </label>
+        <input type="hidden" name="next" value="/sql/" />
+        {failed && (
+          <p role="alert" className="text-bad">
+            That key did not match.
+          </p>
+        )}
+        <button type="submit" className="justify-self-start rounded border border-accent bg-accent px-3 py-1 text-accent-fg">
+          Sign in
+        </button>
+      </form>
+    );
+  }
+  return (
+    <div className="grid gap-2">
+      <Console />
+      <a href={href('/auth/owner/logout')} className="justify-self-start text-xs text-muted underline underline-offset-4">
+        Sign out
+      </a>
     </div>
   );
 }

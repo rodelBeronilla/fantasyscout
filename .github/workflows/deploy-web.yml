@@ -110,25 +110,30 @@ jobs:
           # YAHOO_IMPORT (repository variable) opens the Yahoo league import once Yahoo approves the app.
           command: deploy --env ${{ env.WRANGLER_ENV }}${{ vars.YAHOO_IMPORT && format(' --var YAHOO_IMPORT:{0}', vars.YAHOO_IMPORT) || '' }}
 
-      # The optional Yahoo league import needs the Yahoo app's credentials as Worker secrets.
-      # They come from the repository's Actions secrets; without them the import stays off.
-      - name: Give the Worker the Yahoo app's credentials, when they are set
+      # The Worker's secrets come from the repository's Actions secrets, each only when it is set:
+      # OWNER_KEY opens the private Parquet tables to the owner (ADR 0008); the Yahoo app's
+      # credentials serve the optional league import (ADR 0007).
+      - name: Give the Worker its secrets
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OWNER_KEY: ${{ secrets.OWNER_KEY }}
           YAHOO_CLIENT_ID: ${{ secrets.YAHOO_CLIENT_ID }}
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
         run: |
           set -euo pipefail
-          if [ -z "$YAHOO_CLIENT_ID" ] || [ -z "$YAHOO_CLIENT_SECRET" ]; then
-            echo "::notice::YAHOO_CLIENT_ID and YAHOO_CLIENT_SECRET are not set; the Yahoo import stays off"
-            exit 0
-          fi
           umask 077
-          jq -n --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET"             '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret}' > "$RUNNER_TEMP/yahoo.json"
-          npx wrangler secret bulk "$RUNNER_TEMP/yahoo.json" --env "$WRANGLER_ENV"
-          rm -f "$RUNNER_TEMP/yahoo.json"
+          jq -n --arg owner "$OWNER_KEY" --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET" \
+            '{OWNER_KEY: $owner, YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret} | with_entries(select(.value != ""))' \
+            > "$RUNNER_TEMP/secrets.json"
+          if [ "$(jq length "$RUNNER_TEMP/secrets.json")" = "0" ]; then
+            echo "::notice::no Worker secrets are set"
+          else
+            [ -n "$OWNER_KEY" ] || echo "::warning::OWNER_KEY is not set: the Parquet tables are closed to everyone, the notebooks included"
+            npx wrangler secret bulk "$RUNNER_TEMP/secrets.json" --env "$WRANGLER_ENV"
+          fi
+          rm -f "$RUNNER_TEMP/secrets.json"
 
       - name: Smoke test
         env:

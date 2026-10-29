@@ -38,6 +38,19 @@ Rolling back the Worker does not touch R2 data; data rollback is a separate step
 2. Update the GitHub Actions secret. Re-run the latest deploy or build workflow to prove the new value works.
 3. Revoke the old one at the provider. Check the next scheduled run is green.
 
+## The owner's key (private tables)
+
+The Parquet tables, and so the SQL console, are private to the site's owner (ADR 0008).
+
+1. Generate a long random key in a password manager (40 characters or more).
+2. Save it as the Actions secret `OWNER_KEY`.
+3. Re-run Deploy web, which copies it into the Worker.
+4. Sign in on `/sql/` with it.
+
+The nightly notebooks and the Tableau extract read the tables with the same secret. Without it they get 401s and the build reports them failed.
+
+To rotate the key, change the secret and re-run Deploy web. Every browser session signs out.
+
 ## Turn on the Yahoo league import
 
 The League page can import an NBA league from Yahoo once the Worker has a Yahoo app's credentials (ADR 0007).

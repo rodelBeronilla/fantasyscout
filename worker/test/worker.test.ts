@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { contentRange, parseRange } from '../src/index';
 
 const ORIGIN = 'https://fantasyscout.example';
+/** The owner's key in the test bindings (vitest.config.ts): the Parquet tables need it. */
+const OWNER = { authorization: 'Bearer test-owner-key' };
 
 describe('parseRange', () => {
   it('parses the single-range forms DuckDB-WASM sends', () => {
@@ -128,9 +130,9 @@ describe('data', () => {
   });
 
   it('serves build files as immutable with a parquet content type', async () => {
-    const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`);
+    const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, { headers: OWNER });
     expect(res.status).toBe(200);
-    expect(res.headers.get('cache-control')).toContain('immutable');
+    expect(res.headers.get('cache-control')).toBe('private, max-age=31536000, immutable');
     expect(res.headers.get('content-type')).toBe('application/vnd.apache.parquet');
     expect(res.headers.get('content-length')).toBe('100');
     expect(res.headers.get('accept-ranges')).toBe('bytes');
@@ -138,7 +140,7 @@ describe('data', () => {
 
   it('honours Range requests for DuckDB-WASM', async () => {
     const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, {
-      headers: { range: 'bytes=10-19' },
+      headers: { ...OWNER, range: 'bytes=10-19' },
     });
     expect(res.status).toBe(206);
     expect(res.headers.get('content-range')).toBe('bytes 10-19/100');
@@ -147,7 +149,7 @@ describe('data', () => {
 
   it('honours suffix Range requests (parquet footers)', async () => {
     const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, {
-      headers: { range: 'bytes=-8' },
+      headers: { ...OWNER, range: 'bytes=-8' },
     });
     expect(res.status).toBe(206);
     expect(res.headers.get('content-range')).toBe('bytes 92-99/100');
@@ -179,5 +181,68 @@ describe('the Yahoo league import', () => {
     expect(res.headers.get('x-frame-options')).toBe('DENY');
     expect(await res.json()).toEqual({ configured: false, live: false, connected: false });
     expect((await SELF.fetch(`${ORIGIN}/auth/yahoo/start`, { redirect: 'manual' })).status).toBe(404);
+  });
+});
+
+describe('the private tables and the owner sign-in', () => {
+  const body = new Uint8Array(16);
+  beforeEach(async () => {
+    await env.DATA.put('builds/b1/fct_event/wnba-2026.parquet', body);
+    await env.DATA.put('builds/b1/board/wnba.json', '[]', { httpMetadata: { contentType: 'application/json' } });
+  });
+
+  const signIn = (key: string, origin = ORIGIN) =>
+    SELF.fetch(`${ORIGIN}/auth/owner`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { origin, 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ key, next: '/sql/' }).toString(),
+    });
+
+  it('keeps every Parquet table from anyone but the owner, however the name is written', async () => {
+    for (const path of ['builds/b1/fct_event/wnba-2026.parquet', 'builds/b1/fct_event/wnba-2026.parque%74', 'builds/b1/fct_event/WNBA-2026.PARQUET']) {
+      const res = await SELF.fetch(`${ORIGIN}/data/${path}`);
+      expect(res.status, path).toBe(401);
+      expect(res.headers.get('cache-control')).toBe('private, no-store');
+    }
+    const wrong = await SELF.fetch(`${ORIGIN}/data/builds/b1/fct_event/wnba-2026.parquet`, { headers: { authorization: 'Bearer nope' } });
+    expect(wrong.status).toBe(401);
+    expect((await SELF.fetch(`${ORIGIN}/data/builds/b1/fct_event/wnba-2026.parquet`, { headers: OWNER })).status).toBe(200);
+  });
+
+  it('keeps the JSON the pages read public', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/data/builds/b1/board/wnba.json`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+  });
+
+  it('signs the owner in with the key, and the cookie then opens the tables', async () => {
+    const failed = await signIn('wrong');
+    expect(failed.status).toBe(303);
+    expect(failed.headers.get('location')).toBe('/sql/?signin=failed');
+    expect(failed.headers.get('set-cookie')).toBeNull();
+
+    const ok = await signIn('test-owner-key');
+    expect(ok.status).toBe(303);
+    expect(ok.headers.get('location')).toBe('/sql/');
+    const setCookie = ok.headers.get('set-cookie') ?? '';
+    expect(setCookie).toMatch(/^fs_owner=\d+\.[\w-]+; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000$/);
+    const cookie = setCookie.split(';')[0]!;
+
+    expect((await SELF.fetch(`${ORIGIN}/data/builds/b1/fct_event/wnba-2026.parquet`, { headers: { cookie } })).status).toBe(200);
+    expect(await (await SELF.fetch(`${ORIGIN}/api/owner/status`, { headers: { cookie } })).json()).toEqual({ configured: true, owner: true });
+    expect(await (await SELF.fetch(`${ORIGIN}/api/owner/status`)).json()).toEqual({ configured: true, owner: false });
+
+    const forged = `${cookie.slice(0, -2)}xx`;
+    expect((await SELF.fetch(`${ORIGIN}/data/builds/b1/fct_event/wnba-2026.parquet`, { headers: { cookie: forged } })).status).toBe(401);
+
+    const out = await SELF.fetch(`${ORIGIN}/auth/owner/logout`, { redirect: 'manual' });
+    expect(out.headers.get('set-cookie')).toContain('Max-Age=0');
+  });
+
+  it('refuses a sign-in posted from another site, and anything but POST', async () => {
+    expect((await signIn('test-owner-key', 'https://evil.example')).status).toBe(403);
+    expect((await SELF.fetch(`${ORIGIN}/auth/owner`)).status).toBe(405);
+    expect((await SELF.fetch(`${ORIGIN}/data/latest.json`, { method: 'POST' })).status).toBe(405);
   });
 });
