@@ -40,7 +40,7 @@ Rolling back the Worker does not touch R2 data; data rollback is a separate step
 
 ## The owner's sign-in (private tables)
 
-The Parquet tables, and so the SQL console, are private to the site's owner (ADR 0008). The owner signs in with their Yahoo account through the Yahoo app (`YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`).
+The Parquet tables, and so the SQL console, are private to the site's owner (ADR 0008). The owner signs in with their Yahoo account through the Yahoo app (`YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`), using OpenID, which names the account (ADR 0008 addendum).
 
 1. Open `/sql/` and choose **Sign in with Yahoo**. Until the owner is named, the page shows the account's id.
 2. Save that id as the Actions secret `OWNER_YAHOO_GUID`. A repository variable of the same name also works, but use one or the other, not both.

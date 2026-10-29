@@ -6,7 +6,12 @@ import { ciReaderKey, handleOwner, isOwner } from '../src/owner';
 const ORIGIN = 'https://fantasyscout.example';
 const ENV = { YAHOO_CLIENT_ID: 'client-id', YAHOO_CLIENT_SECRET: 'client-secret', OWNER_YAHOO_GUID: 'OWNERGUID' };
 
-const yahooAs = (guid?: string) => async () => Response.json({ access_token: 'a', refresh_token: 'r', expires_in: 3600, ...(guid ? { xoauth_yahoo_guid: guid } : {}) });
+/** Yahoo's token reply to an OpenID sign-in: the account is the ID token's subject. */
+const idToken = (sub: string) => `eyJhbGciOiJFUzI1NiJ9.${btoa(JSON.stringify({ sub })).replace(/=+$/, '')}.sig`;
+const yahooAs = (guid?: string) => async (url: string) =>
+  url.includes('/openid/v1/userinfo')
+    ? new Response('no', { status: 401 })
+    : Response.json({ access_token: 'a', refresh_token: 'r', expires_in: 3600, ...(guid ? { id_token: idToken(guid) } : {}) });
 const callback = (state: string, cookieState = state) =>
   new Request(`${ORIGIN}/auth/yahoo/callback?code=c&state=${state}`, { headers: { cookie: `fs_owner_state=${cookieState}` } });
 const ownerCookie = (res: Response) =>
@@ -73,14 +78,12 @@ describe("the owner's sign-in", () => {
     expect(calls.at(-1)).toBe('https://api.login.yahoo.com/openid/v1/userinfo');
   });
 
-  it("passes Yahoo's refusal on, and asks for the OpenID scope when told to", async () => {
+  it("passes Yahoo's refusal on, and always asks for the OpenID scope", async () => {
     const refused = new Request(`${ORIGIN}/auth/yahoo/callback?error=invalid_scope&error_description=Scope%20not%20allowed&state=owner-abc`, {
       headers: { cookie: 'fs_owner_state=owner-abc' },
     });
     expect((await handleOwner(refused, ENV))!.headers.get('location')).toBe('/sql/?signin=yahooerror&detail=Scope%20not%20allowed');
-    const start = (await handleOwner(new Request(`${ORIGIN}/auth/owner/start?openid=1`), ENV))!;
+    const start = (await handleOwner(new Request(`${ORIGIN}/auth/owner/start`), ENV))!;
     expect(new URL(start.headers.get('location')!).searchParams.get('scope')).toBe('openid');
-    const plain = (await handleOwner(new Request(`${ORIGIN}/auth/owner/start`), ENV))!;
-    expect(new URL(plain.headers.get('location')!).searchParams.has('scope')).toBe(false);
   });
 });

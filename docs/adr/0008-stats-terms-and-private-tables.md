@@ -38,3 +38,7 @@ Option 3, the owner's choice.
 - Private access depends on the Yahoo app existing. If it goes, a stored key could replace the sign-in without changing which data is private.
 - Fantasy use remains the open question. The site's purpose is fantasy analysis, which the terms name. It stays free, non-commercial and credited, and publishes analysis rather than the statistics themselves. If the operator objects, the site complies.
 - New sources each get their own terms check before they are added (issues #126 to #129), and their credit joins the footer.
+
+## Addendum (2026-10-29): the owner signs in with OpenID
+
+The plain OAuth sign-in returned no account id for this Yahoo app (no `xoauth_yahoo_guid`), so it could not tell the owner from anyone else. The owner's sign-in now always asks Yahoo for the `openid` scope. The account is the OpenID token's subject, or failing that the subject from Yahoo's OpenID user info. The plain sign-in is gone. `OWNER_YAHOO_GUID` may be an Actions secret or a repository variable.

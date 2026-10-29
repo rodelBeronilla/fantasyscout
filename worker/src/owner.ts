@@ -9,8 +9,7 @@
  *  - in CI, with a reader key derived from the Yahoo client secret, which CI holds as an
  *    Actions secret: HMAC-SHA256(secret, "fantasyscout ci reader"), hex.
  *
- *   GET /auth/owner/start      -> Yahoo's sign-in, with a state value held in a cookie
- *                                 (?openid=1 asks for the OpenID scope, which names the account)
+ *   GET /auth/owner/start      -> Yahoo's OpenID sign-in, with a state value held in a cookie
  *   GET /auth/yahoo/callback   -> (with that state) check the account, set the owner's cookie
  *   GET /auth/owner/logout     -> clear the cookie
  *   GET /api/owner/status      -> { configured, owner }
@@ -62,14 +61,13 @@ function jwtClaims(token: string): Record<string, unknown> | null {
 }
 
 /**
- * The Yahoo account behind a sign-in, from wherever Yahoo puts it: the legacy xoauth_yahoo_guid
- * field, the OpenID token's subject (sent when the sign-in asked for the openid scope), or the
- * OpenID user info endpoint. The token reply comes straight from Yahoo's token endpoint over TLS,
+ * The Yahoo account behind a sign-in: the OpenID token's subject, or failing that the OpenID
+ * user info endpoint. (The plain OAuth sign-in names no account for this app, so the owner's
+ * sign-in always asks for the openid scope.) The token reply comes straight from Yahoo's token endpoint over TLS,
  * authenticated with the client secret, so the OpenID token's claims are taken as Yahoo's word
  * without checking its signature (OpenID Connect Core 3.1.3.7 allows this).
  */
 export async function accountOf(reply: TokenReply, fetcher: Fetcher): Promise<string | undefined> {
-  if (typeof reply.xoauth_yahoo_guid === 'string' && reply.xoauth_yahoo_guid) return reply.xoauth_yahoo_guid;
   const sub = typeof reply['id_token'] === 'string' ? jwtClaims(reply['id_token'])?.['sub'] : undefined;
   if (typeof sub === 'string' && sub) return sub;
   try {
@@ -154,7 +152,7 @@ export async function handleOwner(request: Request, env: OwnerEnv, fetcher: Fetc
       redirect_uri: `${url.origin}/auth/yahoo/callback`,
       response_type: 'code',
       state,
-      ...(url.searchParams.get('openid') === '1' ? { scope: 'openid' } : {}),
+      scope: 'openid',
     }).toString();
     return redirect(auth.toString(), [cookie(STATE_COOKIE, state, 600)]);
   }
