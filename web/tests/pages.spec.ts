@@ -336,3 +336,19 @@ test('streamers rank by the categories you need and leave out likely rostered pl
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('streamers-csv').click()]);
   expect(download.suggestedFilename()).toBe('fantasyscout-wnba-streamers.csv');
 });
+
+for (const [path, testid] of [['/', 'board'], ['/streamers/', 'trending']]) {
+  test(`sorting ${path} by another column keeps the table where it was scrolled`, async ({ page }) => {
+    await page.goto(path);
+    const table = page.getByTestId(testid);
+    await expect(table.locator('tbody tr').nth(20)).toBeVisible();
+    const region = page.locator('.table-scroll', { has: table });
+    await region.evaluate((el) => el.scrollTo({ top: 400, left: 120 }));
+    const before = await region.evaluate((el) => [el.scrollTop, el.scrollLeft]);
+    // A tap on a header already on screen: dispatch the click so the test itself does not scroll.
+    await table.locator('thead th button').nth(4).dispatchEvent('click');
+    await page.waitForTimeout(200);
+    const after = await region.evaluate((el) => [el.scrollTop, el.scrollLeft]);
+    expect(after).toEqual(before);
+  });
+}

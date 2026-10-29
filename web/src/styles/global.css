@@ -94,6 +94,12 @@ figure svg {
    region capped at 70% of the viewport (a header cannot stick to the page from inside a
    horizontally scrolling box), and the header cells get an opaque background and a rule
    under them so rows do not show through. */
+/* Re-sorting reorders rows; without this the browser's scroll anchoring follows the row that
+   was on screen to its new place and the table jumps. The table stays where it was instead. */
+.table-scroll {
+  overflow-anchor: none;
+}
+
 .table-scroll thead th {
   position: sticky;
   top: 0;
