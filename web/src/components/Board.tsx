@@ -10,7 +10,7 @@ import { useWatchlist } from '../lib/watchlist';
 import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
 import { DraftBar, LeagueBar } from './LeagueParts';
-import { Chip, InjuryTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
+import { Chip, InjuryTag, LineupTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface BoardRow {
   player_id: string;
@@ -38,6 +38,8 @@ interface BoardRow {
   injury_source?: string | null;
   official_game_date?: string | null;
   official_report_at?: string | null;
+  lineup_role?: string | null;
+  lineup_confirmed?: boolean | null;
   games_share: number | null;
   value_per_game: number | null;
   age: number | null;
@@ -456,6 +458,7 @@ export default function Board() {
               </span>
             )}
             {row.is_new_team && <NewTeam from={row.prev_team_abbreviation} />}
+            <LineupTag role={row.lineup_role} confirmed={row.lineup_confirmed} />
             <InjuryTag
               group={row.injury_group}
               status={row.injury_status}

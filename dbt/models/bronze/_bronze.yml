@@ -853,6 +853,40 @@ models:
       - name: stats
         description: "JSON array of stat values in stat_keys order"
 
+  - name: league_daily_lineups
+    description: "The NBA's daily starting lineups: one row per player per team per game per landed file."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "nba (the WNBA publishes no lineups file)"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The game day and the Eastern hour of the run, YYYY-MM-DDTHH"
+      - name: game_id
+        description: "League game id"
+      - name: game_status_text
+        description: "Tip-off or game state as the file gives it"
+      - name: side
+        description: "home or away"
+      - name: player_id
+        description: "League player id"
+      - name: team_id
+        description: "League team id"
+      - name: player_name
+        description: "Player name"
+      - name: position
+        description: "The starting position for the five starters; blank for the bench"
+      - name: lineup_status
+        description: "Expected until the team confirms it, then Confirmed"
+      - name: roster_status
+        description: "Active or Inactive"
+      - name: updated_at
+        description: "When the league last updated the player's entry"
+
   - name: league_injury_report
     description: "The leagues' official injury reports as parsed at ingest: one row per player, or team not yet submitted, per landed report."
     columns:

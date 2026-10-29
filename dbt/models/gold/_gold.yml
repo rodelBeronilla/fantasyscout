@@ -141,6 +141,20 @@ models:
               to: ref('dim_game')
               field: game_sk
 
+  - name: fct_starting_lineup
+    description: "Each player's role in today's game from the league's starting lineups (NBA only): starter, bench or inactive, and whether it is confirmed."
+    columns:
+      - name: starting_lineup_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: lineup_role
+        description: "starter, bench or inactive"
+        data_tests:
+          - accepted_values:
+              values: [starter, bench, inactive]
+      - name: is_confirmed
+        description: "True once the team has confirmed its lineup"
+
   - name: fct_player_status
     description: "Each player's current status: the league's official injury report for the next game it covers, else ESPN's injury listing. ESPN's own status stays alongside for the rest of the season."
     columns:
@@ -257,6 +271,10 @@ models:
         description: "ESPN's news on the player's current injury"
       - name: injury_source
         description: "official when the league's injury report sets the status for the next game, else espn"
+      - name: lineup_role
+        description: "starter, bench or inactive in today's game, from the league's starting lineups (NBA only); null without one"
+      - name: lineup_confirmed
+        description: "True once the team has confirmed today's lineup"
       - name: official_game_date
         description: "The game the official status is for"
       - name: official_report_at

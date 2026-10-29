@@ -108,6 +108,13 @@ DEFAULT_TARGETS: tuple[Target, ...] = (
         headers=REPORT_HEADERS,
         json=False,
     ),
+    # The NBA's daily starting lineups, a static file on the stats host (issue #128).
+    Target(
+        name="nba-daily-lineups",
+        url="https://stats.nba.com/js/data/leaders/00_daily_lineups_20261029.json",
+        expect="games",
+        headers=stats_headers("nba"),
+    ),
     # The leagues' CDN (issue #139): box scores, play-by-play and schedules for both leagues.
     Target(
         name="cdn-nba-boxscore",

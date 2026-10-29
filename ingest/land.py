@@ -20,6 +20,7 @@ from ingest.espn import EspnIngestor, EspnPlanner
 from ingest.http import Throttle, ThrottledClient
 from ingest.injury_report import InjuryReportIngestor
 from ingest.landing import League
+from ingest.lineups import LineupsIngestor
 from ingest.run import RunSummary, describe
 from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
 from ingest.store import Backend, Landing, LocalBackend, VolumeBackend
@@ -45,7 +46,7 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
         "commonteamroster",
     ),
     "espn": ("scoreboard", "summary", "teams", "roster", "injuries"),
-    "league": ("injury_report",),
+    "league": ("injury_report", "daily_lineups"),
 }
 
 
@@ -124,6 +125,8 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         lines.append(
             "  the league's newest official injury report, parsed, unless it already landed"
         )
+        if opts.league == "nba":
+            lines.append("  and today's starting lineups (Expected, then Confirmed before tip-off)")
     else:
         days = (until - since).days + 1
         lines.append(f"  scoreboard for {days} day(s), then summary per completed event")
@@ -180,6 +183,10 @@ def land(
             ).run(since=since, until=until)
         elif opts.source == "reports":
             summary = InjuryReportIngestor(client, landing, opts.league, season).run()
+            LineupsIngestor(client, landing, opts.league, season).land_into(summary)
+            for failure in landing.flush():
+                summary.fail(failure.endpoint, failure.key, failure.error)
+            summary.pacing = client.pacing()
         else:
             # Only a run that ends today looks ahead; a backfill's window is in the past.
             ahead = opts.ahead_days if until == today else 0

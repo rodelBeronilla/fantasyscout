@@ -106,6 +106,8 @@ BOARD_COLUMNS = (
     "injury_source",
     "official_game_date",
     "official_report_at",
+    "lineup_role",
+    "lineup_confirmed",
     "z_points",
     "z_rebounds_total",
     "z_assists",
@@ -227,6 +229,8 @@ STREAMER_COLUMNS = (
     "free_throw_pct_5",
     "injury_status",
     "injury_group",
+    "lineup_role",
+    "lineup_confirmed",
 )
 STREAMERS_SQL = f"""
 select {", ".join(STREAMER_COLUMNS)}
