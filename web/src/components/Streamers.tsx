@@ -81,7 +81,7 @@ function WeekGrid({ games, teams, start }: { games: Game[]; teams: string[]; sta
   const ordered = [...teams].sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || a.localeCompare(b));
   const busiest = Math.max(0, ...days.map((d) => perDay.get(d) ?? 0));
   return (
-    <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+    <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
       <table className="w-full text-sm" data-testid="week-grid">
         <thead>
           <tr>
@@ -242,7 +242,7 @@ export default function Streamers() {
           </label>
           <span className="text-sm text-muted">{list.length} players</span>
         </div>
-        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
           <table className="w-full text-sm" data-testid="trending">
             <thead>
               <tr>

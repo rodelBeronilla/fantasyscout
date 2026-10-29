@@ -142,17 +142,20 @@ export function Chip({
   onChange,
   children,
   label,
+  strike = false,
 }: {
   checked: boolean;
   onChange: () => void;
   children: ReactNode;
   label?: string;
+  /** Strike the label through while checked: the chip removes something (a punted category). */
+  strike?: boolean;
 }) {
   return (
     <label
       className={`flex cursor-pointer items-center rounded-full border px-2.5 py-1 text-sm select-none ${
         checked ? 'border-accent bg-accent text-accent-fg' : 'border-line'
-      }`}
+      } ${checked && strike ? 'line-through decoration-2' : ''}`}
     >
       <input type="checkbox" className="sr-only" checked={checked} onChange={onChange} aria-label={label} />
       {children}

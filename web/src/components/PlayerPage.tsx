@@ -149,7 +149,7 @@ export default function PlayerPage() {
       </header>
 
       <Card title="Season lines" id="seasons">
-        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
           <table className="w-full text-sm" data-testid="season-lines">
             <thead>
               <tr>
@@ -219,28 +219,30 @@ export default function PlayerPage() {
             <p className="text-sm text-muted">No shots this season yet.</p>
           )}
           {player.shot_zones.length > 0 && (
-            <table className="mt-3 w-full text-sm">
-              <thead>
-                <tr>
-                  <Th>Zone</Th>
-                  <Th right>FGA</Th>
-                  <Th right>FG%</Th>
-                  <Th right>League</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {player.shot_zones
-                  .filter((z) => z.zone !== 'Backcourt')
-                  .map((z) => (
-                    <tr key={z.zone} className="border-t border-line">
-                      <Td>{z.zone}</Td>
-                      <Td right>{z.attempts}</Td>
-                      <Td right>{pct(z.pct)}</Td>
-                      <Td right>{pct(z.league_pct)}</Td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+            <div className="table-scroll mt-3 max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <Th>Zone</Th>
+                    <Th right>FGA</Th>
+                    <Th right>FG%</Th>
+                    <Th right>League</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {player.shot_zones
+                    .filter((z) => z.zone !== 'Backcourt')
+                    .map((z) => (
+                      <tr key={z.zone} className="border-t border-line">
+                        <Td>{z.zone}</Td>
+                        <Td right>{z.attempts}</Td>
+                        <Td right>{pct(z.pct)}</Td>
+                        <Td right>{pct(z.league_pct)}</Td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
       </div>
@@ -279,7 +281,7 @@ export default function PlayerPage() {
             ))}
           </select>
         </label>
-        <div className="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="mt-3 table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
           <table className="w-full text-sm" data-testid="game-log">
             <thead>
               <tr>

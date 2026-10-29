@@ -90,7 +90,7 @@ export default function Notebooks() {
                   ))}
                 </dl>
                 {f.table && f.table.rows.length > 0 && (
-                  <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+                  <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
                     <table className="w-full text-sm">
                       <thead>
                         <tr>
