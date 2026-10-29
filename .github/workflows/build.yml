@@ -1,8 +1,12 @@
 name: Build lakehouse
 
 # dbt build on Databricks: bronze and silver (and, from phase 3, gold and ops) over the landed
-# volume. Runs after a successful Ingest, or by hand. A failed build opens or updates a
-# data-incident issue; the next passing build closes it.
+# volume. Runs after every Ingest or Backfill that finishes, even one with a failed job, so one
+# failed request does not cost the day's build: the failed job has its own incident, and the
+# completeness check only counts a game missing once it has been final for more than a day
+# (the next daily window fetches it again). A cancelled run does not trigger a build. Runs by
+# hand too. A failed build opens or updates a data-incident issue; the next passing build
+# closes it.
 
 on:
   workflow_run:
@@ -34,7 +38,10 @@ concurrency:
 jobs:
   dbt:
     name: dbt build on Databricks
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -42,6 +49,15 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen --group dbt
+
+      - name: Note an ingest that ended with a failed job
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
+        env:
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          echo "::warning::$RUN_NAME ended with a failed job ($RUN_URL); building with what landed. That job's incident tracks it."
+          echo "$RUN_NAME ended with a failed job: $RUN_URL. Building with what landed." >> land.log
 
       - name: Resolve the workspace host and SQL warehouse
         env:
