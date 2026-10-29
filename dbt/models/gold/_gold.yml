@@ -240,3 +240,11 @@ models:
       - name: streamer_sk
         description: "Surrogate key"
         data_tests: [unique, not_null]
+      - name: minutes_baseline
+        description: "Minutes per game before the last five games this season, blended with last season counted as up to 10 games"
+      - name: minutes_trend
+        description: "Minutes per game over the last five games minus the baseline; null without one"
+      - name: value_baseline
+        description: "Season value z-score blended with last season's, last season counting for up to 10 games and this season for its games before the last ten"
+      - name: value_trend
+        description: "Value z-score over the last ten games minus the baseline; null without one"

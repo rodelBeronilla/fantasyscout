@@ -9522,7 +9522,13 @@
        "type": "double"
       },
       {
-       "description": "",
+       "description": "Minutes per game before the last five games this season, blended with last season counted as up to 10 games",
+       "name": "minutes_baseline",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Minutes per game over the last five games minus the baseline; null without one",
        "name": "minutes_trend",
        "tests": [],
        "type": "double"
@@ -9540,7 +9546,13 @@
        "type": "double"
       },
       {
-       "description": "",
+       "description": "Season value z-score blended with last season's, last season counting for up to 10 games and this season for its games before the last ten",
+       "name": "value_baseline",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Value z-score over the last ten games minus the baseline; null without one",
        "name": "value_trend",
        "tests": [],
        "type": "double"
@@ -9617,7 +9629,8 @@
      "name": "mart_streamers",
      "notes": [
       "Streaming candidates: one row per player active in the league's current season, with the team's games over the next seven days, the minutes trend and recent production.",
-      "Active means at least three games this season and a game within the last thirty days of the league's season so far, so players from earlier seasons never appear. The trend compares the last five games with the player's season average (minutes and value); while the league is between seasons the same columns describe who finished the season strongly, and season_complete says so."
+      "Active means at least three games this season and a game within the last thirty days of the league's season so far, so players from earlier seasons never appear.",
+      "The trends compare recent games with a baseline: minutes over the last five games, value over the last ten. The baseline is the player's games this season before the window, blended with the player's latest earlier season (last season, or the one before for a player who missed it) counted as up to 10 games. Early in a season the window is the whole season, so the baseline is last season; late in a season it is mostly this one. A player with neither (a rookie's first games) has no trend rather than a misleading zero. The value baseline uses the season z-score, which includes the window; with few games before the window it is weighted toward last season accordingly. While the league is between seasons the same columns describe who finished the season strongly, and season_complete says so."
      ],
      "read_by": [],
      "reads": [
