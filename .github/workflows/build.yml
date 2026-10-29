@@ -202,13 +202,37 @@ jobs:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: uv run python tableau/sheets.py --extract tableau/extract
 
+      # The incident covers every step, not just the build and the gate: a failed export,
+      # promotion, notebook run, extract or sheet push opens (or keeps open) the incident and is
+      # named in it. Only a run where every step that ran succeeded closes it.
       - name: Report
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           TITLE: "Build failure: dbt on Databricks"
-          OUTCOME: ${{ (steps.build.outcome == 'success' && steps.gate.outcome == 'success') && 'success' || 'failure' }}
-        run: uv run python .github/scripts/incident.py
+          S_BUILD: ${{ steps.build.outcome }}
+          S_GATE: ${{ steps.gate.outcome }}
+          S_EXPORT: ${{ steps.export.outcome }}
+          S_NOTEBOOKS: ${{ steps.notebooks.outcome }}
+          S_EXTRACT: ${{ steps.extract.outcome }}
+          S_PROMOTE: ${{ steps.promote.outcome }}
+          S_SHEETS: ${{ steps.sheets.outcome }}
+        run: |
+          set -euo pipefail
+          failed=""
+          # these must succeed for the day's data to be live
+          for step in "dbt build:$S_BUILD" "publish gate:$S_GATE" "export:$S_EXPORT" "promote:$S_PROMOTE"; do
+            [ "${step##*:}" = "success" ] || failed="$failed, ${step%%:*} (${step##*:})"
+          done
+          # these may be skipped when an earlier step did not run, but must not fail
+          for step in "notebooks:$S_NOTEBOOKS" "Tableau extract:$S_EXTRACT" "sheet push:$S_SHEETS"; do
+            [ "${step##*:}" = "failure" ] && failed="$failed, ${step%%:*} (failure)"
+          done
+          if [ -n "$failed" ]; then OUTCOME=failure; else OUTCOME=success; fi
+          DETAIL="Steps: dbt build $S_BUILD, gate $S_GATE, export $S_EXPORT, notebooks $S_NOTEBOOKS, extract $S_EXTRACT, promote $S_PROMOTE, sheet push $S_SHEETS."
+          [ -n "$failed" ] && DETAIL="Failed: ${failed#, }. $DETAIL"
+          echo "$DETAIL"
+          OUTCOME="$OUTCOME" DETAIL="$DETAIL" uv run python .github/scripts/incident.py
 
   bundle:
     name: Deploy the Asset Bundle

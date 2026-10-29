@@ -1,7 +1,8 @@
 """Open or update a data-incident issue when an ingest job fails; close it when the next run passes.
 
 Runs on GitHub-hosted and self-hosted runners alike (no gh CLI needed): plain REST with the
-job's GITHUB_TOKEN. Inputs come from the environment: TITLE, OUTCOME, GH_TOKEN, GITHUB_*.
+job's GITHUB_TOKEN. Inputs come from the environment: TITLE, OUTCOME, GH_TOKEN, GITHUB_*, and
+DETAIL (optional: which steps ran and which failed, put at the top of the issue or comment).
 Reads land.log from the working directory when present.
 """
 
@@ -19,6 +20,8 @@ LABELS = ["data-incident", "P1-high", "area:ingest"]
 def main() -> int:
     title = os.environ["TITLE"]
     outcome = os.environ.get("OUTCOME", "failure")
+    detail = os.environ.get("DETAIL", "").strip()
+    lead = f"{detail}\n\n" if detail else ""
     repo = os.environ["GITHUB_REPOSITORY"]
     run_id = os.environ.get("GITHUB_RUN_ID", "?")
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
@@ -49,14 +52,14 @@ def main() -> int:
 
     if outcome == "success":
         if existing is not None:
-            body = f"Recovered: [run {run_id}]({run_url}) passed.\n\n```\n{tail}\n```"
+            body = f"Recovered: [run {run_id}]({run_url}) passed.\n\n{lead}```\n{tail}\n```"
             client.post(f"/issues/{existing}/comments", json={"body": body}).raise_for_status()
             client.patch(f"/issues/{existing}", json={"state": "closed"}).raise_for_status()
             print(f"closed incident #{existing}")
         return 0
 
     body = (
-        f"Outcome: **{outcome}**. [Run {run_id}]({run_url})\n\n```\n{tail}\n```\n\n"
+        f"Outcome: **{outcome}**. [Run {run_id}]({run_url})\n\n{lead}```\n{tail}\n```\n\n"
         'See docs/runbook.md ("Rerun a day").'
     )
     if existing is not None:
