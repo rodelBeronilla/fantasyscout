@@ -79,9 +79,57 @@ interface PlayerFile {
   game_log: Game[];
   rolling: { game_number: number; game_date: string; [key: string]: unknown }[];
   zscores: Zscore[];
-  board: { rank_total: number; value_total: number | null; value_rest_of_season: number | null } | null;
+  board: {
+    rank_total: number;
+    value_total: number | null;
+    value_rest_of_season: number | null;
+    injury_status?: string | null;
+    injury_group?: string | null;
+    injury_type?: string | null;
+    expected_return?: string | null;
+    injury_note?: string | null;
+    injury_news?: string | null;
+    injury_since?: string | null;
+  } | null;
+  /** Each status the player's injury listings have held, newest first (absent in older builds). */
+  injury_history?: { injury_id: string; status: string; status_group: string; status_from: string; status_to: string; reports: number }[];
   shots: [number, number, number, number][];
   shot_zones: { zone: string; attempts: number; made: number; pct: number | null; league_pct: number | null }[];
+}
+
+/** The player's current injury: status, since when, expected return, ESPN's news, and how the status got here. */
+function InjuryCard({
+  board,
+  history,
+}: {
+  board: NonNullable<PlayerFile['board']>;
+  history: NonNullable<PlayerFile['injury_history']>;
+}) {
+  const tone = board.injury_group === 'out' ? 'bad' : 'warn';
+  return (
+    <Card title="Injury" id="injury">
+      <div className="grid gap-2 text-sm" data-testid="injury-card">
+        <p className="flex flex-wrap items-center gap-2">
+          <Badge tone={tone}>{board.injury_status ?? 'Injured'}</Badge>
+          {board.injury_type && <span>{board.injury_type}</span>}
+          {board.injury_since && <span className="text-muted">since {day(board.injury_since)}</span>}
+          {board.expected_return && <span className="text-muted">· expected back {day(board.expected_return)}</span>}
+        </p>
+        {(board.injury_news || board.injury_note) && <p data-testid="injury-news">{board.injury_news || board.injury_note}</p>}
+        {history.length > 1 && (
+          <ol className="grid gap-0.5 text-xs text-muted" data-testid="injury-history">
+            {history.map((h) => (
+              <li key={`${h.injury_id}-${h.status_from}`}>
+                {h.status}: {day(h.status_from)}
+                {h.status_to !== h.status_from ? ` to ${day(h.status_to)}` : ''}
+              </li>
+            ))}
+          </ol>
+        )}
+        <p className="text-xs text-muted">From ESPN&apos;s daily injury report.</p>
+      </div>
+    </Card>
+  );
 }
 
 function parsePath(): { league: League; playerId: string } | null {
@@ -147,6 +195,8 @@ export default function PlayerPage() {
           {player.last_game_date ? ` · Last game ${day(player.last_game_date)}` : ''}
         </p>
       </header>
+
+      {player.board?.injury_group && <InjuryCard board={player.board} history={player.injury_history ?? []} />}
 
       <Card title="Season lines" id="seasons">
         <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">

@@ -39,6 +39,7 @@ class PlayerFiles:
 
     def __init__(self, tables: dict[str, pa.Table]) -> None:
         self._con = duckdb.connect()
+        self._names = set(tables)
         for name, table in tables.items():
             self._con.register(name, table)
 
@@ -125,6 +126,19 @@ class PlayerFiles:
             "select * from mart_category_zscores order by league, player_id, season, window_name"
         )
         board = self._grouped("select * from mart_board order by league, player_id")
+        injuries = (
+            self._grouped(
+                """
+                select league, stats_player_id as player_id, injury_id, status, status_group,
+                    status_from, status_to, reports
+                from fct_injury_status
+                where stats_player_id is not null
+                order by league, stats_player_id, status_from desc, injury_id
+                """
+            )
+            if "fct_injury_status" in self._names
+            else {}
+        )
         shots = self._grouped(
             """
             select s.league, s.player_id, s.loc_x, s.loc_y, s.shot_made, s.is_three,
@@ -218,6 +232,10 @@ class PlayerFiles:
                     ),
                     None,
                 ),
+                "injury_history": [
+                    {k: v for k, v in r.items() if k not in ("league", "player_id")}
+                    for r in injuries.get(key, [])
+                ],
                 "shots": [
                     [
                         s["loc_x"],
