@@ -1,7 +1,8 @@
 name: Export data
 
 # Publish, roll back or list the data builds in R2 by hand. The nightly build publishes on its
-# own after a passing gate (build.yml); this is for a re-export or a rollback. A build here
+# own after a passing gate (build.yml); this is for a re-export or a rollback. A rollback pins
+# the site to that build: nightly builds are still recorded but do not go live until unpin. A build here
 # checks the latest publish gate first and refuses when it did not pass, unless ignore_gate is
 # set on purpose (the run log says so).
 
@@ -11,10 +12,10 @@ on:
       action:
         description: What to do
         type: choice
-        options: [build, rollback, list]
+        options: [build, rollback, unpin, list]
         default: build
       to_build:
-        description: Rollback target build id (blank = the previous build)
+        description: Rollback target (blank = the previous build), or unpin target (blank = the newest)
         type: string
         default: ""
       skip:
@@ -87,6 +88,9 @@ jobs:
             rollback)
               if [ -n "$TO_BUILD" ]; then uv run fs-export rollback --store r2 --to "$TO_BUILD";
               else uv run fs-export rollback --store r2; fi ;;
+            unpin)
+              if [ -n "$TO_BUILD" ]; then uv run fs-export unpin --store r2 --to "$TO_BUILD";
+              else uv run fs-export unpin --store r2; fi ;;
             list) uv run fs-export list --store r2 ;;
           esac
       - name: What the site now serves

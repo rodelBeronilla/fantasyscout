@@ -197,12 +197,40 @@ def test_rollback_points_at_the_previous_build_and_prune_keeps_it(tmp_path: Path
     assert pointer["build_id"] == "b1" and pointer["rolled_back_from"] == "b2"
     pointer = build_mod.rollback(store, to="b0", log=lambda _: None)
     assert pointer["build_id"] == "b0"
-    # A new publish with keep=1 keeps the newest and the one latest points at.
+    # A new publish with keep=1 keeps the newest and the pinned build latest still points at.
     build_mod.publish(store, fake_build("b3"), keep=1, log=lambda _: None)
     builds = [b["build_id"] for b in json.loads(store.get("builds.json") or b"[]")]
-    assert builds == ["b3"], "publishing moves latest forward again"
+    assert builds == ["b3", "b0"], "the rollback's pin holds and its build is kept"
+    assert json.loads(store.get("latest.json") or b"{}")["build_id"] == "b0"
     with pytest.raises(RuntimeError, match=r"not in builds\.json"):
         build_mod.rollback(store, to="nope", log=lambda _: None)
+
+
+def test_a_rollback_holds_until_unpinned(tmp_path: Path) -> None:
+    """#96 item 5: the next nightly build must not undo a rollback."""
+    store = LocalStore(tmp_path)
+
+    def quiet(_: str) -> None:
+        return None
+
+    for i in range(3):
+        build_mod.publish(store, fake_build(f"b{i}"), keep=3, log=quiet)
+    pointer = build_mod.rollback(store, to="b0", log=quiet)
+    assert pointer["pinned"] is True
+    builds = json.loads(store.get("builds.json") or b"[]")
+    assert [b["build_id"] for b in builds if b.get("pinned")] == ["b0"]
+    log: list[str] = []
+    latest = build_mod.publish(store, fake_build("b3"), keep=3, log=log.append)
+    assert latest["build_id"] == "b0", "the nightly build did not undo the rollback"
+    assert json.loads(store.get("latest.json") or b"{}")["build_id"] == "b0"
+    assert any("pinned" in line for line in log)
+    builds = json.loads(store.get("builds.json") or b"[]")
+    assert builds[0]["build_id"] == "b3", "the new build is recorded"
+    assert store.get("builds/b0/manifest.json") is not None, "the pinned build is never pruned"
+    pointer = build_mod.unpin(store, log=quiet)
+    assert pointer["build_id"] == "b3" and "pinned" not in pointer
+    assert not any(b.get("pinned") for b in json.loads(store.get("builds.json") or b"[]"))
+    assert build_mod.publish(store, fake_build("b4"), keep=3, log=quiet)["build_id"] == "b4"
 
 
 # ---- a real build from the dbt sample (CI builds it first) ------------------------------------

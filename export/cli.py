@@ -4,7 +4,8 @@
     fs-export build --engine databricks --store r2
     fs-export build --engine databricks --store r2 --stage   # upload only; prints "staged <id>"
     fs-export promote --store r2 --build-id BUILD_ID          # record it and flip latest.json
-    fs-export rollback --store r2 [--to BUILD_ID]
+    fs-export rollback --store r2 [--to BUILD_ID]   # pins the site to that build
+    fs-export unpin --store r2 [--to BUILD_ID]      # releases the pin (default: newest)
     fs-export list --store r2
 
 The R2 store reads CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN; the Databricks source
@@ -88,6 +89,10 @@ def build_parser() -> argparse.ArgumentParser:
     add_store(p_roll)
     p_roll.add_argument("--to", default=None, help="build id (default: the previous build)")
 
+    p_unpin = sub.add_parser("unpin", help="release a rollback's pin and go live again")
+    add_store(p_unpin)
+    p_unpin.add_argument("--to", default=None, help="build id (default: the newest build)")
+
     p_list = sub.add_parser("list", help="show latest and the builds kept")
     add_store(p_list)
 
@@ -131,7 +136,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"promoted {args.build_id}; latest is {latest['build_id']}")
         elif args.command == "rollback":
             pointer = build_mod.rollback(store, to=args.to)
-            print(f"latest is now {pointer['build_id']}")
+            print(f"latest is now {pointer['build_id']}, pinned until fs-export unpin")
+        elif args.command == "unpin":
+            pointer = build_mod.unpin(store, to=args.to)
+            print(f"latest is now {pointer['build_id']}, unpinned")
         elif args.command == "publish-files":
             keys = build_mod.publish_files(
                 store, args.files, subdir=args.subdir, build_id=args.build_id
@@ -141,9 +149,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"published {len(keys)} file(s) under {args.subdir}")
         else:
             latest, builds = build_mod.list_builds(store)
-            print(f"latest: {latest.get('build_id', 'none')}")
+            pin = " (pinned by a rollback)" if latest.get("pinned") else ""
+            print(f"latest: {latest.get('build_id', 'none')}{pin}")
             for entry in builds:
-                print(f"  {entry['build_id']}  {entry['created_at']}  {entry.get('engine', '')}")
+                mark = "  pinned" if entry.get("pinned") else ""
+                print(
+                    f"  {entry['build_id']}  {entry['created_at']}  {entry.get('engine', '')}{mark}"
+                )
         return 0
     except Exception as exc:
         print(f"export failed: {type(exc).__name__}: {exc}", file=sys.stderr)
