@@ -3,12 +3,12 @@
  *
  *   /data/<key>                 -> object <key> from the R2 bucket, with Range support for DuckDB-WASM;
  *                                  the Parquet tables only for the signed-in owner (owner.ts, ADR 0008)
- *   /auth/owner, /api/owner/*   -> the owner's sign-in
+ *   /auth/owner/*, /api/owner/* -> the owner's sign-in, with the owner's Yahoo account (owner.ts)
  *   /auth/yahoo/*, /api/yahoo/* -> the Yahoo Fantasy league import (yahoo.ts)
  *   /*                          -> static files from the Astro build (assets binding)
  *
- * Every response carries the security headers below. Its secrets are the owner's key, which
- * guards the bulk Parquet tables, and the Yahoo app's client id and secret for the league import.
+ * Every response carries the security headers below. Its secrets are the Yahoo app's client id
+ * and secret, which sign the owner in (guarding the bulk Parquet tables) and serve the league import.
  */
 
 import cspHashes from './csp-hashes.json';
@@ -203,14 +203,13 @@ export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
 
-    // The owner's sign-in form is the one thing that posts.
-    const signIn = url.pathname === '/auth/owner';
-    if (request.method !== 'GET' && request.method !== 'HEAD' && !(signIn && request.method === 'POST')) {
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
       const res = text(405, 'Method Not Allowed');
       res.headers.set('allow', 'GET, HEAD');
       return withSecurityHeaders(res);
     }
 
+    // Before the league import: the owner's sign-in shares its Yahoo callback.
     const owner = await handleOwner(request, env);
     if (owner) return withSecurityHeaders(owner, url.pathname);
 

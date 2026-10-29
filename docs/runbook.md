@@ -38,18 +38,15 @@ Rolling back the Worker does not touch R2 data; data rollback is a separate step
 2. Update the GitHub Actions secret. Re-run the latest deploy or build workflow to prove the new value works.
 3. Revoke the old one at the provider. Check the next scheduled run is green.
 
-## The owner's key (private tables)
+## The owner's sign-in (private tables)
 
-The Parquet tables, and so the SQL console, are private to the site's owner (ADR 0008).
+The Parquet tables, and so the SQL console, are private to the site's owner (ADR 0008). The owner signs in with their Yahoo account through the Yahoo app (`YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`).
 
-1. Generate a long random key in a password manager (40 characters or more).
-2. Save it as the Actions secret `OWNER_KEY`.
-3. Re-run Deploy web, which copies it into the Worker.
-4. Sign in on `/sql/` with it.
+1. Open `/sql/` and choose **Sign in with Yahoo**. Until the owner is named, the page shows the account's id.
+2. Set that id as the repository variable `OWNER_YAHOO_GUID` (Settings, then Secrets and variables, then Actions, then Variables).
+3. Re-run Deploy web, then sign in again.
 
-The nightly notebooks and the Tableau extract read the tables with the same secret. Without it they get 401s and the build reports them failed.
-
-To rotate the key, change the secret and re-run Deploy web. Every browser session signs out.
+The nightly notebooks and the Tableau extract read the tables with a key derived from `YAHOO_CLIENT_SECRET`. Rotating the client secret in the Yahoo app (update the Actions secret, then re-run Deploy web) rotates that key and signs every browser out.
 
 ## Turn on the Yahoo league import
 

@@ -95,7 +95,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           FS_NOTEBOOK_SOURCE: published
-          FS_OWNER_KEY: ${{ secrets.OWNER_KEY }}
+          FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         run: |
           set -euo pipefail
@@ -110,7 +110,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           FS_NOTEBOOK_SOURCE: published
-          FS_OWNER_KEY: ${{ secrets.OWNER_KEY }}
+          FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         run: |
           set -euo pipefail

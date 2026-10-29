@@ -1,12 +1,16 @@
 // Runs inside workerd via @cloudflare/vitest-plugin, with the real assets binding
 // (web/dist must be built first) and an isolated R2 bucket per test.
 import { env, SELF } from 'cloudflare:test';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { contentRange, parseRange } from '../src/index';
+import { ciReaderKey, sessionCookie } from '../src/owner';
 
 const ORIGIN = 'https://fantasyscout.example';
-/** The owner's key in the test bindings (vitest.config.ts): the Parquet tables need it. */
-const OWNER = { authorization: 'Bearer test-owner-key' };
+/** CI's reader key, derived from the Yahoo client secret in the test bindings (vitest.config.ts). */
+let OWNER: Record<string, string> = {};
+beforeAll(async () => {
+  OWNER = { authorization: `Bearer ${await ciReaderKey('test-client-secret')}` };
+});
 
 describe('parseRange', () => {
   it('parses the single-range forms DuckDB-WASM sends', () => {
@@ -174,30 +178,23 @@ describe('data', () => {
 });
 
 describe('the Yahoo league import', () => {
-  it('answers through the Worker with the security headers, and says when it is not configured', async () => {
+  it('answers through the Worker with the security headers, and stays parked until YAHOO_IMPORT is on', async () => {
     const res = await SELF.fetch(`${ORIGIN}/api/yahoo/status`);
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('no-store');
     expect(res.headers.get('x-frame-options')).toBe('DENY');
-    expect(await res.json()).toEqual({ configured: false, live: false, connected: false });
+    expect(await res.json()).toEqual({ configured: true, live: false, connected: false });
     expect((await SELF.fetch(`${ORIGIN}/auth/yahoo/start`, { redirect: 'manual' })).status).toBe(404);
   });
 });
 
 describe('the private tables and the owner sign-in', () => {
   const body = new Uint8Array(16);
+  const table = `${ORIGIN}/data/builds/b1/fct_event/wnba-2026.parquet`;
   beforeEach(async () => {
     await env.DATA.put('builds/b1/fct_event/wnba-2026.parquet', body);
     await env.DATA.put('builds/b1/board/wnba.json', '[]', { httpMetadata: { contentType: 'application/json' } });
   });
-
-  const signIn = (key: string, origin = ORIGIN) =>
-    SELF.fetch(`${ORIGIN}/auth/owner`, {
-      method: 'POST',
-      redirect: 'manual',
-      headers: { origin, 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ key, next: '/sql/' }).toString(),
-    });
 
   it('keeps every Parquet table from anyone but the owner, however the name is written', async () => {
     for (const path of ['builds/b1/fct_event/wnba-2026.parquet', 'builds/b1/fct_event/wnba-2026.parque%74', 'builds/b1/fct_event/WNBA-2026.PARQUET']) {
@@ -205,9 +202,8 @@ describe('the private tables and the owner sign-in', () => {
       expect(res.status, path).toBe(401);
       expect(res.headers.get('cache-control')).toBe('private, no-store');
     }
-    const wrong = await SELF.fetch(`${ORIGIN}/data/builds/b1/fct_event/wnba-2026.parquet`, { headers: { authorization: 'Bearer nope' } });
-    expect(wrong.status).toBe(401);
-    expect((await SELF.fetch(`${ORIGIN}/data/builds/b1/fct_event/wnba-2026.parquet`, { headers: OWNER })).status).toBe(200);
+    expect((await SELF.fetch(table, { headers: { authorization: 'Bearer test-client-secret' } })).status).toBe(401);
+    expect((await SELF.fetch(table, { headers: OWNER })).status).toBe(200);
   });
 
   it('keeps the JSON the pages read public', async () => {
@@ -216,33 +212,26 @@ describe('the private tables and the owner sign-in', () => {
     expect(res.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
   });
 
-  it('signs the owner in with the key, and the cookie then opens the tables', async () => {
-    const failed = await signIn('wrong');
-    expect(failed.status).toBe(303);
-    expect(failed.headers.get('location')).toBe('/sql/?signin=failed');
-    expect(failed.headers.get('set-cookie')).toBeNull();
-
-    const ok = await signIn('test-owner-key');
-    expect(ok.status).toBe(303);
-    expect(ok.headers.get('location')).toBe('/sql/');
-    const setCookie = ok.headers.get('set-cookie') ?? '';
-    expect(setCookie).toMatch(/^fs_owner=\d+\.[\w-]+; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000$/);
-    const cookie = setCookie.split(';')[0]!;
-
-    expect((await SELF.fetch(`${ORIGIN}/data/builds/b1/fct_event/wnba-2026.parquet`, { headers: { cookie } })).status).toBe(200);
-    expect(await (await SELF.fetch(`${ORIGIN}/api/owner/status`, { headers: { cookie } })).json()).toEqual({ configured: true, owner: true });
+  it("opens the tables to the owner's session cookie, not another account's", async () => {
+    const mine = `fs_owner=${await sessionCookie('test-client-secret', 'OWNERGUID')}`;
+    const theirs = `fs_owner=${await sessionCookie('test-client-secret', 'SOMEONEELSE')}`;
+    expect((await SELF.fetch(table, { headers: { cookie: mine } })).status).toBe(200);
+    expect((await SELF.fetch(table, { headers: { cookie: theirs } })).status).toBe(401);
+    expect(await (await SELF.fetch(`${ORIGIN}/api/owner/status`, { headers: { cookie: mine } })).json()).toEqual({ configured: true, owner: true });
     expect(await (await SELF.fetch(`${ORIGIN}/api/owner/status`)).json()).toEqual({ configured: true, owner: false });
-
-    const forged = `${cookie.slice(0, -2)}xx`;
-    expect((await SELF.fetch(`${ORIGIN}/data/builds/b1/fct_event/wnba-2026.parquet`, { headers: { cookie: forged } })).status).toBe(401);
-
-    const out = await SELF.fetch(`${ORIGIN}/auth/owner/logout`, { redirect: 'manual' });
-    expect(out.headers.get('set-cookie')).toContain('Max-Age=0');
   });
 
-  it('refuses a sign-in posted from another site, and anything but POST', async () => {
-    expect((await signIn('test-owner-key', 'https://evil.example')).status).toBe(403);
-    expect((await SELF.fetch(`${ORIGIN}/auth/owner`)).status).toBe(405);
+  it("starts the owner's sign-in at Yahoo, though the league import is parked", async () => {
+    const res = await SELF.fetch(`${ORIGIN}/auth/owner/start`, { redirect: 'manual' });
+    expect(res.status).toBe(302);
+    const auth = new URL(res.headers.get('location')!);
+    expect(auth.origin + auth.pathname).toBe('https://api.login.yahoo.com/oauth2/request_auth');
+    expect(auth.searchParams.get('redirect_uri')).toBe(`${ORIGIN}/auth/yahoo/callback`);
+    expect(res.headers.get('set-cookie')).toMatch(/^fs_owner_state=owner-[\w-]+; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=600$/);
+    // Without the owner's state, the callback belongs to the parked import.
+    expect((await SELF.fetch(`${ORIGIN}/auth/yahoo/callback?code=c&state=s`, { redirect: 'manual' })).status).toBe(404);
+    const out = await SELF.fetch(`${ORIGIN}/auth/owner/logout`, { redirect: 'manual' });
+    expect(out.headers.get('set-cookie')).toContain('Max-Age=0');
     expect((await SELF.fetch(`${ORIGIN}/data/latest.json`, { method: 'POST' })).status).toBe(405);
   });
 });

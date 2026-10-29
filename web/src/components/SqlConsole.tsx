@@ -287,14 +287,33 @@ function Console() {
 
 type Access = 'checking' | 'owner' | 'signin' | 'closed';
 
+/** What the sign-in came back with, from the Worker's redirect. */
+function signInNote(params: URLSearchParams): string | null {
+  switch (params.get('signin')) {
+    case 'notowner': {
+      const account = params.get('account') ?? '';
+      return `That Yahoo account (id ${account}) is not the site's owner. If it is yours, set the repository variable OWNER_YAHOO_GUID to ${account} and re-run Deploy web.`;
+    }
+    case 'noid':
+      return 'Yahoo signed you in but did not say which account it was, so the owner could not be checked.';
+    case 'failed':
+      return 'The Yahoo sign-in did not complete; try again.';
+    case 'unavailable':
+      return 'Signing in is not set up on this site.';
+    default:
+      return null;
+  }
+}
+
 /**
  * The console reads the full tables, which only the site's owner may load (ADR 0008): the Worker
- * serves the Parquet files to a signed-in owner and to no one else. Without the Worker (local
- * development, the test server) there is nothing to sign in to, and the console opens.
+ * serves the Parquet files to the owner, signed in with their Yahoo account, and to no one else.
+ * Without the Worker (local development, the test server) there is nothing to sign in to, and the
+ * console opens.
  */
 export default function SqlConsole() {
   const [access, setAccess] = useState<Access>('checking');
-  const failed = new URLSearchParams(window.location.search).get('signin') === 'failed';
+  const note = signInNote(new URLSearchParams(window.location.search));
   useEffect(() => {
     fetch(href('/api/owner/status'), { headers: { accept: 'application/json' } })
       .then((res) => (res.ok ? (res.json() as Promise<{ configured: boolean; owner: boolean }>) : Promise.reject(new Error(String(res.status)))))
@@ -312,25 +331,20 @@ export default function SqlConsole() {
   }
   if (access === 'signin') {
     return (
-      <form method="post" action={href('/auth/owner')} className="grid max-w-md gap-3 rounded-lg border border-line bg-card p-4 text-sm" data-testid="owner-signin">
+      <div className="grid max-w-xl gap-3 rounded-lg border border-line bg-card p-4 text-sm" data-testid="owner-signin">
         <p>
           The console queries the full tables behind the site: every box score, play and shot. The sources&apos; terms keep a database like that off a
           public site, so it is open to the site&apos;s owner only. Everything derived from it, from the board to the notebooks, stays public.
         </p>
-        <label className="grid gap-1">
-          <span className="text-xs text-muted">Owner key</span>
-          <input type="password" name="key" required autoComplete="current-password" className="rounded border border-line bg-bg px-2 py-1" />
-        </label>
-        <input type="hidden" name="next" value="/sql/" />
-        {failed && (
-          <p role="alert" className="text-bad">
-            That key did not match.
+        {note && (
+          <p role="alert" className="text-bad" data-testid="signin-note">
+            {note}
           </p>
         )}
-        <button type="submit" className="justify-self-start rounded border border-accent bg-accent px-3 py-1 text-accent-fg">
-          Sign in
-        </button>
-      </form>
+        <a href={href('/auth/owner/start')} className="justify-self-start rounded border border-accent bg-accent px-3 py-1 text-accent-fg">
+          Sign in with Yahoo
+        </a>
+      </div>
     );
   }
   return (

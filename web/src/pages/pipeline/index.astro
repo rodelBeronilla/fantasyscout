@@ -306,7 +306,7 @@ const link = 'underline underline-offset-4';
           <code>/p/&lt;league&gt;/&lt;id&gt;/</code> are rewritten to one page. The content security policy allows inline
           code only by hash, WebAssembly for DuckDB, DuckDB's extension host and the Tableau embed; the dbt docs and the
           notebook pages have their own policies. Pages read the build in the browser; the Schema and Pipeline pages are
-          built from the project instead. The SQL console loads DuckDB-WASM from R2 and reads the build's Parquet by range; the Parquet tables are private to the site's owner (ADR 0008), so the console asks for the owner's key, and the notebooks and the Tableau extract send it from CI.
+          built from the project instead. The SQL console loads DuckDB-WASM from R2 and reads the build's Parquet by range; the Parquet tables are private to the site's owner (ADR 0008), so the console asks the owner to sign in with Yahoo, and the notebooks and the Tableau extract read with a key CI derives from the Yahoo client secret.
         </p>
         <p class="mt-2">
           The site deploys when its code changes, never when data does: production from <code>main</code>, a preview Worker
