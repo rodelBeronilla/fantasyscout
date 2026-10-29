@@ -73,7 +73,7 @@ test('streamers can be filtered by position and re-sorted', async ({ page }) => 
   expect(pts[0]).toBeGreaterThanOrEqual(pts[pts.length - 1] ?? 0);
 });
 
-test('the board switches between blended, recent and per-game views', async ({ page }) => {
+test('the board switches between value, recent, projected and per-game views', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
   await expect(board.locator('tbody tr').first()).toBeVisible();
@@ -86,6 +86,10 @@ test('the board switches between blended, recent and per-game views', async ({ p
   expect(pts[0]).toBeGreaterThanOrEqual(pts[1] ?? 0);
   await page.getByRole('radio', { name: 'Last 10 games' }).click();
   await expect(board.locator('thead')).toContainText('Total');
+  await page.getByRole('radio', { name: 'Projected line' }).click();
+  await expect(board.locator('thead')).toContainText('MIN');
+  await expect(board.locator('thead')).not.toContainText('Total');
+  await expect(board.locator('tbody tr').first().locator('td:nth-child(6)')).toHaveText(/^\d+(\.\d+)?$/);
 });
 
 test('the board filters by position and shows injury tags', async ({ page }) => {

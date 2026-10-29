@@ -17,6 +17,7 @@ interface BoardRow {
   rank_total: number;
   value_total: number | null;
   value_rest_of_season: number | null;
+  ros_factor: number | null;
   availability_multiplier: number | null;
   season_complete: boolean;
   games_remaining: number | null;
@@ -36,22 +37,29 @@ interface BoardRow {
   turnovers_pg: number | null;
   field_goal_pct: number | null;
   free_throw_pct: number | null;
+  games_prev: number | null;
+  w_prior: number | null;
   [key: string]: unknown;
 }
 
-type View = 'blend' | 'recent' | 'pergame';
+type View = 'value' | 'recent' | 'projected' | 'pergame';
 
 const VIEWS: { id: View; label: string; help: string }[] = [
   {
-    id: 'blend',
-    label: 'Blended value',
-    help: 'Category z-scores blended across this season and the two before; this season counts for more as games accumulate.',
+    id: 'value',
+    label: 'Value',
+    help: 'Category value above replacement from each player’s projected line; zero is a player you could pick up for free.',
   },
   { id: 'recent', label: 'Last 10 games', help: 'Category z-scores over each player’s last ten games this season.' },
+  {
+    id: 'projected',
+    label: 'Projected line',
+    help: 'The per-game line the value is scored on: this season and the two before by games played, recent seasons counting more, starting from a replacement-level line.',
+  },
   { id: 'pergame', label: 'Per game', help: 'This season’s per-game line; percentages are makes over attempts.' },
 ];
 
-const PER_GAME: { key: keyof BoardRow; label: string; kind: 'num' | 'pct' }[] = [
+const LINE: { key: string; label: string; kind: 'num' | 'pct' }[] = [
   { key: 'minutes_pg', label: 'MIN', kind: 'num' },
   { key: 'points_pg', label: 'PTS', kind: 'num' },
   { key: 'rebounds_total_pg', label: 'REB', kind: 'num' },
@@ -63,6 +71,13 @@ const PER_GAME: { key: keyof BoardRow; label: string; kind: 'num' | 'pct' }[] = 
   { key: 'free_throw_pct', label: 'FT%', kind: 'pct' },
   { key: 'turnovers_pg', label: 'TO', kind: 'num' },
 ];
+
+/** The columns of a line view: this season's line, or the projection's (proj_ prefix). */
+function lineColumns(view: View): { key: string; label: string; kind: 'num' | 'pct' }[] {
+  return LINE.map((c) => ({ ...c, key: view === 'projected' ? `proj_${c.key}` : c.key }));
+}
+
+const isLine = (view: View) => view === 'pergame' || view === 'projected';
 
 const PAGE = 100;
 
@@ -79,7 +94,7 @@ export default function Board() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<BoardRow[] | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [view, setView] = useState<View>('blend');
+  const [view, setView] = useState<View>('value');
   const [punts, setPunts] = useState<Set<string>>(new Set());
   const [restOfSeason, setRestOfSeason] = useState(false);
   const [team, setTeam] = useState('');
@@ -117,13 +132,14 @@ export default function Board() {
     const active = CATEGORIES.filter((c) => !punts.has(c));
     return rows.map((r) => {
       let value: number | null;
-      if (view === 'pergame') {
-        value = num(r, 'points_pg');
+      if (isLine(view)) {
+        value = num(r, view === 'projected' ? 'proj_points_pg' : 'points_pg');
       } else {
         const parts = active.map((c) => num(r, zKey(view, c)));
         value = parts.every((p) => p === null) ? null : parts.reduce<number>((s, p) => s + (p ?? 0), 0);
-        if (value !== null && view === 'blend' && restOfSeason && !r.season_complete && r.value_total) {
-          value *= (r.value_rest_of_season ?? r.value_total) / r.value_total;
+        // Only value above replacement scales: a game missed by a player not worth rostering costs nothing.
+        if (value !== null && value > 0 && view === 'value' && restOfSeason && !r.season_complete) {
+          value *= r.ros_factor ?? 1;
         }
       }
       return { row: r, value };
@@ -137,7 +153,7 @@ export default function Board() {
       .filter(({ row }) => (row.games_current ?? 0) >= minGames)
       .filter(({ row }) => !hideOut || row.injury_group !== 'out')
       .filter(({ row }) => !query || (row.full_name ?? '').toLowerCase().includes(query.toLowerCase()))
-      .filter(({ value }) => view === 'blend' || value !== null);
+      .filter(({ value }) => view === 'value' || value !== null);
     const get = (s: (typeof filtered)[number]): number | string | null => {
       if (sortKey === 'value') return s.value;
       if (sortKey === 'name') return s.row.full_name;
@@ -164,20 +180,23 @@ export default function Board() {
     setSortDir('desc');
   };
   const showNext7 = !meta.complete;
-  const categoryColumns = view === 'pergame' ? PER_GAME.map((c) => ({ key: c.key as string, label: c.label })) : CATEGORIES.map((c) => ({ key: zKey(view, c), label: CATEGORY_LABELS[c] ?? c, category: c }));
+  const categoryColumns = isLine(view)
+    ? lineColumns(view).map((c) => ({ key: c.key, label: c.label }))
+    : CATEGORIES.map((c) => ({ key: zKey(view, c), label: CATEGORY_LABELS[c] ?? c, category: c }));
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {meta.complete ? (
         <Note testid="season-note">
-          The {LEAGUE_LABEL[league]} {meta.season} regular season is over. Values blend the full season with the two before
-          it; rest-of-season ranking returns when the next schedule is out.
+          The {LEAGUE_LABEL[league]} {meta.season} regular season is over. Values project next season from this one and
+          the two before it, for players on a current roster; rest-of-season ranking returns when the next schedule is
+          out.
         </Note>
       ) : (
         <Note testid="season-note">
           {LEAGUE_LABEL[league]} {meta.season}: up to {meta.maxGames} game{meta.maxGames === 1 ? '' : 's'} played and up to{' '}
           {meta.remaining} left per team.
-          {meta.maxGames < 20 ? ' This season’s weight in the blend grows to its full share at 20 games.' : ''}
+          {meta.maxGames < 20 ? ' Projections count this season by games played, so a few games move a value only a little.' : ''}
           {meta.injured ? ` ${meta.injured} players are on the current injury report.` : ''}
         </Note>
       )}
@@ -199,7 +218,7 @@ export default function Board() {
         <span className="text-xs text-muted">{VIEWS.find((v) => v.id === view)?.help}</span>
       </div>
 
-      {view !== 'pergame' && (
+      {!isLine(view) && (
         <fieldset className="flex flex-wrap items-center gap-2">
           <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Punt (drop from the total)</legend>
           {CATEGORIES.map((c) => (
@@ -207,7 +226,7 @@ export default function Board() {
               {CATEGORY_LABELS[c]}
             </Chip>
           ))}
-          {view === 'blend' && (
+          {view === 'value' && (
             <label className={`ml-2 flex items-center gap-2 text-sm ${meta.complete ? 'text-muted' : ''}`}>
               <input
                 type="checkbox"
@@ -215,7 +234,7 @@ export default function Board() {
                 disabled={meta.complete}
                 onChange={(e) => setRestOfSeason(e.target.checked)}
               />
-              Rest of season (games left × availability)
+              Rest of season (value above replacement × games left × availability)
             </label>
           )}
         </fieldset>
@@ -292,12 +311,12 @@ export default function Board() {
               {categoryColumns.map((c) => {
                 const punted = 'category' in c && punts.has(c.category as string);
                 return (
-                  <SortTh key={c.key} right active={sortKey === c.key} dir={sortDir} onClick={() => sortBy(c.key, c.label === 'TO' && view === 'pergame' ? 'asc' : 'desc')}>
+                  <SortTh key={c.key} right active={sortKey === c.key} dir={sortDir} onClick={() => sortBy(c.key, c.label === 'TO' && isLine(view) ? 'asc' : 'desc')}>
                     {punted ? <s>{c.label}</s> : c.label}
                   </SortTh>
                 );
               })}
-              {view !== 'pergame' && (
+              {!isLine(view) && (
                 <SortTh right active={sortKey === 'value'} dir={sortDir} onClick={() => sortBy('value')}>
                   Total
                 </SortTh>
@@ -324,10 +343,10 @@ export default function Board() {
                 <Td>{row.position ?? '–'}</Td>
                 <Td right>{row.games_current ?? 0}</Td>
                 {showNext7 && <Td right>{row.games_next_7 ?? 0}</Td>}
-                {view === 'pergame'
-                  ? PER_GAME.map((c) => (
-                      <Td key={c.key as string} right>
-                        {c.kind === 'pct' ? pct(num(row, c.key as string)) : fmt(num(row, c.key as string))}
+                {isLine(view)
+                  ? lineColumns(view).map((c) => (
+                      <Td key={c.key} right>
+                        {c.kind === 'pct' ? pct(num(row, c.key)) : fmt(num(row, c.key))}
                       </Td>
                     ))
                   : CATEGORIES.map((c) => (
@@ -335,7 +354,7 @@ export default function Board() {
                         <Signed value={punts.has(c) ? null : num(row, zKey(view, c))} />
                       </Td>
                     ))}
-                {view !== 'pergame' && (
+                {!isLine(view) && (
                   <Td right>
                     <strong>{fmt(value, 2)}</strong>
                   </Td>

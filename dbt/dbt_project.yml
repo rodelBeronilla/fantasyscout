@@ -23,6 +23,19 @@ vars:
   # The Databricks target always reads the Unity Catalog volume (see macros/landing.sql).
   landing_root: "{{ env_var('FS_LANDING_ROOT', 'sample') }}"
 
+  # The fantasy league the board values players for (mart_player_projection, mart_board):
+  # teams x roster spots is the pool of rostered players; replacement level is the next
+  # `teams` players. prior_games is how many games of a replacement-level line every
+  # projection starts from, so a short sample moves a projection only part of the way.
+  # recency weights the current season and the two before it, per game played. Both were
+  # chosen by backtest over 2021-2026 (ADR 0003): they put the most of each predicted top tier
+  # and rostered pool into the actual ones, before a season and a tenth, a quarter and half
+  # way in.
+  fantasy:
+    nba: {teams: 12, roster_spots: 13, prior_games: 3}
+    wnba: {teams: 10, roster_spots: 10, prior_games: 5}
+  fantasy_recency: [1.0, 0.25, 0.08]
+
 models:
   fantasyscout:
     +persist_docs:

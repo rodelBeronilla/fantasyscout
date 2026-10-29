@@ -177,14 +177,33 @@ models:
           - accepted_values:
               values: [season, last_10, last_20]
 
+  - name: mart_player_projection
+    description: "One projected per-game line per player on a current roster: the current season and the two before, weighted by games and recency, starting from a replacement-level line."
+    columns:
+      - name: projection_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: sample_weight
+        description: "Games behind the projection, each season's games times its recency weight"
+        data_tests: [not_null]
+      - name: w_prior
+        description: "Share of the projection that is the replacement-level line"
+        data_tests: [not_null]
+      - name: proj_points_pg
+        description: "Projected points per game"
+        data_tests: [not_null]
+
   - name: mart_board
-    description: "The board: blended value per player for the latest season, recent form, the per-game line, injury status and rest-of-season scaling."
+    description: "The board: value above replacement per rostered player from the projected line, recent form, the per-game line, injury status and rest-of-season scaling."
     columns:
       - name: board_sk
         description: "Surrogate key"
         data_tests: [unique, not_null]
       - name: value_total
-        description: "Blended z-score total"
+        description: "Sum of the nine category values above replacement (zero is a freely available player)"
+        data_tests: [not_null]
+      - name: ros_factor
+        description: "Remaining share of the team's regular season times availability (1.0 once the regular season is over)"
         data_tests: [not_null]
       - name: availability_multiplier
         description: "Share of the team's remaining regular-season games the player is expected to play (1.0 once the regular season is over)"
@@ -193,7 +212,7 @@ models:
         description: "True when the league has no regular-season games left (playoffs or off-season)"
         data_tests: [not_null]
       - name: value_rest_of_season
-        description: "Blend scaled by remaining schedule share and availability; equals the blend between seasons"
+        description: "Value above replacement scaled by ros_factor; a value below replacement is unscaled"
         data_tests: [not_null]
 
   - name: mart_schedule_upcoming
