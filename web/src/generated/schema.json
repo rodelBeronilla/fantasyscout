@@ -227,7 +227,7 @@
   ],
   "fantasy_team_change": 0.25
  },
- "generic_tests": 200,
+ "generic_tests": 207,
  "layers": [
   {
    "models": [
@@ -354,7 +354,8 @@
      "name": "espn_injuries",
      "notes": [],
      "read_by": [
-      "injuries"
+      "injuries",
+      "injury_status_history"
      ],
      "reads": []
     },
@@ -4863,6 +4864,97 @@
      "checks": [],
      "columns": [
       {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "injury_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League, injury id and run number; unique per row",
+       "name": "status_run_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "1 for the listing's first status, then one more at each change",
+       "name": "run_no",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "",
+       "name": "athlete_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The status ESPN gave in these reports",
+       "name": "status",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the first report with this status",
+       "name": "status_from",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "Ingest date of the last report with this status",
+       "name": "status_to",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Daily reports the status appeared in",
+       "name": "reports",
+       "tests": [],
+       "type": "bigint"
+      }
+     ],
+     "description": "Every status an injury listing has held, from the daily ESPN reports: one row per run of the same status, with the first and last report it appeared in.",
+     "materialized": "table",
+     "name": "injury_status_history",
+     "notes": [
+      "Every status an injury listing has held, from the daily ESPN injury reports: one row per run of the same status, with the first and last report it appeared in. silver.injuries keeps only the latest listing; this keeps how it got there (Questionable, then Out, then Day-To-Day). A listing that stops appearing has come off the report. Reports are daily, so a date here is the ingest date of the report, not the hour the team announced it."
+     ],
+     "read_by": [
+      "fct_availability",
+      "fct_injury_status"
+     ],
+     "reads": [
+      "espn_injuries"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "league",
        "name": "league",
        "tests": [
@@ -7402,6 +7494,30 @@
        "type": "varchar"
       },
       {
+       "description": "ESPN's news on the injury, the longer note",
+       "name": "long_comment",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's fantasy status for the listing",
+       "name": "fantasy_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the first report the listing appeared in",
+       "name": "listed_since",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Ingest date of the first report with the listing's latest status",
+       "name": "status_since",
+       "tests": [],
+       "type": "date"
+      },
+      {
        "description": "",
        "name": "reported_date",
        "tests": [],
@@ -7433,9 +7549,10 @@
      "name": "fct_availability",
      "notes": [
       "Player × report from ESPN's injury report, linked to the league player id.",
-      "The injury feed names the athlete but carries no athlete id, so the link is made by name within the team: first to the ESPN roster (which has the athlete id) and through the player crosswalk to the league id; failing that, straight to the league player currently on that team (team crosswalk). is_current marks the rows of the latest report per league, the ones the board and streamers read; older listings stay for history. expected_return is a date when ESPN gives one."
+      "The injury feed names the athlete but carries no athlete id, so the link is made by name within the team: first to the ESPN roster (which has the athlete id) and through the player crosswalk to the league id; failing that, straight to the league player currently on that team (team crosswalk). is_current marks the rows of the latest report per league, the ones the board and streamers read; older listings stay for history. expected_return is a date when ESPN gives one. listed_since is the first report the listing appeared in and status_since the first report of its latest status (silver.injury_status_history); long_comment is ESPN's news on the injury."
      ],
      "read_by": [
+      "fct_injury_status",
       "mart_board",
       "mart_streamers"
      ],
@@ -7443,6 +7560,7 @@
       "dim_player",
       "espn_roster_players",
       "injuries",
+      "injury_status_history",
       "player_xwalk",
       "team_xwalk"
      ]
@@ -7667,6 +7785,93 @@
       "event_lineups",
       "events",
       "games"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key",
+       "name": "injury_status_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "injury_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id, through the listing's link in fct_availability; null when no match",
+       "name": "stats_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "athlete_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "out, day_to_day, questionable, doubtful or other",
+       "name": "status_group",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the first report with this status",
+       "name": "status_from",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Ingest date of the last report with this status",
+       "name": "status_to",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "reports",
+       "tests": [],
+       "type": "bigint"
+      }
+     ],
+     "description": "Each player's injury statuses over time: one row per run of the same status on an injury listing, from the daily reports.",
+     "materialized": "table",
+     "name": "fct_injury_status",
+     "notes": [
+      "Each player's injury statuses over time, linked to the league player id: one row per run of the same status on an injury listing (silver.injury_status_history), with the first and last daily report it appeared in. The player page draws a player's injury history from it."
+     ],
+     "read_by": [],
+     "reads": [
+      "fct_availability",
+      "injury_status_history"
      ]
     },
     {
@@ -9012,6 +9217,18 @@
        "name": "injury_note",
        "tests": [],
        "type": "varchar"
+      },
+      {
+       "description": "ESPN's news on the player's current injury",
+       "name": "injury_news",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the first report with the injury's current status",
+       "name": "injury_since",
+       "tests": [],
+       "type": "date"
       },
       {
        "description": "Share of the team's remaining regular-season games the player is expected to play (1.0 once the regular season is over)",

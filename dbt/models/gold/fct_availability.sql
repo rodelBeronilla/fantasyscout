@@ -6,7 +6,9 @@
   crosswalk to the league id; failing that, straight to the league player currently on that
   team (team crosswalk). is_current marks the rows of the latest report per league, the ones
   the board and streamers read; older listings stay for history. expected_return is a date when
-  ESPN gives one.
+  ESPN gives one. listed_since is the first report the listing appeared in and status_since the
+  first report of its latest status (silver.injury_status_history); long_comment is ESPN's
+  news on the injury.
 #}
 
 with injuries as (
@@ -54,6 +56,18 @@ via_name as (
         on lp.league = i.league and lp.espn_team_id = i.team_id and lp.norm_name = i.norm_name
     qualify row_number() over (partition by i.league, i.injury_id order by lp.stats_player_id) = 1
 
+),
+
+history as (
+
+    select
+        league,
+        injury_id,
+        min(status_from) over (partition by league, injury_id) as listed_since,
+        status_from as status_since
+    from {{ ref('injury_status_history') }}
+    qualify row_number() over (partition by league, injury_id order by run_no desc) = 1
+
 )
 
 select
@@ -78,6 +92,10 @@ select
     i.injury_type,
     try_cast(substr(i.return_date, 1, 10) as date) as expected_return,
     i.short_comment,
+    i.long_comment,
+    i.fantasy_status,
+    h.listed_since,
+    h.status_since,
     i.reported_date,
     i.is_current,
     'espn' as source,
@@ -85,6 +103,8 @@ select
 from injuries as i
 left join via_roster as vr
     on vr.league = i.league and vr.injury_id = i.injury_id
+left join history as h
+    on h.league = i.league and h.injury_id = i.injury_id
 left join {{ ref('player_xwalk') }} as px
     on px.league = i.league and px.espn_player_id = vr.espn_player_id
 left join via_name as vn

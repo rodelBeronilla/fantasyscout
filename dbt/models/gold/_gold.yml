@@ -141,9 +141,36 @@ models:
               to: ref('dim_game')
               field: game_sk
 
+  - name: fct_injury_status
+    description: "Each player's injury statuses over time: one row per run of the same status on an injury listing, from the daily reports."
+    columns:
+      - name: injury_status_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: stats_player_id
+        description: "League player id, through the listing's link in fct_availability; null when no match"
+      - name: status_group
+        description: "out, day_to_day, questionable, doubtful or other"
+        data_tests:
+          - accepted_values:
+              values: [out, day_to_day, questionable, doubtful, other]
+      - name: status_from
+        description: "Ingest date of the first report with this status"
+      - name: status_to
+        description: "Ingest date of the last report with this status"
+
   - name: fct_availability
     description: "Player × report day from the injury report."
     columns:
+      - name: long_comment
+        description: "ESPN's news on the injury, the longer note"
+      - name: fantasy_status
+        description: "ESPN's fantasy status for the listing"
+      - name: listed_since
+        description: "Ingest date of the first report the listing appeared in"
+      - name: status_since
+        description: "Ingest date of the first report with the listing's latest status"
+
       - name: availability_sk
         description: "Surrogate key"
         data_tests: [unique, not_null]
@@ -202,6 +229,11 @@ models:
   - name: mart_board
     description: "The board: value above replacement per rostered player from the projected line, recent form, the per-game line, injury status and rest-of-season scaling."
     columns:
+      - name: injury_news
+        description: "ESPN's news on the player's current injury"
+      - name: injury_since
+        description: "Ingest date of the first report with the injury's current status"
+
       - name: board_sk
         description: "Surrogate key"
         data_tests: [unique, not_null]

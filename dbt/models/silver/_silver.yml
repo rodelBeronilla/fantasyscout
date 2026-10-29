@@ -244,6 +244,25 @@ models:
         description: "team id"
         data_tests: [not_null]
 
+  - name: injury_status_history
+    description: "Every status an injury listing has held, from the daily ESPN reports: one row per run of the same status, with the first and last report it appeared in."
+    columns:
+      - name: status_run_key
+        description: "League, injury id and run number; unique per row"
+        data_tests: [unique, not_null]
+      - name: run_no
+        description: "1 for the listing's first status, then one more at each change"
+      - name: status
+        description: "The status ESPN gave in these reports"
+        data_tests: [not_null]
+      - name: status_from
+        description: "Ingest date of the first report with this status"
+        data_tests: [not_null]
+      - name: status_to
+        description: "Ingest date of the last report with this status"
+      - name: reports
+        description: "Daily reports the status appeared in"
+
   - name: injuries
     description: "One row per injury listing from ESPN's report."
     columns:

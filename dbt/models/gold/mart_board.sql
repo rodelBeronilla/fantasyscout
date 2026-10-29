@@ -172,7 +172,8 @@ league_state as (
 
 injury as (
 
-    select league, stats_player_id, status, status_group, injury_type, expected_return, short_comment
+    select league, stats_player_id, status, status_group, injury_type, expected_return, short_comment,
+        long_comment, status_since
     from {{ ref('fct_availability') }}
     where is_current and stats_player_id is not null
     qualify row_number() over (
@@ -234,6 +235,8 @@ assembled as (
         i.injury_type,
         i.expected_return,
         i.short_comment as injury_note,
+        i.long_comment as injury_news,
+        i.status_since as injury_since,
         case
             when coalesce(ls.season_complete, true) or coalesce(r.games_remaining, 0) = 0 or i.status_group is null then 1.0
             else greatest(0.0, (r.games_remaining - case i.status_group
@@ -330,6 +333,8 @@ select
     injury_type,
     expected_return,
     injury_note,
+    injury_news,
+    injury_since,
     availability_multiplier,
     games_remaining,
     games_next_7,

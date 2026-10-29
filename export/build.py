@@ -171,8 +171,10 @@ def assemble(
         "fct_shot",
     )
     player_count = 0
+    # Optional: a build without it still writes player files, without the injury history.
+    optional = ("fct_injury_status",)
     if all(n in tables for n in needed):
-        maker = PlayerFiles({n: tables[n] for n in needed})
+        maker = PlayerFiles({n: tables[n] for n in (*needed, *optional) if n in tables})
         try:
             for (league, player_id), payload in maker.build().items():
                 build.files[f"players/{league}/{player_id}.json"] = to_json(payload)

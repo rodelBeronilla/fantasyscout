@@ -550,3 +550,29 @@ test('streamers show the points the betting lines imply, in the grid and per pla
   // A player with games in the window shows the average of their team's implied points.
   await expect(table.locator('tbody td', { hasText: /^(82\.3|77\.8|80\.0)$/ }).first()).toBeVisible();
 });
+
+test("an injured player's page shows the injury, since when, the news and how the status changed", async ({ page }) => {
+  // The fixture build predates the news and the history: add them to every player file.
+  await page.route(/\/players\/wnba\/[^/]+\.json$/, async (route) => {
+    const file = (await (await route.fetch()).json()) as { board: Record<string, unknown> | null };
+    if (file.board) Object.assign(file.board, { injury_since: '2026-10-20', injury_news: 'Out after an MRI on the knee.' });
+    await route.fulfill({
+      json: {
+        ...file,
+        injury_history: [
+          { injury_id: 'i1', status: 'Out', status_group: 'out', status_from: '2026-10-20', status_to: '2026-10-28', reports: 9 },
+          { injury_id: 'i1', status: 'Day-To-Day', status_group: 'day_to_day', status_from: '2026-10-18', status_to: '2026-10-19', reports: 2 },
+        ],
+      },
+    });
+  });
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await page.getByTestId('board-more').click();
+  const injured = board.locator('tbody tr[data-player]', { has: page.getByTestId('injury-tag') }).first();
+  await injured.locator('a').first().click();
+  const card = page.getByTestId('injury-card');
+  await expect(card).toContainText('since Oct 20, 2026');
+  await expect(card.getByTestId('injury-news')).toHaveText('Out after an MRI on the knee.');
+  await expect(card.getByTestId('injury-history').locator('li')).toHaveCount(2);
+});
