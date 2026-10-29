@@ -301,10 +301,18 @@ class StatsIngestor:
     def _clock(self) -> datetime:
         return self._now or datetime.now(UTC)
 
-    def fetch(self, request: Request) -> tuple[LandResult | None, bytes | None]:
-        """Land one request. Returns (result, body); result is None when already landed today."""
+    def fetch(
+        self, request: Request, played: date | None = None
+    ) -> tuple[LandResult | None, bytes | None]:
+        """Land one request. Returns (result, body); result is None when it was skipped.
+
+        A request is skipped when it already landed today, or, for a game played on ``played``,
+        when its payload is settled (landed at least two days after the game).
+        """
         league = self.planner.league
         scope = Scope(SOURCE, request.endpoint, league, self.planner.season)
+        if played is not None and self.landing.settled(scope, request.key, played):
+            return None, None
         if self.landing.already_landed_today(scope, request.key):
             return None, self.landing.read_latest(scope, request.key)
         url = request.url(league)
@@ -323,9 +331,11 @@ class StatsIngestor:
         )
         return result, response.content
 
-    def _try(self, request: Request, summary: RunSummary) -> bytes | None:
+    def _try(
+        self, request: Request, summary: RunSummary, played: date | None = None
+    ) -> bytes | None:
         try:
-            result, body = self.fetch(request)
+            result, body = self.fetch(request, played)
         except CircuitOpenError:
             raise  # the host stopped answering: stop the run rather than hammer it
         except Exception as exc:  # a failed request never fails the run
@@ -364,7 +374,7 @@ class StatsIngestor:
         for game in games:
             team_ids |= game.team_ids
             for request in self.planner.game_requests(game.game_id):
-                self._try(request, summary)
+                self._try(request, summary, played=game.game_date)
         for request in self.planner.shot_requests(team_ids):
             self._try(request, summary)
         # Every team's roster, every run, not only teams that played in the window: out of
