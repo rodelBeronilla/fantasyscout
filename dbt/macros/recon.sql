@@ -7,27 +7,28 @@
 {#
   A name reduced to lowercase ASCII letters: accents folded, generational suffixes dropped,
   everything that is not a letter removed. "A'ja Wilson" and "Aja Wilson" agree; so do
-  "Luka Doncic" and "Luka Dončić", and "Gary Payton II" and "Gary Payton".
+  "Luka Doncic" and "Luka Dončić", and "Gary Payton II" and "Gary Payton". keep_suffix keeps
+  the suffix, for telling "Carter Jr." from a teammate named Carter.
 #}
-{% macro norm_name(col) -%}
-  {{ return(adapter.dispatch('norm_name', 'fantasyscout')(col)) }}
+{% macro norm_name(col, keep_suffix=false) -%}
+  {{ return(adapter.dispatch('norm_name', 'fantasyscout')(col, keep_suffix)) }}
 {%- endmacro %}
 
-{% macro default__norm_name(col) -%}
+{% macro default__norm_name(col, keep_suffix=false) -%}
   regexp_replace(
     translate(
-      regexp_replace(regexp_replace(lower({{ col }}), '[(][^)]*[)]', ''), '[ ]+(jr|sr|ii|iii|iv)[.]?$', ''),
-      'áàâäãåéèêëíìîïóòôöõúùûüñçýÿ', 'aaaaaaeeeeiiiiooooouuuuncyy'
+      {% if keep_suffix %}regexp_replace(lower({{ col }}), '[(][^)]*[)]', ''){% else %}regexp_replace(regexp_replace(lower({{ col }}), '[(][^)]*[)]', ''), '[ ]+(jr|sr|ii|iii|iv)[.]?$', ''){% endif %},
+      'áàâäãåāăąéèêëēėęěíìîïīįıóòôöõøōőúùûüūůűųñńňçćčýÿśšşźżžđďłľĺŕřťğ', 'aaaaaaaaaeeeeeeeeiiiiiiioooooooouuuuuuuunnncccyyssszzzddlllrrtg'
     ),
     '[^a-z]', '', 'g'
   )
 {%- endmacro %}
 
-{% macro databricks__norm_name(col) -%}
+{% macro databricks__norm_name(col, keep_suffix=false) -%}
   regexp_replace(
     translate(
-      regexp_replace(regexp_replace(lower({{ col }}), '[(][^)]*[)]', ''), '[ ]+(jr|sr|ii|iii|iv)[.]?$', ''),
-      'áàâäãåéèêëíìîïóòôöõúùûüñçýÿ', 'aaaaaaeeeeiiiiooooouuuuncyy'
+      {% if keep_suffix %}regexp_replace(lower({{ col }}), '[(][^)]*[)]', ''){% else %}regexp_replace(regexp_replace(lower({{ col }}), '[(][^)]*[)]', ''), '[ ]+(jr|sr|ii|iii|iv)[.]?$', ''){% endif %},
+      'áàâäãåāăąéèêëēėęěíìîïīįıóòôöõøōőúùûüūůűųñńňçćčýÿśšşźżžđďłľĺŕřťğ', 'aaaaaaaaaeeeeeeeeiiiiiiioooooooouuuuuuuunnncccyyssszzzddlllrrtg'
     ),
     '[^a-z]', ''
   )
