@@ -145,7 +145,7 @@ function TierHead({ tier, columns, left, size }: { tier: Tier | null; columns: n
             <>
               <strong className="text-accent">Tier {tier.tier}</strong>{' '}
               <span className="text-muted">
-                · picks {tier.start + 1}–{tier.end + 1} ({roundsLabel(tier)}) · value {fmt(tier.high, 1)} to {fmt(tier.low, 1)}
+                · {tier.start === tier.end ? `pick ${tier.start + 1}` : `picks ${tier.start + 1}–${tier.end + 1}`} ({roundsLabel(tier)}) · value {tier.start === tier.end ? fmt(tier.high, 1) : `${fmt(tier.high, 1)} to ${fmt(tier.low, 1)}`}
                 {left !== null ? ` · ${left} of ${size} available` : ''}
               </span>
             </>
