@@ -7,7 +7,7 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
-import { Chip, InjuryTag, Loading, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
+import { Chip, InjuryTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface BoardRow {
   player_id: string;
@@ -33,6 +33,8 @@ interface BoardRow {
   value_per_game: number | null;
   age: number | null;
   is_rookie: boolean | null;
+  is_new_team: boolean | null;
+  prev_team_abbreviation: string | null;
   proj_minutes_pg: number | null;
   [key: string]: unknown;
 }
@@ -106,6 +108,7 @@ export default function Board() {
   const [minMinutes, setMinMinutes] = useState(0);
   const [availability, setAvailability] = useState<Availability>('all');
   const [rookiesOnly, setRookiesOnly] = useState(false);
+  const [movedOnly, setMovedOnly] = useState(false);
   const [watchOnly, setWatchOnly] = useState(false);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState('value');
@@ -164,6 +167,7 @@ export default function Board() {
       .filter(({ row }) => (row.proj_minutes_pg ?? 0) >= minMinutes)
       .filter(({ row }) => availability === 'all' || (availability === 'no_out' ? row.injury_group !== 'out' : !row.injury_group))
       .filter(({ row }) => !rookiesOnly || row.is_rookie === true)
+      .filter(({ row }) => !movedOnly || row.is_new_team === true)
       .filter(({ row }) => !watchOnly || watched.has(row.player_id))
       .filter(({ row }) => !q || (row.full_name ?? '').toLowerCase().includes(q))
       .filter(({ value }) => view === 'value' || value !== null);
@@ -175,7 +179,7 @@ export default function Board() {
       return num(s.row, sortKey);
     };
     return sortRows(filtered, get, sortDir);
-  }, [scored, team, positions, minGames, minMinutes, availability, rookiesOnly, watchOnly, watched, query, sortKey, sortDir, view]);
+  }, [scored, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly, watched, query, sortKey, sortDir, view]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
@@ -210,7 +214,7 @@ export default function Board() {
   const valueOf = new Map(scored.map((s) => [s.row.player_id, s.value]));
 
   const exportCsv = () => {
-    const header = ['rank', 'player', 'team', 'position', 'age', 'rookie', 'games', 'games_share', ...categoryColumns.map((c) => c.label)];
+    const header = ['rank', 'player', 'team', 'position', 'age', 'rookie', 'new_team_from', 'games', 'games_share', ...categoryColumns.map((c) => c.label)];
     if (!isLine(view)) header.push('total');
     const body = ranked.map(({ row, value }, i) => {
       const cells: (string | number | boolean | null)[] = [
@@ -220,6 +224,7 @@ export default function Board() {
         row.position,
         row.age,
         row.is_rookie,
+        row.is_new_team ? row.prev_team_abbreviation : null,
         row.games_current,
         row.games_share,
         ...categoryColumns.map((c) => ('category' in c && punts.has(c.category as string) ? null : num(row, c.key))),
@@ -368,6 +373,10 @@ export default function Board() {
           <input type="checkbox" checked={rookiesOnly} onChange={(e) => setRookiesOnly(e.target.checked)} />
           Rookies only
         </label>
+        <label className="flex items-center gap-2 text-sm" title="Players whose current team differs from last season's">
+          <input type="checkbox" checked={movedOnly} onChange={(e) => setMovedOnly(e.target.checked)} />
+          Changed teams
+        </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={watchOnly} onChange={(e) => setWatchOnly(e.target.checked)} />
           Watchlist only ({watched.size})
@@ -492,6 +501,7 @@ export default function Board() {
                         R
                       </span>
                     )}
+                    {row.is_new_team && <NewTeam from={row.prev_team_abbreviation} />}
                     <InjuryTag
                       group={row.injury_group}
                       status={row.injury_status}

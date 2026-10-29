@@ -187,6 +187,8 @@ select
     {%- endfor %}
     bd.rank_total as board_rank,
     bd.value_total as board_value,
+    coalesce(bd.is_new_team, false) as is_new_team,
+    bd.prev_team_abbreviation,
     lr.points_avg_5,
     lr.rebounds_total_avg_5,
     lr.assists_avg_5,

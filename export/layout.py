@@ -161,6 +161,8 @@ BOARD_COLUMNS = (
     "last20_z_total",
     "age",
     "is_rookie",
+    "is_new_team",
+    "prev_team_abbreviation",
 )
 BOARD_SQL = f"""
 select {", ".join(BOARD_COLUMNS)}
@@ -201,6 +203,8 @@ STREAMER_COLUMNS = (
     "last_10_z_free_throw_pct",
     "board_rank",
     "board_value",
+    "is_new_team",
+    "prev_team_abbreviation",
     "points_avg_5",
     "rebounds_total_avg_5",
     "assists_avg_5",
@@ -221,7 +225,8 @@ order by league, minutes_trend desc nulls last, player_id
 
 SCHEDULE_SQL = """
 select league, season, game_id, game_date, days_ahead, game_type,
-    home_team_id, home_team_tricode, away_team_id, away_team_tricode, game_datetime_utc
+    home_team_id, home_team_tricode, away_team_id, away_team_tricode, game_datetime_utc,
+    home_matchup, away_matchup
 from gold.mart_schedule_upcoming
 order by league, game_date, game_id
 """

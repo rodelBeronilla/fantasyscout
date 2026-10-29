@@ -13,6 +13,8 @@ const f = schema.fantasy as {
   fantasy: Record<string, { teams: number; roster_spots: number; prior_games: number; durability_games: number; minutes_recency: number[] }>;
   fantasy_recency: number[];
   fantasy_durability: { typical_share: number };
+  fantasy_team_change: number;
+  fantasy_matchup: { prior_games: number };
 };
 const nba = f.fantasy['nba']!;
 const wnba = f.fantasy['wnba']!;
@@ -217,7 +219,9 @@ const link = 'underline underline-offset-4';
           <li>
             <strong>Projection and value</strong>, as the activity diagram above shows: production per minute (minutes ×
             {f.fantasy_recency.join(', ')} by season), minutes per game (games × {nba.minutes_recency.join(', ')} in the NBA,
-            {wnba.minutes_recency.join(', ')} in the WNBA), {nba.prior_games} or {wnba.prior_games} games of a
+            {wnba.minutes_recency.join(', ')} in the WNBA; a past season spent on another team counts
+            {f.fantasy_team_change} of its minutes, since the role was another team's, while per-minute production carries
+            over), {nba.prior_games} or {wnba.prior_games} games of a
             replacement-level player, two scoring passes over a {nba.teams}×{nba.roster_spots} or {wnba.teams}×{wnba.roster_spots}
             league's pool, replacement level subtracted, then value above replacement times the games share (capped at 1).
             Values below replacement are never scaled.
@@ -230,11 +234,16 @@ const link = 'underline underline-offset-4';
           <li>
             <strong>Streamers</strong> (<a href={m('mart_streamers')} class={link}>mart_streamers</a>) compare each current
             player's last five games (minutes) and last ten (value) with their earlier games blended with their latest
-            earlier season, and carry the board rank and the schedule ahead.
+            earlier season, and carry the board rank and the schedule ahead. Each upcoming game
+            (<a href={m('mart_schedule_upcoming')} class={link}>mart_schedule_upcoming</a>) has a small matchup value for
+            each side, from the opponent's defensive rating and the expected pace, both blending this season to date with
+            last season (last season counting as {f.fantasy_matchup.prior_games} games) and standardised over the league.
           </li>
           <li>
             <strong>Settings chosen by backtest</strong> (ADR 0003): WNBA 2021 to 2026 and NBA 2024-25 and 2025-26, replayed
-            before each season and a tenth, a quarter and half way in.
+            before each season and a twentieth, a tenth, a quarter and half way in. Tested and left out because they did
+            not predict better: counting the current season for more early on, dropping games cut short (often by an
+            injury), and a player's past results against a given opponent.
           </li>
         </ul>
       </section>
