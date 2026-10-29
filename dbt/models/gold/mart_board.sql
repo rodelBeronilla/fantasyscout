@@ -35,7 +35,7 @@
 {% set cats = ['points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made', 'turnovers'] %}
 {% set zcols = ['z_points', 'z_rebounds_total', 'z_assists', 'z_steals', 'z_blocks', 'z_three_pointers_made', 'z_turnovers', 'z_field_goal_pct', 'z_free_throw_pct'] %}
 {% set pgcols = ['minutes_pg', 'points_pg', 'rebounds_total_pg', 'assists_pg', 'steals_pg', 'blocks_pg', 'three_pointers_made_pg', 'turnovers_pg', 'field_goal_pct', 'free_throw_pct'] %}
-{% set projcols = ['proj_minutes_pg', 'proj_points_pg', 'proj_rebounds_total_pg', 'proj_assists_pg', 'proj_steals_pg', 'proj_blocks_pg', 'proj_three_pointers_made_pg', 'proj_turnovers_pg', 'proj_field_goal_pct', 'proj_free_throw_pct'] %}
+{% set projcols = ['proj_minutes_pg', 'proj_points_pg', 'proj_rebounds_total_pg', 'proj_assists_pg', 'proj_steals_pg', 'proj_blocks_pg', 'proj_three_pointers_made_pg', 'proj_turnovers_pg', 'proj_fgm_pg', 'proj_fga_pg', 'proj_ftm_pg', 'proj_fta_pg', 'proj_field_goal_pct', 'proj_free_throw_pct'] %}
 
 with base as (
 

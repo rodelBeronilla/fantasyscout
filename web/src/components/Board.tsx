@@ -7,6 +7,9 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
+import { type Mark, useLeagueSettings, useMarks } from '../lib/fantasy-league';
+import { categoryValues, fitWeights, pointValues, primaryPosition, tierStarts } from '../lib/league-value';
+import { LeagueSettingsPanel, MyTeamPanel } from './BoardPanels';
 import { Chip, InjuryTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface BoardRow {
@@ -94,6 +97,28 @@ function num(row: BoardRow, key: string): number | null {
   return typeof v === 'number' && !Number.isNaN(v) ? v : null;
 }
 
+/** Mine and Taken toggles for a draft or a waiver run. */
+function MarkButtons({ name, mark, onMark }: { name: string; mark: Mark | undefined; onMark: (m: Mark | null) => void }) {
+  const button = (m: Mark, label: string) => (
+    <button
+      type="button"
+      aria-pressed={mark === m}
+      aria-label={`${mark === m ? 'Unmark' : 'Mark'} ${name} as ${m}`}
+      onClick={() => onMark(mark === m ? null : m)}
+      className={`ml-1 rounded border px-1 text-[10px] ${mark === m ? 'border-accent bg-accent text-accent-fg' : 'border-line text-muted hover:text-fg'}`}
+      data-testid={`mark-${m}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <span className="whitespace-nowrap">
+      {button('mine', 'Mine')}
+      {button('taken', 'Taken')}
+    </span>
+  );
+}
+
 export default function Board() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<BoardRow[] | null>(null);
@@ -116,6 +141,21 @@ export default function Board() {
   const [shown, setShown] = useState(PAGE);
   const [compare, setCompare] = useState<string[]>([]);
   const { watched, toggleWatched } = useWatchlist(league);
+  const [settings, setSettings] = useLeagueSettings(league);
+  const { marks, setMark, clearMarks } = useMarks(league);
+  const [show, setShow] = useState<'all' | 'available' | 'mine'>('all');
+  const points = settings.scoring === 'points';
+  const pool = settings.teams * settings.rosterSpots;
+  // 8-cat leagues drop turnovers; on top of that, the manager's own punts.
+  const punted = useMemo(
+    () => (settings.scoring === 'cats8' ? new Set([...punts, 'z_turnovers']) : punts),
+    [punts, settings.scoring],
+  );
+  const activeCats = useMemo(() => CATEGORIES.filter((c) => !punted.has(c)), [punted]);
+  const views = points ? VIEWS.filter((v) => v.id === 'value' || v.id === 'projected') : VIEWS;
+  useEffect(() => {
+    if (points && view !== 'value' && view !== 'projected') setView('value');
+  }, [points, view]);
 
   useEffect(() => {
     let live = true;
@@ -138,25 +178,76 @@ export default function Board() {
     return { season, complete, maxGames, remaining, teams, injured };
   }, [rows]);
 
+  // Category values above this league's replacement level, and points if the league scores points.
+  const leagueCats = useMemo(
+    () => (rows && !points ? categoryValues(rows, activeCats, pool, settings.teams) : null),
+    [rows, points, activeCats, pool, settings.teams],
+  );
+  const leaguePoints = useMemo(
+    () => (rows && points ? pointValues(rows, settings.weights, pool, settings.teams) : null),
+    [rows, points, settings.weights, pool, settings.teams],
+  );
+
+  // The manager's team: its category totals set how much each category counts in Fit.
+  const myTeam = useMemo(() => (rows ?? []).filter((r) => marks.get(r.player_id) === 'mine'), [rows, marks]);
+  const teamTotals = useMemo(() => {
+    if (!leagueCats || myTeam.length === 0) return null;
+    return Object.fromEntries(activeCats.map((c) => [c, myTeam.reduce((s, r) => s + (leagueCats.get(r.player_id)?.[c] ?? 0), 0)]));
+  }, [leagueCats, myTeam, activeCats]);
+  const weights = useMemo(() => (teamTotals ? fitWeights(teamTotals) : null), [teamTotals]);
+  const weakest = useMemo(
+    () => (teamTotals ? Object.entries(teamTotals).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([c]) => c) : []),
+    [teamTotals],
+  );
+
   const scored = useMemo(() => {
     if (!rows) return [];
-    const active = CATEGORIES.filter((c) => !punts.has(c));
+    const scale = (r: BoardRow, v: number) => {
+      // Only value above replacement scales: a game missed by a player not worth rostering costs nothing.
+      let out = v;
+      if (out > 0 && countGames) out *= r.games_share ?? 1;
+      if (out > 0 && restOfSeason && !r.season_complete) out *= r.ros_factor ?? 1;
+      return out;
+    };
     return rows.map((r) => {
       let value: number | null;
+      let fit: number | null = null;
       if (isLine(view)) {
         value = num(r, view === 'projected' ? 'proj_points_pg' : 'points_pg');
+      } else if (view === 'value' && leaguePoints) {
+        value = scale(r, leaguePoints.get(r.player_id)?.value ?? 0);
+      } else if (view === 'value' && leagueCats) {
+        const cats = leagueCats.get(r.player_id) ?? {};
+        value = scale(r, activeCats.reduce((s, c) => s + (cats[c] ?? 0), 0));
+        if (weights) fit = scale(r, activeCats.reduce((s, c) => s + (weights[c] ?? 1) * (cats[c] ?? 0), 0));
       } else {
-        const parts = active.map((c) => num(r, zKey(view, c)));
+        const parts = activeCats.map((c) => num(r, zKey(view, c)));
         value = parts.every((p) => p === null) ? null : parts.reduce<number>((s, p) => s + (p ?? 0), 0);
-        // Only value above replacement scales: a game missed by a player not worth rostering costs nothing.
-        if (value !== null && value > 0 && view === 'value') {
-          if (countGames) value *= r.games_share ?? 1;
-          if (restOfSeason && !r.season_complete) value *= r.ros_factor ?? 1;
-        }
       }
-      return { row: r, value };
+      return { row: r, value, fit };
     });
-  }, [rows, view, punts, restOfSeason, countGames]);
+  }, [rows, view, activeCats, restOfSeason, countGames, leagueCats, leaguePoints, weights]);
+
+  // Position rank and tiers, over the whole league in the current value order.
+  const { posRank, tierOf } = useMemo(() => {
+    const order = [...scored].filter((s) => s.value !== null).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+    const counts = new Map<string, number>();
+    const rank = new Map<string, string>();
+    for (const s of order) {
+      const p = primaryPosition(s.row.position);
+      if (!p) continue;
+      counts.set(p, (counts.get(p) ?? 0) + 1);
+      rank.set(s.row.player_id, `${p}${counts.get(p)}`);
+    }
+    const starts = tierStarts(order.map((s) => s.value ?? 0));
+    const tiers = new Map<string, { tier: number; start: boolean }>();
+    let tier = 0;
+    order.slice(0, 150).forEach((s, i) => {
+      if (starts.has(i)) tier += 1;
+      tiers.set(s.row.player_id, { tier, start: starts.has(i) });
+    });
+    return { posRank: rank, tierOf: tiers };
+  }, [scored]);
 
   const ranked = useMemo(() => {
     const q = query.toLowerCase();
@@ -169,17 +260,20 @@ export default function Board() {
       .filter(({ row }) => !rookiesOnly || row.is_rookie === true)
       .filter(({ row }) => !movedOnly || row.is_new_team === true)
       .filter(({ row }) => !watchOnly || watched.has(row.player_id))
+      .filter(({ row }) => show === 'all' || (show === 'mine' ? marks.get(row.player_id) === 'mine' : !marks.has(row.player_id)))
       .filter(({ row }) => !q || (row.full_name ?? '').toLowerCase().includes(q))
       .filter(({ value }) => view === 'value' || value !== null);
     const get = (s: (typeof filtered)[number]): number | string | null => {
       if (sortKey === 'value') return s.value;
+      if (sortKey === 'fit') return s.fit;
+      if (sortKey === 'fpts') return leaguePoints?.get(s.row.player_id)?.fpts ?? null;
       if (sortKey === 'name') return s.row.full_name;
       if (sortKey === 'team') return s.row.team_abbreviation;
       if (sortKey === 'pos') return s.row.position;
       return num(s.row, sortKey);
     };
     return sortRows(filtered, get, sortDir);
-  }, [scored, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly, watched, query, sortKey, sortDir, view]);
+  }, [scored, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly, watched, show, marks, query, sortKey, sortDir, view, leaguePoints]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
@@ -196,19 +290,24 @@ export default function Board() {
     setSortKey('value');
     setSortDir('desc');
   };
-  const eightCat = punts.has('z_turnovers');
-  const setFormat = (eight: boolean) => {
-    const next = new Set(punts);
-    if (eight) next.add('z_turnovers');
-    else next.delete('z_turnovers');
-    setPunts(next);
-  };
   const toggleCompare = (id: string) =>
     setCompare((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length >= COMPARE_MAX ? c : [...c, id]));
   const showNext7 = !meta.complete;
-  const categoryColumns = isLine(view)
-    ? lineColumns(view).map((c) => ({ key: c.key, label: c.label, kind: c.kind as 'num' | 'pct' | 'z' }))
-    : CATEGORIES.map((c) => ({ key: zKey(view, c), label: CATEGORY_LABELS[c] ?? c, category: c, kind: 'z' as const }));
+  type Column = { key: string; label: string; kind: 'num' | 'pct' | 'z' | 'fpts'; category?: string };
+  const categoryColumns: Column[] = isLine(view)
+    ? lineColumns(view).map((c) => ({ key: c.key, label: c.label, kind: c.kind }))
+    : view === 'value' && points
+      ? [{ key: 'fpts', label: 'FPts/G', kind: 'fpts' }, ...lineColumns('projected').map((c) => ({ key: c.key, label: c.label, kind: c.kind }))]
+      : CATEGORIES.map((c) => ({ key: zKey(view, c), label: CATEGORY_LABELS[c] ?? c, category: c, kind: 'z' as const }));
+  /** A category cell: in the value view, measured against this league's replacement level. */
+  const catValue = (row: BoardRow, c: string): number | null => {
+    if (punted.has(c)) return null;
+    if (view === 'value' && leagueCats) return leagueCats.get(row.player_id)?.[c] ?? null;
+    return num(row, zKey(view, c));
+  };
+  const showFit = view === 'value' && !points && myTeam.length > 0;
+  const showTiers = view === 'value' && sortKey === 'value' && sortDir === 'desc';
+  const fitOf = new Map(scored.map((s) => [s.row.player_id, s.fit]));
   const byId = new Map(rows.map((r) => [r.player_id, r]));
   const compared = compare.map((id) => byId.get(id)).filter((r): r is BoardRow => !!r);
   const valueOf = new Map(scored.map((s) => [s.row.player_id, s.value]));
@@ -216,6 +315,7 @@ export default function Board() {
   const exportCsv = () => {
     const header = ['rank', 'player', 'team', 'position', 'age', 'rookie', 'new_team_from', 'games', 'games_share', ...categoryColumns.map((c) => c.label)];
     if (!isLine(view)) header.push('total');
+    header.push('mark');
     const body = ranked.map(({ row, value }, i) => {
       const cells: (string | number | boolean | null)[] = [
         i + 1,
@@ -227,9 +327,12 @@ export default function Board() {
         row.is_new_team ? row.prev_team_abbreviation : null,
         row.games_current,
         row.games_share,
-        ...categoryColumns.map((c) => ('category' in c && punts.has(c.category as string) ? null : num(row, c.key))),
+        ...categoryColumns.map((c) =>
+          c.kind === 'fpts' ? (leaguePoints?.get(row.player_id)?.fpts ?? null) : c.category ? catValue(row, c.category) : num(row, c.key),
+        ),
       ];
       if (!isLine(view)) cells.push(value);
+      cells.push(marks.get(row.player_id) ?? null);
       return cells;
     });
     downloadCsv(`fantasyscout-${league}-board-${view}.csv`, toCsv(header, body));
@@ -252,8 +355,10 @@ export default function Board() {
         </Note>
       )}
 
+      <LeagueSettingsPanel league={league} settings={settings} onChange={setSettings} />
+
       <div className="flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Value view">
-        {VIEWS.map((v) => (
+        {views.map((v) => (
           <button
             key={v.id}
             type="button"
@@ -271,23 +376,13 @@ export default function Board() {
 
       {!isLine(view) && (
         <fieldset className="flex flex-wrap items-center gap-2">
-          <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Format and punts (drop from the total)</legend>
-          <label className="text-sm">
-            <span className="sr-only">League format</span>
-            <select
-              value={eightCat ? '8' : '9'}
-              onChange={(e) => setFormat(e.target.value === '8')}
-              className="rounded border border-line bg-card px-2 py-1"
-            >
-              <option value="9">9-cat</option>
-              <option value="8">8-cat (no TO)</option>
-            </select>
-          </label>
-          {CATEGORIES.map((c) => (
-            <Chip key={c} checked={punts.has(c)} strike onChange={() => setPunts(toggle(punts, c))}>
-              {CATEGORY_LABELS[c]}
-            </Chip>
-          ))}
+          <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Punt (drop from the total)</legend>
+          {!points &&
+            CATEGORIES.map((c) => (
+              <Chip key={c} checked={punted.has(c)} strike onChange={() => setPunts(toggle(punts, c))}>
+                {CATEGORY_LABELS[c]}
+              </Chip>
+            ))}
           {view === 'value' && (
             <label className="ml-2 flex items-center gap-2 text-sm" title="Multiply value per game by the projected share of team games played">
               <input type="checkbox" checked={countGames} onChange={(e) => setCountGames(e.target.checked)} />
@@ -381,11 +476,41 @@ export default function Board() {
           <input type="checkbox" checked={watchOnly} onChange={(e) => setWatchOnly(e.target.checked)} />
           Watchlist only ({watched.size})
         </label>
+        <label className="text-sm" title="Mark players Mine or Taken in the last column during a draft or on waivers">
+          Show{' '}
+          <select value={show} onChange={(e) => setShow(e.target.value as typeof show)} className="rounded border border-line bg-card px-2 py-1" aria-label="Show">
+            <option value="all">Everyone</option>
+            <option value="available">Available (not mine or taken)</option>
+            <option value="mine">My team</option>
+          </select>
+        </label>
         <span className="text-sm text-muted">{ranked.length} players</span>
+        {[...marks.values()].includes('taken') && (
+          <button type="button" onClick={() => clearMarks('taken')} className="rounded border border-line px-2 py-1 text-xs hover:bg-card">
+            Clear taken
+          </button>
+        )}
         <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="board-csv">
           Export CSV
         </button>
       </div>
+
+      {myTeam.length > 0 && (
+        <MyTeamPanel
+          players={myTeam}
+          totals={view === 'value' && !points ? teamTotals : null}
+          weakest={weakest}
+          points={
+            points && leaguePoints
+              ? myTeam.reduce(
+                  (acc, r) => ({ fpts: acc.fpts + (leaguePoints.get(r.player_id)?.fpts ?? 0), value: acc.value + (leaguePoints.get(r.player_id)?.value ?? 0) }),
+                  { fpts: 0, value: 0 },
+                )
+              : null
+          }
+          onClear={() => clearMarks('mine')}
+        />
+      )}
 
       {compared.length > 0 && (
         <section className="min-w-0 rounded-lg border border-line bg-card p-3" aria-labelledby="compare-h" data-testid="compare">
@@ -410,7 +535,7 @@ export default function Board() {
                 </tr>
               </thead>
               <tbody>
-                {[...CATEGORIES.map((c) => ({ label: CATEGORY_LABELS[c] ?? c, get: (r: BoardRow) => (punts.has(c) ? null : num(r, zKey(isLine(view) ? 'value' : view, c))), kind: 'z' })),
+                {[...CATEGORIES.map((c) => ({ label: CATEGORY_LABELS[c] ?? c, get: (r: BoardRow) => (punted.has(c) ? null : (leagueCats?.get(r.player_id)?.[c] ?? num(r, zKey(isLine(view) ? 'value' : view, c)))), kind: 'z' })),
                   { label: 'Total', get: (r: BoardRow) => (isLine(view) ? r.value_total : (valueOf.get(r.player_id) ?? null)), kind: 'z' },
                   { label: 'GP%', get: (r: BoardRow) => r.games_share, kind: 'pct' },
                   ...LINE.map((l) => ({ label: `${l.label} (proj)`, get: (r: BoardRow) => num(r, `proj_${l.key}`), kind: l.kind })),
@@ -469,27 +594,46 @@ export default function Board() {
                 </SortTh>
               )}
               {categoryColumns.map((c) => {
-                const punted = 'category' in c && punts.has(c.category as string);
+                const isPunted = !!c.category && punted.has(c.category);
                 return (
-                  <SortTh key={c.key} right active={sortKey === c.key} dir={sortDir} onClick={() => sortBy(c.key, c.label === 'TO' && isLine(view) ? 'asc' : 'desc')}>
-                    {punted ? <s>{c.label}</s> : c.label}
+                  <SortTh key={c.key} right active={sortKey === c.key} dir={sortDir} onClick={() => sortBy(c.key, c.label === 'TO' && c.kind !== 'z' ? 'asc' : 'desc')}>
+                    {isPunted ? <s>{c.label}</s> : c.label}
                   </SortTh>
                 );
               })}
+              {showFit && (
+                <SortTh right active={sortKey === 'fit'} dir={sortDir} onClick={() => sortBy('fit')} title="Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)">
+                  Fit
+                </SortTh>
+              )}
               {!isLine(view) && (
                 <SortTh right active={sortKey === 'value'} dir={sortDir} onClick={() => sortBy('value')}>
                   Total
                 </SortTh>
               )}
               <Th>
-                <span title={`Pick up to ${COMPARE_MAX} players to compare`}>Cmp</span>
+                <span title={`Compare up to ${COMPARE_MAX} players; mark players Mine or Taken during a draft or on waivers`}>Cmp · Pick</span>
               </Th>
             </tr>
           </thead>
           <tbody>
-            {ranked.slice(0, shown).map(({ row, value }, i) => (
-              <tr key={row.player_id} className="border-t border-line">
-                <Td right>{i + 1}</Td>
+            {ranked.slice(0, shown).map(({ row, value }, i) => {
+              const tier = showTiers ? tierOf.get(row.player_id) : undefined;
+              const mark = marks.get(row.player_id);
+              return (
+              <tr
+                key={row.player_id}
+                className={`border-t ${tier?.start && i > 0 ? 'border-t-2 border-accent' : 'border-line'} ${mark === 'mine' ? 'bg-good/10' : mark === 'taken' ? 'opacity-50' : ''}`}
+                data-tier={tier?.tier}
+              >
+                <Td right>
+                  {i + 1}
+                  {tier?.start && (
+                    <span className="block text-[10px] font-semibold text-accent" data-testid="tier-start">
+                      Tier {tier.tier}
+                    </span>
+                  )}
+                </Td>
                 <Td>
                   <span className="flex items-center gap-1 whitespace-nowrap">
                     <Star on={watched.has(row.player_id)} label={row.full_name ?? row.player_id} onToggle={() => toggleWatched(row.player_id)} />
@@ -512,7 +656,14 @@ export default function Board() {
                   </span>
                 </Td>
                 <Td>{row.team_abbreviation ?? '–'}</Td>
-                <Td>{row.position ?? '–'}</Td>
+                <Td>
+                  {row.position ?? '–'}
+                  {posRank.get(row.player_id) && (
+                    <span className="ml-1 text-[10px] text-muted" title="Rank among players at this position" data-testid="pos-rank">
+                      {posRank.get(row.player_id)}
+                    </span>
+                  )}
+                </Td>
                 <Td right>{row.age ?? '–'}</Td>
                 <Td right>{row.games_current ?? 0}</Td>
                 {view === 'value' && <Td right>{pct(row.games_share)}</Td>}
@@ -523,11 +674,24 @@ export default function Board() {
                         {c.kind === 'pct' ? pct(num(row, c.key)) : fmt(num(row, c.key))}
                       </Td>
                     ))
-                  : CATEGORIES.map((c) => (
-                      <Td key={c} right>
-                        <Signed value={punts.has(c) ? null : num(row, zKey(view, c))} />
+                  : categoryColumns.map((c) => (
+                      <Td key={c.key} right>
+                        {c.kind === 'fpts' ? (
+                          fmt(leaguePoints?.get(row.player_id)?.fpts ?? null, 1)
+                        ) : c.kind === 'z' ? (
+                          <Signed value={c.category ? catValue(row, c.category) : null} />
+                        ) : c.kind === 'pct' ? (
+                          pct(num(row, c.key))
+                        ) : (
+                          fmt(num(row, c.key))
+                        )}
                       </Td>
                     ))}
+                {showFit && (
+                  <Td right>
+                    <Signed value={fitOf.get(row.player_id) ?? null} />
+                  </Td>
+                )}
                 {!isLine(view) && (
                   <Td right>
                     <strong>{fmt(value, 2)}</strong>
@@ -541,9 +705,11 @@ export default function Board() {
                     disabled={!compare.includes(row.player_id) && compare.length >= COMPARE_MAX}
                     onChange={() => toggleCompare(row.player_id)}
                   />
+                  <MarkButtons name={row.full_name ?? row.player_id} mark={mark} onMark={(m) => setMark(row.player_id, m)} />
                 </Td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

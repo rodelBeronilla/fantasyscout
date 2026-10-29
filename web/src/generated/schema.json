@@ -8634,6 +8634,30 @@
       },
       {
        "description": "",
+       "name": "proj_fgm_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "proj_fga_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "proj_ftm_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "proj_fta_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
        "name": "proj_field_goal_pct",
        "tests": [],
        "type": "double"
