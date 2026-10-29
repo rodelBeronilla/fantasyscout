@@ -50,6 +50,15 @@ The League page can import an NBA league from Yahoo once the Worker has a Yahoo 
 3. Re-run the latest Deploy web run on main. The step "Give the Worker the Yahoo app's credentials" copies them into the Worker, and `/api/yahoo/status` should report `"configured":true`.
 4. On the League page (NBA), sign in with Yahoo and import a league.
 
+**Yahoo has to approve the app first.** Since July 2026, Yahoo gates the Fantasy Sports API behind an access program. Until an app is approved, sign-in works, but every Fantasy request answers 403 "This application is not authorized to perform this action", which the League page shows.
+
+To get access:
+1. Apply at https://sports.yahoo.com/developer/access/ with the app's App ID.
+2. Sign the API access agreement Yahoo sends through DocuSign.
+3. Submit the app's Client ID at https://sports.yahoo.com/developer/application-confirmation/.
+
+Some approved apps only worked once they were recreated after approval. If so, put the new app's Client ID and Client Secret in the two secrets, re-run Deploy web, then sign out of Yahoo on the League page and sign in again. The old sign-in is tied to the old app.
+
 To turn it off, delete the two secrets and remove them from the Worker (`wrangler secret delete YAHOO_CLIENT_ID --env production`, and the same for the secret). Rotating the client secret signs everyone out.
 
 ## Run the checks locally
