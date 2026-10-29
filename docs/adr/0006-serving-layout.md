@@ -27,3 +27,14 @@ The warehouse is never exposed to the internet (SPEC.md). The site serves export
 - The ops tables go out with the build, so Data Health shows the state the build was published with, not a live view; the live view is the Query the lakehouse workflow.
 - Charts are drawn as plain SVG by the pages themselves (the shot chart, the rolling trend). A charting library that styles its output inline conflicts with the site's policy, which allows no inline styles; drawing the two charts directly keeps the policy strict and the bundle small.
 - Every data island renders in the browser only: they read the league from the address and remembered settings, which the server cannot know, so server-rendered markup could never match.
+
+## Addendum (2026-10-29): staged builds, gated hand exports, pinned rollbacks
+
+Checking the documentation against the code (issue #96) found five gaps. Each is now closed.
+
+- **Builds are staged, then promoted.** The nightly build uploads a build with nothing pointing at it. The notebooks and the Tableau extract read it by id and add their files, then `fs-export promote` writes `builds.json` and `latest.json`. The live build is always complete. A failed notebook or extract does not hold back the day's data: the build goes live without it, and the incident says so.
+- **A hand export checks the gate.** The Export workflow runs `ops.gate`, which reads the latest row of `ops.publish_gate` and refuses unless it passed. An `ignore_gate` input exists for emergencies and is logged.
+- **A rollback pins.** `latest.json` and the build's `builds.json` entry carry the pin. Promotion still records new builds while the pin holds, but leaves `latest.json` alone. Pruning keeps the pinned build. `fs-export unpin` releases it.
+- **The build runs after any finished ingest.** A failed ingest job keeps its own incident. The completeness check counts a game missing only once it has been final for more than a day, so one failed request no longer costs the day's build.
+- **The build incident covers every step.** That includes the export, promotion, notebooks, extract and sheet push, and the incident names the steps that failed.
+

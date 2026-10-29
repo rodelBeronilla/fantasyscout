@@ -1,8 +1,12 @@
 name: Build lakehouse
 
 # dbt build on Databricks: bronze and silver (and, from phase 3, gold and ops) over the landed
-# volume. Runs after a successful Ingest, or by hand. A failed build opens or updates a
-# data-incident issue; the next passing build closes it.
+# volume. Runs after every Ingest or Backfill that finishes, even one with a failed job, so one
+# failed request does not cost the day's build: the failed job has its own incident, and the
+# completeness check only counts a game missing once it has been final for more than a day
+# (the next daily window fetches it again). A cancelled run does not trigger a build. Runs by
+# hand too. A failed build opens or updates a data-incident issue; the next passing build
+# closes it.
 
 on:
   workflow_run:
@@ -34,7 +38,10 @@ concurrency:
 jobs:
   dbt:
     name: dbt build on Databricks
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -42,6 +49,15 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen --group dbt
+
+      - name: Note an ingest that ended with a failed job
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
+        env:
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          echo "::warning::$RUN_NAME ended with a failed job ($RUN_URL); building with what landed. That job's incident tracks it."
+          echo "$RUN_NAME ended with a failed job: $RUN_URL. Building with what landed." >> land.log
 
       - name: Resolve the workspace host and SQL warehouse
         env:
@@ -114,8 +130,11 @@ jobs:
           DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
         run: uv run python -m ops.summary --engine databricks --table ops.reconciliation_summary
 
-      # Only a passing gate publishes; a blocked gate leaves the previous build serving.
-      - name: Export gold to R2
+      # Only a passing gate publishes; a blocked gate leaves the previous build serving. The build
+      # is staged first: the notebooks and the Tableau extract read it by id and are added to it,
+      # and only then does latest.json point at it, so the live build is always complete.
+      - name: Export gold to R2 (staged)
+        id: export
         if: steps.gate.outcome == 'success'
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -126,52 +145,94 @@ jobs:
         # pipefail: without it tee's exit status hides a failed export and the job goes green.
         run: |
           set -o pipefail
-          uv run fs-export build --engine databricks --store r2 2>&1 | tee -a land.log
+          uv run fs-export build --engine databricks --store r2 --stage 2>&1 | tee export.log | tee -a land.log
+          echo "build_id=$(sed -n 's/^staged //p' export.log | tail -1)" >> "$GITHUB_OUTPUT"
 
-      - name: Execute the analysis notebooks against the published build and publish them
-        if: steps.gate.outcome == 'success'
+      # A failed notebook or extract does not hold back the day's data: the build is promoted
+      # without it, and the Report step opens an incident naming the step.
+      - name: Execute the analysis notebooks against the staged build and add them to it
+        id: notebooks
+        if: steps.export.outcome == 'success'
+        continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           FS_NOTEBOOK_SOURCE: published
+          FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         run: |
           set -euo pipefail
           uv sync --frozen --group dbt --group notebooks
-          FS_BUILD_ID=$(uv run fs-export list --store r2 | sed -n 's/^latest: //p')
-          export FS_BUILD_ID
           echo "notebooks read build $FS_BUILD_ID"
           (cd notebooks && uv run jupyter nbconvert --to html --execute --output-dir _build --ExecutePreprocessor.timeout=1200 *.ipynb)
           uv run fs-export publish-files --store r2 --subdir notebooks --build-id "$FS_BUILD_ID" notebooks/_build/*.html notebooks/_build/*.findings.json
 
-      - name: Refresh the Tableau extract and publish it with the build
-        if: steps.gate.outcome == 'success'
+      - name: Refresh the Tableau extract and add it to the staged build
+        id: extract
+        if: steps.export.outcome == 'success'
+        continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           FS_NOTEBOOK_SOURCE: published
+          FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         run: |
           set -euo pipefail
-          FS_BUILD_ID=$(uv run fs-export list --store r2 | sed -n 's/^latest: //p')
-          export FS_BUILD_ID
           uv run python tableau/extract.py --out tableau/extract
           uv run fs-export publish-files --store r2 --subdir tableau --build-id "$FS_BUILD_ID" tableau/extract/*.csv
+
+      - name: Promote the build (latest.json points at it)
+        id: promote
+        if: steps.export.outcome == 'success'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BUILD_ID: ${{ steps.export.outputs.build_id }}
+        run: |
+          set -o pipefail
+          uv run fs-export promote --store r2 --build-id "$BUILD_ID" 2>&1 | tee -a land.log
 
       # Tableau Public refreshes a Google Sheets source daily on its own, so the extract also goes
       # into the owner's sheet. Skips itself until the sheet id and the service account are set.
       - name: Push the extract to the League Pulse Google Sheet
-        if: steps.gate.outcome == 'success'
+        id: sheets
+        if: steps.promote.outcome == 'success' && steps.extract.outcome == 'success'
+        continue-on-error: true
         env:
           TABLEAU_SHEET_ID: ${{ vars.TABLEAU_SHEET_ID }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         run: uv run python tableau/sheets.py --extract tableau/extract
 
+      # The incident covers every step, not just the build and the gate: a failed export,
+      # promotion, notebook run, extract or sheet push opens (or keeps open) the incident and is
+      # named in it. Only a run where every step that ran succeeded closes it.
       - name: Report
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           TITLE: "Build failure: dbt on Databricks"
-          OUTCOME: ${{ (steps.build.outcome == 'success' && steps.gate.outcome == 'success') && 'success' || 'failure' }}
-        run: uv run python .github/scripts/incident.py
+          S_BUILD: ${{ steps.build.outcome }}
+          S_GATE: ${{ steps.gate.outcome }}
+          S_EXPORT: ${{ steps.export.outcome }}
+          S_NOTEBOOKS: ${{ steps.notebooks.outcome }}
+          S_EXTRACT: ${{ steps.extract.outcome }}
+          S_PROMOTE: ${{ steps.promote.outcome }}
+          S_SHEETS: ${{ steps.sheets.outcome }}
+        run: |
+          set -euo pipefail
+          failed=""
+          # these must succeed for the day's data to be live
+          for step in "dbt build:$S_BUILD" "publish gate:$S_GATE" "export:$S_EXPORT" "promote:$S_PROMOTE"; do
+            [ "${step##*:}" = "success" ] || failed="$failed, ${step%%:*} (${step##*:})"
+          done
+          # these may be skipped when an earlier step did not run, but must not fail
+          for step in "notebooks:$S_NOTEBOOKS" "Tableau extract:$S_EXTRACT" "sheet push:$S_SHEETS"; do
+            [ "${step##*:}" = "failure" ] && failed="$failed, ${step%%:*} (failure)"
+          done
+          if [ -n "$failed" ]; then OUTCOME=failure; else OUTCOME=success; fi
+          DETAIL="Steps: dbt build $S_BUILD, gate $S_GATE, export $S_EXPORT, notebooks $S_NOTEBOOKS, extract $S_EXTRACT, promote $S_PROMOTE, sheet push $S_SHEETS."
+          [ -n "$failed" ] && DETAIL="Failed: ${failed#, }. $DETAIL"
+          echo "$DETAIL"
+          OUTCOME="$OUTCOME" DETAIL="$DETAIL" uv run python .github/scripts/incident.py
 
   bundle:
     name: Deploy the Asset Bundle

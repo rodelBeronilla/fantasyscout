@@ -201,45 +201,81 @@ def _read_json(store: Store, key: str) -> Any:
     return json.loads(body) if body else None
 
 
-def publish(
-    store: Store, build: Build, *, keep: int = layout.KEEP_BUILDS, log: Log = print
-) -> dict[str, Any]:
-    """Upload the build, record it, flip latest, prune old builds. Returns the latest pointer."""
+def stage(store: Store, build: Build, *, log: Log = print) -> None:
+    """Upload a build's files, manifest and key list, without pointing anything at it.
+
+    Readers find a build only through latest.json, so a staged build can be read by its id (the
+    notebooks and the Tableau extract do) and completed before it goes live with ``promote``.
+    """
     items = [(build.key(path), body) for path, body in build.files.items()]
     count = put_many(store, items)
     log(f"  uploaded {count} files")
-
     manifest_key = build.key("manifest.json")
     store.put(manifest_key, to_json(build.manifest))
     keys = [*sorted(build.key(p) for p in build.files), manifest_key]
     store.put(build.key("keys.txt"), "\n".join(keys).encode("utf-8"))
+    log(f"  staged {build.build_id}")
+
+
+def promote(
+    store: Store, build_id: str, *, keep: int = layout.KEEP_BUILDS, log: Log = print
+) -> dict[str, Any]:
+    """Record a staged build in builds.json, flip latest.json to it, prune old builds.
+
+    latest.json is written after everything the build carries, so a reader never sees a build
+    that is still being completed. Returns the latest pointer.
+    """
+    manifest_key = f"builds/{build_id}/manifest.json"
+    manifest = _read_json(store, manifest_key)
+    if not manifest:
+        msg = f"build {build_id} is not staged (no {manifest_key})"
+        raise RuntimeError(msg)
 
     builds: list[dict[str, Any]] = _read_json(store, BUILDS_KEY) or []
-    builds = [b for b in builds if b["build_id"] != build.build_id]
+    builds = [b for b in builds if b["build_id"] != build_id]
     builds.insert(
         0,
         {
-            "build_id": build.build_id,
-            "created_at": build.created_at,
-            "engine": build.engine,
-            "git_sha": build.git_sha,
+            "build_id": build_id,
+            "created_at": manifest.get("created_at", ""),
+            "engine": manifest.get("engine", ""),
+            "git_sha": manifest.get("git_sha", ""),
             "manifest": manifest_key,
-            "data_as_of": build.manifest["data_as_of"],
+            "data_as_of": manifest.get("data_as_of", {}),
         },
     )
     store.put(BUILDS_KEY, to_json(builds))
 
+    current = _read_json(store, LATEST_KEY) or {}
+    if current.get("pinned"):
+        # A rollback pinned the site: record the new build but leave latest.json alone until
+        # someone unpins it (fs-export unpin), so a nightly build cannot undo a rollback.
+        log(
+            f"  latest.json is pinned to {current.get('build_id')} by a rollback; "
+            f"{build_id} is recorded but not live (fs-export unpin to go live)"
+        )
+        prune(store, keep=keep, log=log)
+        return dict(current)
+
     latest = {
-        "build_id": build.build_id,
+        "build_id": build_id,
         "manifest": manifest_key,
-        "created_at": build.created_at,
-        "data_as_of": build.manifest["data_as_of"],
+        "created_at": manifest.get("created_at", ""),
+        "data_as_of": manifest.get("data_as_of", {}),
     }
     store.put(LATEST_KEY, to_json(latest))
-    log(f"  latest.json -> {build.build_id}")
+    log(f"  latest.json -> {build_id}")
 
     prune(store, keep=keep, log=log)
     return latest
+
+
+def publish(
+    store: Store, build: Build, *, keep: int = layout.KEEP_BUILDS, log: Log = print
+) -> dict[str, Any]:
+    """Stage a build and promote it at once. Returns the latest pointer."""
+    stage(store, build, log=log)
+    return promote(store, build.build_id, keep=keep, log=log)
 
 
 def prune(store: Store, *, keep: int = layout.KEEP_BUILDS, log: Log = print) -> list[str]:
@@ -266,7 +302,11 @@ def prune(store: Store, *, keep: int = layout.KEEP_BUILDS, log: Log = print) -> 
 
 
 def rollback(store: Store, *, to: str | None = None, log: Log = print) -> dict[str, Any]:
-    """Point latest.json at an earlier build (the previous one by default)."""
+    """Point latest.json at an earlier build (the previous one by default) and pin it there.
+
+    The pin is recorded in latest.json and on the build's entry in builds.json; nightly builds
+    are still recorded while it holds but do not go live until ``unpin``.
+    """
     builds: list[dict[str, Any]] = _read_json(store, BUILDS_KEY) or []
     latest = _read_json(store, LATEST_KEY) or {}
     if not builds:
@@ -291,9 +331,40 @@ def rollback(store: Store, *, to: str | None = None, log: Log = print) -> dict[s
         "data_as_of": target.get("data_as_of", {}),
         "rolled_back_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "rolled_back_from": latest.get("build_id"),
+        "pinned": True,
     }
     store.put(LATEST_KEY, to_json(pointer))
-    log(f"  latest.json -> {target['build_id']} (was {latest.get('build_id')})")
+    for entry in builds:
+        entry.pop("pinned", None)
+        if entry["build_id"] == target["build_id"]:
+            entry["pinned"] = True
+    store.put(BUILDS_KEY, to_json(builds))
+    log(f"  latest.json -> {target['build_id']} (was {latest.get('build_id')}), pinned")
+    return pointer
+
+
+def unpin(store: Store, *, to: str | None = None, log: Log = print) -> dict[str, Any]:
+    """Release a rollback's pin and point latest.json at a build (the newest by default)."""
+    builds: list[dict[str, Any]] = _read_json(store, BUILDS_KEY) or []
+    if not builds:
+        msg = "no builds recorded"
+        raise RuntimeError(msg)
+    target = builds[0] if to is None else next((b for b in builds if b["build_id"] == to), None)
+    if target is None:
+        msg = f"build {to} is not in builds.json"
+        raise RuntimeError(msg)
+    latest = _read_json(store, LATEST_KEY) or {}
+    pointer = {
+        "build_id": target["build_id"],
+        "manifest": target["manifest"],
+        "created_at": target["created_at"],
+        "data_as_of": target.get("data_as_of", {}),
+    }
+    store.put(LATEST_KEY, to_json(pointer))
+    for entry in builds:
+        entry.pop("pinned", None)
+    store.put(BUILDS_KEY, to_json(builds))
+    log(f"  latest.json -> {target['build_id']} (was {latest.get('build_id')}), unpinned")
     return pointer
 
 

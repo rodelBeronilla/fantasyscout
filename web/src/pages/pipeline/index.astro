@@ -45,7 +45,7 @@ const link = 'underline underline-offset-4';
       <a href="#value" class="rounded-full border border-line px-3 py-1 hover:bg-card">Board value</a>
       <a href="#stages" class="rounded-full border border-line px-3 py-1 hover:bg-card">Stages</a>
       <a href="#workflows" class="rounded-full border border-line px-3 py-1 hover:bg-card">Other workflows</a>
-      <a href="#gaps" class="rounded-full border border-line px-3 py-1 hover:bg-card">Known gaps</a>
+      <a href="#gaps" class="rounded-full border border-line px-3 py-1 hover:bg-card">Gaps closed</a>
     </nav>
 
     <section id="data-flow" class="mt-8">
@@ -136,7 +136,8 @@ const link = 'underline underline-offset-4';
           </li>
           <li>
             <strong>Failures.</strong> Only a missing ESPN game summary (404) counts as missing at source. Any other failed
-            request fails the job, which opens an incident issue, and stops that day's build (see Known gaps).
+            request fails the job, which opens an incident issue for that job; the day's build still runs with what
+            landed, and the next daily window fetches the missing payloads again.
           </li>
         </ul>
       </section>
@@ -156,7 +157,8 @@ const link = 'underline underline-offset-4';
       <section id="bronze">
         <h2 class="text-lg font-semibold tracking-tight">4. Bronze</h2>
         <p class="mt-2">
-          The Build workflow starts when an Ingest or Backfill run succeeds, on a GitHub-hosted runner, one build at a time:
+          The Build workflow starts when an Ingest or Backfill run finishes, even with a failed job (not when it is
+          cancelled), on a GitHub-hosted runner, one build at a time:
           it makes sure every landing folder exists, then runs dbt on the Databricks SQL warehouse. The same project runs on
           DuckDB in CI over a small sample; engine differences (JSON access, file listing, hashing, dates, fuzzy matching)
           live in adapter-dispatched macros, and the fuzzy matching thresholds differ by engine.
@@ -272,8 +274,10 @@ const link = 'underline underline-offset-4';
         </p>
         <p class="mt-2">
           The gate script records every model and test result and closes the gate on any blocking failure or model error;
-          then nothing is exported. An incident issue opens with the end of the job log, including sample failing rows, is
-          commented on while it recurs and closes itself on the next passing build. CI runs the column tests on every change;
+          then nothing is exported. The incident issue covers every step of the build, from dbt to the export, promotion,
+          notebooks, extract and sheet push: it names the steps that failed, carries the end of the job log with sample
+          failing rows, is commented on while it recurs and closes itself only when every step that ran succeeded. A
+          missed game blocks the gate only once it has been final for more than a day, so one failed request does not. CI runs the column tests on every change;
           the data-quality checks need real data and run only in the nightly build.
         </p>
       </section>
@@ -285,8 +289,11 @@ const link = 'underline underline-offset-4';
           for every gold and ops table and the category seed (the big facts split per league and season); compact JSON for
           the board, streamers and schedule, rounded to four decimals; JSON for the dimensions, injuries, reconciliation
           rates, run log and gate; one file per player; <code>health.json</code>; a manifest with each file's rows and
-          SHA-256. Then <code>builds.json</code>, then <code>latest.json</code>, so a reader never sees a half-written build;
-          seven builds are kept. Rolling back rewrites <code>latest.json</code> (Export workflow).
+          SHA-256. The build is staged: nothing points at it while the notebooks and the Tableau extract read it by id and
+          add their files. Then it is promoted: <code>builds.json</code>, then <code>latest.json</code>, so the live build
+          is always complete; seven builds are kept. A rollback (Export workflow) points <code>latest.json</code> at an
+          earlier build and pins it: nightly builds are still recorded but do not go live until the pin is released. A
+          build exported by hand checks the latest publish gate first.
         </p>
       </section>
 
@@ -313,8 +320,8 @@ const link = 'underline underline-offset-4';
         <h2 class="text-lg font-semibold tracking-tight">11. Analysis</h2>
         <p class="mt-2">
           After a passing nightly build, three <a href={href('/notebooks/')} class={link}>notebooks</a> (shot profiles, the
-          reconciliation audit, a value backtest) run against the published build over HTTPS and write their pages and
-          findings back into it. The Tableau extract does the same: three CSVs into the build and into a Google Sheet, which
+          reconciliation audit, a value backtest) run against the staged build over HTTPS and add their pages and findings
+          to it before it goes live; if they fail, the build goes live without them and the incident says so. The Tableau extract does the same: three CSVs into the build and into a Google Sheet, which
           Tableau Public re-reads about daily for the <a href={href('/dashboards/')} class={link}>dashboard</a>.
         </p>
       </section>
@@ -324,7 +331,7 @@ const link = 'underline underline-offset-4';
       <h2 class="text-lg font-semibold tracking-tight">Other workflows</h2>
       <ul class="mt-2 list-disc space-y-1 pl-5">
         <li><strong>Backfill:</strong> whole seasons per league, serially, on the same runners and client as Ingest.</li>
-        <li><strong>Export data:</strong> build, roll back or list published builds by hand.</li>
+        <li><strong>Export data:</strong> build (after checking the latest gate), roll back (pinning), unpin, or list.</li>
         <li><strong>Query the lakehouse:</strong> read-only; prints any table, filtered and ordered, into a job log.</li>
         <li><strong>Probe sources:</strong> checks from a GitHub runner that the stats API, ESPN and Databricks answer.</li>
         <li><strong>CI:</strong> secret scan; ruff, mypy, pytest; the dbt sample built twice (the second run takes the incremental path) with the gate; the schema file's freshness; notebooks and the extract on the sample; page tests; Worker tests and a dry-run deploy.</li>
@@ -333,14 +340,14 @@ const link = 'underline underline-offset-4';
     </section>
 
     <section id="gaps" class="mt-10 max-w-3xl text-sm leading-relaxed" data-testid="known-gaps">
-      <h2 class="text-lg font-semibold tracking-tight">Known gaps</h2>
-      <p class="mt-2 text-muted">Found by checking this page against the code; tracked to be fixed.</p>
+      <h2 class="text-lg font-semibold tracking-tight">Gaps found and closed</h2>
+      <p class="mt-2 text-muted">Found by checking this page against the code (issue #96), each closed since:</p>
       <ul class="mt-2 list-disc space-y-1 pl-5">
-        <li>One failed request in any ingest job skips that day's whole build.</li>
-        <li>A build exported by hand from the Export workflow does not check the gate.</li>
-        <li>Notebook pages and the Tableau extract are added to a build after it is already live.</li>
-        <li>A failure after the gate (export, notebooks, extract, sheet) opens no incident.</li>
-        <li>A rollback is replaced by the next nightly build, and is not recorded in <code>builds.json</code>.</li>
+        <li>One failed request skipped the day's build: the build now runs after any ingest that finishes.</li>
+        <li>A build exported by hand skipped the gate: the Export workflow checks the latest gate first.</li>
+        <li>Notebooks and the extract were added to a live build: builds are staged, completed, then promoted.</li>
+        <li>A failure after the gate opened no incident: the incident covers every step and names the failures.</li>
+        <li>The next nightly build undid a rollback: a rollback pins the site until it is released.</li>
       </ul>
     </section>
   </section>

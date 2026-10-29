@@ -2,7 +2,10 @@
 
     fs-export build --engine duckdb --store local --out web/public/data
     fs-export build --engine databricks --store r2
-    fs-export rollback --store r2 [--to BUILD_ID]
+    fs-export build --engine databricks --store r2 --stage   # upload only; prints "staged <id>"
+    fs-export promote --store r2 --build-id BUILD_ID          # record it and flip latest.json
+    fs-export rollback --store r2 [--to BUILD_ID]   # pins the site to that build
+    fs-export unpin --store r2 [--to BUILD_ID]      # releases the pin (default: newest)
     fs-export list --store r2
 
 The R2 store reads CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN; the Databricks source
@@ -71,10 +74,24 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="comma-separated table names to leave out (for example fct_event)",
     )
+    p_build.add_argument(
+        "--stage",
+        action="store_true",
+        help="upload the build without pointing latest.json at it (promote it afterwards)",
+    )
+
+    p_promote = sub.add_parser("promote", help="record a staged build and point latest at it")
+    add_store(p_promote)
+    p_promote.add_argument("--build-id", required=True)
+    p_promote.add_argument("--keep", type=int, default=7, help="builds kept for rollback")
 
     p_roll = sub.add_parser("rollback", help="point latest at an earlier build")
     add_store(p_roll)
     p_roll.add_argument("--to", default=None, help="build id (default: the previous build)")
+
+    p_unpin = sub.add_parser("unpin", help="release a rollback's pin and go live again")
+    add_store(p_unpin)
+    p_unpin.add_argument("--to", default=None, help="build id (default: the newest build)")
 
     p_list = sub.add_parser("list", help="show latest and the builds kept")
     add_store(p_list)
@@ -108,11 +125,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             finally:
                 source.close()
             print(f"publishing {build.build_id} ({len(build.files)} files) to {args.store}")
-            latest = build_mod.publish(store, build, keep=args.keep)
-            print(f"published {latest['build_id']}; data as of {latest['data_as_of']}")
+            if args.stage:
+                build_mod.stage(store, build)
+                print(f"staged {build.build_id}")
+            else:
+                latest = build_mod.publish(store, build, keep=args.keep)
+                print(f"published {latest['build_id']}; data as of {latest['data_as_of']}")
+        elif args.command == "promote":
+            latest = build_mod.promote(store, args.build_id, keep=args.keep)
+            print(f"promoted {args.build_id}; latest is {latest['build_id']}")
         elif args.command == "rollback":
             pointer = build_mod.rollback(store, to=args.to)
-            print(f"latest is now {pointer['build_id']}")
+            print(f"latest is now {pointer['build_id']}, pinned until fs-export unpin")
+        elif args.command == "unpin":
+            pointer = build_mod.unpin(store, to=args.to)
+            print(f"latest is now {pointer['build_id']}, unpinned")
         elif args.command == "publish-files":
             keys = build_mod.publish_files(
                 store, args.files, subdir=args.subdir, build_id=args.build_id
@@ -122,9 +149,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"published {len(keys)} file(s) under {args.subdir}")
         else:
             latest, builds = build_mod.list_builds(store)
-            print(f"latest: {latest.get('build_id', 'none')}")
+            pin = " (pinned by a rollback)" if latest.get("pinned") else ""
+            print(f"latest: {latest.get('build_id', 'none')}{pin}")
             for entry in builds:
-                print(f"  {entry['build_id']}  {entry['created_at']}  {entry.get('engine', '')}")
+                mark = "  pinned" if entry.get("pinned") else ""
+                print(
+                    f"  {entry['build_id']}  {entry['created_at']}  {entry.get('engine', '')}{mark}"
+                )
         return 0
     except Exception as exc:
         print(f"export failed: {type(exc).__name__}: {exc}", file=sys.stderr)

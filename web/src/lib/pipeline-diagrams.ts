@@ -56,7 +56,7 @@ export function dataFlow(): Promise<string> {
     p4 -> p5 [label="gate open", style=dashed];
     d2 -> p5 [label="gold + ops\\n(SQL API, Arrow)"];
     p5 -> d4 [label="build files"];
-    p5 -> d5 [label="pointer, flipped last"];
+    p5 -> d5 [label="pointer, flipped once\\nthe build is complete"];
     d5 -> p7; d4 -> p7;
     p7 -> p6 [label="published build\\n(HTTPS)"];
     p6 -> d4 [label="notebook pages,\\nextract CSVs"];
@@ -153,8 +153,8 @@ export function dailyRun(): string {
       { kind: 'reply', from: 'src', to: 'home', text: 'JSON (paced, cookies dropped)' },
       { kind: 'call', from: 'gh', to: 'vol', text: 'land payloads + run log' },
       { kind: 'call', from: 'home', to: 'vol', text: 'land payloads + run log' },
-      { kind: 'note', over: ['home', 'gh'], text: 'any failed job: incident opens, no build today' },
-      { kind: 'async', from: 'gh', to: 'build', text: 'Ingest succeeded (workflow_run)' },
+      { kind: 'note', over: ['home', 'gh'], text: 'a failed job opens its own incident' },
+      { kind: 'async', from: 'gh', to: 'build', text: 'Ingest finished (workflow_run)' },
       { kind: 'call', from: 'build', to: 'wh', text: 'ensure dirs; dbt build (models + tests)' },
       { kind: 'call', from: 'wh', to: 'vol', text: 'read new files' },
       { kind: 'reply', from: 'wh', to: 'build', text: 'run results' },
@@ -164,13 +164,13 @@ export function dailyRun(): string {
         text: 'gate open',
         steps: [
           { kind: 'call', from: 'build', to: 'wh', text: 'read gold + ops (Arrow)' },
-          { kind: 'call', from: 'build', to: 'r2', text: 'files, manifest, builds.json' },
-          { kind: 'call', from: 'build', to: 'r2', text: 'latest.json (last)' },
-          { kind: 'call', from: 'build', to: 'web', text: 'notebooks + extract read the build' },
+          { kind: 'call', from: 'build', to: 'r2', text: 'stage: files, manifest' },
+          { kind: 'call', from: 'build', to: 'web', text: 'notebooks + extract read it by id' },
           { kind: 'call', from: 'build', to: 'r2', text: 'notebook pages, extract CSVs' },
+          { kind: 'call', from: 'build', to: 'r2', text: 'promote: builds.json, latest.json (last)' },
         ],
       },
-      { kind: 'self', at: 'build', text: 'incident: open, comment or close' },
+      { kind: 'self', at: 'build', text: 'incident: names any failed step' },
       { kind: 'call', from: 'web', to: 'r2', text: 'latest.json (60 s cache), build files' },
     ],
   );
