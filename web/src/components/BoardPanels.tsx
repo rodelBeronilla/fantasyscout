@@ -161,7 +161,7 @@ export function MyTeamPanel({
             <strong className="text-fg">{weakest.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</strong>. The Fit column ranks
             players by how much they add where the team is weak.
           </p>
-          <div className="grid grid-cols-[3rem_auto_3.5rem] items-center gap-x-2 gap-y-0.5">
+          <div className="grid w-fit grid-cols-[3rem_120px_3.5rem] items-center gap-x-2 gap-y-0.5">
             {entries.map(([c, v]) => {
               const w = (Math.abs(v) / span) * (W / 2);
               return [
