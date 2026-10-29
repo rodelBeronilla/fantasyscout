@@ -853,6 +853,62 @@ models:
       - name: stats
         description: "JSON array of stat values in stat_keys order"
 
+  - name: espn_scoreboard_odds
+    description: "The betting line on each ESPN scoreboard event (upcoming games carry one), one row per event per scoreboard landing."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The request key the payload was landed under"
+      - name: event_id
+        description: "ESPN event id"
+      - name: provider
+        description: "The sportsbook ESPN lists first (DraftKings)"
+      - name: details
+        description: "The line as ESPN writes it, such as 'CON -4.5'"
+      - name: spread
+        description: "The home team's point spread, as text; negative when the home team is favoured"
+      - name: over_under
+        description: "The game's total points line, as text"
+      - name: home_moneyline
+        description: "The home team's moneyline, as text"
+      - name: away_moneyline
+        description: "The away team's moneyline, as text"
+
+  - name: espn_summary_odds
+    description: "The closing betting line from each ESPN game summary (pickcenter), one row per summary landing."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The request key the payload was landed under"
+      - name: event_id
+        description: "ESPN event id"
+      - name: provider
+        description: "The sportsbook ESPN lists first (DraftKings)"
+      - name: details
+        description: "The line as ESPN writes it, such as 'CON -4.5'"
+      - name: spread
+        description: "The home team's point spread, as text; negative when the home team is favoured"
+      - name: over_under
+        description: "The game's total points line, as text"
+      - name: home_moneyline
+        description: "The home team's moneyline, as text"
+      - name: away_moneyline
+        description: "The away team's moneyline, as text"
+
   - name: espn_summary_teams
     description: "One row per team per game from the ESPN box score, team totals as JSON."
     columns:

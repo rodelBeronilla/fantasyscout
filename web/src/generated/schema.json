@@ -104,6 +104,15 @@
    ]
   },
   {
+   "about": "Lines inside plausible bounds for professional basketball: totals between 100 and 300 points, spreads under 40, both sides implied to score, and the two implied scores adding up to the total.",
+   "name": "warn_game_line_sanity",
+   "reads": [
+    "game_lines"
+   ],
+   "severity": "warn",
+   "tags": []
+  },
+  {
    "about": "The latest run per source and league landed a payload count within 3 MAD of the median of the trailing 14 runs (only once there are at least 5 earlier runs to compare with). Full-refresh and backfill runs (explicit windows longer than 10 days) are left out.",
    "name": "warn_ingest_volume_anomaly",
    "reads": [
@@ -218,7 +227,7 @@
   ],
   "fantasy_team_change": 0.25
  },
- "generic_tests": 197,
+ "generic_tests": 200,
  "layers": [
   {
    "models": [
@@ -606,6 +615,176 @@
      "notes": [],
      "read_by": [
       "espn_events"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The request key the payload was landed under",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN event id",
+       "name": "event_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The sportsbook ESPN lists first (DraftKings)",
+       "name": "provider",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The line as ESPN writes it, such as 'CON -4.5'",
+       "name": "details",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The home team's point spread, as text; negative when the home team is favoured",
+       "name": "spread",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The game's total points line, as text",
+       "name": "over_under",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The home team's moneyline, as text",
+       "name": "home_moneyline",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The away team's moneyline, as text",
+       "name": "away_moneyline",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The betting line on each ESPN scoreboard event (upcoming games carry one), one row per event per scoreboard landing.",
+     "materialized": "incremental",
+     "name": "espn_scoreboard_odds",
+     "notes": [],
+     "read_by": [
+      "game_lines"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The request key the payload was landed under",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN event id",
+       "name": "event_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The sportsbook ESPN lists first (DraftKings)",
+       "name": "provider",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The line as ESPN writes it, such as 'CON -4.5'",
+       "name": "details",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The home team's point spread, as text; negative when the home team is favoured",
+       "name": "spread",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The game's total points line, as text",
+       "name": "over_under",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The home team's moneyline, as text",
+       "name": "home_moneyline",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The away team's moneyline, as text",
+       "name": "away_moneyline",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The closing betting line from each ESPN game summary (pickcenter), one row per summary landing.",
+     "materialized": "incremental",
+     "name": "espn_summary_odds",
+     "notes": [],
+     "read_by": [
+      "game_lines"
      ],
      "reads": []
     },
@@ -3522,6 +3701,7 @@
       "One row per ESPN event with the two competitors unpacked. Latest landing wins."
      ],
      "read_by": [
+      "game_lines",
       "game_xwalk"
      ],
      "reads": [
@@ -4202,6 +4382,140 @@
      ],
      "reads": [
       "stats_playbyplayv3"
+     ]
+    },
+    {
+     "checks": [
+      "warn_game_line_sanity"
+     ],
+     "columns": [
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "event_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League and ESPN event id",
+       "name": "event_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "event_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The game's date in US Eastern time, to match the league schedule",
+       "name": "event_date_et",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "ESPN team id of the home side",
+       "name": "espn_home_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN team id of the away side",
+       "name": "espn_away_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "provider",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "details",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The home team's point spread; negative when the home team is favoured",
+       "name": "home_spread",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The game's total points line",
+       "name": "over_under",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The home team's moneyline (American odds)",
+       "name": "home_moneyline",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The away team's moneyline (American odds)",
+       "name": "away_moneyline",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "closing (from the game summary) or latest (from the most recent scoreboard)",
+       "name": "line_type",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date the line was taken from",
+       "name": "observed_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Points the home team is implied to score: (over_under - home_spread) / 2",
+       "name": "home_implied_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points the away team is implied to score: (over_under + home_spread) / 2",
+       "name": "away_implied_points",
+       "tests": [],
+       "type": "double"
+      }
+     ],
+     "description": "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard.",
+     "materialized": "table",
+     "name": "game_lines",
+     "notes": [
+      "The betting line for each ESPN event: the point spread from the home side (negative when the home team is favoured), the over/under, and the points each team is implied to score. Upcoming games take the line from the latest scoreboard; a finished game's summary carries the closing line, which wins over any earlier scoreboard. One row per event that has a line."
+     ],
+     "read_by": [
+      "mart_schedule_upcoming"
+     ],
+     "reads": [
+      "espn_events",
+      "espn_scoreboard_odds",
+      "espn_summary_odds"
      ]
     },
     {
@@ -6419,6 +6733,7 @@
      "read_by": [
       "fct_availability",
       "game_xwalk",
+      "mart_schedule_upcoming",
       "player_xwalk",
       "player_xwalk_review"
      ],
@@ -9618,6 +9933,42 @@
        "name": "away_matchup",
        "tests": [],
        "type": "double"
+      },
+      {
+       "description": "The home team's point spread where a line is posted (silver game_lines); negative when the home team is favoured",
+       "name": "home_spread",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The game's total points line where one is posted",
+       "name": "over_under",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points the home team is implied to score by the line",
+       "name": "home_implied_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points the away team is implied to score by the line",
+       "name": "away_implied_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The sportsbook the line comes from",
+       "name": "line_provider",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date the line was taken from",
+       "name": "line_as_of",
+       "tests": [],
+       "type": "date"
       }
      ],
      "description": "Regular-season and playoff games of the next fourteen days, confirmed games only.",
@@ -9625,14 +9976,17 @@
      "name": "mart_schedule_upcoming",
      "notes": [
       "The games of the next fourteen days per league, for the Streamers week grid and the board's games-next-seven column. Only regular-season and playoff games count, and an \"if necessary\" playoff game is left out until it is confirmed (the league stops flagging it once it is on).",
-      "Each side of a game carries a matchup value: how much a player's value per game moves with the opponent's defence and the game's expected pace, from replaying past seasons (ADR 0003: one standard deviation of opponent defence is worth about 0.2 value per game in the NBA, against a game-to-game swing of about 2.5; var fantasy_matchup). A team's defensive rating and pace blend this season to date with last season, last season counting as prior_games games, so early in a season (and for a reworked roster) the current games take over as they accumulate; early on, last season's team defence was the better guide. Ratings are standardised over the league's teams. A player's past results against an opponent predicted nothing (correlation 0.00 to 0.04) and are not used."
+      "Each side of a game carries a matchup value: how much a player's value per game moves with the opponent's defence and the game's expected pace, from replaying past seasons (ADR 0003: one standard deviation of opponent defence is worth about 0.2 value per game in the NBA, against a game-to-game swing of about 2.5; var fantasy_matchup). A team's defensive rating and pace blend this season to date with last season, last season counting as prior_games games, so early in a season (and for a reworked roster) the current games take over as they accumulate; early on, last season's team defence was the better guide. Ratings are standardised over the league's teams. A player's past results against an opponent predicted nothing (correlation 0.00 to 0.04) and are not used.",
+      "Each game also carries its betting line where the sportsbooks have posted one (silver game_lines): the home spread, the over/under, and the points each side is implied to score. The line is shown alongside the matchup value and does not change it until a backtest says it adds to it."
      ],
      "read_by": [
       "mart_streamers"
      ],
      "reads": [
       "fct_team_game",
-      "schedule"
+      "game_lines",
+      "schedule",
+      "team_xwalk"
      ]
     },
     {

@@ -233,6 +233,18 @@ models:
       - name: days_ahead
         description: "Days from the build date"
         data_tests: [not_null]
+      - name: home_spread
+        description: "The home team's point spread where a line is posted (silver game_lines); negative when the home team is favoured"
+      - name: over_under
+        description: "The game's total points line where one is posted"
+      - name: home_implied_points
+        description: "Points the home team is implied to score by the line"
+      - name: away_implied_points
+        description: "Points the away team is implied to score by the line"
+      - name: line_provider
+        description: "The sportsbook the line comes from"
+      - name: line_as_of
+        description: "Ingest date the line was taken from"
 
   - name: mart_streamers
     description: "Players active in the league's current season with games in the next seven days, the minutes and value trend, recent production and injury status."

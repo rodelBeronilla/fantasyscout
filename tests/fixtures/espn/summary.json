@@ -1772,5 +1772,29 @@
     }
    ]
   }
- }
+ },
+ "pickcenter": [
+  {
+   "provider": {
+    "id": "100",
+    "name": "DraftKings",
+    "priority": 1
+   },
+   "details": "CON -4.5",
+   "overUnder": 158.5,
+   "spread": -4.5,
+   "awayTeamOdds": {
+    "favorite": false,
+    "underdog": true,
+    "moneyLine": 150,
+    "teamId": "131935"
+   },
+   "homeTeamOdds": {
+    "favorite": true,
+    "underdog": false,
+    "moneyLine": -180,
+    "teamId": "18"
+   }
+  }
+ ]
 }

@@ -90,3 +90,9 @@ A player's game-to-game swing is about 2.5 in value per game. The opponent's def
 - once rosters are in, how many of its players are still available.
 
 Players outside the pool form a waiver group. The top of the distribution is steep, so its tiers are small: the elite players are separated one by one, while the flatter middle forms tiers about one round wide.
+
+## Addendum (2026-10-29): betting lines
+
+ESPN's scoreboards carry the sportsbook line for upcoming games, and its game summaries carry the closing line for finished ones, in both leagues. Both were landed and discarded until now. `silver.game_lines` keeps one line per game: the home spread, the over/under, and each side's implied points, (total ∓ spread) / 2. The closing line wins over earlier scoreboards. The daily ESPN run now also lands the next seven days' scoreboards, so upcoming games have their current line.
+
+`mart_schedule_upcoming` carries the line beside the matchup value. Streamers shows each team's implied points in the week grid and as a Team pts column. The line does not change the matchup value or the window value yet. The closing lines on past summaries make the backtest possible: whether implied team points predict a player's production beyond the defence-and-pace matchup. It runs before the line moves any score.
