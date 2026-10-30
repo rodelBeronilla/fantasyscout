@@ -42,3 +42,22 @@ Option 3, the owner's choice.
 ## Addendum (2026-10-29): the owner signs in with OpenID
 
 The plain OAuth sign-in returned no account id for this Yahoo app (no `xoauth_yahoo_guid`), so it could not tell the owner from anyone else. The owner's sign-in now always asks Yahoo for the `openid` scope. The account is the OpenID token's subject, or failing that the subject from Yahoo's OpenID user info. The plain sign-in is gone. `OWNER_YAHOO_GUID` may be an Actions secret or a repository variable.
+
+## Addendum (2026-10-30): player prop lines are private model inputs
+
+The owner approved two sources of player prop lines, the line a sportsbook sets on a player's points, rebounds, assists, threes, steals, blocks and turnovers:
+- DraftKings' lines through ESPN's core API (`propBets`, provider 100);
+- The Odds API (v4), every US bookmaker, under the repository secret `ODDS_API_KEY`.
+
+Three sets of terms bear on them:
+- NBA.com's terms forbid using its statistics "in connection with" gambling.
+- Disney's terms for ESPN restrict automated collection.
+- The Odds API's terms allow storing its data and deriving from it.
+
+The decision keeps the lines out of any public surface and away from anything that looks like betting:
+- **Private.** Props land in the volume (`landing/espn/prop_bets`, `landing/odds_api/player_props`), are modelled in `silver.player_props` and `gold.fct_player_prop`, and leave the lakehouse only as that gold table's Parquet, which the Worker serves to the owner alone. They are not in the board's, the streamers' or the schedule's JSON, nor in any player file, and no page shows them.
+- **A model input and an analysis aid, nothing more.** The lines are a check on the board's projections and, if a backtest says so, an input to them. The site makes no picks, shows no prices and links to no sportsbook.
+- **Aggregates only in public.** The rendered notebook (`06_prop_lines`) and its findings publish aggregates, such as the board's mean absolute error against the line and coverage, never a player's line.
+- **Polite collection.** One run each morning and evening, with no retries beyond the shared client's. ESPN gets two scoreboard calls and a page or two per game that has not started. The Odds API gets one odds call per event in the next 36 hours, the credits left are logged, and the run stops calling when one call would overdraw them. Without the key, that source is skipped and the run is not failed.
+
+If any of the three operators objects, the source is dropped and its landed files are deleted.

@@ -23,6 +23,7 @@ from ingest.http import Throttle, ThrottledClient
 from ingest.injury_report import InjuryReportIngestor, ReportHistoryIngestor
 from ingest.landing import League
 from ingest.lineups import LineupsIngestor
+from ingest.props import EspnPropsIngestor, OddsApiIngestor
 from ingest.referee_assignments import RefereeAssignmentsIngestor
 from ingest.run import RunSummary, describe
 from ingest.sleeper import SleeperIngestor
@@ -62,9 +63,11 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
         "transactions",
         "fantasy_players",
         "news",
+        "prop_bets",
     ),
     "league": ("injury_report", "daily_lineups", "player_movement", "referee_assignments"),
     "sleeper": ("players", "trending"),
+    "odds_api": ("player_props",),
 }
 
 
@@ -166,6 +169,7 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
             "  and ESPN fantasy's market: draft position and how widely each player is rostered"
         )
         lines.append("  and ESPN's latest 50 headlines, with the players they are about")
+        lines.append("  and prop lines (private): DraftKings via ESPN, The Odds API with a key")
     else:
         days = (until - since).days + 1
         lines.append(f"  scoreboard for {days} day(s), then summary per completed event")
@@ -232,6 +236,9 @@ def land(
             EspnFantasyIngestor(client, landing, opts.league, season).land_into(summary)
             EspnNewsIngestor(client, landing, opts.league, season).land_into(summary)
             SleeperIngestor(client, landing, opts.league, season).land_into(summary)
+            EspnPropsIngestor(client, landing, opts.league, season).land_into(summary)
+            odds_key = env.get("ODDS_API_KEY", "")
+            OddsApiIngestor(client, landing, opts.league, season, odds_key).land_into(summary)
             for failure in landing.flush():
                 summary.fail(failure.endpoint, failure.key, failure.error)
             summary.pacing = client.pacing()

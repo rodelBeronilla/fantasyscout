@@ -145,6 +145,8 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # Player prop lines from The Odds API (private, ADR 0008); skipped while unset.
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
           set -o pipefail
           uv run fs-ingest land reports --league "${{ matrix.league }}" --backend volume 2>&1 | tee land.log

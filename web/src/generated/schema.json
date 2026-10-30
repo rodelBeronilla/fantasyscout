@@ -278,7 +278,7 @@
   "fantasy_recent_minutes": 0.5,
   "fantasy_team_change": 0.25
  },
- "generic_tests": 310,
+ "generic_tests": 331,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -302,6 +302,12 @@
    "path": "espn/news",
    "read_by": [
     "espn_news"
+   ]
+  },
+  {
+   "path": "espn/prop_bets",
+   "read_by": [
+    "espn_prop_bets"
    ]
   },
   {
@@ -361,6 +367,12 @@
    "path": "league/referee_assignments",
    "read_by": [
     "league_referee_assignments"
+   ]
+  },
+  {
+   "path": "odds_api/player_props",
+   "read_by": [
+    "odds_api_player_props"
    ]
   },
   {
@@ -802,6 +814,165 @@
      "read_by": [
       "feed_freshness",
       "player_news"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2026-27)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload: the event id and the Eastern date and hour of the run",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN event id",
+       "name": "event_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "draftkings (ESPN's provider 100)",
+       "name": "bookmaker",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Eastern date and hour of the run that landed the lines, YYYY-MM-DDTHH",
+       "name": "snapshot_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the run fetched the lines, ISO 8601 UTC text",
+       "name": "fetched_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Scheduled start of the game from ESPN's scoreboard, ISO 8601 UTC text",
+       "name": "commence_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The game's Eastern date, YYYY-MM-DD text",
+       "name": "game_date_et",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN team id of the home side",
+       "name": "espn_home_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN team id of the away side",
+       "name": "espn_away_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN athlete id, from the athlete reference URL",
+       "name": "espn_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's prop type id (1 points, 2 assists, 3 rebounds, 4 threes, 5 steals, 6 blocks, 87 to 91 combinations)",
+       "name": "prop_type_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's prop type name, such as Total Points",
+       "name": "prop_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The current line, text",
+       "name": "line",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The opening line, text",
+       "name": "open_line",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Current American price of the over, text",
+       "name": "over_odds",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Current American price of the under, text",
+       "name": "under_odds",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Opening American price of the over, text",
+       "name": "over_open_odds",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Opening American price of the under, text",
+       "name": "under_open_odds",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When DraftKings last moved either side, ISO 8601 UTC text",
+       "name": "last_updated",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "DraftKings' player totals from ESPN's core API as landed: one row per player and market per snapshot. Private (ADR 0008).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/prop_bets"
+     ],
+     "materialized": "incremental",
+     "name": "espn_prop_bets",
+     "notes": [
+      "DraftKings' player totals from ESPN's core API, as landed (ingest/props.py): one row per player and market per snapshot, with the line, the over and under prices and the opening line and prices. The ingestor has already split ESPN's two quotes into the over and the under and left out milestones, quarter and game lines. Private (ADR 0008)."
+     ],
+     "read_by": [
+      "player_props"
      ],
      "reads": [],
      "unit_tests": []
@@ -2355,6 +2526,147 @@
      ],
      "read_by": [
       "game_officials"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2026-27)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload: the event id and the Eastern date and hour of the run",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The Odds API's event id",
+       "name": "event_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The Odds API's sport key: basketball_nba or basketball_wnba",
+       "name": "sport_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Eastern date and hour of the run that landed the lines, YYYY-MM-DDTHH",
+       "name": "snapshot_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the run fetched the lines, ISO 8601 UTC text",
+       "name": "fetched_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Scheduled start of the game, ISO 8601 UTC text",
+       "name": "commence_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The game's Eastern date, YYYY-MM-DD text",
+       "name": "game_date_et",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Home team's full name as The Odds API writes it (Los Angeles Clippers)",
+       "name": "home_team_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Away team's full name as The Odds API writes it",
+       "name": "away_team_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The Odds API's bookmaker key, such as draftkings or fanduel",
+       "name": "bookmaker",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The Odds API's market key, such as player_points",
+       "name": "market_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The player's name as the bookmaker writes it",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The line, text",
+       "name": "line",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "American price of the over, text",
+       "name": "over_odds",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "American price of the under, text",
+       "name": "under_odds",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the bookmaker last updated the market, ISO 8601 UTC text",
+       "name": "last_updated",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The Odds API's player props as landed: one row per bookmaker, market, player and line per snapshot. Private (ADR 0008).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "odds_api/player_props"
+     ],
+     "materialized": "incremental",
+     "name": "odds_api_player_props",
+     "notes": [
+      "The Odds API's player props, as landed (ingest/props.py): one row per bookmaker, market, player and line per snapshot, with the over and under prices. The ingestor has already paired each over with its under. Private (ADR 0008)."
+     ],
+     "read_by": [
+      "player_props"
      ],
      "reads": [],
      "unit_tests": []
@@ -8275,6 +8587,7 @@
       "fct_game_line",
       "game_officials",
       "player_game_reconciliation",
+      "player_props",
       "player_xwalk",
       "player_xwalk_review"
      ],
@@ -10442,6 +10755,243 @@
      "checks": [],
      "columns": [
       {
+       "description": "League, source, bookmaker, source event id, source player (ESPN athlete id or name), market and snapshot key",
+       "name": "player_prop_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label of the linked league game, else from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "espn (DraftKings through ESPN's core API) or odds_api (The Odds API)",
+       "name": "source",
+       "tests": [
+        "accepted_values",
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Bookmaker key, such as draftkings or fanduel",
+       "name": "bookmaker",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The source's event id: ESPN event id or The Odds API's event id",
+       "name": "source_event_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League game id, from the game crosswalk or the schedule; null when the event is not linked",
+       "name": "game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The game's Eastern date",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Scheduled start of the game (UTC)",
+       "name": "commence_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "ESPN athlete id (ESPN rows only)",
+       "name": "espn_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The player's name as The Odds API writes it (The Odds API rows only)",
+       "name": "source_player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id; null when the athlete or name is not linked",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "How the player was linked: player_xwalk (ESPN athlete id), name_and_team (a name on one of the game's teams), name (a name unique in the league); null when unlinked",
+       "name": "player_link",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "points, rebounds, assists, threes, steals, blocks, turnovers, points_rebounds, points_assists, rebounds_assists, points_rebounds_assists or steals_blocks",
+       "name": "market",
+       "tests": [
+        "accepted_values",
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The line: the over wins above it, the under below it",
+       "name": "line",
+       "tests": [
+        "not_null"
+       ],
+       "type": "double"
+      },
+      {
+       "description": "The opening line (ESPN only)",
+       "name": "open_line",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "American price of the over",
+       "name": "over_price",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "American price of the under",
+       "name": "under_price",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Opening American price of the over (ESPN only)",
+       "name": "over_open_price",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Opening American price of the under (ESPN only)",
+       "name": "under_open_price",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Probability the over's price implies, vig included: 100 / (price + 100) for a plus price, -price / (-price + 100) for a minus price",
+       "name": "over_implied_prob",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Probability the under's price implies, vig included",
+       "name": "under_implied_prob",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The bookmaker's margin: the two implied probabilities' sum minus one",
+       "name": "vig",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Probability of the over with the vig removed: over_implied_prob / (over_implied_prob + under_implied_prob)",
+       "name": "over_prob_no_vig",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Eastern date and hour of the run that landed the lines, YYYY-MM-DDTHH",
+       "name": "snapshot_key",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "When the run fetched the lines (UTC)",
+       "name": "snapshot_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "When the bookmaker last moved the line or a price (UTC)",
+       "name": "line_updated_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "True when the lines were fetched before the game's scheduled start",
+       "name": "is_pre_game",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "Ingest date of the landing",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "Player prop lines from ESPN (DraftKings) and The Odds API: one row per league, game, player, market, source, bookmaker and snapshot, with the prices, the implied probabilities and the over's probability with the vig removed, linked to league player and game ids. Private (ADR 0008).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "player_props",
+     "notes": [
+      "Player prop lines from both sources, one row per league, game, player, market, source, bookmaker and snapshot (one run of the reports ingest, keyed by its Eastern date and hour). Private (ADR 0008): a model input and an analysis aid, never on a public page or in the public JSON, and never a pick.",
+      "- Prices. The over and under come as American odds, and each implies a probability: -150 implies 150 / 250 = 0.6, +130 implies 100 / 230. The two add up to more than one, and the excess is the bookmaker's margin (vig). over_prob_no_vig divides it out: over / (over + under).",
+      "- Markets. ESPN's prop types and The Odds API's market keys share one set of names: points, rebounds, assists, threes, steals, blocks, turnovers, and the combinations ESPN quotes.",
+      "- Games. An ESPN event takes the league game id from the game crosswalk once the game is played. Before then it comes from the schedule: the same two teams (through team_xwalk, either way round) on the same Eastern date. The Odds API names teams in full (\"Los Angeles Clippers\"). A name links to the league team with that full name or, failing that, the team whose nickname it ends with, the longest nickname winning (\"Hornets\" over \"Nets\"). The schedule match then works the same way.",
+      "- Players. ESPN athletes link through the player crosswalk. The Odds API gives only the name, which is matched the way transactions and the waiver trend match names: the league name with its suffix kept, or both names without suffixes. A player on one of the game's two teams wins over a namesake elsewhere, then a player on a roster. A name that still matches more than one player is left unlinked.",
+      "- Repeated quotes. When a bookmaker quotes one player's market at more than one line in a snapshot, the line with the most even prices is kept: the main line, not an alternate."
+     ],
+     "read_by": [
+      "fct_player_prop"
+     ],
+     "reads": [
+      "espn_prop_bets",
+      "game_xwalk",
+      "odds_api_player_props",
+      "player_xwalk",
+      "players",
+      "schedule",
+      "team_xwalk",
+      "teams"
+     ],
+     "unit_tests": [
+      {
+       "description": "The Odds API names teams in full: \"Los Angeles Clippers\" links by its nickname and \"Charlotte Hornets\" by its full name, not to the Nets whose nickname it also ends with. A player's name links with its suffix kept or dropped; a namesake on one of the game's teams wins, a name unique in the league links on its own, and a tie stays unlinked. Two lines for one player's market keep the one with the most even prices. Each bookmaker keeps its own row.",
+       "name": "player_props_link_odds_api_teams_and_players_by_name"
+      },
+      {
+       "description": "Each price implies a probability (-300 is 0.75, +100 is 0.5); their sum less one is the vig, and the over's share of the sum is its probability with the vig removed. An ESPN event links to the scheduled game with the same two teams on its Eastern date, and an athlete through the player crosswalk; an athlete the crosswalk does not know stays unlinked. A market outside the known set is dropped, and a snapshot taken after the start is not pre-game.",
+       "name": "player_props_remove_the_vig_and_link_espn_athletes_and_events"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "wnba or nba",
        "name": "league",
        "tests": [],
@@ -10536,6 +11086,7 @@
       "fct_market_value",
       "player_game_reconciliation",
       "player_news",
+      "player_props",
       "player_xwalk_review"
      ],
      "reads": [
@@ -10763,6 +11314,7 @@
      ],
      "read_by": [
       "dim_player",
+      "player_props",
       "transactions"
      ],
      "reads": [
@@ -11133,7 +11685,8 @@
       "game_officials",
       "mart_board",
       "mart_player_projection",
-      "mart_schedule_upcoming"
+      "mart_schedule_upcoming",
+      "player_props"
      ],
      "reads": [
       "stats_scheduleleaguev2"
@@ -11891,6 +12444,7 @@
       "fct_game_line",
       "game_xwalk",
       "mart_schedule_upcoming",
+      "player_props",
       "player_xwalk",
       "player_xwalk_review",
       "transactions"
@@ -11999,6 +12553,7 @@
       "fct_waiver_trend",
       "mart_board",
       "mart_streamers",
+      "player_props",
       "team_xwalk"
      ],
      "reads": [
@@ -14604,6 +15159,199 @@
       "player_news"
      ],
      "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, game, player, market, source and bookmaker",
+       "name": "player_prop_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label of the game",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League game id",
+       "name": "game_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The game's Eastern date",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Scheduled start of the game (UTC)",
+       "name": "commence_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "League player id",
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "How the player was linked: player_xwalk, name_and_team or name (silver player_props)",
+       "name": "player_link",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "points, rebounds, assists, threes, steals, blocks, turnovers, points_rebounds, points_assists, rebounds_assists, points_rebounds_assists or steals_blocks",
+       "name": "market",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "espn or odds_api",
+       "name": "source",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Bookmaker key, such as draftkings",
+       "name": "bookmaker",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The bookmaker's last line before the game",
+       "name": "line",
+       "tests": [
+        "not_null"
+       ],
+       "type": "double"
+      },
+      {
+       "description": "The opening line (ESPN only)",
+       "name": "open_line",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "American price of the over",
+       "name": "over_price",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "American price of the under",
+       "name": "under_price",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Probability of the over with the vig removed",
+       "name": "over_prob_no_vig",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The bookmaker's margin on the market: the implied probabilities' sum minus one",
+       "name": "vig",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Eastern date and hour of the run whose lines these are, YYYY-MM-DDTHH",
+       "name": "snapshot_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When that run fetched the lines (UTC), before the game's start",
+       "name": "snapshot_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "When the bookmaker last moved the line or a price (UTC)",
+       "name": "line_updated_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "Mean line across the bookmakers quoting the player's market for the game, each bookmaker once",
+       "name": "consensus_line",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Mean over probability, vig removed, across those bookmakers",
+       "name": "consensus_over_prob_no_vig",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "How many bookmakers the consensus covers",
+       "name": "books_quoting",
+       "tests": [],
+       "type": "bigint"
+      }
+     ],
+     "description": "Prop lines as a private model input (ADR 0008): the latest pre-game line per player, game, market, source and bookmaker, linked to league ids, with the consensus across bookmakers. In the owner's Parquet only; never in the public JSON or on a page.",
+     "exported_as": [
+      "fct_player_prop.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "player_id",
+       "market",
+       "source",
+       "bookmaker"
+      ],
+      "key": "player_prop_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_player_prop",
+     "notes": [
+      "The prop line each bookmaker last set before tip-off, per player, game, market, source and bookmaker, linked to the league's player and game ids, with the consensus of the bookmakers beside it. Private (ADR 0008): it goes out only in the owner's Parquet, never in the public JSON or on a page. It is a model input and an analysis aid (notebooks/06_prop_lines), not a pick.",
+      "- The latest pre-game snapshot: the last run of the reports ingest before the game's start time. A quote that is not linked to both a league player and a league game is left out (silver player_props keeps it).",
+      "- Consensus: the mean line, and the mean over probability with the vig removed, across the bookmakers quoting the player's market for the game, each bookmaker counted once. DraftKings comes from both sources; the later snapshot counts, and The Odds API's on a tie."
+     ],
+     "read_by": [],
+     "reads": [
+      "player_props"
+     ],
+     "unit_tests": [
+      {
+       "description": "Each source and bookmaker keeps its last line before the start; a snapshot after the start and a quote without a league player are left out. The consensus averages the bookmakers' lines and vig-free over probabilities, counting DraftKings once although both sources carry it (The Odds API's quote on a tie).",
+       "name": "player_prop_keeps_the_latest_pre_game_line_and_a_consensus_per_bookmaker"
+      }
+     ]
     },
     {
      "checks": [
@@ -19579,6 +20327,11 @@
    "name": "official_listing_counts_the_games_missed_after_each_listing"
   },
   {
+   "description": "Each source and bookmaker keeps its last line before the start; a snapshot after the start and a quote without a league player are left out. The consensus averages the bookmakers' lines and vig-free over probabilities, counting DraftKings once although both sources carry it (The Odds API's quote on a tie).",
+   "model": "fct_player_prop",
+   "name": "player_prop_keeps_the_latest_pre_game_line_and_a_consensus_per_bookmaker"
+  },
+  {
    "description": "Two regular-season games make the league-season's average game: 38 fouls, 45 free-throw attempts, pace 98 and 210 points. An official who worked only the first, as crew chief, sits 2 fouls, 5 attempts, 2 possessions and 10 points above it; one who worked both sits on it. A preseason game, and an alternate who did not work, count for nothing.",
    "model": "fct_referee_tendency",
    "name": "referee_tendency_against_the_league_season_average"
@@ -19617,6 +20370,16 @@
    "description": "Headlines from ESPN's feed each get the flag their wording gives, first match wins, and none when nothing applies. An athlete the crosswalk knows gets the league id; an article tagged twice counts two athletes; a later landing of the same article replaces the earlier one.",
    "model": "player_news",
    "name": "player_news_flags_headlines_by_their_wording_and_links_players"
+  },
+  {
+   "description": "The Odds API names teams in full: \"Los Angeles Clippers\" links by its nickname and \"Charlotte Hornets\" by its full name, not to the Nets whose nickname it also ends with. A player's name links with its suffix kept or dropped; a namesake on one of the game's teams wins, a name unique in the league links on its own, and a tie stays unlinked. Two lines for one player's market keep the one with the most even prices. Each bookmaker keeps its own row.",
+   "model": "player_props",
+   "name": "player_props_link_odds_api_teams_and_players_by_name"
+  },
+  {
+   "description": "Each price implies a probability (-300 is 0.75, +100 is 0.5); their sum less one is the vig, and the over's share of the sum is its probability with the vig removed. An ESPN event links to the scheduled game with the same two teams on its Eastern date, and an athlete through the player crosswalk; an athlete the crosswalk does not know stays unlinked. A market outside the known set is dropped, and a snapshot taken after the start is not pre-game.",
+   "model": "player_props",
+   "name": "player_props_remove_the_vig_and_link_espn_athletes_and_events"
   },
   {
    "description": "An ESPN line naming two players gives a row for each; a line naming nobody keeps one row without a player; a name two players share links to neither; a short name is not matched.",

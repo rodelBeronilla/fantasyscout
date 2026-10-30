@@ -1,0 +1,84 @@
+version: 2
+
+models:
+  - name: player_props
+    description: "Player prop lines from ESPN (DraftKings) and The Odds API: one row per league, game, player, market, source, bookmaker and snapshot, with the prices, the implied probabilities and the over's probability with the vig removed, linked to league player and game ids. Private (ADR 0008)."
+    columns:
+      - name: player_prop_key
+        description: "League, source, bookmaker, source event id, source player (ESPN athlete id or name), market and snapshot key"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "wnba or nba"
+        data_tests: [not_null]
+      - name: season
+        description: "Season label of the linked league game, else from the landing path"
+      - name: source
+        description: "espn (DraftKings through ESPN's core API) or odds_api (The Odds API)"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [espn, odds_api]
+      - name: bookmaker
+        description: "Bookmaker key, such as draftkings or fanduel"
+        data_tests: [not_null]
+      - name: source_event_id
+        description: "The source's event id: ESPN event id or The Odds API's event id"
+        data_tests: [not_null]
+      - name: game_id
+        description: "League game id, from the game crosswalk or the schedule; null when the event is not linked"
+      - name: game_date
+        description: "The game's Eastern date"
+      - name: commence_at
+        description: "Scheduled start of the game (UTC)"
+      - name: espn_player_id
+        description: "ESPN athlete id (ESPN rows only)"
+      - name: source_player_name
+        description: "The player's name as The Odds API writes it (The Odds API rows only)"
+      - name: player_id
+        description: "League player id; null when the athlete or name is not linked"
+      - name: player_link
+        description: "How the player was linked: player_xwalk (ESPN athlete id), name_and_team (a name on one of the game's teams), name (a name unique in the league); null when unlinked"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [player_xwalk, name_and_team, name]
+      - name: market
+        description: "points, rebounds, assists, threes, steals, blocks, turnovers, points_rebounds, points_assists, rebounds_assists, points_rebounds_assists or steals_blocks"
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [points, rebounds, assists, threes, steals, blocks, turnovers, points_rebounds, points_assists, rebounds_assists, points_rebounds_assists, steals_blocks]
+      - name: line
+        description: "The line: the over wins above it, the under below it"
+        data_tests: [not_null]
+      - name: open_line
+        description: "The opening line (ESPN only)"
+      - name: over_price
+        description: "American price of the over"
+      - name: under_price
+        description: "American price of the under"
+      - name: over_open_price
+        description: "Opening American price of the over (ESPN only)"
+      - name: under_open_price
+        description: "Opening American price of the under (ESPN only)"
+      - name: over_implied_prob
+        description: "Probability the over's price implies, vig included: 100 / (price + 100) for a plus price, -price / (-price + 100) for a minus price"
+      - name: under_implied_prob
+        description: "Probability the under's price implies, vig included"
+      - name: vig
+        description: "The bookmaker's margin: the two implied probabilities' sum minus one"
+      - name: over_prob_no_vig
+        description: "Probability of the over with the vig removed: over_implied_prob / (over_implied_prob + under_implied_prob)"
+      - name: snapshot_key
+        description: "Eastern date and hour of the run that landed the lines, YYYY-MM-DDTHH"
+        data_tests: [not_null]
+      - name: snapshot_at
+        description: "When the run fetched the lines (UTC)"
+      - name: line_updated_at
+        description: "When the bookmaker last moved the line or a price (UTC)"
+      - name: is_pre_game
+        description: "True when the lines were fetched before the game's scheduled start"
+      - name: _ingest_date
+        description: "Ingest date of the landing"

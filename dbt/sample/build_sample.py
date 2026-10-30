@@ -54,6 +54,15 @@ PAYLOADS = [
     ("espn", "news", "news", "wnba", "2026", "2026-10-29T21"),
     ("sleeper", "players", "players", "nba", "2026-27", "2026-10-29"),
     ("sleeper", "trending", "trending", "nba", "2026-27", "2026-10-29T22"),
+    ("espn", "prop_bets", "prop_bets", "nba", "2026-27", "401909277-2026-10-30T10"),
+    (
+        "odds_api",
+        "player_props",
+        "player_props",
+        "nba",
+        "2026-27",
+        "c1a2b3d4e5f60718293a4b5c6d7e8f90-2026-10-30T10",
+    ),
 ]
 
 

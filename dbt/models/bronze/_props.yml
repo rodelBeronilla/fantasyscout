@@ -1,0 +1,99 @@
+version: 2
+
+# Player prop lines (ingest/props.py). Private model inputs (ADR 0008): never on a public page or
+# in the public JSON.
+
+models:
+  - name: espn_prop_bets
+    description: "DraftKings' player totals from ESPN's core API as landed: one row per player and market per snapshot. Private (ADR 0008)."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2026-27)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload: the event id and the Eastern date and hour of the run"
+      - name: event_id
+        description: "ESPN event id"
+      - name: bookmaker
+        description: "draftkings (ESPN's provider 100)"
+      - name: snapshot_key
+        description: "Eastern date and hour of the run that landed the lines, YYYY-MM-DDTHH"
+      - name: fetched_at
+        description: "When the run fetched the lines, ISO 8601 UTC text"
+      - name: commence_at
+        description: "Scheduled start of the game from ESPN's scoreboard, ISO 8601 UTC text"
+      - name: game_date_et
+        description: "The game's Eastern date, YYYY-MM-DD text"
+      - name: espn_home_team_id
+        description: "ESPN team id of the home side"
+      - name: espn_away_team_id
+        description: "ESPN team id of the away side"
+      - name: espn_player_id
+        description: "ESPN athlete id, from the athlete reference URL"
+      - name: prop_type_id
+        description: "ESPN's prop type id (1 points, 2 assists, 3 rebounds, 4 threes, 5 steals, 6 blocks, 87 to 91 combinations)"
+      - name: prop_type
+        description: "ESPN's prop type name, such as Total Points"
+      - name: line
+        description: "The current line, text"
+      - name: open_line
+        description: "The opening line, text"
+      - name: over_odds
+        description: "Current American price of the over, text"
+      - name: under_odds
+        description: "Current American price of the under, text"
+      - name: over_open_odds
+        description: "Opening American price of the over, text"
+      - name: under_open_odds
+        description: "Opening American price of the under, text"
+      - name: last_updated
+        description: "When DraftKings last moved either side, ISO 8601 UTC text"
+
+  - name: odds_api_player_props
+    description: "The Odds API's player props as landed: one row per bookmaker, market, player and line per snapshot. Private (ADR 0008)."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2026-27)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload: the event id and the Eastern date and hour of the run"
+      - name: event_id
+        description: "The Odds API's event id"
+      - name: sport_key
+        description: "The Odds API's sport key: basketball_nba or basketball_wnba"
+      - name: snapshot_key
+        description: "Eastern date and hour of the run that landed the lines, YYYY-MM-DDTHH"
+      - name: fetched_at
+        description: "When the run fetched the lines, ISO 8601 UTC text"
+      - name: commence_at
+        description: "Scheduled start of the game, ISO 8601 UTC text"
+      - name: game_date_et
+        description: "The game's Eastern date, YYYY-MM-DD text"
+      - name: home_team_name
+        description: "Home team's full name as The Odds API writes it (Los Angeles Clippers)"
+      - name: away_team_name
+        description: "Away team's full name as The Odds API writes it"
+      - name: bookmaker
+        description: "The Odds API's bookmaker key, such as draftkings or fanduel"
+      - name: market_key
+        description: "The Odds API's market key, such as player_points"
+      - name: player_name
+        description: "The player's name as the bookmaker writes it"
+      - name: line
+        description: "The line, text"
+      - name: over_odds
+        description: "American price of the over, text"
+      - name: under_odds
+        description: "American price of the under, text"
+      - name: last_updated
+        description: "When the bookmaker last updated the market, ISO 8601 UTC text"

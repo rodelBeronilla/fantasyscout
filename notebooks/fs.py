@@ -66,6 +66,7 @@ TABLES = (
     "fct_referee_tendency",
     "fct_board_history",
     "fct_game_line",
+    "fct_player_prop",
     "fct_team_stakes",
     "mart_board",
     "mart_player_projection",

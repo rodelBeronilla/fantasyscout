@@ -1,0 +1,52 @@
+{
+ "_fixture_note": "The documented v4 event-odds shape with invented prices and players: no API key existed when this was written, so it is not a live capture.",
+ "id": "c1a2b3d4e5f60718293a4b5c6d7e8f90",
+ "sport_key": "basketball_nba",
+ "sport_title": "NBA",
+ "commence_time": "2026-10-30T23:00:00Z",
+ "home_team": "Washington Wizards",
+ "away_team": "Charlotte Hornets",
+ "bookmakers": [
+  {
+   "key": "draftkings",
+   "title": "DraftKings",
+   "last_update": "2026-10-30T14:58:12Z",
+   "markets": [
+    {
+     "key": "player_points",
+     "last_update": "2026-10-30T14:58:12Z",
+     "outcomes": [
+      {"name": "Over", "description": "Sample Guard", "price": -115, "point": 21.5},
+      {"name": "Under", "description": "Sample Guard", "price": -105, "point": 21.5},
+      {"name": "Over", "description": "Sample Forward Jr.", "price": 110, "point": 14.5},
+      {"name": "Under", "description": "Sample Forward Jr.", "price": -140, "point": 14.5}
+     ]
+    },
+    {
+     "key": "player_rebounds",
+     "last_update": "2026-10-30T14:51:40Z",
+     "outcomes": [
+      {"name": "Over", "description": "Sample Forward Jr.", "price": -120, "point": 6.5},
+      {"name": "Under", "description": "Sample Forward Jr.", "price": -110, "point": 6.5}
+     ]
+    }
+   ]
+  },
+  {
+   "key": "fanduel",
+   "title": "FanDuel",
+   "last_update": "2026-10-30T14:57:03Z",
+   "markets": [
+    {
+     "key": "player_points",
+     "last_update": "2026-10-30T14:57:03Z",
+     "outcomes": [
+      {"name": "Over", "description": "Sample Guard", "price": -110, "point": 22.5},
+      {"name": "Under", "description": "Sample Guard", "price": -118, "point": 22.5},
+      {"name": "Over", "description": "Sample Guard", "price": 135, "point": 25.5}
+     ]
+    }
+   ]
+  }
+ ]
+}

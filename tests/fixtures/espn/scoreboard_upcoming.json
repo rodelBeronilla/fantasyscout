@@ -1,0 +1,68 @@
+{
+ "events": [
+  {
+   "id": "401909277",
+   "date": "2026-10-30T23:00Z",
+   "name": "Charlotte Hornets at Washington Wizards",
+   "status": {
+    "type": {
+     "state": "pre",
+     "completed": false
+    }
+   },
+   "competitions": [
+    {
+     "id": "401909277",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "27",
+        "abbreviation": "WSH"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "30",
+        "abbreviation": "CHA"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909278",
+   "date": "2026-10-30T23:30Z",
+   "name": "Chicago Bulls at Boston Celtics",
+   "status": {
+    "type": {
+     "state": "pre",
+     "completed": false
+    }
+   },
+   "competitions": [
+    {
+     "id": "401909278",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "2",
+        "abbreviation": "BOS"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "4",
+        "abbreviation": "CHI"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
