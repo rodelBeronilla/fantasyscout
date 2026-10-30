@@ -196,3 +196,22 @@ def test_cookies_set_by_the_host_are_never_sent_back() -> None:
 def test_adaptive_policy_uses_a_shorter_read_timeout() -> None:
     assert Throttle.adaptive().timeout == 20.0
     assert Throttle.spec().timeout == 30.0
+
+
+def test_requests_carry_a_browser_user_agent_unless_the_caller_sets_one() -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers["user-agent"])
+        return httpx.Response(200, json={})
+
+    client = ThrottledClient(
+        Throttle(max_retries=0),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+        clock=lambda: 0.0,
+        rng=random.Random(0),
+    )
+    client.get("https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard")
+    client.get("https://example.invalid/x", headers={"User-Agent": "custom"})
+    assert seen[0].startswith("Mozilla/5.0") and seen[1] == "custom"
