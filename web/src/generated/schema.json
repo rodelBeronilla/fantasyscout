@@ -279,6 +279,156 @@
   "fantasy_team_change": 0.25
  },
  "generic_tests": 260,
+ "landing": [
+  {
+   "path": "_ops/ingest_log",
+   "read_by": [
+    "ingest_log"
+   ]
+  },
+  {
+   "path": "espn/fantasy_players",
+   "read_by": [
+    "espn_fantasy_players"
+   ]
+  },
+  {
+   "path": "espn/injuries",
+   "read_by": [
+    "espn_injuries"
+   ]
+  },
+  {
+   "path": "espn/news",
+   "read_by": [
+    "espn_news"
+   ]
+  },
+  {
+   "path": "espn/roster",
+   "read_by": [
+    "espn_roster"
+   ]
+  },
+  {
+   "path": "espn/scoreboard",
+   "read_by": [
+    "espn_scoreboard",
+    "espn_scoreboard_odds"
+   ]
+  },
+  {
+   "path": "espn/summary",
+   "read_by": [
+    "espn_summary_odds",
+    "espn_summary_players",
+    "espn_summary_plays",
+    "espn_summary_teams"
+   ]
+  },
+  {
+   "path": "espn/teams",
+   "read_by": [
+    "espn_teams"
+   ]
+  },
+  {
+   "path": "espn/transactions",
+   "read_by": [
+    "espn_transactions"
+   ]
+  },
+  {
+   "path": "league/daily_lineups",
+   "read_by": [
+    "league_daily_lineups"
+   ]
+  },
+  {
+   "path": "league/injury_report",
+   "read_by": [
+    "league_injury_report"
+   ]
+  },
+  {
+   "path": "league/player_movement",
+   "read_by": [
+    "league_player_movement"
+   ]
+  },
+  {
+   "path": "sleeper/players",
+   "read_by": [
+    "sleeper_players"
+   ]
+  },
+  {
+   "path": "sleeper/trending",
+   "read_by": [
+    "sleeper_trending"
+   ]
+  },
+  {
+   "path": "stats/boxscoreadvancedv3",
+   "read_by": [
+    "stats_boxscoreadvancedv3"
+   ]
+  },
+  {
+   "path": "stats/boxscoretraditionalv3",
+   "read_by": [
+    "stats_boxscoretraditionalv3"
+   ]
+  },
+  {
+   "path": "stats/commonallplayers",
+   "read_by": [
+    "stats_commonallplayers"
+   ]
+  },
+  {
+   "path": "stats/commonteamroster",
+   "read_by": [
+    "stats_commonteamroster"
+   ]
+  },
+  {
+   "path": "stats/leaguegamelog",
+   "read_by": [
+    "stats_leaguegamelog"
+   ]
+  },
+  {
+   "path": "stats/leaguestandingsv3",
+   "read_by": [
+    "stats_leaguestandingsv3"
+   ]
+  },
+  {
+   "path": "stats/playbyplayv3",
+   "read_by": [
+    "stats_playbyplayv3"
+   ]
+  },
+  {
+   "path": "stats/playergamelogs",
+   "read_by": [
+    "stats_playergamelogs"
+   ]
+  },
+  {
+   "path": "stats/scheduleleaguev2",
+   "read_by": [
+    "stats_scheduleleaguev2"
+   ]
+  },
+  {
+   "path": "stats/shotchartdetail",
+   "read_by": [
+    "stats_shotchartdetail"
+   ]
+  }
+ ],
  "layers": [
   {
    "models": [
@@ -383,14 +533,22 @@
       }
      ],
      "description": "ESPN fantasy's market as landed: one row per player per landing (the fields the platform uses; ESPN's written outlooks are not landed).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/fantasy_players"
+     ],
      "materialized": "incremental",
      "name": "espn_fantasy_players",
-     "notes": [],
+     "notes": [
+      "ESPN fantasy's market as landed: one row per player per landing, with how widely ESPN leagues roster and start the player, the average draft position and auction value, and ESPN's draft ranks. Values stay text until silver."
+     ],
      "read_by": [
       "espn_fantasy_market",
       "feed_freshness"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -511,15 +669,23 @@
       }
      ],
      "description": "One row per listed injury per team from ESPN's injury report.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/injuries"
+     ],
      "materialized": "incremental",
      "name": "espn_injuries",
-     "notes": [],
+     "notes": [
+      "Raw espn `injuries` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "feed_freshness",
       "injuries",
       "injury_status_history"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -598,14 +764,22 @@
       }
      ],
      "description": "ESPN's news feed: one row per article and the athlete it is tagged with, per landed payload. Headline, date and link only; the story is never landed.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/news"
+     ],
      "materialized": "incremental",
      "name": "espn_news",
-     "notes": [],
+     "notes": [
+      "ESPN's news feed: one row per article and athlete it is tagged with, per landed payload, with the headline, its date and the link to the story on ESPN. The story itself is never landed; an article tagged with no athlete has no row."
+     ],
      "read_by": [
       "feed_freshness",
       "player_news"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -720,13 +894,21 @@
       }
      ],
      "description": "One row per rostered athlete per ESPN team.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/roster"
+     ],
      "materialized": "incremental",
      "name": "espn_roster",
-     "notes": [],
+     "notes": [
+      "Raw espn `roster` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "espn_roster_players"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -859,14 +1041,22 @@
       }
      ],
      "description": "One row per ESPN event (game) per scoreboard day.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/scoreboard"
+     ],
      "materialized": "incremental",
      "name": "espn_scoreboard",
-     "notes": [],
+     "notes": [
+      "Raw espn `scoreboard` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "espn_events",
       "feed_freshness"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -945,13 +1135,21 @@
       }
      ],
      "description": "The betting line on each ESPN scoreboard event (upcoming games carry one), one row per event per scoreboard landing.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/scoreboard"
+     ],
      "materialized": "incremental",
      "name": "espn_scoreboard_odds",
-     "notes": [],
+     "notes": [
+      "The betting line on each ESPN scoreboard event (the first provider listed), as text. Upcoming games carry it; ESPN drops it from a scoreboard once the game is final."
+     ],
      "read_by": [
       "game_lines"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1030,13 +1228,21 @@
       }
      ],
      "description": "The closing betting line from each ESPN game summary (pickcenter), one row per summary landing.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/summary"
+     ],
      "materialized": "incremental",
      "name": "espn_summary_odds",
-     "notes": [],
+     "notes": [
+      "The closing betting line on each ESPN game summary (pickcenter, the first provider), as text."
+     ],
      "read_by": [
       "game_lines"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1157,13 +1363,21 @@
       }
      ],
      "description": "One row per player per game from the ESPN box score.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/summary"
+     ],
      "materialized": "incremental",
      "name": "espn_summary_players",
-     "notes": [],
+     "notes": [
+      "Raw espn `summary` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "espn_player_game"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1320,11 +1534,19 @@
       }
      ],
      "description": "One row per ESPN play-by-play entry.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/summary"
+     ],
      "materialized": "incremental",
      "name": "espn_summary_plays",
-     "notes": [],
+     "notes": [
+      "Raw espn `summary` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1397,11 +1619,19 @@
       }
      ],
      "description": "One row per team per game from the ESPN box score, team totals as JSON.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/summary"
+     ],
      "materialized": "incremental",
      "name": "espn_summary_teams",
-     "notes": [],
+     "notes": [
+      "Raw espn `summary` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1486,13 +1716,21 @@
       }
      ],
      "description": "One row per ESPN team.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/teams"
+     ],
      "materialized": "incremental",
      "name": "espn_teams",
-     "notes": [],
+     "notes": [
+      "Raw espn `teams` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "espn_team_directory"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1553,14 +1791,22 @@
       }
      ],
      "description": "ESPN's transactions feed: one row per team and day as ESPN writes it, per landed payload (the latest hundred).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/transactions"
+     ],
      "materialized": "incremental",
      "name": "espn_transactions",
-     "notes": [],
+     "notes": [
+      "ESPN's transactions feed: one row per team and day as ESPN writes it, per landed payload."
+     ],
      "read_by": [
       "feed_freshness",
       "transactions"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1657,14 +1903,22 @@
       }
      ],
      "description": "The NBA's daily starting lineups: one row per player per team per game per landed file.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "league/daily_lineups"
+     ],
      "materialized": "incremental",
      "name": "league_daily_lineups",
-     "notes": [],
+     "notes": [
+      "The NBA's daily starting lineups: one row per player per team per game per landed file. Values stay text until silver."
+     ],
      "read_by": [
       "feed_freshness",
       "starting_lineups"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1773,14 +2027,22 @@
       }
      ],
      "description": "The leagues' official injury reports as parsed at ingest: one row per player, or team not yet submitted, per landed report.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "league/injury_report"
+     ],
      "materialized": "incremental",
      "name": "league_injury_report",
-     "notes": [],
+     "notes": [
+      "The leagues' official injury reports, as the ingest parsed them from the PDF: one row per player (or team not yet submitted) per landed report. Values stay text until silver."
+     ],
      "read_by": [
       "feed_freshness",
       "official_injury_report"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1847,14 +2109,22 @@
       }
      ],
      "description": "The NBA's player movement feed, the last 180 days as landed: one row per move with league ids.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "league/player_movement"
+     ],
      "materialized": "incremental",
      "name": "league_player_movement",
-     "notes": [],
+     "notes": [
+      "The NBA's player movement feed, the last 180 days as landed: one row per move."
+     ],
      "read_by": [
       "feed_freshness",
       "transactions"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1921,13 +2191,21 @@
       }
      ],
      "description": "Sleeper's NBA player directory as landed, once a day: one row per active player on a team, with the fields that link the player to the league's ids.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "sleeper/players"
+     ],
      "materialized": "incremental",
      "name": "sleeper_players",
-     "notes": [],
+     "notes": [
+      "Sleeper's player directory as landed (NBA): one row per active player on a team per landing, with Sleeper's id and the fields that link the player to the league's ids."
+     ],
      "read_by": [
       "waiver_trending"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -1988,14 +2266,22 @@
       }
      ],
      "description": "Sleeper's trending NBA players as landed: one row per player and direction (add or drop) per landing, with the number of Sleeper leagues that made the move.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "sleeper/trending"
+     ],
      "materialized": "incremental",
      "name": "sleeper_trending",
-     "notes": [],
+     "notes": [
+      "Sleeper's trending players as landed (NBA): one row per player and direction (add or drop) per landing, with how many Sleeper leagues made the move over the lookback window."
+     ],
      "read_by": [
       "feed_freshness",
       "waiver_trending"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -2260,13 +2546,21 @@
       }
      ],
      "description": "One row per player per game from the v3 advanced box score, home and away.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/boxscoreadvancedv3"
+     ],
      "materialized": "incremental",
      "name": "stats_boxscoreadvancedv3",
-     "notes": [],
+     "notes": [
+      "Raw stats `boxscoreadvancedv3` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "player_game_advanced"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -2513,13 +2807,21 @@
       }
      ],
      "description": "One row per player per game from the v3 traditional box score, home and away.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/boxscoretraditionalv3"
+     ],
      "materialized": "incremental",
      "name": "stats_boxscoretraditionalv3",
-     "notes": [],
+     "notes": [
+      "Raw stats `boxscoretraditionalv3` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "player_game_box"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -2664,13 +2966,21 @@
       }
      ],
      "description": "One row per player in the league's player directory for the season.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/commonallplayers"
+     ],
      "materialized": "incremental",
      "name": "stats_commonallplayers",
-     "notes": [],
+     "notes": [
+      "Raw stats `commonallplayers` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "players"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -2815,13 +3125,21 @@
       }
      ],
      "description": "One row per rostered player per team (the Coaches result set is not loaded).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/commonteamroster"
+     ],
      "materialized": "incremental",
      "name": "stats_commonteamroster",
-     "notes": [],
+     "notes": [
+      "Raw stats `commonteamroster` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "rosters"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -3038,14 +3356,22 @@
       }
      ],
      "description": "One row per team per game from the league game log (team totals).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/leaguegamelog"
+     ],
      "materialized": "incremental",
      "name": "stats_leaguegamelog",
-     "notes": [],
+     "notes": [
+      "Raw stats `leaguegamelog` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "team_game_box",
       "teams"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -3184,14 +3510,22 @@
       }
      ],
      "description": "The league's regular-season standings, one row per team per landing.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/leaguestandingsv3"
+     ],
      "materialized": "incremental",
      "name": "stats_leaguestandingsv3",
-     "notes": [],
+     "notes": [
+      "Raw stats `leaguestandingsv3` payloads parsed to rows (the columns the platform uses, by position in the result set); values stay text until silver."
+     ],
      "read_by": [
       "feed_freshness",
       "standings"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -3378,13 +3712,21 @@
       }
      ],
      "description": "One row per play-by-play action.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/playbyplayv3"
+     ],
      "materialized": "incremental",
      "name": "stats_playbyplayv3",
-     "notes": [],
+     "notes": [
+      "Raw stats `playbyplayv3` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "events"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -3919,13 +4261,21 @@
       }
      ],
      "description": "One row per player per game from the season game log; the request key names the measure set (advanced-..., base-...).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/playergamelogs"
+     ],
      "materialized": "incremental",
      "name": "stats_playergamelogs",
-     "notes": [],
+     "notes": [
+      "Raw stats `playergamelogs` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "player_game_advanced"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -4244,14 +4594,22 @@
       }
      ],
      "description": "One row per scheduled game from the league schedule.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/scheduleleaguev2"
+     ],
      "materialized": "incremental",
      "name": "stats_scheduleleaguev2",
-     "notes": [],
+     "notes": [
+      "Raw stats `scheduleleaguev2` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "feed_freshness",
       "schedule"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -4438,13 +4796,21 @@
       }
      ],
      "description": "One row per field goal attempt with court coordinates.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/shotchartdetail"
+     ],
      "materialized": "incremental",
      "name": "stats_shotchartdetail",
-     "notes": [],
+     "notes": [
+      "Raw stats `shotchartdetail` payloads parsed to rows; values stay text until silver."
+     ],
      "read_by": [
       "shots"
      ],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     }
    ],
    "name": "bronze"
@@ -4595,6 +4961,9 @@
       }
      ],
      "description": "One row per ESPN event with competitors unpacked.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "espn_events",
      "notes": [
@@ -4606,7 +4975,8 @@
      ],
      "reads": [
       "espn_scoreboard"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -4700,6 +5070,9 @@
       }
      ],
      "description": "ESPN fantasy's market per player from the latest landing per league, typed.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "espn_fantasy_market",
      "notes": [
@@ -4710,7 +5083,8 @@
      ],
      "reads": [
       "espn_fantasy_players"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -4926,6 +5300,9 @@
       }
      ],
      "description": "One row per player per game from ESPN's box score.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "espn_player_game",
      "notes": [
@@ -4938,7 +5315,8 @@
      ],
      "reads": [
       "espn_summary_players"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -5022,6 +5400,9 @@
       }
      ],
      "description": "One row per ESPN athlete per league from the team rosters, for names and birthdates.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "espn_roster_players",
      "notes": [
@@ -5034,7 +5415,8 @@
      ],
      "reads": [
       "espn_roster"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -5112,6 +5494,9 @@
       }
      ],
      "description": "One row per ESPN team per league from the teams endpoint.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "espn_team_directory",
      "notes": [
@@ -5122,7 +5507,8 @@
      ],
      "reads": [
       "espn_teams"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -5176,6 +5562,9 @@
       }
      ],
      "description": "The five players on the floor for each side at every play-by-play action (substitution intervals; period starters inferred after the first period).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "event_lineups",
      "notes": [
@@ -5189,6 +5578,12 @@
      "reads": [
       "events",
       "player_game_box"
+     ],
+     "unit_tests": [
+      {
+       "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it.",
+       "name": "event_lineups_matches_abbreviated_given_names"
+      }
      ]
     },
     {
@@ -5375,6 +5770,9 @@
       }
      ],
      "description": "One row per play-by-play action, typed.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "events",
      "notes": [
@@ -5386,7 +5784,8 @@
      ],
      "reads": [
       "stats_playbyplayv3"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -5508,6 +5907,9 @@
       }
      ],
      "description": "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "game_lines",
      "notes": [
@@ -5521,7 +5923,8 @@
       "espn_events",
       "espn_scoreboard_odds",
       "espn_summary_odds"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -5592,6 +5995,9 @@
       }
      ],
      "description": "League stats API game id to ESPN event id, one row per matched game (ADR 0005).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "game_xwalk",
      "notes": [
@@ -5607,7 +6013,8 @@
       "espn_events",
       "games",
       "team_xwalk"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -5711,6 +6118,9 @@
       }
      ],
      "description": "One row per game with home and away sides and the final score. At a neutral site both teams are listed as home by the source; the lower team id takes the home side and neutral_site is true.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "games",
      "notes": [
@@ -5727,7 +6137,8 @@
      ],
      "reads": [
       "team_game_box"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -5853,6 +6264,9 @@
       }
      ],
      "description": "One row per injury listing from ESPN's report.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "injuries",
      "notes": [
@@ -5863,7 +6277,8 @@
      ],
      "reads": [
       "espn_injuries"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -5943,6 +6358,9 @@
       }
      ],
      "description": "Every status an injury listing has held, from the daily ESPN reports: one row per run of the same status, with the first and last report it appeared in.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "injury_status_history",
      "notes": [
@@ -5954,7 +6372,8 @@
      ],
      "reads": [
       "espn_injuries"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -6090,6 +6509,9 @@
       }
      ],
      "description": "The leagues' official injury reports, typed: one row per player (or team not yet submitted) per game per report, with the league's newest report marked.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "official_injury_report",
      "notes": [
@@ -6101,7 +6523,8 @@
      ],
      "reads": [
       "league_injury_report"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -6311,6 +6734,9 @@
       }
      ],
      "description": "One row per player per game, advanced box score, typed.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "player_game_advanced",
      "notes": [
@@ -6322,7 +6748,8 @@
      "reads": [
       "stats_boxscoreadvancedv3",
       "stats_playergamelogs"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -6552,6 +6979,9 @@
       }
      ],
      "description": "One row per player per game, traditional box score, typed.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "player_game_box",
      "notes": [
@@ -6568,7 +6998,8 @@
      ],
      "reads": [
       "stats_boxscoretraditionalv3"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -6809,6 +7240,9 @@
       }
      ],
      "description": "Every player-game both sources report, side by side, with the agreement verdict (ADR 0005).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "player_game_reconciliation",
      "notes": [
@@ -6828,7 +7262,8 @@
       "game_xwalk",
       "player_game_box",
       "player_xwalk"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -6924,6 +7359,9 @@
       }
      ],
      "description": "ESPN's headlines per player: one row per article and tagged athlete, linked to the league player id, with a flag from the headline's wording.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "player_news",
      "notes": [
@@ -6935,6 +7373,12 @@
      "reads": [
       "espn_news",
       "player_xwalk"
+     ],
+     "unit_tests": [
+      {
+       "description": "Headlines from ESPN's feed each get the flag their wording gives, first match wins, and none when nothing applies. An athlete the crosswalk knows gets the league id; an article tagged twice counts two athletes; a later landing of the same article replaces the earlier one.",
+       "name": "player_news_flags_headlines_by_their_wording_and_links_players"
+      }
      ]
     },
     {
@@ -7019,6 +7463,9 @@
       }
      ],
      "description": "League stats API player id to ESPN athlete id, one row per matched player: exact name, fuzzy name with birthdate, or an override (ADR 0005).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "player_xwalk",
      "notes": [
@@ -7042,7 +7489,8 @@
       "player_id_overrides",
       "rosters",
       "team_xwalk"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -7120,6 +7568,9 @@
       }
      ],
      "description": "Players in matched games the crosswalk could not pair, from either side, with the closest candidate; the fix is a row in seeds/player_id_overrides.csv.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "player_xwalk_review",
      "notes": [
@@ -7132,7 +7583,8 @@
       "player_game_box",
       "player_xwalk",
       "team_xwalk"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -7244,6 +7696,9 @@
       }
      ],
      "description": "One row per player per league from the player directory.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "players",
      "notes": [
@@ -7254,7 +7709,8 @@
      ],
      "reads": [
       "stats_commonallplayers"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -7388,6 +7844,9 @@
       }
      ],
      "description": "One row per rostered player per team per season.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "rosters",
      "notes": [
@@ -7400,7 +7859,8 @@
      ],
      "reads": [
       "stats_commonteamroster"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -7597,6 +8057,9 @@
       }
      ],
      "description": "One row per scheduled game with status, venue and tip-off time. game_type (from the game id) separates preseason, regular season, All-Star, playoff, play-in and tournament-final games.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "schedule",
      "notes": [
@@ -7614,7 +8077,8 @@
      ],
      "reads": [
       "stats_scheduleleaguev2"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -7802,6 +8266,9 @@
       }
      ],
      "description": "One row per field goal attempt with court coordinates.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "shots",
      "notes": [
@@ -7812,7 +8279,8 @@
      ],
      "reads": [
       "stats_shotchartdetail"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -7942,6 +8410,9 @@
       }
      ],
      "description": "The league's regular-season standings per team, from the latest landing per league-season.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "standings",
      "notes": [
@@ -7952,7 +8423,8 @@
      ],
      "reads": [
       "stats_leaguestandingsv3"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -8058,6 +8530,9 @@
       }
      ],
      "description": "The NBA's starting lineups per game day, from the latest file landed for the day: one row per player per game.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "starting_lineups",
      "notes": [
@@ -8068,7 +8543,8 @@
      ],
      "reads": [
       "league_daily_lineups"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -8274,6 +8750,9 @@
       }
      ],
      "description": "One row per team per game from the league game log, typed.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "team_game_box",
      "notes": [
@@ -8285,7 +8764,8 @@
      ],
      "reads": [
       "stats_leaguegamelog"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -8338,6 +8818,9 @@
       }
      ],
      "description": "League stats API team id to ESPN team id, one row per stats team (ADR 0005).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "team_xwalk",
      "notes": [
@@ -8355,7 +8838,8 @@
      "reads": [
       "espn_team_directory",
       "teams"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -8439,6 +8923,9 @@
       }
      ],
      "description": "One row per team per season, enriched from the teams seed.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "teams",
      "notes": [
@@ -8456,7 +8943,8 @@
      "reads": [
       "stats_leaguegamelog",
       "team_reference"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -8528,6 +9016,9 @@
       }
      ],
      "description": "Transactions from the NBA's movement feed (with player ids) and ESPN's feed (both leagues, one line per team and day), sorted by their wording.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "transactions",
      "notes": [
@@ -8540,7 +9031,8 @@
       "espn_transactions",
       "league_player_movement",
       "team_xwalk"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -8636,6 +9128,9 @@
       }
      ],
      "description": "Sleeper's trending NBA players from the newest landing: one row per player, with the leagues adding and dropping the player, the rank in each list, and Sleeper's name, team and birth date for linking.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "waiver_trending",
      "notes": [
@@ -8647,7 +9142,8 @@
      "reads": [
       "sleeper_players",
       "sleeper_trending"
-     ]
+     ],
+     "unit_tests": []
     }
    ],
    "name": "silver"
@@ -8721,6 +9217,16 @@
       }
      ],
      "description": "One row per calendar date from 2018 to 2027, with the fantasy week and game-day flags per league.",
+     "exported_as": [
+      "dim_date.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "date_day"
+      ],
+      "key": "date_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "dim_date",
      "notes": [
@@ -8729,7 +9235,8 @@
      "read_by": [],
      "reads": [
       "games"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -8897,6 +9404,19 @@
       }
      ],
      "description": "One row per played game: built from the team game log through silver.games, so games not yet played are not here, with the result and the schedule context from silver.schedule.",
+     "exported_as": [
+      "dim_game.parquet",
+      "dim_game.json",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id"
+      ],
+      "key": "game_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "dim_game",
      "notes": [
@@ -8906,7 +9426,8 @@
      "reads": [
       "games",
       "schedule"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -9010,6 +9531,20 @@
       }
      ],
      "description": "One row per player per team stint (SCD type 2 on team); valid_to is null for the current stint.",
+     "exported_as": [
+      "dim_player.parquet",
+      "dim_player.json",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "stats_player_id",
+       "valid_from"
+      ],
+      "key": "player_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "dim_player",
      "notes": [
@@ -9030,7 +9565,8 @@
       "player_xwalk",
       "players",
       "rosters"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -9102,6 +9638,20 @@
       }
      ],
      "description": "One row per team per season seen in the league game log, with nickname, city and conference from the teams seed.",
+     "exported_as": [
+      "dim_team.parquet",
+      "dim_team.json",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "season",
+       "team_id"
+      ],
+      "key": "team_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "dim_team",
      "notes": [
@@ -9110,7 +9660,8 @@
      "read_by": [],
      "reads": [
       "teams"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -9264,6 +9815,19 @@
       }
      ],
      "description": "Player injury listings from ESPN's injury report, one row per listing at the report it was last seen in, linked to the league player id; is_current marks the latest report per league.",
+     "exported_as": [
+      "fct_availability.parquet",
+      "fct_availability.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "report_date",
+       "injury_id"
+      ],
+      "key": "availability_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_availability",
      "notes": [
@@ -9281,7 +9845,8 @@
       "injury_status_history",
       "player_xwalk",
       "team_xwalk"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -9523,14 +10088,30 @@
       }
      ],
      "description": "A daily ledger of the board: one row per Eastern date, league and player with the projection, the value and the context shown beside it. Merged by every build and never rebuilt by a full refresh, so it keeps the history the published builds roll off.",
+     "exported_as": [
+      "fct_board_history.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "cast(",
+       "as string)",
+       "league",
+       "player_id"
+      ],
+      "key": "board_history_sk"
+     },
+     "landing": [],
      "materialized": "incremental",
      "name": "fct_board_history",
-     "notes": [],
+     "notes": [
+      "A daily ledger of the board: what the board said about each player on each Eastern date, kept after the builds that published it roll off. Every build merges today's rows (a later build the same day replaces them), and a full refresh never rebuilds it (full_refresh=false), so the history only grows. It holds the projection and value, and the context the board shows beside the value (availability, lineups, market, stakes, waiver heat, the newest headline flag), so the signals that have only days of history so far can be backtested once they have a season."
+     ],
      "read_by": [],
      "reads": [
       "mart_board",
       "mart_streamers"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -9744,15 +10325,30 @@
       }
      ],
      "description": "One row per play-by-play action.",
+     "exported_as": [
+      "fct_event/<league>-<season>.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "action_number"
+      ],
+      "key": "event_sk"
+     },
+     "landing": [],
      "materialized": "incremental",
      "name": "fct_event",
-     "notes": [],
+     "notes": [
+      "One row per play-by-play action, with the five players on the floor for each side (silver.event_lineups: comma-separated league player ids, sorted; lineup_complete when both sides have five)."
+     ],
      "read_by": [],
      "reads": [
       "event_lineups",
       "events",
       "games"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -9860,6 +10456,17 @@
       }
      ],
      "description": "The betting line for each played game: ESPN's closing line (or the last scoreboard line), linked to the league's game id, with the points each team was implied to score.",
+     "exported_as": [
+      "fct_game_line.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id"
+      ],
+      "key": "game_line_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_game_line",
      "notes": [
@@ -9870,7 +10477,8 @@
       "game_lines",
       "game_xwalk",
       "team_xwalk"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -9948,6 +10556,19 @@
       }
      ],
      "description": "Each player's injury statuses over time: one row per run of the same status on an injury listing, from the daily reports.",
+     "exported_as": [
+      "fct_injury_status.parquet",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "injury_id",
+       "run_no"
+      ],
+      "key": "injury_status_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_injury_status",
      "notes": [
@@ -9957,7 +10578,8 @@
      "reads": [
       "fct_availability",
       "injury_status_history"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -10055,6 +10677,17 @@
       }
      ],
      "description": "The fantasy market's view of each player from ESPN fantasy: the order drafters take players in, and how widely leagues roster them. The site shows the rank and the bucket, not ESPN's numbers.",
+     "exported_as": [
+      "fct_market_value.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "stats_player_id"
+      ],
+      "key": "market_value_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_market_value",
      "notes": [
@@ -10070,6 +10703,12 @@
      "reads": [
       "espn_fantasy_market",
       "player_xwalk"
+     ],
+     "unit_tests": [
+      {
+       "description": "NBA players are ranked by average draft position. In the WNBA most players share one placeholder position (54.0, as ESPN shows out of season), so none of them gets a market rank, but a WNBA player drafted ahead of the placeholder does. Ownership falls into its bucket at 70, 40, 10 and 1 per cent, and a player with no share is rare.",
+       "name": "market_value_ranks_real_draft_positions_and_buckets_ownership"
+      }
      ]
     },
     {
@@ -10362,6 +11001,20 @@
       }
      ],
      "description": "Player × game: box score, advanced line, source agreement flag.",
+     "exported_as": [
+      "fct_player_game/<league>-<season>.parquet",
+      "health.json (data as of)",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "player_id"
+      ],
+      "key": "player_game_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_player_game",
      "notes": [
@@ -10379,7 +11032,8 @@
       "player_game_advanced",
       "player_game_box",
       "player_game_reconciliation"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -10451,6 +11105,19 @@
       }
      ],
      "description": "Headlines about each player for the player page: ESPN articles tagged with the player and at most three others, with the headline, date, a link to ESPN and the headline's flag.",
+     "exported_as": [
+      "fct_player_news.parquet",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "article_id",
+       "stats_player_id"
+      ],
+      "key": "player_news_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_player_news",
      "notes": [
@@ -10462,7 +11129,8 @@
      ],
      "reads": [
       "player_news"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -10590,6 +11258,18 @@
       }
      ],
      "description": "Each player's current status: the league's official injury report for the next game it covers, else ESPN's injury listing. ESPN's own status stays alongside for the rest of the season.",
+     "exported_as": [
+      "fct_player_status.parquet",
+      "fct_player_status.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "stats_player_id"
+      ],
+      "key": "player_status_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_player_status",
      "notes": [
@@ -10605,7 +11285,8 @@
       "fct_availability",
       "official_injury_report",
       "teams"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -10787,13 +11468,29 @@
       }
      ],
      "description": "One row per field goal attempt with court coordinates.",
+     "exported_as": [
+      "fct_shot/<league>-<season>.parquet",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "game_event_id"
+      ],
+      "key": "shot_sk"
+     },
+     "landing": [],
      "materialized": "incremental",
      "name": "fct_shot",
-     "notes": [],
+     "notes": [
+      "One row per field goal attempt with court coordinates (tenths of a foot from the basket)."
+     ],
      "read_by": [],
      "reads": [
       "shots"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -10871,6 +11568,16 @@
       }
      ],
      "description": "Each player's role in today's game from the league's starting lineups (NBA only): starter, bench or inactive, and whether it is confirmed.",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "player_id"
+      ],
+      "key": "starting_lineup_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_starting_lineup",
      "notes": [
@@ -10882,7 +11589,8 @@
      ],
      "reads": [
       "starting_lineups"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -11140,6 +11848,18 @@
       }
      ],
      "description": "Team × game with possessions, pace and ratings.",
+     "exported_as": [
+      "fct_team_game/<league>-<season>.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "team_id"
+      ],
+      "key": "team_game_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_team_game",
      "notes": [
@@ -11150,7 +11870,8 @@
      ],
      "reads": [
       "team_game_box"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -11274,6 +11995,18 @@
       }
      ],
      "description": "The circumstances of each team's games, played and scheduled: rest days, back-to-backs, three games in four nights, miles travelled, time zones crossed and altitude.",
+     "exported_as": [
+      "fct_team_game_context.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "team_id"
+      ],
+      "key": "team_game_context_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_team_game_context",
      "notes": [
@@ -11286,6 +12019,12 @@
      "reads": [
       "schedule",
       "venues"
+     ],
+     "unit_tests": [
+      {
+       "description": "A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights later: the second game is a back-to-back at altitude 370 miles away in the same time zone, the third is the third game in four nights, 581 miles west and one time zone back. An unconfirmed \"if necessary\" game and a knockout game whose teams are not decided yet (both listed as 0) are left out, and the team they play on the second night sees its opponent on a back-to-back.",
+       "name": "team_game_context_rest_travel_and_altitude"
+      }
      ]
     },
     {
@@ -11388,6 +12127,19 @@
       }
      ],
      "description": "What each team still has to play for in its current season: eliminated, clinched or racing, the games left, and a late-season rest risk for a team with nothing to play for.",
+     "exported_as": [
+      "fct_team_stakes.parquet",
+      "fct_team_stakes.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "season",
+       "team_id"
+      ],
+      "key": "team_stakes_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_team_stakes",
      "notes": [
@@ -11403,6 +12155,12 @@
      "reads": [
       "schedule",
       "standings"
+     ],
+     "unit_tests": [
+      {
+       "description": "With five games left, a clinched team and an eliminated one carry rest risk and a team still racing does not; with twelve left, nobody does yet; a finished season carries none.",
+       "name": "team_stakes_flags_rest_risk_late_for_teams_with_nothing_to_play_for"
+      }
      ]
     },
     {
@@ -11467,6 +12225,18 @@
       }
      ],
      "description": "Transactions for the site: the NBA's movement feed, ESPN's feed for the WNBA, and the NBA moves only ESPN carries (G League assignments, recalls, suspensions).",
+     "exported_as": [
+      "fct_transaction.parquet",
+      "transactions/<league>.json",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "transaction_key"
+      ],
+      "key": "transaction_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_transaction",
      "notes": [
@@ -11476,7 +12246,8 @@
      "reads": [
       "teams",
       "transactions"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -11568,6 +12339,17 @@
       }
      ],
      "description": "Waiver heat from Sleeper (NBA): the players Sleeper leagues added and dropped most over the last day, linked to the league player id by name, birth date and team.",
+     "exported_as": [
+      "fct_waiver_trend.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "sleeper_player_id"
+      ],
+      "key": "waiver_trend_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "fct_waiver_trend",
      "notes": [
@@ -11581,6 +12363,12 @@
       "dim_player",
       "teams",
       "waiver_trending"
+     ],
+     "unit_tests": [
+      {
+       "description": "Sleeper's ASCII search name keeps a suffix and folds accents (kristapsporzingis, jimmybutleriii), so it matches the league name with its suffix kept. A plain name match covers a suffix one side leaves off. Between two namesakes the birth date decides, then the team; namesakes neither tells apart stay unlinked, as does a name with no match.",
+       "name": "waiver_trend_links_sleeper_players_by_name_birth_date_and_team"
+      }
      ]
     },
     {
@@ -12344,6 +13132,20 @@
       }
      ],
      "description": "The board, one row per rostered player per league: category values above replacement from the projected line, recent form, the per-game line, injury status and rest-of-season scaling.",
+     "exported_as": [
+      "mart_board.parquet",
+      "board/<league>.json",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "season",
+       "player_id"
+      ],
+      "key": "board_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "mart_board",
      "notes": [
@@ -12368,7 +13170,8 @@
       "mart_player_projection",
       "schedule",
       "teams"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -12554,6 +13357,20 @@
       }
      ],
      "description": "Category z-scores per window, league, season and player against a pool of the top 180 NBA or 90 WNBA players by minutes in the window.",
+     "exported_as": [
+      "mart_category_zscores.parquet",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "window_name",
+       "league",
+       "season",
+       "player_id"
+      ],
+      "key": "zscore_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "mart_category_zscores",
      "notes": [
@@ -12567,7 +13384,8 @@
      ],
      "reads": [
       "fct_player_game"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -12823,6 +13641,17 @@
       }
      ],
      "description": "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes).",
+     "exported_as": [
+      "mart_player_projection.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "player_id"
+      ],
+      "key": "projection_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "mart_player_projection",
      "notes": [
@@ -12844,7 +13673,8 @@
       "mart_category_zscores",
       "rosters",
       "schedule"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -13106,6 +13936,19 @@
       }
      ],
      "description": "Player × game with rolling 5, 10 and 20-game category averages; windows restart each season, and percentages are volume-weighted.",
+     "exported_as": [
+      "mart_player_rolling.parquet",
+      "players/<league>/<player_id>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "player_id"
+      ],
+      "key": "player_game_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "mart_player_rolling",
      "notes": [
@@ -13116,7 +13959,8 @@
      ],
      "reads": [
       "fct_player_game"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -13284,6 +14128,18 @@
       }
      ],
      "description": "Regular-season and playoff games not yet final in the next fourteen days, unconfirmed if-necessary games left out, with matchup values, betting lines, rest and travel.",
+     "exported_as": [
+      "mart_schedule_upcoming.parquet",
+      "schedule/<league>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id"
+      ],
+      "key": "upcoming_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "mart_schedule_upcoming",
      "notes": [
@@ -13300,7 +14156,8 @@
       "game_lines",
       "schedule",
       "team_xwalk"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -13724,6 +14581,18 @@
       }
      ],
      "description": "Players with three or more games in the league's current season and a game within 30 days of the league's latest game, with the team's games in the next seven days, the minutes and value trend, recent production and injury status.",
+     "exported_as": [
+      "mart_streamers.parquet",
+      "streamers/<league>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "player_id"
+      ],
+      "key": "streamer_sk"
+     },
+     "landing": [],
      "materialized": "table",
      "name": "mart_streamers",
      "notes": [
@@ -13749,7 +14618,8 @@
       "mart_player_rolling",
       "mart_schedule_upcoming",
       "teams"
-     ]
+     ],
+     "unit_tests": []
     }
    ],
    "name": "gold"
@@ -13834,6 +14704,12 @@
       }
      ],
      "description": "How fresh each source feed is per league: the newest landing day, its age in days against the age the feed should keep while the league is playing, and a status.",
+     "exported_as": [
+      "feed_freshness.parquet",
+      "feed_freshness.json"
+     ],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "feed_freshness",
      "notes": [
@@ -13853,7 +14729,8 @@
       "sleeper_trending",
       "stats_leaguestandingsv3",
       "stats_scheduleleaguev2"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -13971,11 +14848,22 @@
       }
      ],
      "description": "One row per ingest run, parsed from the run logs the ingestors write to the landing volume.",
+     "exported_as": [
+      "ingest_log.parquet",
+      "ingest_log.json"
+     ],
+     "grain": null,
+     "landing": [
+      "_ops/ingest_log"
+     ],
      "materialized": "table",
      "name": "ingest_log",
-     "notes": [],
+     "notes": [
+      "One row per ingest run, from the run logs the ingestors write under landing/_ops/ingest_log."
+     ],
      "read_by": [],
-     "reads": []
+     "reads": [],
+     "unit_tests": []
     },
     {
      "checks": [],
@@ -14073,13 +14961,21 @@
       }
      ],
      "description": "One row per value the two sources disagree on, with both values and the resolution: the league value wins, ESPN only where the league's is null (ADR 0005). A snapshot of the current comparison.",
+     "exported_as": [
+      "reconciliation.parquet"
+     ],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "reconciliation",
-     "notes": [],
+     "notes": [
+      "One row per value the two sources disagree on, with both values and the resolution (SPEC.md): the league stats API wins by default; ESPN wins only where the league value is null. Two disagreements are noise and are left out: a player neither source has on the floor (zeros against blanks), and minutes within half a minute (ESPN rounds to the minute). Rebuilt from the current comparison on every build; reconciled_at is the build time."
+     ],
      "read_by": [],
      "reads": [
       "player_game_reconciliation"
-     ]
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -14183,14 +15079,23 @@
       }
      ],
      "description": "Match and conflict rates per league and season: how many of the league's player-games ESPN also reports and the crosswalk pairs, and how those pairs agree.",
+     "exported_as": [
+      "reconciliation_summary.parquet",
+      "reconciliation_summary.json"
+     ],
+     "grain": null,
+     "landing": [],
      "materialized": "table",
      "name": "reconciliation_summary",
-     "notes": [],
+     "notes": [
+      "Match and conflict rates per league and season (SPEC.md phase 4, \"done when\"): how many of the league's player-games ESPN also reports and the crosswalk pairs, and how those pairs agree. Two rates: over every line the league's box score carries, and over the lines where the player was on the floor. The league lists inactive players with a line of zeros and ESPN leaves them out, so the played rate is the one the coverage check judges. Data Health reads this table."
+     ],
      "read_by": [],
      "reads": [
       "player_game_box",
       "player_game_reconciliation"
-     ]
+     ],
+     "unit_tests": []
     }
    ],
    "name": "ops"
@@ -14307,7 +15212,12 @@
     }
    ],
    "description": "The fantasy categories per league and how each one is computed from silver columns.",
-   "name": "category_config"
+   "exported_as": [
+    "category_config.parquet",
+    "category_config.json"
+   ],
+   "name": "category_config",
+   "read_by": []
   },
   {
    "columns": [
@@ -14337,7 +15247,11 @@
     }
    ],
    "description": "Manual links between stats API and ESPN player ids when name matching fails (phase 4 reconciliation).",
-   "name": "player_id_overrides"
+   "exported_as": [],
+   "name": "player_id_overrides",
+   "read_by": [
+    "player_xwalk"
+   ]
   },
   {
    "columns": [
@@ -14389,7 +15303,11 @@
     }
    ],
    "description": "Team reference data for both leagues as of the 2026 WNBA and 2026-27 NBA seasons, including the WNBA expansion teams. Stats API ids are filled from landed data; blank until a team's first game is landed. Abbreviations are the league stats API tricodes.\n",
-   "name": "team_reference"
+   "exported_as": [],
+   "name": "team_reference",
+   "read_by": [
+    "teams"
+   ]
   },
   {
    "columns": [
@@ -14428,7 +15346,43 @@
     }
    ],
    "description": "Where games are played, by the arena city the league schedule gives: latitude and longitude (the arena, or the city for occasional venues), elevation in feet, and the standard UTC offset (daylight saving ignored). Covers every home city of both leagues plus the neutral and occasional sites in the 2025 to 2027 schedules; warn_venue_cities lists any city missing.\n",
-   "name": "venues"
+   "exported_as": [],
+   "name": "venues",
+   "read_by": [
+    "fct_team_game_context"
+   ]
+  }
+ ],
+ "unit_tests": [
+  {
+   "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it.",
+   "model": "event_lineups",
+   "name": "event_lineups_matches_abbreviated_given_names"
+  },
+  {
+   "description": "NBA players are ranked by average draft position. In the WNBA most players share one placeholder position (54.0, as ESPN shows out of season), so none of them gets a market rank, but a WNBA player drafted ahead of the placeholder does. Ownership falls into its bucket at 70, 40, 10 and 1 per cent, and a player with no share is rare.",
+   "model": "fct_market_value",
+   "name": "market_value_ranks_real_draft_positions_and_buckets_ownership"
+  },
+  {
+   "description": "A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights later: the second game is a back-to-back at altitude 370 miles away in the same time zone, the third is the third game in four nights, 581 miles west and one time zone back. An unconfirmed \"if necessary\" game and a knockout game whose teams are not decided yet (both listed as 0) are left out, and the team they play on the second night sees its opponent on a back-to-back.",
+   "model": "fct_team_game_context",
+   "name": "team_game_context_rest_travel_and_altitude"
+  },
+  {
+   "description": "With five games left, a clinched team and an eliminated one carry rest risk and a team still racing does not; with twelve left, nobody does yet; a finished season carries none.",
+   "model": "fct_team_stakes",
+   "name": "team_stakes_flags_rest_risk_late_for_teams_with_nothing_to_play_for"
+  },
+  {
+   "description": "Sleeper's ASCII search name keeps a suffix and folds accents (kristapsporzingis, jimmybutleriii), so it matches the league name with its suffix kept. A plain name match covers a suffix one side leaves off. Between two namesakes the birth date decides, then the team; namesakes neither tells apart stay unlinked, as does a name with no match.",
+   "model": "fct_waiver_trend",
+   "name": "waiver_trend_links_sleeper_players_by_name_birth_date_and_team"
+  },
+  {
+   "description": "Headlines from ESPN's feed each get the flag their wording gives, first match wins, and none when nothing applies. An athlete the crosswalk knows gets the league id; an article tagged twice counts two athletes; a later landing of the same article replaces the earlier one.",
+   "model": "player_news",
+   "name": "player_news_flags_headlines_by_their_wording_and_links_players"
   }
  ]
 }
