@@ -129,6 +129,27 @@ test('data health shows the build, its checks and the reconciliation table', asy
   await expect(page.getByTestId('checks').locator('tbody tr').first()).toBeVisible();
 });
 
+test('data health lists each source feed with how fresh it is', async ({ page }) => {
+  await page.route('**/health.json', async (route) => {
+    const file = (await (await route.fetch()).json()) as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        ...file,
+        feeds: [
+          { feed_key: 'nba:espn_news', league: 'nba', feed: 'ESPN headlines', last_landed: '2026-10-29', age_days: 0, max_age_days: 2, status: 'fresh' },
+          { feed_key: 'nba:sleeper_trending', league: 'nba', feed: 'Sleeper trending', last_landed: '2026-10-20', age_days: 9, max_age_days: 2, status: 'stale' },
+          { feed_key: 'wnba:espn_news', league: 'wnba', feed: 'ESPN headlines', last_landed: null, age_days: null, max_age_days: 2, status: 'never' },
+        ],
+      },
+    });
+  });
+  await page.goto('/health/');
+  const feeds = page.getByTestId('feeds');
+  await expect(feeds.locator('tbody tr')).toHaveCount(3);
+  await expect(feeds.locator('tbody tr').filter({ hasText: 'Sleeper trending' })).toContainText('Stale');
+  await expect(feeds.locator('tbody tr').filter({ hasText: 'WNBA' })).toContainText('Never landed');
+});
+
 test('the SQL console runs a saved query in the browser', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'DuckDB-WASM is exercised on Chromium');
   test.setTimeout(120_000);

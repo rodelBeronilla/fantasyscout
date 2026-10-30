@@ -156,6 +156,7 @@ def assemble(
         if "reconciliation_summary" in tables
         else [],
         "row_counts": {name: entry["rows"] for name, entry in manifest_tables.items()},
+        "feeds": rows_of(tables["feed_freshness"]) if "feed_freshness" in tables else [],
     }
     add("health.json", to_json(health))
 

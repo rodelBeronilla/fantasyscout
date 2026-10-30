@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { fetchBuildJson, getLatest, type Latest } from '../lib/data';
-import { int, pct, when } from '../lib/format';
+import { day, int, pct, when } from '../lib/format';
 import { Badge, Card, Loading, Problem, Td, Th } from './ui';
 
 interface Gate {
@@ -68,7 +68,26 @@ interface HealthFile {
   ingest_runs: IngestRun[];
   reconciliation: Reconciliation[];
   row_counts: Record<string, number>;
+  /** How fresh each source feed is (ops.feed_freshness; absent in older builds). */
+  feeds?: Feed[];
 }
+
+interface Feed {
+  feed_key: string;
+  league: string;
+  feed: string;
+  last_landed: string | null;
+  age_days: number | null;
+  max_age_days: number;
+  status: 'fresh' | 'stale' | 'off_season' | 'never';
+}
+
+const FEED_STATUS: Record<Feed['status'], { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' }> = {
+  fresh: { label: 'Fresh', tone: 'good' },
+  stale: { label: 'Stale', tone: 'bad' },
+  off_season: { label: 'Off season', tone: 'muted' },
+  never: { label: 'Never landed', tone: 'warn' },
+};
 
 function statusTone(status: string): 'good' | 'warn' | 'bad' | 'muted' {
   if (status === 'pass') return 'good';
@@ -196,6 +215,45 @@ export default function Health() {
           {showAllChecks ? 'Show only flagged checks' : `Show all ${health.checks.length} checks`}
         </button>
       </Card>
+
+      {(health.feeds ?? []).length > 0 && (
+        <Card title="Source feeds" id="feeds">
+          <p className="mb-2 text-sm text-muted">
+            The newest day each feed landed, against how old it may get while the league is playing. A feed that stops keeps
+            showing its last snapshot on the site, so a stale one is flagged here and in the checks.
+          </p>
+          <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+            <table className="w-full text-sm" data-testid="feeds">
+              <thead>
+                <tr>
+                  <Th>Feed</Th>
+                  <Th>League</Th>
+                  <Th>Last landed</Th>
+                  <Th right>Age (days)</Th>
+                  <Th right>Allowed</Th>
+                  <Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...(health.feeds ?? [])]
+                  .sort((a, b) => a.league.localeCompare(b.league) || a.feed.localeCompare(b.feed))
+                  .map((f) => (
+                    <tr key={f.feed_key} className="border-t border-line">
+                      <Td>{f.feed}</Td>
+                      <Td>{f.league.toUpperCase()}</Td>
+                      <Td>{f.last_landed ? day(f.last_landed) : '–'}</Td>
+                      <Td right>{f.last_landed ? int(f.age_days ?? 0) : '–'}</Td>
+                      <Td right>{int(f.max_age_days)}</Td>
+                      <Td>
+                        <Badge tone={FEED_STATUS[f.status]?.tone ?? 'muted'}>{FEED_STATUS[f.status]?.label ?? f.status}</Badge>
+                      </Td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card title="Last ingest run per source and league" id="ingest">
         <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">

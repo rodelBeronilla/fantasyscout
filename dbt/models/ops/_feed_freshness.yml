@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: feed_freshness
+    description: "How fresh each source feed is per league: the newest landing day, its age in days against the age the feed should keep while the league is playing, and a status."
+    columns:
+      - name: feed_key
+        description: "League and the bronze model that reads the feed"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+      - name: feed
+        description: "The feed's name as Data Health shows it"
+      - name: source_model
+        description: "The bronze model that reads the feed's landed payloads"
+      - name: last_landed
+        description: "The newest ingest date (UTC day of the run) with a payload for the feed and league; null when none has landed"
+      - name: age_days
+        description: "Days from last_landed to today's Eastern date, never below zero"
+      - name: max_age_days
+        description: "The oldest the newest landing may be while the league is playing before the feed counts as stale"
+      - name: payloads
+        description: "Landed payloads the bronze model holds for the league"
+      - name: in_season
+        description: "True when the league has a scheduled game within three days either side of today"
+      - name: status
+        description: "fresh, stale (older than max_age_days in season), off_season (quiet while the league is not playing) or never (nothing landed)"
+        data_tests:
+          - accepted_values:
+              values: [fresh, stale, off_season, never]
+      - name: checked_at
+        description: "When the build computed the row"
