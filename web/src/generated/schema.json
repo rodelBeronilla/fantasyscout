@@ -14324,6 +14324,18 @@
        "type": "double"
       },
       {
+       "description": "What an average game of the last ten adds to a week's category totals, in units of each category's spread over the season's pool: counting stats add, turnovers subtract, shooting adds makes above the pool's percentage",
+       "name": "last_10_production",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The turnovers part of last_10_production (negative), which an 8-category league leaves out",
+       "name": "last_10_production_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
        "description": "Z-score of points over the last ten games this season",
        "name": "last_10_z_points",
        "tests": [],

@@ -1471,6 +1471,10 @@ models:
         description: "Season z_total blended with the latest earlier season's, that season counting for up to 10 games and this one for its games before the last ten"
       - name: value_trend
         description: "Value z-score over the last ten games minus the baseline; null without one"
+      - name: last_10_production
+        description: "What an average game of the last ten adds to a week's category totals, in units of each category's spread over the season's pool: counting stats add, turnovers subtract, shooting adds makes above the pool's percentage"
+      - name: last_10_production_turnovers
+        description: "The turnovers part of last_10_production (negative), which an 8-category league leaves out"
       - name: last_10_z_points
         description: "Z-score of points over the last ten games this season"
       - name: last_10_z_rebounds_total
