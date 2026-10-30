@@ -72,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="print the plan without sending any request"
     )
     p_land.add_argument(
+        "--history",
+        action="store_true",
+        help="reports only: land the 5 pm official injury report for each day, --since to --until",
+    )
+    p_land.add_argument(
         "--backend",
         choices=("local", "volume"),
         default="local",
@@ -107,6 +112,7 @@ def _run_land(args: argparse.Namespace) -> int:
         until=args.until,
         full_refresh=args.full_refresh,
         dry_run=args.dry_run,
+        history=args.history,
         backend=args.backend,
         root=args.root,
     )

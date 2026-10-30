@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import random
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import httpx
@@ -10,6 +10,8 @@ import httpx
 from ingest.http import Throttle, ThrottledClient
 from ingest.injury_report import (
     InjuryReportIngestor,
+    ReportHistoryIngestor,
+    history_names,
     latest_in_index,
     parse_report,
     report_name,
@@ -165,3 +167,57 @@ def test_out_of_season_the_wnba_run_asks_for_nothing(tmp_path: Path) -> None:
     landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
     summary = InjuryReportIngestor(client_for(handler), landing, "wnba", "2026", now=now).run()
     assert summary.ok and summary.landed == 0
+
+
+def test_old_hourly_report_names_parse_and_history_tries_the_likelier_form_first() -> None:
+    assert report_time("Injury-Report_2024-03-10_05PM.pdf") == datetime(
+        2024,
+        3,
+        10,
+        17,
+        0,
+        tzinfo=report_time("Injury-Report_2024-03-10_05_00PM.pdf").tzinfo,  # type: ignore[union-attr]
+    )
+    assert history_names(date(2024, 3, 10)) == [
+        "Injury-Report_2024-03-10_05PM.pdf",
+        "Injury-Report_2024-03-10_05_00PM.pdf",
+    ]
+    assert history_names(date(2026, 2, 10))[0] == "Injury-Report_2026-02-10_05_00PM.pdf"
+
+
+def test_a_history_run_lands_one_report_per_day_and_skips_days_without_one(tmp_path: Path) -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path.rsplit("/", 1)[-1])
+        if request.url.path.endswith("2024-03-10_05PM.pdf"):
+            return httpx.Response(200, content=NBA_PDF)
+        return httpx.Response(403)  # the host answers 403 for a report that does not exist
+
+    now = datetime(2026, 10, 30, 12, tzinfo=UTC)
+
+    def run() -> object:
+        landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
+        return ReportHistoryIngestor(
+            client_for(handler),
+            landing,
+            "nba",
+            "2023-24",
+            since=date(2024, 3, 9),
+            until=date(2024, 3, 10),
+            now=now,
+        ).run()
+
+    first = run()
+    assert first.ok and first.landed == 1  # type: ignore[attr-defined]
+    assert calls == [
+        "Injury-Report_2024-03-09_05PM.pdf",
+        "Injury-Report_2024-03-09_05_00PM.pdf",
+        "Injury-Report_2024-03-10_05PM.pdf",
+    ]
+    assert next(
+        (tmp_path / "landing/league/injury_report/nba/2023-24").rglob("2024-03-10T17-00.json")
+    )
+    calls.clear()
+    again = run()
+    assert again.landed == 0 and "Injury-Report_2024-03-10_05PM.pdf" not in calls  # type: ignore[attr-defined]

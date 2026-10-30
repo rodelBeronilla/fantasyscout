@@ -19,7 +19,7 @@ import io
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -43,7 +43,13 @@ HEADERS = {
     "(KHTML, like Gecko) Chrome/130.0 Safari/537.36",
     "Accept": "text/html,application/pdf,*/*",
 }
-REPORT_NAME = re.compile(r"Injury-Report_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})(AM|PM)\.pdf")
+# Reports are named for the Eastern time they were published: 05_00PM since the 2025-26 season
+# (every 15 minutes), 05PM before it (hourly). Both stay on the host: the NBA's back to 2023-24.
+REPORT_NAME = re.compile(r"Injury-Report_(\d{4}-\d{2}-\d{2})_(\d{2})(?:_(\d{2}))?(AM|PM)\.pdf")
+# The report a history run lands for each day: 5 pm Eastern, after teams file for the day's games
+# and before most tip-offs, close to when the evening build reads the newest one.
+HISTORY_HOUR = 17
+NEW_NAMES_FROM = date(2025, 12, 15)
 # How far back to look for a WNBA report, in quarter hours (a day), and in which months.
 WNBA_PROBES = 96
 WNBA_MONTHS = range(5, 11)
@@ -81,9 +87,17 @@ def report_time(name: str) -> datetime | None:
     if not m:
         return None
     day, hour, minute, half = m.groups()
-    return datetime.strptime(f"{day} {hour}:{minute} {half}", "%Y-%m-%d %I:%M %p").replace(
+    return datetime.strptime(f"{day} {hour}:{minute or '00'} {half}", "%Y-%m-%d %I:%M %p").replace(
         tzinfo=EASTERN
     )
+
+
+def history_names(day: date, hour: int = HISTORY_HOUR) -> list[str]:
+    """The names a day's report at ``hour`` (Eastern) may have: the current form, then the old."""
+    at = datetime(day.year, day.month, day.day, hour, tzinfo=EASTERN)
+    names = [report_name(at), f"Injury-Report_{at:%Y-%m-%d}_{at:%I}{at:%p}.pdf"]
+    # The quarter-hour names began during the 2025-26 season: try the likelier form first.
+    return names if day >= NEW_NAMES_FROM else names[::-1]
 
 
 def latest_in_index(html: str) -> str | None:
@@ -297,3 +311,80 @@ class InjuryReportIngestor:
             summary.fail(failure.endpoint, failure.key, failure.error)
         summary.pacing = self.client.pacing()
         return summary
+
+
+@dataclass
+class ReportHistoryIngestor:
+    """Lands one official report per day over a date range: the 5 pm Eastern report.
+
+    Each league keeps its reports on the host (the NBA's back to 2023-24, the WNBA's from 2026),
+    so the history the availability calibration needs can be landed after the fact. A day with no
+    report (no games, or before the archive) answers 403 or 404 and is skipped, not failed.
+    """
+
+    client: ThrottledClient
+    landing: Landing
+    league: League
+    season: str
+    since: date
+    until: date
+    now: datetime | None = None
+
+    def run(self) -> RunSummary:
+        clock = self.now or datetime.now(UTC)
+        summary = RunSummary(SOURCE, self.league, self.season, clock)
+        scope = Scope(SOURCE, ENDPOINT, self.league, self.season)
+        day = self.since
+        try:
+            while day <= self.until:
+                self._land_day(summary, scope, day, clock)
+                day += timedelta(days=1)
+        except CircuitOpenError as exc:
+            summary.aborted = str(exc)
+        for failure in self.landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
+        summary.pacing = self.client.pacing()
+        return summary
+
+    def _land_day(self, summary: RunSummary, scope: Scope, day: date, clock: datetime) -> None:
+        names = history_names(day)
+        published = report_time(names[0])
+        key = published.strftime("%Y-%m-%dT%H-%M") if published else names[0]
+        if self.landing.already_landed_today(scope, key) or self.landing.has_landed(scope, key):
+            summary.record(None)
+            return
+        for name in names:
+            url = PDF_BASE[self.league] + name
+            try:
+                response = self.client.get(url, headers=HEADERS)
+            except CircuitOpenError:
+                raise
+            except Exception as exc:  # one bad day never stops the run
+                summary.fail(ENDPOINT, key, exc)
+                return
+            if response.status_code in (403, 404):
+                continue
+            if response.status_code != 200:
+                summary.fail(ENDPOINT, key, RuntimeError(f"HTTP {response.status_code}"))
+                return
+            try:
+                rows = parse_report(response.content)
+            except Exception as exc:
+                summary.fail(ENDPOINT, key, exc)
+                return
+            payload = {
+                "league": self.league,
+                "report": name,
+                "published_et": published.isoformat() if published else None,
+                "url": url,
+                "pdf_sha256": payload_hash(response.content),
+                "rows": rows,
+            }
+            body = json.dumps(payload, ensure_ascii=False, indent=1).encode("utf-8")
+            result = self.landing.land(
+                scope, key, body, url=url, params={}, status=200, fetched_at=clock
+            )
+            summary.games += len({r["matchup"] for r in rows if r["matchup"]})
+            summary.record(result)
+            return
+        # No report that day: nothing to land.

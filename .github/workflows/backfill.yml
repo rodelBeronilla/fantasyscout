@@ -18,9 +18,9 @@ on:
         type: string
         required: true
       source:
-        description: Which source
+        description: Which source (both = stats and espn; reports = the official injury reports, one a day)
         type: choice
-        options: [both, stats, espn]
+        options: [both, stats, espn, reports]
         default: both
 
 permissions:
@@ -30,7 +30,7 @@ permissions:
 jobs:
   stats:
     name: Stats API ${{ inputs.league }} ${{ matrix.season }} ${{ matrix.season_type }}
-    if: inputs.source != 'espn'
+    if: inputs.source == 'both' || inputs.source == 'stats'
     runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
     timeout-minutes: 330
     concurrency:
@@ -87,7 +87,7 @@ jobs:
 
   espn:
     name: ESPN ${{ inputs.league }} ${{ matrix.season }}
-    if: inputs.source != 'stats'
+    if: inputs.source == 'both' || inputs.source == 'espn'
     runs-on: ubuntu-latest
     timeout-minutes: 330
     concurrency:
@@ -131,5 +131,53 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TITLE: "Backfill failure: espn ${{ inputs.league }} ${{ matrix.season }}"
+          OUTCOME: ${{ steps.land.outcome }}
+        run: uv run python .github/scripts/incident.py
+
+  # The leagues keep their official injury reports on the host (the NBA's back to 2023-24, the
+  # WNBA's from 2026): one report a day, the 5 pm Eastern one, for the availability calibration.
+  reports:
+    name: Injury reports ${{ inputs.league }} ${{ matrix.season }}
+    if: inputs.source == 'reports'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: reports-${{ inputs.league }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        season: ${{ fromJSON(inputs.seasons) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Season window, up to yesterday
+        id: window
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASON: ${{ matrix.season }}
+        run: |
+          if [ "$LEAGUE" = "wnba" ]; then since="$SEASON-05-01"; until="$SEASON-10-31"
+          else y1=${SEASON%-*}; since="$y1-10-01"; until="$((y1 + 1))-06-30"; fi
+          yesterday=$(date -u -d yesterday +%F)
+          [[ "$until" > "$yesterday" ]] && until="$yesterday"
+          echo "since=$since" >> "$GITHUB_OUTPUT"; echo "until=$until" >> "$GITHUB_OUTPUT"
+      - name: Land
+        id: land
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
+          uv run fs-ingest land reports --history --league "${{ inputs.league }}" --season "${{ matrix.season }}"             --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}"             --backend volume 2>&1 | tee land.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Backfill failure: reports ${{ inputs.league }} ${{ matrix.season }}"
           OUTCOME: ${{ steps.land.outcome }}
         run: uv run python .github/scripts/incident.py

@@ -320,6 +320,10 @@ class Landing:
             self._indexes[scope] = {k: IndexEntry(**v) for k, v in raw.items()}
         return self._indexes[scope]
 
+    def has_landed(self, scope: Scope, key: str) -> bool:
+        """Whether the key has ever landed for the scope (a history run lands each key once)."""
+        return not self.full_refresh and key in self._index(scope)
+
     def already_landed_today(self, scope: Scope, key: str) -> bool:
         """True when this key was landed on this ingest date and no full refresh was asked."""
         if self.full_refresh:
