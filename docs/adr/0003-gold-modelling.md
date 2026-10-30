@@ -202,6 +202,8 @@ The multiplier now charges a listed player the average, over past injury listing
 
 The averages update with every build as the daily reports add listings. The game context notebook publishes the table per league.
 
+The calibration matches the reason as well as the status. An official Out for rest is averaged over past rest listings (NBA 2024-25: 1.2 games), not injury listings (12.6). The same holds for a G League assignment, personal reasons or a suspension. ESPN's listings are injuries.
+
 ## Addendum (2026-10-30): the board's value spread
 
 Issue #193: the board backtest notebook regressed realised season value on the board's predicted season value. The slope was 0.55 in the NBA and 0.82 in the WNBA, which read as NBA values spread too wide. The replay (`notebooks/replay.py`) was taken apart and candidate fixes were replayed at the notebook's checkpoints. Out of sample means NBA 2023-24, a tenth, a quarter and half way in; the data holds no earlier NBA season. For the WNBA it means 2018 to 2020. In sample means the seasons the settings were chosen on. Intervals are 95% player-bootstrap intervals, 200 replicates, as in the notebook.

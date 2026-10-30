@@ -26,7 +26,8 @@
   availability multiplier, the share of those games the player is expected to play given the
   current status. The games a listed player is expected to miss are calibrated on history
   (fct_official_listing): the average, over past injury listings with the same status, of the
-  games the player then missed, capped at the games the team has left. The status is the
+  games the player then missed, capped at the games the team has left, with the same reason (an
+  official Out for rest is averaged over rest listings, not injuries). The status is the
   official report's for the next game, else ESPN's listing in the report's words (day-to-day
   reads as questionable); the league's own listings are used once it has 300 for the status,
   else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the
@@ -186,8 +187,8 @@ injury as (
     -- The rest-of-season multiplier reads ESPN's listing (espn_status_group): the official
     -- report speaks only to the next game.
     select league, stats_player_id, status, status_group, injury_type, expected_return, short_comment,
-        long_comment, status_since, espn_status_group, status_source, official_status, official_game_date,
-        official_report_at
+        long_comment, status_since, espn_status_group, status_source, official_status, official_reason_group,
+        official_game_date, official_report_at
     from {{ ref('fct_player_status') }}
 
 ),
@@ -218,13 +219,19 @@ games_before_return as (
 
 ),
 
--- The status the calibration reads: the official report's for the next game, else ESPN's listing
--- in the report's words (day-to-day reads as questionable).
+-- The status the calibration reads: the official report's for the next game with its reason
+-- (injury, rest, g_league, personal...), else ESPN's listing in the report's words (day-to-day
+-- reads as questionable), which is always an injury.
 calibration_status as (
 
     select
         league,
         stats_player_id,
+        case
+            when official_status in ('Out', 'Doubtful', 'Questionable', 'Probable')
+                then coalesce(official_reason_group, 'injury')
+            else 'injury'
+        end as reason_group,
         coalesce(
             case when official_status in ('Out', 'Doubtful', 'Questionable', 'Probable') then official_status end,
             case espn_status_group
@@ -238,20 +245,19 @@ calibration_status as (
 
 ),
 
--- Each league's injury listings per status: a league uses its own once it has 300.
+-- Each league's listings per status and reason: a league uses its own once it has 300.
 calibration_source as (
 
-    select league, status, count(*) as listings
+    select league, status, reason_group, count(*) as listings
     from {{ ref('fct_official_listing') }}
-    where reason_group = 'injury'
-    group by league, status
+    group by league, status, reason_group
 
 ),
 
 expected_missed as (
 
-    -- The average, over past injury listings with the same status, of the games the player then
-    -- missed, capped at the games the team has left.
+    -- The average, over past listings with the same status and reason, of the games the player
+    -- then missed, capped at the games the team has left: a night of rest is not an injury.
     select
         b.league,
         b.player_id,
@@ -260,11 +266,12 @@ expected_missed as (
     from base as b
     join remaining as r on r.league = b.league and r.season = b.season and r.team_id = b.team_id
     join calibration_status as cst on cst.league = b.league and cst.stats_player_id = b.player_id
-    left join calibration_source as own on own.league = b.league and own.status = cst.status
+    left join calibration_source as own
+        on own.league = b.league and own.status = cst.status and own.reason_group = cst.reason_group
     join {{ ref('fct_official_listing') }} as l
         on l.league = case when coalesce(own.listings, 0) >= 300 then b.league else 'nba' end
         and l.status = cst.status
-        and l.reason_group = 'injury'
+        and l.reason_group = cst.reason_group
     where r.games_remaining > 0
     group by b.league, b.player_id
 
