@@ -1,0 +1,123 @@
+version: 2
+
+models:
+  - name: fct_board_history
+    description: "A daily ledger of the board: one row per Eastern date, league and player with the projection, the value and the context shown beside it. Merged by every build and never rebuilt by a full refresh, so it keeps the history the published builds roll off."
+    columns:
+      - name: board_history_sk
+        description: "Surrogate key: one row per snapshot date, league and player"
+        data_tests: [unique, not_null]
+      - name: snapshot_date
+        description: "The Eastern date of the build that wrote the row (a later build the same day replaces it)"
+        data_tests: [not_null]
+      - name: snapshot_at
+        description: "When the build wrote the row"
+      - name: league
+        description: "nba or wnba"
+      - name: season
+        description: "The league's current season at the snapshot"
+      - name: player_id
+        description: "League player id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "The player's team on its latest roster at the snapshot"
+      - name: rank_total
+        description: "Board rank by value_total with the default league settings"
+      - name: value_per_game
+        description: "Projected category value per game above replacement (sum over the nine categories)"
+      - name: value_total
+        description: "value_per_game times the projected share of regular-season games (above replacement only)"
+      - name: value_rest_of_season
+        description: "Value over the games left, scaled by availability"
+      - name: games_share
+        description: "Projected share of regular-season games played"
+      - name: availability_multiplier
+        description: "Share of the remaining games the player is expected to be available for, from ESPN's injury listing"
+      - name: games_remaining
+        description: "Regular-season games the team has left"
+      - name: games_next_7
+        description: "Games the team plays in the next seven days"
+      - name: proj_minutes_pg
+        description: "Projected minutes per game"
+      - name: proj_points_pg
+        description: "Projected points per game"
+      - name: proj_rebounds_total_pg
+        description: "Projected rebounds per game"
+      - name: proj_assists_pg
+        description: "Projected assists per game"
+      - name: proj_steals_pg
+        description: "Projected steals per game"
+      - name: proj_blocks_pg
+        description: "Projected blocks per game"
+      - name: proj_three_pointers_made_pg
+        description: "Projected three-pointers made per game"
+      - name: proj_turnovers_pg
+        description: "Projected turnovers per game"
+      - name: proj_field_goal_pct
+        description: "Projected field-goal percentage (0 to 1)"
+      - name: proj_free_throw_pct
+        description: "Projected free-throw percentage (0 to 1)"
+      - name: injury_status
+        description: "The status shown on the board: the official report for the next game, else ESPN's listing"
+      - name: injury_group
+        description: "out, doubtful, questionable, probable, day_to_day or other; null when healthy"
+      - name: injury_source
+        description: "official or espn"
+      - name: lineup_role
+        description: "starter, bench or inactive from the day's starting lineups (NBA)"
+      - name: lineup_confirmed
+        description: "True once the team had confirmed the lineup"
+      - name: market_rank
+        description: "Where ESPN fantasy drafters took the player, by average draft position"
+      - name: ownership_bucket
+        description: "How widely ESPN leagues rostered the player: most, many, some, few or rare"
+      - name: team_stakes
+        description: "What the team still played for: eliminated, clinched or racing"
+      - name: rest_risk
+        description: "True when the team had nothing left to play for in the last stretch"
+      - name: minutes_trend
+        description: "Minutes over the last five games minus the baseline (players on the streamers list)"
+      - name: value_trend
+        description: "Last-ten value minus the baseline (players on the streamers list)"
+      - name: sleeper_adds
+        description: "Sleeper leagues that added the player over the day before (NBA)"
+      - name: sleeper_drops
+        description: "Sleeper leagues that dropped the player over the day before (NBA)"
+
+  - name: fct_game_line
+    description: "The betting line for each played game: ESPN's closing line (or the last scoreboard line), linked to the league's game id, with the points each team was implied to score."
+    columns:
+      - name: game_line_sk
+        description: "Surrogate key: one row per league and game"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+      - name: season
+        description: "Season label"
+      - name: game_id
+        description: "League game id"
+        data_tests: [not_null]
+      - name: game_date
+        description: "The game's date (Eastern)"
+      - name: home_team_id
+        description: "League id of the home team"
+      - name: away_team_id
+        description: "League id of the away team"
+      - name: home_spread
+        description: "Point spread from the home side: negative when the home team is favoured"
+      - name: over_under
+        description: "Total points the line expected both teams to score"
+      - name: home_implied_points
+        description: "Points the line implied the home team scores: half the total minus half the home spread"
+      - name: away_implied_points
+        description: "Points the line implied the away team scores: half the total plus half the home spread"
+      - name: home_moneyline
+        description: "American odds on the home team winning"
+      - name: away_moneyline
+        description: "American odds on the away team winning"
+      - name: line_type
+        description: "closing (from the game summary) or latest (the last scoreboard line before the game)"
+      - name: provider
+        description: "The sportsbook ESPN shows the line from"
+      - name: observed_date
+        description: "Ingest date of the landing the line came from"

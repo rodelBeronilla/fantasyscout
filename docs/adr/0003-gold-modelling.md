@@ -158,3 +158,10 @@ Issue #142 asked whether an opponent's defence against a player's position expla
 | Defence by position alone | −0.04% | 0.02% |
 
 One standard deviation of overall defence is worth about 1.8 fantasy points over 30 minutes in the NBA and 1.5 in the WNBA. Positional defence is worth 0.15 and 0.31, an order of magnitude less and inside the noise. Positional defence tables are mostly a sample of who happened to play against whom. So the matchup score keeps overall defence and pace, and nothing is built for positions. The stats API's defender tracking (leaguedashptdefend, boxscorematchupsv3) measures defenders rather than opponents' positions. Each needs per-game calls on the home runner, and with this result it is not worth that cost now.
+
+## Addendum (2026-10-30): a ledger for the signals that have no history yet
+
+The newer inputs (official injury reports, lineups, the ESPN market, Sleeper, headline flags) have only days of history, and the published builds that carry them roll off after seven builds. None of them can be backtested unless the board's view is kept. `gold.fct_board_history` keeps it: one row per Eastern date, league and player with the projection, the value, availability, lineup role, market rank and ownership bucket, stakes, and the streamer signals. Every build merges the day's rows and a later build the same day replaces them. The model sets `full_refresh=false`, so a full refresh never rebuilds it and the history only grows (about 1,100 rows a day). `gold.fct_game_line` publishes the closing line for every played game, which the context analyses need.
+
+`ops.feed_freshness` gives each feed's newest landing day and its age against the age the feed may reach while the league is playing. A feed that stops keeps its last snapshot in silver and gold, where it would otherwise look current. `warn_stale_feeds` flags a stale feed, or a feed that has never landed in season, and Data Health lists every feed.
+

@@ -200,6 +200,15 @@
    "tags": []
   },
   {
+   "about": "Source feeds that should be landing while the league is playing but have not landed within their expected age (ops.feed_freshness), or have never landed at all in season. A stopped feed keeps its last snapshot in silver and gold, where it would otherwise look current.",
+   "name": "warn_stale_feeds",
+   "reads": [
+    "feed_freshness"
+   ],
+   "severity": "warn",
+   "tags": []
+  },
+  {
    "about": "Team turnovers are the players' turnovers plus team turnovers (no player charged), so the team figure must be at least the players' sum and rarely more than a handful above it.",
    "name": "warn_team_turnovers",
    "reads": [
@@ -269,7 +278,7 @@
   "fantasy_recent_minutes": 0.5,
   "fantasy_team_change": 0.25
  },
- "generic_tests": 249,
+ "generic_tests": 259,
  "layers": [
   {
    "models": [
@@ -378,7 +387,8 @@
      "name": "espn_fantasy_players",
      "notes": [],
      "read_by": [
-      "espn_fantasy_market"
+      "espn_fantasy_market",
+      "feed_freshness"
      ],
      "reads": []
     },
@@ -505,6 +515,7 @@
      "name": "espn_injuries",
      "notes": [],
      "read_by": [
+      "feed_freshness",
       "injuries",
       "injury_status_history"
      ],
@@ -591,6 +602,7 @@
      "name": "espn_news",
      "notes": [],
      "read_by": [
+      "feed_freshness",
       "player_news"
      ],
      "reads": []
@@ -851,7 +863,8 @@
      "name": "espn_scoreboard",
      "notes": [],
      "read_by": [
-      "espn_events"
+      "espn_events",
+      "feed_freshness"
      ],
      "reads": []
     },
@@ -1544,6 +1557,7 @@
      "name": "espn_transactions",
      "notes": [],
      "read_by": [
+      "feed_freshness",
       "transactions"
      ],
      "reads": []
@@ -1647,6 +1661,7 @@
      "name": "league_daily_lineups",
      "notes": [],
      "read_by": [
+      "feed_freshness",
       "starting_lineups"
      ],
      "reads": []
@@ -1762,6 +1777,7 @@
      "name": "league_injury_report",
      "notes": [],
      "read_by": [
+      "feed_freshness",
       "official_injury_report"
      ],
      "reads": []
@@ -1835,6 +1851,7 @@
      "name": "league_player_movement",
      "notes": [],
      "read_by": [
+      "feed_freshness",
       "transactions"
      ],
      "reads": []
@@ -1975,6 +1992,7 @@
      "name": "sleeper_trending",
      "notes": [],
      "read_by": [
+      "feed_freshness",
       "waiver_trending"
      ],
      "reads": []
@@ -3170,6 +3188,7 @@
      "name": "stats_leaguestandingsv3",
      "notes": [],
      "read_by": [
+      "feed_freshness",
       "standings"
      ],
      "reads": []
@@ -4229,6 +4248,7 @@
      "name": "stats_scheduleleaguev2",
      "notes": [],
      "read_by": [
+      "feed_freshness",
       "schedule"
      ],
      "reads": []
@@ -5494,6 +5514,7 @@
       "The betting line for each ESPN event: the point spread from the home side (negative when the home team is favoured), the over/under, and the points each team is implied to score. Upcoming games take the line from the latest scoreboard; a finished game's summary carries the closing line, which wins over any earlier scoreboard. One row per event that has a line."
      ],
      "read_by": [
+      "fct_game_line",
       "mart_schedule_upcoming"
      ],
      "reads": [
@@ -5577,6 +5598,7 @@
       "League stats API game id to ESPN event id, one row per matched game. A game and an event match when they are in the same league, between the same two teams (through team_xwalk, in either orientation so neutral-site games match), on the same Eastern-time date; a game without a same-day event takes one on the adjacent day. Each event is used at most once."
      ],
      "read_by": [
+      "fct_game_line",
       "player_game_reconciliation",
       "player_xwalk",
       "player_xwalk_review"
@@ -7585,6 +7607,7 @@
       "dim_game",
       "fct_team_game_context",
       "fct_team_stakes",
+      "feed_freshness",
       "mart_board",
       "mart_player_projection",
       "mart_schedule_upcoming"
@@ -8322,6 +8345,7 @@
      ],
      "read_by": [
       "fct_availability",
+      "fct_game_line",
       "game_xwalk",
       "mart_schedule_upcoming",
       "player_xwalk",
@@ -9260,6 +9284,255 @@
      ]
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per snapshot date, league and player",
+       "name": "board_history_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The Eastern date of the build that wrote the row (a later build the same day replaces it)",
+       "name": "snapshot_date",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "When the build wrote the row",
+       "name": "snapshot_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The league's current season at the snapshot",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id",
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The player's team on its latest roster at the snapshot",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Board rank by value_total with the default league settings",
+       "name": "rank_total",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Projected category value per game above replacement (sum over the nine categories)",
+       "name": "value_per_game",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "value_per_game times the projected share of regular-season games (above replacement only)",
+       "name": "value_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Value over the games left, scaled by availability",
+       "name": "value_rest_of_season",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected share of regular-season games played",
+       "name": "games_share",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the remaining games the player is expected to be available for, from ESPN's injury listing",
+       "name": "availability_multiplier",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Regular-season games the team has left",
+       "name": "games_remaining",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Games the team plays in the next seven days",
+       "name": "games_next_7",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Projected minutes per game",
+       "name": "proj_minutes_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected points per game",
+       "name": "proj_points_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected rebounds per game",
+       "name": "proj_rebounds_total_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected assists per game",
+       "name": "proj_assists_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected steals per game",
+       "name": "proj_steals_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected blocks per game",
+       "name": "proj_blocks_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected three-pointers made per game",
+       "name": "proj_three_pointers_made_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected turnovers per game",
+       "name": "proj_turnovers_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected field-goal percentage (0 to 1)",
+       "name": "proj_field_goal_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected free-throw percentage (0 to 1)",
+       "name": "proj_free_throw_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The status shown on the board: the official report for the next game, else ESPN's listing",
+       "name": "injury_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "out, doubtful, questionable, probable, day_to_day or other; null when healthy",
+       "name": "injury_group",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "official or espn",
+       "name": "injury_source",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "starter, bench or inactive from the day's starting lineups (NBA)",
+       "name": "lineup_role",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "True once the team had confirmed the lineup",
+       "name": "lineup_confirmed",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "Where ESPN fantasy drafters took the player, by average draft position",
+       "name": "market_rank",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "How widely ESPN leagues rostered the player: most, many, some, few or rare",
+       "name": "ownership_bucket",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "What the team still played for: eliminated, clinched or racing",
+       "name": "team_stakes",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "True when the team had nothing left to play for in the last stretch",
+       "name": "rest_risk",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "Minutes over the last five games minus the baseline (players on the streamers list)",
+       "name": "minutes_trend",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Last-ten value minus the baseline (players on the streamers list)",
+       "name": "value_trend",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Sleeper leagues that added the player over the day before (NBA)",
+       "name": "sleeper_adds",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Sleeper leagues that dropped the player over the day before (NBA)",
+       "name": "sleeper_drops",
+       "tests": [],
+       "type": "bigint"
+      }
+     ],
+     "description": "A daily ledger of the board: one row per Eastern date, league and player with the projection, the value and the context shown beside it. Merged by every build and never rebuilt by a full refresh, so it keeps the history the published builds roll off.",
+     "materialized": "incremental",
+     "name": "fct_board_history",
+     "notes": [],
+     "read_by": [],
+     "reads": [
+      "mart_board",
+      "mart_streamers"
+     ]
+    },
+    {
      "checks": [
       "assert_completeness",
       "warn_event_box_agreement",
@@ -9479,6 +9752,124 @@
       "event_lineups",
       "events",
       "games"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league and game",
+       "name": "game_line_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League game id",
+       "name": "game_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The game's date (Eastern)",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "League id of the home team",
+       "name": "home_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League id of the away team",
+       "name": "away_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Point spread from the home side: negative when the home team is favoured",
+       "name": "home_spread",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Total points the line expected both teams to score",
+       "name": "over_under",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points the line implied the home team scores: half the total minus half the home spread",
+       "name": "home_implied_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points the line implied the away team scores: half the total plus half the home spread",
+       "name": "away_implied_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "American odds on the home team winning",
+       "name": "home_moneyline",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "American odds on the away team winning",
+       "name": "away_moneyline",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "closing (from the game summary) or latest (the last scoreboard line before the game)",
+       "name": "line_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The sportsbook ESPN shows the line from",
+       "name": "provider",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landing the line came from",
+       "name": "observed_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "The betting line for each played game: ESPN's closing line (or the last scoreboard line), linked to the league's game id, with the points each team was implied to score.",
+     "materialized": "table",
+     "name": "fct_game_line",
+     "notes": [
+      "The betting line for each played game: ESPN's closing line from the game summary (or the last scoreboard line when the summary had none), linked to the league's game id through the game crosswalk, with the points each team was implied to score. Upcoming games' lines are in mart_schedule_upcoming; this table is the history, for analyses of what the line said against what happened."
+     ],
+     "read_by": [],
+     "reads": [
+      "game_lines",
+      "game_xwalk",
+      "team_xwalk"
      ]
     },
     {
@@ -11915,6 +12306,7 @@
       "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current injury report (out: the games before the expected return, or all of them without a date; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. games_next_7 counts playoff games too."
      ],
      "read_by": [
+      "fct_board_history",
       "mart_streamers"
      ],
      "reads": [
@@ -13201,7 +13593,9 @@
       "The trends compare recent games with a baseline: minutes over the last five games, value over the last ten. The baseline is the player's games this season before the window, blended with the player's latest earlier season (last season, or the one before for a player who missed it) counted as up to 10 games. Early in a season the window is the whole season, so the baseline is last season; late in a season it is mostly this one. A player with neither (a rookie's first games) has no trend rather than a misleading zero.",
       "Each row also carries the last-ten-games z-score per category, for ranking by the categories a manager needs, and the player's board rank and value, for leaving out players a league of a given size has most likely rostered (null for a player not on a current roster). The value baseline uses the season z-score, which includes the window; with few games before the window it is weighted toward last season accordingly. While the league is between seasons the same columns describe who finished the season strongly, and season_complete says so."
      ],
-     "read_by": [],
+     "read_by": [
+      "fct_board_history"
+     ],
      "reads": [
       "dim_player",
       "fct_market_value",
@@ -13222,6 +13616,105 @@
   },
   {
    "models": [
+    {
+     "checks": [
+      "warn_stale_feeds"
+     ],
+     "columns": [
+      {
+       "description": "League and the bronze model that reads the feed",
+       "name": "feed_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The feed's name as Data Health shows it",
+       "name": "feed",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The bronze model that reads the feed's landed payloads",
+       "name": "source_model",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The newest ingest date (UTC day of the run) with a payload for the feed and league; null when none has landed",
+       "name": "last_landed",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Days from last_landed to today's Eastern date, never below zero",
+       "name": "age_days",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "The oldest the newest landing may be while the league is playing before the feed counts as stale",
+       "name": "max_age_days",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Landed payloads the bronze model holds for the league",
+       "name": "payloads",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "True when the league has a scheduled game within three days either side of today",
+       "name": "in_season",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "fresh, stale (older than max_age_days in season), off_season (quiet while the league is not playing) or never (nothing landed)",
+       "name": "status",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "When the build computed the row",
+       "name": "checked_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      }
+     ],
+     "description": "How fresh each source feed is per league: the newest landing day, its age in days against the age the feed should keep while the league is playing, and a status.",
+     "materialized": "table",
+     "name": "feed_freshness",
+     "notes": [
+      "How fresh each source feed is, per league: the newest day a payload landed for it and how many days ago that was, against how often the feed should land while the league is playing. A feed that stops keeps its last landing in silver and gold, where it would otherwise look current; warn_stale_feeds reports a stale one. Out of season (no game three days either side of today) a quiet feed is expected. An unchanged payload lands no new file, so the slower feeds get a few days' grace."
+     ],
+     "read_by": [],
+     "reads": [
+      "espn_fantasy_players",
+      "espn_injuries",
+      "espn_news",
+      "espn_scoreboard",
+      "espn_transactions",
+      "league_daily_lineups",
+      "league_injury_report",
+      "league_player_movement",
+      "schedule",
+      "sleeper_trending",
+      "stats_leaguestandingsv3",
+      "stats_scheduleleaguev2"
+     ]
+    },
     {
      "checks": [
       "warn_ingest_volume_anomaly"
