@@ -24,8 +24,15 @@
   Rest of season counts regular-season games only, the games fantasy leagues score. While some
   remain, ros_factor is the team's remaining share of its regular season times the
   availability multiplier, the share of those games the player is expected to play given the
-  current injury report (out: the games before the expected return, or all of them without a
-  date; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season
+  current status. The games a listed player is expected to miss are calibrated on history
+  (fct_official_listing): the average, over past injury listings with the same status, of the
+  games the player then missed, capped at the games the team has left. The status is the
+  official report's for the next game, else ESPN's listing in the report's words (day-to-day
+  reads as questionable); the league's own listings are used once it has 300 for the status,
+  else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the
+  games before it instead, and a note that the player is out for the season counts them all.
+  Without any history the old charges apply (out: every game; doubtful 0.75 of a game,
+  questionable 0.5, day-to-day 0.25). value_rest_of_season
   scales value above replacement by it; a value below replacement is left as it is, since a
   missing game from a player not worth rostering costs nothing. Once the regular season is
   over (playoffs or the off-season) season_complete is true and ros_factor is 1.
@@ -179,7 +186,8 @@ injury as (
     -- The rest-of-season multiplier reads ESPN's listing (espn_status_group): the official
     -- report speaks only to the next game.
     select league, stats_player_id, status, status_group, injury_type, expected_return, short_comment,
-        long_comment, status_since, espn_status_group, status_source, official_game_date, official_report_at
+        long_comment, status_since, espn_status_group, status_source, official_status, official_game_date,
+        official_report_at
     from {{ ref('fct_player_status') }}
 
 ),
@@ -207,6 +215,58 @@ games_before_return as (
         and s.game_type = 'regular' and s.game_status <> 3
         and s.game_date_est >= {{ as_of_date() }} and s.game_date_est < i.expected_return
     group by i.league, i.stats_player_id
+
+),
+
+-- The status the calibration reads: the official report's for the next game, else ESPN's listing
+-- in the report's words (day-to-day reads as questionable).
+calibration_status as (
+
+    select
+        league,
+        stats_player_id,
+        coalesce(
+            case when official_status in ('Out', 'Doubtful', 'Questionable', 'Probable') then official_status end,
+            case espn_status_group
+                when 'out' then 'Out'
+                when 'doubtful' then 'Doubtful'
+                when 'questionable' then 'Questionable'
+                when 'day_to_day' then 'Questionable'
+            end
+        ) as status
+    from injury
+
+),
+
+-- Each league's injury listings per status: a league uses its own once it has 300.
+calibration_source as (
+
+    select league, status, count(*) as listings
+    from {{ ref('fct_official_listing') }}
+    where reason_group = 'injury'
+    group by league, status
+
+),
+
+expected_missed as (
+
+    -- The average, over past injury listings with the same status, of the games the player then
+    -- missed, capped at the games the team has left.
+    select
+        b.league,
+        b.player_id,
+        avg(least(l.games_missed, r.games_remaining) * 1.0) as games_missed,
+        count(*) as listings
+    from base as b
+    join remaining as r on r.league = b.league and r.season = b.season and r.team_id = b.team_id
+    join calibration_status as cst on cst.league = b.league and cst.stats_player_id = b.player_id
+    left join calibration_source as own on own.league = b.league and own.status = cst.status
+    join {{ ref('fct_official_listing') }} as l
+        on l.league = case when coalesce(own.listings, 0) >= 300 then b.league else 'nba' end
+        and l.status = cst.status
+        and l.reason_group = 'injury'
+    where r.games_remaining > 0
+    group by b.league, b.player_id
 
 ),
 
@@ -265,14 +325,27 @@ assembled as (
         ts.stakes as team_stakes,
         coalesce(ts.rest_risk, false) as rest_risk,
         case
-            when coalesce(ls.season_complete, true) or coalesce(r.games_remaining, 0) = 0 or i.espn_status_group is null then 1.0
+            when coalesce(ls.season_complete, true) or coalesce(r.games_remaining, 0) = 0 then 1.0
+            -- ruled out with a return date: the games before it
+            when i.espn_status_group = 'out' and i.expected_return is not null
+                then greatest(0.0, (r.games_remaining - coalesce(gbr.games_missed, 0)) * 1.0 / r.games_remaining)
+            -- ruled out for the season
+            when i.espn_status_group = 'out'
+                and {{ matches("lower(coalesce(i.short_comment, '') || ' ' || coalesce(i.long_comment, ''))", 'out for the (rest of the )?season|season-ending|remainder of the season') }}
+                then 0.0
+            -- calibrated on past listings with the same status
+            when em.games_missed is not null
+                then greatest(0.0, (r.games_remaining - em.games_missed) * 1.0 / r.games_remaining)
+            when i.espn_status_group is null then 1.0
+            -- no history to calibrate on: the old charges
             else greatest(0.0, (r.games_remaining - case i.espn_status_group
-                    when 'out' then coalesce(gbr.games_missed, case when i.expected_return is null then r.games_remaining else 0 end)
+                    when 'out' then r.games_remaining
                     when 'doubtful' then 0.75
                     when 'questionable' then 0.5
                     when 'day_to_day' then 0.25
                     else 0 end) * 1.0 / r.games_remaining)
         end as availability_multiplier,
+        em.games_missed as expected_games_missed,
         {%- for c in pgcols %}
         sl.{{ c }} as cur_{{ c }},
         {%- endfor %}
@@ -290,6 +363,7 @@ assembled as (
     left join team_names as pt on pt.league = v.league and pt.team_id = v.prev_team_id
     left join injury as i on i.league = v.league and i.stats_player_id = v.player_id
     left join games_before_return as gbr on gbr.league = v.league and gbr.stats_player_id = v.player_id
+    left join expected_missed as em on em.league = v.league and em.player_id = v.player_id
     left join latest_news as ln on ln.league = v.league and ln.stats_player_id = v.player_id
     left join {{ ref('fct_starting_lineup') }} as lu on lu.league = v.league and lu.player_id = v.player_id
     left join {{ ref('fct_market_value') }} as mk on mk.league = v.league and mk.stats_player_id = v.player_id
@@ -381,6 +455,7 @@ select
     team_stakes,
     rest_risk,
     availability_multiplier,
+    expected_games_missed,
     games_remaining,
     games_next_7,
     games_this_week,

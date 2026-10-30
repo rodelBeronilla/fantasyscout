@@ -863,6 +863,20 @@ test("streamers follow the league's scoring and size", async ({ page }) => {
   await expect(page.getByTestId('points-note')).toBeVisible();
 });
 
+test("an injured player's tooltip says how many games players listed like this went on to miss", async ({ page }) => {
+  await page.route('**/board/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({
+      json: rows.map((r, i) =>
+        i === 0 ? { ...r, injury_group: 'questionable', injury_status: 'Questionable', injury_source: 'espn', expected_games_missed: 1.43, expected_return: null } : r,
+      ),
+    });
+  });
+  await page.goto('/');
+  const tag = page.getByTestId('board').getByTestId('injury-tag').first();
+  await expect(tag).toHaveAttribute('title', /missed 1\.4 games on average/);
+});
+
 test('the board and streamers show a fresh headline flag, the fantasy week and the ESPN ownership trend', async ({ page }) => {
   await page.route('**/board/wnba.json', async (route) => {
     const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
