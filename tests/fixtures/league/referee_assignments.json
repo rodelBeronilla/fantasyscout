@@ -1,0 +1,59 @@
+{
+ "league": "nba",
+ "page_date": "2026-10-30",
+ "url": "https://official.nba.com/referee-assignments/",
+ "rows": [
+  {
+   "game": "Chicago @ Boston",
+   "away_team": "Chicago",
+   "home_team": "Boston",
+   "crew_chief": "Pat Fraher",
+   "crew_chief_number": 26,
+   "referee": "Nate Green",
+   "referee_number": 41,
+   "umpire": "Scott Twardoski",
+   "umpire_number": 52,
+   "alternate": null,
+   "alternate_number": null
+  },
+  {
+   "game": "Houston @ Dallas",
+   "away_team": "Houston",
+   "home_team": "Dallas",
+   "crew_chief": "Zach Zarba",
+   "crew_chief_number": 15,
+   "referee": "Ashley Moyer-Gleich",
+   "referee_number": 13,
+   "umpire": "Robert Hussey",
+   "umpire_number": 85,
+   "alternate": null,
+   "alternate_number": null
+  },
+  {
+   "game": "LA Clippers @ Minnesota",
+   "away_team": "LA Clippers",
+   "home_team": "Minnesota",
+   "crew_chief": "JB DeRosa",
+   "crew_chief_number": 14,
+   "referee": "Marat Kogut",
+   "referee_number": 32,
+   "umpire": "Che Flores",
+   "umpire_number": 91,
+   "alternate": null,
+   "alternate_number": null
+  },
+  {
+   "game": "L.A. Lakers @ Golden State",
+   "away_team": "L.A. Lakers",
+   "home_team": "Golden State",
+   "crew_chief": "Tony Brothers",
+   "crew_chief_number": 25,
+   "referee": "John Butler",
+   "referee_number": 30,
+   "umpire": "Jenna Schroeder",
+   "umpire_number": 20,
+   "alternate": null,
+   "alternate_number": null
+  }
+ ]
+}

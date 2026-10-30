@@ -278,7 +278,7 @@
   "fantasy_recent_minutes": 0.5,
   "fantasy_team_change": 0.25
  },
- "generic_tests": 295,
+ "generic_tests": 310,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -321,6 +321,7 @@
    "path": "espn/summary",
    "read_by": [
     "espn_summary_odds",
+    "espn_summary_officials",
     "espn_summary_players",
     "espn_summary_plays",
     "espn_summary_teams"
@@ -354,6 +355,12 @@
    "path": "league/player_movement",
    "read_by": [
     "league_player_movement"
+   ]
+  },
+  {
+   "path": "league/referee_assignments",
+   "read_by": [
+    "league_referee_assignments"
    ]
   },
   {
@@ -1278,6 +1285,89 @@
        "type": "varchar"
       },
       {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The ESPN event id the summary was requested for",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN event id, from the summary's header",
+       "name": "event_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The official's full name as ESPN writes it",
+       "name": "full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The official's name as ESPN displays it",
+       "name": "display_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's position for the official: Referee for every member of the crew",
+       "name": "position_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The official's place in ESPN's list, from 1",
+       "name": "listed_order",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The officials ESPN lists on each landed game summary (gameInfo.officials): one row per official per landed summary.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "espn/summary"
+     ],
+     "materialized": "incremental",
+     "name": "espn_summary_officials",
+     "notes": [
+      "The officials ESPN lists on each game summary (gameInfo.officials): one row per official per landed summary. ESPN gives every official the position \"Referee\" and an order; values stay text until silver. A summary without the list (a game not yet played) gives no rows."
+     ],
+     "read_by": [
+      "game_officials"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
        "description": "Season label from the landing path (2026 or 2025-26)",
        "name": "season",
        "tests": [],
@@ -2140,6 +2230,131 @@
      "read_by": [
       "feed_freshness",
       "transactions"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The date the page's assignments are for, YYYY-MM-DD",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The date the page's assignments are for, as the page's heading gives it (ISO)",
+       "name": "page_date",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The game as the page names it: away @ home, by city or club name",
+       "name": "game",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The visiting team as the page names it (\"Chicago\", \"L.A. Lakers\")",
+       "name": "away_team",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The home team as the page names it",
+       "name": "home_team",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The crew chief's name",
+       "name": "crew_chief",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The crew chief's uniform number",
+       "name": "crew_chief_number",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The referee's name (the crew's second official)",
+       "name": "referee",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The referee's uniform number",
+       "name": "referee_number",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The umpire's name (the crew's third official)",
+       "name": "umpire",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The umpire's uniform number",
+       "name": "umpire_number",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The alternate official's name, when the page names one",
+       "name": "alternate",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The alternate official's uniform number",
+       "name": "alternate_number",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The leagues' referee assignments as parsed at ingest from official.nba.com: one row per game per landed page.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "league/referee_assignments"
+     ],
+     "materialized": "incremental",
+     "name": "league_referee_assignments",
+     "notes": [
+      "The leagues' referee assignments as parsed at ingest (official.nba.com): one row per game per landed page, with the crew chief, referee, umpire and alternate and their uniform numbers. Values stay text until silver."
+     ],
+     "read_by": [
+      "game_officials"
      ],
      "reads": [],
      "unit_tests": []
@@ -7868,6 +8083,121 @@
      "checks": [],
      "columns": [
       {
+       "description": "Natural key: league, game id and official key; one row per official per game",
+       "name": "game_official_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label of the game",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API game id",
+       "name": "game_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Date of the game (Eastern)",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The official's name reduced to lowercase letters: how the two sources' names are matched (\"J.B. DeRosa\" and \"JB DeRosa\" agree)",
+       "name": "official_key",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The official's name, as the assignments page writes it where it named them, else as ESPN does",
+       "name": "official_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "crew_chief, referee, umpire or alternate, from the assignments page; null for an official only ESPN lists",
+       "name": "role",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The official's uniform number, from the assignments page",
+       "name": "uniform_number",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The official's place in ESPN's list for the game, from 1; null for a game ESPN has no crew for yet",
+       "name": "listed_order",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "espn (ESPN's list only), both (ESPN's list, role from the page) or assignments (the page only: a game not yet played)",
+       "name": "source",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload the row came from",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "One row per league, game and official: ESPN's crew for played games (through game_xwalk), with each official's role from the leagues' assignments page where it named them, and the page's crew for games ESPN has none for yet (linked by date and the two teams to silver.schedule).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "game_officials",
+     "notes": [
+      "One row per league, game and official: who officiated each game, and who is assigned to the games of the day.",
+      "Two sources. ESPN's game summaries list the crew of every played game (three officials, by name, in an order, each called \"Referee\"); they reach the league game id through game_xwalk. The leagues' assignments page (official.nba.com) names each of the day's crews by role (crew chief, referee, umpire, and sometimes an alternate) for games it calls \"Chicago @ Boston\"; a page row reaches the league game id by its date and its two teams, named by city, club or both (\"L.A. Lakers\"), matched to the teams seed and the schedule's tricodes.",
+      "A game ESPN has a crew for takes ESPN's list, with the role from the page where the page named the same official (an official who stepped in has none); a game ESPN has no crew for yet (an upcoming game) takes the page's crew, alternate included. Officials are matched across the two sources by name, reduced to lowercase letters."
+     ],
+     "read_by": [
+      "fct_game_official"
+     ],
+     "reads": [
+      "espn_summary_officials",
+      "game_xwalk",
+      "league_referee_assignments",
+      "schedule",
+      "team_reference"
+     ],
+     "unit_tests": [
+      {
+       "description": "Last night's game has ESPN's crew (the newest landed summary wins over an older one) and the page's: the crew chief and the referee keep their roles (\"JB DeRosa\" on the page is \"J.B. DeRosa\" on ESPN), the official only ESPN lists has none, and the page's umpire who did not work the game is left out. Tonight's games have only the page's crew, alternate included, linked by the date and the teams the page names: \"L.A. Lakers\" and \"LA Clippers\" are told apart although both play in Los Angeles. A page row for a game the schedule does not have is left out.",
+       "name": "game_officials_link_both_sources"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "wnba or nba",
        "name": "league",
        "tests": [],
@@ -7943,6 +8273,7 @@
      ],
      "read_by": [
       "fct_game_line",
+      "game_officials",
       "player_game_reconciliation",
       "player_xwalk",
       "player_xwalk_review"
@@ -10799,6 +11130,7 @@
       "fct_team_game_context",
       "fct_team_stakes",
       "feed_freshness",
+      "game_officials",
       "mart_board",
       "mart_player_projection",
       "mart_schedule_upcoming"
@@ -13290,6 +13622,122 @@
      "checks": [],
      "columns": [
       {
+       "description": "Surrogate key: one row per league, game and official",
+       "name": "game_official_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Surrogate key of the game (dim_game)",
+       "name": "game_sk",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Natural key: league, game id and official key",
+       "name": "game_official_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label of the game",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League game id",
+       "name": "game_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Date of the game (Eastern)",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The official's name reduced to lowercase letters: the key the two sources and fct_referee_tendency share",
+       "name": "official_key",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The official's name",
+       "name": "official_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "crew_chief, referee, umpire or alternate, from the assignments page; null for an official only ESPN lists",
+       "name": "role",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The official's uniform number, from the assignments page",
+       "name": "uniform_number",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The official's place in ESPN's list for the game, from 1; null for a game ESPN has no crew for yet",
+       "name": "listed_order",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "espn, both (ESPN's list, role from the page) or assignments (the page only: a game not yet played)",
+       "name": "source",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Game × official: ESPN's crew for every played game, with each official's role where the leagues' assignments page named them, and the page's crew for the day's games until ESPN lists one (silver game_officials).",
+     "exported_as": [
+      "fct_game_official.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "official_key"
+      ],
+      "key": "game_official_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_game_official",
+     "notes": [
+      "Game × official: who officiated each game, and who is assigned to the day's games (silver game_officials). Played games carry ESPN's crew, with each official's role where the leagues' assignments page named them; the day's games carry the page's crew until ESPN lists one."
+     ],
+     "read_by": [
+      "fct_referee_tendency",
+      "mart_schedule_upcoming"
+     ],
+     "reads": [
+      "game_officials"
+     ],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "Surrogate key: one row per league, injury listing and status run",
        "name": "injury_status_sk",
        "tests": [
@@ -14794,6 +15242,168 @@
      "unit_tests": []
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, season and official",
+       "name": "referee_tendency_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The official's name reduced to lowercase letters (fct_game_official)",
+       "name": "official_key",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The official's name, as the most recent game with a role from the assignments page gives it, else as ESPN last did",
+       "name": "official_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Regular-season games the official worked in the league-season (both teams' box scores present)",
+       "name": "games_worked",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Of those, the games the assignments page named the official crew chief for",
+       "name": "games_as_crew_chief",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Regular-season games in the league-season with both teams' box scores: the average game's sample",
+       "name": "league_games",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Personal fouls per game, both teams together, in the official's games",
+       "name": "avg_fouls",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Free-throw attempts per game, both teams together, in the official's games",
+       "name": "avg_free_throws_attempted",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Pace (the two teams' average possessions per regulation game) in the official's games",
+       "name": "avg_pace",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points per game, both teams together, in the official's games",
+       "name": "avg_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Personal fouls per game, both teams together, over the league-season",
+       "name": "league_fouls",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Free-throw attempts per game, both teams together, over the league-season",
+       "name": "league_free_throws_attempted",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Pace per game over the league-season",
+       "name": "league_pace",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points per game, both teams together, over the league-season",
+       "name": "league_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "avg_fouls less league_fouls: positive for an official whose games see more fouls called",
+       "name": "fouls_delta",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "avg_free_throws_attempted less league_free_throws_attempted",
+       "name": "free_throws_attempted_delta",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "avg_pace less league_pace",
+       "name": "pace_delta",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "avg_points less league_points",
+       "name": "points_delta",
+       "tests": [],
+       "type": "double"
+      }
+     ],
+     "description": "Official × league-season: the regular-season games an official worked and how those games' fouls, free-throw attempts, pace and points compared with the league-season's average game (both teams together, from fct_team_game). Season aggregates, not point-in-time.",
+     "exported_as": [
+      "fct_referee_tendency.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "season",
+       "official_key"
+      ],
+      "key": "referee_tendency_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_referee_tendency",
+     "notes": [
+      "Official × league-season: the regular-season games an official worked and how those games went against the league-season's average game. A game's figures are both teams' together (fct_team_game): personal fouls, free-throw attempts and points, and the pace of the game (the two teams' average possessions per regulation game). A delta is the official's average game less the league-season's average game; a crew's tendency (mart_schedule_upcoming) averages its officials'.",
+      "Season aggregates, not point-in-time: an official's row counts every game of the season, the ones after a given game included. The out-of-sample test of whether a crew's tendency says anything about a player's game (notebook 03, ADR 0003) works from each official's earlier games only. An alternate who did not work the game is not counted."
+     ],
+     "read_by": [
+      "mart_schedule_upcoming"
+     ],
+     "reads": [
+      "fct_game_official",
+      "fct_team_game"
+     ],
+     "unit_tests": [
+      {
+       "description": "Two regular-season games make the league-season's average game: 38 fouls, 45 free-throw attempts, pace 98 and 210 points. An official who worked only the first, as crew chief, sits 2 fouls, 5 attempts, 2 possessions and 10 points above it; one who worked both sits on it. A preseason game, and an alternate who did not work, count for nothing.",
+       "name": "referee_tendency_against_the_league_season_average"
+      }
+     ]
+    },
+    {
      "checks": [
       "warn_shot_location_sanity"
      ],
@@ -15372,6 +15982,7 @@
      ],
      "read_by": [
       "fct_official_listing",
+      "fct_referee_tendency",
       "mart_schedule_upcoming"
      ],
      "reads": [
@@ -17648,6 +18259,36 @@
        "name": "at_altitude",
        "tests": [],
        "type": "boolean"
+      },
+      {
+       "description": "The crew chief the leagues' assignments page names for the game (posted about 9 am Eastern on the day); null until then",
+       "name": "crew_chief",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The regular-season games the crew chief, referee and umpire each worked this season and last, added up: the history behind the crew's tendency",
+       "name": "crew_games",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "The crew's tendency in personal fouls per game (both teams) against the league average game: the average over its three officials of each one's figure for this season and last, shrunk toward zero as if they had also worked 20 average games (fct_referee_tendency). Context only, not in the matchup value",
+       "name": "crew_fouls_delta",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The crew's tendency in free-throw attempts per game (both teams) against the league average game, figured as crew_fouls_delta is. Context only",
+       "name": "crew_fta_delta",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The crew's tendency in pace (possessions per regulation game) against the league average game, figured as crew_fouls_delta is. Context only",
+       "name": "crew_pace_delta",
+       "tests": [],
+       "type": "double"
       }
      ],
      "description": "Regular-season and playoff games not yet final in the next fourteen days, unconfirmed if-necessary games left out, with matchup values, betting lines, rest and travel.",
@@ -17668,19 +18309,27 @@
      "notes": [
       "The games of the next fourteen days per league, for the Streamers week grid and the board's games-next-seven column. Only regular-season and playoff games count, and an \"if necessary\" playoff game is left out until it is confirmed (the league stops flagging it once it is on).",
       "Each side of a game carries a matchup value: how much a player's value per game moves with the opponent's defence and the game's expected pace, from replaying past seasons (ADR 0003: one standard deviation of opponent defence is worth about 0.2 value per game in the NBA, against a game-to-game swing of about 2.5; var fantasy_matchup). A team's defensive rating and pace blend this season to date with last season, last season counting as prior_games games, so early in a season (and for a reworked roster) the current games take over as they accumulate; early on, last season's team defence was the better guide. Ratings are standardised over the league's teams. A player's past results against an opponent predicted nothing (correlation 0.00 to 0.04) and are not used.",
-      "Each game also carries its betting line where the sportsbooks have posted one (silver game_lines): the home spread, the over/under, and the points each side is implied to score. The line is shown alongside the matchup value and does not change it until a backtest says it adds to it."
+      "Each game also carries its betting line where the sportsbooks have posted one (silver game_lines): the home spread, the over/under, and the points each side is implied to score. The line is shown alongside the matchup value and does not change it until a backtest says it adds to it.",
+      "Once the leagues post the day's referee assignments, a game carries its crew chief and the crew's tendency (fct_referee_tendency): the average, over the crew chief, referee and umpire, of each official's fouls, free-throw attempts and pace against the league average game, over this season and last, each official's figure shrunk toward zero as if they had also worked 20 average games. It is context only and does not change the value (ADR 0003)."
      ],
      "read_by": [
       "mart_streamers"
      ],
      "reads": [
+      "fct_game_official",
+      "fct_referee_tendency",
       "fct_team_game",
       "fct_team_game_context",
       "game_lines",
       "schedule",
       "team_xwalk"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "Tonight's game has its crew from the assignments page. The crew chief worked 20 games this season and last, 2 free-throw attempts and 1 possession above the league's average game, so shrunk as if 20 average games more, 1 and 0.5; the referee worked 60 games last season 4 attempts below and at the average pace (-3 and 0; the season before does not count); the umpire worked 20 games 1 attempt and 2 possessions above (0.5 and 1). The crew sits half an attempt below the average game and half a possession above it. The alternate does not count. A game without a crew yet has none.",
+       "name": "schedule_upcoming_crew_tendency"
+      }
+     ]
     },
     {
      "checks": [],
@@ -18859,6 +19508,7 @@
    "exported_as": [],
    "name": "team_reference",
    "read_by": [
+    "game_officials",
     "teams"
    ]
   },
@@ -18929,6 +19579,11 @@
    "name": "official_listing_counts_the_games_missed_after_each_listing"
   },
   {
+   "description": "Two regular-season games make the league-season's average game: 38 fouls, 45 free-throw attempts, pace 98 and 210 points. An official who worked only the first, as crew chief, sits 2 fouls, 5 attempts, 2 possessions and 10 points above it; one who worked both sits on it. A preseason game, and an alternate who did not work, count for nothing.",
+   "model": "fct_referee_tendency",
+   "name": "referee_tendency_against_the_league_season_average"
+  },
+  {
    "description": "A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights later: the second game is a back-to-back, visiting at altitude, 370 miles away in the same time zone, the third is the third game in four nights, 581 miles west and one time zone back. An unconfirmed \"if necessary\" game and a knockout game whose teams are not decided yet (both listed as 0) are left out, and the team they play on the second night sees its opponent on a back-to-back.",
    "model": "fct_team_game_context",
    "name": "team_game_context_rest_travel_and_altitude"
@@ -18947,6 +19602,16 @@
    "description": "Sleeper's ASCII search name keeps a suffix and folds accents (kristapsporzingis, jimmybutleriii), so it matches the league name with its suffix kept. A plain name match covers a suffix one side leaves off. Between two namesakes the birth date decides, then the team; namesakes neither tells apart stay unlinked, as does a name with no match.",
    "model": "fct_waiver_trend",
    "name": "waiver_trend_links_sleeper_players_by_name_birth_date_and_team"
+  },
+  {
+   "description": "Last night's game has ESPN's crew (the newest landed summary wins over an older one) and the page's: the crew chief and the referee keep their roles (\"JB DeRosa\" on the page is \"J.B. DeRosa\" on ESPN), the official only ESPN lists has none, and the page's umpire who did not work the game is left out. Tonight's games have only the page's crew, alternate included, linked by the date and the teams the page names: \"L.A. Lakers\" and \"LA Clippers\" are told apart although both play in Los Angeles. A page row for a game the schedule does not have is left out.",
+   "model": "game_officials",
+   "name": "game_officials_link_both_sources"
+  },
+  {
+   "description": "Tonight's game has its crew from the assignments page. The crew chief worked 20 games this season and last, 2 free-throw attempts and 1 possession above the league's average game, so shrunk as if 20 average games more, 1 and 0.5; the referee worked 60 games last season 4 attempts below and at the average pace (-3 and 0; the season before does not count); the umpire worked 20 games 1 attempt and 2 possessions above (0.5 and 1). The crew sits half an attempt below the average game and half a possession above it. The alternate does not count. A game without a crew yet has none.",
+   "model": "mart_schedule_upcoming",
+   "name": "schedule_upcoming_crew_tendency"
   },
   {
    "description": "Headlines from ESPN's feed each get the flag their wording gives, first match wins, and none when nothing applies. An athlete the crosswalk knows gets the league id; an article tagged twice counts two athletes; a later landing of the same article replaces the earlier one.",

@@ -5,6 +5,7 @@ import { fetchBuildJson, getLatest, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
+import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
@@ -77,7 +78,7 @@ interface StreamerRow {
   [key: string]: unknown;
 }
 
-interface Game {
+interface Game extends CrewFields {
   game_id: string;
   game_date: string;
   days_ahead: number;
@@ -110,6 +111,8 @@ interface GridCell {
   /** Played 4,000 feet up or more. */
   altitude: boolean;
   miles: number | null;
+  /** The referee crew's chief and tendency, once assigned. */
+  crew: string | null;
 }
 
 function lineText(g: Game): string | null {
@@ -241,6 +244,7 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
     if (!inRange.has(g.game_date)) continue;
     const line = lineText(g);
     const altitude = !!g.at_altitude;
+    const crew = crewText(g);
     byTeamDay.set(`${g.home_team_tricode}|${g.game_date}`, {
       label: `v ${g.away_team_tricode}`,
       implied: g.home_implied_points ?? null,
@@ -249,6 +253,7 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
       // the home team plays at its own altitude every other night: only the visitor is marked
       altitude: false,
       miles: null,
+      crew,
     });
     byTeamDay.set(`${g.away_team_tricode}|${g.game_date}`, {
       label: `@ ${g.home_team_tricode}`,
@@ -257,6 +262,7 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
       backToBack: !!g.away_back_to_back,
       altitude,
       miles: g.away_miles_travelled ?? null,
+      crew,
     });
     perDay.set(g.game_date, (perDay.get(g.game_date) ?? 0) + 2);
   }
@@ -308,6 +314,7 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
                             cell.backToBack ? 'Second night of a back-to-back: rest and minutes risk' : null,
                             cell.miles ? `${cell.miles} miles from the previous game` : null,
                             cell.altitude ? 'Visiting at altitude (4,000 ft or more)' : null,
+                            cell.crew,
                           ]
                             .filter(Boolean)
                             .join('. ') || undefined

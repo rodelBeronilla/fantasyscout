@@ -173,11 +173,12 @@ const deployLegend =
             of the last 24 hours, from May to October.
           </li>
           <li><strong>The league's static files</strong> on stats.nba.com/js/data (NBA only): the day's starting lineups, Expected and then Confirmed before tip-off, and the player movement feed.</li>
+          <li><strong>The leagues' referee assignments</strong> at official.nba.com/referee-assignments/: each of the day's crews (crew chief, referee, umpire, alternate), posted at about 9 am ET, parsed and landed once a day per league. Past crews come from the ESPN game summaries already landed.</li>
           <li><strong>Sleeper's API</strong> (api.sleeper.app, NBA only): the 50 players most added and the 50 most dropped over the last 24 hours, and the player directory once a day.</li>
         </ul>
         <p class="mt-2">
           Every page's footer credits NBA.com and WNBA.com for the statistics, ESPN for schedules, rosters, injuries, betting
-          lines, headlines and the fantasy market, and Sleeper for waiver trends (ADR 0008).
+          lines, headlines and the fantasy market, Sleeper for waiver trends, and NBA.com for the referee assignments (ADR 0008).
         </p>
 
         <h3 id="runs" class="mt-4 font-semibold">Runs</h3>
@@ -186,8 +187,8 @@ const deployLegend =
           three sources for both leagues: <code>stats</code> and <code>espn</code> over the seven days ending that day
           (the stats job makes a regular-season pass and a playoff pass; out of the playoffs the second finds no games),
           and <code>reports</code>. At 23:00 UTC, after teams file their injury reports (5 pm ET) and
-          before tip-off, it runs <code>reports</code> alone. The reports run lands six feeds in order: the official injury
-          report, the starting lineups, transactions (ESPN's, and the NBA's player movement), ESPN fantasy, ESPN headlines
+          before tip-off, it runs <code>reports</code> alone. The reports run lands seven feeds in order: the official injury
+          report, the starting lineups, the referee assignments, transactions (ESPN's, and the NBA's player movement), ESPN fantasy, ESPN headlines
           and Sleeper. For the WNBA the lineups, player movement and Sleeper have nothing to land.
         </p>
         <p class="mt-2">

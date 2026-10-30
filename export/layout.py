@@ -50,6 +50,8 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.fct_waiver_trend", "league, add_rank, drop_rank, sleeper_player_id"),
     TableSpec("gold.fct_game_line", "league, season, game_date, game_id"),
     TableSpec("gold.fct_official_listing", "league, season, game_date, game_id, player_id"),
+    TableSpec("gold.fct_game_official", "league, season, game_date, game_id, official_key"),
+    TableSpec("gold.fct_referee_tendency", "league, season, official_key"),
     TableSpec("gold.fct_board_history", "league, snapshot_date, rank_total, player_id"),
     TableSpec("gold.fct_team_stakes", "league, season, conference, playoff_rank", json=True),
     TableSpec("gold.mart_board", "league, rank_total, player_id"),
@@ -288,7 +290,8 @@ select league, season, game_id, game_date, days_ahead, game_type,
     home_team_id, home_team_tricode, away_team_id, away_team_tricode, game_datetime_utc,
     home_matchup, away_matchup, home_spread, over_under, home_implied_points, away_implied_points,
     line_provider, line_as_of, home_rest_days, home_back_to_back, away_rest_days, away_back_to_back,
-    away_miles_travelled, at_altitude
+    away_miles_travelled, at_altitude, crew_chief, crew_games, crew_fouls_delta, crew_fta_delta,
+    crew_pace_delta
 from gold.mart_schedule_upcoming
 order by league, game_date, game_id
 """

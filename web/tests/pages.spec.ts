@@ -833,6 +833,45 @@ test('the streamers week grid marks the second night of a back-to-back, with tra
   await expect(marker.locator('xpath=..')).toHaveAttribute('title', /Second night of a back-to-back: rest and minutes risk\. 1203 miles from the previous game/);
 });
 
+test("the streamers week grid names a game's crew chief and the crew's tendency in the tooltip", async ({ page }) => {
+  await page.route('**/schedule/wnba.json', async (route) => {
+    const games = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    const crewed = { crew_chief: 'Pat Fraher', crew_games: 120, crew_fouls_delta: 1.43, crew_fta_delta: 2.08, crew_pace_delta: -0.61 };
+    await route.fulfill({ json: games.map((g, i) => (i === 0 ? { ...g, ...crewed } : g)) });
+  });
+  await page.goto('/streamers/');
+  const grid = page.getByTestId('week-grid');
+  const cells = grid.locator('td[title*="Crew chief"]');
+  await expect(cells).toHaveCount(2); // both sides of the one game
+  await expect(cells.first()).toHaveAttribute('title', /Crew chief Pat Fraher \(fouls \+1\.4, FTA \+2\.1, pace -0\.6 a game vs average\)/);
+});
+
+test("a player's next games name the crew chief once the league posts the crew", async ({ page }) => {
+  let named: (id: string) => void = () => {};
+  const teamId = new Promise<string>((resolve) => (named = resolve));
+  await page.route(/\/players\/wnba\/[^/]+\.json$/, async (route) => {
+    const file = (await (await route.fetch()).json()) as { team: { team_id: string } };
+    named(file.team.team_id);
+    await route.fulfill({ json: file });
+  });
+  await page.route('**/schedule/wnba.json', async (route) => {
+    const id = await teamId;
+    await route.fulfill({
+      json: [
+        { game_id: 'g1', game_date: '2026-11-02', game_type: 'regular', home_team_id: id, home_team_tricode: 'HOM', away_team_id: '9', away_team_tricode: 'AWY', crew_chief: 'Tony Brothers', crew_games: 0, crew_fta_delta: null },
+        { game_id: 'g2', game_date: '2026-11-04', game_type: 'regular', home_team_id: '9', home_team_tricode: 'AWY', away_team_id: id, away_team_tricode: 'HOM', crew_chief: 'Zach Zarba', crew_games: 150, crew_fouls_delta: -0.97, crew_fta_delta: -1.2, crew_pace_delta: 0.4 },
+        { game_id: 'g3', game_date: '2026-11-06', game_type: 'regular', home_team_id: id, home_team_tricode: 'HOM', away_team_id: '9', away_team_tricode: 'AWY' },
+      ],
+    });
+  });
+  await page.goto('/p/wnba/1628932/');
+  const next = page.getByTestId('next-games');
+  await expect(next.locator('tbody tr')).toHaveCount(3);
+  await expect(next.locator('tbody tr').nth(0)).toContainText('Crew chief Tony Brothers');
+  await expect(next.locator('tbody tr').nth(1)).toContainText('Crew chief Zach Zarba (fouls -1.0, FTA -1.2, pace +0.4 a game vs average)');
+  await expect(next.locator('tbody tr').nth(2)).not.toContainText('Crew chief');
+});
+
 test('streamers sort by window value while games are scheduled', async ({ page }) => {
   await page.goto('/streamers/');
   const header = page.getByTestId('trending').locator('th', { hasText: 'Window value' });

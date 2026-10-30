@@ -870,7 +870,39 @@
     }
    ]
   },
-  "attendance": 8911
+  "attendance": 8911,
+  "officials": [
+   {
+    "fullName": "Maj Forsberg",
+    "displayName": "Maj Forsberg",
+    "position": {
+     "name": "Referee",
+     "displayName": "Referee",
+     "id": "40"
+    },
+    "order": 1
+   },
+   {
+    "fullName": "Ryan Sassano",
+    "displayName": "Ryan Sassano",
+    "position": {
+     "name": "Referee",
+     "displayName": "Referee",
+     "id": "40"
+    },
+    "order": 2
+   },
+   {
+    "fullName": "Kevin Fahy",
+    "displayName": "Kevin Fahy",
+    "position": {
+     "name": "Referee",
+     "displayName": "Referee",
+     "id": "40"
+    },
+    "order": 3
+   }
+  ]
  },
  "injuries": [
   {

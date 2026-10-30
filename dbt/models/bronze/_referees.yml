@@ -1,0 +1,66 @@
+version: 2
+
+models:
+  - name: espn_summary_officials
+    description: "The officials ESPN lists on each landed game summary (gameInfo.officials): one row per official per landed summary."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The ESPN event id the summary was requested for"
+      - name: event_id
+        description: "ESPN event id, from the summary's header"
+        data_tests: [not_null]
+      - name: full_name
+        description: "The official's full name as ESPN writes it"
+      - name: display_name
+        description: "The official's name as ESPN displays it"
+      - name: position_name
+        description: "ESPN's position for the official: Referee for every member of the crew"
+      - name: listed_order
+        description: "The official's place in ESPN's list, from 1"
+
+  - name: league_referee_assignments
+    description: "The leagues' referee assignments as parsed at ingest from official.nba.com: one row per game per landed page."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The date the page's assignments are for, YYYY-MM-DD"
+      - name: page_date
+        description: "The date the page's assignments are for, as the page's heading gives it (ISO)"
+      - name: game
+        description: "The game as the page names it: away @ home, by city or club name"
+        data_tests: [not_null]
+      - name: away_team
+        description: "The visiting team as the page names it (\"Chicago\", \"L.A. Lakers\")"
+      - name: home_team
+        description: "The home team as the page names it"
+      - name: crew_chief
+        description: "The crew chief's name"
+      - name: crew_chief_number
+        description: "The crew chief's uniform number"
+      - name: referee
+        description: "The referee's name (the crew's second official)"
+      - name: referee_number
+        description: "The referee's uniform number"
+      - name: umpire
+        description: "The umpire's name (the crew's third official)"
+      - name: umpire_number
+        description: "The umpire's uniform number"
+      - name: alternate
+        description: "The alternate official's name, when the page names one"
+      - name: alternate_number
+        description: "The alternate official's uniform number"

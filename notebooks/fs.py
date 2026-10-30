@@ -62,6 +62,8 @@ TABLES = (
     "fct_waiver_trend",
     "fct_official_listing",
     "fct_player_tracking",
+    "fct_game_official",
+    "fct_referee_tendency",
     "fct_board_history",
     "fct_game_line",
     "fct_team_stakes",

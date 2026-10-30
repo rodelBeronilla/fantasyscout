@@ -1,0 +1,157 @@
+version: 2
+
+models:
+  - name: fct_game_official
+    description: "Game × official: ESPN's crew for every played game, with each official's role where the leagues' assignments page named them, and the page's crew for the day's games until ESPN lists one (silver game_officials)."
+    columns:
+      - name: game_official_sk
+        description: "Surrogate key: one row per league, game and official"
+        data_tests: [unique, not_null]
+      - name: game_sk
+        description: "Surrogate key of the game (dim_game)"
+      - name: game_official_key
+        description: "Natural key: league, game id and official key"
+      - name: league
+        description: "nba or wnba"
+      - name: season
+        description: "Season label of the game"
+      - name: game_id
+        description: "League game id"
+        data_tests: [not_null]
+      - name: game_date
+        description: "Date of the game (Eastern)"
+      - name: official_key
+        description: "The official's name reduced to lowercase letters: the key the two sources and fct_referee_tendency share"
+        data_tests: [not_null]
+      - name: official_name
+        description: "The official's name"
+      - name: role
+        description: "crew_chief, referee, umpire or alternate, from the assignments page; null for an official only ESPN lists"
+      - name: uniform_number
+        description: "The official's uniform number, from the assignments page"
+      - name: listed_order
+        description: "The official's place in ESPN's list for the game, from 1; null for a game ESPN has no crew for yet"
+      - name: source
+        description: "espn, both (ESPN's list, role from the page) or assignments (the page only: a game not yet played)"
+
+  - name: fct_referee_tendency
+    description: "Official × league-season: the regular-season games an official worked and how those games' fouls, free-throw attempts, pace and points compared with the league-season's average game (both teams together, from fct_team_game). Season aggregates, not point-in-time."
+    columns:
+      - name: referee_tendency_sk
+        description: "Surrogate key: one row per league, season and official"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+      - name: season
+        description: "Season label"
+      - name: official_key
+        description: "The official's name reduced to lowercase letters (fct_game_official)"
+        data_tests: [not_null]
+      - name: official_name
+        description: "The official's name, as the most recent game with a role from the assignments page gives it, else as ESPN last did"
+      - name: games_worked
+        description: "Regular-season games the official worked in the league-season (both teams' box scores present)"
+      - name: games_as_crew_chief
+        description: "Of those, the games the assignments page named the official crew chief for"
+      - name: league_games
+        description: "Regular-season games in the league-season with both teams' box scores: the average game's sample"
+      - name: avg_fouls
+        description: "Personal fouls per game, both teams together, in the official's games"
+      - name: avg_free_throws_attempted
+        description: "Free-throw attempts per game, both teams together, in the official's games"
+      - name: avg_pace
+        description: "Pace (the two teams' average possessions per regulation game) in the official's games"
+      - name: avg_points
+        description: "Points per game, both teams together, in the official's games"
+      - name: league_fouls
+        description: "Personal fouls per game, both teams together, over the league-season"
+      - name: league_free_throws_attempted
+        description: "Free-throw attempts per game, both teams together, over the league-season"
+      - name: league_pace
+        description: "Pace per game over the league-season"
+      - name: league_points
+        description: "Points per game, both teams together, over the league-season"
+      - name: fouls_delta
+        description: "avg_fouls less league_fouls: positive for an official whose games see more fouls called"
+      - name: free_throws_attempted_delta
+        description: "avg_free_throws_attempted less league_free_throws_attempted"
+      - name: pace_delta
+        description: "avg_pace less league_pace"
+      - name: points_delta
+        description: "avg_points less league_points"
+
+unit_tests:
+  - name: referee_tendency_against_the_league_season_average
+    description: >
+      Two regular-season games make the league-season's average game: 38 fouls, 45 free-throw
+      attempts, pace 98 and 210 points. An official who worked only the first, as crew chief,
+      sits 2 fouls, 5 attempts, 2 possessions and 10 points above it; one who worked both sits
+      on it. A preseason game, and an alternate who did not work, count for nothing.
+    model: fct_referee_tendency
+    given:
+      - input: ref('fct_team_game')
+        rows:
+          - {league: nba, season: '2026-27', game_id: '0022600001', team_id: A, fouls_personal: 21, free_throws_attempted: 30, pace: 101, points: 115}
+          - {league: nba, season: '2026-27', game_id: '0022600001', team_id: B, fouls_personal: 19, free_throws_attempted: 20, pace: 99, points: 105}
+          - {league: nba, season: '2026-27', game_id: '0022600002', team_id: A, fouls_personal: 18, free_throws_attempted: 22, pace: 96, points: 98}
+          - {league: nba, season: '2026-27', game_id: '0022600002', team_id: C, fouls_personal: 18, free_throws_attempted: 18, pace: 96, points: 102}
+          - {league: nba, season: '2026-27', game_id: '0012600001', team_id: A, fouls_personal: 30, free_throws_attempted: 40, pace: 110, points: 130}
+          - {league: nba, season: '2026-27', game_id: '0012600001', team_id: C, fouls_personal: 30, free_throws_attempted: 40, pace: 110, points: 130}
+      - input: ref('fct_game_official')
+        rows:
+          - {league: nba, season: '2026-27', game_id: '0022600001', game_date: 2026-10-28, official_key: alpha, official_name: Al Pha, role: crew_chief}
+          - {league: nba, season: '2026-27', game_id: '0022600001', game_date: 2026-10-28, official_key: bravo, official_name: Bra Vo, role: null}
+          - {league: nba, season: '2026-27', game_id: '0022600002', game_date: 2026-10-30, official_key: bravo, official_name: Bra Vo, role: referee}
+          - {league: nba, season: '2026-27', game_id: '0022600002', game_date: 2026-10-30, official_key: alpha, official_name: Al Pha, role: alternate}
+          - {league: nba, season: '2026-27', game_id: '0012600001', game_date: 2026-10-10, official_key: alpha, official_name: Al Pha, role: crew_chief}
+    expect:
+      rows:
+        - {official_key: alpha, official_name: Al Pha, games_worked: 1, games_as_crew_chief: 1, league_games: 2, avg_fouls: 40, league_fouls: 38, fouls_delta: 2, free_throws_attempted_delta: 5, pace_delta: 2, points_delta: 10}
+        - {official_key: bravo, official_name: Bra Vo, games_worked: 2, games_as_crew_chief: 0, league_games: 2, avg_fouls: 38, league_fouls: 38, fouls_delta: 0, free_throws_attempted_delta: 0, pace_delta: 0, points_delta: 0}
+
+  - name: schedule_upcoming_crew_tendency
+    description: >
+      Tonight's game has its crew from the assignments page. The crew chief worked 20 games
+      this season and last, 2 free-throw attempts and 1 possession above the league's average
+      game, so shrunk as if 20 average games more, 1 and 0.5; the referee worked 60 games last
+      season 4 attempts below and at the average pace (-3 and 0; the season before does not
+      count); the umpire worked 20 games 1 attempt and 2 possessions above (0.5 and 1). The crew
+      sits half an attempt below the average game and half a possession above it. The
+      alternate does not count. A game without a crew yet has none.
+    model: mart_schedule_upcoming
+    overrides:
+      vars:
+        as_of: '2026-10-30'
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2026-27', game_id: g1, game_date_est: 2026-10-30, game_status: 1, game_type: regular, if_necessary: false, home_team_id: H, home_team_tricode: HOM, away_team_id: A, away_team_tricode: AWY}
+          - {league: nba, season: '2026-27', game_id: g2, game_date_est: 2026-10-31, game_status: 1, game_type: regular, if_necessary: false, home_team_id: A, home_team_tricode: AWY, away_team_id: H, away_team_tricode: HOM}
+      - input: ref('fct_team_game')
+        rows:
+          - {league: nba, season: '2025-26', game_id: '0022500001', team_id: H, defensive_rating: 110, pace: 99}
+          - {league: nba, season: '2025-26', game_id: '0022500001', team_id: A, defensive_rating: 112, pace: 101}
+      - input: ref('game_lines')
+        rows: []
+      - input: ref('team_xwalk')
+        rows: []
+      - input: ref('fct_team_game_context')
+        rows: []
+      - input: ref('fct_game_official')
+        rows:
+          - {league: nba, game_id: g1, official_key: chief, official_name: The Chief, role: crew_chief}
+          - {league: nba, game_id: g1, official_key: ref, official_name: The Ref, role: referee}
+          - {league: nba, game_id: g1, official_key: ump, official_name: The Ump, role: umpire}
+          - {league: nba, game_id: g1, official_key: alt, official_name: The Alt, role: alternate}
+      - input: ref('fct_referee_tendency')
+        rows:
+          - {league: nba, season: '2026-27', official_key: chief, games_worked: 5, fouls_delta: 0, free_throws_attempted_delta: 2, pace_delta: 1}
+          - {league: nba, season: '2025-26', official_key: chief, games_worked: 15, fouls_delta: 0, free_throws_attempted_delta: 2, pace_delta: 1}
+          - {league: nba, season: '2025-26', official_key: ref, games_worked: 60, fouls_delta: -2, free_throws_attempted_delta: -4, pace_delta: 0}
+          - {league: nba, season: '2024-25', official_key: ref, games_worked: 80, fouls_delta: 9, free_throws_attempted_delta: 9, pace_delta: 9}
+          - {league: nba, season: '2026-27', official_key: ump, games_worked: 20, fouls_delta: 0, free_throws_attempted_delta: 1, pace_delta: 2}
+          - {league: nba, season: '2025-26', official_key: alt, games_worked: 80, fouls_delta: 9, free_throws_attempted_delta: 9, pace_delta: 9}
+    expect:
+      rows:
+        - {game_id: g1, crew_chief: The Chief, crew_games: 100, crew_fta_delta: -0.5, crew_pace_delta: 0.5}
+        - {game_id: g2, crew_chief: null, crew_games: null, crew_fta_delta: null, crew_pace_delta: null}
