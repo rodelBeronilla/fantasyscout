@@ -74,8 +74,9 @@ seeds:
     description: >
       Where games are played, by the arena city the league schedule gives: latitude and longitude
       (the arena, or the city for occasional venues), elevation in feet, and the standard UTC
-      offset (daylight saving ignored). Covers every home city of both leagues plus the neutral
-      and occasional sites in the 2025 to 2027 schedules; warn_venue_cities lists any city missing.
+      offset (daylight saving ignored). Covers every home city of both leagues, the neutral
+      and occasional sites in the 2025 to 2027 schedules, and the earlier WNBA venues back to 2018
+      (the 2020 season in Bradenton); warn_venue_cities lists any city missing.
     config:
       column_types:
         latitude: double

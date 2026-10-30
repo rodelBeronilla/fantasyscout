@@ -1,6 +1,7 @@
 # The fantasyscout Worker: static Astro build plus exported gold data from R2.
-# It reads only public, exported data. Its only secrets, YAHOO_CLIENT_ID and YAHOO_CLIENT_SECRET for the
-# optional Yahoo league import, are set by the deploy workflow. See docs/architecture.md and ADR 0007.
+# It serves the pages and the published JSON to everyone and the Parquet files only to the owner,
+# signed in with Yahoo, or to CI's derived key (ADR 0008). Its secrets (YAHOO_CLIENT_ID,
+# YAHOO_CLIENT_SECRET, OWNER_YAHOO_GUID) are set by the deploy workflow. See ADR 0007 and 0008.
 #
 # Two environments share this file. Deploy with `wrangler deploy --env production|preview`.
 # Bindings are repeated per environment because wrangler does not inherit them.

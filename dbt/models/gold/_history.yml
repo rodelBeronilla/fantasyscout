@@ -75,6 +75,8 @@ models:
         description: "What the team still played for: eliminated, clinched or racing"
       - name: rest_risk
         description: "True when the team had nothing left to play for in the last stretch"
+      - name: news_flag
+        description: "Flag of the newest flagged ESPN headline about the player in the three days before the snapshot"
       - name: minutes_trend
         description: "Minutes over the last five games minus the baseline (players on the streamers list)"
       - name: value_trend

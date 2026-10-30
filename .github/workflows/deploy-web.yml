@@ -2,7 +2,8 @@ name: Deploy web
 
 # preprod -> wrangler environment "preview"    (Worker fantasyscout-preview on workers.dev)
 # main    -> wrangler environment "production" (Worker fantasyscout on fantasyscout.beronilla.rodeo)
-# Both Workers hold no secrets; the deploy needs only the Cloudflare token and account id.
+# The deploy copies the Yahoo credentials and the owner's id into each Worker as secrets (ADR 0007,
+# 0008); everything else needs only the Cloudflare token and account id.
 
 on:
   push:
