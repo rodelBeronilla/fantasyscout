@@ -15,6 +15,8 @@ interface StreamerRow {
   /** Today's role from the league's starting lineups (NBA): starter, bench or inactive. */
   lineup_role?: string | null;
   lineup_confirmed?: boolean | null;
+  /** How widely ESPN leagues roster the player: most, many, some, few or rare. */
+  ownership_bucket?: string | null;
   full_name: string | null;
   position: string | null;
   team_id: string | null;
@@ -388,7 +390,13 @@ export default function Streamers() {
       .filter((r) => r.games_window >= minGames)
       .filter((r) => (r.minutes_avg_5 ?? 0) >= minMinutes)
       .filter((r) => health === 'all' || (health === 'no_out' ? r.injury_group !== 'out' : !r.injury_group))
-      .filter((r) => (rostered === -1 ? !owner.has(r.player_id) : !rostered || r.board_rank === null || r.board_rank > rostered))
+      .filter((r) =>
+        rostered === -1
+          ? !owner.has(r.player_id)
+          : rostered === -2
+            ? !['most', 'many', 'some'].includes(r.ownership_bucket ?? '')
+            : !rostered || r.board_rank === null || r.board_rank > rostered,
+      )
       .filter((r) => pickedDays.size === 0 || r.games_picked > 0)
       .filter((r) => !watchOnly || watched.has(r.player_id))
       .filter((r) => !startersOnly || r.lineup_role === 'starter');
@@ -545,6 +553,7 @@ export default function Streamers() {
               Likely available{' '}
               <select value={rostered} onChange={(e) => setRostered(Number(e.target.value))} className={select}>
                 {owner.size > 0 && <option value={-1}>not on a roster in my league</option>}
+                {rows.some((r) => r.ownership_bucket) && <option value={-2}>rostered in under 10% of ESPN leagues</option>}
                 {ROSTERED[league].map((n) => (
                   <option key={n} value={n}>
                     {n ? `outside the top ${n}` : 'everyone'}

@@ -853,6 +853,42 @@ models:
       - name: stats
         description: "JSON array of stat values in stat_keys order"
 
+  - name: espn_fantasy_players
+    description: "ESPN fantasy's market as landed: one row per player per landing (the fields the platform uses; ESPN's written outlooks are not landed)."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The day the market was landed"
+      - name: espn_player_id
+        description: "ESPN athlete id"
+      - name: full_name
+        description: "Player name"
+      - name: espn_team_id
+        description: "ESPN team id (0 for a free agent)"
+      - name: position_id
+        description: "ESPN's default position id"
+      - name: percent_owned
+        description: "Share of ESPN leagues rostering the player"
+      - name: percent_started
+        description: "Share of ESPN leagues starting the player"
+      - name: average_draft_position
+        description: "Average pick in ESPN drafts"
+      - name: auction_value_average
+        description: "Average auction price in ESPN auction drafts"
+      - name: percent_owned_change
+        description: "Change in the rostered share over the last week"
+      - name: espn_rank_standard
+        description: "ESPN's own draft rank for points leagues"
+      - name: espn_rank_roto
+        description: "ESPN's own draft rank for category leagues"
+
   - name: espn_transactions
     description: "ESPN's transactions feed: one row per team and day as ESPN writes it, per landed payload (the latest hundred)."
     columns:

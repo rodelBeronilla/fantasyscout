@@ -338,6 +338,13 @@ models:
           - accepted_values:
               values: [same_day, adjacent_day]
 
+  - name: espn_fantasy_market
+    description: "ESPN fantasy's market per player from the latest landing per league, typed."
+    columns:
+      - name: market_key
+        description: "League and ESPN athlete id"
+        data_tests: [unique, not_null]
+
   - name: transactions
     description: "Transactions from the NBA's movement feed (with player ids) and ESPN's feed (both leagues, one line per team and day), sorted by their wording."
     columns:
