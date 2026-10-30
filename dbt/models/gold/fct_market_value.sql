@@ -6,7 +6,9 @@
     a value shared by more than half the players is taken as that placeholder and left out.
   - ownership_bucket: how widely ESPN leagues roster the player: most (70% or more), many (40 to
     70), some (10 to 40), few (1 to 10), rare (under 1).
-  The raw shares and positions stay in this table; the site shows the rank and the bucket.
+  - ownership_trend: rising when ESPN's ownership change is a point or more, falling at minus a
+    point or less (about one player in twenty either way): the waiver signal for both leagues.
+  The raw shares and positions stay in this table; the site shows the rank and the buckets.
 #}
 
 with market as (
@@ -62,6 +64,10 @@ select
         when percent_owned >= 1 then 'few'
         else 'rare'
     end as ownership_bucket,
+    case
+        when percent_owned_change >= 1 then 'rising'
+        when percent_owned_change <= -1 then 'falling'
+    end as ownership_trend,
     percent_owned,
     percent_started,
     average_draft_position,

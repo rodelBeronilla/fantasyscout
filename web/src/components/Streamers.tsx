@@ -8,7 +8,7 @@ import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortD
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
-import { Card, Chip, InjuryTag, LineupTag, Loading, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
+import { Card, Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th, TrendTag } from './ui';
 
 interface StreamerRow {
   player_id: string;
@@ -24,6 +24,24 @@ interface StreamerRow {
   sleeper_drops?: number | null;
   /** adding or dropping across Sleeper leagues over the last day. */
   waiver_trend?: string | null;
+  /** rising or falling ESPN ownership (both leagues). */
+  ownership_trend?: string | null;
+  /** What the team still plays for (fct_team_stakes), behind the rest-risk tag. */
+  team_stakes?: string | null;
+  /** Team games left this fantasy week, Monday to Sunday. */
+  games_this_week?: number | null;
+  news_flag?: string | null;
+  news_headline?: string | null;
+  news_date?: string | null;
+  lineup_date?: string | null;
+  injury_type?: string | null;
+  expected_return?: string | null;
+  injury_note?: string | null;
+  injury_news?: string | null;
+  injury_since?: string | null;
+  injury_source?: string | null;
+  official_game_date?: string | null;
+  official_report_at?: string | null;
   full_name: string | null;
   position: string | null;
   team_id: string | null;
@@ -53,6 +71,7 @@ interface StreamerRow {
   three_pointers_made_avg_5: number | null;
   field_goal_pct_5: number | null;
   free_throw_pct_5: number | null;
+  turnovers_avg_5: number | null;
   injury_status: string | null;
   injury_group: string | null;
   [key: string]: unknown;
@@ -320,7 +339,13 @@ export default function Streamers() {
   const [teams, setTeams] = useState<string[]>([]);
   const [start, setStart] = useState<string>(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<unknown>(null);
-  const [horizon, setHorizon] = useState(7);
+  const [horizonChoice, setHorizonChoice] = useState<number | 'week'>(7);
+  // Days from the grid's first day to the end of the fantasy week (Sunday).
+  const weekDays = useMemo(() => {
+    const d = new Date(`${start}T12:00:00Z`).getUTCDay();
+    return d === 0 ? 1 : 8 - d;
+  }, [start]);
+  const horizon = horizonChoice === 'week' ? weekDays : horizonChoice;
   const [pickedDays, setPickedDays] = useState<Set<string>>(new Set());
   const [needs, setNeeds] = useState<Set<string>>(new Set());
   const [positions, setPositions] = useState<Set<PositionLetter>>(new Set());
@@ -414,6 +439,8 @@ export default function Streamers() {
     [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs],
   );
 
+  const hasHeat = (rows ?? []).some((r) => r.waiver_trend);
+
   const list = useMemo(() => {
     const filtered = candidates
       .filter((r) => eligibleAt(r.position, positions))
@@ -431,13 +458,13 @@ export default function Streamers() {
       .filter((r) => pickedDays.size === 0 || r.games_picked > 0)
       .filter((r) => !watchOnly || watched.has(r.player_id))
       .filter((r) => !startersOnly || r.lineup_role === 'starter')
-      .filter((r) => !addingOnly || r.waiver_trend === 'adding');
+      .filter((r) => !addingOnly || (hasHeat ? r.waiver_trend === 'adding' : r.ownership_trend === 'rising'));
     return sortRows(filtered, (r) => {
       if (sortKey === 'name') return r.full_name;
       const v = r[sortKey];
       return typeof v === 'number' ? v : null;
     }, sortDir);
-  }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, pickedDays, watchOnly, watched, startersOnly, addingOnly, sortKey, sortDir]);
+  }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, pickedDays, watchOnly, watched, startersOnly, addingOnly, hasHeat, sortKey, sortDir]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="streamers" />;
@@ -465,10 +492,10 @@ export default function Streamers() {
       setSortDir('desc');
     } else if (sortKey === 'fit') setSortKey('minutes_trend');
   };
-  const hasHeat = (rows ?? []).some((r) => r.waiver_trend);
+  const hasTrend = (rows ?? []).some((r) => r.ownership_trend);
   const exportCsv = () => {
-    const header = ['player', 'team', 'new_team_from', 'position', `games_next_${horizon}`, 'matchup', 'implied_team_points', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'sleeper_net_adds', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'last_game'];
-    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.last_10_z_total, r.value_trend, r.fit, r.sleeper_net, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.last_game_date]);
+    const header = ['player', 'team', 'new_team_from', 'position', `games_next_${horizon}`, 'matchup', 'implied_team_points', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'sleeper_net_adds', 'espn_trend', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'ft_pct', 'turnovers', 'injury', 'lineup', 'news', 'last_game'];
+    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.last_10_z_total, r.value_trend, r.fit, r.sleeper_net, r.ownership_trend, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.free_throw_pct_5, r.turnovers_avg_5, r.injury_status, r.lineup_role, r.news_flag, r.last_game_date]);
     downloadCsv(`fantasyscout-${league}-streamers.csv`, toCsv(header, body));
   };
   const select = 'rounded border border-line bg-card px-2 py-1';
@@ -490,22 +517,23 @@ export default function Streamers() {
       )}
 
       {inWeek && (
-        <Card title={`Games in the next ${horizon} days`} id="schedule">
+        <Card title={horizonChoice === 'week' ? 'Games left this fantasy week' : `Games in the next ${horizon} days`} id="schedule">
           <div className="mb-3 flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1" role="radiogroup" aria-label="Window">
-              {HORIZONS.map((h) => (
+              {[...HORIZONS, 'week' as const].map((h) => (
                 <button
                   key={h}
                   type="button"
                   role="radio"
-                  aria-checked={horizon === h}
+                  aria-checked={horizonChoice === h}
                   onClick={() => {
-                    setHorizon(h);
+                    setHorizonChoice(h);
                     setPickedDays(new Set());
                   }}
-                  className={`rounded-full border px-3 py-1 text-sm ${horizon === h ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
+                  title={h === 'week' ? 'The rest of the fantasy week, to Sunday' : undefined}
+                  className={`rounded-full border px-3 py-1 text-sm ${horizonChoice === h ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
                 >
-                  {h} days
+                  {h === 'week' ? `This week (${weekDays} ${weekDays === 1 ? 'day' : 'days'})` : `${h} days`}
                 </button>
               ))}
             </div>
@@ -604,10 +632,13 @@ export default function Streamers() {
                 Starting today
               </label>
             )}
-            {hasHeat && (
-              <label className="flex items-center gap-2 text-sm" title="Players more Sleeper leagues added than dropped in the last day">
+            {(hasHeat || hasTrend) && (
+              <label
+                className="flex items-center gap-2 text-sm"
+                title={hasHeat ? 'Players more Sleeper leagues added than dropped in the last day' : 'Players rising in ESPN leagues: rostered in a point or more of them than before'}
+              >
                 <input type="checkbox" checked={addingOnly} onChange={(e) => setAddingOnly(e.target.checked)} />
-                Being added on Sleeper
+                {hasHeat ? 'Being added on Sleeper' : 'Rising in ESPN leagues'}
               </label>
             )}
             <span className="text-sm text-muted">{list.length} players</span>
@@ -638,11 +669,18 @@ export default function Streamers() {
                 {col('blocks_avg_5', 'BLK')}
                 {col('three_pointers_made_avg_5', '3PM')}
                 {col('field_goal_pct_5', 'FG%')}
+                {col('free_throw_pct_5', 'FT%')}
+                {col('turnovers_avg_5', 'TO')}
                 {needs.size > 0 && col('fit', 'Need fit', 'Last-ten z-score summed over the categories you need')}
                 {pickedDays.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
                 {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
                 {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
                 {inWeek && col('window_value', 'Window value', 'Last-ten value per game times games in the window, plus each game’s matchup')}
+                {hasTrend && (
+                  <Th right>
+                    <span title="Rising or falling across ESPN leagues (ownership up or down a point or more)">ESPN</span>
+                  </Th>
+                )}
                 {hasHeat && col('sleeper_net', 'Sleeper', 'Sleeper leagues that added the player minus those that dropped the player, last 24 hours (from Sleeper)')}
                 {col('board_rank', 'Board #', 'Rank on the board with the default league settings (12 teams of 13 in the NBA, 10 of 10 in the WNBA); inside a league-sized pool usually means rostered')}
                 <Th>Last game</Th>
@@ -658,9 +696,10 @@ export default function Streamers() {
                         {r.full_name ?? r.player_id}
                       </a>
                       {r.is_new_team && <NewTeam from={r.prev_team_abbreviation} />}
-                      <LineupTag role={r.lineup_role} confirmed={r.lineup_confirmed} />
-                      <RestRiskTag risk={r.rest_risk} />
-                      <InjuryTag group={r.injury_group} status={r.injury_status} />
+                      <LineupTag role={r.lineup_role} confirmed={r.lineup_confirmed} date={r.lineup_date} />
+                      <RestRiskTag risk={r.rest_risk} stakes={r.team_stakes} />
+                      <NewsTag flag={r.news_flag} headline={r.news_headline} date={r.news_date} />
+                      <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />
                     </span>
                   </Td>
                   <Td>{r.team_abbreviation ?? '–'}</Td>
@@ -682,6 +721,8 @@ export default function Streamers() {
                   <Td right>{fmt(r.blocks_avg_5)}</Td>
                   <Td right>{fmt(r.three_pointers_made_avg_5)}</Td>
                   <Td right>{pct(r.field_goal_pct_5)}</Td>
+                  <Td right>{pct(r.free_throw_pct_5)}</Td>
+                  <Td right>{fmt(r.turnovers_avg_5)}</Td>
                   {needs.size > 0 && (
                     <Td right>
                       <Signed value={r.fit} />
@@ -699,6 +740,11 @@ export default function Streamers() {
                   )}
                   {inWeek && <Td right>{fmt(r.implied_points, 1)}</Td>}
                   {inWeek && <Td right>{fmt(r.window_value, 2)}</Td>}
+                  {hasTrend && (
+                    <Td right>
+                      <TrendTag trend={r.ownership_trend} />
+                    </Td>
+                  )}
                   {hasHeat && (
                     <Td right>
                       <WaiverHeat row={r} />

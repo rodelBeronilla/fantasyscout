@@ -2,7 +2,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 
 import { downloadCsv, toCsv } from '../lib/csv';
 import { fetchBuildJson, type League } from '../lib/data';
-import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
+import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
@@ -10,7 +10,7 @@ import { useWatchlist } from '../lib/watchlist';
 import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
 import { DraftBar, LeagueBar } from './LeagueParts';
-import { Chip, InjuryTag, LineupTag, Loading, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
+import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th, TrendTag } from './ui';
 
 interface BoardRow {
   player_id: string;
@@ -27,6 +27,16 @@ interface BoardRow {
   season_complete: boolean;
   games_remaining: number | null;
   games_next_7: number | null;
+  /** Team games left this fantasy week, Monday to Sunday (absent in older builds). */
+  games_this_week?: number | null;
+  /** The newest flagged ESPN headline in the last three days. */
+  news_flag?: string | null;
+  news_headline?: string | null;
+  news_date?: string | null;
+  /** The game day the lineup role is for. */
+  lineup_date?: string | null;
+  /** rising or falling ESPN ownership. */
+  ownership_trend?: string | null;
   injury_status: string | null;
   injury_group: string | null;
   injury_type: string | null;
@@ -390,7 +400,7 @@ export default function Board() {
   // The market's columns: in the value view, once the build carries ESPN's market.
   const showMarket = view === 'value' && rows.some((r) => r.market_rank != null || r.ownership_bucket);
   const columns =
-    6 + (view === 'value' ? 1 : 0) + (showNext7 ? 1 : 0) + categoryColumns.length + (showFit ? 1 : 0) + (showMarket ? 2 : 0) + (isLine(view) ? 0 : 1) + 1;
+    6 + (view === 'value' ? 1 : 0) + (showNext7 ? 2 : 0) + categoryColumns.length + (showFit ? 1 : 0) + (showMarket ? 2 : 0) + (isLine(view) ? 0 : 1) + 1;
   const lastPick = setup.picks.at(-1);
   const ownerName = (id: string) => {
     const t = owner.get(id);
@@ -484,20 +494,13 @@ export default function Board() {
               </span>
             )}
             {row.is_new_team && <NewTeam from={row.prev_team_abbreviation} />}
-            <LineupTag role={row.lineup_role} confirmed={row.lineup_confirmed} />
+            <LineupTag role={row.lineup_role} confirmed={row.lineup_confirmed} date={row.lineup_date} />
             <RestRiskTag risk={row.rest_risk} stakes={row.team_stakes} />
+            <NewsTag flag={row.news_flag} headline={row.news_headline} date={row.news_date} />
             <InjuryTag
               group={row.injury_group}
               status={row.injury_status}
-              detail={[
-                row.injury_source === 'official' && row.official_game_date
-                  ? `Official report for ${day(row.official_game_date)}${row.official_report_at ? ` (${row.official_report_at.slice(11, 16)} ET)` : ''}`
-                  : null,
-                row.injury_type,
-                row.injury_since ? `since ${day(row.injury_since)}` : null,
-                row.expected_return ? `return ${day(row.expected_return)}` : null,
-                row.injury_news || row.injury_note,
-              ]
+              detail={[injuryDetail(row)]
                 .filter(Boolean)
                 .join(' · ')}
             />
@@ -525,6 +528,7 @@ export default function Board() {
         <Td right>{row.games_current ?? 0}</Td>
         {view === 'value' && <Td right>{pct(row.games_share)}</Td>}
         {showNext7 && <Td right>{row.games_next_7 ?? 0}</Td>}
+        {showNext7 && <Td right>{row.games_this_week ?? 0}</Td>}
         {categoryColumns.map((c) => (
           <Td key={c.key} right>
             {c.kind === 'fpts' ? (
@@ -547,7 +551,8 @@ export default function Board() {
           <Td right>
             <span title={row.ownership_bucket ? `Rostered in ${OWNED_LABEL[row.ownership_bucket] ?? row.ownership_bucket} ESPN leagues` : undefined} data-testid="market-rank">
               {row.market_rank ?? '–'}
-            </span>
+            </span>{' '}
+            <TrendTag trend={row.ownership_trend} />
           </Td>
         )}
         {showMarket && (
@@ -840,6 +845,11 @@ export default function Board() {
               {showNext7 && (
                 <SortTh right active={sortKey === 'games_next_7'} dir={sortDir} onClick={() => sortBy('games_next_7')} title="Team games in the next 7 days">
                   Next 7
+                </SortTh>
+              )}
+              {showNext7 && (
+                <SortTh right active={sortKey === 'games_this_week'} dir={sortDir} onClick={() => sortBy('games_this_week')} title="Team games left this fantasy week (Monday to Sunday)">
+                  Wk
                 </SortTh>
               )}
               {categoryColumns.map((c) => {
