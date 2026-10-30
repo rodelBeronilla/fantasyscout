@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-29 (League page and Yahoo import; phase 7 still waits for the go-ahead)
+Last updated: 2026-10-30 (new data sources and in-season signals; phase 7 still waits for the go-ahead)
 
 ## Vision
 
@@ -27,6 +27,20 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 | Production | https://fantasyscout.beronilla.rodeo/ (Cloudflare custom domain on Worker `fantasyscout`, ADR 0001) | Push to `main` |
 
 ## Active Sprint
+
+Data sources and in-season signals (issues #124 to #143 and #129), 2026-10-29 to 2026-10-30. Each source lands in the reports run (`fs-ingest land reports`, GitHub-hosted, mornings and 7 pm ET), is modelled bronze to gold, and is credited in the footer.
+
+- **Official injury reports** (#128): the leagues' PDFs parsed to `fct_player_status`. They win for the next game; the rest-of-season multiplier still reads ESPN.
+- **Starting lineups and transactions** (#140): NBA Expected and Confirmed lineups (`fct_starting_lineup`), and the NBA movement feed plus ESPN transactions (`fct_transaction`). Dates follow `eastern_today()`.
+- **Betting lines** (#127): ESPN odds give implied team points on Streamers.
+- **Rest, travel and altitude** (#126): `fct_team_game_context`, with undecided cup games left out.
+- **Playoff stakes and rest risk** (#141): `fct_team_stakes`.
+- **ESPN fantasy market** (#142): `fct_market_value`, ranks and ownership buckets only.
+- **In-season minutes** (#124): blended 50/50 with the last five games (backtest: NBA MAE 3.98 to 3.44).
+- **Positional defence**: tested and not built (ADR 0003).
+- **ESPN headlines** (#143, PR #157): `fct_player_news` with headline flags, headline and link only, on the player page.
+- **Sleeper waiver heat** (#129, PR #158): `fct_waiver_trend`, NBA, on Streamers, linked by name, birth date and team.
+- Yahoo import parked as "coming soon"; the owner signs in to the SQL console with Yahoo OpenID (ADR 0008).
 
 League tools (issues #110, #111; PRs #112 and the Yahoo PR), 2026-10-29.
 
