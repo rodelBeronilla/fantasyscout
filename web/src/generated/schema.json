@@ -7705,7 +7705,8 @@
       "One row per player per league from the player directory. Latest landing wins."
      ],
      "read_by": [
-      "dim_player"
+      "dim_player",
+      "transactions"
      ],
      "reads": [
       "stats_commonallplayers"
@@ -8977,7 +8978,7 @@
        "type": "varchar"
       },
       {
-       "description": "League player id from the league's feed; null for ESPN's lines",
+       "description": "League player id: from the NBA's movement feed, or for ESPN's lines the player the line names (matched by full name within the league; null when it names none or the name is shared)",
        "name": "player_id",
        "tests": [],
        "type": "varchar"
@@ -9022,7 +9023,8 @@
      "materialized": "table",
      "name": "transactions",
      "notes": [
-      "Transactions from both sources, one row per move. The NBA's movement feed names the player and team by league id (signings, waivers, trades, conversions, waiver claims); ESPN's feed covers both leagues as one line per team and day, and is the only one with G League assignments and recalls. move_type sorts either by its wording."
+      "Transactions from both sources, one row per move. The NBA's movement feed names the player and team by league id (signings, waivers, trades, conversions, waiver claims); ESPN's feed covers both leagues as one line per team and day, and is the only one with G League assignments and recalls. move_type sorts either by its wording.",
+      "ESPN's lines carry no player id, so each is linked to the players it names: a player of the league whose full name (letters only, suffix kept) appears in the line, when no other player of the league has that name and it is at least eight letters long. A line naming two players gives two rows; a line naming none keeps one row without a player."
      ],
      "read_by": [
       "fct_transaction"
@@ -9030,9 +9032,15 @@
      "reads": [
       "espn_transactions",
       "league_player_movement",
+      "players",
       "team_xwalk"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "An ESPN line naming two players gives a row for each; a line naming nobody keeps one row without a player; a name two players share links to neither; a short name is not matched.",
+       "name": "transactions_link_espn_lines_to_the_players_they_name"
+      }
+     ]
     },
     {
      "checks": [
@@ -12200,7 +12208,7 @@
        "type": "varchar"
       },
       {
-       "description": "League player id where the source names one (the NBA's feed); null for ESPN's lines",
+       "description": "League player id: the NBA's feed names one; ESPN's lines are linked by the full name they mention (null when none or shared)",
        "name": "player_id",
        "tests": [],
        "type": "varchar"
@@ -15383,6 +15391,11 @@
    "description": "Headlines from ESPN's feed each get the flag their wording gives, first match wins, and none when nothing applies. An athlete the crosswalk knows gets the league id; an article tagged twice counts two athletes; a later landing of the same article replaces the earlier one.",
    "model": "player_news",
    "name": "player_news_flags_headlines_by_their_wording_and_links_players"
+  },
+  {
+   "description": "An ESPN line naming two players gives a row for each; a line naming nobody keeps one row without a player; a name two players share links to neither; a short name is not matched.",
+   "model": "transactions",
+   "name": "transactions_link_espn_lines_to_the_players_they_name"
   }
  ]
 }

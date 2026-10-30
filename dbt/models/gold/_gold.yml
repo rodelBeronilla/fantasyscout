@@ -632,7 +632,7 @@ models:
       - name: team_abbreviation
         description: "The team's latest league tricode, else ESPN's abbreviation"
       - name: player_id
-        description: "League player id where the source names one (the NBA's feed); null for ESPN's lines"
+        description: "League player id: the NBA's feed names one; ESPN's lines are linked by the full name they mention (null when none or shared)"
       - name: move_type
         description: "g_league, recall, trade, waive, signing, suspension or other, from the wording"
       - name: description
