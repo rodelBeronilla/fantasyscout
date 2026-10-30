@@ -60,6 +60,7 @@ select
     b.ownership_bucket,
     b.team_stakes,
     b.rest_risk,
+    b.news_flag,
     s.minutes_trend,
     s.value_trend,
     s.sleeper_adds,
