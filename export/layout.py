@@ -49,6 +49,11 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.fct_market_value", "league, market_rank, stats_player_id"),
     TableSpec("gold.fct_waiver_trend", "league, add_rank, drop_rank, sleeper_player_id"),
     TableSpec("gold.fct_game_line", "league, season, game_date, game_id"),
+    # Prop lines are a private model input (ADR 0008): Parquet only, which the Worker serves to
+    # the owner alone, and never in the pages' JSON.
+    TableSpec(
+        "gold.fct_player_prop", "league, game_date, game_id, player_id, market, source, bookmaker"
+    ),
     TableSpec("gold.fct_official_listing", "league, season, game_date, game_id, player_id"),
     TableSpec("gold.fct_game_official", "league, season, game_date, game_id, official_key"),
     TableSpec("gold.fct_referee_tendency", "league, season, official_key"),

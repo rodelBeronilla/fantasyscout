@@ -1,0 +1,135 @@
+unit_tests:
+  - name: player_props_remove_the_vig_and_link_espn_athletes_and_events
+    description: >
+      Each price implies a probability (-300 is 0.75, +100 is 0.5); their sum less one is the vig,
+      and the over's share of the sum is its probability with the vig removed. An ESPN event links
+      to the scheduled game with the same two teams on its Eastern date, and an athlete through the
+      player crosswalk; an athlete the crosswalk does not know stays unlinked. A market outside the
+      known set is dropped, and a snapshot taken after the start is not pre-game.
+    model: player_props
+    given:
+      - input: ref('espn_prop_bets')
+        rows:
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: f1, event_id: '401', bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-30T23:00:00+00:00', game_date_et: '2026-10-30', espn_home_team_id: '27', espn_away_team_id: '30', espn_player_id: a1, prop_type: 'Total Points', line: '21.5', open_line: '20.5', over_odds: '-300', under_odds: '100', over_open_odds: '-110', under_open_odds: '-110', last_updated: '2026-10-30T14:09:00+00:00'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: f1, event_id: '401', bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-30T23:00:00+00:00', game_date_et: '2026-10-30', espn_home_team_id: '27', espn_away_team_id: '30', espn_player_id: a1, prop_type: 'Total 3-Point Field Goals', line: '2.5', over_odds: '300', under_odds: '-300', last_updated: '2026-10-30T14:09:00+00:00'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: f1, event_id: '401', bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-30T23:00:00+00:00', game_date_et: '2026-10-30', espn_home_team_id: '27', espn_away_team_id: '30', espn_player_id: a2, prop_type: 'Total Assists', line: '2.5', over_odds: '100', under_odds: '100', last_updated: '2026-10-30T14:09:00+00:00'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: f1, event_id: '401', bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-30T23:00:00+00:00', game_date_et: '2026-10-30', espn_home_team_id: '27', espn_away_team_id: '30', espn_player_id: a1, prop_type: 'Total Double Doubles', line: '0.5', over_odds: '100', under_odds: '100', last_updated: '2026-10-30T14:09:00+00:00'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: f2, event_id: '401', bookmaker: draftkings, snapshot_key: '2026-10-30T19', fetched_at: '2026-10-30T23:05:00+00:00', commence_at: '2026-10-30T23:00:00+00:00', game_date_et: '2026-10-30', espn_home_team_id: '27', espn_away_team_id: '30', espn_player_id: a1, prop_type: 'Total Points', line: '22.5', over_odds: '100', under_odds: '100', last_updated: '2026-10-30T23:01:00+00:00'}
+      - input: ref('odds_api_player_props')
+        format: sql
+        rows: |
+          select cast(null as string) as league, cast(null as string) as season, cast(null as string) as bookmaker,
+              cast(null as string) as event_id, cast(null as string) as snapshot_key, cast(null as string) as fetched_at,
+              cast(null as string) as commence_at, cast(null as string) as game_date_et, cast(null as string) as home_team_name,
+              cast(null as string) as away_team_name, cast(null as string) as player_name, cast(null as string) as market_key,
+              cast(null as string) as line, cast(null as string) as over_odds, cast(null as string) as under_odds,
+              cast(null as string) as last_updated, cast(null as date) as _ingest_date, cast(null as string) as _source_file
+          where false
+      - input: ref('team_xwalk')
+        rows:
+          - {league: nba, espn_team_id: '27', stats_team_id: '1610612764'}
+          - {league: nba, espn_team_id: '30', stats_team_id: '1610612766'}
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2026-27', game_id: '0022600100', game_date_est: '2026-10-30', home_team_id: '1610612764', away_team_id: '1610612766'}
+          - {league: nba, season: '2026-27', game_id: '0022600101', game_date_est: '2026-10-31', home_team_id: '1610612764', away_team_id: '1610612766'}
+      - input: ref('game_xwalk')
+        format: sql
+        rows: |
+          select cast(null as string) as league, cast(null as string) as season, cast(null as string) as game_id,
+              cast(null as string) as event_id
+          where false
+      - input: ref('player_xwalk')
+        rows:
+          - {league: nba, espn_player_id: a1, stats_player_id: '1630001'}
+      - input: ref('teams')
+        format: sql
+        rows: |
+          select cast(null as string) as league, cast(null as string) as season, cast(null as string) as team_id,
+              cast(null as string) as team_name, cast(null as string) as name
+          where false
+      - input: ref('players')
+        format: sql
+        rows: |
+          select cast(null as string) as league, cast(null as string) as player_id, cast(null as string) as team_id,
+              cast(null as boolean) as on_roster, cast(null as string) as full_name
+          where false
+    expect:
+      rows:
+        - {espn_player_id: a1, market: points, snapshot_key: '2026-10-30T10', game_id: '0022600100', player_id: '1630001', player_link: player_xwalk, over_implied_prob: 0.75, under_implied_prob: 0.5, vig: 0.25, over_prob_no_vig: 0.6, is_pre_game: true}
+        - {espn_player_id: a1, market: threes, snapshot_key: '2026-10-30T10', game_id: '0022600100', player_id: '1630001', player_link: player_xwalk, over_implied_prob: 0.25, under_implied_prob: 0.75, vig: 0.0, over_prob_no_vig: 0.25, is_pre_game: true}
+        - {espn_player_id: a2, market: assists, snapshot_key: '2026-10-30T10', game_id: '0022600100', player_id: null, player_link: null, over_implied_prob: 0.5, under_implied_prob: 0.5, vig: 0.0, over_prob_no_vig: 0.5, is_pre_game: true}
+        - {espn_player_id: a1, market: points, snapshot_key: '2026-10-30T19', game_id: '0022600100', player_id: '1630001', player_link: player_xwalk, over_implied_prob: 0.5, under_implied_prob: 0.5, vig: 0.0, over_prob_no_vig: 0.5, is_pre_game: false}
+
+  - name: player_props_link_odds_api_teams_and_players_by_name
+    description: >
+      The Odds API names teams in full: "Los Angeles Clippers" links by its nickname and
+      "Charlotte Hornets" by its full name, not to the Nets whose nickname it also ends with. A
+      player's name links with its suffix kept or dropped; a namesake on one of the game's teams
+      wins, a name unique in the league links on its own, and a tie stays unlinked. Two lines for
+      one player's market keep the one with the most even prices. Each bookmaker keeps its own row.
+    model: player_props
+    given:
+      - input: ref('odds_api_player_props')
+        rows:
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: o1, event_id: ev1, bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-31T02:30:00+00:00', game_date_et: '2026-10-30', home_team_name: 'Los Angeles Clippers', away_team_name: 'Charlotte Hornets', market_key: player_points, player_name: 'Kawhi Leonard', line: '24.5', over_odds: '100', under_odds: '100'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: o1, event_id: ev1, bookmaker: fanduel, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-31T02:30:00+00:00', game_date_et: '2026-10-30', home_team_name: 'Los Angeles Clippers', away_team_name: 'Charlotte Hornets', market_key: player_points, player_name: 'Kawhi Leonard', line: '25.5', over_odds: '100', under_odds: '100'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: o1, event_id: ev1, bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-31T02:30:00+00:00', game_date_et: '2026-10-30', home_team_name: 'Los Angeles Clippers', away_team_name: 'Charlotte Hornets', market_key: player_rebounds, player_name: 'Gary Trent Jr', line: '3.5', over_odds: '-300', under_odds: '100'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: o1, event_id: ev1, bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-31T02:30:00+00:00', game_date_et: '2026-10-30', home_team_name: 'Los Angeles Clippers', away_team_name: 'Charlotte Hornets', market_key: player_rebounds, player_name: 'Gary Trent Jr', line: '4.5', over_odds: '100', under_odds: '100'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: o1, event_id: ev1, bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-31T02:30:00+00:00', game_date_et: '2026-10-30', home_team_name: 'Los Angeles Clippers', away_team_name: 'Charlotte Hornets', market_key: player_assists, player_name: 'Jalen Williams', line: '5.5', over_odds: '100', under_odds: '100'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: o1, event_id: ev1, bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-31T02:30:00+00:00', game_date_et: '2026-10-30', home_team_name: 'Los Angeles Clippers', away_team_name: 'Charlotte Hornets', market_key: player_threes, player_name: 'Solo Player', line: '1.5', over_odds: '100', under_odds: '100'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: o1, event_id: ev1, bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-31T02:30:00+00:00', game_date_et: '2026-10-30', home_team_name: 'Los Angeles Clippers', away_team_name: 'Charlotte Hornets', market_key: player_steals, player_name: 'Twin Name', line: '0.5', over_odds: '100', under_odds: '100'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-30', _source_file: o1, event_id: ev1, bookmaker: draftkings, snapshot_key: '2026-10-30T10', fetched_at: '2026-10-30T14:59:10+00:00', commence_at: '2026-10-31T02:30:00+00:00', game_date_et: '2026-10-30', home_team_name: 'Los Angeles Clippers', away_team_name: 'Charlotte Hornets', market_key: player_blocks, player_name: 'Nobody Known', line: '0.5', over_odds: '100', under_odds: '100'}
+      - input: ref('espn_prop_bets')
+        format: sql
+        rows: |
+          select cast(null as string) as league, cast(null as string) as season, cast(null as string) as bookmaker,
+              cast(null as string) as event_id, cast(null as string) as snapshot_key, cast(null as string) as fetched_at,
+              cast(null as string) as commence_at, cast(null as string) as game_date_et, cast(null as string) as espn_home_team_id,
+              cast(null as string) as espn_away_team_id, cast(null as string) as espn_player_id, cast(null as string) as prop_type,
+              cast(null as string) as line, cast(null as string) as open_line, cast(null as string) as over_odds,
+              cast(null as string) as under_odds, cast(null as string) as over_open_odds, cast(null as string) as under_open_odds,
+              cast(null as string) as last_updated, cast(null as date) as _ingest_date, cast(null as string) as _source_file
+          where false
+      - input: ref('teams')
+        rows:
+          - {league: nba, season: '2026-27', team_id: '1610612746', team_name: 'LA Clippers', name: Clippers}
+          - {league: nba, season: '2026-27', team_id: '1610612766', team_name: 'Charlotte Hornets', name: Hornets}
+          - {league: nba, season: '2026-27', team_id: '1610612751', team_name: 'Brooklyn Nets', name: Nets}
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2026-27', game_id: '0022600110', game_date_est: '2026-10-30', home_team_id: '1610612746', away_team_id: '1610612766'}
+      - input: ref('players')
+        rows:
+          - {league: nba, player_id: '1', full_name: 'Kawhi Leonard', team_id: '1610612746', on_roster: true}
+          - {league: nba, player_id: '2', full_name: 'Gary Trent Jr.', team_id: '1610612766', on_roster: true}
+          - {league: nba, player_id: '31', full_name: 'Jalen Williams', team_id: '1610612751', on_roster: true}
+          - {league: nba, player_id: '32', full_name: 'Jalen Williams', team_id: '1610612746', on_roster: true}
+          - {league: nba, player_id: '4', full_name: 'Solo Player', team_id: '1610612751', on_roster: true}
+          - {league: nba, player_id: '51', full_name: 'Twin Name', team_id: '1610612751', on_roster: true}
+          - {league: nba, player_id: '52', full_name: 'Twin Name', team_id: '1610612751', on_roster: true}
+      - input: ref('team_xwalk')
+        format: sql
+        rows: |
+          select cast(null as string) as league, cast(null as string) as espn_team_id, cast(null as string) as stats_team_id
+          where false
+      - input: ref('game_xwalk')
+        format: sql
+        rows: |
+          select cast(null as string) as league, cast(null as string) as season, cast(null as string) as game_id,
+              cast(null as string) as event_id
+          where false
+      - input: ref('player_xwalk')
+        format: sql
+        rows: |
+          select cast(null as string) as league, cast(null as string) as espn_player_id, cast(null as string) as stats_player_id
+          where false
+    expect:
+      rows:
+        - {source_player_name: 'Kawhi Leonard', bookmaker: draftkings, market: points, line: 24.5, game_id: '0022600110', player_id: '1', player_link: name_and_team}
+        - {source_player_name: 'Kawhi Leonard', bookmaker: fanduel, market: points, line: 25.5, game_id: '0022600110', player_id: '1', player_link: name_and_team}
+        - {source_player_name: 'Gary Trent Jr', bookmaker: draftkings, market: rebounds, line: 4.5, game_id: '0022600110', player_id: '2', player_link: name_and_team}
+        - {source_player_name: 'Jalen Williams', bookmaker: draftkings, market: assists, line: 5.5, game_id: '0022600110', player_id: '32', player_link: name_and_team}
+        - {source_player_name: 'Solo Player', bookmaker: draftkings, market: threes, line: 1.5, game_id: '0022600110', player_id: '4', player_link: name}
+        - {source_player_name: 'Twin Name', bookmaker: draftkings, market: steals, line: 0.5, game_id: '0022600110', player_id: null, player_link: null}
+        - {source_player_name: 'Nobody Known', bookmaker: draftkings, market: blocks, line: 0.5, game_id: '0022600110', player_id: null, player_link: null}

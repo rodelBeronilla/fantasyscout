@@ -1,6 +1,6 @@
 # Notebooks
 
-Five analyses over the gold tables, executed against the newest published build after every
+Six analyses over the gold tables, executed against the newest published build after every
 export and rendered at `/notebooks/` on the site; CI executes them against the fixture sample on
 every pull request, so a notebook that stops running fails the build.
 
@@ -20,6 +20,7 @@ measures.
 | `03_game_context` | Do back-to-backs, travel, time zones, altitude and the opponent change whether a regular plays and what they produce per minute, and how often does one missed game become several? |
 | `04_data_quality` | Per league and season: do the sources agree, do box scores add up, do shot charts match them, are lineups complete, do injury, waiver and status rows link, and are the sources fresh? |
 | `05_shooting` | How many attempts before a free-throw, three-point or field-goal percentage (or shooting over expectation) is more skill than luck, and does a first-half edge last? |
+| `06_prop_lines` | How far do the board's projections sit from the sportsbooks' player lines, and once the games are played, which was closer? Prop lines are private (ADR 0008): aggregates only. |
 
 `replay.py` re-implements `mart_player_projection` and `mart_board` point in time from
 `fct_player_game`, reading every setting from `dbt/dbt_project.yml`; the board backtest and the

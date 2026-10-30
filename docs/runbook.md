@@ -73,6 +73,16 @@ Some approved apps only worked once they were recreated after approval. If so, p
 
 To turn it off, delete the two secrets and remove them from the Worker (`wrangler secret delete YAHOO_CLIENT_ID --env production`, and the same for the secret). Rotating the client secret signs everyone out.
 
+## Turn on The Odds API prop lines
+
+Player prop lines are a private model input (ADR 0008 addendum). DraftKings' lines through ESPN land with every reports run and need nothing. The Odds API adds the other US bookmakers:
+
+1. Create a key at the-odds-api.com.
+2. Save it as the Actions secret `ODDS_API_KEY`. The reports job in Ingest passes it to `fs-ingest land reports`. Until it is set, that source is logged as skipped and the run does not fail.
+3. Watch the credits in the run log (`odds api <league> <event>: cost 7, used ..., remaining ...`). Each event in the next 36 hours costs up to seven credits per run, one per market returned, and the run stops calling when fewer credits remain than one call costs.
+
+To turn it off, delete the secret.
+
 ## Run the checks locally
 
 See `CONTRIBUTING.md`. On Windows, Worker tests need the Visual C++ Redistributable for workerd; otherwise run them in a Linux container (the slim image lacks the CA certificates workerd needs):

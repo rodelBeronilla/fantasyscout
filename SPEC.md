@@ -168,6 +168,7 @@ Three audiences, three doors onto the same gold tables: people who click (web ap
 3. `03_game_context` — rest, travel, time zones, altitude and the opponent against whether a regular plays and what they produce per minute, out of sample; the hazard of missing the next game after missing k.
 4. `04_data_quality` — a scorecard per league and season: source agreement, box closure, shot charts against the box score, lineup completeness, link rates, freshness and the dbt check history.
 5. `05_shooting` — how many attempts before shooting percentages (and shooting over expectation) are more skill than luck, first half against second half, and what a shot is worth by zone.
+6. `06_prop_lines` — how far the board's per-game projections sit from the sportsbooks' player prop lines, by market, and once games are played which was closer to the outcome. Prop lines are a private model input (ADR 0008); the notebook publishes aggregates only.
 
 Each covers both leagues and runs against the published build, locally through DuckDB or in Databricks through `databricks-sql-connector`. CI executes them with `nbconvert` against the DuckDB sample and the build workflow against every published build, publishing the HTML and each notebook's findings (headline, facts, table, evidence size, or "accumulating" when the build has too little history) to `/notebooks`.
 

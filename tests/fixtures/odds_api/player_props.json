@@ -1,0 +1,57 @@
+{
+ "event_id": "c1a2b3d4e5f60718293a4b5c6d7e8f90",
+ "sport_key": "basketball_nba",
+ "snapshot_key": "2026-10-30T10",
+ "fetched_at": "2026-10-30T14:59:30+00:00",
+ "commence_at": "2026-10-30T23:00:00+00:00",
+ "game_date_et": "2026-10-30",
+ "home_team": "Washington Wizards",
+ "away_team": "Charlotte Hornets",
+ "props": [
+  {
+   "bookmaker": "draftkings",
+   "market": "player_points",
+   "player_name": "Sample Guard",
+   "line": 21.5,
+   "over_odds": -115,
+   "under_odds": -105,
+   "last_updated": "2026-10-30T14:58:12+00:00"
+  },
+  {
+   "bookmaker": "draftkings",
+   "market": "player_points",
+   "player_name": "Sample Forward Jr.",
+   "line": 14.5,
+   "over_odds": 110,
+   "under_odds": -140,
+   "last_updated": "2026-10-30T14:58:12+00:00"
+  },
+  {
+   "bookmaker": "draftkings",
+   "market": "player_rebounds",
+   "player_name": "Sample Forward Jr.",
+   "line": 6.5,
+   "over_odds": -120,
+   "under_odds": -110,
+   "last_updated": "2026-10-30T14:51:40+00:00"
+  },
+  {
+   "bookmaker": "fanduel",
+   "market": "player_points",
+   "player_name": "Sample Guard",
+   "line": 22.5,
+   "over_odds": -110,
+   "under_odds": -118,
+   "last_updated": "2026-10-30T14:57:03+00:00"
+  },
+  {
+   "bookmaker": "fanduel",
+   "market": "player_points",
+   "player_name": "Sample Guard",
+   "line": 25.5,
+   "over_odds": 135,
+   "under_odds": null,
+   "last_updated": "2026-10-30T14:57:03+00:00"
+  }
+ ]
+}
