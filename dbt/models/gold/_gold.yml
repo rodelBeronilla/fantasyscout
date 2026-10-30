@@ -289,6 +289,10 @@ models:
   - name: mart_player_projection
     description: "One projected per-game line per player on a current roster: the current season and the two before, weighted by games and recency, starting from a replacement-level line."
     columns:
+      - name: proj_minutes_season_pg
+        description: "Minutes per game from the seasons alone (games by minutes recency, from the replacement prior)"
+      - name: minutes_last5_pg
+        description: "Minutes per game over the player's last five games this season for his current team"
       - name: projection_sk
         description: "Surrogate key"
         data_tests: [unique, not_null]

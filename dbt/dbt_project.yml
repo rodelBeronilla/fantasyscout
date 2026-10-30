@@ -40,6 +40,11 @@ vars:
   fantasy_durability: {typical_share: 0.8}
   # A past season spent mostly on another team: the share of its minutes weight it keeps.
   fantasy_team_change: 0.25
+  # In season, projected minutes blend the season-weighted figure with the player's last five
+  # games on his current team at this weight: a role change shows up at once. Backtested on
+  # next-ten-game minutes (ADR 0003): NBA error 3.98 to 3.44 minutes, WNBA 3.92 to 3.30, and a
+  # quarter less for players whose role just moved.
+  fantasy_recent_minutes: 0.5
   # Matchups (mart_schedule_upcoming): value per game per standard deviation of the opponent's
   # defensive rating and of the expected pace, from replaying past seasons (ADR 0003); team
   # ratings blend this season to date with last season, last season counting as prior_games.
