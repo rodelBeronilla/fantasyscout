@@ -20,7 +20,7 @@ from ingest.espn import EspnIngestor, EspnPlanner
 from ingest.espn_fantasy import EspnFantasyIngestor
 from ingest.espn_news import EspnNewsIngestor
 from ingest.http import Throttle, ThrottledClient
-from ingest.injury_report import InjuryReportIngestor
+from ingest.injury_report import InjuryReportIngestor, ReportHistoryIngestor
 from ingest.landing import League
 from ingest.lineups import LineupsIngestor
 from ingest.run import RunSummary, describe
@@ -97,6 +97,9 @@ class LandOptions:
     window_days: int = 7
     # Days of upcoming ESPN scoreboards a daily run lands after the window, for betting lines.
     ahead_days: int = 7
+    # reports only: land one official injury report per day over the window (the 5 pm one)
+    # instead of the day's feeds.
+    history: bool = False
 
 
 def default_season(league: League, today: date) -> str:
@@ -136,6 +139,9 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
             + ", ".join(r.endpoint for r in planner.game_requests("<game>"))
         )
         lines.append("  then commonteamroster for every team in the season or the player directory")
+    elif opts.source == "reports" and opts.history:
+        days = (until - since).days + 1
+        lines.append(f"  the 5 pm Eastern official injury report for each of {days} day(s), parsed")
     elif opts.source == "reports":
         lines.append(
             "  the league's newest official injury report, parsed, unless it already landed"
@@ -205,6 +211,10 @@ def land(
             summary = StatsIngestor(
                 client, landing, StatsPlanner(opts.league, season, opts.season_type, opts.shots)
             ).run(since=since, until=until)
+        elif opts.source == "reports" and opts.history:
+            summary = ReportHistoryIngestor(
+                client, landing, opts.league, season, since=since, until=until
+            ).run()
         elif opts.source == "reports":
             summary = InjuryReportIngestor(client, landing, opts.league, season).run()
             LineupsIngestor(client, landing, opts.league, season).land_into(summary)
