@@ -959,6 +959,34 @@ models:
       - name: team_abbreviation
         description: "ESPN's team abbreviation"
 
+  - name: espn_news
+    description: "ESPN's news feed: one row per article and the athlete it is tagged with, per landed payload. Headline, date and link only; the story is never landed."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The day and Eastern hour the feed was landed"
+      - name: article_id
+        description: "ESPN article id"
+      - name: article_type
+        description: "ESPN's article type: HeadlineNews, Story, Media, Preview or Recap"
+      - name: headline
+        description: "The headline as ESPN writes it"
+      - name: published_at
+        description: "When ESPN published the article, as ESPN gives it (UTC)"
+      - name: url
+        description: "Link to the story on ESPN"
+      - name: espn_player_id
+        description: "ESPN athlete id the article is tagged with"
+      - name: athlete_name
+        description: "The athlete's name as ESPN tags it"
+
   - name: league_player_movement
     description: "The NBA's player movement feed, the last 180 days as landed: one row per move with league ids."
     columns:

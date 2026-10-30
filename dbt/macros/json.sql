@@ -84,3 +84,18 @@
 {% macro databricks__yyyymmdd_to_date(col) -%}
   to_date({{ col }}, 'yyyyMMdd')
 {%- endmacro %}
+
+
+{# A regular expression search (anywhere in the text) that reads the same on both engines. Keep
+   patterns free of backslashes: Databricks reads them as string escapes. #}
+{% macro matches(col, pattern) -%}
+  {{ return(adapter.dispatch('matches', 'fantasyscout')(col, pattern)) }}
+{%- endmacro %}
+
+{% macro default__matches(col, pattern) -%}
+  regexp_matches({{ col }}, '{{ pattern }}')
+{%- endmacro %}
+
+{% macro databricks__matches(col, pattern) -%}
+  ({{ col }} rlike '{{ pattern }}')
+{%- endmacro %}

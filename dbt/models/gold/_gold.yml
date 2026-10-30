@@ -199,6 +199,18 @@ models:
       - name: player_id
         description: "League player id where the source names one (the NBA's feed); null for ESPN's lines"
 
+  - name: fct_player_news
+    description: "Headlines about each player for the player page: ESPN articles tagged with the player and at most three others, with the headline, date, a link to ESPN and the headline's flag."
+    columns:
+      - name: player_news_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: stats_player_id
+        description: "League player id"
+        data_tests: [not_null]
+      - name: news_flag
+        description: "out_for_season, surgery, minutes_limit, return, injury, g_league or role; null when none applies"
+
   - name: fct_starting_lineup
     description: "Each player's role in today's game from the league's starting lineups (NBA only): starter, bench or inactive, and whether it is confirmed."
     columns:

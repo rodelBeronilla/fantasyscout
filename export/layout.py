@@ -44,6 +44,7 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.fct_injury_status", "league, stats_player_id, injury_id, status_from"),
     TableSpec("gold.fct_player_status", "league, stats_player_id", json=True),
     TableSpec("gold.fct_transaction", "league, transaction_date desc, team_id, player_id"),
+    TableSpec("gold.fct_player_news", "league, stats_player_id, published_at desc, article_id"),
     TableSpec("gold.fct_team_game_context", "league, season, game_date, game_id, team_id"),
     TableSpec("gold.fct_market_value", "league, market_rank, stats_player_id"),
     TableSpec("gold.fct_team_stakes", "league, season, conference, playoff_rank", json=True),

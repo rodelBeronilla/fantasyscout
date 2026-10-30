@@ -33,6 +33,9 @@ BOX = (
     "free_throws_attempted",
 )
 
+# The newest ESPN headlines kept per player: the page links to ESPN for anything older.
+NEWS_PER_PLAYER = 8
+
 
 class PlayerFiles:
     """Builds every player's file from the gold tables of one build."""
@@ -152,6 +155,26 @@ class PlayerFiles:
             if "fct_transaction" in self._names
             else {}
         )
+        news = (
+            self._grouped(
+                f"""
+                select league, player_id, published_date, headline, url, news_flag
+                from (
+                    select league, stats_player_id as player_id, published_date, published_at,
+                        headline, url, news_flag,
+                        row_number() over (
+                            partition by league, stats_player_id
+                            order by published_at desc, article_id
+                        ) as rn
+                    from fct_player_news
+                ) as n
+                where rn <= {NEWS_PER_PLAYER}
+                order by league, player_id, published_at desc
+                """
+            )
+            if "fct_player_news" in self._names
+            else {}
+        )
         shots = self._grouped(
             """
             select s.league, s.player_id, s.loc_x, s.loc_y, s.shot_made, s.is_three,
@@ -248,6 +271,10 @@ class PlayerFiles:
                 "moves": [
                     {k: v for k, v in m.items() if k not in ("league", "player_id")}
                     for m in moves.get(key, [])
+                ],
+                "news": [
+                    {k: v for k, v in n.items() if k not in ("league", "player_id")}
+                    for n in news.get(key, [])
                 ],
                 "injury_history": [
                     {k: v for k, v in r.items() if k not in ("league", "player_id")}
