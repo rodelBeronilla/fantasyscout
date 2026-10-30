@@ -1,0 +1,143 @@
+version: 2
+
+models:
+  - name: player_day_tracking
+    description: "One row per NBA player per game date: player tracking (passing, rebounding, touches, drives, speed and distance) and hustle totals, typed; the latest landing of each set wins. NBA only."
+    columns:
+      - name: league
+        description: "wnba or nba (nba only in practice: the WNBA host serves no tracking)"
+        data_tests: [not_null]
+      - name: season
+        description: "Season label (2025-26)"
+        data_tests: [not_null]
+      - name: game_date
+        description: "Game date the totals cover, from the request key"
+        data_tests: [not_null]
+      - name: player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "League team id as the source reports it: the player's team when the payload was fetched, which for a player traded since is not the team on the game date (gold takes the team from the box score)"
+      - name: player_day_key
+        description: "Natural key: league, game date and player id; one row per player per game date"
+        data_tests: [unique, not_null]
+      - name: minutes
+        description: "Minutes played, from the first tracking set that reports the player"
+      - name: passes_made
+        description: "Passes the player made"
+      - name: passes_received
+        description: "Passes the player received"
+      - name: tracking_assists
+        description: "Assists, as tracking counts them"
+      - name: free_throw_assists
+        description: "Passes that led to free throws by the teammate fouled shooting"
+      - name: secondary_assists
+        description: "Passes to the player who then made the assist (hockey assists)"
+      - name: potential_assists
+        description: "Passes to a teammate who shot within one dribble: assists plus the misses that would have been one"
+      - name: assist_points_created
+        description: "Points scored off the player's assists"
+      - name: adjusted_assists
+        description: "Assists plus free throw and secondary assists"
+      - name: assist_to_pass_percentage
+        description: "Assists per pass made, decimal 0-1"
+      - name: offensive_rebounds_contested
+        description: "Offensive rebounds taken with an opponent within 3.5 feet"
+      - name: offensive_rebound_chances
+        description: "Offensive rebounds the player was within 3.5 feet of"
+      - name: defensive_rebounds_contested
+        description: "Defensive rebounds taken with an opponent within 3.5 feet"
+      - name: defensive_rebound_chances
+        description: "Defensive rebounds the player was within 3.5 feet of"
+      - name: tracking_rebounds
+        description: "Rebounds, as tracking counts them"
+      - name: rebounds_contested
+        description: "Rebounds taken with an opponent within 3.5 feet"
+      - name: rebounds_uncontested
+        description: "Rebounds taken with no opponent within 3.5 feet"
+      - name: rebound_chances
+        description: "Rebounds the player was within 3.5 feet of"
+      - name: rebound_chances_deferred
+        description: "Rebound chances the player left to a teammate who took the rebound"
+      - name: average_rebound_distance
+        description: "Average distance from the basket of the player's rebounds, in feet"
+      - name: touches
+        description: "Times the player touched and held the ball"
+      - name: front_court_touches
+        description: "Touches in the offensive half of the court"
+      - name: time_of_possession
+        description: "Minutes the player held the ball"
+      - name: average_seconds_per_touch
+        description: "Average seconds the player held the ball per touch"
+      - name: average_dribbles_per_touch
+        description: "Average dribbles per touch"
+      - name: elbow_touches
+        description: "Touches at the elbows of the free throw line"
+      - name: post_touches
+        description: "Touches in the post, with the back to the basket"
+      - name: paint_touches
+        description: "Touches in the paint"
+      - name: tracking_points
+        description: "Points, from the possessions tracking set"
+      - name: drives
+        description: "Drives: dribbles from 20 feet or more out to within 10 feet of the basket"
+      - name: drive_field_goals_made
+        description: "Field goals made by the player on drives"
+      - name: drive_field_goals_attempted
+        description: "Field goals attempted by the player on drives"
+      - name: drive_free_throws_attempted
+        description: "Free throws the player attempted from drives"
+      - name: drive_points
+        description: "Points the player scored on drives"
+      - name: drive_passes
+        description: "Passes the player made out of drives"
+      - name: drive_assists
+        description: "Assists from passes out of drives"
+      - name: drive_turnovers
+        description: "Turnovers on drives"
+      - name: drive_fouls_drawn
+        description: "Fouls the player drew on drives"
+      - name: distance_miles
+        description: "Distance the player covered, in miles"
+      - name: distance_miles_offense
+        description: "Distance covered on offense, in miles"
+      - name: distance_miles_defense
+        description: "Distance covered on defense, in miles"
+      - name: average_speed
+        description: "Average speed while on the floor, miles per hour"
+      - name: average_speed_offense
+        description: "Average speed on offense, miles per hour"
+      - name: average_speed_defense
+        description: "Average speed on defense, miles per hour"
+      - name: contested_shots
+        description: "Opponent shots the player contested"
+      - name: contested_shots_2pt
+        description: "Opponent two-point shots the player contested"
+      - name: contested_shots_3pt
+        description: "Opponent three-point shots the player contested"
+      - name: deflections
+        description: "Opponent passes or dribbles the player got a hand on"
+      - name: charges_drawn
+        description: "Offensive fouls the player drew by taking a charge"
+      - name: screen_assists
+        description: "Screens that directly freed a teammate for a made field goal"
+      - name: screen_assist_points
+        description: "Points scored off the player's screen assists"
+      - name: loose_balls_recovered_offensive
+        description: "Loose balls the player recovered on offense"
+      - name: loose_balls_recovered_defensive
+        description: "Loose balls the player recovered on defense"
+      - name: loose_balls_recovered
+        description: "Loose balls the player recovered"
+      - name: box_outs_offensive
+        description: "Box outs on offensive rebounds"
+      - name: box_outs_defensive
+        description: "Box outs on defensive rebounds"
+      - name: box_outs
+        description: "Box outs"
+      - name: box_outs_team_rebounds
+        description: "Box outs after which the player's team took the rebound"
+      - name: box_outs_own_rebounds
+        description: "Box outs after which the player took the rebound"
+      - name: _ingest_date
+        description: "Newest ingest date among the sets joined into the row"

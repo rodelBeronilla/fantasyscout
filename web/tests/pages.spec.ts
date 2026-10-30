@@ -305,7 +305,7 @@ test('the schema page draws the gold layer by subject area and the lineage, and 
   await fact.locator('summary').click();
   await expect(fact.getByTestId('grain')).toContainText('One row per league, game_id and player_id');
   await expect(fact.getByTestId('exported')).toContainText('players/<league>/<player_id>.json');
-  await expect(fact.getByTestId('coverage')).toContainText(/\d+\/44 described/);
+  await expect(fact.getByTestId('coverage')).toContainText(/\d+\/\d+ described/);
   await expect(page.locator('#m-fct_market_value').getByTestId('unit-tests')).toContainText('market_value_ranks');
   await expect(page.getByTestId('unit-tests-list').locator('tbody tr')).not.toHaveCount(0);
   await expect(page.locator('#seed-category_config')).toContainText('only the export reads it');

@@ -240,7 +240,7 @@ models:
         description: "Source column `VTM`"
 
   - name: stats_playergamelogs
-    description: "One row per player per game from the season game log; the request key names the measure set (advanced-..., base-...)."
+    description: "One row per player per game from the season game log, Advanced measure set (request keys advanced-...); Usage and Misc have their own models."
     columns:
       - name: _source_file
         description: "Path of the landed payload this row was parsed from"

@@ -1,5 +1,7 @@
 {#
   Player × game: traditional box score with the advanced line joined, keyed to the dimensions.
+  The usage and misc game logs add the player's share of the team's box score while on the floor
+  and fouls drawn, blocks against and points by situation (null where those logs have not landed).
   Where ESPN also reports the player-game, source_agreement carries the reconciliation verdict
   (exact, minor, conflict) and the resolution rule is applied: the league value wins, ESPN's
   fills in only where the league's is null (ADR 0005). Rows ESPN does not cover are
@@ -15,6 +17,18 @@ with box as (
 adv as (
 
     select * from {{ ref('player_game_advanced') }}
+
+),
+
+usg as (
+
+    select * from {{ ref('player_game_usage') }}
+
+),
+
+misc as (
+
+    select * from {{ ref('player_game_misc') }}
 
 ),
 
@@ -73,6 +87,19 @@ select
     a.net_rating as player_net_rating,
     a.pace as player_pace,
     a.pie,
+    u.team_share_field_goals_attempted,
+    u.team_share_three_pointers_attempted,
+    u.team_share_free_throws_attempted,
+    u.team_share_rebounds,
+    u.team_share_assists,
+    u.team_share_turnovers,
+    u.team_share_points,
+    m.fouls_drawn,
+    m.blocks_against,
+    m.points_in_paint,
+    m.fast_break_points,
+    m.second_chance_points,
+    m.points_off_turnovers,
     coalesce(r.source_agreement, 'unverified') as source_agreement,
     r.espn_player_id,
     b._ingest_date
@@ -81,6 +108,10 @@ left join {{ ref('games') }} as g
     on g.league = b.league and g.game_id = b.game_id
 left join adv as a
     on a.league = b.league and a.game_id = b.game_id and a.player_id = b.player_id
+left join usg as u
+    on u.player_game_key = b.player_game_key
+left join misc as m
+    on m.player_game_key = b.player_game_key
 left join stint as s
     on s.league = b.league and s.stats_player_id = b.player_id
     and g.game_date >= s.valid_from and (s.valid_to is null or g.game_date <= s.valid_to)

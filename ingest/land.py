@@ -49,6 +49,8 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
         "shotchartdetail",
         "commonteamroster",
         "leaguestandingsv3",
+        "leaguedashptstats",
+        "leaguehustlestatsplayer",
     ),
     "espn": (
         "scoreboard",
@@ -138,6 +140,11 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
             "  then per game in window: "
             + ", ".join(r.endpoint for r in planner.game_requests("<game>"))
         )
+        if day := planner.day_requests(since):
+            lines.append(
+                "  then per game date in window: "
+                + ", ".join(f"{r.endpoint} {r.key.split('-', 1)[0]}" for r in day)
+            )
         lines.append("  then commonteamroster for every team in the season or the player directory")
     elif opts.source == "reports" and opts.history:
         days = (until - since).days + 1

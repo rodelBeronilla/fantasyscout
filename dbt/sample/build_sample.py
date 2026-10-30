@@ -30,6 +30,13 @@ PAYLOADS = [
     ("stats", "playbyplayv3", "playbyplayv3", "wnba", "2026", "1022600330"),
     ("stats", "shotchartdetail", "shotchartdetail", "wnba", "2026", "1022600330"),
     ("stats", "playergamelogs", "playergamelogs", "wnba", "2026", "advanced-regular-season"),
+    ("stats", "playergamelogs", "playergamelogs_usage", "wnba", "2026", "usage-regular-season"),
+    ("stats", "playergamelogs", "playergamelogs_misc", "wnba", "2026", "misc-regular-season"),
+    *(
+        ("stats", "leaguedashptstats", f"leaguedashptstats_{m}", "nba", "2025-26", f"{m}-2026-01-15")
+        for m in ("passing", "rebounding", "possessions", "drives", "speeddistance")
+    ),
+    ("stats", "leaguehustlestatsplayer", "leaguehustlestatsplayer", "nba", "2025-26", "hustle-2026-01-15"),
     ("stats", "commonteamroster", "commonteamroster", "wnba", "2026", "1611661319"),
     ("stats", "leaguestandingsv3", "leaguestandingsv3", "wnba", "2026", "regular-season"),
     ("espn", "scoreboard", "scoreboard", "wnba", "2026", "20260924"),

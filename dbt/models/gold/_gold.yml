@@ -254,6 +254,32 @@ models:
         description: "Possessions per regulation game while the player was on the floor (advanced line)"
       - name: pie
         description: "Player Impact Estimate, decimal (advanced line)"
+      - name: team_share_field_goals_attempted
+        description: "Share of the team's field goal attempts the player took while on the floor, decimal 0-1 (usage game log)"
+      - name: team_share_three_pointers_attempted
+        description: "Share of the team's three-point attempts the player took while on the floor, decimal 0-1 (usage game log)"
+      - name: team_share_free_throws_attempted
+        description: "Share of the team's free throw attempts the player took while on the floor, decimal 0-1 (usage game log)"
+      - name: team_share_rebounds
+        description: "Share of the team's rebounds the player took while on the floor, decimal 0-1 (usage game log)"
+      - name: team_share_assists
+        description: "Share of the team's assists the player made while on the floor, decimal 0-1 (usage game log)"
+      - name: team_share_turnovers
+        description: "Share of the team's turnovers the player committed while on the floor, decimal 0-1 (usage game log)"
+      - name: team_share_points
+        description: "Share of the team's points the player scored while on the floor, decimal 0-1 (usage game log)"
+      - name: fouls_drawn
+        description: "Personal fouls the player drew (misc game log)"
+      - name: blocks_against
+        description: "The player's shots that were blocked (misc game log)"
+      - name: points_in_paint
+        description: "Points the player scored in the paint (misc game log)"
+      - name: fast_break_points
+        description: "Points the player scored on fast breaks (misc game log)"
+      - name: second_chance_points
+        description: "Points the player scored after an offensive rebound (misc game log)"
+      - name: points_off_turnovers
+        description: "Points the player scored off opponent turnovers (misc game log)"
       - name: source_agreement
         description: "Reconciliation verdict against ESPN (ADR 0005): exact, minor (minutes only, within one), conflict, or unverified when ESPN does not report the player-game"
         data_tests:

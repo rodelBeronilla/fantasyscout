@@ -1,0 +1,238 @@
+version: 2
+
+models:
+  - name: stats_playergamelogs_usage
+    description: "One row per player per game from the season game log, Usage measure set: the player's share of the team's box score while on the floor (request keys usage-...)."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: season_year
+        description: "Source column `SEASON_YEAR`"
+      - name: player_id
+        description: "Source column `PLAYER_ID`"
+      - name: player_name
+        description: "Source column `PLAYER_NAME`"
+      - name: nickname
+        description: "Source column `NICKNAME`"
+      - name: team_id
+        description: "Source column `TEAM_ID`"
+      - name: team_abbreviation
+        description: "Source column `TEAM_ABBREVIATION`"
+      - name: team_name
+        description: "Source column `TEAM_NAME`"
+      - name: game_id
+        description: "Source column `GAME_ID`"
+      - name: game_date
+        description: "Source column `GAME_DATE`"
+      - name: matchup
+        description: "Source column `MATCHUP`"
+      - name: wl
+        description: "Source column `WL`"
+      - name: min
+        description: "Source column `MIN`"
+      - name: usg_pct
+        description: "Source column `USG_PCT`"
+      - name: pct_fgm
+        description: "Source column `PCT_FGM`"
+      - name: pct_fga
+        description: "Source column `PCT_FGA`"
+      - name: pct_fg3m
+        description: "Source column `PCT_FG3M`"
+      - name: pct_fg3a
+        description: "Source column `PCT_FG3A`"
+      - name: pct_ftm
+        description: "Source column `PCT_FTM`"
+      - name: pct_fta
+        description: "Source column `PCT_FTA`"
+      - name: pct_oreb
+        description: "Source column `PCT_OREB`"
+      - name: pct_dreb
+        description: "Source column `PCT_DREB`"
+      - name: pct_reb
+        description: "Source column `PCT_REB`"
+      - name: pct_ast
+        description: "Source column `PCT_AST`"
+      - name: pct_tov
+        description: "Source column `PCT_TOV`"
+      - name: pct_stl
+        description: "Source column `PCT_STL`"
+      - name: pct_blk
+        description: "Source column `PCT_BLK`"
+      - name: pct_blka
+        description: "Source column `PCT_BLKA`"
+      - name: pct_pf
+        description: "Source column `PCT_PF`"
+      - name: pct_pfd
+        description: "Source column `PCT_PFD`"
+      - name: pct_pts
+        description: "Source column `PCT_PTS`"
+      - name: gp_rank
+        description: "Source column `GP_RANK`"
+      - name: w_rank
+        description: "Source column `W_RANK`"
+      - name: l_rank
+        description: "Source column `L_RANK`"
+      - name: w_pct_rank
+        description: "Source column `W_PCT_RANK`"
+      - name: min_rank
+        description: "Source column `MIN_RANK`"
+      - name: usg_pct_rank
+        description: "Source column `USG_PCT_RANK`"
+      - name: pct_fgm_rank
+        description: "Source column `PCT_FGM_RANK`"
+      - name: pct_fga_rank
+        description: "Source column `PCT_FGA_RANK`"
+      - name: pct_fg3m_rank
+        description: "Source column `PCT_FG3M_RANK`"
+      - name: pct_fg3a_rank
+        description: "Source column `PCT_FG3A_RANK`"
+      - name: pct_ftm_rank
+        description: "Source column `PCT_FTM_RANK`"
+      - name: pct_fta_rank
+        description: "Source column `PCT_FTA_RANK`"
+      - name: pct_oreb_rank
+        description: "Source column `PCT_OREB_RANK`"
+      - name: pct_dreb_rank
+        description: "Source column `PCT_DREB_RANK`"
+      - name: pct_reb_rank
+        description: "Source column `PCT_REB_RANK`"
+      - name: pct_ast_rank
+        description: "Source column `PCT_AST_RANK`"
+      - name: pct_tov_rank
+        description: "Source column `PCT_TOV_RANK`"
+      - name: pct_stl_rank
+        description: "Source column `PCT_STL_RANK`"
+      - name: pct_blk_rank
+        description: "Source column `PCT_BLK_RANK`"
+      - name: pct_blka_rank
+        description: "Source column `PCT_BLKA_RANK`"
+      - name: pct_pf_rank
+        description: "Source column `PCT_PF_RANK`"
+      - name: pct_pfd_rank
+        description: "Source column `PCT_PFD_RANK`"
+      - name: pct_pts_rank
+        description: "Source column `PCT_PTS_RANK`"
+      - name: available_flag
+        description: "Source column `AVAILABLE_FLAG`"
+      - name: min_sec
+        description: "Source column `MIN_SEC`"
+      - name: team_count
+        description: "Source column `TEAM_COUNT`"
+
+  - name: stats_playergamelogs_misc
+    description: "One row per player per game from the season game log, Misc measure set: points by situation, fouls drawn and blocks against (request keys misc-...)."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label from the landing path (2026 or 2025-26)"
+      - name: _ingest_date
+        description: "Ingest date from the landing path"
+      - name: request_key
+        description: "Landing key of the payload (game id, team id, date or season)"
+      - name: _payload_hash
+        description: "SHA-256 of the raw payload, matching the sidecar"
+      - name: season_year
+        description: "Source column `SEASON_YEAR`"
+      - name: player_id
+        description: "Source column `PLAYER_ID`"
+      - name: player_name
+        description: "Source column `PLAYER_NAME`"
+      - name: nickname
+        description: "Source column `NICKNAME`"
+      - name: team_id
+        description: "Source column `TEAM_ID`"
+      - name: team_abbreviation
+        description: "Source column `TEAM_ABBREVIATION`"
+      - name: team_name
+        description: "Source column `TEAM_NAME`"
+      - name: game_id
+        description: "Source column `GAME_ID`"
+      - name: game_date
+        description: "Source column `GAME_DATE`"
+      - name: matchup
+        description: "Source column `MATCHUP`"
+      - name: wl
+        description: "Source column `WL`"
+      - name: min
+        description: "Source column `MIN`"
+      - name: pts_off_tov
+        description: "Source column `PTS_OFF_TOV`"
+      - name: pts_2nd_chance
+        description: "Source column `PTS_2ND_CHANCE`"
+      - name: pts_fb
+        description: "Source column `PTS_FB`"
+      - name: pts_paint
+        description: "Source column `PTS_PAINT`"
+      - name: opp_pts_off_tov
+        description: "Source column `OPP_PTS_OFF_TOV`"
+      - name: opp_pts_2nd_chance
+        description: "Source column `OPP_PTS_2ND_CHANCE`"
+      - name: opp_pts_fb
+        description: "Source column `OPP_PTS_FB`"
+      - name: opp_pts_paint
+        description: "Source column `OPP_PTS_PAINT`"
+      - name: blk
+        description: "Source column `BLK`"
+      - name: blka
+        description: "Source column `BLKA`"
+      - name: pf
+        description: "Source column `PF`"
+      - name: pfd
+        description: "Source column `PFD`"
+      - name: nba_fantasy_pts
+        description: "Source column `NBA_FANTASY_PTS`"
+      - name: gp_rank
+        description: "Source column `GP_RANK`"
+      - name: w_rank
+        description: "Source column `W_RANK`"
+      - name: l_rank
+        description: "Source column `L_RANK`"
+      - name: w_pct_rank
+        description: "Source column `W_PCT_RANK`"
+      - name: min_rank
+        description: "Source column `MIN_RANK`"
+      - name: pts_off_tov_rank
+        description: "Source column `PTS_OFF_TOV_RANK`"
+      - name: pts_2nd_chance_rank
+        description: "Source column `PTS_2ND_CHANCE_RANK`"
+      - name: pts_fb_rank
+        description: "Source column `PTS_FB_RANK`"
+      - name: pts_paint_rank
+        description: "Source column `PTS_PAINT_RANK`"
+      - name: opp_pts_off_tov_rank
+        description: "Source column `OPP_PTS_OFF_TOV_RANK`"
+      - name: opp_pts_2nd_chance_rank
+        description: "Source column `OPP_PTS_2ND_CHANCE_RANK`"
+      - name: opp_pts_fb_rank
+        description: "Source column `OPP_PTS_FB_RANK`"
+      - name: opp_pts_paint_rank
+        description: "Source column `OPP_PTS_PAINT_RANK`"
+      - name: blk_rank
+        description: "Source column `BLK_RANK`"
+      - name: blka_rank
+        description: "Source column `BLKA_RANK`"
+      - name: pf_rank
+        description: "Source column `PF_RANK`"
+      - name: pfd_rank
+        description: "Source column `PFD_RANK`"
+      - name: nba_fantasy_pts_rank
+        description: "Source column `NBA_FANTASY_PTS_RANK`"
+      - name: available_flag
+        description: "Source column `AVAILABLE_FLAG`"
+      - name: min_sec
+        description: "Source column `MIN_SEC`"
+      - name: team_count
+        description: "Source column `TEAM_COUNT`"

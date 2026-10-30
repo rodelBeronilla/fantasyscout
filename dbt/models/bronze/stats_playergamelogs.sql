@@ -1,6 +1,7 @@
 {{ config(partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
 
-{# Raw stats `playergamelogs` payloads parsed to rows; values stay text until silver.  #}
+{# Raw stats `playergamelogs` payloads of the Advanced measure set (request keys advanced-...)
+   parsed to rows; values stay text until silver. Usage and Misc have their own models. #}
 
 with files as (
 
@@ -16,6 +17,7 @@ rows as (
         files.*,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
+    where files.request_key like 'advanced-%'
 
 )
 

@@ -278,7 +278,7 @@
   "fantasy_recent_minutes": 0.5,
   "fantasy_team_change": 0.25
  },
- "generic_tests": 265,
+ "generic_tests": 295,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -393,9 +393,25 @@
    ]
   },
   {
+   "path": "stats/leaguedashptstats",
+   "read_by": [
+    "stats_leaguedashptstats_drives",
+    "stats_leaguedashptstats_passing",
+    "stats_leaguedashptstats_possessions",
+    "stats_leaguedashptstats_rebounding",
+    "stats_leaguedashptstats_speeddistance"
+   ]
+  },
+  {
    "path": "stats/leaguegamelog",
    "read_by": [
     "stats_leaguegamelog"
+   ]
+  },
+  {
+   "path": "stats/leaguehustlestatsplayer",
+   "read_by": [
+    "stats_leaguehustlestatsplayer"
    ]
   },
   {
@@ -413,7 +429,9 @@
   {
    "path": "stats/playergamelogs",
    "read_by": [
-    "stats_playergamelogs"
+    "stats_playergamelogs",
+    "stats_playergamelogs_misc",
+    "stats_playergamelogs_usage"
    ]
   },
   {
@@ -3181,6 +3199,975 @@
        "type": "varchar"
       },
       {
+       "description": "Source column `PLAYER_ID`",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_NAME`",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ID`",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ABBREVIATION`",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GP`",
+       "name": "gp",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `W`",
+       "name": "w",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `L`",
+       "name": "l",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN`",
+       "name": "min",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVES`",
+       "name": "drives",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_FGM`",
+       "name": "drive_fgm",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_FGA`",
+       "name": "drive_fga",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_FG_PCT`",
+       "name": "drive_fg_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_FTM`",
+       "name": "drive_ftm",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_FTA`",
+       "name": "drive_fta",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_FT_PCT`",
+       "name": "drive_ft_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_PTS`",
+       "name": "drive_pts",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_PTS_PCT`",
+       "name": "drive_pts_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_PASSES`",
+       "name": "drive_passes",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_PASSES_PCT`",
+       "name": "drive_passes_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_AST`",
+       "name": "drive_ast",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_AST_PCT`",
+       "name": "drive_ast_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_TOV`",
+       "name": "drive_tov",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_TOV_PCT`",
+       "name": "drive_tov_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_PF`",
+       "name": "drive_pf",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DRIVE_PF_PCT`",
+       "name": "drive_pf_pct",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per NBA player per game date, player tracking (drives and what came of them); the request key names the measure and the date (drives-YYYY-MM-DD).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/leaguedashptstats"
+     ],
+     "materialized": "incremental",
+     "name": "stats_leaguedashptstats_drives",
+     "notes": [
+      "Raw stats `leaguedashptstats` payloads, drives tracking for one game date (request keys drives-<date>), parsed to rows; values stay text until silver. NBA only."
+     ],
+     "read_by": [
+      "player_day_tracking"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2025-26)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload (game id, team id, date or season)",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the raw payload, matching the sidecar",
+       "name": "_payload_hash",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_ID`",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_NAME`",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ID`",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ABBREVIATION`",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GP`",
+       "name": "gp",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `W`",
+       "name": "w",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `L`",
+       "name": "l",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN`",
+       "name": "min",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PASSES_MADE`",
+       "name": "passes_made",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PASSES_RECEIVED`",
+       "name": "passes_received",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AST`",
+       "name": "ast",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `FT_AST`",
+       "name": "ft_ast",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `SECONDARY_AST`",
+       "name": "secondary_ast",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `POTENTIAL_AST`",
+       "name": "potential_ast",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AST_PTS_CREATED`",
+       "name": "ast_pts_created",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AST_ADJ`",
+       "name": "ast_adj",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AST_TO_PASS_PCT`",
+       "name": "ast_to_pass_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AST_TO_PASS_PCT_ADJ`",
+       "name": "ast_to_pass_pct_adj",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per NBA player per game date, player tracking (passes, potential and secondary assists); the request key names the measure and the date (passing-YYYY-MM-DD).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/leaguedashptstats"
+     ],
+     "materialized": "incremental",
+     "name": "stats_leaguedashptstats_passing",
+     "notes": [
+      "Raw stats `leaguedashptstats` payloads, passing tracking for one game date (request keys passing-<date>), parsed to rows; values stay text until silver. NBA only."
+     ],
+     "read_by": [
+      "player_day_tracking"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2025-26)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload (game id, team id, date or season)",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the raw payload, matching the sidecar",
+       "name": "_payload_hash",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_ID`",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_NAME`",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ID`",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ABBREVIATION`",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GP`",
+       "name": "gp",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `W`",
+       "name": "w",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `L`",
+       "name": "l",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN`",
+       "name": "min",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `POINTS`",
+       "name": "points",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TOUCHES`",
+       "name": "touches",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `FRONT_CT_TOUCHES`",
+       "name": "front_ct_touches",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TIME_OF_POSS`",
+       "name": "time_of_poss",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVG_SEC_PER_TOUCH`",
+       "name": "avg_sec_per_touch",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVG_DRIB_PER_TOUCH`",
+       "name": "avg_drib_per_touch",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_PER_TOUCH`",
+       "name": "pts_per_touch",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `ELBOW_TOUCHES`",
+       "name": "elbow_touches",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `POST_TOUCHES`",
+       "name": "post_touches",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PAINT_TOUCHES`",
+       "name": "paint_touches",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_PER_ELBOW_TOUCH`",
+       "name": "pts_per_elbow_touch",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_PER_POST_TOUCH`",
+       "name": "pts_per_post_touch",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_PER_PAINT_TOUCH`",
+       "name": "pts_per_paint_touch",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per NBA player per game date, player tracking (touches and time of possession); the request key names the measure and the date (possessions-YYYY-MM-DD).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/leaguedashptstats"
+     ],
+     "materialized": "incremental",
+     "name": "stats_leaguedashptstats_possessions",
+     "notes": [
+      "Raw stats `leaguedashptstats` payloads, possessions tracking for one game date (request keys possessions-<date>), parsed to rows; values stay text until silver. NBA only."
+     ],
+     "read_by": [
+      "player_day_tracking"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2025-26)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload (game id, team id, date or season)",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the raw payload, matching the sidecar",
+       "name": "_payload_hash",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_ID`",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_NAME`",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ID`",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ABBREVIATION`",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GP`",
+       "name": "gp",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `W`",
+       "name": "w",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `L`",
+       "name": "l",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN`",
+       "name": "min",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OREB`",
+       "name": "oreb",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OREB_CONTEST`",
+       "name": "oreb_contest",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OREB_UNCONTEST`",
+       "name": "oreb_uncontest",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OREB_CONTEST_PCT`",
+       "name": "oreb_contest_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OREB_CHANCES`",
+       "name": "oreb_chances",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OREB_CHANCE_PCT`",
+       "name": "oreb_chance_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OREB_CHANCE_DEFER`",
+       "name": "oreb_chance_defer",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OREB_CHANCE_PCT_ADJ`",
+       "name": "oreb_chance_pct_adj",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVG_OREB_DIST`",
+       "name": "avg_oreb_dist",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DREB`",
+       "name": "dreb",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DREB_CONTEST`",
+       "name": "dreb_contest",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DREB_UNCONTEST`",
+       "name": "dreb_uncontest",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DREB_CONTEST_PCT`",
+       "name": "dreb_contest_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DREB_CHANCES`",
+       "name": "dreb_chances",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DREB_CHANCE_PCT`",
+       "name": "dreb_chance_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DREB_CHANCE_DEFER`",
+       "name": "dreb_chance_defer",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DREB_CHANCE_PCT_ADJ`",
+       "name": "dreb_chance_pct_adj",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVG_DREB_DIST`",
+       "name": "avg_dreb_dist",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `REB`",
+       "name": "reb",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `REB_CONTEST`",
+       "name": "reb_contest",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `REB_UNCONTEST`",
+       "name": "reb_uncontest",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `REB_CONTEST_PCT`",
+       "name": "reb_contest_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `REB_CHANCES`",
+       "name": "reb_chances",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `REB_CHANCE_PCT`",
+       "name": "reb_chance_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `REB_CHANCE_DEFER`",
+       "name": "reb_chance_defer",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `REB_CHANCE_PCT_ADJ`",
+       "name": "reb_chance_pct_adj",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVG_REB_DIST`",
+       "name": "avg_reb_dist",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per NBA player per game date, player tracking (rebound chances, contested and uncontested rebounds); the request key names the measure and the date (rebounding-YYYY-MM-DD).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/leaguedashptstats"
+     ],
+     "materialized": "incremental",
+     "name": "stats_leaguedashptstats_rebounding",
+     "notes": [
+      "Raw stats `leaguedashptstats` payloads, rebounding tracking for one game date (request keys rebounding-<date>), parsed to rows; values stay text until silver. NBA only."
+     ],
+     "read_by": [
+      "player_day_tracking"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2025-26)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload (game id, team id, date or season)",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the raw payload, matching the sidecar",
+       "name": "_payload_hash",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_ID`",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_NAME`",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ID`",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ABBREVIATION`",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GP`",
+       "name": "gp",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `W`",
+       "name": "w",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `L`",
+       "name": "l",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN`",
+       "name": "min",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DIST_FEET`",
+       "name": "dist_feet",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DIST_MILES`",
+       "name": "dist_miles",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DIST_MILES_OFF`",
+       "name": "dist_miles_off",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DIST_MILES_DEF`",
+       "name": "dist_miles_def",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVG_SPEED`",
+       "name": "avg_speed",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVG_SPEED_OFF`",
+       "name": "avg_speed_off",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVG_SPEED_DEF`",
+       "name": "avg_speed_def",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per NBA player per game date, player tracking (distance run and average speed); the request key names the measure and the date (speeddistance-YYYY-MM-DD).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/leaguedashptstats"
+     ],
+     "materialized": "incremental",
+     "name": "stats_leaguedashptstats_speeddistance",
+     "notes": [
+      "Raw stats `leaguedashptstats` payloads, speeddistance tracking for one game date (request keys speeddistance-<date>), parsed to rows; values stay text until silver. NBA only."
+     ],
+     "read_by": [
+      "player_day_tracking"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2025-26)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload (game id, team id, date or season)",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the raw payload, matching the sidecar",
+       "name": "_payload_hash",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
        "description": "Source column `SEASON_ID`",
        "name": "season_id",
        "tests": [],
@@ -3369,6 +4356,231 @@
      "read_by": [
       "team_game_box",
       "teams"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2025-26)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload (game id, team id, date or season)",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the raw payload, matching the sidecar",
+       "name": "_payload_hash",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_ID`",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_NAME`",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ID`",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ABBREVIATION`",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AGE`",
+       "name": "age",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `G`",
+       "name": "g",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN`",
+       "name": "min",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `CONTESTED_SHOTS`",
+       "name": "contested_shots",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `CONTESTED_SHOTS_2PT`",
+       "name": "contested_shots_2pt",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `CONTESTED_SHOTS_3PT`",
+       "name": "contested_shots_3pt",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DEFLECTIONS`",
+       "name": "deflections",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `CHARGES_DRAWN`",
+       "name": "charges_drawn",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `SCREEN_ASSISTS`",
+       "name": "screen_assists",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `SCREEN_AST_PTS`",
+       "name": "screen_ast_pts",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OFF_LOOSE_BALLS_RECOVERED`",
+       "name": "off_loose_balls_recovered",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DEF_LOOSE_BALLS_RECOVERED`",
+       "name": "def_loose_balls_recovered",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `LOOSE_BALLS_RECOVERED`",
+       "name": "loose_balls_recovered",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_LOOSE_BALLS_RECOVERED_OFF`",
+       "name": "pct_loose_balls_recovered_off",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_LOOSE_BALLS_RECOVERED_DEF`",
+       "name": "pct_loose_balls_recovered_def",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OFF_BOXOUTS`",
+       "name": "off_boxouts",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `DEF_BOXOUTS`",
+       "name": "def_boxouts",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `BOX_OUT_PLAYER_TEAM_REBS`",
+       "name": "box_out_player_team_rebs",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `BOX_OUT_PLAYER_REBS`",
+       "name": "box_out_player_rebs",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `BOX_OUTS`",
+       "name": "box_outs",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_BOX_OUTS_OFF`",
+       "name": "pct_box_outs_off",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_BOX_OUTS_DEF`",
+       "name": "pct_box_outs_def",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_BOX_OUTS_TEAM_REB`",
+       "name": "pct_box_outs_team_reb",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_BOX_OUTS_REB`",
+       "name": "pct_box_outs_reb",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per NBA player per game date, hustle totals (contested shots, deflections, charges drawn, screen assists, loose balls, box outs); the request key names the date (hustle-YYYY-MM-DD).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/leaguehustlestatsplayer"
+     ],
+     "materialized": "incremental",
+     "name": "stats_leaguehustlestatsplayer",
+     "notes": [
+      "Raw stats `leaguehustlestatsplayer` payloads for one game date (request keys hustle-<date>) parsed to rows; values stay text until silver. NBA only."
+     ],
+     "read_by": [
+      "player_day_tracking"
      ],
      "reads": [],
      "unit_tests": []
@@ -4260,7 +5472,7 @@
        "type": "varchar"
       }
      ],
-     "description": "One row per player per game from the season game log; the request key names the measure set (advanced-..., base-...).",
+     "description": "One row per player per game from the season game log, Advanced measure set (request keys advanced-...); Usage and Misc have their own models.",
      "exported_as": [],
      "grain": null,
      "landing": [
@@ -4269,10 +5481,736 @@
      "materialized": "incremental",
      "name": "stats_playergamelogs",
      "notes": [
-      "Raw stats `playergamelogs` payloads parsed to rows; values stay text until silver."
+      "Raw stats `playergamelogs` payloads of the Advanced measure set (request keys advanced-...) parsed to rows; values stay text until silver. Usage and Misc have their own models."
      ],
      "read_by": [
       "player_game_advanced"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2025-26)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload (game id, team id, date or season)",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the raw payload, matching the sidecar",
+       "name": "_payload_hash",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `SEASON_YEAR`",
+       "name": "season_year",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_ID`",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_NAME`",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `NICKNAME`",
+       "name": "nickname",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ID`",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ABBREVIATION`",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_NAME`",
+       "name": "team_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GAME_ID`",
+       "name": "game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GAME_DATE`",
+       "name": "game_date",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MATCHUP`",
+       "name": "matchup",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `WL`",
+       "name": "wl",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN`",
+       "name": "min",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_OFF_TOV`",
+       "name": "pts_off_tov",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_2ND_CHANCE`",
+       "name": "pts_2nd_chance",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_FB`",
+       "name": "pts_fb",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_PAINT`",
+       "name": "pts_paint",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OPP_PTS_OFF_TOV`",
+       "name": "opp_pts_off_tov",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OPP_PTS_2ND_CHANCE`",
+       "name": "opp_pts_2nd_chance",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OPP_PTS_FB`",
+       "name": "opp_pts_fb",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OPP_PTS_PAINT`",
+       "name": "opp_pts_paint",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `BLK`",
+       "name": "blk",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `BLKA`",
+       "name": "blka",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PF`",
+       "name": "pf",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PFD`",
+       "name": "pfd",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `NBA_FANTASY_PTS`",
+       "name": "nba_fantasy_pts",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GP_RANK`",
+       "name": "gp_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `W_RANK`",
+       "name": "w_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `L_RANK`",
+       "name": "l_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `W_PCT_RANK`",
+       "name": "w_pct_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN_RANK`",
+       "name": "min_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_OFF_TOV_RANK`",
+       "name": "pts_off_tov_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_2ND_CHANCE_RANK`",
+       "name": "pts_2nd_chance_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_FB_RANK`",
+       "name": "pts_fb_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PTS_PAINT_RANK`",
+       "name": "pts_paint_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OPP_PTS_OFF_TOV_RANK`",
+       "name": "opp_pts_off_tov_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OPP_PTS_2ND_CHANCE_RANK`",
+       "name": "opp_pts_2nd_chance_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OPP_PTS_FB_RANK`",
+       "name": "opp_pts_fb_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `OPP_PTS_PAINT_RANK`",
+       "name": "opp_pts_paint_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `BLK_RANK`",
+       "name": "blk_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `BLKA_RANK`",
+       "name": "blka_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PF_RANK`",
+       "name": "pf_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PFD_RANK`",
+       "name": "pfd_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `NBA_FANTASY_PTS_RANK`",
+       "name": "nba_fantasy_pts_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVAILABLE_FLAG`",
+       "name": "available_flag",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN_SEC`",
+       "name": "min_sec",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_COUNT`",
+       "name": "team_count",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per player per game from the season game log, Misc measure set: points by situation, fouls drawn and blocks against (request keys misc-...).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/playergamelogs"
+     ],
+     "materialized": "incremental",
+     "name": "stats_playergamelogs_misc",
+     "notes": [
+      "Raw stats `playergamelogs` payloads of the Misc measure set (request keys misc-...) parsed to rows; values stay text until silver."
+     ],
+     "read_by": [
+      "player_game_misc"
+     ],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label from the landing path (2026 or 2025-26)",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date from the landing path",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Landing key of the payload (game id, team id, date or season)",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the raw payload, matching the sidecar",
+       "name": "_payload_hash",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `SEASON_YEAR`",
+       "name": "season_year",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_ID`",
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PLAYER_NAME`",
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `NICKNAME`",
+       "name": "nickname",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ID`",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_ABBREVIATION`",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_NAME`",
+       "name": "team_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GAME_ID`",
+       "name": "game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GAME_DATE`",
+       "name": "game_date",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MATCHUP`",
+       "name": "matchup",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `WL`",
+       "name": "wl",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN`",
+       "name": "min",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `USG_PCT`",
+       "name": "usg_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FGM`",
+       "name": "pct_fgm",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FGA`",
+       "name": "pct_fga",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FG3M`",
+       "name": "pct_fg3m",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FG3A`",
+       "name": "pct_fg3a",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FTM`",
+       "name": "pct_ftm",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FTA`",
+       "name": "pct_fta",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_OREB`",
+       "name": "pct_oreb",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_DREB`",
+       "name": "pct_dreb",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_REB`",
+       "name": "pct_reb",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_AST`",
+       "name": "pct_ast",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_TOV`",
+       "name": "pct_tov",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_STL`",
+       "name": "pct_stl",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_BLK`",
+       "name": "pct_blk",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_BLKA`",
+       "name": "pct_blka",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_PF`",
+       "name": "pct_pf",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_PFD`",
+       "name": "pct_pfd",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_PTS`",
+       "name": "pct_pts",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `GP_RANK`",
+       "name": "gp_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `W_RANK`",
+       "name": "w_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `L_RANK`",
+       "name": "l_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `W_PCT_RANK`",
+       "name": "w_pct_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN_RANK`",
+       "name": "min_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `USG_PCT_RANK`",
+       "name": "usg_pct_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FGM_RANK`",
+       "name": "pct_fgm_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FGA_RANK`",
+       "name": "pct_fga_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FG3M_RANK`",
+       "name": "pct_fg3m_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FG3A_RANK`",
+       "name": "pct_fg3a_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FTM_RANK`",
+       "name": "pct_ftm_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_FTA_RANK`",
+       "name": "pct_fta_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_OREB_RANK`",
+       "name": "pct_oreb_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_DREB_RANK`",
+       "name": "pct_dreb_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_REB_RANK`",
+       "name": "pct_reb_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_AST_RANK`",
+       "name": "pct_ast_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_TOV_RANK`",
+       "name": "pct_tov_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_STL_RANK`",
+       "name": "pct_stl_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_BLK_RANK`",
+       "name": "pct_blk_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_BLKA_RANK`",
+       "name": "pct_blka_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_PF_RANK`",
+       "name": "pct_pf_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_PFD_RANK`",
+       "name": "pct_pfd_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `PCT_PTS_RANK`",
+       "name": "pct_pts_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `AVAILABLE_FLAG`",
+       "name": "available_flag",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `MIN_SEC`",
+       "name": "min_sec",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source column `TEAM_COUNT`",
+       "name": "team_count",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per player per game from the season game log, Usage measure set: the player's share of the team's box score while on the floor (request keys usage-...).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "stats/playergamelogs"
+     ],
+     "materialized": "incremental",
+     "name": "stats_playergamelogs_usage",
+     "notes": [
+      "Raw stats `playergamelogs` payloads of the Usage measure set (request keys usage-...) parsed to rows; values stay text until silver."
+     ],
+     "read_by": [
+      "player_game_usage"
      ],
      "reads": [],
      "unit_tests": []
@@ -6133,6 +8071,7 @@
       "dim_player",
       "fct_event",
       "fct_player_game",
+      "fct_player_tracking",
       "game_xwalk"
      ],
      "reads": [
@@ -6524,6 +8463,439 @@
      ],
      "reads": [
       "league_injury_report"
+     ],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "wnba or nba (nba only in practice: the WNBA host serves no tracking)",
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2025-26)",
+       "name": "season",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Game date the totals cover, from the request key",
+       "name": "game_date",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "League stats API player id",
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id as the source reports it: the player's team when the payload was fetched, which for a player traded since is not the team on the game date (gold takes the team from the box score)",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Natural key: league, game date and player id; one row per player per game date",
+       "name": "player_day_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Minutes played, from the first tracking set that reports the player",
+       "name": "minutes",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Passes the player made",
+       "name": "passes_made",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes the player received",
+       "name": "passes_received",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Assists, as tracking counts them",
+       "name": "tracking_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes that led to free throws by the teammate fouled shooting",
+       "name": "free_throw_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes to the player who then made the assist (hockey assists)",
+       "name": "secondary_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes to a teammate who shot within one dribble: assists plus the misses that would have been one",
+       "name": "potential_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points scored off the player's assists",
+       "name": "assist_points_created",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Assists plus free throw and secondary assists",
+       "name": "adjusted_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Assists per pass made, decimal 0-1",
+       "name": "assist_to_pass_percentage",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Offensive rebounds taken with an opponent within 3.5 feet",
+       "name": "offensive_rebounds_contested",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Offensive rebounds the player was within 3.5 feet of",
+       "name": "offensive_rebound_chances",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Defensive rebounds taken with an opponent within 3.5 feet",
+       "name": "defensive_rebounds_contested",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Defensive rebounds the player was within 3.5 feet of",
+       "name": "defensive_rebound_chances",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebounds, as tracking counts them",
+       "name": "tracking_rebounds",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebounds taken with an opponent within 3.5 feet",
+       "name": "rebounds_contested",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebounds taken with no opponent within 3.5 feet",
+       "name": "rebounds_uncontested",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebounds the player was within 3.5 feet of",
+       "name": "rebound_chances",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebound chances the player left to a teammate who took the rebound",
+       "name": "rebound_chances_deferred",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Average distance from the basket of the player's rebounds, in feet",
+       "name": "average_rebound_distance",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Times the player touched and held the ball",
+       "name": "touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Touches in the offensive half of the court",
+       "name": "front_court_touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Minutes the player held the ball",
+       "name": "time_of_possession",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average seconds the player held the ball per touch",
+       "name": "average_seconds_per_touch",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average dribbles per touch",
+       "name": "average_dribbles_per_touch",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Touches at the elbows of the free throw line",
+       "name": "elbow_touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Touches in the post, with the back to the basket",
+       "name": "post_touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Touches in the paint",
+       "name": "paint_touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points, from the possessions tracking set",
+       "name": "tracking_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Drives: dribbles from 20 feet or more out to within 10 feet of the basket",
+       "name": "drives",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Field goals made by the player on drives",
+       "name": "drive_field_goals_made",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Field goals attempted by the player on drives",
+       "name": "drive_field_goals_attempted",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Free throws the player attempted from drives",
+       "name": "drive_free_throws_attempted",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the player scored on drives",
+       "name": "drive_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes the player made out of drives",
+       "name": "drive_passes",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Assists from passes out of drives",
+       "name": "drive_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Turnovers on drives",
+       "name": "drive_turnovers",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Fouls the player drew on drives",
+       "name": "drive_fouls_drawn",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Distance the player covered, in miles",
+       "name": "distance_miles",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Distance covered on offense, in miles",
+       "name": "distance_miles_offense",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Distance covered on defense, in miles",
+       "name": "distance_miles_defense",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average speed while on the floor, miles per hour",
+       "name": "average_speed",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average speed on offense, miles per hour",
+       "name": "average_speed_offense",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average speed on defense, miles per hour",
+       "name": "average_speed_defense",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Opponent shots the player contested",
+       "name": "contested_shots",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Opponent two-point shots the player contested",
+       "name": "contested_shots_2pt",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Opponent three-point shots the player contested",
+       "name": "contested_shots_3pt",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Opponent passes or dribbles the player got a hand on",
+       "name": "deflections",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Offensive fouls the player drew by taking a charge",
+       "name": "charges_drawn",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Screens that directly freed a teammate for a made field goal",
+       "name": "screen_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points scored off the player's screen assists",
+       "name": "screen_assist_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Loose balls the player recovered on offense",
+       "name": "loose_balls_recovered_offensive",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Loose balls the player recovered on defense",
+       "name": "loose_balls_recovered_defensive",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Loose balls the player recovered",
+       "name": "loose_balls_recovered",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs on offensive rebounds",
+       "name": "box_outs_offensive",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs on defensive rebounds",
+       "name": "box_outs_defensive",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs",
+       "name": "box_outs",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs after which the player's team took the rebound",
+       "name": "box_outs_team_rebounds",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs after which the player took the rebound",
+       "name": "box_outs_own_rebounds",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Newest ingest date among the sets joined into the row",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "One row per NBA player per game date: player tracking (passing, rebounding, touches, drives, speed and distance) and hustle totals, typed; the latest landing of each set wins. NBA only.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "player_day_tracking",
+     "notes": [
+      "One row per NBA player per game date: player tracking (passing, rebounding, touches, drives, speed and distance) and hustle totals. The source has no per-game form, so each set is landed one game date at a time (request keys like passing-2026-01-15); a player plays at most one game a day, so a player-date is a player-game. Each set keeps its latest landing per player and date; the sets are joined on every player-date any of them reports (the rebounding set leaves out players with no rebound chance, and hustle starts in 2015-16, so their columns can be null). The WNBA host serves none of this."
+     ],
+     "read_by": [
+      "fct_player_tracking"
+     ],
+     "reads": [
+      "stats_leaguedashptstats_drives",
+      "stats_leaguedashptstats_passing",
+      "stats_leaguedashptstats_possessions",
+      "stats_leaguedashptstats_rebounding",
+      "stats_leaguedashptstats_speeddistance",
+      "stats_leaguehustlestatsplayer"
      ],
      "unit_tests": []
     },
@@ -6992,6 +9364,7 @@
       "dim_player",
       "event_lineups",
       "fct_player_game",
+      "fct_player_tracking",
       "player_game_reconciliation",
       "player_xwalk",
       "player_xwalk_review",
@@ -6999,6 +9372,164 @@
      ],
      "reads": [
       "stats_boxscoretraditionalv3"
+     ],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "wnba or nba",
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2026 in the WNBA, 2025-26 in the NBA)",
+       "name": "season",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API game id",
+       "name": "game_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id",
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id of the player's team",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Natural key: league, game id and player id; one row per player per game",
+       "name": "player_game_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Minutes played as a decimal",
+       "name": "minutes",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points the player scored off opponent turnovers",
+       "name": "points_off_turnovers",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the player scored after an offensive rebound",
+       "name": "second_chance_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the player scored on fast breaks",
+       "name": "fast_break_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the player scored in the paint",
+       "name": "points_in_paint",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the opponent scored off turnovers while the player was on the floor",
+       "name": "opponent_points_off_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Second-chance points the opponent scored while the player was on the floor",
+       "name": "opponent_second_chance_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Fast-break points the opponent scored while the player was on the floor",
+       "name": "opponent_fast_break_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points in the paint the opponent scored while the player was on the floor",
+       "name": "opponent_points_in_paint",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Shots the player blocked",
+       "name": "blocks",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The player's shots that were blocked",
+       "name": "blocks_against",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Personal fouls the player committed",
+       "name": "fouls_personal",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Personal fouls the player drew",
+       "name": "fouls_drawn",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Ingest date of the landed game log the row came from",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Path of the landed payload the row came from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per player per game: points by situation, the opponent's while the player was on the floor, fouls drawn and blocks against (season game log, Misc measure set), typed.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "player_game_misc",
+     "notes": [
+      "One row per player per game: points by situation, the same for the opponent while the player was on the floor, fouls drawn and blocks against, from the season game log's Misc measure set (one request per season and season type, both leagues). Latest landing wins."
+     ],
+     "read_by": [
+      "fct_player_game"
+     ],
+     "reads": [
+      "stats_playergamelogs_misc"
      ],
      "unit_tests": []
     },
@@ -7263,6 +9794,200 @@
       "game_xwalk",
       "player_game_box",
       "player_xwalk"
+     ],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "wnba or nba",
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2026 in the WNBA, 2025-26 in the NBA)",
+       "name": "season",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API game id",
+       "name": "game_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id",
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id of the player's team",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Natural key: league, game id and player id; one row per player per game",
+       "name": "player_game_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Minutes played as a decimal",
+       "name": "minutes",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's possessions the player used while on the floor, decimal 0-1",
+       "name": "usage_percentage",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's made field goals while on the floor, decimal 0-1",
+       "name": "team_share_field_goals_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's field goal attempts while on the floor, decimal 0-1",
+       "name": "team_share_field_goals_attempted",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's made three-pointers while on the floor, decimal 0-1",
+       "name": "team_share_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's three-point attempts while on the floor, decimal 0-1",
+       "name": "team_share_three_pointers_attempted",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's made free throws while on the floor, decimal 0-1",
+       "name": "team_share_free_throws_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's free throw attempts while on the floor, decimal 0-1",
+       "name": "team_share_free_throws_attempted",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's offensive rebounds while on the floor, decimal 0-1",
+       "name": "team_share_rebounds_offensive",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's defensive rebounds while on the floor, decimal 0-1",
+       "name": "team_share_rebounds_defensive",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's rebounds while on the floor, decimal 0-1",
+       "name": "team_share_rebounds",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's assists while on the floor, decimal 0-1",
+       "name": "team_share_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's turnovers while on the floor, decimal 0-1",
+       "name": "team_share_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's steals while on the floor, decimal 0-1",
+       "name": "team_share_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's blocks while on the floor, decimal 0-1",
+       "name": "team_share_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's blocked shot attempts while on the floor, decimal 0-1",
+       "name": "team_share_blocks_against",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's personal fouls while on the floor, decimal 0-1",
+       "name": "team_share_fouls_personal",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the fouls the team drew while the player was on the floor, decimal 0-1",
+       "name": "team_share_fouls_drawn",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's points while on the floor, decimal 0-1",
+       "name": "team_share_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Ingest date of the landed game log the row came from",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Path of the landed payload the row came from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "One row per player per game: the player's share of the team's box score while on the floor (season game log, Usage measure set), typed. Shares are decimals 0-1.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "player_game_usage",
+     "notes": [
+      "One row per player per game: the player's share of the team's box score while on the floor, from the season game log's Usage measure set (one request per season and season type, both leagues). Shares are decimals 0-1. Latest landing wins."
+     ],
+     "read_by": [
+      "fct_player_game"
+     ],
+     "reads": [
+      "stats_playergamelogs_usage"
      ],
      "unit_tests": []
     },
@@ -9566,6 +12291,7 @@
       "fct_official_listing",
       "fct_player_game",
       "fct_player_status",
+      "fct_player_tracking",
       "fct_waiver_trend",
       "mart_board",
       "mart_streamers"
@@ -11198,6 +13924,84 @@
        "type": "double"
       },
       {
+       "description": "Share of the team's field goal attempts the player took while on the floor, decimal 0-1 (usage game log)",
+       "name": "team_share_field_goals_attempted",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's three-point attempts the player took while on the floor, decimal 0-1 (usage game log)",
+       "name": "team_share_three_pointers_attempted",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's free throw attempts the player took while on the floor, decimal 0-1 (usage game log)",
+       "name": "team_share_free_throws_attempted",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's rebounds the player took while on the floor, decimal 0-1 (usage game log)",
+       "name": "team_share_rebounds",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's assists the player made while on the floor, decimal 0-1 (usage game log)",
+       "name": "team_share_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's turnovers the player committed while on the floor, decimal 0-1 (usage game log)",
+       "name": "team_share_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of the team's points the player scored while on the floor, decimal 0-1 (usage game log)",
+       "name": "team_share_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Personal fouls the player drew (misc game log)",
+       "name": "fouls_drawn",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The player's shots that were blocked (misc game log)",
+       "name": "blocks_against",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the player scored in the paint (misc game log)",
+       "name": "points_in_paint",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the player scored on fast breaks (misc game log)",
+       "name": "fast_break_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the player scored after an offensive rebound (misc game log)",
+       "name": "second_chance_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the player scored off opponent turnovers (misc game log)",
+       "name": "points_off_turnovers",
+       "tests": [],
+       "type": "integer"
+      },
+      {
        "description": "Reconciliation verdict against ESPN (ADR 0005): exact, minor (minutes only, within one), conflict, or unverified when ESPN does not report the player-game",
        "name": "source_agreement",
        "tests": [
@@ -11236,7 +14040,7 @@
      "materialized": "table",
      "name": "fct_player_game",
      "notes": [
-      "Player × game: traditional box score with the advanced line joined, keyed to the dimensions. Where ESPN also reports the player-game, source_agreement carries the reconciliation verdict (exact, minor, conflict) and the resolution rule is applied: the league value wins, ESPN's fills in only where the league's is null (ADR 0005). Rows ESPN does not cover are 'unverified'."
+      "Player × game: traditional box score with the advanced line joined, keyed to the dimensions. The usage and misc game logs add the player's share of the team's box score while on the floor and fouls drawn, blocks against and points by situation (null where those logs have not landed). Where ESPN also reports the player-game, source_agreement carries the reconciliation verdict (exact, minor, conflict) and the resolution rule is applied: the league value wins, ESPN's fills in only where the league's is null (ADR 0005). Rows ESPN does not cover are 'unverified'."
      ],
      "read_by": [
       "fct_official_listing",
@@ -11250,7 +14054,9 @@
       "games",
       "player_game_advanced",
       "player_game_box",
-      "player_game_reconciliation"
+      "player_game_misc",
+      "player_game_reconciliation",
+      "player_game_usage"
      ],
      "unit_tests": []
     },
@@ -11505,6 +14311,485 @@
       "fct_availability",
       "official_injury_report",
       "teams"
+     ],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, game and player (the same key as fct_player_game)",
+       "name": "player_game_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Stint the game falls in (dim_player); null when the player has no stint covering the date",
+       "name": "player_sk",
+       "tests": [
+        "relationships"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Game (dim_game)",
+       "name": "game_sk",
+       "tests": [
+        "not_null",
+        "relationships"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Team-season of the player's team (dim_team)",
+       "name": "team_sk",
+       "tests": [
+        "relationships"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba (the WNBA host serves no tracking)",
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2025-26)",
+       "name": "season",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API game id",
+       "name": "game_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Date of the game",
+       "name": "game_date",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "League stats API player id",
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id of the player's team in that game, from the box score",
+       "name": "team_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "True when the player's team was the home side",
+       "name": "is_home",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "Minutes played, as tracking reports them",
+       "name": "minutes",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Passes the player made",
+       "name": "passes_made",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes the player received",
+       "name": "passes_received",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Assists, as tracking counts them",
+       "name": "tracking_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes that led to free throws by the teammate fouled shooting",
+       "name": "free_throw_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes to the player who then made the assist (hockey assists)",
+       "name": "secondary_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes to a teammate who shot within one dribble: assists plus the misses that would have been one",
+       "name": "potential_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points scored off the player's assists",
+       "name": "assist_points_created",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Assists plus free throw and secondary assists",
+       "name": "adjusted_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Assists per pass made, decimal 0-1",
+       "name": "assist_to_pass_percentage",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Offensive rebounds taken with an opponent within 3.5 feet",
+       "name": "offensive_rebounds_contested",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Offensive rebounds the player was within 3.5 feet of",
+       "name": "offensive_rebound_chances",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Defensive rebounds taken with an opponent within 3.5 feet",
+       "name": "defensive_rebounds_contested",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Defensive rebounds the player was within 3.5 feet of",
+       "name": "defensive_rebound_chances",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebounds, as tracking counts them",
+       "name": "tracking_rebounds",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebounds taken with an opponent within 3.5 feet",
+       "name": "rebounds_contested",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebounds taken with no opponent within 3.5 feet",
+       "name": "rebounds_uncontested",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebounds the player was within 3.5 feet of",
+       "name": "rebound_chances",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Rebound chances the player left to a teammate who took the rebound",
+       "name": "rebound_chances_deferred",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Average distance from the basket of the player's rebounds, in feet",
+       "name": "average_rebound_distance",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Times the player touched and held the ball",
+       "name": "touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Touches in the offensive half of the court",
+       "name": "front_court_touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Minutes the player held the ball",
+       "name": "time_of_possession",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average seconds the player held the ball per touch",
+       "name": "average_seconds_per_touch",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average dribbles per touch",
+       "name": "average_dribbles_per_touch",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Touches at the elbows of the free throw line",
+       "name": "elbow_touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Touches in the post, with the back to the basket",
+       "name": "post_touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Touches in the paint",
+       "name": "paint_touches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points, from the possessions tracking set",
+       "name": "tracking_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Drives: dribbles from 20 feet or more out to within 10 feet of the basket",
+       "name": "drives",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Field goals made by the player on drives",
+       "name": "drive_field_goals_made",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Field goals attempted by the player on drives",
+       "name": "drive_field_goals_attempted",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Free throws the player attempted from drives",
+       "name": "drive_free_throws_attempted",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points the player scored on drives",
+       "name": "drive_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Passes the player made out of drives",
+       "name": "drive_passes",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Assists from passes out of drives",
+       "name": "drive_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Turnovers on drives",
+       "name": "drive_turnovers",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Fouls the player drew on drives",
+       "name": "drive_fouls_drawn",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Distance the player covered, in miles",
+       "name": "distance_miles",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Distance covered on offense, in miles",
+       "name": "distance_miles_offense",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Distance covered on defense, in miles",
+       "name": "distance_miles_defense",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average speed while on the floor, miles per hour",
+       "name": "average_speed",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average speed on offense, miles per hour",
+       "name": "average_speed_offense",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average speed on defense, miles per hour",
+       "name": "average_speed_defense",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Opponent shots the player contested",
+       "name": "contested_shots",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Opponent two-point shots the player contested",
+       "name": "contested_shots_2pt",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Opponent three-point shots the player contested",
+       "name": "contested_shots_3pt",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Opponent passes or dribbles the player got a hand on",
+       "name": "deflections",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Offensive fouls the player drew by taking a charge",
+       "name": "charges_drawn",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Screens that directly freed a teammate for a made field goal",
+       "name": "screen_assists",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Points scored off the player's screen assists",
+       "name": "screen_assist_points",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Loose balls the player recovered on offense",
+       "name": "loose_balls_recovered_offensive",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Loose balls the player recovered on defense",
+       "name": "loose_balls_recovered_defensive",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Loose balls the player recovered",
+       "name": "loose_balls_recovered",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs on offensive rebounds",
+       "name": "box_outs_offensive",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs on defensive rebounds",
+       "name": "box_outs_defensive",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs",
+       "name": "box_outs",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs after which the player's team took the rebound",
+       "name": "box_outs_team_rebounds",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Box outs after which the player took the rebound",
+       "name": "box_outs_own_rebounds",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Newest ingest date among the tracking sets joined into the row",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "Player × game tracking and hustle totals, NBA only: passes and potential assists, rebound chances, touches and time of possession, drives, distance and speed, deflections, contested shots and box outs. Joined to the game the player's box score puts on that date. Inputs for later backtests.",
+     "exported_as": [
+      "fct_player_tracking.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "player_id"
+      ],
+      "key": "player_game_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_player_tracking",
+     "notes": [
+      "Player x game tracking and hustle totals, NBA only (the WNBA host serves no tracking). The source reports by game date; a player plays at most one game a day, so the game is the one the player's box score puts on that date. The source's team is the player's team when it was fetched, not on the game date (a player traded since shows the new team), so the game and the team come from the box score, never from the tracking row. These are inputs for later backtests; no projection reads them yet."
+     ],
+     "read_by": [],
+     "reads": [
+      "dim_player",
+      "games",
+      "player_day_tracking",
+      "player_game_box"
      ],
      "unit_tests": []
     },
@@ -15386,6 +18671,24 @@
    "column": "team_sk",
    "field": "team_sk",
    "from": "fct_player_game",
+   "to": "dim_team"
+  },
+  {
+   "column": "game_sk",
+   "field": "game_sk",
+   "from": "fct_player_tracking",
+   "to": "dim_game"
+  },
+  {
+   "column": "player_sk",
+   "field": "player_sk",
+   "from": "fct_player_tracking",
+   "to": "dim_player"
+  },
+  {
+   "column": "team_sk",
+   "field": "team_sk",
+   "from": "fct_player_tracking",
    "to": "dim_team"
   },
   {
