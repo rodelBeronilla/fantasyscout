@@ -10057,7 +10057,7 @@
      "name": "fct_team_game_context",
      "notes": [
       "The circumstances of each team's games, played and scheduled: days of rest before the game, the second night of a back-to-back, a third game in four nights, the miles travelled from the previous game's city, the time zones crossed, and the altitude of the venue.",
-      "The venue is the game's arena city (silver.schedule), placed by the venues seed (latitude, longitude, elevation, standard UTC offset); a city missing from the seed leaves travel and altitude null and warn_venue_cities lists it. Travel is the great-circle distance between the two venues, so a home stand after a road trip counts the flight home. Only regular-season, play-in, playoff and cup-final games count, and an \"if necessary\" game is left out until it is confirmed."
+      "The venue is the game's arena city (silver.schedule), placed by the venues seed (latitude, longitude, elevation, standard UTC offset); a city missing from the seed leaves travel and altitude null and warn_venue_cities lists it. Travel is the great-circle distance between the two venues, so a home stand after a road trip counts the flight home. Only regular-season, play-in, playoff and cup-final games count, and an \"if necessary\" game is left out until it is confirmed, as is a knockout game whose teams are not decided yet (the schedule lists them as 0)."
      ],
      "read_by": [
       "mart_schedule_upcoming"

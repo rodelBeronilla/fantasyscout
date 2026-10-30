@@ -8,7 +8,7 @@
   altitude null and warn_venue_cities lists it. Travel is the great-circle distance between the
   two venues, so a home stand after a road trip counts the flight home. Only regular-season,
   play-in, playoff and cup-final games count, and an "if necessary" game is left out until it is
-  confirmed.
+  confirmed, as is a knockout game whose teams are not decided yet (the schedule lists them as 0).
 #}
 
 with sides as (
@@ -17,11 +17,13 @@ with sides as (
         home_team_id as team_id, away_team_id as opponent_id, true as is_home
     from {{ ref('schedule') }}
     where game_type in ('regular', 'play_in', 'playoffs', 'tournament_final') and not coalesce(if_necessary, false)
+        and coalesce(home_team_id, '0') <> '0' and coalesce(away_team_id, '0') <> '0'
     union all
     select league, season, game_id, game_date_est, game_type, arena_city, is_neutral,
         away_team_id, home_team_id, false
     from {{ ref('schedule') }}
     where game_type in ('regular', 'play_in', 'playoffs', 'tournament_final') and not coalesce(if_necessary, false)
+        and coalesce(home_team_id, '0') <> '0' and coalesce(away_team_id, '0') <> '0'
 
 ),
 
