@@ -242,6 +242,8 @@ assembled as (
         lu.is_confirmed as lineup_confirmed,
         mk.market_rank,
         mk.ownership_bucket,
+        ts.stakes as team_stakes,
+        coalesce(ts.rest_risk, false) as rest_risk,
         case
             when coalesce(ls.season_complete, true) or coalesce(r.games_remaining, 0) = 0 or i.espn_status_group is null then 1.0
             else greatest(0.0, (r.games_remaining - case i.espn_status_group
@@ -270,6 +272,7 @@ assembled as (
     left join games_before_return as gbr on gbr.league = v.league and gbr.stats_player_id = v.player_id
     left join {{ ref('fct_starting_lineup') }} as lu on lu.league = v.league and lu.player_id = v.player_id
     left join {{ ref('fct_market_value') }} as mk on mk.league = v.league and mk.stats_player_id = v.player_id
+    left join {{ ref('fct_team_stakes') }} as ts on ts.league = v.league and ts.team_id = v.team_id
     left join season_lines as sl on sl.league = v.league and sl.player_id = v.player_id and sl.window_name = 'season'
     left join season_lines as rc on rc.league = v.league and rc.player_id = v.player_id and rc.window_name = 'last_10'
     left join season_lines as l20 on l20.league = v.league and l20.player_id = v.player_id and l20.window_name = 'last_20'
@@ -349,6 +352,8 @@ select
     lineup_confirmed,
     market_rank,
     ownership_bucket,
+    team_stakes,
+    rest_risk,
     availability_multiplier,
     games_remaining,
     games_next_7,

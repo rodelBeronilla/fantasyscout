@@ -8,7 +8,7 @@ import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortD
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
-import { Card, Chip, InjuryTag, LineupTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
+import { Card, Chip, InjuryTag, LineupTag, Loading, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface StreamerRow {
   player_id: string;
@@ -17,6 +17,8 @@ interface StreamerRow {
   lineup_confirmed?: boolean | null;
   /** How widely ESPN leagues roster the player: most, many, some, few or rare. */
   ownership_bucket?: string | null;
+  /** The team has nothing left to play for in the last stretch (fct_team_stakes). */
+  rest_risk?: boolean | null;
   full_name: string | null;
   position: string | null;
   team_id: string | null;
@@ -619,6 +621,7 @@ export default function Streamers() {
                       </a>
                       {r.is_new_team && <NewTeam from={r.prev_team_abbreviation} />}
                       <LineupTag role={r.lineup_role} confirmed={r.lineup_confirmed} />
+                      <RestRiskTag risk={r.rest_risk} />
                       <InjuryTag group={r.injury_group} status={r.injury_status} />
                     </span>
                   </Td>

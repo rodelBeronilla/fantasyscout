@@ -46,6 +46,7 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
         "playbyplayv3",
         "shotchartdetail",
         "commonteamroster",
+        "leaguestandingsv3",
     ),
     "espn": (
         "scoreboard",

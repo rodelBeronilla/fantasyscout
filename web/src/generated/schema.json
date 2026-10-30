@@ -259,7 +259,7 @@
   "fantasy_recent_minutes": 0.5,
   "fantasy_team_change": 0.25
  },
- "generic_tests": 233,
+ "generic_tests": 238,
  "layers": [
   {
    "models": [
@@ -2791,6 +2791,151 @@
      "read_by": [
       "team_game_box",
       "teams"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Season type of the standings",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "SHA-256 of the landed payload",
+       "name": "_payload_hash",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Team city",
+       "name": "team_city",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Team name",
+       "name": "team_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "East or West",
+       "name": "conference",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Place in the conference",
+       "name": "playoff_rank",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The league's clinch mark, such as ' - x'",
+       "name": "clinch_indicator",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Wins",
+       "name": "wins",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Losses",
+       "name": "losses",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Winning percentage",
+       "name": "win_pct",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Record over the last ten games",
+       "name": "last_10",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Current streak, such as W 3",
+       "name": "current_streak",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Games behind the conference leader",
+       "name": "conference_games_back",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "1 when the conference title is clinched",
+       "name": "clinched_conference",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "1 when a playoff place is clinched",
+       "name": "clinched_playoffs",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "1 when a play-in place is clinched",
+       "name": "clinched_play_in",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "1 when eliminated from the race",
+       "name": "eliminated",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The league's regular-season standings, one row per team per landing.",
+     "materialized": "incremental",
+     "name": "stats_leaguestandingsv3",
+     "notes": [],
+     "read_by": [
+      "standings"
      ],
      "reads": []
     },
@@ -7096,6 +7241,7 @@
      "read_by": [
       "dim_game",
       "fct_team_game_context",
+      "fct_team_stakes",
       "mart_board",
       "mart_player_projection",
       "mart_schedule_upcoming"
@@ -7300,6 +7446,146 @@
      ],
      "reads": [
       "stats_shotchartdetail"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League, season and team",
+       "name": "standings_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_city",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "conference",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "playoff_rank",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "clinch_indicator",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "wins",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "losses",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "win_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "current_streak",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "conference_games_back",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "clinched_conference",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "clinched_playoffs",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "clinched_play_in",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "eliminated",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "observed_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "The league's regular-season standings per team, from the latest landing per league-season.",
+     "materialized": "table",
+     "name": "standings",
+     "notes": [
+      "The league's regular-season standings per team, from the latest landing per league-season."
+     ],
+     "read_by": [
+      "fct_team_stakes"
+     ],
+     "reads": [
+      "stats_leaguestandingsv3"
      ]
     },
     {
@@ -10072,6 +10358,123 @@
      "columns": [
       {
        "description": "Surrogate key",
+       "name": "team_stakes_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "conference",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "playoff_rank",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "wins",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "losses",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "conference_games_back",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "last_10",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "current_streak",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "eliminated, clinched or racing",
+       "name": "stakes",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "games_left",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "True for a clinched or eliminated team with 10 or fewer games left (6 in the WNBA)",
+       "name": "rest_risk",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "observed_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "What each team still has to play for in its current season: eliminated, clinched or racing, the games left, and a late-season rest risk for a team with nothing to play for.",
+     "materialized": "table",
+     "name": "fct_team_stakes",
+     "notes": [
+      "What each team still has to play for in its current regular season, from the league standings:",
+      "- stakes: eliminated (out of the playoff and play-in race), clinched (a playoff place is secured), or racing;",
+      "- games_left: regular-season games still to play;",
+      "- rest_risk: a team with nothing left to play for in the last stretch (10 or fewer games in the NBA, 6 in the WNBA). A clinched team rests its stars; an eliminated one plays its young players. Either way, a regular's minutes are less certain."
+     ],
+     "read_by": [
+      "mart_board",
+      "mart_streamers"
+     ],
+     "reads": [
+      "schedule",
+      "standings"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key",
        "name": "transaction_sk",
        "tests": [
         "not_null",
@@ -10774,6 +11177,18 @@
        "type": "varchar"
       },
       {
+       "description": "What the player's team still plays for: eliminated, clinched or racing (fct_team_stakes)",
+       "name": "team_stakes",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "True when the player's team has nothing left to play for in the last stretch",
+       "name": "rest_risk",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
        "description": "Share of the team's remaining regular-season games the player is expected to play (1.0 once the regular season is over)",
        "name": "availability_multiplier",
        "tests": [
@@ -10870,6 +11285,7 @@
       "fct_market_value",
       "fct_player_status",
       "fct_starting_lineup",
+      "fct_team_stakes",
       "mart_category_zscores",
       "mart_player_projection",
       "schedule",
@@ -12113,6 +12529,12 @@
        "name": "ownership_bucket",
        "tests": [],
        "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "rest_risk",
+       "tests": [],
+       "type": "boolean"
       }
      ],
      "description": "Players active in the league's current season with games in the next seven days, the minutes and value trend, recent production and injury status.",
@@ -12131,6 +12553,7 @@
       "fct_player_game",
       "fct_player_status",
       "fct_starting_lineup",
+      "fct_team_stakes",
       "mart_board",
       "mart_category_zscores",
       "mart_player_rolling",

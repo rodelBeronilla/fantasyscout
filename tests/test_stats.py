@@ -92,7 +92,9 @@ def test_planner_requests_have_stable_keys_and_required_params() -> None:
         "commonallplayers",
         "leaguegamelog",
         "playergamelogs",
+        "leaguestandingsv3",
     }
+    assert season["leaguestandingsv3"].params["SeasonType"] == "Regular Season"
     assert season["playergamelogs"].key == "advanced-regular-season"
     assert season["playergamelogs"].params["MeasureType"] == "Advanced"
     assert season["playergamelogs"].key == "advanced-regular-season"
@@ -150,7 +152,7 @@ def test_run_lands_everything_then_reruns_as_a_no_op(tmp_path: Path) -> None:
     first = StatsIngestor(
         fixture_client(), Landing(LocalBackend(tmp_path), ingest_date=now.date()), planner, now=now
     ).run()
-    expected = 4 + 3 * len(games) + len(teams)
+    expected = 5 + 3 * len(games) + len(teams)
     assert first.ok, first.failures
     assert first.games == len(games)
     assert first.landed == expected and first.unchanged == 0 and first.skipped == 0
@@ -201,7 +203,7 @@ def test_failed_endpoint_is_recorded_and_the_rest_still_lands(tmp_path: Path) ->
     assert len(summary.failures) == len(games)
     assert {f.endpoint for f in summary.failures} == {"playbyplayv3"}
     assert "HTTP 500" in summary.failures[0].reason
-    assert summary.landed == 4 + 2 * len(games) + len(every_team())
+    assert summary.landed == 5 + 2 * len(games) + len(every_team())
     text = "\n".join(describe(summary))
     assert "failed playbyplayv3/" in text and f"{len(games)} games in window" in text
 
@@ -214,9 +216,9 @@ def test_gamelog_failure_stops_game_planning_but_rosters_still_land(tmp_path: Pa
         StatsPlanner("wnba", "2026"),
         now=now,
     ).run()
-    # The other three season requests, then a roster per team in the player directory.
+    # The other four season requests, then a roster per team in the player directory.
     directory = teams_in_payload(fixture("commonallplayers"))
-    assert summary.games == 0 and summary.landed == 3 + len(directory)
+    assert summary.games == 0 and summary.landed == 4 + len(directory)
     assert [f.endpoint for f in summary.failures] == ["leaguegamelog"]
     rosters = {
         p.stem for p in (tmp_path / "landing/stats/commonteamroster/wnba/2026").rglob("*.json")
@@ -242,7 +244,7 @@ def test_team_season_scope_fetches_shots_once_per_team(tmp_path: Path) -> None:
         fixture_client(), Landing(LocalBackend(tmp_path), ingest_date=now.date()), planner, now=now
     ).run()
     assert summary.ok, summary.failures
-    assert summary.landed == 4 + 2 * len(games) + len(teams) + len(every_team())
+    assert summary.landed == 5 + 2 * len(games) + len(teams) + len(every_team())
     assert (tmp_path / "landing/stats/shotchartdetail/wnba/2026/2026-10-27").exists()
     assert not any(
         p.name.startswith("1022")
@@ -277,8 +279,8 @@ def test_open_circuit_stops_the_run_and_keeps_what_landed(tmp_path: Path) -> Non
     ).run()
     assert not summary.ok
     assert summary.aborted is not None and "likely blocked" in summary.aborted
-    assert summary.landed >= 4 + 1, "season payloads and the first box score landed before the stop"
-    assert calls <= 4 + 1 + 2, "no further requests after the circuit opened"
+    assert summary.landed >= 5 + 1, "season payloads and the first box score landed before the stop"
+    assert calls <= 5 + 1 + 2, "no further requests after the circuit opened"
     assert summary.pacing["stats.wnba.com"]["slowdowns"] >= 1
     text = "\n".join(describe(summary))
     assert "ABORTED" in text and "pacing stats.wnba.com" in text
