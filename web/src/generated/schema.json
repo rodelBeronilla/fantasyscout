@@ -10103,6 +10103,66 @@
        "name": "sleeper_drops",
        "tests": [],
        "type": "bigint"
+      },
+      {
+       "description": "What an average game of the player's last ten adds to the category totals (mart_streamers; players on the streamers list)",
+       "name": "last_10_production",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Games the player was expected to miss, from past listings with the same status and reason",
+       "name": "expected_games_missed",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The league's official report status for the player's next game, where listed",
+       "name": "official_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The official report's reason: injury, rest, g_league, personal, suspension, not_with_team or other",
+       "name": "official_reason_group",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "rising or falling ESPN ownership at the snapshot",
+       "name": "ownership_trend",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Share of ESPN leagues rostering the player at the snapshot (0 to 100; private, never published)",
+       "name": "percent_owned",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Share of ESPN leagues starting the player at the snapshot (0 to 100)",
+       "name": "percent_started",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "ESPN's change in percent owned, in percentage points",
+       "name": "percent_owned_change",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "ESPN average draft position at the snapshot",
+       "name": "average_draft_position",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "ESPN average auction value at the snapshot",
+       "name": "auction_value_average",
+       "tests": [],
+       "type": "double"
       }
      ],
      "description": "A daily ledger of the board: one row per Eastern date, league and player with the projection, the value and the context shown beside it. Merged by every build and never rebuilt by a full refresh, so it keeps the history the published builds roll off.",
@@ -10122,10 +10182,12 @@
      "materialized": "incremental",
      "name": "fct_board_history",
      "notes": [
-      "A daily ledger of the board: what the board said about each player on each Eastern date, kept after the builds that published it roll off. Every build merges today's rows (a later build the same day replaces them), and a full refresh never rebuilds it (full_refresh=false), so the history only grows. It holds the projection and value, and the context the board shows beside the value (availability, lineups, market, stakes, waiver heat, the newest headline flag), so the signals that have only days of history so far can be backtested once they have a season."
+      "A daily ledger of the board: what the board said about each player on each Eastern date, kept after the builds that published it roll off. Every build merges today's rows (a later build the same day replaces them), and a full refresh never rebuilds it (full_refresh=false), so the history only grows. It holds the projection and value, and the context the board shows beside the value (availability with the official status and reason, lineups, the ESPN market with its raw shares, stakes, waiver heat, last-ten production, the newest headline flag), so the signals that have only days of history so far can be backtested once they have a season."
      ],
      "read_by": [],
      "reads": [
+      "fct_market_value",
+      "fct_player_status",
       "mart_board",
       "mart_streamers"
      ],
@@ -10715,6 +10777,7 @@
       "- ownership_trend: rising when ESPN's ownership change is a point or more, falling at minus a point or less (about one player in twenty either way): the waiver signal for both leagues. The raw shares and positions stay in this table; the site shows the rank and the buckets."
      ],
      "read_by": [
+      "fct_board_history",
       "mart_board",
       "mart_streamers"
      ],
@@ -11433,6 +11496,7 @@
       "Official rows are linked to the league player id by name within the team, the team by its full name. An official \"Available\" clears the status for that game."
      ],
      "read_by": [
+      "fct_board_history",
       "mart_board",
       "mart_streamers"
      ],

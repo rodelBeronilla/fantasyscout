@@ -77,6 +77,26 @@ models:
         description: "True when the team had nothing left to play for in the last stretch"
       - name: news_flag
         description: "Flag of the newest flagged ESPN headline about the player in the three days before the snapshot"
+      - name: last_10_production
+        description: "What an average game of the player's last ten adds to the category totals (mart_streamers; players on the streamers list)"
+      - name: expected_games_missed
+        description: "Games the player was expected to miss, from past listings with the same status and reason"
+      - name: official_status
+        description: "The league's official report status for the player's next game, where listed"
+      - name: official_reason_group
+        description: "The official report's reason: injury, rest, g_league, personal, suspension, not_with_team or other"
+      - name: ownership_trend
+        description: "rising or falling ESPN ownership at the snapshot"
+      - name: percent_owned
+        description: "Share of ESPN leagues rostering the player at the snapshot (0 to 100; private, never published)"
+      - name: percent_started
+        description: "Share of ESPN leagues starting the player at the snapshot (0 to 100)"
+      - name: percent_owned_change
+        description: "ESPN's change in percent owned, in percentage points"
+      - name: average_draft_position
+        description: "ESPN average draft position at the snapshot"
+      - name: auction_value_average
+        description: "ESPN average auction value at the snapshot"
       - name: minutes_trend
         description: "Minutes over the last five games minus the baseline (players on the streamers list)"
       - name: value_trend
