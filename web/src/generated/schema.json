@@ -8700,7 +8700,7 @@
      "materialized": "table",
      "name": "dim_date",
      "notes": [
-      "One row per calendar date from the first backfilled season through next year."
+      "One row per calendar date from the first backfilled season through 2030."
      ],
      "read_by": [],
      "reads": [

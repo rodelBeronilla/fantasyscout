@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
 import { fetchBuildJson, type League } from '../lib/data';
@@ -290,17 +290,19 @@ export default function Board() {
   }, [rows, view, activeCats, restOfSeason, countGames, leagueCats, leaguePoints, weights]);
 
   // Position ranks and tiers, over every player in the current value order.
-  const { posRank, tiers } = useMemo(() => {
+  const { posRank, overall, tiers } = useMemo(() => {
     const order = [...scored].filter((s) => s.value !== null).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
     const counts = new Map<string, number>();
     const rank = new Map<string, string>();
+    // Overall rank under this league's settings, for the gap to the market.
+    const overall = new Map(order.map((s, i) => [s.row.player_id, i + 1]));
     for (const s of order) {
       const p = primaryPosition(s.row.position);
       if (!p) continue;
       counts.set(p, (counts.get(p) ?? 0) + 1);
       rank.set(s.row.player_id, `${p}${counts.get(p)}`);
     }
-    if (view !== 'value') return { posRank: rank, tiers: null };
+    if (view !== 'value') return { posRank: rank, overall, tiers: null };
     const list = leagueTiers(order.map((s) => s.value ?? 0), setup.teams, setup.rosterSpots);
     const of = new Map<string, number>();
     const left = new Map<number, number>();
@@ -309,8 +311,18 @@ export default function Board() {
       for (const s of members) of.set(s.row.player_id, t.tier);
       left.set(t.tier, members.filter((s) => !owner.has(s.row.player_id)).length);
     }
-    return { posRank: rank, tiers: { list, of, left } };
+    return { posRank: rank, overall, tiers: { list, of, left } };
   }, [scored, view, setup.teams, setup.rosterSpots, owner]);
+
+  // The market's rank against this board's, under the league's settings (the export's market_gap is
+  // the default league's).
+  const marketGap = useCallback(
+    (r: BoardRow): number | null => {
+      const here = overall.get(r.player_id);
+      return r.market_rank == null || here === undefined ? null : r.market_rank - here;
+    },
+    [overall],
+  );
 
   const ranked = useMemo(() => {
     const q = query.toLowerCase();
@@ -330,13 +342,14 @@ export default function Board() {
       if (sortKey === 'value') return s.value;
       if (sortKey === 'fit') return s.fit;
       if (sortKey === 'fpts') return leaguePoints?.get(s.row.player_id)?.fpts ?? null;
+      if (sortKey === 'market_gap') return marketGap(s.row);
       if (sortKey === 'name') return s.row.full_name;
       if (sortKey === 'team') return s.row.team_abbreviation;
       if (sortKey === 'pos') return s.row.position;
       return num(s.row, sortKey);
     };
     return sortRows(filtered, get, sortDir);
-  }, [scored, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly, watched, show, owner, setup.mine, query, sortKey, sortDir, view, leaguePoints]);
+  }, [scored, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly, watched, show, owner, setup.mine, query, sortKey, sortDir, view, leaguePoints, marketGap]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
@@ -539,7 +552,9 @@ export default function Board() {
         )}
         {showMarket && (
           <Td right>
-            <Signed value={row.market_gap ?? null} digits={0} />
+            <span data-testid="market-gap">
+              <Signed value={marketGap(row)} digits={0} />
+            </span>
           </Td>
         )}
         {!isLine(view) && (
@@ -852,7 +867,7 @@ export default function Board() {
                   active={sortKey === 'market_rank'}
                   dir={sortDir}
                   onClick={() => sortBy('market_rank', 'asc')}
-                  title="Where ESPN fantasy drafters take the player (by average draft position); the tooltip says how widely ESPN leagues roster him"
+                  title="Where ESPN fantasy drafters take the player (by average draft position); the tooltip says how widely ESPN leagues roster the player"
                 >
                   Mkt
                 </SortTh>
@@ -863,7 +878,7 @@ export default function Board() {
                   active={sortKey === 'market_gap'}
                   dir={sortDir}
                   onClick={() => sortBy('market_gap')}
-                  title="Market rank minus the board's rank: positive when drafters take the player later than he is worth here (a value), negative when they reach"
+                  title="Market rank minus the player's rank on this board with your league's settings: positive when drafters take the player later than the value here (a bargain), negative when they reach"
                 >
                   vs Mkt
                 </SortTh>

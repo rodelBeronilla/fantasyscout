@@ -127,7 +127,7 @@ function RecentMoves({ moves, league, start }: { moves: Move[]; league: League; 
   return (
     <Card title="Recent moves" id="moves">
       <p className="mb-2 text-xs text-muted">
-        Signings, waivers, trades and G League moves of the last two weeks: a new role on a new team, or minutes opening up behind a player who left.
+        Signings, waivers, trades{league === 'nba' ? ' and G League moves' : ''} of the last two weeks: a new role on a new team, or minutes opening up behind a player who left.
       </p>
       <ul className="grid gap-1 text-sm" data-testid="recent-moves">
         {recent.map((m) => (
@@ -169,7 +169,7 @@ interface Candidate extends StreamerRow {
   implied_points: number | null;
   /** Last-ten value per game over the window's games, plus each game's matchup. */
   window_value: number | null;
-  /** Sleeper leagues that added the player minus those that dropped him, over the last day. */
+  /** Sleeper leagues that added the player minus those that dropped the player, over the last day. */
   sleeper_net: number | null;
 }
 
@@ -184,7 +184,7 @@ function WaiverHeat({ row }: { row: Candidate }) {
   if (row.sleeper_net === null) return <span className="text-muted">–</span>;
   const n = row.sleeper_net;
   const cls = n > 0 ? 'text-good' : n < 0 ? 'text-bad' : '';
-  const title = `${(row.sleeper_adds ?? 0).toLocaleString()} Sleeper leagues added him and ${(row.sleeper_drops ?? 0).toLocaleString()} dropped him in the last day`;
+  const title = `${(row.sleeper_adds ?? 0).toLocaleString()} Sleeper leagues added the player and ${(row.sleeper_drops ?? 0).toLocaleString()} dropped the player in the last day`;
   return (
     <span className={cls} title={title} data-testid="waiver-heat">
       {n > 0 ? '+' : n < 0 ? '−' : ''}
@@ -643,8 +643,8 @@ export default function Streamers() {
                 {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
                 {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
                 {inWeek && col('window_value', 'Window value', 'Last-ten value per game times games in the window, plus each game’s matchup')}
-                {hasHeat && col('sleeper_net', 'Sleeper', 'Sleeper leagues that added the player minus those that dropped him, last 24 hours (from Sleeper)')}
-                {col('board_rank', 'Board #', 'Rank on the board; inside a league-sized pool usually means rostered')}
+                {hasHeat && col('sleeper_net', 'Sleeper', 'Sleeper leagues that added the player minus those that dropped the player, last 24 hours (from Sleeper)')}
+                {col('board_rank', 'Board #', 'Rank on the board with the default league settings (12 teams of 13 in the NBA, 10 of 10 in the WNBA); inside a league-sized pool usually means rostered')}
                 <Th>Last game</Th>
               </tr>
             </thead>

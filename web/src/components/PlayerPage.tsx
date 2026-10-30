@@ -90,6 +90,9 @@ interface PlayerFile {
     injury_note?: string | null;
     injury_news?: string | null;
     injury_since?: string | null;
+    /** official (the league's report for the next game) or espn. */
+    injury_source?: string | null;
+    official_game_date?: string | null;
   } | null;
   /** The player's signings, waivers and trades from the league's feed, newest first (NBA). */
   moves?: { transaction_date: string; team_abbreviation: string | null; move_type: string; description: string }[];
@@ -164,7 +167,11 @@ function InjuryCard({
             ))}
           </ol>
         )}
-        <p className="text-xs text-muted">From ESPN&apos;s daily injury report.</p>
+        <p className="text-xs text-muted">
+          {board.injury_source === 'official' && board.official_game_date
+            ? `From the league's official injury report for ${day(board.official_game_date)}; the history is ESPN's daily listing.`
+            : "From ESPN's daily injury listing."}
+        </p>
       </div>
     </Card>
   );
@@ -229,7 +236,7 @@ export default function PlayerPage() {
           {[player.position, player.height, player.weight_lbs ? `${player.weight_lbs} lb` : null, player.school]
             .filter(Boolean)
             .join(' · ')}
-          {player.board ? ` · Board rank #${player.board.rank_total}` : ''}
+          {player.board ? ` · Board rank #${player.board.rank_total} (default league)` : ''}
           {player.last_game_date ? ` · Last game ${day(player.last_game_date)}` : ''}
         </p>
       </header>
