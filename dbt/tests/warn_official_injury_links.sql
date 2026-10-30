@@ -9,5 +9,5 @@ left join {{ ref('fct_player_status') }} as s
     on s.league = o.league and s.official_game_date = o.game_date and s.official_status = o.status
     and s.official_reason = o.reason
 where o.is_latest and not o.not_submitted and o.player_name is not null
-    and o.game_date >= {{ as_of_date() }}
+    and o.game_date >= {{ eastern_today() }}
     and s.stats_player_id is null

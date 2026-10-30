@@ -1,14 +1,15 @@
 {#
   Each player's role in today's game from the league's starting lineups (NBA only): starter,
   bench or inactive, and whether the team has confirmed it. The board and Streamers show it
-  next to the player. Only the latest game day on or after the build date counts.
+  next to the player. Only the first game day on or after today in Eastern time counts, so a
+  build after 8 pm Eastern still shows tonight's lineups.
 #}
 
 with today as (
 
     select *
     from {{ ref('starting_lineups') }}
-    where game_date >= {{ as_of_date() }}
+    where game_date >= {{ eastern_today() }}
     qualify game_date = min(game_date) over (partition by league)
 
 )
