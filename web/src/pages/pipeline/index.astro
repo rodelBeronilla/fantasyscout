@@ -14,6 +14,7 @@ const f = schema.fantasy as {
   fantasy_recency: number[];
   fantasy_durability: { typical_share: number };
   fantasy_team_change: number;
+  fantasy_recent_minutes: number;
   fantasy_matchup: { prior_games: number };
 };
 const nba = f.fantasy['nba']!;
@@ -223,7 +224,8 @@ const link = 'underline underline-offset-4';
             {f.fantasy_recency.join(', ')} by season), minutes per game (games × {nba.minutes_recency.join(', ')} in the NBA,
             {wnba.minutes_recency.join(', ')} in the WNBA; a past season spent on another team counts
             {f.fantasy_team_change} of its minutes, since the role was another team's, while per-minute production carries
-            over), {nba.prior_games} or {wnba.prior_games} games of a
+            over; in season, with five or more games for his current team, blended with his last five games
+            at {f.fantasy_recent_minutes}, so a role change shows at once), {nba.prior_games} or {wnba.prior_games} games of a
             replacement-level player, two scoring passes over a {nba.teams}×{nba.roster_spots} or {wnba.teams}×{wnba.roster_spots}
             league's pool, replacement level subtracted, then value above replacement times the games share (capped at 1).
             Values below replacement are never scaled.

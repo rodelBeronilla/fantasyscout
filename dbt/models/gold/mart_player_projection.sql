@@ -8,6 +8,8 @@
     the current season shows within a few games where the league's roles move a lot (WNBA). A
     past season spent mostly on another team counts for var fantasy_team_change (0.25) of its
     minutes weight: the role was a different team's. Per-minute production carries over.
+    In season, with five or more games for his current team, the figure is blended with his
+    last five games at var fantasy_recent_minutes (0.5), so a role change shows at once.
   - Production per minute: each season's totals over its minutes, counted by minutes played
     times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of
     60 games at 8 minutes counts for far less than 60 games at 34.
@@ -32,6 +34,12 @@
   player is on no roster at all, so neither is projected. Only players with at least one game
   in the three seasons are projected.
 #}
+
+{# minutes per game, season-weighted, from a replacement-level prior #}
+{%- set base_minutes -%}
+((w.minutes_weighted + {{ fantasy_setting('prior_games', 'w.league') }} * rl.prior_minutes_pg)
+            / (w.minutes_games_weight + {{ fantasy_setting('prior_games', 'w.league') }}))
+{%- endset %}
 
 {% set production = ['points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made', 'turnovers', 'fgm', 'fga', 'ftm', 'fta'] %}
 {% set durability = var('fantasy_durability') %}
@@ -220,6 +228,34 @@ weighted as (
 
 ),
 
+-- The last five games he played this season for his current team, for the in-season minutes.
+recent_minutes as (
+
+    select league, player_id, avg(minutes) as recent_minutes_pg, count(*) as recent_games
+    from (
+        select g.league, g.player_id, g.minutes,
+            row_number() over (partition by g.league, g.player_id order by g.game_date desc, g.game_id desc) as rn
+        from {{ ref('fct_player_game') }} as g
+        join current_season as cs on cs.league = g.league and cs.season = g.season
+        join current_roster as cr on cr.league = g.league and cr.player_id = g.player_id and cr.team_id = g.team_id
+        where g.played and g.minutes > 0
+    ) as recent
+    where rn <= 5
+    group by league, player_id
+
+),
+
+-- A league is in season while its current season has regular-season games to play.
+in_season as (
+
+    select s.league, true as in_season
+    from {{ ref('schedule') }} as s
+    join current_season as cs on cs.league = s.league and cs.season = s.season
+    where s.game_type = 'regular' and s.game_status <> 3 and s.game_date_est >= {{ as_of_date() }}
+    group by s.league
+
+),
+
 projected as (
 
     select
@@ -232,8 +268,15 @@ projected as (
         {{ fantasy_setting('prior_games', 'w.league') }} as prior_games,
         -- the prior's minutes: prior_games games of a replacement-level player
         {{ fantasy_setting('prior_games', 'w.league') }} * rl.prior_minutes_pg as prior_minutes,
-        (w.minutes_weighted + {{ fantasy_setting('prior_games', 'w.league') }} * rl.prior_minutes_pg)
-            / (w.minutes_games_weight + {{ fantasy_setting('prior_games', 'w.league') }}) as proj_minutes_pg,
+        -- minutes per game: the season-weighted figure, and in season (5+ games for his current
+        -- team) blended with his last five games at fantasy_recent_minutes (ADR 0003)
+        case
+            when coalesce(ins.in_season, false) and rm.recent_games >= 5
+                then (1 - {{ var('fantasy_recent_minutes') }}) * {{ base_minutes }} + {{ var('fantasy_recent_minutes') }} * rm.recent_minutes_pg
+            else {{ base_minutes }}
+        end as proj_minutes_pg,
+        {{ base_minutes }} as proj_minutes_season_pg,
+        rm.recent_minutes_pg as minutes_last5_pg,
         least(1.0, (w.regular_games_weight + {{ fantasy_setting('durability_games', 'w.league') }} * {{ durability['typical_share'] }})
             / (w.team_games_weight + {{ fantasy_setting('durability_games', 'w.league') }})) as games_share,
         {%- for s in production %}
@@ -243,6 +286,8 @@ projected as (
     join current_roster as cr on cr.league = w.league and cr.player_id = w.player_id
     join current_season as cs on cs.league = w.league
     join replacement_line as rl on rl.league = w.league
+    left join recent_minutes as rm on rm.league = w.league and rm.player_id = w.player_id
+    left join in_season as ins on ins.league = w.league
 
 ),
 
@@ -285,6 +330,8 @@ select
     prior_minutes / rate_weight as w_prior,
     games_share,
     proj_minutes_pg,
+    proj_minutes_season_pg,
+    minutes_last5_pg,
     proj_points_pg,
     proj_rebounds_total_pg,
     proj_assists_pg,

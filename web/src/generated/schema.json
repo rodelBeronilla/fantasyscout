@@ -72,6 +72,17 @@
    ]
   },
   {
+   "about": "Projected minutes are the season-weighted figure, or in season a blend of it with the last five games (var fantasy_recent_minutes): never outside the two.",
+   "name": "assert_projected_minutes_blend",
+   "reads": [
+    "mart_player_projection"
+   ],
+   "severity": "error",
+   "tags": [
+    "board"
+   ]
+  },
+  {
    "about": "The chaos switch: `--vars '{chaos: true}'` makes this error-severity check fail on purpose, so the publish gate and the incident path can be exercised end to end on demand.",
    "name": "chaos_deliberate_failure",
    "reads": [],
@@ -245,6 +256,7 @@
    0.25,
    0.08
   ],
+  "fantasy_recent_minutes": 0.5,
   "fantasy_team_change": 0.25
  },
  "generic_tests": 233,
@@ -11064,7 +11076,9 @@
      ]
     },
     {
-     "checks": [],
+     "checks": [
+      "assert_projected_minutes_blend"
+     ],
      "columns": [
       {
        "description": "Surrogate key",
@@ -11222,6 +11236,18 @@
        "type": "double"
       },
       {
+       "description": "Minutes per game from the seasons alone (games by minutes recency, from the replacement prior)",
+       "name": "proj_minutes_season_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Minutes per game over the player's last five games this season for his current team",
+       "name": "minutes_last5_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
        "description": "Projected points per game",
        "name": "proj_points_pg",
        "tests": [
@@ -11308,7 +11334,7 @@
      "notes": [
       "One projected line per player on a current roster: what the board scores.",
       "The projection separates how much a player plays from what they do while playing:",
-      "- Minutes per game: each season's minutes per game counted by games played times a minutes recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in the current season shows within a few games where the league's roles move a lot (WNBA). A past season spent mostly on another team counts for var fantasy_team_change (0.25) of its minutes weight: the role was a different team's. Per-minute production carries over.",
+      "- Minutes per game: each season's minutes per game counted by games played times a minutes recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in the current season shows within a few games where the league's roles move a lot (WNBA). A past season spent mostly on another team counts for var fantasy_team_change (0.25) of its minutes weight: the role was a different team's. Per-minute production carries over. In season, with five or more games for his current team, the figure is blended with his last five games at var fantasy_recent_minutes (0.5), so a role change shows at once.",
       "- Production per minute: each season's totals over its minutes, counted by minutes played times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of 60 games at 8 minutes counts for far less than 60 games at 34.",
       "- Per-game line: production per minute times projected minutes.",
       "- Games share (durability): the share of their team's regular-season games a player played in the seasons they appeared in, by the same recency, regressed toward a typical share by durability_games games (var fantasy.<league>.durability_games, fantasy_durability). Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out.",

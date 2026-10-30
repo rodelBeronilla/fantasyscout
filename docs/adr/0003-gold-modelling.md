@@ -115,3 +115,18 @@ The official status speaks only to the next game, so the board shows it but the 
 Venues are placed by the arena city the league schedule gives, through a seed of latitude, longitude, elevation and standard UTC offset. The seed covers every home city and the neutral and occasional sites in the 2025 to 2027 schedules, and `warn_venue_cities` names any city it misses. A dbt unit test pins the arithmetic on a three-game road trip.
 
 The schedule mart and Streamers show back-to-backs and travel beside the matchup value; they do not change it. Whether a back-to-back or a long trip moves a player's production enough to count is the next backtest, over the played games this table already covers.
+
+## Addendum (2026-10-30): in-season minutes follow the last five games
+
+Issue #124 asked whether recent role signals predict a player's minutes better than the season-weighted figure the projection used. The test was a replay of every season at a checkpoint every 14 days. For every player with 5+ games so far, it predicted his mean minutes over his next 10 games played. Signals were fitted on the earlier seasons and tested on the latest: NBA 2025-26, WNBA 2025 and 2026.
+
+| Minutes per game | NBA error | WNBA error | Players whose role just moved (5+ minutes), NBA / WNBA |
+| --- | --- | --- | --- |
+| Season-weighted (as was) | 3.98 | 3.92 | 5.70 / 5.02 |
+| Half season-weighted, half the last five games | **3.44** | **3.30** | **4.25 / 3.73** |
+| A fitted blend with recent starts | 3.45 | 3.22 | 4.21 / 3.72 |
+| The fitted blend plus teammates' vacated minutes | 3.44 | 3.22 | 4.18 / 3.72 |
+
+The last five games carry nearly all of the gain, and a plain half-and-half blend does as well as a fitted one. Recent starts add little beyond it. The minutes of teammates who sat out the latest game add nothing; their absence shows up in the last five games anyway.
+
+So, in season, with five or more games for his current team, a player's projected minutes are half the season-weighted figure and half his last five games (var `fantasy_recent_minutes`, 0.5). Per-minute production is unchanged. Out of season the projection is as before, because the replay tested in-season horizons only. The play-by-play that motivated the question stays a daily fetch for the lineups and the shot data; its lineup model can feed a later on/off study.
