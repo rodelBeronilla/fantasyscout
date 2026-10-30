@@ -141,6 +141,27 @@ models:
               to: ref('dim_game')
               field: game_sk
 
+  - name: fct_team_game_context
+    description: "The circumstances of each team's games, played and scheduled: rest days, back-to-backs, three games in four nights, miles travelled, time zones crossed and altitude."
+    columns:
+      - name: team_game_context_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: rest_days
+        description: "Days off since the team's previous game this season (0 for the second night of a back-to-back); null for a season opener"
+      - name: is_back_to_back
+        description: "True for the second night of a back-to-back"
+      - name: is_3_in_4
+        description: "True for the third (or later) game in four nights"
+      - name: miles_travelled
+        description: "Great-circle miles from the previous game's city; null when either city is not in the venues seed"
+      - name: time_zones_crossed
+        description: "Standard UTC offset of this venue minus the previous one: positive means travelling east"
+      - name: at_altitude
+        description: "True at a venue 4,000 feet up or more (Denver, Salt Lake City, Mexico City)"
+      - name: opponent_back_to_back
+        description: "True when the opponent is on the second night of a back-to-back"
+
   - name: fct_transaction
     description: "Transactions for the site: the NBA's movement feed, ESPN's feed for the WNBA, and the NBA moves only ESPN carries (G League assignments, recalls, suspensions)."
     columns:
@@ -334,6 +355,14 @@ models:
         description: "The sportsbook the line comes from"
       - name: line_as_of
         description: "Ingest date the line was taken from"
+      - name: home_back_to_back
+        description: "True when the home team is on the second night of a back-to-back (fct_team_game_context)"
+      - name: away_back_to_back
+        description: "True when the away team is on the second night of a back-to-back"
+      - name: away_miles_travelled
+        description: "Miles the away team travels from its previous game"
+      - name: at_altitude
+        description: "True when the game is played 4,000 feet up or more"
 
   - name: mart_streamers
     description: "Players active in the league's current season with games in the next seven days, the minutes and value trend, recent production and injury status."

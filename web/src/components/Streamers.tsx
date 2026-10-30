@@ -65,6 +65,11 @@ interface Game {
   over_under?: number | null;
   home_implied_points?: number | null;
   away_implied_points?: number | null;
+  /** Rest and travel (fct_team_game_context). */
+  home_back_to_back?: boolean | null;
+  away_back_to_back?: boolean | null;
+  away_miles_travelled?: number | null;
+  at_altitude?: boolean | null;
 }
 
 /** A team's side of a game in the week grid: the opponent, and the points the line implies. */
@@ -72,6 +77,11 @@ interface GridCell {
   label: string;
   implied: number | null;
   line: string | null;
+  /** The second night of a back-to-back for this team. */
+  backToBack: boolean;
+  /** Played 4,000 feet up or more. */
+  altitude: boolean;
+  miles: number | null;
 }
 
 function lineText(g: Game): string | null {
@@ -176,8 +186,23 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
   for (const g of games) {
     if (!inRange.has(g.game_date)) continue;
     const line = lineText(g);
-    byTeamDay.set(`${g.home_team_tricode}|${g.game_date}`, { label: `v ${g.away_team_tricode}`, implied: g.home_implied_points ?? null, line });
-    byTeamDay.set(`${g.away_team_tricode}|${g.game_date}`, { label: `@ ${g.home_team_tricode}`, implied: g.away_implied_points ?? null, line });
+    const altitude = !!g.at_altitude;
+    byTeamDay.set(`${g.home_team_tricode}|${g.game_date}`, {
+      label: `v ${g.away_team_tricode}`,
+      implied: g.home_implied_points ?? null,
+      line,
+      backToBack: !!g.home_back_to_back,
+      altitude,
+      miles: null,
+    });
+    byTeamDay.set(`${g.away_team_tricode}|${g.game_date}`, {
+      label: `@ ${g.home_team_tricode}`,
+      implied: g.away_implied_points ?? null,
+      line,
+      backToBack: !!g.away_back_to_back,
+      altitude,
+      miles: g.away_miles_travelled ?? null,
+    });
     perDay.set(g.game_date, (perDay.get(g.game_date) ?? 0) + 2);
   }
   const counts = new Map(teams.map((t) => [t, days.filter((d) => byTeamDay.has(`${t}|${d}`)).length]));
@@ -221,9 +246,25 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
                   <td
                     key={d}
                     className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${cell ? 'bg-accent/10 font-medium' : 'text-muted'}`}
-                    title={cell?.line ? `${cell.line}: ${t} implied ${cell.implied} points` : undefined}
+                    title={
+                      cell
+                        ? [
+                            cell.line ? `${cell.line}: ${t} implied ${cell.implied} points` : null,
+                            cell.backToBack ? 'Second night of a back-to-back: rest and minutes risk' : null,
+                            cell.miles ? `${cell.miles} miles from the previous game` : null,
+                            cell.altitude ? 'At altitude' : null,
+                          ]
+                            .filter(Boolean)
+                            .join('. ') || undefined
+                        : undefined
+                    }
                   >
                     {cell?.label ?? '·'}
+                    {cell?.backToBack && (
+                      <span className="ml-1 rounded border border-warn px-0.5 text-[9px] font-semibold text-warn" data-testid="back-to-back">
+                        B2B
+                      </span>
+                    )}
                     {cell && typeof cell.implied === 'number' && (
                       <div className="text-[10px] font-normal text-muted" data-testid="implied-points">
                         {Math.round(cell.implied)} pts

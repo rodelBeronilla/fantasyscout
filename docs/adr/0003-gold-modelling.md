@@ -104,3 +104,14 @@ The NBA publishes an official injury report every 15 minutes on game days, and t
 The ingest lands the newest report as parsed JSON (`ingest/injury_report.py`, which parses the PDF from word positions). It lands one in the morning run and one in an evening run at 7 pm ET, after teams file and before tip-off. `silver.official_injury_report` types it, and `gold.fct_player_status` gives each player one current status. The official report wins for the next game it covers; otherwise ESPN's listing applies.
 
 The official status speaks only to the next game, so the board shows it but the rest-of-season availability multiplier keeps reading ESPN's listing and expected return. A one-game "Rest" or G League "Out" does not erase a season's value. Official rows link to players by name within the team. `warn_official_injury_links` reports more than five unlinked players on the newest report.
+
+## Addendum (2026-10-30): rest, travel and altitude
+
+`gold.fct_team_game_context` gives every team-game, played or scheduled, its circumstances:
+- days of rest, the second night of a back-to-back, and a third game in four nights;
+- the great-circle miles from the previous game's city, and the time zones crossed;
+- the venue's altitude, flagged at 4,000 feet or more (Denver, Salt Lake City, Mexico City).
+
+Venues are placed by the arena city the league schedule gives, through a seed of latitude, longitude, elevation and standard UTC offset. The seed covers every home city and the neutral and occasional sites in the 2025 to 2027 schedules, and `warn_venue_cities` names any city it misses. A dbt unit test pins the arithmetic on a three-game road trip.
+
+The schedule mart and Streamers show back-to-backs and travel beside the matchup value; they do not change it. Whether a back-to-back or a long trip moves a player's production enough to count is the next backtest, over the played games this table already covers.

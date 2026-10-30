@@ -646,3 +646,15 @@ test("streamers list the league's recent moves, and a player's page lists theirs
   await page.goto('/p/wnba/1628932/');
   await expect(page.getByTestId('player-moves')).toContainText('New York Liberty signed guard X.');
 });
+
+test('the streamers week grid marks the second night of a back-to-back, with travel in the tooltip', async ({ page }) => {
+  await page.route('**/schedule/wnba.json', async (route) => {
+    const games = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: games.map((g, i) => (i === 0 ? { ...g, away_back_to_back: true, away_miles_travelled: 1203, at_altitude: false } : g)) });
+  });
+  await page.goto('/streamers/');
+  const grid = page.getByTestId('week-grid');
+  const marker = grid.getByTestId('back-to-back');
+  await expect(marker).toHaveCount(1);
+  await expect(marker.locator('xpath=..')).toHaveAttribute('title', /Second night of a back-to-back: rest and minutes risk\. 1203 miles from the previous game/);
+});

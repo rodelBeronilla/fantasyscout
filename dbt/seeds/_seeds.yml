@@ -69,3 +69,29 @@ seeds:
         description: Player id in ESPN's API
       - name: reason
         description: Why the automatic match failed
+
+  - name: venues
+    description: >
+      Where games are played, by the arena city the league schedule gives: latitude and longitude
+      (the arena, or the city for occasional venues), elevation in feet, and the standard UTC
+      offset (daylight saving ignored). Covers every home city of both leagues plus the neutral
+      and occasional sites in the 2025 to 2027 schedules; warn_venue_cities lists any city missing.
+    config:
+      column_types:
+        latitude: double
+        longitude: double
+        elevation_ft: integer
+        utc_offset: integer
+    columns:
+      - name: city
+        description: Arena city as the league schedule writes it
+        data_tests: [unique, not_null]
+      - name: latitude
+        description: Degrees north
+      - name: longitude
+        description: Degrees east (negative west)
+      - name: elevation_ft
+        description: Elevation of the venue in feet
+      - name: utc_offset
+        description: Standard-time offset from UTC in hours
+
