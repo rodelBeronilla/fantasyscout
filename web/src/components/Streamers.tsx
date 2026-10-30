@@ -19,6 +19,11 @@ interface StreamerRow {
   ownership_bucket?: string | null;
   /** The team has nothing left to play for in the last stretch (fct_team_stakes). */
   rest_risk?: boolean | null;
+  /** Sleeper leagues that added and dropped the player over the last day (NBA; null when not trending). */
+  sleeper_adds?: number | null;
+  sleeper_drops?: number | null;
+  /** adding or dropping across Sleeper leagues over the last day. */
+  waiver_trend?: string | null;
   full_name: string | null;
   position: string | null;
   team_id: string | null;
@@ -164,6 +169,28 @@ interface Candidate extends StreamerRow {
   implied_points: number | null;
   /** Last-ten value per game over the window's games, plus each game's matchup. */
   window_value: number | null;
+  /** Sleeper leagues that added the player minus those that dropped him, over the last day. */
+  sleeper_net: number | null;
+}
+
+/** A count of Sleeper leagues, short: 26,552 as 26.6k. */
+function leagues(n: number): string {
+  const a = Math.abs(n);
+  return a >= 1000 ? `${(a / 1000).toFixed(1)}k` : String(a);
+}
+
+/** Net adds across Sleeper leagues over the last day, coloured by direction, with both counts in the tooltip. */
+function WaiverHeat({ row }: { row: Candidate }) {
+  if (row.sleeper_net === null) return <span className="text-muted">–</span>;
+  const n = row.sleeper_net;
+  const cls = n > 0 ? 'text-good' : n < 0 ? 'text-bad' : '';
+  const title = `${(row.sleeper_adds ?? 0).toLocaleString()} Sleeper leagues added him and ${(row.sleeper_drops ?? 0).toLocaleString()} dropped him in the last day`;
+  return (
+    <span className={cls} title={title} data-testid="waiver-heat">
+      {n > 0 ? '+' : n < 0 ? '−' : ''}
+      {leagues(n)}
+    </span>
+  );
 }
 
 type Health = 'all' | 'no_out' | 'healthy';
@@ -304,6 +331,7 @@ export default function Streamers() {
   const [rosteredChoice, setRostered] = useState<number | null>(null);
   const [watchOnly, setWatchOnly] = useState(false);
   const [startersOnly, setStartersOnly] = useState(false);
+  const [addingOnly, setAddingOnly] = useState(false);
   const [sortKey, setSortKey] = useState('minutes_trend');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
@@ -380,6 +408,7 @@ export default function Streamers() {
           matchup: mus.length ? muSum / mus.length : null,
           implied_points: pts.length ? pts.reduce((s, v) => s + v, 0) / pts.length : null,
           window_value: r.last_10_z_total === null || !dates.size ? null : r.last_10_z_total * dates.size + muSum,
+          sleeper_net: r.waiver_trend ? (r.sleeper_adds ?? 0) - (r.sleeper_drops ?? 0) : null,
         };
       }),
     [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs],
@@ -401,13 +430,14 @@ export default function Streamers() {
       )
       .filter((r) => pickedDays.size === 0 || r.games_picked > 0)
       .filter((r) => !watchOnly || watched.has(r.player_id))
-      .filter((r) => !startersOnly || r.lineup_role === 'starter');
+      .filter((r) => !startersOnly || r.lineup_role === 'starter')
+      .filter((r) => !addingOnly || r.waiver_trend === 'adding');
     return sortRows(filtered, (r) => {
       if (sortKey === 'name') return r.full_name;
       const v = r[sortKey];
       return typeof v === 'number' ? v : null;
     }, sortDir);
-  }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, pickedDays, watchOnly, watched, startersOnly, sortKey, sortDir]);
+  }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, pickedDays, watchOnly, watched, startersOnly, addingOnly, sortKey, sortDir]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="streamers" />;
@@ -435,9 +465,10 @@ export default function Streamers() {
       setSortDir('desc');
     } else if (sortKey === 'fit') setSortKey('minutes_trend');
   };
+  const hasHeat = (rows ?? []).some((r) => r.waiver_trend);
   const exportCsv = () => {
-    const header = ['player', 'team', 'new_team_from', 'position', `games_next_${horizon}`, 'matchup', 'implied_team_points', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'last_game'];
-    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.last_10_z_total, r.value_trend, r.fit, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.last_game_date]);
+    const header = ['player', 'team', 'new_team_from', 'position', `games_next_${horizon}`, 'matchup', 'implied_team_points', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'sleeper_net_adds', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'last_game'];
+    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.last_10_z_total, r.value_trend, r.fit, r.sleeper_net, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.last_game_date]);
     downloadCsv(`fantasyscout-${league}-streamers.csv`, toCsv(header, body));
   };
   const select = 'rounded border border-line bg-card px-2 py-1';
@@ -573,6 +604,12 @@ export default function Streamers() {
                 Starting today
               </label>
             )}
+            {hasHeat && (
+              <label className="flex items-center gap-2 text-sm" title="Players more Sleeper leagues added than dropped in the last day">
+                <input type="checkbox" checked={addingOnly} onChange={(e) => setAddingOnly(e.target.checked)} />
+                Being added on Sleeper
+              </label>
+            )}
             <span className="text-sm text-muted">{list.length} players</span>
             <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="streamers-csv">
               Export CSV
@@ -606,6 +643,7 @@ export default function Streamers() {
                 {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
                 {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
                 {inWeek && col('window_value', 'Window value', 'Last-ten value per game times games in the window, plus each game’s matchup')}
+                {hasHeat && col('sleeper_net', 'Sleeper', 'Sleeper leagues that added the player minus those that dropped him, last 24 hours (from Sleeper)')}
                 {col('board_rank', 'Board #', 'Rank on the board; inside a league-sized pool usually means rostered')}
                 <Th>Last game</Th>
               </tr>
@@ -661,6 +699,11 @@ export default function Streamers() {
                   )}
                   {inWeek && <Td right>{fmt(r.implied_points, 1)}</Td>}
                   {inWeek && <Td right>{fmt(r.window_value, 2)}</Td>}
+                  {hasHeat && (
+                    <Td right>
+                      <WaiverHeat row={r} />
+                    </Td>
+                  )}
                   <Td right>{r.board_rank ?? '–'}</Td>
                   <Td>{day(r.last_game_date)}</Td>
                 </tr>
@@ -672,6 +715,15 @@ export default function Streamers() {
           <button type="button" onClick={() => setShown(shown + PAGE)} className="mt-3 rounded border border-line px-3 py-1 text-sm hover:bg-card">
             Show {Math.min(PAGE, list.length - shown)} more
           </button>
+        )}
+        {hasHeat && (
+          <p className="mt-2 text-xs text-muted">
+            Waiver heat from{' '}
+            <a href="https://sleeper.com" className="underline underline-offset-4">
+              Sleeper
+            </a>
+            : the players its leagues added and dropped most in the last day.
+          </p>
         )}
       </Card>
 

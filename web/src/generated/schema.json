@@ -190,6 +190,16 @@
    ]
   },
   {
+   "about": "Sleeper's trending players on an NBA team that could not be linked to a current league player (by name, birth date and team). A free agent has no team in Sleeper's directory and is left out; more than a few unlinked means a name form the match does not handle.",
+   "name": "warn_sleeper_links",
+   "reads": [
+    "fct_waiver_trend",
+    "waiver_trending"
+   ],
+   "severity": "warn",
+   "tags": []
+  },
+  {
    "about": "Team turnovers are the players' turnovers plus team turnovers (no player charged), so the team figure must be at least the players' sum and rarely more than a handful above it.",
    "name": "warn_team_turnovers",
    "reads": [
@@ -259,7 +269,7 @@
   "fantasy_recent_minutes": 0.5,
   "fantasy_team_change": 0.25
  },
- "generic_tests": 244,
+ "generic_tests": 249,
  "layers": [
   {
    "models": [
@@ -1826,6 +1836,146 @@
      "notes": [],
      "read_by": [
       "transactions"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The Eastern day the directory was landed",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Sleeper player id",
+       "name": "sleeper_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The player's name as Sleeper writes it",
+       "name": "full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Sleeper's lower-case ASCII form of the name, suffix kept",
+       "name": "search_full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Sleeper's team abbreviation (the league's tricodes)",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Birth date as Sleeper gives it (YYYY-MM-DD)",
+       "name": "birth_date",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Sleeper's NBA player directory as landed, once a day: one row per active player on a team, with the fields that link the player to the league's ids.",
+     "materialized": "incremental",
+     "name": "sleeper_players",
+     "notes": [],
+     "read_by": [
+      "waiver_trending"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The Eastern day and hour the lists were landed",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The window the counts cover, in hours",
+       "name": "lookback_hours",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "add or drop",
+       "name": "direction",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Sleeper player id",
+       "name": "sleeper_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Sleeper leagues that added or dropped the player over the window",
+       "name": "move_count",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Sleeper's trending NBA players as landed: one row per player and direction (add or drop) per landing, with the number of Sleeper leagues that made the move.",
+     "materialized": "incremental",
+     "name": "sleeper_trending",
+     "notes": [],
+     "read_by": [
+      "waiver_trending"
      ],
      "reads": []
     },
@@ -8274,6 +8424,7 @@
       "dim_team",
       "fct_player_status",
       "fct_transaction",
+      "fct_waiver_trend",
       "mart_board",
       "mart_streamers",
       "team_xwalk"
@@ -8365,6 +8516,113 @@
       "espn_transactions",
       "league_player_movement",
       "team_xwalk"
+     ]
+    },
+    {
+     "checks": [
+      "warn_sleeper_links"
+     ],
+     "columns": [
+      {
+       "description": "League and Sleeper player id",
+       "name": "waiver_trending_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "sleeper_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "search_full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "birth_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Sleeper leagues that added the player over the window (0 when not in the add list)",
+       "name": "adds",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Sleeper leagues that dropped the player over the window (0 when not in the drop list)",
+       "name": "drops",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Rank in the most-added list, 1 the most; null when not in it",
+       "name": "add_rank",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Rank in the most-dropped list, 1 the most; null when not in it",
+       "name": "drop_rank",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "",
+       "name": "lookback_hours",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "observed_key",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Sleeper's trending NBA players from the newest landing: one row per player, with the leagues adding and dropping him, his rank in each list, and Sleeper's name, team and birth date for linking.",
+     "materialized": "table",
+     "name": "waiver_trending",
+     "notes": [
+      "Sleeper's trending players from the newest landing (NBA): one row per player in the most-added or most-dropped lists, with the leagues adding and dropping him over the lookback window and his rank in each list (1 is the most). Sleeper's name, team and birth date come from its newest directory, for gold to link the player to the league's id."
+     ],
+     "read_by": [
+      "fct_waiver_trend"
+     ],
+     "reads": [
+      "sleeper_players",
+      "sleeper_trending"
      ]
     }
    ],
@@ -8737,6 +8995,7 @@
       "fct_availability",
       "fct_player_game",
       "fct_player_status",
+      "fct_waiver_trend",
       "mart_board",
       "mart_streamers"
      ],
@@ -10818,6 +11077,111 @@
     },
     {
      "checks": [
+      "warn_sleeper_links"
+     ],
+     "columns": [
+      {
+       "description": "Surrogate key",
+       "name": "waiver_trend_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id; null when the name matches no current player or more than one",
+       "name": "stats_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "sleeper_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "sleeper_full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "adds",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "",
+       "name": "drops",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "",
+       "name": "net_adds",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "",
+       "name": "add_rank",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "",
+       "name": "drop_rank",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "adding when more Sleeper leagues added than dropped the player, else dropping",
+       "name": "waiver_trend",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "lookback_hours",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "observed_key",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Waiver heat from Sleeper (NBA): the players Sleeper leagues added and dropped most over the last day, linked to the league player id by name, birth date and team.",
+     "materialized": "table",
+     "name": "fct_waiver_trend",
+     "notes": [
+      "Waiver heat from Sleeper (NBA): the players Sleeper leagues added and dropped most over the last day, linked to the league player id. Sleeper names players by its own id, so a trending player is matched to a current league player by name: Sleeper's ASCII search name against the league name with its suffix kept, or both names without suffixes. A matching birth date, then a matching team, picks between namesakes; a name that still matches more than one player is left unlinked.",
+      "- waiver_trend: adding when more leagues added than dropped him, else dropping."
+     ],
+     "read_by": [
+      "mart_streamers"
+     ],
+     "reads": [
+      "dim_player",
+      "teams",
+      "waiver_trending"
+     ]
+    },
+    {
+     "checks": [
       "assert_board_rostered",
       "assert_board_values_sane"
      ],
@@ -12808,6 +13172,24 @@
        "name": "rest_risk",
        "tests": [],
        "type": "boolean"
+      },
+      {
+       "description": "Sleeper leagues that added the player over the last day (NBA, fct_waiver_trend); null when he is not trending",
+       "name": "sleeper_adds",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Sleeper leagues that dropped the player over the last day; null when he is not trending",
+       "name": "sleeper_drops",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "adding or dropping across Sleeper leagues over the last day; null when he is not trending",
+       "name": "waiver_trend",
+       "tests": [],
+       "type": "varchar"
       }
      ],
      "description": "Players active in the league's current season with games in the next seven days, the minutes and value trend, recent production and injury status.",
@@ -12827,6 +13209,7 @@
       "fct_player_status",
       "fct_starting_lineup",
       "fct_team_stakes",
+      "fct_waiver_trend",
       "mart_board",
       "mart_category_zscores",
       "mart_player_rolling",

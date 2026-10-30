@@ -1,0 +1,41 @@
+unit_tests:
+  - name: waiver_trend_links_sleeper_players_by_name_birth_date_and_team
+    description: >
+      Sleeper's ASCII search name keeps a suffix and folds accents (kristapsporzingis,
+      jimmybutleriii), so it matches the league name with its suffix kept. A plain name match
+      covers a suffix one side leaves off. Between two namesakes the birth date decides, then the
+      team; namesakes neither tells apart stay unlinked, as does a name with no match.
+    model: fct_waiver_trend
+    given:
+      - input: ref('waiver_trending')
+        rows:
+          - {league: nba, sleeper_player_id: s1, full_name: 'Kristaps Porziņģis', search_full_name: kristapsporzingis, team_abbreviation: GSW, birth_date: '1995-08-02', adds: 900, drops: 100}
+          - {league: nba, sleeper_player_id: s2, full_name: 'Jimmy Butler III', search_full_name: jimmybutleriii, team_abbreviation: GSW, birth_date: '1989-09-14', adds: 50, drops: 400}
+          - {league: nba, sleeper_player_id: s3, full_name: 'Gary Trent Jr.', search_full_name: garytrentjr, team_abbreviation: MIL, birth_date: '1999-01-18', adds: 10, drops: 0}
+          - {league: nba, sleeper_player_id: s4, full_name: 'Jalen Williams', search_full_name: jalenwilliams, team_abbreviation: OKC, birth_date: '2001-04-14', adds: 300, drops: 0}
+          - {league: nba, sleeper_player_id: s5, full_name: 'Twin Name', search_full_name: twinname, team_abbreviation: BOS, birth_date: null, adds: 5, drops: 1}
+          - {league: nba, sleeper_player_id: s6, full_name: 'Nobody Known', search_full_name: nobodyknown, team_abbreviation: BOS, birth_date: null, adds: 5, drops: 0}
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: '1', full_name: 'Kristaps Porzingis', birth_date: '1995-08-02', team_id: '10', is_current: true}
+          - {league: nba, stats_player_id: '2', full_name: 'Jimmy Butler III', birth_date: '1989-09-14', team_id: '10', is_current: true}
+          - {league: nba, stats_player_id: '3', full_name: 'Gary Trent', birth_date: '1999-01-18', team_id: '20', is_current: true}
+          - {league: nba, stats_player_id: '41', full_name: 'Jalen Williams', birth_date: '2001-04-14', team_id: '30', is_current: true}
+          - {league: nba, stats_player_id: '42', full_name: 'Jaylin Williams', birth_date: '2002-06-29', team_id: '30', is_current: true}
+          - {league: nba, stats_player_id: '43', full_name: 'Jalen Williams', birth_date: '1997-01-01', team_id: '40', is_current: true}
+          - {league: nba, stats_player_id: '51', full_name: 'Twin Name', birth_date: '2000-01-01', team_id: '20', is_current: true}
+          - {league: nba, stats_player_id: '52', full_name: 'Twin Name', birth_date: '2000-02-02', team_id: '30', is_current: true}
+      - input: ref('teams')
+        rows:
+          - {league: nba, season: '2026-27', team_id: '10', abbreviation: GSW}
+          - {league: nba, season: '2026-27', team_id: '20', abbreviation: MIL}
+          - {league: nba, season: '2026-27', team_id: '30', abbreviation: OKC}
+          - {league: nba, season: '2026-27', team_id: '40', abbreviation: BOS}
+    expect:
+      rows:
+        - {sleeper_player_id: s1, stats_player_id: '1', net_adds: 800, waiver_trend: adding}
+        - {sleeper_player_id: s2, stats_player_id: '2', net_adds: -350, waiver_trend: dropping}
+        - {sleeper_player_id: s3, stats_player_id: '3', net_adds: 10, waiver_trend: adding}
+        - {sleeper_player_id: s4, stats_player_id: '41', net_adds: 300, waiver_trend: adding}
+        - {sleeper_player_id: s5, stats_player_id: null, net_adds: 4, waiver_trend: adding}
+        - {sleeper_player_id: s6, stats_player_id: null, net_adds: 5, waiver_trend: adding}

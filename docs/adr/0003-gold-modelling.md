@@ -113,6 +113,14 @@ ESPN's news feed lists each league's latest 50 articles, each tagged with the at
 
 The flags are labels for the reader, not inputs to the projection. A headline flag is a weaker signal than the official injury report, ESPN's injury listing and the Expected and Confirmed lineups, which the board already reads. With no history of the feed there is nothing to backtest against yet. ESPN's NBA depth charts were considered as a starter prior and left out: the league's lineups already name each game's starters. Checked against the six teams with Expected lineups on 2026-10-29, four depth charts named the same five, and in the other two the lineups carried a change the depth chart had not yet made.
 
+## Addendum (2026-10-30): waiver heat from Sleeper
+
+Sleeper lists the NBA players its leagues added and dropped most over the last day (free for non-commercial use, with credit to Sleeper; the WNBA lists are always empty). It is a direct read of what other managers are doing on the waiver wire, which the streamers page otherwise infers from minutes and value. The reports run lands the add and drop lists, the top 50 of each over 24 hours, under the Eastern date and hour (`ingest/sleeper.py`). Sleeper's player directory lands once a day, as Sleeper asks, trimmed to the active players on a team with their name, Sleeper's ASCII search name, team and birth date.
+
+Sleeper's directory carries no league or ESPN id, so `gold.fct_waiver_trend` links by name. Sleeper's search name ("kristapsporzingis", "jimmybutleriii") folds accents and keeps the suffix, so it is compared with the league name with its suffix kept; both names without suffixes also count. A matching birth date, then a matching team, picks between namesakes, and a name that still matches more than one current player stays unlinked. Against the live board on 2026-10-29, 98 of the 100 trending players matched by name, and the two that did not were free agents. `warn_sleeper_links` reports more than five unlinked trending players on a team.
+
+Streamers shows the net adds (added minus dropped) with both counts in the tooltip, filters to players being added, and credits Sleeper. Like the market columns, the heat informs a pick and does not move the value.
+
 ## Addendum (2026-10-30): rest, travel and altitude
 
 `gold.fct_team_game_context` gives every team-game, played or scheduled, its circumstances:
