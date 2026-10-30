@@ -683,3 +683,14 @@ test("the board sets the fantasy market's rank beside its own, and streamers can
   await page.getByLabel(/Likely available/).selectOption('-2');
   await expect(table.locator('tbody tr')).toHaveCount(3);
 });
+
+test('players on teams with nothing left to play for late in the season carry a rest-risk tag', async ({ page }) => {
+  await page.route('**/board/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r, i) => (i === 0 ? { ...r, rest_risk: true, team_stakes: 'clinched' } : r)) });
+  });
+  await page.goto('/');
+  const tag = page.getByTestId('board').getByTestId('rest-risk');
+  await expect(tag).toHaveCount(1);
+  await expect(tag).toHaveAttribute('title', /clinched a playoff place with few games left/);
+});

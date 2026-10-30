@@ -120,6 +120,17 @@ class StatsPlanner:
             ),
             self.gamelog_request(),
             self.player_gamelogs_request("Advanced"),
+            # Standings: playoff position, clinched and eliminated teams (playoff stakes).
+            Request(
+                "leaguestandingsv3",
+                _slug(self.season_type),
+                {
+                    "LeagueID": self.league_id,
+                    "Season": self.season,
+                    "SeasonType": self.season_type,
+                    "SeasonYear": "",
+                },
+            ),
         ]
 
     def player_gamelogs_request(self, measure: str) -> Request:

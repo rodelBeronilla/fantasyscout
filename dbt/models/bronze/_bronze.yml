@@ -765,6 +765,54 @@ models:
       - name: away_seed
         description: "awayTeam field `seed`"
 
+  - name: stats_leaguestandingsv3
+    description: "The league's regular-season standings, one row per team per landing."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "Season type of the standings"
+      - name: _payload_hash
+        description: "SHA-256 of the landed payload"
+      - name: team_id
+        description: "League team id"
+      - name: team_city
+        description: "Team city"
+      - name: team_name
+        description: "Team name"
+      - name: conference
+        description: "East or West"
+      - name: playoff_rank
+        description: "Place in the conference"
+      - name: clinch_indicator
+        description: "The league's clinch mark, such as ' - x'"
+      - name: wins
+        description: "Wins"
+      - name: losses
+        description: "Losses"
+      - name: win_pct
+        description: "Winning percentage"
+      - name: last_10
+        description: "Record over the last ten games"
+      - name: current_streak
+        description: "Current streak, such as W 3"
+      - name: conference_games_back
+        description: "Games behind the conference leader"
+      - name: clinched_conference
+        description: "1 when the conference title is clinched"
+      - name: clinched_playoffs
+        description: "1 when a playoff place is clinched"
+      - name: clinched_play_in
+        description: "1 when a play-in place is clinched"
+      - name: eliminated
+        description: "1 when eliminated from the race"
+
   - name: espn_scoreboard
     description: "One row per ESPN event (game) per scoreboard day."
     columns:

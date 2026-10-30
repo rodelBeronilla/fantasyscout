@@ -397,6 +397,13 @@ models:
       - name: is_latest
         description: "True for the rows of the league's newest report"
 
+  - name: standings
+    description: "The league's regular-season standings per team, from the latest landing per league-season."
+    columns:
+      - name: standings_key
+        description: "League, season and team"
+        data_tests: [unique, not_null]
+
   - name: game_lines
     description: "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard."
     columns:

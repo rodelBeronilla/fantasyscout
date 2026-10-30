@@ -141,6 +141,20 @@ models:
               to: ref('dim_game')
               field: game_sk
 
+  - name: fct_team_stakes
+    description: "What each team still has to play for in its current season: eliminated, clinched or racing, the games left, and a late-season rest risk for a team with nothing to play for."
+    columns:
+      - name: team_stakes_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: stakes
+        description: "eliminated, clinched or racing"
+        data_tests:
+          - accepted_values:
+              values: [eliminated, clinched, racing]
+      - name: rest_risk
+        description: "True for a clinched or eliminated team with 10 or fewer games left (6 in the WNBA)"
+
   - name: fct_market_value
     description: "The fantasy market's view of each player from ESPN fantasy: the order drafters take players in, and how widely leagues roster them. The site shows the rank and the bucket, not ESPN's numbers."
     columns:
@@ -323,6 +337,10 @@ models:
         description: "starter, bench or inactive in today's game, from the league's starting lineups (NBA only); null without one"
       - name: market_rank
         description: "Where ESPN drafters take the player (fct_market_value)"
+      - name: team_stakes
+        description: "What the player's team still plays for: eliminated, clinched or racing (fct_team_stakes)"
+      - name: rest_risk
+        description: "True when the player's team has nothing left to play for in the last stretch"
       - name: market_gap
         description: "market_rank minus the board rank: positive when the market drafts the player later than the board ranks him"
       - name: ownership_bucket

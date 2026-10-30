@@ -31,6 +31,7 @@ PAYLOADS = [
     ("stats", "shotchartdetail", "shotchartdetail", "wnba", "2026", "1022600330"),
     ("stats", "playergamelogs", "playergamelogs", "wnba", "2026", "advanced-regular-season"),
     ("stats", "commonteamroster", "commonteamroster", "wnba", "2026", "1611661319"),
+    ("stats", "leaguestandingsv3", "leaguestandingsv3", "wnba", "2026", "regular-season"),
     ("espn", "scoreboard", "scoreboard", "wnba", "2026", "20260924"),
     ("espn", "summary", "summary", "wnba", "2026", "401736337"),
     ("espn", "teams", "teams", "wnba", "2026", "league"),

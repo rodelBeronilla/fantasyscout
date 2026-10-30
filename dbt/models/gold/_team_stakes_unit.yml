@@ -1,0 +1,30 @@
+unit_tests:
+  - name: team_stakes_flags_rest_risk_late_for_teams_with_nothing_to_play_for
+    description: >
+      With five games left, a clinched team and an eliminated one carry rest risk and a team still
+      racing does not; with twelve left, nobody does yet; a finished season carries none.
+    model: fct_team_stakes
+    overrides:
+      vars:
+        as_of: '2026-04-01'
+    given:
+      - input: ref('standings')
+        rows:
+          - {league: nba, season: '2025-26', team_id: A, clinched_playoffs: true, eliminated: false}
+          - {league: nba, season: '2025-26', team_id: B, clinched_playoffs: false, eliminated: true}
+          - {league: nba, season: '2025-26', team_id: C, clinched_playoffs: false, eliminated: false}
+          - {league: nba, season: '2025-26', team_id: D, clinched_playoffs: true, eliminated: false}
+      - input: ref('schedule')
+        format: sql
+        rows: |
+          select 'nba' as league, '2025-26' as season, 'regular' as game_type, 1 as game_status,
+              cast('2026-04-02' as date) + cast(n as integer) as game_date_est,
+              case when n < 5 then 'A' else 'D' end as home_team_id,
+              case when n < 5 then 'B' else 'C' end as away_team_id
+          from range(0, 17) as t(n)
+    expect:
+      rows:
+        - {team_id: A, stakes: clinched, games_left: 5, rest_risk: true}
+        - {team_id: B, stakes: eliminated, games_left: 5, rest_risk: true}
+        - {team_id: C, stakes: racing, games_left: 12, rest_risk: false}
+        - {team_id: D, stakes: clinched, games_left: 12, rest_risk: false}

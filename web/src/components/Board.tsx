@@ -10,7 +10,7 @@ import { useWatchlist } from '../lib/watchlist';
 import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
 import { DraftBar, LeagueBar } from './LeagueParts';
-import { Chip, InjuryTag, LineupTag, Loading, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
+import { Chip, InjuryTag, LineupTag, Loading, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th } from './ui';
 
 interface BoardRow {
   player_id: string;
@@ -44,6 +44,9 @@ interface BoardRow {
   market_rank?: number | null;
   market_gap?: number | null;
   ownership_bucket?: string | null;
+  /** What the team still plays for, and a late-season rest risk (fct_team_stakes). */
+  team_stakes?: string | null;
+  rest_risk?: boolean | null;
   games_share: number | null;
   value_per_game: number | null;
   age: number | null;
@@ -469,6 +472,7 @@ export default function Board() {
             )}
             {row.is_new_team && <NewTeam from={row.prev_team_abbreviation} />}
             <LineupTag role={row.lineup_role} confirmed={row.lineup_confirmed} />
+            <RestRiskTag risk={row.rest_risk} stakes={row.team_stakes} />
             <InjuryTag
               group={row.injury_group}
               status={row.injury_status}
