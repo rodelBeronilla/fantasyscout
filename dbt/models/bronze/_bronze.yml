@@ -435,11 +435,11 @@ models:
       - name: _payload_hash
         description: "SHA-256 of the raw payload, matching the sidecar"
       - name: game_id
-        description: "Game id"
+        description: "League stats API game id of the box score"
       - name: home_team_id
-        description: "Home team id"
+        description: "League team id of the home side"
       - name: away_team_id
-        description: "Away team id"
+        description: "League team id of the away side"
       - name: side
         description: "home or away"
       - name: team_id
@@ -519,11 +519,11 @@ models:
       - name: _payload_hash
         description: "SHA-256 of the raw payload, matching the sidecar"
       - name: game_id
-        description: "Game id"
+        description: "League stats API game id of the box score"
       - name: home_team_id
-        description: "Home team id"
+        description: "League team id of the home side"
       - name: away_team_id
-        description: "Away team id"
+        description: "League team id of the away side"
       - name: side
         description: "home or away"
       - name: team_id
@@ -609,7 +609,7 @@ models:
       - name: _payload_hash
         description: "SHA-256 of the raw payload, matching the sidecar"
       - name: game_id
-        description: "Game id"
+        description: "League stats API game id of the play-by-play"
       - name: action_number
         description: "Action field `actionNumber`"
       - name: clock
@@ -783,9 +783,9 @@ models:
       - name: team_id
         description: "League team id"
       - name: team_city
-        description: "Team city"
+        description: "City or market of the team"
       - name: team_name
-        description: "Team name"
+        description: "Team nickname"
       - name: conference
         description: "East or West"
       - name: playoff_rank
@@ -793,9 +793,9 @@ models:
       - name: clinch_indicator
         description: "The league's clinch mark, such as ' - x'"
       - name: wins
-        description: "Wins"
+        description: "Regular-season wins so far"
       - name: losses
-        description: "Losses"
+        description: "Regular-season losses so far"
       - name: win_pct
         description: "Winning percentage"
       - name: last_10
@@ -843,7 +843,7 @@ models:
       - name: season_type
         description: "ESPN season type code (2 regular season, 3 postseason)"
       - name: status_name
-        description: "Status name"
+        description: "ESPN's status name, such as STATUS_FINAL or STATUS_SCHEDULED"
       - name: status_state
         description: "pre, in or post"
       - name: status_completed
@@ -955,7 +955,7 @@ models:
       - name: description
         description: "The moves of the day, as ESPN writes them"
       - name: espn_team_id
-        description: "ESPN team id"
+        description: "ESPN id of the team the moves belong to"
       - name: team_abbreviation
         description: "ESPN's team abbreviation"
 
@@ -1001,7 +1001,7 @@ models:
       - name: request_key
         description: "The Eastern day the directory was landed"
       - name: sleeper_player_id
-        description: "Sleeper player id"
+        description: "Sleeper's own player id, not the league's"
       - name: full_name
         description: "The player's name as Sleeper writes it"
       - name: search_full_name
@@ -1029,7 +1029,7 @@ models:
       - name: direction
         description: "add or drop"
       - name: sleeper_player_id
-        description: "Sleeper player id"
+        description: "Sleeper's own player id for the trending player"
       - name: move_count
         description: "Sleeper leagues that added or dropped the player over the window"
 
@@ -1081,7 +1081,7 @@ models:
       - name: team_id
         description: "League team id"
       - name: player_name
-        description: "Player name"
+        description: "The player's name as the lineups file writes it"
       - name: position
         description: "The starting position for the five starters; blank for the bench"
       - name: lineup_status
@@ -1317,11 +1317,11 @@ models:
       - name: athlete_id
         description: "ESPN athlete id"
       - name: full_name
-        description: "Full name"
+        description: "Athlete's full name as ESPN writes it"
       - name: first_name
-        description: "First name"
+        description: "Athlete's given name"
       - name: last_name
-        description: "Last name"
+        description: "Athlete's family name"
       - name: jersey
         description: "Jersey number"
       - name: position
