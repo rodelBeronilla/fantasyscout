@@ -185,13 +185,19 @@ jobs:
           SINCE: ${{ inputs.since }}
           UNTIL: ${{ inputs.until }}
           FULL_REFRESH: ${{ inputs.full_refresh }}
+        # Regular season, then playoffs: outside the playoffs the second pass finds no games and
+        # costs a few requests (what the first pass landed today is not requested again).
         run: |
           set -o pipefail
-          args=(land stats --league "${{ matrix.league }}" --backend volume)
-          [ -n "$SINCE" ] && args+=(--since "$SINCE")
-          [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
-          [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
-          uv run fs-ingest "${args[@]}" 2>&1 | tee land.log
+          status=0
+          for season_type in "Regular Season" "Playoffs"; do
+            args=(land stats --league "${{ matrix.league }}" --backend volume --season-type "$season_type")
+            [ -n "$SINCE" ] && args+=(--since "$SINCE")
+            [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
+            [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
+            uv run fs-ingest "${args[@]}" 2>&1 | tee -a land.log || status=1
+          done
+          exit $status
       - name: Report
         if: always()
         env:

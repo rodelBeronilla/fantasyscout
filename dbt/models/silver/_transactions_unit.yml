@@ -24,10 +24,10 @@ unit_tests:
       - input: ref('league_player_movement')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as varchar) as transaction_date,
-              cast(null as varchar) as team_id, cast(null as varchar) as player_id,
-              cast(null as varchar) as transaction_type, cast(null as varchar) as description,
-              cast(null as date) as _ingest_date, cast(null as varchar) as _source_file
+          select cast(null as string) as league, cast(null as string) as transaction_date,
+              cast(null as string) as team_id, cast(null as string) as player_id,
+              cast(null as string) as transaction_type, cast(null as string) as description,
+              cast(null as date) as _ingest_date, cast(null as string) as _source_file
           where false
     expect:
       rows:
