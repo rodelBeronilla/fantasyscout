@@ -226,6 +226,8 @@ STREAMER_COLUMNS = (
     "value_baseline",
     "last_10_z_total",
     "value_trend",
+    "last_10_production",
+    "last_10_production_turnovers",
     "last_10_z_points",
     "last_10_z_rebounds_total",
     "last_10_z_assists",

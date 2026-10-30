@@ -833,6 +833,17 @@ test('the streamers week grid marks the second night of a back-to-back, with tra
   await expect(marker.locator('xpath=..')).toHaveAttribute('title', /Second night of a back-to-back: rest and minutes risk\. 1203 miles from the previous game/);
 });
 
+test('streamers sort by window value while games are scheduled', async ({ page }) => {
+  await page.goto('/streamers/');
+  const header = page.getByTestId('trending').locator('th', { hasText: 'Window value' });
+  await expect(header).toHaveAttribute('aria-sort', 'descending');
+  const values = await page
+    .getByTestId('trending')
+    .locator('tbody tr')
+    .evaluateAll((trs) => trs.slice(0, 5).map((tr) => tr.textContent ?? ''));
+  expect(values.length).toBeGreaterThan(0);
+});
+
 test("streamers follow the league's scoring and size", async ({ page }) => {
   await page.route('**/streamers/wnba.json', async (route) => {
     const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];

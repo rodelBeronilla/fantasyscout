@@ -192,6 +192,8 @@ interface Candidate extends StreamerRow {
   sleeper_net: number | null;
   /** Last-ten value over the league's categories: an 8-category league leaves out turnovers. */
   value_10: number | null;
+  /** What an average game of the last ten adds to the week's category totals (8 categories: no turnovers). */
+  production_10: number | null;
 }
 
 /** A count of Sleeper leagues, short: 26,552 as 26.6k. */
@@ -359,7 +361,9 @@ export default function Streamers() {
   const [watchOnly, setWatchOnly] = useState(false);
   const [startersOnly, setStartersOnly] = useState(false);
   const [addingOnly, setAddingOnly] = useState(false);
-  const [sortKey, setSortKey] = useState('minutes_trend');
+  // Sorted by window value while games are scheduled (the streamer signals notebook found it the
+  // best guide to the week's pickups), else by the minutes trend; a header click overrides.
+  const [sortChoice, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
   const { watched, toggleWatched } = useWatchlist(league);
@@ -395,6 +399,7 @@ export default function Streamers() {
     };
   }, [league]);
 
+  const sortKey = sortChoice ?? (games.some((g) => g.days_ahead <= 6) ? 'window_value' : 'minutes_trend');
   const days = useMemo(() => Array.from({ length: horizon }, (_, i) => addDays(start, i)), [start, horizon]);
   const inWeek = games.some((g) => g.days_ahead <= 6);
 
@@ -426,6 +431,14 @@ export default function Streamers() {
       r.last_10_z_total === null ? null : cats8 ? r.last_10_z_total - ((r.last_10_z_turnovers as number | null) ?? 0) : r.last_10_z_total,
     [cats8],
   );
+  const production10 = useCallback(
+    (r: StreamerRow): number | null => {
+      const p = r.last_10_production as number | null | undefined;
+      if (typeof p !== 'number') return null;
+      return cats8 ? p - ((r.last_10_production_turnovers as number | null) ?? 0) : p;
+    },
+    [cats8],
+  );
   // The manager's league pool (teams x roster spots), as a likely-available cut.
   const leaguePool = setup.teams * setup.rosterSpots;
   const rosteredCuts = useMemo(
@@ -449,11 +462,12 @@ export default function Streamers() {
           matchup: mus.length ? muSum / mus.length : null,
           implied_points: pts.length ? pts.reduce((s, v) => s + v, 0) / pts.length : null,
           value_10: value10(r),
-          window_value: value10(r) === null || !dates.size ? null : (value10(r) ?? 0) * dates.size + muSum,
+          production_10: production10(r),
+          window_value: production10(r) === null || !dates.size ? null : (production10(r) ?? 0) * dates.size + muSum,
           sleeper_net: r.waiver_trend ? (r.sleeper_adds ?? 0) - (r.sleeper_drops ?? 0) : null,
         };
       }),
-    [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs, value10],
+    [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs, value10, production10],
   );
 
   const hasHeat = (rows ?? []).some((r) => r.waiver_trend);
@@ -691,7 +705,7 @@ export default function Streamers() {
                 {pickedDays.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
                 {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
                 {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
-                {inWeek && col('window_value', 'Window value', 'Last-ten value per game times games in the window, plus each game’s matchup')}
+                {inWeek && col('window_value', 'Window value', 'What the player adds to the window: last-ten production per game (counting stats and shooting above the pool, turnovers subtracted) times games in the window, plus each game’s matchup. The default sort: it finds the week’s best pickups most often (streamer signals notebook)')}
                 {hasTrend && (
                   <Th right>
                     <span title="Rising or falling across ESPN leagues (ownership up or down a point or more)">ESPN</span>

@@ -83,6 +83,70 @@ recent_value as (
 
 ),
 
+-- What a game adds to a week's category totals, in units of each category's spread over the
+-- season's pool (the players with the most minutes): counting stats add, turnovers subtract,
+-- shooting adds its makes above the pool's percentage on its attempts. Unlike a z-score it is not
+-- measured from the pool's average, so more games always add (the streamer signals notebook:
+-- last-ten production times games found about twice as many of the week's best pickups as the
+-- minutes trend).
+pool_scale as (
+
+    select
+        z.league,
+        stddev_samp(z.points_pg) as sd_points,
+        stddev_samp(z.rebounds_total_pg) as sd_rebounds_total,
+        stddev_samp(z.assists_pg) as sd_assists,
+        stddev_samp(z.steals_pg) as sd_steals,
+        stddev_samp(z.blocks_pg) as sd_blocks,
+        stddev_samp(z.three_pointers_made_pg) as sd_three_pointers_made,
+        stddev_samp(z.turnovers_pg) as sd_turnovers,
+        sum(z.field_goal_pct * z.fga_pg * z.games) / nullif(sum(case when z.field_goal_pct is not null then z.fga_pg * z.games end), 0) as pool_fg_pct,
+        sum(z.free_throw_pct * z.fta_pg * z.games) / nullif(sum(case when z.free_throw_pct is not null then z.fta_pg * z.games end), 0) as pool_ft_pct
+    from {{ ref('mart_category_zscores') }} as z
+    join current_season as cs on cs.league = z.league and cs.season = z.season
+    where z.window_name = 'season' and z.in_pool
+    group by z.league
+
+),
+
+pool_shooting_scale as (
+
+    select
+        z.league,
+        stddev_samp(coalesce((z.field_goal_pct - s.pool_fg_pct) * z.fga_pg, 0)) as sd_fg_impact,
+        stddev_samp(coalesce((z.free_throw_pct - s.pool_ft_pct) * z.fta_pg, 0)) as sd_ft_impact
+    from {{ ref('mart_category_zscores') }} as z
+    join current_season as cs on cs.league = z.league and cs.season = z.season
+    join pool_scale as s on s.league = z.league
+    where z.window_name = 'season' and z.in_pool
+    group by z.league
+
+),
+
+recent_production as (
+
+    select
+        z.league,
+        z.player_id,
+        0
+            + coalesce(z.points_pg / nullif(s.sd_points, 0), 0)
+            + coalesce(z.rebounds_total_pg / nullif(s.sd_rebounds_total, 0), 0)
+            + coalesce(z.assists_pg / nullif(s.sd_assists, 0), 0)
+            + coalesce(z.steals_pg / nullif(s.sd_steals, 0), 0)
+            + coalesce(z.blocks_pg / nullif(s.sd_blocks, 0), 0)
+            + coalesce(z.three_pointers_made_pg / nullif(s.sd_three_pointers_made, 0), 0)
+            - coalesce(z.turnovers_pg / nullif(s.sd_turnovers, 0), 0)
+            + coalesce((z.field_goal_pct - s.pool_fg_pct) * z.fga_pg / nullif(p.sd_fg_impact, 0), 0)
+            + coalesce((z.free_throw_pct - s.pool_ft_pct) * z.fta_pg / nullif(p.sd_ft_impact, 0), 0) as last_10_production,
+        -coalesce(z.turnovers_pg / nullif(s.sd_turnovers, 0), 0) as last_10_production_turnovers
+    from {{ ref('mart_category_zscores') }} as z
+    join current_season as cs on cs.league = z.league and cs.season = z.season
+    join pool_scale as s on s.league = z.league
+    join pool_shooting_scale as p on p.league = z.league
+    where z.window_name = 'last_10'
+
+),
+
 upcoming as (
 
     select
@@ -207,6 +271,8 @@ select
     rv.last_10_z_total,
     b.value_baseline,
     rv.last_10_z_total - b.value_baseline as value_trend,
+    rp.last_10_production,
+    rp.last_10_production_turnovers,
     {%- for c in cats %}
     rv.last_10_z_{{ c }},
     {%- endfor %}
@@ -252,6 +318,7 @@ join baselines as b on b.league = lr.league and b.player_id = lr.player_id
 join league_state as ls on ls.league = lr.league
 left join season_line as sl on sl.league = lr.league and sl.player_id = lr.player_id
 left join recent_value as rv on rv.league = lr.league and rv.player_id = lr.player_id
+left join recent_production as rp on rp.league = lr.league and rp.player_id = lr.player_id
 left join current_stint as cs on cs.league = lr.league and cs.stats_player_id = lr.player_id
 left join {{ ref('teams') }} as t on t.league = lr.league and t.season = lr.season and t.team_id = cs.team_id
 left join upcoming as u on u.league = lr.league and u.team_id = cs.team_id
