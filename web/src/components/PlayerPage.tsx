@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
@@ -83,6 +83,28 @@ interface PlayerFile {
     rank_total: number;
     value_total: number | null;
     value_rest_of_season: number | null;
+    value_per_game?: number | null;
+    games_share?: number | null;
+    availability_multiplier?: number | null;
+    games_remaining?: number | null;
+    games_next_7?: number | null;
+    season_complete?: boolean | null;
+    proj_minutes_pg?: number | null;
+    proj_points_pg?: number | null;
+    proj_rebounds_total_pg?: number | null;
+    proj_assists_pg?: number | null;
+    proj_steals_pg?: number | null;
+    proj_blocks_pg?: number | null;
+    proj_three_pointers_made_pg?: number | null;
+    proj_turnovers_pg?: number | null;
+    proj_field_goal_pct?: number | null;
+    proj_free_throw_pct?: number | null;
+    lineup_role?: string | null;
+    lineup_confirmed?: boolean | null;
+    market_rank?: number | null;
+    ownership_bucket?: string | null;
+    team_stakes?: string | null;
+    rest_risk?: boolean | null;
     injury_status?: string | null;
     injury_group?: string | null;
     injury_type?: string | null;
@@ -102,6 +124,176 @@ interface PlayerFile {
   injury_history?: { injury_id: string; status: string; status_group: string; status_from: string; status_to: string; reports: number }[];
   shots: [number, number, number, number][];
   shot_zones: { zone: string; attempts: number; made: number; pct: number | null; league_pct: number | null }[];
+}
+
+/** A game on the published schedule ahead (mart_schedule_upcoming). */
+interface Upcoming {
+  game_id: string;
+  game_date: string;
+  game_type: string;
+  home_team_id: string;
+  home_team_tricode: string;
+  away_team_id: string;
+  away_team_tricode: string;
+  home_spread?: number | null;
+  over_under?: number | null;
+  home_implied_points?: number | null;
+  away_implied_points?: number | null;
+  home_back_to_back?: boolean | null;
+  away_back_to_back?: boolean | null;
+}
+
+const OWNED: Record<string, string> = {
+  most: '70% or more',
+  many: '40 to 70%',
+  some: '10 to 40%',
+  few: '1 to 10%',
+  rare: 'under 1%',
+};
+
+const STAKES: Record<string, string> = {
+  clinched: 'Clinched a playoff place',
+  eliminated: 'Eliminated',
+  racing: 'Still racing for a place',
+};
+
+/** One labelled figure in the outlook. */
+function Fact({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-line py-1.5" title={hint}>
+      <dt className="text-muted">{label}</dt>
+      <dd className="text-right font-medium tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+/** What the board projects for the player and the context it shows beside the value. */
+function OutlookCard({ board, league }: { board: NonNullable<PlayerFile['board']>; league: League }) {
+  const line: [string, string][] = [
+    ['MIN', fmt(board.proj_minutes_pg)],
+    ['PTS', fmt(board.proj_points_pg)],
+    ['REB', fmt(board.proj_rebounds_total_pg)],
+    ['AST', fmt(board.proj_assists_pg)],
+    ['STL', fmt(board.proj_steals_pg)],
+    ['BLK', fmt(board.proj_blocks_pg)],
+    ['3PM', fmt(board.proj_three_pointers_made_pg)],
+    ['TO', fmt(board.proj_turnovers_pg)],
+    ['FG%', pct(board.proj_field_goal_pct)],
+    ['FT%', pct(board.proj_free_throw_pct)],
+  ];
+  const today =
+    board.lineup_role === 'starter' ? 'Starting' : board.lineup_role === 'inactive' ? 'Inactive' : 'Bench';
+  return (
+    <Card title="Fantasy outlook" id="outlook">
+      <div className="grid gap-x-8 gap-y-4 md:grid-cols-2" data-testid="player-outlook">
+        <dl className="text-sm">
+          <Fact label="Board rank (default league)" value={`#${board.rank_total}`} />
+          <Fact
+            label="Value per game"
+            value={<Signed value={board.value_per_game} />}
+            hint="Category value per game above replacement, summed over the nine categories"
+          />
+          <Fact
+            label="Season value"
+            value={<Signed value={board.value_total} />}
+            hint="Value per game times the projected share of regular-season games"
+          />
+          {!board.season_complete && (
+            <Fact
+              label="Rest of season"
+              value={<Signed value={board.value_rest_of_season} />}
+              hint="Value over the games left, scaled by availability"
+            />
+          )}
+          <Fact label="Projected games share" value={pct(board.games_share)} hint="Share of regular-season games the player is projected to play" />
+          {typeof board.availability_multiplier === 'number' && board.availability_multiplier < 1 && (
+            <Fact
+              label="Available for"
+              value={pct(board.availability_multiplier)}
+              hint="Share of the remaining games expected, from ESPN's injury listing"
+            />
+          )}
+          <Fact label="Games next 7 days" value={board.games_next_7 ?? '–'} />
+          {!board.season_complete && <Fact label="Games left" value={board.games_remaining ?? '–'} />}
+        </dl>
+        <dl className="text-sm">
+          {board.lineup_role && (
+            <Fact
+              label="Next game day"
+              value={`${today}${board.lineup_confirmed ? ' (confirmed)' : ' (expected)'}`}
+              hint="From the league's starting lineups for the next game day"
+            />
+          )}
+          {board.market_rank != null && (
+            <Fact label="ESPN market rank" value={`#${board.market_rank}`} hint="Where ESPN fantasy drafters take the player, by average draft position" />
+          )}
+          {board.ownership_bucket && (
+            <Fact label="Rostered in" value={`${OWNED[board.ownership_bucket] ?? board.ownership_bucket} of ESPN leagues`} />
+          )}
+          {board.team_stakes && <Fact label="Team" value={STAKES[board.team_stakes] ?? board.team_stakes} />}
+          {board.rest_risk && (
+            <Fact label="Rest risk" value="Nothing left to play for" hint="Few games left and nothing to play for: minutes are less certain" />
+          )}
+        </dl>
+      </div>
+      <div className="mt-4">
+        <p className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Projected per game</p>
+        <dl className="grid grid-cols-5 gap-2 text-center text-sm sm:grid-cols-10" data-testid="projected-line">
+          {line.map(([k, v]) => (
+            <div key={k} className="rounded border border-line px-1 py-1.5">
+              <dt className="text-[11px] text-muted">{k}</dt>
+              <dd className="font-medium tabular-nums">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <p className="mt-3 text-xs text-muted">
+        Values are for the default league ({league === 'nba' ? '12 teams of 13' : '10 teams of 10'}); the Board re-scores
+        them for your league&apos;s settings.
+      </p>
+    </Card>
+  );
+}
+
+/** The team's next games: opponent, the line's implied points, and the second night of a back-to-back. */
+function NextGames({ games, teamId }: { games: Upcoming[]; teamId: string }) {
+  const next = games.filter((g) => g.home_team_id === teamId || g.away_team_id === teamId).slice(0, 7);
+  if (!next.length) return null;
+  return (
+    <Card title="Next games" id="next-games">
+      <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <table className="w-full text-sm" data-testid="next-games">
+          <thead>
+            <tr>
+              <Th>Date</Th>
+              <Th>Opponent</Th>
+              <Th right>Team pts</Th>
+              <Th>Note</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {next.map((g) => {
+              const home = g.home_team_id === teamId;
+              const implied = home ? g.home_implied_points : g.away_implied_points;
+              const b2b = home ? g.home_back_to_back : g.away_back_to_back;
+              const note = [b2b ? 'Back-to-back' : null, g.game_type !== 'regular' ? g.game_type.replace('_', ' ') : null]
+                .filter(Boolean)
+                .join(' · ');
+              return (
+                <tr key={g.game_id} className="border-t border-line">
+                  <Td>{day(g.game_date)}</Td>
+                  <Td>{home ? `vs ${g.away_team_tricode}` : `at ${g.home_team_tricode}`}</Td>
+                  <Td right>{typeof implied === 'number' ? fmt(implied) : '–'}</Td>
+                  <Td>{note}</Td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-muted">Team pts: the points the betting line implies the team scores, where a line is posted.</p>
+    </Card>
+  );
 }
 
 /** What a headline's wording says, and how loudly to show it. */
@@ -209,6 +401,23 @@ export default function PlayerPage() {
     };
   }, [target]);
 
+  // The schedule ahead, for the team's next games.
+  const [schedule, setSchedule] = useState<Upcoming[]>([]);
+  useEffect(() => {
+    if (!target) return;
+    let live = true;
+    fetchBuildJson<Upcoming[]>(`schedule/${target.league}.json`)
+      .then((g) => {
+        if (live) setSchedule(g);
+      })
+      .catch(() => {
+        if (live) setSchedule([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [target]);
+
   const seasonLog = useMemo(() => (player?.game_log ?? []).filter((g) => g.season === season).slice().reverse(), [player, season]);
   const seasonZ = useMemo(() => (player?.zscores ?? []).filter((z) => z.season === player?.current_season), [player]);
 
@@ -242,6 +451,10 @@ export default function PlayerPage() {
       </header>
 
       {player.board?.injury_group && <InjuryCard board={player.board} history={player.injury_history ?? []} />}
+
+      {player.board && <OutlookCard board={player.board} league={target.league} />}
+
+      {player.team.team_id && <NextGames games={schedule} teamId={player.team.team_id} />}
 
       {(player.news ?? []).length > 0 && <NewsCard news={player.news ?? []} />}
 

@@ -667,6 +667,40 @@ test("streamers list the league's recent moves, and a player's page lists theirs
   await expect(page.getByTestId('player-moves')).toContainText('New York Liberty signed guard X.');
 });
 
+test("a player's page shows the board's outlook and the team's next games", async ({ page }) => {
+  // The schedule answers only once the player file has named the team.
+  let named: (id: string) => void = () => {};
+  const teamId = new Promise<string>((resolve) => (named = resolve));
+  await page.route(/\/players\/wnba\/[^/]+\.json$/, async (route) => {
+    const file = (await (await route.fetch()).json()) as { team: { team_id: string }; board: Record<string, unknown> | null };
+    named(file.team.team_id);
+    await route.fulfill({
+      json: { ...file, board: { ...(file.board ?? { rank_total: 3 }), market_rank: 7, ownership_bucket: 'most', lineup_role: 'starter', lineup_confirmed: true } },
+    });
+  });
+  await page.route('**/schedule/wnba.json', async (route) => {
+    const id = await teamId;
+    await route.fulfill({
+      json: [
+        { game_id: 'g1', game_date: '2026-11-02', game_type: 'regular', home_team_id: id, home_team_tricode: 'HOM', away_team_id: '9', away_team_tricode: 'AWY', home_implied_points: 84.5, home_back_to_back: true },
+        { game_id: 'g2', game_date: '2026-11-03', game_type: 'regular', home_team_id: '8', home_team_tricode: 'XYZ', away_team_id: '7', away_team_tricode: 'QRS' },
+      ],
+    });
+  });
+  await page.goto('/p/wnba/1628932/');
+  const outlook = page.getByTestId('player-outlook');
+  await expect(outlook).toContainText('Board rank (default league)');
+  await expect(outlook).toContainText('#7');
+  await expect(outlook).toContainText('70% or more of ESPN leagues');
+  await expect(outlook).toContainText('Starting (confirmed)');
+  await expect(page.getByTestId('projected-line')).toContainText('PTS');
+  const next = page.getByTestId('next-games');
+  await expect(next.locator('tbody tr')).toHaveCount(1);
+  await expect(next).toContainText('vs AWY');
+  await expect(next).toContainText('84.5');
+  await expect(next).toContainText('Back-to-back');
+});
+
 test("a player's page lists ESPN's headlines about them, flagged and linked to ESPN", async ({ page }) => {
   await page.route(/\/players\/wnba\/[^/]+\.json$/, async (route) => {
     const file = (await (await route.fetch()).json()) as Record<string, unknown>;
