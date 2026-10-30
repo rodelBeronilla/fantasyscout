@@ -341,7 +341,7 @@ export default function Board() {
       .filter(({ row }) => eligibleAt(row.position, positions))
       .filter(({ row }) => (row.games_current ?? 0) >= minGames)
       .filter(({ row }) => (row.proj_minutes_pg ?? 0) >= minMinutes)
-      .filter(({ row }) => availability === 'all' || (availability === 'no_out' ? row.injury_group !== 'out' : !row.injury_group))
+      .filter(({ row }) => availability === 'all' || (availability === 'no_out' ? row.injury_group !== 'out' : !row.injury_group || row.injury_group === 'probable'))
       .filter(({ row }) => !rookiesOnly || row.is_rookie === true)
       .filter(({ row }) => !movedOnly || row.is_new_team === true)
       .filter(({ row }) => !watchOnly || watched.has(row.player_id))

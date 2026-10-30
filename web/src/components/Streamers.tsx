@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
 import { fetchBuildJson, getLatest, type League } from '../lib/data';
@@ -190,6 +190,8 @@ interface Candidate extends StreamerRow {
   window_value: number | null;
   /** Sleeper leagues that added the player minus those that dropped the player, over the last day. */
   sleeper_net: number | null;
+  /** Last-ten value over the league's categories: an 8-category league leaves out turnovers. */
+  value_10: number | null;
 }
 
 /** A count of Sleeper leagues, short: 26,552 as 26.6k. */
@@ -417,6 +419,20 @@ export default function Streamers() {
     return { teamDates: dates, teamMatchups: matchups, teamImplied: implied };
   }, [games, days]);
 
+  // The league's categories: an 8-category league leaves out turnovers.
+  const cats8 = setup.scoring === 'cats8';
+  const value10 = useCallback(
+    (r: StreamerRow): number | null =>
+      r.last_10_z_total === null ? null : cats8 ? r.last_10_z_total - ((r.last_10_z_turnovers as number | null) ?? 0) : r.last_10_z_total,
+    [cats8],
+  );
+  // The manager's league pool (teams x roster spots), as a likely-available cut.
+  const leaguePool = setup.teams * setup.rosterSpots;
+  const rosteredCuts = useMemo(
+    () => [...new Set<number>([0, ...ROSTERED[league], leaguePool])].sort((a, b) => a - b),
+    [league, leaguePool],
+  );
+
   const candidates = useMemo<Candidate[]>(
     () =>
       (rows ?? []).map((r) => {
@@ -432,11 +448,12 @@ export default function Streamers() {
           fit: needs.size && parts.length ? parts.reduce((s, v) => s + v, 0) : null,
           matchup: mus.length ? muSum / mus.length : null,
           implied_points: pts.length ? pts.reduce((s, v) => s + v, 0) / pts.length : null,
-          window_value: r.last_10_z_total === null || !dates.size ? null : r.last_10_z_total * dates.size + muSum,
+          value_10: value10(r),
+          window_value: value10(r) === null || !dates.size ? null : (value10(r) ?? 0) * dates.size + muSum,
           sleeper_net: r.waiver_trend ? (r.sleeper_adds ?? 0) - (r.sleeper_drops ?? 0) : null,
         };
       }),
-    [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs],
+    [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs, value10],
   );
 
   const hasHeat = (rows ?? []).some((r) => r.waiver_trend);
@@ -447,7 +464,7 @@ export default function Streamers() {
       .filter((r) => !team || r.team_abbreviation === team)
       .filter((r) => r.games_window >= minGames)
       .filter((r) => (r.minutes_avg_5 ?? 0) >= minMinutes)
-      .filter((r) => health === 'all' || (health === 'no_out' ? r.injury_group !== 'out' : !r.injury_group))
+      .filter((r) => health === 'all' || (health === 'no_out' ? r.injury_group !== 'out' : !r.injury_group || r.injury_group === 'probable'))
       .filter((r) =>
         rostered === -1
           ? !owner.has(r.player_id)
@@ -495,7 +512,7 @@ export default function Streamers() {
   const hasTrend = (rows ?? []).some((r) => r.ownership_trend);
   const exportCsv = () => {
     const header = ['player', 'team', 'new_team_from', 'position', `games_next_${horizon}`, 'matchup', 'implied_team_points', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'sleeper_net_adds', 'espn_trend', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'ft_pct', 'turnovers', 'injury', 'lineup', 'news', 'last_game'];
-    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.last_10_z_total, r.value_trend, r.fit, r.sleeper_net, r.ownership_trend, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.free_throw_pct_5, r.turnovers_avg_5, r.injury_status, r.lineup_role, r.news_flag, r.last_game_date]);
+    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.value_10, r.value_trend, r.fit, r.sleeper_net, r.ownership_trend, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.free_throw_pct_5, r.turnovers_avg_5, r.injury_status, r.lineup_role, r.news_flag, r.last_game_date]);
     downloadCsv(`fantasyscout-${league}-streamers.csv`, toCsv(header, body));
   };
   const select = 'rounded border border-line bg-card px-2 py-1';
@@ -504,8 +521,7 @@ export default function Streamers() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       {complete || !inWeek ? (
         <Note testid="season-note">
-          No {LEAGUE_LABEL[league]} regular-season games in the next seven days
-          {inWeek ? ' (playoff games only)' : ''}. The list below is who finished the {season} season strongly: their last five
+          No {LEAGUE_LABEL[league]} regular-season games in the next seven days. The list below is who finished the {season} season strongly: their last five
           games against their baseline, the rest of the season blended with the one before.
         </Note>
       ) : (
@@ -615,9 +631,9 @@ export default function Streamers() {
               <select value={rostered} onChange={(e) => setRostered(Number(e.target.value))} className={select}>
                 {owner.size > 0 && <option value={-1}>not on a roster in my league</option>}
                 {rows.some((r) => r.ownership_bucket) && <option value={-2}>rostered in under 10% of ESPN leagues</option>}
-                {ROSTERED[league].map((n) => (
+                {rosteredCuts.map((n) => (
                   <option key={n} value={n}>
-                    {n ? `outside the top ${n}` : 'everyone'}
+                    {n ? `outside the top ${n}${n === leaguePool ? ` (your league: ${setup.teams} × ${setup.rosterSpots})` : ''}` : 'everyone'}
                   </option>
                 ))}
               </select>
@@ -660,7 +676,7 @@ export default function Streamers() {
                 {col('minutes_avg_5', 'Min (5)', 'Minutes per game, last five games')}
                 {col('minutes_baseline', 'Min (base)', 'Minutes per game before the last five games, blended with last season')}
                 {col('minutes_trend', 'Min trend', 'Last five games minus the baseline')}
-                {col('last_10_z_total', 'Value (10)', 'Total category z-score over the last ten games')}
+                {col('value_10', 'Value (10)', cats8 ? 'Total category z-score over the last ten games, turnovers left out (8 categories)' : 'Total category z-score over the last ten games')}
                 {col('value_trend', 'Value trend', 'Last-ten value minus the baseline (this season blended with last)')}
                 {col('points_avg_5', 'PTS')}
                 {col('rebounds_total_avg_5', 'REB')}
@@ -710,7 +726,7 @@ export default function Streamers() {
                   <Td right>
                     <Signed value={r.minutes_trend} digits={1} />
                   </Td>
-                  <Td right>{fmt(r.last_10_z_total, 2)}</Td>
+                  <Td right>{fmt(r.value_10, 2)}</Td>
                   <Td right>
                     <Signed value={r.value_trend} />
                   </Td>
@@ -761,6 +777,12 @@ export default function Streamers() {
           <button type="button" onClick={() => setShown(shown + PAGE)} className="mt-3 rounded border border-line px-3 py-1 text-sm hover:bg-card">
             Show {Math.min(PAGE, list.length - shown)} more
           </button>
+        )}
+        {setup.scoring === 'points' && (
+          <p className="mt-2 text-xs text-muted" data-testid="points-note">
+            Your league scores points: the values here are category z-scores. Sort by the per-game columns, or use the
+            Board&apos;s fantasy points, to compare by points.
+          </p>
         )}
         {hasHeat && (
           <p className="mt-2 text-xs text-muted">
