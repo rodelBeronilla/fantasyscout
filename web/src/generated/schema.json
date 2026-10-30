@@ -9641,7 +9641,7 @@
      "materialized": "table",
      "name": "fct_starting_lineup",
      "notes": [
-      "Each player's role in today's game from the league's starting lineups (NBA only): starter, bench or inactive, and whether the team has confirmed it. The board and Streamers show it next to the player. Only the latest game day on or after the build date counts."
+      "Each player's role in today's game from the league's starting lineups (NBA only): starter, bench or inactive, and whether the team has confirmed it. The board and Streamers show it next to the player. Only the first game day on or after today in Eastern time counts, so a build after 8 pm Eastern still shows tonight's lineups."
      ],
      "read_by": [
       "mart_board",
