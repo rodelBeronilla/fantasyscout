@@ -218,12 +218,25 @@ if len(summary):
 A ranking can be right while its values are not. Grouping the board's players by decile of
 predicted season value shows whether a predicted gap between two players turns into a realised
 gap of the same size: a slope of realised on predicted below one means the board spreads players
-too far apart. The games share is the board's guess of the share of team games a player plays;
+too far apart. The slope is fitted on the players the board values above replacement. Below
+replacement the board leaves a value unscaled by games, since a missed game from a player not
+worth rostering costs nothing, while the target counts a missed game as zero. Fitted over every
+listed player, the slope mixes the two conventions: most NBA listings are below replacement and
+play little, so their realised values shrink toward zero and the slope falls (ADR 0003, the
+value spread addendum). Per game, against players with enough games, the two sides are on one
+footing too. The games share is the board's guess of the share of team games a player plays;
 here it is set against the share of the remaining games they did play.""",
     ),
     (
         "code",
-        """reliability, calibration = {}, {}
+        """def fit_slope(x, y):
+    \"\"\"Least-squares slope of y on x (NaN with too few pairs or no spread).\"\"\"
+    x, y = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+    ok = np.isfinite(x) & np.isfinite(y)
+    return float(np.polyfit(x[ok], y[ok], 1)[0]) if ok.sum() >= 10 and np.ptp(x[ok]) > 0 else np.nan
+
+
+reliability, calibration = {}, {}
 if len(players):
     fig, axes = plt.subplots(2, len(replays), figsize=(6 * len(replays), 8), squeeze=False)
     for i, lg in enumerate(replays):
@@ -232,8 +245,14 @@ if len(players):
             continue
         p['decile'] = pd.qcut(p['pred_total'].rank(method='first'), 10, labels=False) + 1
         dec = p.groupby('decile')[['pred_total', 'real_total']].mean()
-        slope = {s: np.polyfit(q['pred_total'], q['real_total'], 1)[0] for s, q in p.groupby('sample') if len(q) > 50}
-        slope['all'] = np.polyfit(p['pred_total'], p['real_total'], 1)[0]
+        slopes = []
+        for sample, q in [*p.groupby('sample'), ('all', p)]:
+            above, per_game = q[q['pred_total'] > 0], q[q['eligible'].astype(bool)]
+            slopes.append({'sample': sample, 'players': len(q),
+                           'above replacement': fit_slope(above['pred_total'], above['real_total']),
+                           'per game': fit_slope(per_game['pred_pg'], per_game['real_pg']),
+                           'every listed player': fit_slope(q['pred_total'], q['real_total'])})
+        slope = pd.DataFrame(slopes).set_index('sample')
         reliability[lg] = {'deciles': dec, 'slope': slope}
         ax = axes[0][i]
         ax.plot(dec['pred_total'], dec['real_total'], marker='o', color=COLOR[lg])
@@ -241,7 +260,7 @@ if len(players):
         ax.plot(lim, lim, color='grey', lw=1, ls='--')
         ax.set_xlabel('Predicted season value (per game, games share applied)')
         ax.set_ylabel('Realised, missed games as zero')
-        ax.set_title(f"{LABEL[lg]}: reliability by decile (slope {slope['all']:.2f})")
+        ax.set_title(f"{LABEL[lg]}: reliability by decile (slope above replacement {slope.loc['all', 'above replacement']:.2f})")
         s = p[p['pred_share'].notna() & (p['team_games_left'] >= 5)].copy()
         s['decile'] = pd.qcut(s['pred_share'].rank(method='first'), 10, labels=False) + 1
         sd = s.groupby('decile')[['pred_share', 'real_share']].mean()
@@ -257,6 +276,8 @@ if len(players):
         ax.set_title(f"{LABEL[lg]}: games share calibration (corr {calibration[lg]['corr']:.2f})")
     plt.tight_layout()
     plt.show()
+    if reliability:
+        display(pd.concat({LABEL[lg]: r['slope'] for lg, r in reliability.items()}).round(3))
     display(pd.DataFrame({lg: {k: v for k, v in c.items() if k != 'deciles'} for lg, c in calibration.items()}).round(3))""",
     ),
     (
@@ -343,7 +364,9 @@ for lg in LEAGUES:
                       'value': f"{x['gap']:+.3f} ({x['lo']:+.3f} to {x['hi']:+.3f})"})
     rel, cal = reliability.get(lg), calibration.get(lg)
     if rel:
-        facts.append({'label': 'Reliability slope, realised on predicted value', 'value': f"{rel['slope']['all']:.2f}"})
+        rs = rel['slope'].loc['all']
+        facts.append({'label': 'Reliability slope above replacement (per game)',
+                      'value': f"{rs['above replacement']:.2f} ({rs['per game']:.2f})"})
     if cal:
         facts.append({'label': 'Games share, predicted vs played',
                       'value': f"{cal['pred']:.2f} vs {cal['real']:.2f} (correlation {cal['corr']:.2f})"})
