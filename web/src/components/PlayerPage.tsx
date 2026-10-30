@@ -214,7 +214,7 @@ function OutlookCard({ board, league }: { board: NonNullable<PlayerFile['board']
               hint="Share of the remaining regular-season games the player is expected to play"
             />
           )}
-          {typeof board.expected_games_missed === 'number' && (
+          {typeof board.expected_games_missed === 'number' && !board.expected_return && (
             <Fact
               label="Expected to miss"
               value={`${fmt(board.expected_games_missed)} games`}
