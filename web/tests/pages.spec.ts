@@ -237,19 +237,34 @@ for (const path of ['/', '/league/', '/streamers/', '/health/', '/p/wnba/1628932
   });
 }
 
-test('the pipeline page has its four diagrams and every stage', async ({ page }) => {
+test('the pipeline page has its diagrams and seven stages numbered as the data-flow processes are', async ({ page }) => {
   await page.goto('/pipeline/');
-  for (const id of ['dfd', 'deployment', 'sequence', 'activity']) {
+  const diagrams = ['dfd-collect', 'dfd-publish', 'deploy-collect', 'deploy-publish', 'sequence', 'activity'];
+  for (const id of diagrams) {
     await expect(page.getByTestId(`diagram-${id}`).locator('svg')).toBeVisible();
   }
-  const dfd = page.getByTestId('diagram-dfd');
-  expect(await dfd.locator('a').count()).toBeGreaterThanOrEqual(10);
-  await expect(dfd).toContainText('Decide the gate');
-  await expect(page.getByTestId('diagram-sequence')).toContainText('latest.json (last)');
-  await expect(page.getByTestId('diagram-activity')).toContainText('games share');
-  await expect(page.getByTestId('pipeline-stages').locator(':scope > section')).toHaveCount(11);
-  await expect(page.getByTestId('known-gaps').locator('li')).toHaveCount(5);
-  await dfd.locator('a[href="#gate"]').first().click();
+  const stages = ['1. Ingest', '2. Model', '3. Gate', '4. Export', '5. Analyse', '6. Promote', '7. Serve'];
+  await expect(page.getByTestId('pipeline-stages').locator(':scope > section > h2')).toHaveText(stages);
+  const collect = page.getByTestId('diagram-dfd-collect');
+  const publish = page.getByTestId('diagram-dfd-publish');
+  for (const s of stages.slice(0, 3)) await expect(collect).toContainText(s);
+  for (const s of stages.slice(3)) await expect(publish).toContainText(s);
+  // The six source families, each linked to the sources section; other pages through the base path.
+  await expect(collect.locator('a[href="#sources"]')).toHaveCount(6);
+  await expect(collect.locator('a[href$="/schema/#seeds"]')).toHaveCount(1);
+  await expect(page.getByTestId('diagram-deploy-publish')).toContainText('api.login.yahoo.com');
+  await expect(page.getByTestId('diagram-sequence')).toContainText('latest.json last');
+  await expect(page.getByTestId('diagram-activity')).toContainText('the last five games');
+  await expect(page.getByTestId('value-rule')).toContainText('never moves it');
+  // Every diagram fits the content column on a desktop.
+  if (page.viewportSize()!.width >= 1280) {
+    for (const id of diagrams) {
+      const region = page.getByTestId(`diagram-${id}`).getByRole('region');
+      const fits = await region.evaluate((el) => el.scrollWidth <= el.clientWidth);
+      expect(fits, `${id} fits without scrolling`).toBe(true);
+    }
+  }
+  await collect.locator('a[href="#gate"]').first().click();
   await expect(page).toHaveURL(/#gate$/);
 });
 

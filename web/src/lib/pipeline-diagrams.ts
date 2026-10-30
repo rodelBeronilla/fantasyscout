@@ -1,161 +1,281 @@
 /**
- * The Pipeline page's diagrams. Counts and settings come from the generated schema file so
- * the drawings cannot drift from the project.
+ * The Pipeline page's diagrams. Counts, seed names and settings come from the generated schema
+ * file so the drawings cannot drift from the project; links to other pages go through href().
+ *
+ * One notation throughout: processes carry the stage numbers of the page's sections (1 to 7),
+ * stores are numbered D1 to D6, a solid arrow carries the data it is labelled with, and a dashed
+ * arrow is a condition that carries no data. The sequence diagram follows UML instead (dashed
+ * arrows are replies), and says so in its caption.
  */
 import schema from '../generated/schema.json';
 import { DOT_DEFAULTS, renderDot, sequenceSvg, TOKEN as T } from './diagram';
+import { href } from './site';
 
-const count = (layer: string) => schema.layers.find((l) => l.name === layer)?.models.length ?? 0;
+const layers = schema.layers as { name: string; models: { name: string }[] }[];
+const count = (layer: string) => layers.find((l) => l.name === layer)?.models.length ?? 0;
+const seeds = (schema.seeds as { name: string }[]).map((s) => s.name);
 const fantasy = schema.fantasy as {
   fantasy: Record<string, { teams: number; roster_spots: number; prior_games: number; durability_games: number; minutes_recency: number[] }>;
   fantasy_recency: number[];
   fantasy_durability: { typical_share: number };
   fantasy_team_change: number;
+  fantasy_recent_minutes: number;
 };
 const nba = fantasy.fantasy['nba']!;
 const wnba = fantasy.fantasy['wnba']!;
 
-/** Data-flow diagram: external entities (boxes), processes (rounded), data stores (cylinders). */
-export function dataFlow(): Promise<string> {
-  const ext = `shape=box, style="filled,bold", fillcolor="${T.bg}", penwidth=1.6`;
-  const proc = `shape=box, style="rounded,filled", fillcolor="${T.accentTint}", color="${T.accent}"`;
-  const store = `shape=cylinder, fillcolor="${T.card}"`;
-  return renderDot(`digraph dfd {
+/** The six source families, as the first data-flow diagram draws them. */
+const SOURCE_FAMILIES = [
+  { id: 'stats', name: 'League stats API', host: 'stats.wnba.com · stats.nba.com' },
+  { id: 'espn', name: 'ESPN site API', host: 'site.api.espn.com' },
+  { id: 'fantasy', name: 'ESPN fantasy API', host: 'lm-api-reads.fantasy.espn.com' },
+  { id: 'pdf', name: 'Official injury reports', host: 'PDFs · ak-static.cms.nba.com' },
+  { id: 'static', name: 'League static files', host: 'stats.nba.com/js/data' },
+  { id: 'sleeper', name: 'Sleeper API', host: 'api.sleeper.app' },
+] as const;
+
+const EXT = `shape=box, style="filled,bold", fillcolor="${T.bg}", penwidth=1.6`;
+const PROC = `shape=box, style="rounded,filled", fillcolor="${T.accentTint}", color="${T.accent}"`;
+const STORE = `shape=cylinder, fillcolor="${T.card}"`;
+const LINK = `shape=box, style="rounded,dashed,filled", fillcolor="${T.bg}", fontsize=10`;
+
+/** Pairs of names, one pair per line, for a store label. */
+const pairs = (names: string[]) => {
+  const out: string[] = [];
+  for (let i = 0; i < names.length; i += 2) out.push(names.slice(i, i + 2).join(' · '));
+  return out.join('\\n');
+};
+
+/** Data-flow diagram 1 of 2: from the sources to the publish gate (stages 1 to 3). */
+export function dataFlowCollect(): Promise<string> {
+  const src = SOURCE_FAMILIES.map((s) => `src_${s.id} [${EXT}, label="${s.name}\\n${s.host}", URL="#sources"];`).join('\n      ');
+  return renderDot(`digraph collect {
     ${DOT_DEFAULTS}
-    rankdir=TB; nodesep=0.3; ranksep=0.5;
-    stats [${ext}, label="League stats API\\nstats.wnba.com · stats.nba.com", URL="#sources"];
-    espn  [${ext}, label="ESPN site API\\nsite.api.espn.com", URL="#sources"];
-    user  [${ext}, label="Fantasy manager\\n(browser)", URL="#serving"];
-    tabp  [${ext}, label="Tableau Public", URL="#analysis"];
+    rankdir=TB; nodesep=0.22; ranksep=0.42; compound=true;
+    subgraph cluster_src {
+      label="External sources (six families)"; labeljust=l; fontsize=11; style="rounded,dashed"; color="${T.line}";
+      ${src}
+      { rank=same; src_stats; src_espn; src_fantasy; }
+      { rank=same; src_pdf; src_static; src_sleeper; }
+      src_stats -> src_pdf [style=invis]; src_espn -> src_static [style=invis]; src_fantasy -> src_sleeper [style=invis];
+    }
+    p1 [${PROC}, label="1. Ingest\\nfs-ingest land: stats · espn · reports", URL="#ingest"];
+    d1 [${STORE}, label="D1 Landing volume\\npayloads · .meta.json · _index.json · run logs", URL="#landing"];
+    d2 [${STORE}, label="D2 Seeds (repository)\\n${pairs(seeds)}", URL="${href('/schema/#seeds')}"];
+    p2 [${PROC}, label="2. Model\\ndbt build on Databricks", URL="#model"];
+    d3 [${STORE}, label="D3 Lakehouse (Delta)\\nbronze ${count('bronze')} · silver ${count('silver')} · gold ${count('gold')} · ops ${count('ops')}", URL="${href('/schema/')}"];
+    p3 [${PROC}, label="3. Gate\\nops/results.py", URL="#gate"];
+    next [${LINK}, label="continues in diagram 2\\nat 4. Export", URL="#dfd-publish"];
 
-    p1 [${proc}, label="1. Ingest stats\\nhome runners · paced client", URL="#ingest"];
-    p2 [${proc}, label="2. Ingest ESPN\\nGitHub runners · paced client", URL="#ingest"];
-    p3 [${proc}, label="3. Model\\ndbt build on Databricks", URL="#bronze"];
-    p4 [${proc}, label="4. Decide the gate\\nops/results.py", URL="#gate"];
-    p5 [${proc}, label="5. Export\\nfs-export build", URL="#export"];
-    p6 [${proc}, label="6. Analyse\\nnotebooks · Tableau extract", URL="#analysis"];
-    p7 [${proc}, label="7. Serve\\nCloudflare Worker", URL="#serving"];
-    p8 [${proc}, label="8. Query in the browser\\nDuckDB-WASM", URL="#serving"];
-
-    d1 [${store}, label="D1 Landing volume\\nraw JSON · .meta · _index · run log", URL="#landing"];
-    d2 [${store}, label="D2 Lakehouse (Delta)\\nbronze ${count('bronze')} · silver ${count('silver')} · gold ${count('gold')} · ops ${count('ops')}", URL="/schema/"];
-    d3 [${store}, label="D3 Seeds (repository)\\noverrides · team reference · categories", URL="/schema/#seeds"];
-    d4 [${store}, label="D4 R2 builds/<id>/\\nParquet · JSON · players · health · manifest", URL="#export"];
-    d5 [${store}, label="D5 R2 pointers\\nlatest.json · builds.json", URL="#export"];
-    d6 [${store}, label="D6 Google Sheet\\nthree extract tabs", URL="#analysis"];
-
-    stats -> p1 [label="JSON over HTTPS"];
-    espn  -> p2 [label="JSON over HTTPS"];
+    src_static -> p1 [ltail=cluster_src, label="JSON and PDF over HTTPS"];
     p1 -> d1 [label="payloads, run log\\n(Files API)"];
-    p2 -> d1 [label="payloads, run log"];
-    d1 -> p3 [label="new files\\n(read_files, incremental)"];
-    d3 -> p3 [label="seeds"];
-    p3 -> d2 [label="tables"];
-    p3 -> p4 [label="run_results.json"];
-    p4 -> d2 [label="test_results,\\npublish_gate"];
-    p4 -> p5 [label="gate open", style=dashed];
-    d2 -> p5 [label="gold + ops\\n(SQL API, Arrow)"];
-    p5 -> d4 [label="build files"];
-    p5 -> d5 [label="pointer, flipped once\\nthe build is complete"];
-    d5 -> p7; d4 -> p7;
-    p7 -> p6 [label="published build\\n(HTTPS)"];
-    p6 -> d4 [label="notebook pages,\\nextract CSVs"];
-    p6 -> d6 [label="extract (Sheets API)"];
-    d6 -> tabp [label="refresh, about daily"];
-    p7 -> user [label="pages, JSON, Parquet"];
-    p7 -> p8 [label="Parquet (range requests)"];
-    p8 -> user [label="query results"];
-    tabp -> user [label="embedded workbook", style=dashed];
-    { rank=same; stats; espn; }
-    { rank=same; p1; p2; }
-    { rank=same; user; tabp; }
+    d1 -> p2 [label="new files (read_files)"];
+    d2 -> p2 [label="seed rows"];
+    p2 -> d3 [label="tables"];
+    p2 -> p3 [label="run_results.json"];
+    p3 -> d3 [label="test_results,\\npublish_gate"];
+    p3 -> next [style=dashed, label="gate open"];
+    { rank=same; d2; p2; }
+    { rank=same; d3; p3; }
   }`);
 }
 
-/** UML deployment diagram: execution environments (clusters) and what runs on each. */
-export function deployment(): Promise<string> {
-  const node = `shape=box3d, fillcolor="${T.card}"`;
-  const art = `shape=note, fillcolor="${T.bg}"`;
-  const cluster = (id: string, label: string, body: string) =>
-    `subgraph cluster_${id} { label="${label}"; labeljust=l; style="rounded,filled"; fillcolor="${T.accentTint}"; color="${T.line}"; fontsize=11; ${body} }`;
-  return renderDot(`digraph deploy {
+/** Data-flow diagram 2 of 2: from the gate to the reader (stages 4 to 7). */
+export function dataFlowPublish(): Promise<string> {
+  return renderDot(`digraph publish {
     ${DOT_DEFAULTS}
-    rankdir=LR; nodesep=0.3; ranksep=0.7; compound=true;
-    stats [shape=box, style="filled,bold", fillcolor="${T.bg}", label="«external»\\nLeague stats API"];
-    espn  [shape=box, style="filled,bold", fillcolor="${T.bg}", label="«external»\\nESPN site API"];
-    ${cluster('home', '«device» Home server · Docker', `
-      runner [${node}, label="«execution environment»\\nrunner containers ×2\\n(label: home)"];
-      a_stats [${art}, label="fs-ingest land stats\\n(ingest.yml, backfill.yml)"];
-      runner -> a_stats [arrowhead=none, style=dotted];`)}
-    ${cluster('gh', '«cloud» GitHub Actions · hosted runners', `
-      gh_r [${node}, label="«execution environment»\\nubuntu-latest"];
-      a_espn [${art}, label="fs-ingest land espn"];
-      a_build [${art}, label="build.yml: dbt build, gate,\\nexport, notebooks, extract,\\nsheet push, incident"];
-      a_ops [${art}, label="ci.yml · deploy-web.yml\\nexport.yml · query.yml · probe.yml"];
-      gh_r -> a_espn [arrowhead=none, style=dotted];
-      gh_r -> a_build [arrowhead=none, style=dotted];
-      gh_r -> a_ops [arrowhead=none, style=dotted];`)}
-    ${cluster('dbx', '«cloud» Databricks', `
-      vol [shape=cylinder, label="Unity Catalog volume\\nraw/landing"];
-      wh [${node}, label="«execution environment»\\nSQL warehouse"];
-      delta [shape=cylinder, label="Delta tables\\nbronze · silver · gold · ops"];
-      job [${art}, label="Asset Bundle job\\n(deployed, paused)"];`)}
-    ${cluster('cf', '«cloud» Cloudflare', `
-      r2 [shape=cylinder, label="R2 fantasyscout-data\\nbuilds · pointers · vendor"];
-      wk [${node}, label="«execution environment»\\nWorker: production\\nfantasyscout.beronilla.rodeo"];
-      wkp [${node}, label="«execution environment»\\nWorker: preview (preprod)\\nworkers.dev"];`)}
-    ${cluster('g', '«cloud» Google', `sheet [shape=cylinder, label="Sheet\\nLeague Pulse extract"];`)}
-    ${cluster('t', '«cloud» Tableau Public', `wb [${art}, label="League Pulse workbook"];`)}
-    ${cluster('b', '«device» Browser', `
-      app [${art}, label="Astro pages\\nReact islands"];
-      duck [${art}, label="DuckDB-WASM\\nSQL console"];`)}
+    rankdir=TB; nodesep=0.3; ranksep=0.42;
+    prev [${LINK}, label="from 3. Gate\\nin diagram 1", URL="#dfd-collect"];
+    d3 [${STORE}, label="D3 Lakehouse (Delta)\\ngold · ops", URL="${href('/schema/')}"];
+    p4 [${PROC}, label="4. Export\\nfs-export build --stage", URL="#export"];
+    d4 [${STORE}, label="D4 R2 builds/<id>/\\nParquet · JSON · players · health\\nmanifest · keys.txt", URL="#export"];
+    p5 [${PROC}, label="5. Analyse\\nnotebooks · Tableau extract", URL="#analysis"];
+    d6 [${STORE}, label="D6 Google Sheet\\none tab per extract file", URL="#analysis"];
+    tab [${EXT}, label="Tableau Public\\nworkbook (publish pending)", URL="#analysis"];
+    p6 [${PROC}, label="6. Promote\\nfs-export promote", URL="#promote"];
+    d5 [${STORE}, label="D5 R2 pointers\\nbuilds.json · latest.json", URL="#promote"];
+    p7 [${PROC}, label="7. Serve\\nCloudflare Worker", URL="#serving"];
+    yahoo [${EXT}, label="Yahoo\\nOpenID sign-in", URL="#serving"];
+    reader [${EXT}, label="Reader\\n(browser)", URL="#serving"];
+    owner [${EXT}, label="Site owner\\n(browser, SQL console)", URL="#serving"];
 
-    a_stats -> stats [label="HTTPS"];
-    a_espn -> espn [label="HTTPS"];
+    prev -> p4 [style=dashed, label="gate open"];
+    d3 -> p4 [label="gold + ops\\n(SQL API, Arrow)"];
+    p4 -> d4 [label="build files"];
+    p4 -> p5 [label="build id"];
+    d4 -> p5 [label="staged files\\n(HTTPS, CI reader key)"];
+    p5 -> d4 [label="notebook pages,\\nfindings, CSVs"];
+    p4 -> p6 [label="build id"];
+    d4 -> p6 [label="manifest"];
+    p6 -> d5 [label="builds.json,\\nthen latest.json"];
+    p5 -> d6 [label="extract, after\\npromotion (Sheets API)"];
+    d6 -> tab [label="daily refresh"];
+    d5 -> p7 [label="pointers"];
+    d4 -> p7 [label="build files"];
+    p7 -> reader [label="pages, public JSON,\\nnotebook pages"];
+    p7 -> owner [label="private Parquet\\n(range requests)"];
+    owner -> p7 [label="sign-in"];
+    p7 -> yahoo [label="OpenID request"];
+    yahoo -> p7 [label="account id"];
+    { rank=same; p5; p6; }
+    { rank=same; d6; d5; }
+  }`);
+}
+
+const EXEC = `shape=box3d, fillcolor="${T.card}"`;
+const ART = `shape=note, fillcolor="${T.bg}"`;
+/** A UML node drawn as a shaded, labelled cluster; what is drawn inside it is deployed on it. */
+const node = (id: string, label: string, body: string, fill: string = T.accentTint) =>
+  `subgraph cluster_${id} { label="${label}"; labeljust=l; style="rounded,filled"; fillcolor="${fill}"; color="${T.line}"; fontsize=11; ${body} }`;
+
+/** UML deployment diagram 1 of 2: where ingest and the build run (stages 1 to 3). */
+export function deploymentCollect(): Promise<string> {
+  const host = `shape=box3d, fillcolor="${T.bg}", fontsize=10`;
+  return renderDot(`digraph deployCollect {
+    ${DOT_DEFAULTS}
+    rankdir=LR; nodesep=0.22; ranksep=0.7; newrank=true;
+    ${node(
+      'home',
+      '«device» home server, Docker',
+      node('runner', '«execution environment»\\ntwo runner containers', `a_stats [${ART}, label="fs-ingest land stats\\ningest.yml · backfill.yml"];`, T.card),
+    )}
+    ${node(
+      'gh',
+      '«cloud» GitHub Actions',
+      node(
+        'ubuntu',
+        '«execution environment»\\nhosted runners, ubuntu-latest',
+        `
+        a_ingest [${ART}, label="fs-ingest land espn · reports\\ningest.yml · backfill.yml"];
+        a_build [${ART}, label="build.yml, dbt job: dbt build,\\ngate, incident (continues\\nin diagram 2)"];
+        a_bundle [${ART}, label="build.yml, bundle job:\\ndatabricks bundle deploy"];`,
+        T.card,
+      ),
+    )}
+    ${node(
+      'ext',
+      '«external» source hosts',
+      `
+      h_stats [${host}, label="stats.wnba.com\\nstats.nba.com"];
+      h_espn [${host}, label="site.api.espn.com\\nlm-api-reads.fantasy.espn.com"];
+      h_league [${host}, label="ak-static.cms.nba.com\\nofficial.nba.com"];
+      h_sleeper [${host}, label="api.sleeper.app"];`,
+      T.bg,
+    )}
+    ${node(
+      'dbx',
+      '«cloud» Databricks',
+      `
+      wh [${EXEC}, label="«execution environment»\\nSQL warehouse"];
+      job [${ART}, label="dbt job from the bundle\\n(deployed, paused)"];
+      vol [shape=cylinder, label="Unity Catalog volume\\nraw/landing"];
+      delta [shape=cylinder, label="Delta tables\\nbronze · silver\\ngold · ops"];`,
+    )}
+
+    a_stats -> h_stats [label="HTTPS"];
+    a_ingest -> h_stats [label="static files"];
+    a_ingest -> h_espn [label="HTTPS"];
+    a_ingest -> h_league [label="HTTPS"];
+    a_ingest -> h_sleeper [label="HTTPS"];
     a_stats -> vol [label="Files API"];
-    a_espn -> vol [label="Files API"];
-    a_build -> wh [label="dbt-databricks,\\nSQL Statement API"];
+    a_ingest -> vol [label="Files API"];
+    a_build -> wh [label="dbt-databricks,\\nSQL API"];
     wh -> vol [label="read_files"];
-    wh -> delta;
-    a_build -> r2 [label="Cloudflare API"];
+    wh -> delta [label="SQL"];
+    a_bundle -> job [label="Databricks API"];
+    { rank=same; h_stats; h_espn; h_league; h_sleeper; wh; job; }
+  }`);
+}
+
+/** UML deployment diagram 2 of 2: where publishing and serving run (stages 4 to 7). */
+export function deploymentPublish(): Promise<string> {
+  return renderDot(`digraph deployPublish {
+    ${DOT_DEFAULTS}
+    rankdir=TB; nodesep=0.25; ranksep=0.55; newrank=true;
+    ${node(
+      'gh',
+      '«cloud» GitHub Actions',
+      node(
+        'ubuntu',
+        '«execution environment»\\nhosted runners, ubuntu-latest',
+        `
+        a_build [${ART}, label="build.yml, dbt job: export,\\nnotebooks, extract, promote,\\nsheet push"];
+        a_web [${ART}, label="deploy-web.yml: site, dbt docs,\\nDuckDB-WASM files, Worker"];`,
+        T.card,
+      ),
+    )}
+    ${node(
+      'cf',
+      '«cloud» Cloudflare',
+      `
+      wk [${EXEC}, label="«execution environment»\\nWorker, production\\nfantasyscout.beronilla.rodeo"];
+      wkp [${EXEC}, label="«execution environment»\\nWorker, preview (preprod)\\nworkers.dev"];
+      r2 [shape=cylinder, label="R2 fantasyscout-data\\nbuilds · pointers\\nvendor/duckdb-wasm"];`,
+    )}
+    ${node('g', '«cloud» Google', `sheet [shape=cylinder, label="Sheet\\nLeague Pulse extract"];`)}
+    ${node('t', '«cloud» Tableau Public', `wb [${ART}, label="League Pulse workbook\\n(publish pending)"];`)}
+    ${node('y', '«cloud» Yahoo', `oid [${EXEC}, label="OpenID provider\\napi.login.yahoo.com"];`)}
+    ${node(
+      'b',
+      '«device» browser',
+      `
+      app [${ART}, label="Astro pages\\nReact islands"];
+      duck [${ART}, label="DuckDB-WASM\\nSQL console (owner)"];`,
+    )}
+
+    a_build -> r2 [label="R2 API"];
+    a_build -> wk [label="HTTPS, CI key"];
     a_build -> sheet [label="Sheets API"];
-    a_ops -> wk [label="wrangler deploy"];
-    a_ops -> wkp [label="wrangler deploy\\n(preprod)"];
+    a_web -> wk [label="wrangler"];
+    a_web -> wkp [label="wrangler"];
+    a_web -> r2 [label="wrangler r2"];
     wk -> r2 [label="R2 binding"];
     wkp -> r2 [label="R2 binding"];
-    sheet -> wb [label="refresh"];
+    wk -> oid [label="OpenID"];
+    wb -> sheet [label="reads daily"];
     app -> wk [label="HTTPS"];
     duck -> wk [label="HTTPS range"];
-    app -> wb [label="iframe", style=dashed];
+    app -> wb [label="iframe, once published"];
+    duck -> app -> a_web -> a_build [style=invis];
+    { rank=same; app; duck; a_web; a_build; }
   }`);
 }
 
-/** UML sequence diagram of one daily run, from the schedule to a reader's browser. */
+/** UML sequence diagram of a day: two scheduled runs, each followed by a build. */
 export function dailyRun(): string {
   return sequenceSvg(
     [
-      { id: 'cron', label: 'Schedule', sub: '09:15 UTC' },
+      { id: 'cron', label: 'Schedule', sub: '09:15 · 23:00 UTC' },
       { id: 'home', label: 'Home runner', sub: 'stats ingest' },
-      { id: 'gh', label: 'GitHub runner', sub: 'ESPN ingest' },
-      { id: 'src', label: 'Source APIs', sub: 'stats · ESPN' },
+      { id: 'gh', label: 'GitHub runner', sub: 'ESPN, reports' },
+      { id: 'src', label: 'Sources', sub: 'six families' },
       { id: 'vol', label: 'Landing', sub: 'UC volume' },
       { id: 'build', label: 'Build job', sub: 'GitHub runner' },
       { id: 'wh', label: 'SQL warehouse', sub: 'Databricks' },
-      { id: 'r2', label: 'R2', sub: 'Cloudflare' },
-      { id: 'web', label: 'Worker + browser', sub: 'readers' },
+      { id: 'cf', label: 'Cloudflare', sub: 'Worker · R2' },
     ],
     [
-      { kind: 'async', from: 'cron', to: 'gh', text: 'start Ingest: plan + ESPN jobs' },
-      { kind: 'async', from: 'cron', to: 'home', text: 'stats jobs (if the runner label is set)' },
-      { kind: 'call', from: 'gh', to: 'src', text: 'scoreboard, summaries, rosters, injuries' },
-      { kind: 'reply', from: 'src', to: 'gh', text: 'JSON' },
-      { kind: 'call', from: 'home', to: 'src', text: 'schedule, logs, box scores, pbp, shots' },
-      { kind: 'reply', from: 'src', to: 'home', text: 'JSON (paced, cookies dropped)' },
-      { kind: 'call', from: 'gh', to: 'vol', text: 'land payloads + run log' },
-      { kind: 'call', from: 'home', to: 'vol', text: 'land payloads + run log' },
+      { kind: 'async', from: 'cron', to: 'gh', text: 'start Ingest (plan job)' },
+      {
+        kind: 'alt',
+        text: '09:15 run only',
+        steps: [
+          { kind: 'call', from: 'gh', to: 'src', text: 'scoreboards, summaries' },
+          { kind: 'reply', from: 'src', to: 'gh', text: 'ESPN JSON' },
+          { kind: 'call', from: 'gh', to: 'vol', text: 'land payloads + run log' },
+          { kind: 'async', from: 'cron', to: 'home', text: 'stats jobs, if the label is set' },
+          { kind: 'call', from: 'home', to: 'src', text: 'schedule, logs, box scores, plays' },
+          { kind: 'reply', from: 'src', to: 'home', text: 'JSON (paced)' },
+          { kind: 'call', from: 'home', to: 'vol', text: 'land payloads + run log' },
+        ],
+      },
+      { kind: 'self', at: 'gh', text: 'reports jobs, in both runs' },
+      { kind: 'call', from: 'gh', to: 'src', text: 'six feeds' },
+      { kind: 'reply', from: 'src', to: 'gh', text: 'PDF, JSON' },
+      { kind: 'call', from: 'gh', to: 'vol', text: 'land parsed, trimmed payloads' },
       { kind: 'note', over: ['home', 'gh'], text: 'a failed job opens its own incident' },
       { kind: 'async', from: 'gh', to: 'build', text: 'Ingest finished (workflow_run)' },
-      { kind: 'call', from: 'build', to: 'wh', text: 'ensure dirs; dbt build (models + tests)' },
+      { kind: 'call', from: 'build', to: 'wh', text: 'dbt build: models + tests' },
       { kind: 'call', from: 'wh', to: 'vol', text: 'read new files' },
       { kind: 'reply', from: 'wh', to: 'build', text: 'run results' },
       { kind: 'self', at: 'build', text: 'gate: record results, decide' },
@@ -164,14 +284,16 @@ export function dailyRun(): string {
         text: 'gate open',
         steps: [
           { kind: 'call', from: 'build', to: 'wh', text: 'read gold + ops (Arrow)' },
-          { kind: 'call', from: 'build', to: 'r2', text: 'stage: files, manifest' },
-          { kind: 'call', from: 'build', to: 'web', text: 'notebooks + extract read it by id' },
-          { kind: 'call', from: 'build', to: 'r2', text: 'notebook pages, extract CSVs' },
-          { kind: 'call', from: 'build', to: 'r2', text: 'promote: builds.json, latest.json (last)' },
+          { kind: 'call', from: 'build', to: 'cf', text: 'stage builds/<id>/' },
+          { kind: 'call', from: 'build', to: 'cf', text: 'notebooks, extract read it' },
+          { kind: 'reply', from: 'cf', to: 'build', text: 'Parquet, JSON (CI key)' },
+          { kind: 'call', from: 'build', to: 'cf', text: 'add pages, findings, CSVs' },
+          { kind: 'call', from: 'build', to: 'cf', text: 'promote: latest.json last' },
+          { kind: 'self', at: 'build', text: 'push the extract to the sheet' },
         ],
       },
-      { kind: 'self', at: 'build', text: 'incident: names any failed step' },
-      { kind: 'call', from: 'web', to: 'r2', text: 'latest.json (60 s cache), build files' },
+      { kind: 'self', at: 'build', text: 'incident: open, update or close' },
+      { kind: 'self', at: 'build', text: 'bundle job: deploy the paused job' },
     ],
   );
 }
@@ -179,38 +301,41 @@ export function dailyRun(): string {
 /** UML activity diagram: how a player's board value is computed. */
 export function valueActivity(): Promise<string> {
   const act = `shape=box, style="rounded,filled", fillcolor="${T.card}"`;
-  const dec = `shape=diamond, fillcolor="${T.warnTint}", fontsize=10, width=1.6, height=0.7`;
+  const dec = `shape=diamond, fillcolor="${T.warnTint}", fontsize=10, width=1.5, height=0.6`;
+  const bar = (w: number) => `shape=box, label="", height=0.05, width=${w}, fillcolor="${T.fg}", color="${T.fg}", fixedsize=true`;
+  const pool = (l: { teams: number; roster_spots: number }) => l.teams * l.roster_spots;
+  const recent = fantasy.fantasy_recent_minutes;
   return renderDot(`digraph value {
     ${DOT_DEFAULTS}
-    rankdir=TB; nodesep=0.4; ranksep=0.32;
+    rankdir=TB; nodesep=0.3; ranksep=0.22;
     start [shape=circle, label="", width=0.22, fillcolor="${T.fg}", color="${T.fg}"];
-    a1 [${act}, label="Per-season lines for this season and the two before\\n(mart_category_zscores)", URL="/schema/#m-mart_category_zscores"];
-    a2 [${act}, label="Keep players on their team's latest roster landing"];
-    a3 [${act}, label="Production per minute\\nseasons weighted by minutes × ${fantasy.fantasy_recency.join(' / ')}"];
-    a4 [${act}, label="Minutes per game\\ngames × ${nba.minutes_recency.join(' / ')} (NBA), × ${wnba.minutes_recency.join(' / ')} (WNBA)\\na past season on another team × ${fantasy.fantasy_team_change}"];
-    a5 [${act}, label="Games share (regular season)\\nregressed to ${fantasy.fantasy_durability.typical_share} by ${nba.durability_games} (NBA) / ${wnba.durability_games} (WNBA) games"];
-    a6 [${act}, label="Add ${nba.prior_games} (NBA) / ${wnba.prior_games} (WNBA) games of a replacement-level player\\nper-game line = rate × minutes", URL="/schema/#m-mart_player_projection"];
-    a7 [${act}, label="Pass 1: z-scores over the ${nba.teams * nba.roster_spots} NBA / ${wnba.teams * wnba.roster_spots} WNBA players with most projected minutes"];
-    a8 [${act}, label="Pass 2: z-scores over the players pass 1 values most\\npercentages volume-weighted, turnovers negative"];
-    a9 [${act}, label="Subtract replacement level per category\\n(the next ${nba.teams} NBA / ${wnba.teams} WNBA players)", URL="/schema/#m-mart_board"];
-    a10 [${act}, label="value_per_game = Σ nine categories"];
+    a1 [${act}, label="Per-season lines for this season and the two before (mart_category_zscores),\\nfor players on their team's latest roster", URL="${href('/schema/#m-mart_category_zscores')}"];
+    fork [${bar(6)}];
+    a3 [${act}, label="Production per minute\\nseasons weighted by\\nminutes × ${fantasy.fantasy_recency.join(' / ')}"];
+    a4 [${act}, label="Minutes per game\\ngames × ${nba.minutes_recency.join(' / ')} (NBA)\\ngames × ${wnba.minutes_recency.join(' / ')} (WNBA)\\nanother team's season × ${fantasy.fantasy_team_change}\\nin season, 5+ games for the team:\\n${1 - recent} of this, ${recent} of the last five games"];
+    a5 [${act}, label="Games share\\nregular season, regressed\\nto ${fantasy.fantasy_durability.typical_share} by ${nba.durability_games} (NBA)\\nor ${wnba.durability_games} (WNBA) games"];
+    join [${bar(3.6)}];
+    a6 [${act}, label="Projected line = rate × minutes, starting from ${nba.prior_games} (NBA) / ${wnba.prior_games} (WNBA)\\ngames of a replacement-level player", URL="${href('/schema/#m-mart_player_projection')}"];
+    a7 [${act}, label="Two z-score passes over ${pool(nba)} NBA / ${pool(wnba)} WNBA players:\\nmost projected minutes, then most value"];
+    a8 [${act}, label="Subtract replacement level per category (the next ${nba.teams} / ${wnba.teams} players)\\nvalue_per_game = the sum of the nine", URL="${href('/schema/#m-mart_board')}"];
     d1 [${dec}, label="above\\nreplacement?"];
-    a11 [${act}, label="value_total = value per game × games share"];
-    a12 [${act}, label="value_total = value per game\\n(unscaled)"];
+    a9 [${act}, label="value_total =\\nvalue per game × games share"];
+    a10 [${act}, label="value_total =\\nvalue per game"];
     d2 [${dec}, label="regular season\\nstill on?"];
-    a13 [${act}, label="rest of season = value × remaining share × availability\\n(value above replacement only; injury report)"];
-    a14 [${act}, label="rest of season = value"];
+    a12 [${act}, label="rest of season = value × remaining share × availability\\n(value above replacement only)\\navailability, from ESPN's listing: out = the games before the\\nreturn date (all without one); doubtful 0.75 of a game,\\nquestionable 0.5, day-to-day 0.25"];
+    a13 [${act}, label="rest of season =\\nvalue"];
     stop [shape=doublecircle, label="", width=0.18, fillcolor="${T.fg}", color="${T.fg}"];
-    fork [shape=box, label="", height=0.05, width=5, fillcolor="${T.fg}", color="${T.fg}", fixedsize=true];
-    join [shape=box, label="", height=0.05, width=4, fillcolor="${T.fg}", color="${T.fg}", fixedsize=true];
-    start -> a1 -> a2 -> fork;
+
+    start -> a1 -> fork;
     fork -> a3; fork -> a4; fork -> a5;
-    a3 -> join; a4 -> join; join -> a6;
-    a5 -> a11 [style=dashed, label="games share"];
-    a6 -> a7 -> a8 -> a9 -> a10 -> d1;
-    d1 -> a11 [label="yes"]; d1 -> a12 [label="no"];
-    a11 -> d2; a12 -> d2;
-    d2 -> a13 [label="yes"]; d2 -> a14 [label="no"];
-    a13 -> stop; a14 -> stop;
+    a3 -> join; a4 -> join;
+    join -> a6 -> a7 -> a8 -> d1;
+    a5 -> a9 [label="games share"];
+    d1 -> a9 [label="yes"];
+    d1 -> a10 [label="no"];
+    a9 -> d2; a10 -> d2;
+    d2 -> a12 [label="yes"];
+    d2 -> a13 [label="no"];
+    a12 -> stop; a13 -> stop;
   }`);
 }
