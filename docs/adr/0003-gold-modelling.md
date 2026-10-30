@@ -130,3 +130,15 @@ Issue #124 asked whether recent role signals predict a player's minutes better t
 The last five games carry nearly all of the gain, and a plain half-and-half blend does as well as a fitted one. Recent starts add little beyond it. The minutes of teammates who sat out the latest game add nothing; their absence shows up in the last five games anyway.
 
 So, in season, with five or more games for his current team, a player's projected minutes are half the season-weighted figure and half his last five games (var `fantasy_recent_minutes`, 0.5). Per-minute production is unchanged. Out of season the projection is as before, because the replay tested in-season horizons only. The play-by-play that motivated the question stays a daily fetch for the lineups and the shot data; its lineup model can feed a later on/off study.
+
+## Addendum (2026-10-30): defence by position does not earn a place in the matchup
+
+Issue #142 asked whether an opponent's defence against a player's position explains his game beyond the opponent's overall defence, which the matchup score already uses. The test was every player-game with 10+ minutes after a player's first five games. The measure was his fantasy points per minute (ESPN's default points) against his season average to date. Two signals were taken from what the opponent had allowed before that day: per minute to all players, and per minute to players of his primary position (G, F or C), less the overall figure. Both were standardised over the league's teams. The signals were fitted on earlier seasons (NBA 2023-24 and 2024-25, WNBA 2021 to 2024) and tested on the latest (NBA 2025-26, WNBA 2025 and 2026).
+
+| Signal | NBA, out-of-sample share of the game-to-game swing explained | WNBA |
+| --- | --- | --- |
+| Overall defence | 2.25% | 1.77% |
+| Overall plus defence by position | 2.26% | 1.81% |
+| Defence by position alone | −0.04% | 0.02% |
+
+One standard deviation of overall defence is worth about 1.8 fantasy points over 30 minutes in the NBA and 1.5 in the WNBA. Positional defence is worth 0.15 and 0.31, an order of magnitude less and inside the noise. Positional defence tables are mostly a sample of who happened to play against whom. So the matchup score keeps overall defence and pace, and nothing is built for positions. The stats API's defender tracking (leaguedashptdefend, boxscorematchupsv3) measures defenders rather than opponents' positions. Each needs per-game calls on the home runner, and with this result it is not worth that cost now.
