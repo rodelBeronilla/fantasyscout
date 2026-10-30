@@ -5,7 +5,7 @@
   league name with its suffix kept, or both names without suffixes. A matching birth date, then
   a matching team, picks between namesakes; a name that still matches more than one player is
   left unlinked.
-  - waiver_trend: adding when more leagues added than dropped him, else dropping.
+  - waiver_trend: adding when more leagues added the player than dropped the player, else dropping.
 #}
 
 with trending as (

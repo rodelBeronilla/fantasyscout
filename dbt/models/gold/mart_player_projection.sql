@@ -8,7 +8,7 @@
     the current season shows within a few games where the league's roles move a lot (WNBA). A
     past season spent mostly on another team counts for var fantasy_team_change (0.25) of its
     minutes weight: the role was a different team's. Per-minute production carries over.
-    In season, with five or more games for his current team, the figure is blended with his
+    In season, with five or more games for the current team, the figure is blended with the player's
     last five games at var fantasy_recent_minutes (0.5), so a role change shows at once.
   - Production per minute: each season's totals over its minutes, counted by minutes played
     times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of
@@ -228,7 +228,7 @@ weighted as (
 
 ),
 
--- The last five games he played this season for his current team, for the in-season minutes.
+-- The last five games the player played this season for the current team, for the in-season minutes.
 recent_minutes as (
 
     select league, player_id, avg(minutes) as recent_minutes_pg, count(*) as recent_games
@@ -268,8 +268,8 @@ projected as (
         {{ fantasy_setting('prior_games', 'w.league') }} as prior_games,
         -- the prior's minutes: prior_games games of a replacement-level player
         {{ fantasy_setting('prior_games', 'w.league') }} * rl.prior_minutes_pg as prior_minutes,
-        -- minutes per game: the season-weighted figure, and in season (5+ games for his current
-        -- team) blended with his last five games at fantasy_recent_minutes (ADR 0003)
+        -- minutes per game: the season-weighted figure, and in season (5+ games for the current
+        -- team) blended with the last five games at fantasy_recent_minutes (ADR 0003)
         case
             when coalesce(ins.in_season, false) and rm.recent_games >= 5
                 then (1 - {{ var('fantasy_recent_minutes') }}) * {{ base_minutes }} + {{ var('fantasy_recent_minutes') }} * rm.recent_minutes_pg

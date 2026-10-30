@@ -364,6 +364,6 @@ select
     season_value as value_total,
     case when season_value > 0 then season_value * ros_factor else season_value end as value_rest_of_season,
     rank() over (partition by league order by season_value desc, player_id) as rank_total,
-    -- Positive: the market drafts the player later than the board ranks him (a value pick).
+    -- Positive: the market drafts the player later than the board ranks the player (a value pick).
     market_rank - rank() over (partition by league order by season_value desc, player_id) as market_gap
 from totals

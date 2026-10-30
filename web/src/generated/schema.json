@@ -8615,7 +8615,7 @@
      "materialized": "table",
      "name": "waiver_trending",
      "notes": [
-      "Sleeper's trending players from the newest landing (NBA): one row per player in the most-added or most-dropped lists, with the leagues adding and dropping him over the lookback window and his rank in each list (1 is the most). Sleeper's name, team and birth date come from its newest directory, for gold to link the player to the league's id."
+      "Sleeper's trending players from the newest landing (NBA): one row per player in the most-added or most-dropped lists, with the leagues adding and dropping the player over the lookback window and the player's rank in each list (1 is the most). Sleeper's name, team and birth date come from its newest directory, for gold to link the player to the league's id."
      ],
      "read_by": [
       "fct_waiver_trend"
@@ -11169,7 +11169,7 @@
      "name": "fct_waiver_trend",
      "notes": [
       "Waiver heat from Sleeper (NBA): the players Sleeper leagues added and dropped most over the last day, linked to the league player id. Sleeper names players by its own id, so a trending player is matched to a current league player by name: Sleeper's ASCII search name against the league name with its suffix kept, or both names without suffixes. A matching birth date, then a matching team, picks between namesakes; a name that still matches more than one player is left unlinked.",
-      "- waiver_trend: adding when more leagues added than dropped him, else dropping."
+      "- waiver_trend: adding when more leagues added the player than dropped the player, else dropping."
      ],
      "read_by": [
       "mart_streamers"
@@ -12387,7 +12387,7 @@
      "notes": [
       "One projected line per player on a current roster: what the board scores.",
       "The projection separates how much a player plays from what they do while playing:",
-      "- Minutes per game: each season's minutes per game counted by games played times a minutes recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in the current season shows within a few games where the league's roles move a lot (WNBA). A past season spent mostly on another team counts for var fantasy_team_change (0.25) of its minutes weight: the role was a different team's. Per-minute production carries over. In season, with five or more games for his current team, the figure is blended with his last five games at var fantasy_recent_minutes (0.5), so a role change shows at once.",
+      "- Minutes per game: each season's minutes per game counted by games played times a minutes recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in the current season shows within a few games where the league's roles move a lot (WNBA). A past season spent mostly on another team counts for var fantasy_team_change (0.25) of its minutes weight: the role was a different team's. Per-minute production carries over. In season, with five or more games for the current team, the figure is blended with the player's last five games at var fantasy_recent_minutes (0.5), so a role change shows at once.",
       "- Production per minute: each season's totals over its minutes, counted by minutes played times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of 60 games at 8 minutes counts for far less than 60 games at 34.",
       "- Per-game line: production per minute times projected minutes.",
       "- Games share (durability): the share of their team's regular-season games a player played in the seasons they appeared in, by the same recency, regressed toward a typical share by durability_games games (var fantasy.<league>.durability_games, fantasy_durability). Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out.",
@@ -12714,7 +12714,7 @@
        "type": "date"
       },
       {
-       "description": "Days from the run date to the game (0 for today); the run date is the as_of var when set, else the engine's current date",
+       "description": "Days from the run's Eastern date to the game (0 for today); the as_of var pins the date in tests",
        "name": "days_ahead",
        "tests": [
         "not_null"

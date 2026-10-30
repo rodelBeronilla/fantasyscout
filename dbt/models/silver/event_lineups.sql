@@ -65,7 +65,7 @@ subs as (
 subs_in as (
 
     -- rank 0: surname (and the given-name prefix, when there is one), suffix and all, so that
-    -- "Carter Jr." is not his teammate Carter; 1: the same without the suffix; 2: the first part
+    -- "Carter Jr." is not the teammate Carter; 1: the same without the suffix; 2: the first part
     -- of a hyphenated surname, for a name that changed (the box score carries the current
     -- "Laney-Hamilton", a 2019 substitution says "Laney"); 3: given name, for names the feed
     -- writes in the other order; 4: the last word of a longer name, only without a prefix

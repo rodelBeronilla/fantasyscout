@@ -1359,7 +1359,7 @@ models:
       - name: game_date
         description: "Game date in US Eastern time"
       - name: days_ahead
-        description: "Days from the run date to the game (0 for today); the run date is the as_of var when set, else the engine's current date"
+        description: "Days from the run's Eastern date to the game (0 for today); the as_of var pins the date in tests"
         data_tests: [not_null]
       - name: game_type
         description: "regular or playoffs"
