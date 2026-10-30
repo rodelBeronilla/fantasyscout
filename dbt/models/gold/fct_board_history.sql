@@ -14,14 +14,22 @@
   after the builds that published it roll off. Every build merges today's rows (a later build the
   same day replaces them), and a full refresh never rebuilds it (full_refresh=false), so the
   history only grows. It holds the projection and value, and the context the board shows beside
-  the value (availability, lineups, market, stakes, waiver heat, the newest headline flag), so the
+  the value (availability with the official status and reason, lineups, the ESPN market with its
+  raw shares, stakes, waiver heat, last-ten production, the newest headline flag), so the
   signals that have only days of history so far can be backtested once they have a season.
 #}
 
 with streamers as (
 
-    select league, player_id, minutes_trend, value_trend, sleeper_adds, sleeper_drops
+    select league, player_id, minutes_trend, value_trend, sleeper_adds, sleeper_drops, last_10_production
     from {{ ref('mart_streamers') }}
+
+),
+
+status as (
+
+    select league, stats_player_id, official_status, official_reason_group
+    from {{ ref('fct_player_status') }}
 
 )
 
@@ -64,6 +72,18 @@ select
     s.minutes_trend,
     s.value_trend,
     s.sleeper_adds,
-    s.sleeper_drops
+    s.sleeper_drops,
+    s.last_10_production,
+    b.expected_games_missed,
+    st.official_status,
+    st.official_reason_group,
+    b.ownership_trend,
+    mk.percent_owned,
+    mk.percent_started,
+    mk.percent_owned_change,
+    mk.average_draft_position,
+    mk.auction_value_average
 from {{ ref('mart_board') }} as b
 left join streamers as s on s.league = b.league and s.player_id = b.player_id
+left join status as st on st.league = b.league and st.stats_player_id = b.player_id
+left join {{ ref('fct_market_value') }} as mk on mk.league = b.league and mk.stats_player_id = b.player_id
