@@ -44,6 +44,7 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.fct_injury_status", "league, stats_player_id, injury_id, status_from"),
     TableSpec("gold.fct_player_status", "league, stats_player_id", json=True),
     TableSpec("gold.fct_transaction", "league, transaction_date desc, team_id, player_id"),
+    TableSpec("gold.fct_team_game_context", "league, season, game_date, game_id, team_id"),
     TableSpec("gold.mart_board", "league, rank_total, player_id"),
     TableSpec("gold.mart_player_projection", "league, player_id"),
     TableSpec("gold.mart_category_zscores", "league, window_name, season, player_id"),
@@ -243,7 +244,8 @@ SCHEDULE_SQL = """
 select league, season, game_id, game_date, days_ahead, game_type,
     home_team_id, home_team_tricode, away_team_id, away_team_tricode, game_datetime_utc,
     home_matchup, away_matchup, home_spread, over_under, home_implied_points, away_implied_points,
-    line_provider, line_as_of
+    line_provider, line_as_of, home_rest_days, home_back_to_back, away_rest_days, away_back_to_back,
+    away_miles_travelled, at_altitude
 from gold.mart_schedule_upcoming
 order by league, game_date, game_id
 """

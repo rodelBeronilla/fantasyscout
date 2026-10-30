@@ -189,6 +189,16 @@
    "tags": [
     "closure"
    ]
+  },
+  {
+   "about": "Arena cities in the schedule that the venues seed cannot place: their games get no travel or altitude context until the city is added to seeds/venues.csv.",
+   "name": "warn_venue_cities",
+   "reads": [
+    "schedule",
+    "venues"
+   ],
+   "severity": "warn",
+   "tags": []
   }
  ],
  "fantasy": {
@@ -237,7 +247,7 @@
   ],
   "fantasy_team_change": 0.25
  },
- "generic_tests": 224,
+ "generic_tests": 228,
  "layers": [
   {
    "models": [
@@ -6659,7 +6669,8 @@
     {
      "checks": [
       "assert_completeness",
-      "assert_freshness_in_season"
+      "assert_freshness_in_season",
+      "warn_venue_cities"
      ],
      "columns": [
       {
@@ -6858,6 +6869,7 @@
      ],
      "read_by": [
       "dim_game",
+      "fct_team_game_context",
       "mart_board",
       "mart_player_projection",
       "mart_schedule_upcoming"
@@ -9594,6 +9606,142 @@
      "columns": [
       {
        "description": "Surrogate key",
+       "name": "team_game_context_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "game_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "opponent_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "is_home",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "arena_city",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Days off since the team's previous game this season (0 for the second night of a back-to-back); null for a season opener",
+       "name": "rest_days",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "True for the second night of a back-to-back",
+       "name": "is_back_to_back",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "True for the third (or later) game in four nights",
+       "name": "is_3_in_4",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "Great-circle miles from the previous game's city; null when either city is not in the venues seed",
+       "name": "miles_travelled",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Standard UTC offset of this venue minus the previous one: positive means travelling east",
+       "name": "time_zones_crossed",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "elevation_ft",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "True at a venue 4,000 feet up or more (Denver, Salt Lake City, Mexico City)",
+       "name": "at_altitude",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "True when the opponent is on the second night of a back-to-back",
+       "name": "opponent_back_to_back",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "opponent_rest_days",
+       "tests": [],
+       "type": "bigint"
+      }
+     ],
+     "description": "The circumstances of each team's games, played and scheduled: rest days, back-to-backs, three games in four nights, miles travelled, time zones crossed and altitude.",
+     "materialized": "table",
+     "name": "fct_team_game_context",
+     "notes": [
+      "The circumstances of each team's games, played and scheduled: days of rest before the game, the second night of a back-to-back, a third game in four nights, the miles travelled from the previous game's city, the time zones crossed, and the altitude of the venue.",
+      "The venue is the game's arena city (silver.schedule), placed by the venues seed (latitude, longitude, elevation, standard UTC offset); a city missing from the seed leaves travel and altitude null and warn_venue_cities lists it. Travel is the great-circle distance between the two venues, so a home stand after a road trip counts the flight home. Only regular-season, play-in, playoff and cup-final games count, and an \"if necessary\" game is left out until it is confirmed."
+     ],
+     "read_by": [
+      "mart_schedule_upcoming"
+     ],
+     "reads": [
+      "schedule",
+      "venues"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key",
        "name": "transaction_sk",
        "tests": [
         "not_null",
@@ -11240,6 +11388,42 @@
        "name": "line_as_of",
        "tests": [],
        "type": "date"
+      },
+      {
+       "description": "",
+       "name": "home_rest_days",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "True when the home team is on the second night of a back-to-back (fct_team_game_context)",
+       "name": "home_back_to_back",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "away_rest_days",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "True when the away team is on the second night of a back-to-back",
+       "name": "away_back_to_back",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "Miles the away team travels from its previous game",
+       "name": "away_miles_travelled",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "True when the game is played 4,000 feet up or more",
+       "name": "at_altitude",
+       "tests": [],
+       "type": "boolean"
       }
      ],
      "description": "Regular-season and playoff games of the next fourteen days, confirmed games only.",
@@ -11255,6 +11439,7 @@
      ],
      "reads": [
       "fct_team_game",
+      "fct_team_game_context",
       "game_lines",
       "schedule",
       "team_xwalk"
@@ -12123,6 +12308,45 @@
    ],
    "description": "Team reference data for both leagues as of the 2026 WNBA and 2026-27 NBA seasons, including the WNBA expansion teams. Stats API ids are filled from landed data; blank until a team's first game is landed. Abbreviations are the league stats API tricodes.\n",
    "name": "team_reference"
+  },
+  {
+   "columns": [
+    {
+     "description": "Arena city as the league schedule writes it",
+     "name": "city",
+     "tests": [
+      "not_null",
+      "unique"
+     ],
+     "type": "varchar"
+    },
+    {
+     "description": "Degrees north",
+     "name": "latitude",
+     "tests": [],
+     "type": "double"
+    },
+    {
+     "description": "Degrees east (negative west)",
+     "name": "longitude",
+     "tests": [],
+     "type": "double"
+    },
+    {
+     "description": "Elevation of the venue in feet",
+     "name": "elevation_ft",
+     "tests": [],
+     "type": "integer"
+    },
+    {
+     "description": "Standard-time offset from UTC in hours",
+     "name": "utc_offset",
+     "tests": [],
+     "type": "integer"
+    }
+   ],
+   "description": "Where games are played, by the arena city the league schedule gives: latitude and longitude (the arena, or the city for occasional venues), elevation in feet, and the standard UTC offset (daylight saving ignored). Covers every home city of both leagues plus the neutral and occasional sites in the 2025 to 2027 schedules; warn_venue_cities lists any city missing.\n",
+   "name": "venues"
   }
  ]
 }

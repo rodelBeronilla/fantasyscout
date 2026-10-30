@@ -153,10 +153,21 @@ select
     coalesce(ls.home_implied_points, lf.away_implied_points) as home_implied_points,
     coalesce(ls.away_implied_points, lf.home_implied_points) as away_implied_points,
     coalesce(ls.provider, lf.provider) as line_provider,
-    coalesce(ls.observed_date, lf.observed_date) as line_as_of
+    coalesce(ls.observed_date, lf.observed_date) as line_as_of,
+    -- Rest and travel (fct_team_game_context): shown beside the matchup, not yet in it.
+    hc.rest_days as home_rest_days,
+    coalesce(hc.is_back_to_back, false) as home_back_to_back,
+    ac.rest_days as away_rest_days,
+    coalesce(ac.is_back_to_back, false) as away_back_to_back,
+    ac.miles_travelled as away_miles_travelled,
+    coalesce(hc.at_altitude, false) as at_altitude
 from upcoming as u
 left join standardised as h on h.league = u.league and h.season = u.season and h.team_id = u.home_team_id
 left join standardised as a on a.league = u.league and a.season = u.season and a.team_id = u.away_team_id
+left join {{ ref('fct_team_game_context') }} as hc
+    on hc.league = u.league and hc.game_id = u.game_id and hc.team_id = u.home_team_id
+left join {{ ref('fct_team_game_context') }} as ac
+    on ac.league = u.league and ac.game_id = u.game_id and ac.team_id = u.away_team_id
 left join lines as ls
     on ls.league = u.league and ls.event_date_et = u.game_date
     and ls.home_team_id = u.home_team_id and ls.away_team_id = u.away_team_id
