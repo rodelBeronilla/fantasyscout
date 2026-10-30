@@ -1,0 +1,45 @@
+name: Run the notebooks
+
+# Read-only: executes the analysis notebooks of any branch against the published build (the
+# newest, or one build id) and keeps the rendered pages as a run artifact for a few days. Nothing
+# is published. Lets a notebook change be checked against the full history before it merges; the
+# sample CI runs them on is a single game.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_id:
+        description: Build id to read (default the newest published build)
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  notebooks:
+    name: Notebooks on ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --group dbt --group notebooks
+      - name: Execute the notebooks against the published build
+        working-directory: notebooks
+        env:
+          FS_NOTEBOOK_SOURCE: published
+          FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          FS_BUILD_ID: ${{ inputs.build_id }}
+        run: uv run jupyter nbconvert --to html --execute --output-dir _build --ExecutePreprocessor.timeout=1800 *.ipynb
+      - name: Print the findings
+        if: always()
+        run: for f in notebooks/_build/*.findings.json; do echo "== $f"; cat "$f"; echo; done
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: notebooks-${{ github.ref_name == 'main' && 'main' || github.run_id }}
+          path: notebooks/_build/
+          retention-days: 3
