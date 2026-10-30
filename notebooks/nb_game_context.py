@@ -368,15 +368,39 @@ if hazards:
     ),
     (
         "md",
-        """## The injury listing against the next game
+        """## What an injury listing meant
 
-Where the build holds ESPN's injury listings for days with games, each listed player is matched to
-their team's next game within three days, and the share who missed it is set beside the share of
-a game the board charges for the listing. The listing history grows with every daily run.""",
+Every official injury listing before a regular-season game (the last report by 5 pm Eastern on the
+game's date, back to 2023-24 in the NBA and 2026 in the WNBA) with what followed: whether the
+player missed that game, and how many of the team's games went by before the player played again
+(fct_official_listing). The board charges a listed player the average of those games for the
+status, capped at the games the team has left; before this calibration it charged a fixed share
+of a game (out: every game left without a return date; doubtful 0.75, questionable 0.5,
+day-to-day 0.25).""",
     ),
     (
         "code",
-        """ASSUMED = {'out': 1.0, 'doubtful': 0.75, 'questionable': 0.5, 'day_to_day': 0.25}
+        """OLD = {'Out': 'every game left', 'Doubtful': 0.75, 'Questionable': 0.5, 'Probable': 0.0}
+calibration = {}
+need = {'league', 'status', 'reason_group', 'played', 'games_missed'}
+if need <= columns(con, 'fct_official_listing'):
+    ol = con.sql("select league, status, played, games_missed, team_games_left from fct_official_listing "
+                 "where reason_group = 'injury'").df()
+    for lg in LEAGUES:
+        o = ol[ol['league'] == lg]
+        if o.empty:
+            continue
+        t = o.groupby('status').agg(listings=('played', 'size'), missed_game=('played', lambda x: 1 - x.mean()),
+                                    games_missed_mean=('games_missed', 'mean'), games_missed_median=('games_missed', 'median'))
+        t = t.reindex([x for x in ['Out', 'Doubtful', 'Questionable', 'Probable', 'Available'] if x in t.index])
+        t['old_charge'] = t.index.map(OLD)
+        calibration[lg] = t
+        print(LABEL[lg], f'({len(o):,} injury listings)')
+        display(t.round(2))
+if not calibration:
+    print('No official injury listing in this build lines up with a played game yet.')
+
+ASSUMED = {'out': 1.0, 'doubtful': 0.75, 'questionable': 0.5, 'day_to_day': 0.25}
 listing = {}
 need = {'league', 'report_date', 'stats_player_id', 'status_group'}
 if need <= columns(con, 'fct_availability'):
@@ -436,7 +460,12 @@ for lg in LEAGUES:
     ]
     if h is not None:
         facts.append({'label': 'Missed the next game after missing 1 / 3 in a row', 'value': f"{h['mean'].get(1, np.nan):.0%} / {h['mean'].get(3, np.nan):.0%}; {expected[lg]:.1f} more games expected after a first miss"})
-    if lg in listing and listing[lg]['size'].sum() >= 30:
+    if lg in calibration and calibration[lg]['listings'].sum() >= 100:
+        t = calibration[lg]
+        facts.append({'label': 'Official listings: missed the game; games missed on average',
+                      'value': '; '.join(f"{k} {v['missed_game']:.0%}, {v['games_missed_mean']:.1f} (n {int(v['listings']):,})"
+                                         for k, v in t.iterrows() if k in ('Out', 'Doubtful', 'Questionable', 'Probable'))})
+    elif lg in listing and listing[lg]['size'].sum() >= 30:
         t = listing[lg]
         facts.append({'label': 'Listed players who missed the next game', 'value': '; '.join(f"{k} {v['mean']:.0%} of {int(v['size'])} (board {ASSUMED.get(k, float('nan')):.2f})" for k, v in t.iterrows())})
     elif lg in listing:

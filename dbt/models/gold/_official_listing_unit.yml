@@ -1,0 +1,43 @@
+unit_tests:
+  - name: official_listing_counts_the_games_missed_after_each_listing
+    description: >
+      A player listed Out who returns two games later missed 2; a player listed Questionable who
+      played missed 0; a player listed Out who does not play again missed every game the team
+      had left. A report published after 5 pm Eastern is left out.
+    model: fct_official_listing
+    given:
+      - input: ref('official_injury_report')
+        rows:
+          - {league: nba, season: '2024-25', report: r1, published_at_et: '2025-01-01 17:00:00', game_date: '2025-01-01', team: 'Boston Celtics', player_name: 'Jaylen Brown', status: Out, reason_group: injury, injury_detail: 'Knee', not_submitted: false}
+          - {league: nba, season: '2024-25', report: r2, published_at_et: '2025-01-02 17:00:00', game_date: '2025-01-02', team: 'Boston Celtics', player_name: 'Derrick White', status: Questionable, reason_group: injury, injury_detail: 'Ankle', not_submitted: false}
+          - {league: nba, season: '2024-25', report: r3, published_at_et: '2025-01-03 17:00:00', game_date: '2025-01-03', team: 'Boston Celtics', player_name: 'Al Horford', status: Out, reason_group: injury, injury_detail: 'Toe', not_submitted: false}
+          - {league: nba, season: '2024-25', report: r4, published_at_et: '2025-01-04 19:00:00', game_date: '2025-01-04', team: 'Boston Celtics', player_name: 'Derrick White', status: Doubtful, reason_group: injury, injury_detail: 'Ankle', not_submitted: false}
+      - input: ref('teams')
+        rows:
+          - {league: nba, season: '2024-25', team_id: '1610612738', team_name: 'Boston Celtics'}
+      - input: ref('fct_team_game')
+        rows:
+          - {league: nba, season: '2024-25', game_id: '0022400001', game_date: '2025-01-01', team_id: '1610612738'}
+          - {league: nba, season: '2024-25', game_id: '0022400002', game_date: '2025-01-02', team_id: '1610612738'}
+          - {league: nba, season: '2024-25', game_id: '0022400003', game_date: '2025-01-03', team_id: '1610612738'}
+          - {league: nba, season: '2024-25', game_id: '0022400004', game_date: '2025-01-04', team_id: '1610612738'}
+      - input: ref('rosters')
+        rows:
+          - {league: nba, season: '2024-25', team_id: '1610612738', player_id: '1', player_name: 'Jaylen Brown'}
+          - {league: nba, season: '2024-25', team_id: '1610612738', player_id: '2', player_name: 'Derrick White'}
+          - {league: nba, season: '2024-25', team_id: '1610612738', player_id: '3', player_name: 'Al Horford'}
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2024-25', game_id: '0022400001', game_date: '2025-01-01', player_id: '1', team_id: '1610612738', played: false}
+          - {league: nba, season: '2024-25', game_id: '0022400002', game_date: '2025-01-02', player_id: '1', team_id: '1610612738', played: false}
+          - {league: nba, season: '2024-25', game_id: '0022400003', game_date: '2025-01-03', player_id: '1', team_id: '1610612738', played: true}
+          - {league: nba, season: '2024-25', game_id: '0022400002', game_date: '2025-01-02', player_id: '2', team_id: '1610612738', played: true}
+          - {league: nba, season: '2024-25', game_id: '0022400001', game_date: '2025-01-01', player_id: '3', team_id: '1610612738', played: true}
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: '1', full_name: 'Jaylen Brown'}
+    expect:
+      rows:
+        - {game_id: '0022400001', player_id: '1', status: Out, played: false, games_missed: 2, team_games_left: 4}
+        - {game_id: '0022400002', player_id: '2', status: Questionable, played: true, games_missed: 0, team_games_left: 3}
+        - {game_id: '0022400003', player_id: '3', status: Out, played: false, games_missed: 2, team_games_left: 2}

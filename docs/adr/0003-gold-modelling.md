@@ -171,3 +171,34 @@ The streamer signals notebook replays Streamers every Monday of each regular sea
 
 `mart_streamers.last_10_production` is what an average game of the last ten adds to the category totals, in units of each category's spread over the season's pool. Counting stats add, turnovers subtract, and shooting adds its makes above the pool's percentage. It is the last-ten z-score plus a constant, so it ranks players the same way, but it stays positive for about 95% of them and so scales with games. Window value is now production times games in the window, plus each game's matchup. It is the default sort while games are scheduled. An 8-category league leaves the turnovers term out.
 
+## Addendum (2026-10-30): availability calibrated on past official injury listings
+
+The board's rest-of-season value scales by an availability multiplier: the share of the remaining regular-season games the player is expected to play. It charged fixed amounts per ESPN status:
+- out with a return date: the games before it;
+- out without a date: every game left;
+- doubtful: 0.75 of a game;
+- questionable: 0.5;
+- day-to-day: 0.25.
+
+The game context notebook found that players who miss a game go on to miss 3 to 5 more on average, so these charges were never checked against outcomes.
+
+The leagues keep every official injury report on their host, the NBA's back to 2023-24, and `fs-ingest land reports --history` lands the 5 pm Eastern report for each past day. `gold.fct_official_listing` links each listing before a regular-season game to the game and the player, and counts the team's games until the player next played. NBA 2024-25, injury listings only:
+
+| Status | Listings | Missed the game | Games missed, mean | Median | Old charge |
+|---|---|---|---|---|---|
+| Out | 5,635 | 100% | 12.6 | 7 | every game left, if no return date |
+| Doubtful | 169 | 98% | 4.7 | 2 | 0.75 |
+| Questionable | 1,512 | 50% | 1.6 | 1 | 0.5 (day-to-day 0.25) |
+| Probable | 548 | 6% | 0.2 | 0 | 0 |
+
+The fixed charges were off in both directions. Doubtful and questionable listings were undercharged several times over. An out listing without a date erased the whole season, where the typical absence is about two weeks.
+
+The multiplier now charges a listed player the average, over past injury listings with the same status, of the games then missed, capped at the games the team has left. Rules:
+- **Status:** the official report's status for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable).
+- **Return date:** ESPN's expected return date, when given for a player ruled out, still counts the games before it.
+- **Out for the season:** an ESPN note that the player is out for the season counts every game.
+- **Which league's history:** a league uses its own listings once it has 300 for the status. Until then the NBA's apply; the WNBA archive only starts in 2026.
+- **No history:** without any listing history the old charges apply.
+
+The averages update with every build as the daily reports add listings. The game context notebook publishes the table per league.
+

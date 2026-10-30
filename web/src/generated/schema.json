@@ -278,7 +278,7 @@
   "fantasy_recent_minutes": 0.5,
   "fantasy_team_change": 0.25
  },
- "generic_tests": 260,
+ "generic_tests": 265,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -6519,6 +6519,7 @@
       "reason_group sorts the league's reasons: injury (Injury/Illness), g_league (an assignment or a two-way player), rest, personal, suspension, not_with_team, or other; injury_detail is the reason without its \"Injury/Illness - \" prefix."
      ],
      "read_by": [
+      "fct_official_listing",
       "fct_player_status"
      ],
      "reads": [
@@ -7855,6 +7856,7 @@
      ],
      "read_by": [
       "dim_player",
+      "fct_official_listing",
       "mart_player_projection",
       "player_xwalk"
      ],
@@ -8934,6 +8936,7 @@
      ],
      "read_by": [
       "dim_team",
+      "fct_official_listing",
       "fct_player_status",
       "fct_transaction",
       "fct_waiver_trend",
@@ -9560,6 +9563,7 @@
      ],
      "read_by": [
       "fct_availability",
+      "fct_official_listing",
       "fct_player_game",
       "fct_player_status",
       "fct_waiver_trend",
@@ -10726,6 +10730,143 @@
      ]
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, game and listed player",
+       "name": "official_listing_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label of the game",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League game id of the listed game (regular season)",
+       "name": "game_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The game's date (Eastern)",
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "League id of the listed player's team",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id, matched by name within the team's season roster or game log",
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The status on the report: Out, Doubtful, Questionable, Probable or Available",
+       "name": "status",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "injury, g_league, rest, personal, suspension, not_with_team or other, from the report's reason",
+       "name": "reason_group",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The reason without its Injury/Illness prefix",
+       "name": "injury_detail",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the report was published (Eastern)",
+       "name": "report_at",
+       "tests": [],
+       "type": "timestamp"
+      },
+      {
+       "description": "True when the player played the listed game",
+       "name": "played",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "The team's regular-season games from this one until the player's next played regular-season game, or to the end of the team's season when there is none",
+       "name": "games_missed",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The team's regular-season games from this one to the end of its season",
+       "name": "team_games_left",
+       "tests": [],
+       "type": "integer"
+      }
+     ],
+     "description": "Every official injury listing before a regular-season game, with what followed: one row per league, game and listed player (the last report published by 5 pm Eastern on the game's date). The history the board's availability calibration averages.",
+     "exported_as": [
+      "fct_official_listing.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "game_id",
+       "player_id"
+      ],
+      "key": "official_listing_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_official_listing",
+     "notes": [
+      "Every official injury listing before a regular-season game, with what followed: one row per league, game and listed player. It is the history the availability calibration averages.",
+      "- The listing is the last report the league published by 5 pm Eastern on the game's date (the history backfill lands the 5 pm report; the daily runs land a morning and an evening report, and the evening one is after many tip-offs, so it is left out).",
+      "- The game is found by its date and the listed team; the player by name within that team's season roster or game log (a name two players of the team share is left unlinked).",
+      "- games_missed counts the team's regular-season games from this one until the player's next played regular-season game, or to the end of the team's season when there is none.",
+      "- played: whether the player played the listed game."
+     ],
+     "read_by": [
+      "mart_board"
+     ],
+     "reads": [
+      "dim_player",
+      "fct_player_game",
+      "fct_team_game",
+      "official_injury_report",
+      "rosters",
+      "teams"
+     ],
+     "unit_tests": [
+      {
+       "description": "A player listed Out who returns two games later missed 2; a player listed Questionable who played missed 0; a player listed Out who does not play again missed every game the team had left. A report published after 5 pm Eastern is left out.",
+       "name": "official_listing_counts_the_games_missed_after_each_listing"
+      }
+     ]
+    },
+    {
      "checks": [
       "assert_box_arithmetic",
       "assert_box_closure",
@@ -11035,6 +11176,7 @@
       "Player × game: traditional box score with the advanced line joined, keyed to the dimensions. Where ESPN also reports the player-game, source_agreement carries the reconciliation verdict (exact, minor, conflict) and the resolution rule is applied: the league value wins, ESPN's fills in only where the league's is null (ADR 0005). Rows ESPN does not cover are 'unverified'."
      ],
      "read_by": [
+      "fct_official_listing",
       "mart_category_zscores",
       "mart_player_projection",
       "mart_player_rolling",
@@ -11880,6 +12022,7 @@
       "Team × game: totals from the game log, possessions, pace and ratings with the opponent joined."
      ],
      "read_by": [
+      "fct_official_listing",
       "mart_schedule_upcoming"
      ],
      "reads": [
@@ -13061,8 +13204,14 @@
        "type": "boolean"
       },
       {
-       "description": "Share of the team's remaining regular-season games the player is expected to play (1.0 once the regular season is over)",
+       "description": "Share of the remaining regular-season games the player is expected to play: games before ESPN's return date when given, none when out for the season, else the games missed after past injury listings with the same status (expected_games_missed); 1 when healthy",
        "name": "availability_multiplier",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Average games missed after past official injury listings with the player's status (the official report's for the next game, else ESPN's), capped at the team's games left; null without a status or a history",
+       "name": "expected_games_missed",
        "tests": [
         "not_null"
        ],
@@ -13167,7 +13316,7 @@
       "Value is scored once, on each player's projected per-game line (mart_player_projection: per-minute production times projected minutes), in two passes. Pass one standardises the nine categories over the pool_size players with the most projected minutes; pass two repeats it over the pool_size players pass one values most, so the means and spreads describe the players a fantasy league actually rosters. Counting categories are z-scores of the projected per-game numbers (turnovers negative); percentages are volume-weighted, (player pct - pool pct) x attempts per game, standardised over the pool.",
       "Every category then has replacement level subtracted: the average category score of the next `teams` players after the pool. Zero is a freely available player, so the nine values sum to value per game above replacement (value_per_game) and a punt build is the sum without the punted columns. value_total counts games: value per game times the projected share of team games the player plays (games_share), since a missed game is filled by a replacement-level player; a value below replacement is left as it is.",
       "Alongside the value the row carries the current season's z-scores over the whole season and the last twenty and ten games, the per-game line, the projected line itself, and the player's age and rookie status from the roster, so the app can rank on recent form or raw production too and filter the way a fantasy manager does.",
-      "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current injury report (out: the games before the expected return, or all of them without a date; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. games_next_7 counts playoff games too."
+      "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current status. The games a listed player is expected to miss are calibrated on history (fct_official_listing): the average, over past injury listings with the same status, of the games the player then missed, capped at the games the team has left. The status is the official report's for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable); the league's own listings are used once it has 300 for the status, else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the games before it instead, and a note that the player is out for the season counts them all. Without any history the old charges apply (out: every game; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. games_next_7 counts playoff games too."
      ],
      "read_by": [
       "fct_board_history",
@@ -13176,6 +13325,7 @@
      "reads": [
       "dim_player",
       "fct_market_value",
+      "fct_official_listing",
       "fct_player_news",
       "fct_player_status",
       "fct_starting_lineup",
@@ -15389,6 +15539,11 @@
    "description": "NBA players are ranked by average draft position. In the WNBA most players share one placeholder position (54.0, as ESPN shows out of season), so none of them gets a market rank, but a WNBA player drafted ahead of the placeholder does. Ownership falls into its bucket at 70, 40, 10 and 1 per cent, and a player with no share is rare.",
    "model": "fct_market_value",
    "name": "market_value_ranks_real_draft_positions_and_buckets_ownership"
+  },
+  {
+   "description": "A player listed Out who returns two games later missed 2; a player listed Questionable who played missed 0; a player listed Out who does not play again missed every game the team had left. A report published after 5 pm Eastern is left out.",
+   "model": "fct_official_listing",
+   "name": "official_listing_counts_the_games_missed_after_each_listing"
   },
   {
    "description": "A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights later: the second game is a back-to-back at altitude 370 miles away in the same time zone, the third is the third game in four nights, 581 miles west and one time zone back. An unconfirmed \"if necessary\" game and a knockout game whose teams are not decided yet (both listed as 0) are left out, and the team they play on the second night sees its opponent on a back-to-back.",

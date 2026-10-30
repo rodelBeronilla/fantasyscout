@@ -254,6 +254,8 @@ export interface InjuryFields {
   injury_source?: string | null;
   official_game_date?: string | null;
   official_report_at?: string | null;
+  /** Games the player is expected to miss, from past listings with the same status (board only). */
+  expected_games_missed?: number | null;
 }
 
 /** An injury tag's tooltip: whose report, the injury, since when, the expected return and the note. */
@@ -267,6 +269,9 @@ export function injuryDetail(row: InjuryFields): string {
     row.injury_type,
     row.injury_since ? `since ${day(row.injury_since)}` : null,
     row.expected_return ? `return ${day(row.expected_return)}` : null,
+    typeof row.expected_games_missed === 'number' && !row.expected_return
+      ? `players listed like this missed ${row.expected_games_missed.toFixed(1)} games on average`
+      : null,
     row.injury_news || row.injury_note,
   ]
     .filter(Boolean)

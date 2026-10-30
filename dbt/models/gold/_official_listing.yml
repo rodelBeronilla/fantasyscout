@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: fct_official_listing
+    description: "Every official injury listing before a regular-season game, with what followed: one row per league, game and listed player (the last report published by 5 pm Eastern on the game's date). The history the board's availability calibration averages."
+    columns:
+      - name: official_listing_sk
+        description: "Surrogate key: one row per league, game and listed player"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+      - name: season
+        description: "Season label of the game"
+      - name: game_id
+        description: "League game id of the listed game (regular season)"
+        data_tests: [not_null]
+      - name: game_date
+        description: "The game's date (Eastern)"
+      - name: team_id
+        description: "League id of the listed player's team"
+      - name: player_id
+        description: "League player id, matched by name within the team's season roster or game log"
+        data_tests: [not_null]
+      - name: status
+        description: "The status on the report: Out, Doubtful, Questionable, Probable or Available"
+        data_tests:
+          - accepted_values:
+              values: [Out, Doubtful, Questionable, Probable, Available]
+      - name: reason_group
+        description: "injury, g_league, rest, personal, suspension, not_with_team or other, from the report's reason"
+      - name: injury_detail
+        description: "The reason without its Injury/Illness prefix"
+      - name: report_at
+        description: "When the report was published (Eastern)"
+      - name: played
+        description: "True when the player played the listed game"
+      - name: games_missed
+        description: "The team's regular-season games from this one until the player's next played regular-season game, or to the end of the team's season when there is none"
+      - name: team_games_left
+        description: "The team's regular-season games from this one to the end of its season"

@@ -86,6 +86,7 @@ interface PlayerFile {
     value_per_game?: number | null;
     games_share?: number | null;
     availability_multiplier?: number | null;
+    expected_games_missed?: number | null;
     games_remaining?: number | null;
     games_next_7?: number | null;
     season_complete?: boolean | null;
@@ -210,7 +211,14 @@ function OutlookCard({ board, league }: { board: NonNullable<PlayerFile['board']
             <Fact
               label="Available for"
               value={pct(board.availability_multiplier)}
-              hint="Share of the remaining games expected, from ESPN's injury listing"
+              hint="Share of the remaining regular-season games the player is expected to play"
+            />
+          )}
+          {typeof board.expected_games_missed === 'number' && (
+            <Fact
+              label="Expected to miss"
+              value={`${fmt(board.expected_games_missed)} games`}
+              hint="Players listed with this status went on to miss this many games on average (official injury reports since 2023-24)"
             />
           )}
           <Fact label="Games next 7 days" value={board.games_next_7 ?? '–'} />

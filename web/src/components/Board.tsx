@@ -37,6 +37,8 @@ interface BoardRow {
   lineup_date?: string | null;
   /** rising or falling ESPN ownership. */
   ownership_trend?: string | null;
+  /** Games the player is expected to miss, calibrated on past official listings. */
+  expected_games_missed?: number | null;
   injury_status: string | null;
   injury_group: string | null;
   injury_type: string | null;
