@@ -36,7 +36,8 @@ Data, documentation and analysis (issues #163 to #193), 2026-10-30. Four read-on
 - **Schema** (#172, #176): every silver, gold and ops column described, enforced in CI (`ops.schema --require-docs`); the schema page has subject-area ER diagrams, lineage from the landing zone, grain, readers, unit tests, a filter and coverage badges.
 - **Pipeline page** (#187): rewritten against the code, two-part diagrams that fit, one stage numbering, counts from the schema file.
 - **Notebooks** (#185): board backtest (point-in-time replay of the projection, parity with the build), streamer signals, game context, data quality scorecard, shooting stability. `notebooks.yml` runs a branch's notebooks against the published build before merging (#166).
-- **Open from the notebooks**: availability multiplier for short absences (#192), NBA value spread (#193).
+- **Open from the notebooks**: availability multiplier for short absences (#192).
+- **NBA value spread** (#193): the 0.55 slope was the measure (below-replacement values scaled by games in the target, not on the board); per game both leagues are 0.82. Priors, minutes, durability, recency and value factors replayed; no model change (ADR 0003 addendum). The notebook now fits the slope above replacement and per game.
 
 Data sources and in-season signals (issues #124 to #143 and #129), 2026-10-29 to 2026-10-30. Each source lands in the reports run (`fs-ingest land reports`, GitHub-hosted, mornings and 7 pm ET), is modelled bronze to gold, and is credited in the footer.
 
