@@ -129,3 +129,14 @@
 {% macro as_of_date() -%}
   {{ eastern_today() }}
 {%- endmacro %}
+
+
+{#
+  True on dates when US daylight saving is in force: from the second Sunday of March to the
+  first Sunday of November. Venues in Europe change on other Sundays; the gap is a week or two
+  in late March and late October.
+#}
+{% macro us_dst(col) -%}
+  ({{ col }} >= {{ add_days("make_date(year(" ~ col ~ "), 3, 8)", "cast((7 - " ~ iso_dow("make_date(year(" ~ col ~ "), 3, 8)") ~ " % 7) % 7 as integer)") }}
+    and {{ col }} < {{ add_days("make_date(year(" ~ col ~ "), 11, 1)", "cast((7 - " ~ iso_dow("make_date(year(" ~ col ~ "), 11, 1)") ~ " % 7) % 7 as integer)") }})
+{%- endmacro %}

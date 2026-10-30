@@ -1,75 +1,75 @@
-city,latitude,longitude,elevation_ft,utc_offset
-Atlanta,33.757,-84.396,1050,-5
-Boston,42.366,-71.062,20,-5
-Brooklyn,40.683,-73.975,30,-5
-Charlotte,35.225,-80.839,750,-5
-Chicago,41.881,-87.674,600,-6
-Cleveland,41.496,-81.688,650,-5
-Dallas,32.790,-96.810,430,-6
-Denver,39.749,-105.008,5280,-7
-Detroit,42.341,-83.055,600,-5
-Houston,29.751,-95.362,50,-6
-Indianapolis,39.764,-86.155,715,-5
-Inglewood,33.945,-118.343,100,-8
-Las Vegas,36.103,-115.178,2030,-8
-Los Angeles,34.043,-118.267,270,-8
-Memphis,35.138,-90.051,270,-6
-Miami,25.781,-80.188,10,-5
-Milwaukee,43.045,-87.917,620,-6
-Minneapolis,44.979,-93.276,840,-6
-New Orleans,29.949,-90.082,5,-6
-New York,40.751,-73.993,30,-5
-Oklahoma City,35.463,-97.515,1200,-6
-Orlando,28.539,-81.384,100,-5
-Philadelphia,39.901,-75.172,40,-5
-Phoenix,33.446,-112.071,1086,-7
-Portland,45.532,-122.667,50,-8
-Sacramento,38.580,-121.500,30,-8
-Salt Lake City,40.768,-111.901,4226,-7
-San Antonio,29.427,-98.438,650,-6
-San Francisco,37.768,-122.388,10,-8
-Toronto,43.643,-79.379,250,-5
-Washington,38.898,-77.021,50,-5
-Seattle,47.622,-122.354,150,-8
-Arlington,32.731,-97.111,600,-6
-Uncasville,41.491,-72.091,100,-5
-Bradenton,27.436,-82.505,20,-5
-Elmont,40.713,-73.726,70,-5
-Everett,47.977,-122.204,60,-8
-Long Beach,33.787,-118.114,40,-8
-Tempe,33.424,-111.932,1160,-7
-White Plains,41.031,-73.770,200,-5
-Hartford,41.768,-72.677,50,-5
-Ames,42.028,-93.636,950,-6
-Austin,30.270,-97.743,500,-6
-Boulder,40.015,-105.271,5330,-7
-Honolulu,21.306,-157.858,20,-10
-Quebec City,46.829,-71.250,300,-5
-Tulsa,36.153,-95.993,700,-6
-Vancouver,49.278,-123.109,30,-8
-Montreal,45.496,-73.569,100,-5
-Kansas City,39.097,-94.580,900,-6
-San Diego,32.755,-117.212,60,-8
-Sioux Falls,43.546,-96.731,1470,-6
-Baltimore,39.288,-76.619,30,-5
-Baton Rouge,30.413,-91.184,50,-6
-Eugene,44.045,-123.072,430,-8
-Fairfax,38.830,-77.308,400,-5
-Iowa City,41.659,-91.551,680,-6
-Notre Dame,41.698,-86.234,730,-5
-San Jose,37.333,-121.901,80,-8
-Birmingham,33.521,-86.802,600,-6
-Charleston,32.784,-79.938,10,-5
-Fort Worth,32.756,-97.331,650,-6
-Greensboro,36.059,-79.791,900,-5
-Oceanside,33.196,-117.380,50,-8
-Palm Desert,33.722,-116.374,200,-8
-Melbourne,-37.814,144.963,30,10
-"San Juan,Puerto Rico",18.466,-66.106,10,-4
-"Macao, China",22.198,113.543,10,8
-Manchester,53.488,-2.244,120,0
-Mexico City,19.404,-99.097,7350,-6
-Paris,48.839,2.379,120,1
-Abu Dhabi,24.494,54.383,10,4
-Berlin,52.507,13.443,110,1
-London,51.503,0.003,20,0
+city,latitude,longitude,elevation_ft,utc_offset,observes_dst
+Atlanta,33.757,-84.396,1050,-5,true
+Boston,42.366,-71.062,20,-5,true
+Brooklyn,40.683,-73.975,30,-5,true
+Charlotte,35.225,-80.839,750,-5,true
+Chicago,41.881,-87.674,600,-6,true
+Cleveland,41.496,-81.688,650,-5,true
+Dallas,32.790,-96.810,430,-6,true
+Denver,39.749,-105.008,5280,-7,true
+Detroit,42.341,-83.055,600,-5,true
+Houston,29.751,-95.362,50,-6,true
+Indianapolis,39.764,-86.155,715,-5,true
+Inglewood,33.945,-118.343,100,-8,true
+Las Vegas,36.103,-115.178,2030,-8,true
+Los Angeles,34.043,-118.267,270,-8,true
+Memphis,35.138,-90.051,270,-6,true
+Miami,25.781,-80.188,10,-5,true
+Milwaukee,43.045,-87.917,620,-6,true
+Minneapolis,44.979,-93.276,840,-6,true
+New Orleans,29.949,-90.082,5,-6,true
+New York,40.751,-73.993,30,-5,true
+Oklahoma City,35.463,-97.515,1200,-6,true
+Orlando,28.539,-81.384,100,-5,true
+Philadelphia,39.901,-75.172,40,-5,true
+Phoenix,33.446,-112.071,1086,-7,false
+Portland,45.532,-122.667,50,-8,true
+Sacramento,38.580,-121.500,30,-8,true
+Salt Lake City,40.768,-111.901,4226,-7,true
+San Antonio,29.427,-98.438,650,-6,true
+San Francisco,37.768,-122.388,10,-8,true
+Toronto,43.643,-79.379,250,-5,true
+Washington,38.898,-77.021,50,-5,true
+Seattle,47.622,-122.354,150,-8,true
+Arlington,32.731,-97.111,600,-6,true
+Uncasville,41.491,-72.091,100,-5,true
+Bradenton,27.436,-82.505,20,-5,true
+Elmont,40.713,-73.726,70,-5,true
+Everett,47.977,-122.204,60,-8,true
+Long Beach,33.787,-118.114,40,-8,true
+Tempe,33.424,-111.932,1160,-7,false
+White Plains,41.031,-73.770,200,-5,true
+Hartford,41.768,-72.677,50,-5,true
+Ames,42.028,-93.636,950,-6,true
+Austin,30.270,-97.743,500,-6,true
+Boulder,40.015,-105.271,5330,-7,true
+Honolulu,21.306,-157.858,20,-10,false
+Quebec City,46.829,-71.250,300,-5,true
+Tulsa,36.153,-95.993,700,-6,true
+Vancouver,49.278,-123.109,30,-8,true
+Montreal,45.496,-73.569,100,-5,true
+Kansas City,39.097,-94.580,900,-6,true
+San Diego,32.755,-117.212,60,-8,true
+Sioux Falls,43.546,-96.731,1470,-6,true
+Baltimore,39.288,-76.619,30,-5,true
+Baton Rouge,30.413,-91.184,50,-6,true
+Eugene,44.045,-123.072,430,-8,true
+Fairfax,38.830,-77.308,400,-5,true
+Iowa City,41.659,-91.551,680,-6,true
+Notre Dame,41.698,-86.234,730,-5,true
+San Jose,37.333,-121.901,80,-8,true
+Birmingham,33.521,-86.802,600,-6,true
+Charleston,32.784,-79.938,10,-5,true
+Fort Worth,32.756,-97.331,650,-6,true
+Greensboro,36.059,-79.791,900,-5,true
+Oceanside,33.196,-117.380,50,-8,true
+Palm Desert,33.722,-116.374,200,-8,true
+Melbourne,-37.814,144.963,30,10,false
+"San Juan,Puerto Rico",18.466,-66.106,10,-4,false
+"Macao, China",22.198,113.543,10,8,false
+Manchester,53.488,-2.244,120,0,true
+Mexico City,19.404,-99.097,7350,-6,false
+Paris,48.839,2.379,120,1,true
+Abu Dhabi,24.494,54.383,10,4,false
+Berlin,52.507,13.443,110,1,true
+London,51.503,0.003,20,0,true

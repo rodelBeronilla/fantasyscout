@@ -12121,7 +12121,7 @@
        "type": "integer"
       },
       {
-       "description": "Standard UTC offset of this venue minus the previous one: positive means travelling east; null when either is unplaced",
+       "description": "UTC offset of this venue minus the previous one, on the clock in force on each game date (daylight saving where the city keeps it): positive means travelling east; null when either is unplaced",
        "name": "time_zones_crossed",
        "tests": [],
        "type": "integer"
@@ -12135,6 +12135,12 @@
       {
        "description": "True at a venue 4,000 feet up or more (Denver, Salt Lake City, Mexico City)",
        "name": "at_altitude",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "True for the visiting team at a venue 4,000 feet up or more; the home team plays there every other night",
+       "name": "visiting_at_altitude",
        "tests": [],
        "type": "boolean"
       },
@@ -12168,7 +12174,7 @@
      "name": "fct_team_game_context",
      "notes": [
       "The circumstances of each team's games, played and scheduled: days of rest before the game, the second night of a back-to-back, a third game in four nights, the miles travelled from the previous game's city, the time zones crossed, and the altitude of the venue.",
-      "The venue is the game's arena city (silver.schedule), placed by the venues seed (latitude, longitude, elevation, standard UTC offset); a city missing from the seed leaves travel and altitude null and warn_venue_cities lists it. Travel is the great-circle distance between the two venues, so a home stand after a road trip counts the flight home. Only regular-season, play-in, playoff and cup-final games count, and an \"if necessary\" game is left out until it is confirmed, as is a knockout game whose teams are not decided yet (the schedule lists them as 0)."
+      "The venue is the game's arena city (silver.schedule), placed by the venues seed (latitude, longitude, elevation, standard UTC offset and whether the city keeps daylight saving); a city missing from the seed leaves travel and altitude null and warn_venue_cities lists it. Time zones are counted on the clock in force on the game's date: Arizona, Mexico City and a few overseas venues keep standard time all year, so in summer Phoenix is on Los Angeles time. at_altitude marks a venue 4,000 feet up or more for both teams; visiting_at_altitude marks the team that does not play there at home, the one the thin air is thought to cost. Travel is the great-circle distance between the two venues, so a home stand after a road trip counts the flight home. Only regular-season, play-in, playoff and cup-final games count, and an \"if necessary\" game is left out until it is confirmed, as is a knockout game whose teams are not decided yet (the schedule lists them as 0)."
      ],
      "read_by": [
       "mart_schedule_upcoming"
@@ -12179,8 +12185,12 @@
      ],
      "unit_tests": [
       {
-       "description": "A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights later: the second game is a back-to-back at altitude 370 miles away in the same time zone, the third is the third game in four nights, 581 miles west and one time zone back. An unconfirmed \"if necessary\" game and a knockout game whose teams are not decided yet (both listed as 0) are left out, and the team they play on the second night sees its opponent on a back-to-back.",
+       "description": "A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights later: the second game is a back-to-back, visiting at altitude, 370 miles away in the same time zone, the third is the third game in four nights, 581 miles west and one time zone back. An unconfirmed \"if necessary\" game and a knockout game whose teams are not decided yet (both listed as 0) are left out, and the team they play on the second night sees its opponent on a back-to-back.",
        "name": "team_game_context_rest_travel_and_altitude"
+      },
+      {
+       "description": "Phoenix keeps standard time all year. A trip from Phoenix to Los Angeles crosses no time zone in July (both on UTC-7) and one in January (UTC-7 to UTC-8).",
+       "name": "team_game_context_time_zones_follow_daylight_saving"
       }
      ]
     },
@@ -15519,6 +15529,12 @@
      "name": "utc_offset",
      "tests": [],
      "type": "integer"
+    },
+    {
+     "description": "Whether the city moves its clocks for daylight saving (false for Arizona, Mexico City, Honolulu and some overseas venues)",
+     "name": "observes_dst",
+     "tests": [],
+     "type": "boolean"
     }
    ],
    "description": "Where games are played, by the arena city the league schedule gives: latitude and longitude (the arena, or the city for occasional venues), elevation in feet, and the standard UTC offset (daylight saving ignored). Covers every home city of both leagues, the neutral and occasional sites in the 2025 to 2027 schedules, and the earlier WNBA venues back to 2018 (the 2020 season in Bradenton); warn_venue_cities lists any city missing.\n",
@@ -15546,9 +15562,14 @@
    "name": "official_listing_counts_the_games_missed_after_each_listing"
   },
   {
-   "description": "A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights later: the second game is a back-to-back at altitude 370 miles away in the same time zone, the third is the third game in four nights, 581 miles west and one time zone back. An unconfirmed \"if necessary\" game and a knockout game whose teams are not decided yet (both listed as 0) are left out, and the team they play on the second night sees its opponent on a back-to-back.",
+   "description": "A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights later: the second game is a back-to-back, visiting at altitude, 370 miles away in the same time zone, the third is the third game in four nights, 581 miles west and one time zone back. An unconfirmed \"if necessary\" game and a knockout game whose teams are not decided yet (both listed as 0) are left out, and the team they play on the second night sees its opponent on a back-to-back.",
    "model": "fct_team_game_context",
    "name": "team_game_context_rest_travel_and_altitude"
+  },
+  {
+   "description": "Phoenix keeps standard time all year. A trip from Phoenix to Los Angeles crosses no time zone in July (both on UTC-7) and one in January (UTC-7 to UTC-8).",
+   "model": "fct_team_game_context",
+   "name": "team_game_context_time_zones_follow_daylight_saving"
   },
   {
    "description": "With five games left, a clinched team and an eliminated one carry rest risk and a team still racing does not; with twelve left, nobody does yet; a finished season carries none.",

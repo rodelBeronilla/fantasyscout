@@ -607,11 +607,13 @@ models:
       - name: miles_travelled
         description: "Great-circle miles from the previous game's city, whole miles; null when either city is not in the venues seed"
       - name: time_zones_crossed
-        description: "Standard UTC offset of this venue minus the previous one: positive means travelling east; null when either is unplaced"
+        description: "UTC offset of this venue minus the previous one, on the clock in force on each game date (daylight saving where the city keeps it): positive means travelling east; null when either is unplaced"
       - name: elevation_ft
         description: "Venue elevation in feet, from the venues seed; null when the city is not in it"
       - name: at_altitude
         description: "True at a venue 4,000 feet up or more (Denver, Salt Lake City, Mexico City)"
+      - name: visiting_at_altitude
+        description: "True for the visiting team at a venue 4,000 feet up or more; the home team plays there every other night"
       - name: opponent_back_to_back
         description: "True when the opponent is on the second night of a back-to-back"
       - name: opponent_rest_days

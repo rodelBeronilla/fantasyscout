@@ -246,7 +246,8 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
       implied: g.home_implied_points ?? null,
       line,
       backToBack: !!g.home_back_to_back,
-      altitude,
+      // the home team plays at its own altitude every other night: only the visitor is marked
+      altitude: false,
       miles: null,
     });
     byTeamDay.set(`${g.away_team_tricode}|${g.game_date}`, {
@@ -306,7 +307,7 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
                             cell.line ? `${cell.line}: ${t} implied ${cell.implied} points` : null,
                             cell.backToBack ? 'Second night of a back-to-back: rest and minutes risk' : null,
                             cell.miles ? `${cell.miles} miles from the previous game` : null,
-                            cell.altitude ? 'At altitude' : null,
+                            cell.altitude ? 'Visiting at altitude (4,000 ft or more)' : null,
                           ]
                             .filter(Boolean)
                             .join('. ') || undefined

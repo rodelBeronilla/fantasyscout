@@ -62,7 +62,7 @@ for lg in LEAGUES:
         games[lg] = g
 
 ctx_cols = ['league', 'season', 'game_id', 'team_id', 'game_type', 'rest_days', 'is_back_to_back', 'is_3_in_4',
-            'miles_travelled', 'time_zones_crossed', 'elevation_ft', 'at_altitude', 'opponent_back_to_back']
+            'miles_travelled', 'time_zones_crossed', 'elevation_ft', 'at_altitude', 'opponent_back_to_back', 'is_home']
 have = columns(con, 'fct_team_game_context')
 ctx = (con.sql(f"select {', '.join(c for c in ctx_cols if c in have)} from fct_team_game_context").df()
        if set(ctx_cols) <= have else pd.DataFrame(columns=ctx_cols))
@@ -172,8 +172,9 @@ def regulars(lg):
     m = m.merge(opponent_ratings(lg).rename(columns={'team_id': 'opponent_id'}), on=['season', 'game_id', 'opponent_id'], how='left')
     c = ctx[ctx['league'] == lg]
     if len(c):
+        # visiting at altitude: the home team plays there every other night and is used to it
         c = c.assign(miles_1000=c['miles_travelled'] / 1000, tz_abs=c['time_zones_crossed'].abs(),
-                     altitude=c['at_altitude'].astype(float))
+                     altitude=(c['at_altitude'].astype(bool) & ~c['is_home'].astype(bool)).astype(float))
         m = m.merge(c[['season', 'game_id', 'team_id', 'miles_1000', 'tz_abs', 'altitude', 'is_back_to_back']],
                     on=['season', 'game_id', 'team_id'], how='left')
     else:
@@ -181,6 +182,7 @@ def regulars(lg):
     homes = reg[['season', 'game_id', 'team_id', 'is_home']].drop_duplicates(['season', 'game_id', 'team_id'])
     m = m.merge(homes, on=['season', 'game_id', 'team_id'], how='left')
     m['home'] = m['is_home'].astype(float)
+    m['alt_b2b'] = m['altitude'] * m['b2b'] if 'b2b' in m else np.nan
     return m.sort_values(['season', 'player_id', 'game_date', 'game_id']).reset_index(drop=True)
 
 
@@ -196,7 +198,8 @@ for lg, m in frames.items():
         """REST = {'b2b': 'Second night of a back-to-back', 'three_in_four': 'Third game in four nights',
         'opp_b2b': 'Opponent on a back-to-back', 'home': 'At home',
         'opp_def_z': 'Opponent defence, per SD (higher rating = leakier)', 'pace_z': 'Opponent pace, per SD'}
-TRAVEL = {'miles_1000': 'Travel, per 1,000 miles', 'tz_abs': 'Time zones crossed, each', 'altitude': 'At altitude (4,000 ft+)'}
+TRAVEL = {'miles_1000': 'Travel, per 1,000 miles', 'tz_abs': 'Time zones crossed, each',
+          'altitude': 'Visiting at altitude (4,000 ft+)', 'alt_b2b': 'Visiting at altitude on a back-to-back (extra)'}
 OUTCOMES = {'missed': ('Missed the game (pts)', 100), 'minutes_diff': ('Minutes vs own average', 1),
             'fp30_diff': ('Fantasy pts per 30 min vs own rate', 1)}
 

@@ -83,6 +83,7 @@ seeds:
         longitude: double
         elevation_ft: integer
         utc_offset: integer
+        observes_dst: boolean
     columns:
       - name: city
         description: Arena city as the league schedule writes it
@@ -95,4 +96,6 @@ seeds:
         description: Elevation of the venue in feet
       - name: utc_offset
         description: Standard-time offset from UTC in hours
+      - name: observes_dst
+        description: Whether the city moves its clocks for daylight saving (false for Arizona, Mexico City, Honolulu and some overseas venues)
 

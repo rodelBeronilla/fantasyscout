@@ -270,3 +270,20 @@ In sample, slope above replacement / MAE per game / top-N hits / capture:
 
 Values stay z-scores of the projected lines over the projected pool. The notebook now reports the slope like for like: over the players the board values above replacement, and per game over players with enough games. On the current data that is 0.79 and 0.82 for the NBA, and 0.88 and 0.82 for the WNBA.
 
+## Addendum (2026-10-30): altitude is the visitor's, and time zones follow daylight saving
+
+`at_altitude` marked both teams in a game at Denver, Salt Lake City or Mexico City. Two consequences:
+- Streamers flagged the Nuggets and the Jazz "at altitude" in their own home games.
+- The game context notebook's altitude estimate (+0.98 fantasy points per 30 minutes in the NBA) mixed acclimatised home teams with visitors, the case the effect is about.
+
+`fct_team_game_context.visiting_at_altitude` now marks only the visiting team. The notebook estimates visiting at altitude, and visiting at altitude on the second night of a back-to-back. Results for NBA 2025-26, out of sample with player-bootstrap intervals:
+
+| Visiting at altitude | Fantasy pts / 30 min | Minutes | Sat out (pts) |
+| --- | --- | --- | --- |
+| Any game | +0.78 (-0.25 to +1.79) | +0.36 (-0.20 to +0.98) | +2.2 (-0.5 to +5.2) |
+| Extra on a back-to-back | -1.04 (-4.00 to +2.23) | -0.72 (-2.02 to +0.41) | -8.6 (-15.6 to +2.0) |
+
+Neither effect is distinguishable from zero, so altitude stays out of the matchup value and is shown, for the visitor only, as context. No WNBA venue is at altitude.
+
+`time_zones_crossed` used each city's standard UTC offset all year. Arizona, Mexico City, Honolulu and a few overseas venues keep standard time, so in summer Phoenix shares Los Angeles's clock, and the WNBA season is in summer. The venues seed now records `observes_dst`, and offsets follow US daylight saving on the game's date (second Sunday of March to first Sunday of November). European venues change on other Sundays, a week or two apart.
+

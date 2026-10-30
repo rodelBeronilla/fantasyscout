@@ -4,8 +4,12 @@
   previous game's city, the time zones crossed, and the altitude of the venue.
 
   The venue is the game's arena city (silver.schedule), placed by the venues seed (latitude,
-  longitude, elevation, standard UTC offset); a city missing from the seed leaves travel and
-  altitude null and warn_venue_cities lists it. Travel is the great-circle distance between the
+  longitude, elevation, standard UTC offset and whether the city keeps daylight saving); a city
+  missing from the seed leaves travel and altitude null and warn_venue_cities lists it. Time zones
+  are counted on the clock in force on the game's date: Arizona, Mexico City and a few overseas
+  venues keep standard time all year, so in summer Phoenix is on Los Angeles time.
+  at_altitude marks a venue 4,000 feet up or more for both teams; visiting_at_altitude marks the
+  team that does not play there at home, the one the thin air is thought to cost. Travel is the great-circle distance between the
   two venues, so a home stand after a road trip counts the flight home. Only regular-season,
   play-in, playoff and cup-final games count, and an "if necessary" game is left out until it is
   confirmed, as is a knockout game whose teams are not decided yet (the schedule lists them as 0).
@@ -34,7 +38,7 @@ placed as (
         v.latitude,
         v.longitude,
         v.elevation_ft,
-        v.utc_offset,
+        v.utc_offset + case when coalesce(v.observes_dst, true) and {{ us_dst('s.game_date') }} then 1 else 0 end as utc_offset,
         {{ days_between("cast('2000-01-01' as date)", 's.game_date') }} as day_number
     from sides as s
     left join {{ ref('venues') }} as v on lower(v.city) = lower(s.arena_city)
@@ -89,6 +93,7 @@ select
     m.time_zones_crossed,
     m.elevation_ft,
     coalesce(m.elevation_ft >= 4000, false) as at_altitude,
+    coalesce(m.elevation_ft >= 4000 and not m.is_home, false) as visiting_at_altitude,
     coalesce(o.rest_days = 0, false) as opponent_back_to_back,
     o.rest_days as opponent_rest_days
 from measured as m
