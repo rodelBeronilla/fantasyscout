@@ -193,6 +193,8 @@ for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/']) {
 // Static pages: nothing loads after the first paint. The schema page is checked with every model open.
 for (const path of ['/pipeline/', '/schema/']) {
   test(`${path} has no accessibility violations`, async ({ page }) => {
+    // With every model open the schema page is large: axe needs longer than the default.
+    test.setTimeout(90_000);
     await page.goto(path);
     await expect(page.locator('main h1')).toBeVisible();
     await page.evaluate(() => document.querySelectorAll('details').forEach((d) => d.setAttribute('open', '')));
@@ -245,12 +247,47 @@ test('the pipeline page has its four diagrams and every stage', async ({ page })
   await expect(page).toHaveURL(/#gate$/);
 });
 
-test('the schema page draws the star schema and the lineage, and a model opens to its notes and columns', async ({ page }) => {
+test('the schema page draws the gold layer by subject area and the lineage, and a model opens to its notes and columns', async ({ page }) => {
   await page.goto('/schema/');
-  const er = page.getByTestId('diagram-er');
-  await expect(er.locator('svg')).toBeVisible();
-  for (const name of ['dim_player', 'fct_player_game', 'mart_board']) await expect(er).toContainText(name);
-  await expect(page.getByTestId('diagram-lineage').locator('a[href="#m-mart_board"]')).toHaveCount(1);
+  const areas: Record<string, string[]> = {
+    'er-games': ['dim_game', 'fct_player_game', 'mart_player_rolling', 'dim_date'],
+    'er-availability': ['fct_availability', 'fct_player_news', 'dim_player'],
+    'er-schedule': ['mart_schedule_upcoming', 'dim_team'],
+    'er-fantasy': ['mart_board', 'mart_streamers', 'fct_market_value'],
+  };
+  for (const [id, names] of Object.entries(areas)) {
+    const er = page.getByTestId(`diagram-${id}`);
+    await expect(er.locator('svg')).toBeVisible();
+    for (const name of names) await expect(er).toContainText(name);
+  }
+  // Unplayed games are not in dim_game, and dim_player is joined to its current stint.
+  await expect(page.getByTestId('diagram-er-schedule').locator('svg')).not.toContainText('dim_game');
+  await expect(page.getByTestId('diagram-er-availability')).toContainText('is_current');
+  await expect(page.getByTestId('diagram-er-games')).toContainText('player_game_sk');
+  // Every diagram but the lineage fits the content column on a desktop.
+  if (page.viewportSize()!.width >= 1280) {
+    for (const id of Object.keys(areas)) {
+      const region = page.getByTestId(`diagram-${id}`).getByRole('region');
+      const fits = await region.evaluate((el) => el.scrollWidth <= el.clientWidth);
+      expect(fits, `${id} fits without scrolling`).toBe(true);
+    }
+  }
+  const lineage = page.getByTestId('diagram-lineage');
+  await expect(lineage.locator('a[href="#m-mart_board"]')).toHaveCount(1);
+  await expect(lineage).toContainText('espn/summary');
+
+  const bronze = page.locator('#m-espn_summary_players');
+  await bronze.locator('summary').click();
+  await expect(bronze.getByTestId('landing')).toContainText('landing/espn/summary');
+  await expect(bronze).toContainText('values stay text until silver');
+  const fact = page.locator('#m-fct_player_game');
+  await fact.locator('summary').click();
+  await expect(fact.getByTestId('grain')).toContainText('One row per league, game_id and player_id');
+  await expect(fact.getByTestId('exported')).toContainText('players/<league>/<player_id>.json');
+  await expect(fact.getByTestId('coverage')).toContainText(/\d+\/44 described/);
+  await expect(page.locator('#m-fct_market_value').getByTestId('unit-tests')).toContainText('market_value_ranks');
+  await expect(page.getByTestId('unit-tests-list').locator('tbody tr')).not.toHaveCount(0);
+  await expect(page.locator('#seed-category_config')).toContainText('only the export reads it');
   for (const layer of ['bronze', 'silver', 'gold', 'ops']) {
     await expect(page.getByTestId(`layer-${layer}`).getByTestId('model').first()).toBeVisible();
   }
@@ -259,6 +296,27 @@ test('the schema page draws the star schema and the lineage, and a model opens t
   await expect(board).toContainText('value above replacement');
   await expect(board.locator('table')).toContainText('value_total');
   await expect(page.getByTestId('checks-list').locator('tbody tr').first()).toBeVisible();
+});
+
+test('the schema page filters models by name or column, and opens or closes them all', async ({ page }) => {
+  await page.goto('/schema/');
+  const filter = page.getByLabel('Filter models and columns');
+  await filter.fill('mart_board');
+  await expect(page.locator('details[data-model]:visible')).toHaveCount(1);
+  await expect(page.getByTestId('layer-bronze')).toBeHidden();
+  await filter.fill('opponent_team_sk');
+  const match = page.locator('details[data-model]:visible');
+  await expect(match).toHaveCount(1);
+  await expect(match).toHaveAttribute('open', '');
+  await expect(match.locator('tbody tr:visible')).toHaveCount(1);
+  await expect(page.getByRole('status')).toContainText('1 of');
+  await filter.fill('');
+  await expect(page.locator('details[data-model][open]')).toHaveCount(0);
+  const all = await page.locator('details[data-model]').count();
+  await page.getByRole('button', { name: 'Expand all' }).click();
+  await expect(page.locator('details[data-model][open]')).toHaveCount(all);
+  await page.getByRole('button', { name: 'Collapse all' }).click();
+  await expect(page.locator('details[data-model][open]')).toHaveCount(0);
 });
 
 test('the board header stays in view while its rows scroll', async ({ page }) => {

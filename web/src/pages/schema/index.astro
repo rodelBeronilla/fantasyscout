@@ -2,7 +2,7 @@
 import Diagram from '../../components/Diagram.astro';
 import Base from '../../layouts/Base.astro';
 import schema from '../../generated/schema.json';
-import { erLegend, goldEr, lineage } from '../../lib/schema-diagrams';
+import { erAreas, erCaption, erDiagram, lineage } from '../../lib/schema-diagrams';
 import { href } from '../../lib/site';
 
 interface Column {
@@ -11,185 +11,419 @@ interface Column {
   description: string;
   tests: string[];
 }
+interface UnitTest {
+  name: string;
+  description: string;
+}
 interface Model {
   name: string;
   materialized: string;
   description: string;
   notes: string[];
+  grain: { key: string; columns: string[] } | null;
+  landing: string[];
   reads: string[];
   read_by: string[];
+  exported_as: string[];
   checks: string[];
+  unit_tests: UnitTest[];
   columns: Column[];
 }
-
-const LAYER_ABOUT: Record<string, string> = {
-  bronze:
-    'The landed JSON as rows: one incremental model per source endpoint, appending only files not loaded before, each row carrying the file it came from and the day it landed.',
-  silver:
-    'Typed, deduplicated and keyed (the latest landing wins), with the cross-source work: team, game and player crosswalks, the reconciliation of the two box scores, and lineups from substitutions.',
-  gold: 'The star schema the app, the notebooks and the dashboards read: dimensions, facts, and the fantasy marts (z-scores, the projection, the board, streamers).',
-  ops: 'How the pipeline is doing: the ingest run log and the reconciliation of the two sources. The build adds test_results and publish_gate after every run.',
-};
+interface Seed {
+  name: string;
+  description: string;
+  read_by: string[];
+  exported_as: string[];
+  columns: Column[];
+}
 
 const layers = schema.layers as { name: string; models: Model[] }[];
 const all = layers.flatMap((l) => l.models.map((m) => ({ ...m, layer: l.name })));
 const layerOf = new Map(all.map((m) => [m.name, m.layer]));
 const columnCount = all.reduce((n, m) => n + m.columns.length, 0);
 const checks = schema.checks as { name: string; severity: string; tags: string[]; about: string; reads: string[] }[];
-const seeds = schema.seeds as { name: string; description: string; columns: Column[] }[];
+const unitTests = schema.unit_tests as { name: string; model: string; description: string }[];
+const seeds = schema.seeds as Seed[];
+const landing = schema.landing as { path: string; read_by: string[] }[];
+const seedNames = new Set(seeds.map((s) => s.name));
 const anchor = (name: string) => `m-${name}`;
+const refAnchor = (name: string) => (seedNames.has(name) ? `seed-${name}` : anchor(name));
 const docsLink = (name: string) => href(`/docs/#!/model/model.fantasyscout.${name}`);
-const [er, flow] = await Promise.all([goldEr(), lineage()]);
+const described = (cols: Column[]) => cols.filter((c) => c.description.trim()).length;
+const describedCount = all.reduce((n, m) => n + described(m.columns), 0);
+
+// "a, b and c"
+const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
+const numberWords = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+const count = (n: number) => numberWords[n] ?? String(n);
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+const bronze = layers.find((l) => l.name === 'bronze')?.models ?? [];
+const sharedEndpoints = landing.filter((f) => f.read_by.length > 1 && f.read_by.every((m) => layerOf.get(m) === 'bronze'));
+const bronzeEndpoints = landing.filter((f) => f.read_by.some((m) => layerOf.get(m) === 'bronze'));
+const unpublished = (layers.find((l) => l.name === 'gold')?.models ?? []).filter((m) => !m.exported_as.length).map((m) => m.name);
+
+const LAYER_ABOUT: Record<string, string> = {
+  bronze: `The landed JSON as rows: ${bronze.length} incremental models over ${bronzeEndpoints.length} landing folders, one model per kind of row a payload holds (${list(
+    sharedEndpoints.map((f) => `${f.path} feeds ${count(f.read_by.length)}`),
+  )}). Each appends only the files not loaded before, and every row carries the file it came from and the day it landed. Values stay text until silver.`,
+  silver:
+    'Typed, deduplicated and keyed (the latest landing wins), with the cross-source work: team, game and player crosswalks, the reconciliation of the two box scores, and lineups from substitutions.',
+  gold: `The star schema the app, the notebooks and the dashboards read: dimensions, facts, and the fantasy marts (z-scores, the projection, the board, streamers). Every gold model goes out whole in each published build${
+    unpublished.length ? ` except ${list(unpublished)}, which reaches the site through the marts that read it` : ''
+  }; "Published as" names the files of a build that carry it.`,
+  ops: 'How the pipeline is doing: the ingest run log and the reconciliation of the two sources. The build adds test_results and publish_gate after every run.',
+};
+
+// The fixture build runs on DuckDB, so the types below are DuckDB's; production runs on Databricks.
+const DATABRICKS: Record<string, string> = {
+  varchar: 'string',
+  integer: 'int',
+  hugeint: 'bigint',
+  ubigint: 'int',
+  'timestamp with time zone': 'timestamp',
+};
+const WHY: Record<string, string> = {
+  hugeint: 'DuckDB widens a sum of integers to 128 bits',
+  ubigint: 'a JSON array length',
+  'timestamp with time zone': 'both hold an instant',
+};
+const typesUsed = [...new Set([...all.flatMap((m) => m.columns), ...seeds.flatMap((s) => s.columns)].map((c) => c.type).filter(Boolean))].sort();
+const typeRows = typesUsed.filter((t) => DATABRICKS[t]).map((t) => ({ duck: t, databricks: DATABRICKS[t]!, why: WHY[t] ?? '' }));
+const sameTypes = typesUsed.filter((t) => !DATABRICKS[t]);
+
+const grainText = (g: { key: string; columns: string[] }) => `One row per ${list(g.columns)}`;
+const areas = erAreas();
+const [ers, flow] = await Promise.all([Promise.all(areas.map((a) => erDiagram(a))), lineage()]);
+const link = 'underline underline-offset-4';
+const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
 ---
 
 <Base
   title="Schema"
-  description="Every model in the lakehouse by layer: what it holds, how it is computed, its columns with types and tests, and what it reads."
+  description="Every model in the lakehouse by layer: what it holds, its grain, how it is computed, its columns with types and tests, what it reads and which published files carry it."
 >
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">Schema</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">
-      Every model in the lakehouse, generated from the dbt project: {all.length} models in four layers, {columnCount} columns,
-      {schema.generic_tests} column tests and {checks.length} data-quality checks. Each model's notes are the comment at the
-      top of its SQL, where the method is written down. CI fails when this page falls behind the project. The lineage graph
-      is in the <a href={href('/docs/')} class="underline underline-offset-4">dbt docs</a>, and how the layers fit together is
-      on the <a href={href('/pipeline/')} class="underline underline-offset-4">Pipeline</a> page.
+      Every model in the lakehouse, generated from the dbt project: {all.length} models in {count(layers.length)} layers ({
+        list(layers.map((l) => l.name))
+      }) over {landing.length} landing folders, {columnCount} columns ({describedCount} described), {schema.generic_tests} column
+      tests, {unitTests.length} unit tests and {checks.length} data-quality checks. Each model's notes are the comment at the top
+      of its SQL, where the method is written down. CI fails when this page falls behind the project. The gold layer is drawn
+      by subject area below, every model's <a href="#lineage" class={link}>lineage</a> follows, and how the layers fit together
+      is on the <a href={href('/pipeline/')} class={link}>Pipeline</a> page.
     </p>
 
-    <nav class="mt-4 flex flex-wrap gap-2 text-sm" aria-label="Layers">
+    <nav class="mt-4 flex flex-wrap gap-2 text-sm" aria-label="Sections">
+      <a href="#er" class={pill}>diagrams</a>
       {
         layers.map((l) => (
-          <a href={`#${l.name}`} class="rounded-full border border-line px-3 py-1 hover:bg-card">
+          <a href={`#${l.name}`} class={pill}>
             {l.name} · {l.models.length}
           </a>
         ))
       }
-      <a href="#checks" class="rounded-full border border-line px-3 py-1 hover:bg-card">checks · {checks.length}</a>
-      <a href="#seeds" class="rounded-full border border-line px-3 py-1 hover:bg-card">seeds · {seeds.length}</a>
+      <a href="#seeds" class={pill}>seeds · {seeds.length}</a>
+      <a href="#checks" class={pill}>checks · {checks.length}</a>
+      <a href="#unit-tests" class={pill}>unit tests · {unitTests.length}</a>
     </nav>
 
-    <section id="er" class="mt-8">
-      <h2 class="text-lg font-semibold tracking-tight">Gold star schema</h2>
-      <p class="mt-1 max-w-3xl text-sm text-muted">
-        What the app, the notebooks and the dashboards read: facts, dimensions and marts (each header names its kind and
-        has its own colour), with primary keys, foreign keys and natural keys; every entity links to its columns below.
+    <section id="types" class="mt-6 max-w-3xl rounded-lg border border-line bg-card px-4 py-3 text-sm" aria-labelledby="types-title">
+      <h2 id="types-title" class="font-semibold">Column types are DuckDB's</h2>
+      <p class="mt-1 text-muted">
+        The types are read from the catalog of the fixture build, which runs on DuckDB; the lakehouse runs the same SQL on
+        Databricks. These differ there; the rest ({sameTypes.join(', ')}) are the same on both, though a computed decimal
+        can carry a different precision.
       </p>
-      <Diagram id="er" svg={er} title="Entity-relationship diagram (UML class notation)" caption={erLegend} />
+      <div class="table-scroll mt-2 overflow-auto rounded border border-line" tabindex="0" role="region" aria-label="DuckDB types and their Databricks equivalents">
+        <table class="w-full text-xs">
+          <thead class="bg-bg text-left text-muted">
+            <tr>
+              <th class="px-2 py-1 font-medium">DuckDB</th>
+              <th class="px-2 py-1 font-medium">Databricks</th>
+              <th class="px-2 py-1 font-medium">Why they differ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              typeRows.map((t) => (
+                <tr class="border-t border-line">
+                  <td class="px-2 py-1 font-mono whitespace-nowrap">{t.duck}</td>
+                  <td class="px-2 py-1 font-mono whitespace-nowrap">{t.databricks}</td>
+                  <td class="px-2 py-1">{t.why || 'another name for the same type'}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="er" class="mt-8">
+      <h2 class="text-lg font-semibold tracking-tight">Gold entity-relationship diagrams</h2>
+      <p class="mt-1 max-w-3xl text-sm text-muted">
+        What the app, the notebooks and the dashboards read, by subject area: facts, dimensions and marts (each header names its
+        kind and has its own colour), with primary keys, foreign keys and natural keys. Every entity links to its columns below.
+      </p>
+      {
+        areas.map((a, i) => (
+          <section id={a.id} class="mt-6" aria-labelledby={`${a.id}-heading`}>
+            <h3 id={`${a.id}-heading`} class="font-semibold">
+              {a.title}
+            </h3>
+            <p class="mt-1 max-w-3xl text-sm text-muted">{a.about}</p>
+            <Diagram id={a.id} svg={ers[i] ?? ''} title={`${a.title}: entity-relationship diagram`} caption={erCaption(a)} />
+          </section>
+        ))
+      }
     </section>
 
     <section id="lineage" class="mt-8">
       <h2 class="text-lg font-semibold tracking-tight">Lineage</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">
-        Every model and what it is built from, left to right: seeds and bronze, silver, gold and ops. Each box links to the
-        model's notes and columns below.
+        Every model and what it is built from, left to right: the landing folders the ingestors write (each bronze model reads
+        one through <code class="font-mono">landing_files(source, endpoint)</code>), the seeds, then bronze, silver, gold and ops.
+        Each box links to the model's notes and columns below.
       </p>
       <Diagram
         id="lineage"
         svg={flow}
         title="Model lineage by layer"
-        caption="Arrows point from a model to the models built from it. Generated from the dbt project on every change."
+        caption="Arrows point from a folder or model to the models built from it. Generated from the dbt project on every change."
       />
     </section>
 
+    <div id="models" class="mt-8 flex flex-wrap items-end gap-2 rounded-lg border border-line bg-card px-4 py-3" data-schema-tools hidden>
+      <label class="grid min-w-0 flex-1 basis-56 gap-1 text-sm">
+        <span class="text-muted">Filter models and columns</span>
+        <input
+          type="search"
+          class="w-full rounded border border-line bg-bg px-2 py-1 font-mono text-sm"
+          placeholder="e.g. player_sk or mart_"
+          autocomplete="off"
+          spellcheck="false"
+          data-schema-filter
+        />
+      </label>
+      <button type="button" class="rounded border border-line px-3 py-1 text-sm hover:bg-bg" data-schema-expand>Expand all</button>
+      <button type="button" class="rounded border border-line px-3 py-1 text-sm hover:bg-bg" data-schema-collapse>Collapse all</button>
+      <p class="w-full text-xs text-muted" role="status" aria-live="polite" data-schema-status></p>
+    </div>
+
     {
       layers.map((l) => (
-        <section id={l.name} class="mt-8" data-testid={`layer-${l.name}`}>
+        <section id={l.name} class="mt-8" data-testid={`layer-${l.name}`} data-schema-group>
           <h2 class="text-lg font-semibold tracking-tight">{l.name}</h2>
           <p class="mt-1 max-w-3xl text-sm text-muted">{LAYER_ABOUT[l.name]}</p>
           <div class="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
-            {l.models.map((m) => (
-              <details id={anchor(m.name)} class="min-w-0 rounded-lg border border-line bg-card" data-testid="model">
-                <summary class="cursor-pointer px-4 py-2">
-                  <span class="font-mono text-sm font-medium">{m.name}</span>
-                  <span class="ml-2 text-xs text-muted">
-                    {m.materialized} · {m.columns.length} columns{m.checks.length ? ` · ${m.checks.length} checks` : ''}
-                  </span>
-                  {m.description && <span class="block text-sm text-muted">{m.description}</span>}
-                </summary>
-                <div class="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line px-4 py-3 text-sm">
-                  {m.notes.length > 0 && (
-                    <div class="grid max-w-3xl gap-2">
-                      {m.notes.map((p) => (p.startsWith('- ') ? <p class="pl-4">• {p.slice(2)}</p> : <p>{p}</p>))}
-                    </div>
-                  )}
-                  <dl class="grid gap-1 text-xs">
-                    {m.reads.length > 0 && (
-                      <div>
-                        <dt class="inline text-muted">Reads </dt>
-                        <dd class="inline">
-                          {m.reads.map((r, i) => (
-                            <>
-                              {i > 0 && ', '}
-                              {layerOf.has(r) ? (
-                                <a href={`#${anchor(r)}`} class="font-mono underline underline-offset-4">
+            {l.models.map((m) => {
+              const doc = described(m.columns);
+              const full = doc === m.columns.length;
+              return (
+                <details id={anchor(m.name)} class="min-w-0 rounded-lg border border-line bg-card" data-testid="model" data-model={m.name}>
+                  <summary class="cursor-pointer px-4 py-2">
+                    <span class="font-mono text-sm font-medium">{m.name}</span>
+                    <span class="ml-2 text-xs text-muted">
+                      {m.materialized} · {plural(m.columns.length, 'column')}{m.checks.length ? ` · ${plural(m.checks.length, 'check')}` : ''}
+                      {m.unit_tests.length ? ` · ${plural(m.unit_tests.length, 'unit test')}` : ''}
+                    </span>
+                    <span
+                      class:list={['ml-2 inline-block rounded-full border px-2 text-xs', full ? 'border-good text-good' : 'border-line text-muted']}
+                      data-testid="coverage"
+                    >
+                      {doc}/{m.columns.length} described
+                    </span>
+                    {m.description && <span class="block text-sm text-muted">{m.description}</span>}
+                  </summary>
+                  <div class="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line px-4 py-3 text-sm">
+                    {m.notes.length > 0 && (
+                      <div class="grid max-w-3xl gap-2">
+                        {m.notes.map((p) => (p.startsWith('- ') ? <p class="pl-4">• {p.slice(2)}</p> : <p>{p}</p>))}
+                      </div>
+                    )}
+                    <dl class="grid min-w-0 gap-1 text-xs wrap-anywhere">
+                      {m.grain && (
+                        <div data-testid="grain">
+                          <dt class="inline text-muted">Grain </dt>
+                          <dd class="inline">
+                            {grainText(m.grain)} (key <span class="font-mono">{m.grain.key}</span>)
+                          </dd>
+                        </div>
+                      )}
+                      {m.landing.length > 0 && (
+                        <div data-testid="landing">
+                          <dt class="inline text-muted">Reads </dt>
+                          <dd class="inline font-mono">{m.landing.map((p) => `landing/${p}`).join(', ')}</dd>
+                        </div>
+                      )}
+                      {m.reads.length > 0 && (
+                        <div>
+                          <dt class="inline text-muted">{m.landing.length ? 'Also reads ' : 'Reads '}</dt>
+                          <dd class="inline">
+                            {m.reads.map((r, i) => (
+                              <>
+                                {i > 0 && ', '}
+                                <a href={`#${refAnchor(r)}`} class={`font-mono ${link}`}>
                                   {r}
                                 </a>
-                              ) : (
-                                <a href="#seeds" class="font-mono underline underline-offset-4">
+                              </>
+                            ))}
+                          </dd>
+                        </div>
+                      )}
+                      {m.read_by.length > 0 && (
+                        <div>
+                          <dt class="inline text-muted">Read by </dt>
+                          <dd class="inline">
+                            {m.read_by.map((r, i) => (
+                              <>
+                                {i > 0 && ', '}
+                                <a href={`#${anchor(r)}`} class={`font-mono ${link}`}>
                                   {r}
                                 </a>
-                              )}
-                            </>
+                              </>
+                            ))}
+                          </dd>
+                        </div>
+                      )}
+                      {(m.exported_as.length > 0 || l.name === 'gold') && (
+                        <div data-testid="exported">
+                          <dt class="inline text-muted">Published as </dt>
+                          <dd class="inline">
+                            {m.exported_as.length ? (
+                              <span class="font-mono">{m.exported_as.join(', ')}</span>
+                            ) : (
+                              'not published on its own; it reaches the site through the marts that read it'
+                            )}
+                          </dd>
+                        </div>
+                      )}
+                      {m.checks.length > 0 && (
+                        <div>
+                          <dt class="inline text-muted">Checked by </dt>
+                          <dd class="inline">
+                            {m.checks.map((c, i) => (
+                              <>
+                                {i > 0 && ', '}
+                                <a href={`#check-${c}`} class={`font-mono ${link}`}>
+                                  {c}
+                                </a>
+                              </>
+                            ))}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                    {m.unit_tests.length > 0 && (
+                      <div class="grid min-w-0 max-w-3xl gap-1 text-xs wrap-anywhere" data-testid="unit-tests">
+                        <p class="text-muted">Unit tests (fixed inputs, expected rows; run on every pull request)</p>
+                        <ul class="grid gap-1">
+                          {m.unit_tests.map((u) => (
+                            <li>
+                              <span class="font-mono">{u.name}</span>: {u.description}
+                            </li>
                           ))}
-                        </dd>
+                        </ul>
                       </div>
                     )}
-                    {m.read_by.length > 0 && (
-                      <div>
-                        <dt class="inline text-muted">Read by </dt>
-                        <dd class="inline">
-                          {m.read_by.map((r, i) => (
-                            <>
-                              {i > 0 && ', '}
-                              <a href={`#${anchor(r)}`} class="font-mono underline underline-offset-4">
-                                {r}
-                              </a>
-                            </>
-                          ))}
-                        </dd>
-                      </div>
-                    )}
-                    {m.checks.length > 0 && (
-                      <div>
-                        <dt class="inline text-muted">Checked by </dt>
-                        <dd class="inline font-mono">{m.checks.join(', ')}</dd>
-                      </div>
-                    )}
-                  </dl>
-                  <p class="text-xs">
-                    <a href={docsLink(m.name)} class="underline underline-offset-4">
-                      Lineage and SQL in the dbt docs
-                    </a>
-                  </p>
-                  <div class="table-scroll max-h-[70vh] overflow-auto rounded border border-line" tabindex="0" role="region" aria-label={`Columns of ${m.name}`}>
-                    <table class="w-full text-xs">
-                      <thead class="bg-bg text-left text-muted">
-                        <tr>
-                          <th class="px-2 py-1 font-medium">Column</th>
-                          <th class="px-2 py-1 font-medium">Type</th>
-                          <th class="px-2 py-1 font-medium">Tests</th>
-                          <th class="px-2 py-1 font-medium">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {m.columns.map((c) => (
-                          <tr class="border-t border-line align-top">
-                            <td class="px-2 py-1 font-mono whitespace-nowrap">{c.name}</td>
-                            <td class="px-2 py-1 font-mono whitespace-nowrap text-muted">{c.type || '–'}</td>
-                            <td class="px-2 py-1 whitespace-nowrap">{c.tests.join(', ') || '–'}</td>
-                            <td class="px-2 py-1">{c.description || ''}</td>
+                    <p class="text-xs">
+                      <a href={docsLink(m.name)} class={link}>
+                        SQL and column lineage in the dbt docs
+                      </a>
+                    </p>
+                    <div class="table-scroll max-h-[70vh] overflow-auto rounded border border-line" tabindex="0" role="region" aria-label={`Columns of ${m.name}`}>
+                      <table class="w-full text-xs">
+                        <thead class="bg-bg text-left text-muted">
+                          <tr>
+                            <th class="px-2 py-1 font-medium">Column</th>
+                            <th class="px-2 py-1 font-medium">Type (DuckDB)</th>
+                            <th class="px-2 py-1 font-medium">Tests</th>
+                            <th class="px-2 py-1 font-medium">Description</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {m.columns.map((c) => (
+                            <tr class="border-t border-line align-top" data-column={c.name}>
+                              <td class="px-2 py-1 font-mono whitespace-nowrap">{c.name}</td>
+                              <td class="px-2 py-1 font-mono whitespace-nowrap text-muted">{c.type || '–'}</td>
+                              <td class="px-2 py-1 whitespace-nowrap">{c.tests.join(', ') || '–'}</td>
+                              <td class="min-w-56 px-2 py-1">{c.description || ''}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              </details>
-            ))}
+                </details>
+              );
+            })}
           </div>
         </section>
       ))
     }
+
+    <section id="seeds" class="mt-8" data-schema-group>
+      <h2 class="text-lg font-semibold tracking-tight">Seeds</h2>
+      <p class="mt-1 max-w-3xl text-sm text-muted">Small reference tables kept in the repository and loaded by dbt.</p>
+      <div class="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
+        {
+          seeds.map((s) => (
+            <details id={`seed-${s.name}`} class="min-w-0 rounded-lg border border-line bg-card" data-testid="seed" data-model={s.name}>
+              <summary class="cursor-pointer px-4 py-2">
+                <span class="font-mono text-sm font-medium">{s.name}</span>
+                <span class="ml-2 text-xs text-muted">seed · {s.columns.length} columns</span>
+                {s.description && <span class="block text-sm text-muted">{s.description}</span>}
+              </summary>
+              <div class="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line px-4 py-3 text-sm">
+                <dl class="grid min-w-0 gap-1 text-xs wrap-anywhere">
+                  <div>
+                    <dt class="inline text-muted">Read by </dt>
+                    <dd class="inline">
+                      {s.read_by.map((r, i) => (
+                        <>
+                          {i > 0 && ', '}
+                          <a href={`#${anchor(r)}`} class={`font-mono ${link}`}>
+                            {r}
+                          </a>
+                        </>
+                      ))}
+                      {s.read_by.length === 0 && 'no model; only the export reads it (export/layout.py)'}
+                    </dd>
+                  </div>
+                  {s.exported_as.length > 0 && (
+                    <div>
+                      <dt class="inline text-muted">Published as </dt>
+                      <dd class="inline font-mono">{s.exported_as.join(', ')}</dd>
+                    </div>
+                  )}
+                </dl>
+                <div class="table-scroll max-h-[70vh] overflow-auto rounded border border-line" tabindex="0" role="region" aria-label={`Columns of ${s.name}`}>
+                  <table class="w-full text-xs">
+                    <thead class="bg-bg text-left text-muted">
+                      <tr>
+                        <th class="px-2 py-1 font-medium">Column</th>
+                        <th class="px-2 py-1 font-medium">Type (DuckDB)</th>
+                        <th class="px-2 py-1 font-medium">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {s.columns.map((c) => (
+                        <tr class="border-t border-line align-top" data-column={c.name}>
+                          <td class="px-2 py-1 font-mono whitespace-nowrap">{c.name}</td>
+                          <td class="px-2 py-1 font-mono whitespace-nowrap text-muted">{c.type || '–'}</td>
+                          <td class="min-w-56 px-2 py-1">{c.description || ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
+          ))
+        }
+      </div>
+    </section>
 
     <section id="checks" class="mt-8" data-testid="checks-list">
       <h2 class="text-lg font-semibold tracking-tight">Data-quality checks</h2>
@@ -211,7 +445,7 @@ const [er, flow] = await Promise.all([goldEr(), lineage()]);
           <tbody>
             {
               checks.map((c) => (
-                <tr class="border-t border-line align-top">
+                <tr id={`check-${c.name}`} class="border-t border-line align-top">
                   <td class="px-3 py-2 font-mono text-xs whitespace-nowrap">{c.name}</td>
                   <td class:list={['px-3 py-2', c.severity === 'error' ? 'text-bad' : 'text-warn']}>{c.severity}</td>
                   <td class="px-3 py-2">{c.about}</td>
@@ -224,20 +458,90 @@ const [er, flow] = await Promise.all([goldEr(), lineage()]);
       </div>
     </section>
 
-    <section id="seeds" class="mt-8">
-      <h2 class="text-lg font-semibold tracking-tight">Seeds</h2>
-      <p class="mt-1 max-w-3xl text-sm text-muted">Small reference tables kept in the repository and loaded by dbt.</p>
-      <div class="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
-        {
-          seeds.map((s) => (
-            <div class="min-w-0 rounded-lg border border-line bg-card px-4 py-2 text-sm">
-              <span class="font-mono font-medium">{s.name}</span>
-              {s.description && <span class="ml-2 text-muted">{s.description}</span>}
-              <span class="block text-xs text-muted">{s.columns.map((c) => c.name).join(', ')}</span>
-            </div>
-          ))
-        }
+    <section id="unit-tests" class="mt-8" data-testid="unit-tests-list">
+      <h2 class="text-lg font-semibold tracking-tight">Unit tests</h2>
+      <p class="mt-1 max-w-3xl text-sm text-muted">
+        dbt unit tests run a model's SQL on fixed input rows and compare the result with the rows expected, on every pull
+        request, so a rule that is easy to break (a ranking, a rest-day count, a name link) is pinned down with a worked case.
+      </p>
+      <div class="mt-3 table-scroll max-h-[70vh] overflow-auto rounded-lg border border-line" tabindex="0" role="region" aria-label="Unit tests">
+        <table class="w-full text-sm">
+          <thead class="bg-card text-left text-muted">
+            <tr>
+              <th class="px-3 py-2 font-medium">Unit test</th>
+              <th class="px-3 py-2 font-medium">Model</th>
+              <th class="px-3 py-2 font-medium">The case it pins down</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              unitTests.map((u) => (
+                <tr class="border-t border-line align-top">
+                  <td class="px-3 py-2 font-mono text-xs">{u.name}</td>
+                  <td class="px-3 py-2 font-mono text-xs">
+                    <a href={`#${anchor(u.model)}`} class={link}>
+                      {u.model}
+                    </a>
+                  </td>
+                  <td class="px-3 py-2">{u.description}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
       </div>
     </section>
   </section>
 </Base>
+
+<script>
+  // Filter the models and seeds by name or column, and open or close them all. The list works
+  // without this script; the controls appear only once it runs.
+  const tools = document.querySelector<HTMLElement>('[data-schema-tools]');
+  const input = document.querySelector<HTMLInputElement>('[data-schema-filter]');
+  const status = document.querySelector<HTMLElement>('[data-schema-status]');
+  const items = [...document.querySelectorAll<HTMLDetailsElement>('details[data-model]')];
+  const groups = [...document.querySelectorAll<HTMLElement>('[data-schema-group]')];
+  const openedByFilter = new Set<HTMLDetailsElement>();
+
+  function apply(): void {
+    const q = (input?.value ?? '').trim().toLowerCase();
+    let models = 0;
+    let byColumn = 0;
+    for (const item of items) {
+      const rows = [...item.querySelectorAll<HTMLTableRowElement>('tr[data-column]')];
+      const nameHit = !q || (item.dataset.model ?? '').toLowerCase().includes(q);
+      const hits = q && !nameHit ? rows.filter((r) => (r.dataset.column ?? '').toLowerCase().includes(q)) : [];
+      const shown = nameHit || hits.length > 0;
+      item.hidden = !shown;
+      for (const r of rows) r.hidden = !nameHit && !hits.includes(r);
+      if (hits.length && !item.open) {
+        item.open = true;
+        openedByFilter.add(item);
+      } else if (!hits.length && openedByFilter.has(item)) {
+        item.open = false;
+        openedByFilter.delete(item);
+      }
+      if (shown) models += 1;
+      if (hits.length) byColumn += 1;
+    }
+    for (const g of groups) g.hidden = !g.querySelector('details[data-model]:not([hidden])');
+    if (status) {
+      status.textContent = q
+        ? `${models} of ${items.length} match${byColumn ? `, ${byColumn} by a column (opened, other columns hidden)` : ''}.`
+        : '';
+    }
+  }
+
+  function setAll(open: boolean): void {
+    for (const item of items) if (!item.hidden) item.open = open;
+    openedByFilter.clear();
+  }
+
+  if (tools && input) {
+    tools.hidden = false;
+    input.addEventListener('input', apply);
+    tools.querySelector('[data-schema-expand]')?.addEventListener('click', () => setAll(true));
+    tools.querySelector('[data-schema-collapse]')?.addEventListener('click', () => setAll(false));
+  }
+</script>

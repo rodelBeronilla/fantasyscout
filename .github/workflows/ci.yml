@@ -98,7 +98,7 @@ jobs:
           DBT_PROFILES_DIR: .
         run: |
           (cd dbt && uv run dbt docs generate --target duckdb >/dev/null)
-          uv run python -m ops.schema --check
+          uv run python -m ops.schema --check --require-docs
       - name: Reconciliation summary (DuckDB)
         run: uv run python -m ops.summary --engine duckdb --duckdb dbt/fantasyscout.duckdb
       - name: The chaos switch blocks the gate

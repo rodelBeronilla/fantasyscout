@@ -25,12 +25,19 @@ export const TOKEN = {
 
 let engine: Promise<Graphviz> | null = null;
 
-/** Graph-wide defaults: one font, the theme's text and line colours, no background. */
+/**
+ * Graph-wide defaults: one font, the theme's text and line colours, no background.
+ *
+ * The font is named plainly "Helvetica" so Graphviz sizes boxes with Helvetica's metrics (the
+ * same as Arial's); a list such as "Helvetica,Arial,sans-serif" is not a font it knows, so it
+ * measured in Times, narrower, and labels overflowed their boxes. renderDot writes the browser
+ * fallbacks back into the SVG.
+ */
 export const DOT_DEFAULTS = `
   bgcolor="transparent";
-  fontname="Helvetica,Arial,sans-serif"; fontsize=12; fontcolor="${TOKEN.fg}";
-  node [fontname="Helvetica,Arial,sans-serif", fontsize=11, fontcolor="${TOKEN.fg}", color="${TOKEN.line}", fillcolor="${TOKEN.card}", style=filled, penwidth=1.2, margin="0.16,0.07"];
-  edge [fontname="Helvetica,Arial,sans-serif", fontsize=10, fontcolor="${TOKEN.muted}", color="${TOKEN.muted}", arrowsize=0.7, penwidth=1.1];
+  fontname="Helvetica"; fontsize=12; fontcolor="${TOKEN.fg}";
+  node [fontname="Helvetica", fontsize=11, fontcolor="${TOKEN.fg}", color="${TOKEN.line}", fillcolor="${TOKEN.card}", style=filled, penwidth=1.2, margin="0.16,0.07"];
+  edge [fontname="Helvetica", fontsize=10, fontcolor="${TOKEN.muted}", color="${TOKEN.muted}", arrowsize=0.7, penwidth=1.1];
 `;
 
 /** A DOT graph as an SVG string, sized in points, with Graphviz's header and comments removed. */
@@ -41,6 +48,7 @@ export async function renderDot(dot: string): Promise<string> {
     .replace(/^[\s\S]*?(<svg\b)/, '$1')
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<svg\b/, '<svg class="dg" focusable="false"')
+    .replace(/font-family="Helvetica[^"]*"/g, 'font-family="Helvetica,Arial,sans-serif"')
     .replace(/<polygon fill="(?:white|transparent)" stroke="none"[^>]*\/>/, '')
     // SVG 2 links: plain href, which every current browser follows and selectors match.
     .replace(/ xlink:href=/g, ' href=');
