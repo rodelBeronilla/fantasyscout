@@ -153,6 +153,16 @@ baselines as (
             / nullif(games_before_10 + case when prior_z is null then 0 else prior_weight end, 0) as value_baseline
     from windows
 
+),
+
+-- Sleeper's waiver heat (NBA), one row per league player.
+waiver as (
+
+    select *
+    from {{ ref('fct_waiver_trend') }}
+    where stats_player_id is not null
+    qualify row_number() over (partition by league, stats_player_id order by adds + drops desc, sleeper_player_id) = 1
+
 )
 
 select
@@ -200,7 +210,10 @@ select
     lu.lineup_role,
     lu.is_confirmed as lineup_confirmed,
     mk.ownership_bucket,
-    coalesce(ts.rest_risk, false) as rest_risk
+    coalesce(ts.rest_risk, false) as rest_risk,
+    wt.adds as sleeper_adds,
+    wt.drops as sleeper_drops,
+    wt.waiver_trend
 from latest_rolling as lr
 join league_last_game as llg on llg.league = lr.league
 join baselines as b on b.league = lr.league and b.player_id = lr.player_id
@@ -215,5 +228,6 @@ left join {{ ref('fct_starting_lineup') }} as lu on lu.league = lr.league and lu
 left join {{ ref('fct_market_value') }} as mk on mk.league = lr.league and mk.stats_player_id = lr.player_id
 left join {{ ref('fct_team_stakes') }} as ts on ts.league = lr.league and ts.team_id = cs.team_id
 left join {{ ref('mart_board') }} as bd on bd.league = lr.league and bd.player_id = lr.player_id
+left join waiver as wt on wt.league = lr.league and wt.stats_player_id = lr.player_id
 where sl.games >= 3
     and lr.game_date >= {{ add_days('llg.last_game_date', -30) }}

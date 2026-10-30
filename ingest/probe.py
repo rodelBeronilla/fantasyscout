@@ -128,6 +128,14 @@ DEFAULT_TARGETS: tuple[Target, ...] = (
         expect="[",
         json=False,
     ),
+    # Sleeper's trending adds and drops (NBA; issue #129).
+    Target(
+        name="sleeper-trending-nba",
+        url="https://api.sleeper.app/v1/players/nba/trending/add",
+        params={"lookback_hours": "24", "limit": "5"},
+        expect="player_id",
+        json=False,
+    ),
     # The leagues' CDN (issue #139): box scores, play-by-play and schedules for both leagues.
     Target(
         name="cdn-nba-boxscore",

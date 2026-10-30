@@ -987,6 +987,52 @@ models:
       - name: athlete_name
         description: "The athlete's name as ESPN tags it"
 
+  - name: sleeper_players
+    description: "Sleeper's NBA player directory as landed, once a day: one row per active player on a team, with the fields that link the player to the league's ids."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The Eastern day the directory was landed"
+      - name: sleeper_player_id
+        description: "Sleeper player id"
+      - name: full_name
+        description: "The player's name as Sleeper writes it"
+      - name: search_full_name
+        description: "Sleeper's lower-case ASCII form of the name, suffix kept"
+      - name: team_abbreviation
+        description: "Sleeper's team abbreviation (the league's tricodes)"
+      - name: birth_date
+        description: "Birth date as Sleeper gives it (YYYY-MM-DD)"
+
+  - name: sleeper_trending
+    description: "Sleeper's trending NBA players as landed: one row per player and direction (add or drop) per landing, with the number of Sleeper leagues that made the move."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The Eastern day and hour the lists were landed"
+      - name: lookback_hours
+        description: "The window the counts cover, in hours"
+      - name: direction
+        description: "add or drop"
+      - name: sleeper_player_id
+        description: "Sleeper player id"
+      - name: move_count
+        description: "Sleeper leagues that added or dropped the player over the window"
+
   - name: league_player_movement
     description: "The NBA's player movement feed, the last 180 days as landed: one row per move with league ids."
     columns:

@@ -24,6 +24,7 @@ from ingest.injury_report import InjuryReportIngestor
 from ingest.landing import League
 from ingest.lineups import LineupsIngestor
 from ingest.run import RunSummary, describe
+from ingest.sleeper import SleeperIngestor
 from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
 from ingest.store import Backend, Landing, LocalBackend, VolumeBackend
 from ingest.transactions import TransactionsIngestor
@@ -60,6 +61,7 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
         "news",
     ),
     "league": ("injury_report", "daily_lineups", "player_movement"),
+    "sleeper": ("players", "trending"),
 }
 
 
@@ -141,6 +143,9 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         if opts.league == "nba":
             lines.append("  and today's starting lineups (Expected, then Confirmed before tip-off)")
             lines.append("  and the NBA's player movement feed (the last 180 days)")
+            lines.append(
+                "  and Sleeper's trending adds and drops, with its player directory once a day"
+            )
         lines.append("  and ESPN's latest 100 transactions")
         lines.append(
             "  and ESPN fantasy's market: draft position and how widely each player is rostered"
@@ -206,6 +211,7 @@ def land(
             TransactionsIngestor(client, landing, opts.league, season).land_into(summary)
             EspnFantasyIngestor(client, landing, opts.league, season).land_into(summary)
             EspnNewsIngestor(client, landing, opts.league, season).land_into(summary)
+            SleeperIngestor(client, landing, opts.league, season).land_into(summary)
             for failure in landing.flush():
                 summary.fail(failure.endpoint, failure.key, failure.error)
             summary.pacing = client.pacing()

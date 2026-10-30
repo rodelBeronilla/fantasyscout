@@ -365,6 +365,21 @@ models:
           - accepted_values:
               values: [out_for_season, surgery, minutes_limit, return, injury, g_league, role]
 
+  - name: waiver_trending
+    description: "Sleeper's trending NBA players from the newest landing: one row per player, with the leagues adding and dropping him, his rank in each list, and Sleeper's name, team and birth date for linking."
+    columns:
+      - name: waiver_trending_key
+        description: "League and Sleeper player id"
+        data_tests: [unique, not_null]
+      - name: adds
+        description: "Sleeper leagues that added the player over the window (0 when not in the add list)"
+      - name: drops
+        description: "Sleeper leagues that dropped the player over the window (0 when not in the drop list)"
+      - name: add_rank
+        description: "Rank in the most-added list, 1 the most; null when not in it"
+      - name: drop_rank
+        description: "Rank in the most-dropped list, 1 the most; null when not in it"
+
   - name: transactions
     description: "Transactions from the NBA's movement feed (with player ids) and ESPN's feed (both leagues, one line per team and day), sorted by their wording."
     columns:

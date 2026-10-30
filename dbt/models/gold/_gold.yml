@@ -211,6 +211,20 @@ models:
       - name: news_flag
         description: "out_for_season, surgery, minutes_limit, return, injury, g_league or role; null when none applies"
 
+  - name: fct_waiver_trend
+    description: "Waiver heat from Sleeper (NBA): the players Sleeper leagues added and dropped most over the last day, linked to the league player id by name, birth date and team."
+    columns:
+      - name: waiver_trend_sk
+        description: "Surrogate key"
+        data_tests: [unique, not_null]
+      - name: stats_player_id
+        description: "League player id; null when the name matches no current player or more than one"
+      - name: waiver_trend
+        description: "adding when more Sleeper leagues added than dropped the player, else dropping"
+        data_tests:
+          - accepted_values:
+              values: [adding, dropping]
+
   - name: fct_starting_lineup
     description: "Each player's role in today's game from the league's starting lineups (NBA only): starter, bench or inactive, and whether it is confirmed."
     columns:
@@ -432,3 +446,9 @@ models:
         description: "Season value z-score blended with last season's, last season counting for up to 10 games and this season for its games before the last ten"
       - name: value_trend
         description: "Value z-score over the last ten games minus the baseline; null without one"
+      - name: sleeper_adds
+        description: "Sleeper leagues that added the player over the last day (NBA, fct_waiver_trend); null when he is not trending"
+      - name: sleeper_drops
+        description: "Sleeper leagues that dropped the player over the last day; null when he is not trending"
+      - name: waiver_trend
+        description: "adding or dropping across Sleeper leagues over the last day; null when he is not trending"

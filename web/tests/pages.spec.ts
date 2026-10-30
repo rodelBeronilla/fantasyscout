@@ -622,6 +622,26 @@ test("streamers mark today's starters and inactives from the league's lineups, a
   await expect(table.locator('tbody tr')).toHaveCount(2);
 });
 
+test('streamers show waiver heat from Sleeper, filter to players being added, and credit Sleeper', async ({ page }) => {
+  // The fixture build predates Sleeper: one player being added, one being dropped.
+  await page.route('**/streamers/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    const heat = [
+      { sleeper_adds: 26552, sleeper_drops: 120, waiver_trend: 'adding' },
+      { sleeper_adds: 0, sleeper_drops: 7371, waiver_trend: 'dropping' },
+    ];
+    await route.fulfill({ json: rows.map((r, i) => ({ ...r, ...(heat[i] ?? {}) })) });
+  });
+  await page.goto('/streamers/');
+  const table = page.getByTestId('trending');
+  await expect(table.getByTestId('waiver-heat').filter({ hasText: '+26.4k' })).toHaveCount(1);
+  await expect(table.getByTestId('waiver-heat').filter({ hasText: '−7.4k' })).toHaveCount(1);
+  await expect(table.getByTestId('waiver-heat').first()).toHaveAttribute('title', /Sleeper leagues added him/);
+  await page.getByLabel('Being added on Sleeper').check();
+  await expect(table.locator('tbody tr')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Sleeper', exact: true }).first()).toHaveAttribute('href', 'https://sleeper.com');
+});
+
 test("streamers list the league's recent moves, and a player's page lists theirs", async ({ page }) => {
   const today = new Date().toISOString().slice(0, 10);
   await page.route('**/transactions/wnba.json', (route) =>
