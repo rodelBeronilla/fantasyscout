@@ -13206,15 +13206,15 @@
       {
        "description": "Share of the remaining regular-season games the player is expected to play: games before ESPN's return date when given, none when out for the season, else the games missed after past injury listings with the same status (expected_games_missed); 1 when healthy",
        "name": "availability_multiplier",
-       "tests": [],
+       "tests": [
+        "not_null"
+       ],
        "type": "double"
       },
       {
        "description": "Average games missed after past official injury listings with the player's status (the official report's for the next game, else ESPN's), capped at the team's games left; null without a status or a history",
        "name": "expected_games_missed",
-       "tests": [
-        "not_null"
-       ],
+       "tests": [],
        "type": "double"
       },
       {

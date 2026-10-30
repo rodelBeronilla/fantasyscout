@@ -1332,9 +1332,9 @@ models:
         description: "True when the player's team is clinched or eliminated in the last stretch (fct_team_stakes)"
       - name: availability_multiplier
         description: "Share of the remaining regular-season games the player is expected to play: games before ESPN's return date when given, none when out for the season, else the games missed after past injury listings with the same status (expected_games_missed); 1 when healthy"
+        data_tests: [not_null]
       - name: expected_games_missed
         description: "Average games missed after past official injury listings with the player's status (the official report's for the next game, else ESPN's), capped at the team's games left; null without a status or a history"
-        data_tests: [not_null]
       - name: games_remaining
         description: "The team's regular-season games not yet final from the run date on"
       - name: games_next_7
