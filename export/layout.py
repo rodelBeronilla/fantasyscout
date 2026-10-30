@@ -45,6 +45,7 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.fct_player_status", "league, stats_player_id", json=True),
     TableSpec("gold.fct_transaction", "league, transaction_date desc, team_id, player_id"),
     TableSpec("gold.fct_team_game_context", "league, season, game_date, game_id, team_id"),
+    TableSpec("gold.fct_market_value", "league, market_rank, stats_player_id"),
     TableSpec("gold.mart_board", "league, rank_total, player_id"),
     TableSpec("gold.mart_player_projection", "league, player_id"),
     TableSpec("gold.mart_category_zscores", "league, window_name, season, player_id"),
@@ -110,6 +111,9 @@ BOARD_COLUMNS = (
     "official_report_at",
     "lineup_role",
     "lineup_confirmed",
+    "market_rank",
+    "market_gap",
+    "ownership_bucket",
     "z_points",
     "z_rebounds_total",
     "z_assists",
@@ -233,6 +237,7 @@ STREAMER_COLUMNS = (
     "injury_group",
     "lineup_role",
     "lineup_confirmed",
+    "ownership_bucket",
 )
 STREAMERS_SQL = f"""
 select {", ".join(STREAMER_COLUMNS)}

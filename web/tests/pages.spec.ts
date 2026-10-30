@@ -658,3 +658,28 @@ test('the streamers week grid marks the second night of a back-to-back, with tra
   await expect(marker).toHaveCount(1);
   await expect(marker.locator('xpath=..')).toHaveAttribute('title', /Second night of a back-to-back: rest and minutes risk\. 1203 miles from the previous game/);
 });
+
+test("the board sets the fantasy market's rank beside its own, and streamers can leave out widely rostered players", async ({ page }) => {
+  await page.route('**/board/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r, i) => (i === 0 ? { ...r, market_rank: 9, market_gap: 8, ownership_bucket: 'most' } : r)) });
+  });
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('thead')).toContainText('Mkt');
+  await expect(board.locator('thead')).toContainText('vs Mkt');
+  const mkt = board.getByTestId('market-rank').filter({ hasText: /^9$/ });
+  await expect(mkt).toHaveAttribute('title', 'Rostered in most ESPN leagues');
+  await expect(board.locator('tbody tr[data-player]').first().locator('td').nth(-2)).toHaveText(/\d/);
+
+  await page.route('**/streamers/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    // Three players rostered in few leagues; everyone else in most.
+    await route.fulfill({ json: rows.map((r, i) => ({ ...r, ownership_bucket: i < 3 ? 'few' : 'most' })) });
+  });
+  await page.goto('/streamers/');
+  const table = page.getByTestId('trending');
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  await page.getByLabel(/Likely available/).selectOption('-2');
+  await expect(table.locator('tbody tr')).toHaveCount(3);
+});

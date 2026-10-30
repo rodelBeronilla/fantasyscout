@@ -17,6 +17,7 @@ from pathlib import Path, PurePosixPath
 from typing import Literal
 
 from ingest.espn import EspnIngestor, EspnPlanner
+from ingest.espn_fantasy import EspnFantasyIngestor
 from ingest.http import Throttle, ThrottledClient
 from ingest.injury_report import InjuryReportIngestor
 from ingest.landing import League
@@ -46,7 +47,15 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
         "shotchartdetail",
         "commonteamroster",
     ),
-    "espn": ("scoreboard", "summary", "teams", "roster", "injuries", "transactions"),
+    "espn": (
+        "scoreboard",
+        "summary",
+        "teams",
+        "roster",
+        "injuries",
+        "transactions",
+        "fantasy_players",
+    ),
     "league": ("injury_report", "daily_lineups", "player_movement"),
 }
 
@@ -130,6 +139,9 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
             lines.append("  and today's starting lineups (Expected, then Confirmed before tip-off)")
             lines.append("  and the NBA's player movement feed (the last 180 days)")
         lines.append("  and ESPN's latest 100 transactions")
+        lines.append(
+            "  and ESPN fantasy's market: draft position and how widely each player is rostered"
+        )
     else:
         days = (until - since).days + 1
         lines.append(f"  scoreboard for {days} day(s), then summary per completed event")
@@ -188,6 +200,7 @@ def land(
             summary = InjuryReportIngestor(client, landing, opts.league, season).run()
             LineupsIngestor(client, landing, opts.league, season).land_into(summary)
             TransactionsIngestor(client, landing, opts.league, season).land_into(summary)
+            EspnFantasyIngestor(client, landing, opts.league, season).land_into(summary)
             for failure in landing.flush():
                 summary.fail(failure.endpoint, failure.key, failure.error)
             summary.pacing = client.pacing()

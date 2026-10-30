@@ -247,10 +247,119 @@
   ],
   "fantasy_team_change": 0.25
  },
- "generic_tests": 228,
+ "generic_tests": 233,
  "layers": [
   {
    "models": [
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The day the market was landed",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN athlete id",
+       "name": "espn_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Player name",
+       "name": "full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN team id (0 for a free agent)",
+       "name": "espn_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's default position id",
+       "name": "position_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Share of ESPN leagues rostering the player",
+       "name": "percent_owned",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Share of ESPN leagues starting the player",
+       "name": "percent_started",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Average pick in ESPN drafts",
+       "name": "average_draft_position",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Average auction price in ESPN auction drafts",
+       "name": "auction_value_average",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Change in the rostered share over the last week",
+       "name": "percent_owned_change",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's own draft rank for points leagues",
+       "name": "espn_rank_standard",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's own draft rank for category leagues",
+       "name": "espn_rank_roto",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "ESPN fantasy's market as landed: one row per player per landing (the fields the platform uses; ESPN's written outlooks are not landed).",
+     "materialized": "incremental",
+     "name": "espn_fantasy_players",
+     "notes": [],
+     "read_by": [
+      "espn_fantasy_market"
+     ],
+     "reads": []
+    },
     {
      "checks": [],
      "columns": [
@@ -4091,6 +4200,110 @@
      "checks": [],
      "columns": [
       {
+       "description": "League and ESPN athlete id",
+       "name": "market_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "espn_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "espn_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "percent_owned",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "percent_started",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "average_draft_position",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "auction_value_average",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "percent_owned_change",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "espn_rank_standard",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "espn_rank_roto",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "name": "observed_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "ESPN fantasy's market per player from the latest landing per league, typed.",
+     "materialized": "table",
+     "name": "espn_fantasy_market",
+     "notes": [
+      "ESPN fantasy's market per player, from the latest landing per league, typed. An ESPN player rostered in no league has a null share; the WNBA's average draft position out of season is one placeholder for everybody, which gold leaves out of the market rank."
+     ],
+     "read_by": [
+      "fct_market_value"
+     ],
+     "reads": [
+      "espn_fantasy_players"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "league",
        "name": "league",
        "tests": [
@@ -6295,6 +6508,7 @@
      "read_by": [
       "dim_player",
       "fct_availability",
+      "fct_market_value",
       "player_game_reconciliation",
       "player_xwalk_review"
      ],
@@ -8605,6 +8819,110 @@
      ]
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key",
+       "name": "market_value_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "stats_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "espn_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Order by ESPN average draft position among players with a real one; null for undrafted players and for a league whose positions are a placeholder",
+       "name": "market_rank",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "most (70%+ of ESPN leagues), many (40 to 70), some (10 to 40), few (1 to 10) or rare (under 1)",
+       "name": "ownership_bucket",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "percent_owned",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "percent_started",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "average_draft_position",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "auction_value_average",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "percent_owned_change",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "name": "observed_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "The fantasy market's view of each player from ESPN fantasy: the order drafters take players in, and how widely leagues roster them. The site shows the rank and the bucket, not ESPN's numbers.",
+     "materialized": "table",
+     "name": "fct_market_value",
+     "notes": [
+      "The fantasy market's view of each player, from ESPN fantasy, linked to the league player id through the player crosswalk:",
+      "- market_rank: the order ESPN drafters take players in, by average draft position, among players with a real one. Out of season the WNBA gives most players one placeholder value; a value shared by more than half the players is taken as that placeholder and left out.",
+      "- ownership_bucket: how widely ESPN leagues roster the player: most (70% or more), many (40 to 70), some (10 to 40), few (1 to 10), rare (under 1). The raw shares and positions stay in this table; the site shows the rank and the bucket."
+     ],
+     "read_by": [
+      "mart_board",
+      "mart_streamers"
+     ],
+     "reads": [
+      "espn_fantasy_market",
+      "player_xwalk"
+     ]
+    },
+    {
      "checks": [
       "assert_box_arithmetic",
       "assert_box_closure",
@@ -10432,6 +10750,18 @@
        "type": "boolean"
       },
       {
+       "description": "Where ESPN drafters take the player (fct_market_value)",
+       "name": "market_rank",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "How widely ESPN leagues roster the player: most, many, some, few or rare",
+       "name": "ownership_bucket",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
        "description": "Share of the team's remaining regular-season games the player is expected to play (1.0 once the regular season is over)",
        "name": "availability_multiplier",
        "tests": [
@@ -10502,6 +10832,12 @@
        "name": "rank_total",
        "tests": [],
        "type": "bigint"
+      },
+      {
+       "description": "market_rank minus the board rank: positive when the market drafts the player later than the board ranks him",
+       "name": "market_gap",
+       "tests": [],
+       "type": "bigint"
       }
      ],
      "description": "The board: value above replacement per rostered player from the projected line, recent form, the per-game line, injury status and rest-of-season scaling.",
@@ -10519,6 +10855,7 @@
      ],
      "reads": [
       "dim_player",
+      "fct_market_value",
       "fct_player_status",
       "fct_starting_lineup",
       "mart_category_zscores",
@@ -11744,6 +12081,12 @@
        "name": "lineup_confirmed",
        "tests": [],
        "type": "boolean"
+      },
+      {
+       "description": "",
+       "name": "ownership_bucket",
+       "tests": [],
+       "type": "varchar"
       }
      ],
      "description": "Players active in the league's current season with games in the next seven days, the minutes and value trend, recent production and injury status.",
@@ -11758,6 +12101,7 @@
      "read_by": [],
      "reads": [
       "dim_player",
+      "fct_market_value",
       "fct_player_game",
       "fct_player_status",
       "fct_starting_lineup",

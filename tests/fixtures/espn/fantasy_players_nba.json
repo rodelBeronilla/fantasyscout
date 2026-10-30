@@ -1,0 +1,728 @@
+{
+ "game": "fba",
+ "season": "2027",
+ "players": [
+  {
+   "id": 5104157,
+   "fullName": "Victor Wembanyama",
+   "proTeamId": 24,
+   "defaultPositionId": 5,
+   "ownership": {
+    "percentOwned": 99.94,
+    "percentStarted": 96.43,
+    "averageDraftPosition": 3.68,
+    "auctionValueAverage": 71.38,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 4,
+    "ROTO": 2
+   }
+  },
+  {
+   "id": 3112335,
+   "fullName": "Nikola Jokic",
+   "proTeamId": 7,
+   "defaultPositionId": 5,
+   "ownership": {
+    "percentOwned": 99.93,
+    "percentStarted": 95.98,
+    "averageDraftPosition": 1.69,
+    "auctionValueAverage": 73.89,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 1,
+    "ROTO": 1
+   }
+  },
+  {
+   "id": 4278073,
+   "fullName": "Shai Gilgeous-Alexander",
+   "proTeamId": 25,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.93,
+    "percentStarted": 95.54,
+    "averageDraftPosition": 2.8,
+    "auctionValueAverage": 67.72,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 2,
+    "ROTO": 3
+   }
+  },
+  {
+   "id": 3908809,
+   "fullName": "Donovan Mitchell",
+   "proTeamId": 5,
+   "defaultPositionId": 2,
+   "ownership": {
+    "percentOwned": 99.92,
+    "percentStarted": 99.02,
+    "averageDraftPosition": 11.61,
+    "auctionValueAverage": 48.86,
+    "percentChange": 0.01
+   },
+   "draftRanks": {
+    "STANDARD": 10,
+    "ROTO": 6
+   }
+  },
+  {
+   "id": 4431678,
+   "fullName": "Tyrese Maxey",
+   "proTeamId": 20,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.91,
+    "percentStarted": 94.05,
+    "averageDraftPosition": 11.9,
+    "auctionValueAverage": 49.63,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 13,
+    "ROTO": 8
+   }
+  },
+  {
+   "id": 3032977,
+   "fullName": "Giannis Antetokounmpo",
+   "proTeamId": 14,
+   "defaultPositionId": 4,
+   "ownership": {
+    "percentOwned": 99.91,
+    "percentStarted": 96.68,
+    "averageDraftPosition": 5.83,
+    "auctionValueAverage": 60.33,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 5,
+    "ROTO": 19
+   }
+  },
+  {
+   "id": 3202,
+   "fullName": "Kevin Durant",
+   "proTeamId": 10,
+   "defaultPositionId": 4,
+   "ownership": {
+    "percentOwned": 99.9,
+    "percentStarted": 96.24,
+    "averageDraftPosition": 19.87,
+    "auctionValueAverage": 32.43,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 23,
+    "ROTO": 28
+   }
+  },
+  {
+   "id": 4432166,
+   "fullName": "Cade Cunningham",
+   "proTeamId": 8,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.89,
+    "percentStarted": 94.96,
+    "averageDraftPosition": 8.7,
+    "auctionValueAverage": 53.25,
+    "percentChange": 0.01
+   },
+   "draftRanks": {
+    "STANDARD": 7,
+    "ROTO": 11
+   }
+  },
+  {
+   "id": 3945274,
+   "fullName": "Luka Doncic",
+   "proTeamId": 13,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.89,
+    "percentStarted": 83.27,
+    "averageDraftPosition": 3.64,
+    "auctionValueAverage": 69.6,
+    "percentChange": -0.01
+   },
+   "draftRanks": {
+    "STANDARD": 3,
+    "ROTO": 4
+   }
+  },
+  {
+   "id": 4065648,
+   "fullName": "Jayson Tatum",
+   "proTeamId": 2,
+   "defaultPositionId": 4,
+   "ownership": {
+    "percentOwned": 99.88,
+    "percentStarted": 81.25,
+    "averageDraftPosition": 9.74,
+    "auctionValueAverage": 51.89,
+    "percentChange": 0.01
+   },
+   "draftRanks": {
+    "STANDARD": 9,
+    "ROTO": 7
+   }
+  },
+  {
+   "id": 3136195,
+   "fullName": "Karl-Anthony Towns",
+   "proTeamId": 18,
+   "defaultPositionId": 5,
+   "ownership": {
+    "percentOwned": 99.88,
+    "percentStarted": 94.95,
+    "averageDraftPosition": 22.67,
+    "auctionValueAverage": 31.15,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 24,
+    "ROTO": 21
+   }
+  },
+  {
+   "id": 5041939,
+   "fullName": "Cooper Flagg",
+   "proTeamId": 6,
+   "defaultPositionId": 3,
+   "ownership": {
+    "percentOwned": 99.85,
+    "percentStarted": 91.02,
+    "averageDraftPosition": 11.85,
+    "auctionValueAverage": 49.38,
+    "percentChange": 0.02
+   },
+   "draftRanks": {
+    "STANDARD": 11,
+    "ROTO": 10
+   }
+  },
+  {
+   "id": 3136193,
+   "fullName": "Devin Booker",
+   "proTeamId": 21,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.82,
+    "percentStarted": 77.18,
+    "averageDraftPosition": 23.0,
+    "auctionValueAverage": 30.98,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 20,
+    "ROTO": 39
+   }
+  },
+  {
+   "id": 3934672,
+   "fullName": "Jalen Brunson",
+   "proTeamId": 18,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.75,
+    "percentStarted": 93.66,
+    "averageDraftPosition": 15.72,
+    "auctionValueAverage": 38.74,
+    "percentChange": 0.03
+   },
+   "draftRanks": {
+    "STANDARD": 15,
+    "ROTO": 31
+   }
+  },
+  {
+   "id": 3917376,
+   "fullName": "Jaylen Brown",
+   "proTeamId": 20,
+   "defaultPositionId": 3,
+   "ownership": {
+    "percentOwned": 99.74,
+    "percentStarted": 91.07,
+    "averageDraftPosition": 31.8,
+    "auctionValueAverage": 18.2,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 41,
+    "ROTO": 63
+   }
+  },
+  {
+   "id": 4701230,
+   "fullName": "Jalen Johnson",
+   "proTeamId": 1,
+   "defaultPositionId": 4,
+   "ownership": {
+    "percentOwned": 99.7,
+    "percentStarted": 98.87,
+    "averageDraftPosition": 9.01,
+    "auctionValueAverage": 51.07,
+    "percentChange": 0.04
+   },
+   "draftRanks": {
+    "STANDARD": 6,
+    "ROTO": 9
+   }
+  },
+  {
+   "id": 4684740,
+   "fullName": "Amen Thompson",
+   "proTeamId": 10,
+   "defaultPositionId": 3,
+   "ownership": {
+    "percentOwned": 99.69,
+    "percentStarted": 95.65,
+    "averageDraftPosition": 21.17,
+    "auctionValueAverage": 35.24,
+    "percentChange": 0.01
+   },
+   "draftRanks": {
+    "STANDARD": 19,
+    "ROTO": 16
+   }
+  },
+  {
+   "id": 4433134,
+   "fullName": "Scottie Barnes",
+   "proTeamId": 28,
+   "defaultPositionId": 3,
+   "ownership": {
+    "percentOwned": 99.58,
+    "percentStarted": 94.29,
+    "averageDraftPosition": 18.48,
+    "auctionValueAverage": 39.17,
+    "percentChange": 0.04
+   },
+   "draftRanks": {
+    "STANDARD": 17,
+    "ROTO": 13
+   }
+  },
+  {
+   "id": 4432816,
+   "fullName": "LaMelo Ball",
+   "proTeamId": 16,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.52,
+    "percentStarted": 93.91,
+    "averageDraftPosition": 15.02,
+    "auctionValueAverage": 42.92,
+    "percentChange": -0.16
+   },
+   "draftRanks": {
+    "STANDARD": 14,
+    "ROTO": 12
+   }
+  },
+  {
+   "id": 3992,
+   "fullName": "James Harden",
+   "proTeamId": 5,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.5,
+    "percentStarted": 97.28,
+    "averageDraftPosition": 30.46,
+    "auctionValueAverage": 24.91,
+    "percentChange": 0.01
+   },
+   "draftRanks": {
+    "STANDARD": 25,
+    "ROTO": 26
+   }
+  },
+  {
+   "id": 3975,
+   "fullName": "Stephen Curry",
+   "proTeamId": 9,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.47,
+    "percentStarted": 89.88,
+    "averageDraftPosition": 31.68,
+    "auctionValueAverage": 21.01,
+    "percentChange": 0.12
+   },
+   "draftRanks": {
+    "STANDARD": 37,
+    "ROTO": 34
+   }
+  },
+  {
+   "id": 3155942,
+   "fullName": "Domantas Sabonis",
+   "proTeamId": 23,
+   "defaultPositionId": 5,
+   "ownership": {
+    "percentOwned": 99.43,
+    "percentStarted": 96.16,
+    "averageDraftPosition": 16.39,
+    "auctionValueAverage": 41.34,
+    "percentChange": 0.03
+   },
+   "draftRanks": {
+    "STANDARD": 12,
+    "ROTO": 32
+   }
+  },
+  {
+   "id": 6583,
+   "fullName": "Anthony Davis",
+   "proTeamId": 27,
+   "defaultPositionId": 5,
+   "ownership": {
+    "percentOwned": 99.43,
+    "percentStarted": 94.36,
+    "averageDraftPosition": 29.02,
+    "auctionValueAverage": 25.07,
+    "percentChange": 0.01
+   },
+   "draftRanks": {
+    "STANDARD": 29,
+    "ROTO": 15
+   }
+  },
+  {
+   "id": 3149673,
+   "fullName": "Pascal Siakam",
+   "proTeamId": 11,
+   "defaultPositionId": 4,
+   "ownership": {
+    "percentOwned": 99.27,
+    "percentStarted": 94.51,
+    "averageDraftPosition": 30.52,
+    "auctionValueAverage": 22.88,
+    "percentChange": 0.03
+   },
+   "draftRanks": {
+    "STANDARD": 26,
+    "ROTO": 25
+   }
+  },
+  {
+   "id": 4277905,
+   "fullName": "Trae Young",
+   "proTeamId": 27,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.22,
+    "percentStarted": 93.4,
+    "averageDraftPosition": 22.31,
+    "auctionValueAverage": 32.64,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 16,
+    "ROTO": 49
+   }
+  },
+  {
+   "id": 4066457,
+   "fullName": "Austin Reaves",
+   "proTeamId": 13,
+   "defaultPositionId": 2,
+   "ownership": {
+    "percentOwned": 99.21,
+    "percentStarted": 91.95,
+    "averageDraftPosition": 31.76,
+    "auctionValueAverage": 21.39,
+    "percentChange": 0.0
+   },
+   "draftRanks": {
+    "STANDARD": 31,
+    "ROTO": 42
+   }
+  },
+  {
+   "id": 1966,
+   "fullName": "LeBron James",
+   "proTeamId": 20,
+   "defaultPositionId": 3,
+   "ownership": {
+    "percentOwned": 99.13,
+    "percentStarted": 88.6,
+    "averageDraftPosition": 37.06,
+    "auctionValueAverage": 16.79,
+    "percentChange": 0.01
+   },
+   "draftRanks": {
+    "STANDARD": 42,
+    "ROTO": 73
+   }
+  },
+  {
+   "id": 3936299,
+   "fullName": "Jamal Murray",
+   "proTeamId": 7,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 99.03,
+    "percentStarted": 91.15,
+    "averageDraftPosition": 33.43,
+    "auctionValueAverage": 22.05,
+    "percentChange": 0.04
+   },
+   "draftRanks": {
+    "STANDARD": 28,
+    "ROTO": 22
+   }
+  },
+  {
+   "id": 4432158,
+   "fullName": "Evan Mobley",
+   "proTeamId": 5,
+   "defaultPositionId": 4,
+   "ownership": {
+    "percentOwned": 98.96,
+    "percentStarted": 96.48,
+    "averageDraftPosition": 38.37,
+    "auctionValueAverage": 17.37,
+    "percentChange": 0.11
+   },
+   "draftRanks": {
+    "STANDARD": 35,
+    "ROTO": 27
+   }
+  },
+  {
+   "id": 4594268,
+   "fullName": "Anthony Edwards",
+   "proTeamId": 16,
+   "defaultPositionId": 2,
+   "ownership": {
+    "percentOwned": 98.96,
+    "percentStarted": 49.88,
+    "averageDraftPosition": 7.54,
+    "auctionValueAverage": 60.1,
+    "percentChange": 0.1
+   },
+   "draftRanks": {
+    "STANDARD": 8,
+    "ROTO": 5
+   }
+  },
+  {
+   "id": 4871144,
+   "fullName": "Alperen Sengun",
+   "proTeamId": 10,
+   "defaultPositionId": 5,
+   "ownership": {
+    "percentOwned": 98.93,
+    "percentStarted": 70.54,
+    "averageDraftPosition": 25.81,
+    "auctionValueAverage": 29.98,
+    "percentChange": -0.04
+   },
+   "draftRanks": {
+    "STANDARD": 22,
+    "ROTO": 30
+   }
+  },
+  {
+   "id": 4066261,
+   "fullName": "Bam Adebayo",
+   "proTeamId": 14,
+   "defaultPositionId": 5,
+   "ownership": {
+    "percentOwned": 98.89,
+    "percentStarted": 92.84,
+    "averageDraftPosition": 32.69,
+    "auctionValueAverage": 21.99,
+    "percentChange": 0.06
+   },
+   "draftRanks": {
+    "STANDARD": 32,
+    "ROTO": 17
+   }
+  },
+  {
+   "id": 4396993,
+   "fullName": "Tyrese Haliburton",
+   "proTeamId": 11,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 98.83,
+    "percentStarted": 63.91,
+    "averageDraftPosition": 20.5,
+    "auctionValueAverage": 38.33,
+    "percentChange": -0.34
+   },
+   "draftRanks": {
+    "STANDARD": 21,
+    "ROTO": 14
+   }
+  },
+  {
+   "id": 4683021,
+   "fullName": "Deni Avdija",
+   "proTeamId": 22,
+   "defaultPositionId": 3,
+   "ownership": {
+    "percentOwned": 97.82,
+    "percentStarted": 92.61,
+    "averageDraftPosition": 35.18,
+    "auctionValueAverage": 19.71,
+    "percentChange": 0.17
+   },
+   "draftRanks": {
+    "STANDARD": 30,
+    "ROTO": 60
+   }
+  },
+  {
+   "id": 4066259,
+   "fullName": "De'Aaron Fox",
+   "proTeamId": 24,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 96.5,
+    "percentStarted": 83.24,
+    "averageDraftPosition": 52.62,
+    "auctionValueAverage": 9.82,
+    "percentChange": -0.18
+   },
+   "draftRanks": {
+    "STANDARD": 43,
+    "ROTO": 53
+   }
+  },
+  {
+   "id": 4845367,
+   "fullName": "Stephon Castle",
+   "proTeamId": 24,
+   "defaultPositionId": 1,
+   "ownership": {
+    "percentOwned": 96.39,
+    "percentStarted": 83.31,
+    "averageDraftPosition": 55.24,
+    "auctionValueAverage": 8.25,
+    "percentChange": -0.04
+   },
+   "draftRanks": {
+    "STANDARD": 53,
+    "ROTO": 92
+   }
+  },
+  {
+   "id": 4278104,
+   "fullName": "Michael Porter Jr.",
+   "proTeamId": 17,
+   "defaultPositionId": 3,
+   "ownership": {
+    "percentOwned": 96.21,
+    "percentStarted": 70.8,
+    "averageDraftPosition": 52.89,
+    "auctionValueAverage": 9.59,
+    "percentChange": 0.09
+   },
+   "draftRanks": {
+    "STANDARD": 48,
+    "ROTO": 43
+   }
+  },
+  {
+   "id": 6450,
+   "fullName": "Kawhi Leonard",
+   "proTeamId": 28,
+   "defaultPositionId": 3,
+   "ownership": {
+    "percentOwned": 95.93,
+    "percentStarted": 49.71,
+    "averageDraftPosition": 32.68,
+    "auctionValueAverage": 22.43,
+    "percentChange": -0.28
+   },
+   "draftRanks": {
+    "STANDARD": 33,
+    "ROTO": 20
+   }
+  },
+  {
+   "id": 3059318,
+   "fullName": "Joel Embiid",
+   "proTeamId": 20,
+   "defaultPositionId": 5,
+   "ownership": {
+    "percentOwned": 95.57,
+    "percentStarted": 74.36,
+    "averageDraftPosition": 69.11,
+    "auctionValueAverage": 6.14,
+    "percentChange": 0.2
+   },
+   "draftRanks": {
+    "STANDARD": 72,
+    "ROTO": 87
+   }
+  },
+  {
+   "id": 3078576,
+   "fullName": "Derrick White",
+   "proTeamId": 2,
+   "defaultPositionId": 2,
+   "ownership": {
+    "percentOwned": 95.06,
+    "percentStarted": 71.47,
+    "averageDraftPosition": 43.59,
+    "auctionValueAverage": 16.79,
+    "percentChange": -0.28
+   },
+   "draftRanks": {
+    "STANDARD": 36,
+    "ROTO": 18
+   }
+  },
+  {
+   "id": 4898260,
+   "fullName": "Tyson Degenhart",
+   "proTeamId": 0,
+   "defaultPositionId": -1,
+   "ownership": {
+    "percentOwned": null,
+    "percentStarted": null,
+    "averageDraftPosition": null,
+    "auctionValueAverage": null,
+    "percentChange": null
+   },
+   "draftRanks": {}
+  },
+  {
+   "id": 4799962,
+   "fullName": "Norvel Pelle",
+   "proTeamId": 18,
+   "defaultPositionId": -1,
+   "ownership": {
+    "percentOwned": null,
+    "percentStarted": null,
+    "averageDraftPosition": null,
+    "auctionValueAverage": null,
+    "percentChange": null
+   },
+   "draftRanks": {}
+  },
+  {
+   "id": 2530750,
+   "fullName": "Markel Brown",
+   "proTeamId": 25,
+   "defaultPositionId": 2,
+   "ownership": {
+    "percentOwned": null,
+    "percentStarted": null,
+    "averageDraftPosition": null,
+    "auctionValueAverage": null,
+    "percentChange": null
+   },
+   "draftRanks": {}
+  }
+ ]
+}

@@ -198,7 +198,8 @@ select
     i.status as injury_status,
     i.status_group as injury_group,
     lu.lineup_role,
-    lu.is_confirmed as lineup_confirmed
+    lu.is_confirmed as lineup_confirmed,
+    mk.ownership_bucket
 from latest_rolling as lr
 join league_last_game as llg on llg.league = lr.league
 join baselines as b on b.league = lr.league and b.player_id = lr.player_id
@@ -210,6 +211,7 @@ left join {{ ref('teams') }} as t on t.league = lr.league and t.season = lr.seas
 left join upcoming as u on u.league = lr.league and u.team_id = cs.team_id
 left join injury as i on i.league = lr.league and i.stats_player_id = lr.player_id
 left join {{ ref('fct_starting_lineup') }} as lu on lu.league = lr.league and lu.player_id = lr.player_id
+left join {{ ref('fct_market_value') }} as mk on mk.league = lr.league and mk.stats_player_id = lr.player_id
 left join {{ ref('mart_board') }} as bd on bd.league = lr.league and bd.player_id = lr.player_id
 where sl.games >= 3
     and lr.game_date >= {{ add_days('llg.last_game_date', -30) }}

@@ -121,6 +121,13 @@ DEFAULT_TARGETS: tuple[Target, ...] = (
         expect="NBA_Player_Movement",
         headers=stats_headers("nba"),
     ),
+    Target(
+        name="espn-fantasy-wnba",
+        url="https://lm-api-reads.fantasy.espn.com/apis/v3/games/wfba/seasons/2026/players",
+        params={"scoringPeriodId": "0", "view": "players_wl"},
+        expect="[",
+        json=False,
+    ),
     # The leagues' CDN (issue #139): box scores, play-by-play and schedules for both leagues.
     Target(
         name="cdn-nba-boxscore",

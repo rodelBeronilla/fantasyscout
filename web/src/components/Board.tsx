@@ -40,6 +40,10 @@ interface BoardRow {
   official_report_at?: string | null;
   lineup_role?: string | null;
   lineup_confirmed?: boolean | null;
+  /** Where ESPN drafters take the player, and the gap to the board's rank (positive: a value). */
+  market_rank?: number | null;
+  market_gap?: number | null;
+  ownership_bucket?: string | null;
   games_share: number | null;
   value_per_game: number | null;
   age: number | null;
@@ -99,6 +103,9 @@ type Availability = 'all' | 'no_out' | 'healthy';
 type Show = 'available' | 'mine' | 'all';
 
 const PAGE = 100;
+
+/** How widely ESPN leagues roster a player, in words (fct_market_value buckets). */
+const OWNED_LABEL: Record<string, string> = { most: 'most', many: 'many', some: 'some', few: 'few', rare: 'almost no' };
 const COMPARE_MAX = 4;
 
 function num(row: BoardRow, key: string): number | null {
@@ -364,7 +371,10 @@ export default function Board() {
   const byId = new Map(rows.map((r) => [r.player_id, r]));
   const compared = compare.map((id) => byId.get(id)).filter((r): r is BoardRow => !!r);
   const valueOf = new Map(scored.map((s) => [s.row.player_id, s.value]));
-  const columns = 6 + (view === 'value' ? 1 : 0) + (showNext7 ? 1 : 0) + categoryColumns.length + (showFit ? 1 : 0) + (isLine(view) ? 0 : 1) + 1;
+  // The market's columns: in the value view, once the build carries ESPN's market.
+  const showMarket = view === 'value' && rows.some((r) => r.market_rank != null || r.ownership_bucket);
+  const columns =
+    6 + (view === 'value' ? 1 : 0) + (showNext7 ? 1 : 0) + categoryColumns.length + (showFit ? 1 : 0) + (showMarket ? 2 : 0) + (isLine(view) ? 0 : 1) + 1;
   const lastPick = setup.picks.at(-1);
   const ownerName = (id: string) => {
     const t = owner.get(id);
@@ -514,6 +524,18 @@ export default function Board() {
         {showFit && (
           <Td right>
             <Signed value={fitOf.get(row.player_id) ?? null} />
+          </Td>
+        )}
+        {showMarket && (
+          <Td right>
+            <span title={row.ownership_bucket ? `Rostered in ${OWNED_LABEL[row.ownership_bucket] ?? row.ownership_bucket} ESPN leagues` : undefined} data-testid="market-rank">
+              {row.market_rank ?? '–'}
+            </span>
+          </Td>
+        )}
+        {showMarket && (
+          <Td right>
+            <Signed value={row.market_gap ?? null} digits={0} />
           </Td>
         )}
         {!isLine(view) && (
@@ -818,6 +840,28 @@ export default function Board() {
                   title="Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)"
                 >
                   Fit
+                </SortTh>
+              )}
+              {showMarket && (
+                <SortTh
+                  right
+                  active={sortKey === 'market_rank'}
+                  dir={sortDir}
+                  onClick={() => sortBy('market_rank', 'asc')}
+                  title="Where ESPN fantasy drafters take the player (by average draft position); the tooltip says how widely ESPN leagues roster him"
+                >
+                  Mkt
+                </SortTh>
+              )}
+              {showMarket && (
+                <SortTh
+                  right
+                  active={sortKey === 'market_gap'}
+                  dir={sortDir}
+                  onClick={() => sortBy('market_gap')}
+                  title="Market rank minus the board's rank: positive when drafters take the player later than he is worth here (a value), negative when they reach"
+                >
+                  vs Mkt
                 </SortTh>
               )}
               {!isLine(view) && (

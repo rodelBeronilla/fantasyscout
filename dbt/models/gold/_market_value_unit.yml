@@ -1,0 +1,39 @@
+unit_tests:
+  - name: market_value_ranks_real_draft_positions_and_buckets_ownership
+    description: >
+      NBA players are ranked by average draft position. In the WNBA most players share one
+      placeholder position (54.0, as ESPN shows out of season), so none of them gets a market
+      rank, but a WNBA player drafted ahead of the placeholder does. Ownership falls into its
+      bucket at 70, 40, 10 and 1 per cent, and a player with no share is rare.
+    model: fct_market_value
+    given:
+      - input: ref('espn_fantasy_market')
+        rows:
+          - {league: nba, season: '2026-27', espn_player_id: e1, percent_owned: 99.9, average_draft_position: 1.7}
+          - {league: nba, season: '2026-27', espn_player_id: e2, percent_owned: 55.0, average_draft_position: 30.2}
+          - {league: nba, season: '2026-27', espn_player_id: e3, percent_owned: 12.0, average_draft_position: 2.8}
+          - {league: nba, season: '2026-27', espn_player_id: e4, percent_owned: 0.4, average_draft_position: null}
+          - {league: wnba, season: '2026', espn_player_id: w1, percent_owned: 80.0, average_draft_position: 54.0}
+          - {league: wnba, season: '2026', espn_player_id: w2, percent_owned: 3.0, average_draft_position: 54.0}
+          - {league: wnba, season: '2026', espn_player_id: w3, percent_owned: null, average_draft_position: 54.0}
+          - {league: wnba, season: '2026', espn_player_id: w4, percent_owned: 45.0, average_draft_position: 12.0}
+      - input: ref('player_xwalk')
+        rows:
+          - {league: nba, espn_player_id: e1, stats_player_id: '1'}
+          - {league: nba, espn_player_id: e2, stats_player_id: '2'}
+          - {league: nba, espn_player_id: e3, stats_player_id: '3'}
+          - {league: nba, espn_player_id: e4, stats_player_id: '4'}
+          - {league: wnba, espn_player_id: w1, stats_player_id: '11'}
+          - {league: wnba, espn_player_id: w2, stats_player_id: '12'}
+          - {league: wnba, espn_player_id: w3, stats_player_id: '13'}
+          - {league: wnba, espn_player_id: w4, stats_player_id: '14'}
+    expect:
+      rows:
+        - {league: nba, stats_player_id: '1', market_rank: 1, ownership_bucket: most}
+        - {league: nba, stats_player_id: '2', market_rank: 3, ownership_bucket: many}
+        - {league: nba, stats_player_id: '3', market_rank: 2, ownership_bucket: some}
+        - {league: nba, stats_player_id: '4', market_rank: null, ownership_bucket: rare}
+        - {league: wnba, stats_player_id: '11', market_rank: null, ownership_bucket: most}
+        - {league: wnba, stats_player_id: '12', market_rank: null, ownership_bucket: few}
+        - {league: wnba, stats_player_id: '13', market_rank: null, ownership_bucket: rare}
+        - {league: wnba, stats_player_id: '14', market_rank: 1, ownership_bucket: many}
