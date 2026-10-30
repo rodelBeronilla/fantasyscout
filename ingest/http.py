@@ -164,9 +164,11 @@ class ThrottledClient:
         on_pace_change: Callable[[str, float, str], None] | None = None,
     ) -> None:
         self.throttle = throttle or Throttle.spec()
+        # A browser User-Agent unless the caller sets one: some hosts (ESPN's site API among them)
+        # answer 403 to the library's default one.
         self._client = httpx.Client(
             timeout=self.throttle.timeout,
-            headers=dict(headers or {}),
+            headers={"User-Agent": _USER_AGENT, **dict(headers or {})},
             transport=transport,
             follow_redirects=False,
         )
