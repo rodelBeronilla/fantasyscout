@@ -62,6 +62,7 @@ GOLD: tuple[TableSpec, ...] = (
         "gold.fct_player_game", "league, season, game_date, game_id, player_id", partition=True
     ),
     TableSpec("gold.fct_team_game", "league, season, game_date, game_id, team_id", partition=True),
+    TableSpec("gold.fct_player_tracking", "league, season, game_date, game_id, player_id"),
     TableSpec(
         "gold.fct_event", "league, season, game_date, game_id, action_number", partition=True
     ),

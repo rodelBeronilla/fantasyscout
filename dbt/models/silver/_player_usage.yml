@@ -1,0 +1,116 @@
+version: 2
+
+models:
+  - name: player_game_usage
+    description: "One row per player per game: the player's share of the team's box score while on the floor (season game log, Usage measure set), typed. Shares are decimals 0-1."
+    columns:
+      - name: league
+        description: "wnba or nba"
+        data_tests: [not_null]
+      - name: season
+        description: "Season label (2026 in the WNBA, 2025-26 in the NBA)"
+        data_tests: [not_null]
+      - name: game_id
+        description: "League stats API game id"
+        data_tests: [not_null]
+      - name: player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "League team id of the player's team"
+      - name: player_game_key
+        description: "Natural key: league, game id and player id; one row per player per game"
+        data_tests: [unique, not_null]
+      - name: minutes
+        description: "Minutes played as a decimal"
+      - name: usage_percentage
+        description: "Share of the team's possessions the player used while on the floor, decimal 0-1"
+      - name: team_share_field_goals_made
+        description: "Share of the team's made field goals while on the floor, decimal 0-1"
+      - name: team_share_field_goals_attempted
+        description: "Share of the team's field goal attempts while on the floor, decimal 0-1"
+      - name: team_share_three_pointers_made
+        description: "Share of the team's made three-pointers while on the floor, decimal 0-1"
+      - name: team_share_three_pointers_attempted
+        description: "Share of the team's three-point attempts while on the floor, decimal 0-1"
+      - name: team_share_free_throws_made
+        description: "Share of the team's made free throws while on the floor, decimal 0-1"
+      - name: team_share_free_throws_attempted
+        description: "Share of the team's free throw attempts while on the floor, decimal 0-1"
+      - name: team_share_rebounds_offensive
+        description: "Share of the team's offensive rebounds while on the floor, decimal 0-1"
+      - name: team_share_rebounds_defensive
+        description: "Share of the team's defensive rebounds while on the floor, decimal 0-1"
+      - name: team_share_rebounds
+        description: "Share of the team's rebounds while on the floor, decimal 0-1"
+      - name: team_share_assists
+        description: "Share of the team's assists while on the floor, decimal 0-1"
+      - name: team_share_turnovers
+        description: "Share of the team's turnovers while on the floor, decimal 0-1"
+      - name: team_share_steals
+        description: "Share of the team's steals while on the floor, decimal 0-1"
+      - name: team_share_blocks
+        description: "Share of the team's blocks while on the floor, decimal 0-1"
+      - name: team_share_blocks_against
+        description: "Share of the team's blocked shot attempts while on the floor, decimal 0-1"
+      - name: team_share_fouls_personal
+        description: "Share of the team's personal fouls while on the floor, decimal 0-1"
+      - name: team_share_fouls_drawn
+        description: "Share of the fouls the team drew while the player was on the floor, decimal 0-1"
+      - name: team_share_points
+        description: "Share of the team's points while on the floor, decimal 0-1"
+      - name: _ingest_date
+        description: "Ingest date of the landed game log the row came from"
+      - name: _source_file
+        description: "Path of the landed payload the row came from"
+
+  - name: player_game_misc
+    description: "One row per player per game: points by situation, the opponent's while the player was on the floor, fouls drawn and blocks against (season game log, Misc measure set), typed."
+    columns:
+      - name: league
+        description: "wnba or nba"
+        data_tests: [not_null]
+      - name: season
+        description: "Season label (2026 in the WNBA, 2025-26 in the NBA)"
+        data_tests: [not_null]
+      - name: game_id
+        description: "League stats API game id"
+        data_tests: [not_null]
+      - name: player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "League team id of the player's team"
+      - name: player_game_key
+        description: "Natural key: league, game id and player id; one row per player per game"
+        data_tests: [unique, not_null]
+      - name: minutes
+        description: "Minutes played as a decimal"
+      - name: points_off_turnovers
+        description: "Points the player scored off opponent turnovers"
+      - name: second_chance_points
+        description: "Points the player scored after an offensive rebound"
+      - name: fast_break_points
+        description: "Points the player scored on fast breaks"
+      - name: points_in_paint
+        description: "Points the player scored in the paint"
+      - name: opponent_points_off_turnovers
+        description: "Points the opponent scored off turnovers while the player was on the floor"
+      - name: opponent_second_chance_points
+        description: "Second-chance points the opponent scored while the player was on the floor"
+      - name: opponent_fast_break_points
+        description: "Fast-break points the opponent scored while the player was on the floor"
+      - name: opponent_points_in_paint
+        description: "Points in the paint the opponent scored while the player was on the floor"
+      - name: blocks
+        description: "Shots the player blocked"
+      - name: blocks_against
+        description: "The player's shots that were blocked"
+      - name: fouls_personal
+        description: "Personal fouls the player committed"
+      - name: fouls_drawn
+        description: "Personal fouls the player drew"
+      - name: _ingest_date
+        description: "Ingest date of the landed game log the row came from"
+      - name: _source_file
+        description: "Path of the landed payload the row came from"

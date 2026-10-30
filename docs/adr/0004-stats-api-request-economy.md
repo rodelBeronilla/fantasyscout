@@ -39,3 +39,29 @@ Decisions:
 - The client clears its cookie jar before every request, so each one is as anonymous as the first.
 - Backfills use a 20 s read timeout; with the circuit breaker at three consecutive timeouts, a host that stops answering ends the run in about a minute and the job fails visibly instead of looping.
 - The ingestor prints a flushed progress line every 25 requests, so the job log shows the live rate and the summary at the end is no longer the only signal.
+
+## Addendum (2026-10-30): usage, misc and NBA tracking
+
+Inputs for later backtests (who takes the team's shots, who draws fouls, who creates assists), landed now so history builds up. No projection or value reads them yet.
+
+Measured on 2026-10-30 from a residential connection:
+
+| Request | Returns | Size |
+| --- | --- | --- |
+| `playergamelogs`, MeasureType Usage | every player-game of the season with the player's share of the team's box score while on the floor (NBA 2025-26: 26,651 rows) | NBA 9.5 MB, WNBA 1.8 MB |
+| `playergamelogs`, MeasureType Misc | the same rows with points off turnovers, second-chance, fast-break and paint points, fouls drawn and blocks against | NBA 7.6 MB, WNBA 1.5 MB |
+| `leaguedashptstats`, one PtMeasureType (Passing, Rebounding, Possessions, Drives, SpeedDistance), DateFrom = DateTo | one row per player who played that day | about 20 KB each |
+| `leaguehustlestatsplayer`, DateFrom = DateTo | contested shots, deflections, charges, screen assists, loose balls, box outs per player that day | about 22 KB |
+
+The WNBA host answers both tracking endpoints with no rows. Tracking has rows from 2013-14; hustle from 2015-16 (a handful of games that season, every game from 2016-17). On the day checked, tracking assists and points matched the box score for all 201 player-games and tracking minutes were within a minute.
+
+Decisions:
+
+- Usage and Misc join Advanced in the season plan: one call each per season and season type, both leagues. They land in the `playergamelogs` folder under their own keys (`usage-regular-season`, `misc-regular-season`); each measure set has its own bronze model, and `stats_playergamelogs` now reads only the `advanced-` keys.
+- Tracking and hustle have no per-game or whole-season-of-games form, so they are fetched one game date at a time, NBA only: six calls per game date (five tracking sets and hustle), keyed by measure and date (`passing-2026-01-15`, `hustle-2026-01-15`). The dates are the game dates in the run's window, and each date settles like its games (`SETTLE_DAYS` after it), so a daily run fetches only the last few dates and a backfill's dates follow its window. Seasons before 2013-14 plan no tracking, and before 2015-16 no hustle.
+- The tracking row's team is the player's team when it was fetched, not on the game date. Gold `fct_player_tracking` therefore takes the game and the team from the player's box score on that date.
+
+Consequences:
+
+- An NBA regular season has about 164 game dates, so tracking adds about 1,000 calls to its backfill and the playoffs about 360; at the 2.3 s gap, about 50 minutes per season. A nightly NBA run adds up to 18 calls (three unsettled dates), and the season plan two calls per league.
+- The NBA daily season plan re-lands about 17 MB more (Usage and Misc grow with the season, like Advanced); silver keeps the latest landing per player-game.

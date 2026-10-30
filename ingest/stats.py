@@ -59,6 +59,44 @@ _SHOTCHART_DEFAULTS = {
     "VsDivision": "",
 }
 
+# Season-level player game logs beyond the advanced line: each player's share of the team's
+# box score (Usage) and the scoring context, fouls drawn and blocks against (Misc). One call per
+# season and season type each, both leagues.
+GAMELOG_MEASURES = ("Advanced", "Usage", "Misc")
+
+# Player tracking (leaguedashptstats) and hustle (leaguehustlestatsplayer) have no per-game or
+# season-of-games form, so they are fetched one game date at a time (DateFrom = DateTo): one row
+# per player who played that day. The WNBA host answers with no rows, so they are planned for the
+# NBA only. Checked 2026-10-30: tracking has rows from 2013-14; hustle from 2015-16 (a few games
+# that season, every game from 2016-17).
+TRACKING_MEASURES = ("Passing", "Rebounding", "Possessions", "Drives", "SpeedDistance")
+TRACKING_FIRST_SEASON = 2013
+HUSTLE_FIRST_SEASON = 2015
+_DASHBOARD_DEFAULTS = {
+    "College": "",
+    "Conference": "",
+    "Country": "",
+    "Division": "",
+    "DraftPick": "",
+    "DraftYear": "",
+    "GameScope": "",
+    "Height": "",
+    "LastNGames": "0",
+    "Location": "",
+    "Month": "0",
+    "OpponentTeamID": "0",
+    "Outcome": "",
+    "PORound": "0",
+    "PerMode": "Totals",
+    "PlayerExperience": "",
+    "PlayerPosition": "",
+    "SeasonSegment": "",
+    "TeamID": "0",
+    "VsConference": "",
+    "VsDivision": "",
+    "Weight": "",
+}
+
 
 def season_label(league: League, start_year: int) -> str:
     """``2026`` for the WNBA (a calendar-year league), ``2025-26`` for the NBA."""
@@ -119,7 +157,7 @@ class StatsPlanner:
                 {"LeagueID": self.league_id, "Season": self.season, "IsOnlyCurrentSeason": "1"},
             ),
             self.gamelog_request(),
-            self.player_gamelogs_request("Advanced"),
+            *(self.player_gamelogs_request(measure) for measure in GAMELOG_MEASURES),
             # Standings: playoff position, clinched and eliminated teams (playoff stakes).
             Request(
                 "leaguestandingsv3",
@@ -165,6 +203,45 @@ class StatsPlanner:
                 "VsDivision": "",
             },
         )
+
+    def day_requests(self, day: date) -> list[Request]:
+        """Tracking and hustle totals for one game date, NBA only; keys like passing-2026-01-15."""
+        if self.league != "nba":
+            return []
+        start_year = int(self.season[:4])
+        stamp = day.strftime("%m/%d/%Y")
+        common = {
+            **_DASHBOARD_DEFAULTS,
+            "DateFrom": stamp,
+            "DateTo": stamp,
+            "LeagueID": self.league_id,
+            "Season": self.season,
+            "SeasonType": self.season_type,
+        }
+        requests: list[Request] = []
+        if start_year >= TRACKING_FIRST_SEASON:
+            requests.extend(
+                Request(
+                    "leaguedashptstats",
+                    f"{measure.lower()}-{day.isoformat()}",
+                    {
+                        **common,
+                        "PlayerOrTeam": "Player",
+                        "PtMeasureType": measure,
+                        "StarterBench": "",
+                    },
+                )
+                for measure in TRACKING_MEASURES
+            )
+        if start_year >= HUSTLE_FIRST_SEASON:
+            requests.append(
+                Request(
+                    "leaguehustlestatsplayer",
+                    f"hustle-{day.isoformat()}",
+                    {**common, "GameSegment": "", "PaceAdjust": "N", "PlusMinus": "N", "Rank": "N"},
+                )
+            )
+        return requests
 
     def gamelog_request(self) -> Request:
         return Request(
@@ -386,6 +463,10 @@ class StatsIngestor:
             team_ids |= game.team_ids
             for request in self.planner.game_requests(game.game_id):
                 self._try(request, summary, played=game.game_date)
+        # Tracking and hustle by game date, settled like the games of that date.
+        for day in sorted({game.game_date for game in games}):
+            for request in self.planner.day_requests(day):
+                self._try(request, summary, played=day)
         for request in self.planner.shot_requests(team_ids):
             self._try(request, summary)
         # Every team's roster, every run, not only teams that played in the window: out of
