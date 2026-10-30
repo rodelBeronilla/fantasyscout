@@ -1,0 +1,94 @@
+version: 2
+
+models:
+  - name: game_officials
+    description: "One row per league, game and official: ESPN's crew for played games (through game_xwalk), with each official's role from the leagues' assignments page where it named them, and the page's crew for games ESPN has none for yet (linked by date and the two teams to silver.schedule)."
+    columns:
+      - name: game_official_key
+        description: "Natural key: league, game id and official key; one row per official per game"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "wnba or nba"
+      - name: season
+        description: "Season label of the game"
+      - name: game_id
+        description: "League stats API game id"
+        data_tests: [not_null]
+      - name: game_date
+        description: "Date of the game (Eastern)"
+      - name: official_key
+        description: "The official's name reduced to lowercase letters: how the two sources' names are matched (\"J.B. DeRosa\" and \"JB DeRosa\" agree)"
+        data_tests: [not_null]
+      - name: official_name
+        description: "The official's name, as the assignments page writes it where it named them, else as ESPN does"
+      - name: role
+        description: "crew_chief, referee, umpire or alternate, from the assignments page; null for an official only ESPN lists"
+        data_tests:
+          - accepted_values:
+              values: [crew_chief, referee, umpire, alternate]
+      - name: uniform_number
+        description: "The official's uniform number, from the assignments page"
+      - name: listed_order
+        description: "The official's place in ESPN's list for the game, from 1; null for a game ESPN has no crew for yet"
+      - name: source
+        description: "espn (ESPN's list only), both (ESPN's list, role from the page) or assignments (the page only: a game not yet played)"
+        data_tests:
+          - accepted_values:
+              values: [espn, both, assignments]
+      - name: _ingest_date
+        description: "Ingest date of the landed payload the row came from"
+
+unit_tests:
+  - name: game_officials_link_both_sources
+    description: >
+      Last night's game has ESPN's crew (the newest landed summary wins over an older one) and
+      the page's: the crew chief and the referee keep their roles ("JB DeRosa" on the page is
+      "J.B. DeRosa" on ESPN), the official only ESPN lists has none, and the page's umpire who
+      did not work the game is left out. Tonight's games have only the page's crew, alternate
+      included, linked by the date and the teams the page names: "L.A. Lakers" and "LA
+      Clippers" are told apart although both play in Los Angeles. A page row for a game the
+      schedule does not have is left out.
+    model: game_officials
+    given:
+      - input: ref('espn_summary_officials')
+        rows:
+          - {_source_file: old.json, league: nba, _ingest_date: 2026-10-29, event_id: e1, full_name: Wrong Name, listed_order: '1'}
+          - {_source_file: new.json, league: nba, _ingest_date: 2026-10-30, event_id: e1, full_name: Jacyn Goble, listed_order: '1'}
+          - {_source_file: new.json, league: nba, _ingest_date: 2026-10-30, event_id: e1, full_name: J.B. DeRosa, listed_order: '2'}
+          - {_source_file: new.json, league: nba, _ingest_date: 2026-10-30, event_id: e1, full_name: Matt Kallio, listed_order: '3'}
+      - input: ref('game_xwalk')
+        rows:
+          - {league: nba, season: '2026-27', game_id: g1, event_id: e1, game_date: 2026-10-29}
+      - input: ref('league_referee_assignments')
+        rows:
+          - {_source_file: p1.json, league: nba, _ingest_date: 2026-10-30, page_date: '2026-10-29', away_team: Cleveland, home_team: Atlanta, crew_chief: Jacyn Goble, crew_chief_number: '68', referee: JB DeRosa, referee_number: '14', umpire: Not Working, umpire_number: '99', alternate: null, alternate_number: null}
+          - {_source_file: p2.json, league: nba, _ingest_date: 2026-10-30, page_date: '2026-10-30', away_team: L.A. Lakers, home_team: Golden State, crew_chief: Tony Brothers, crew_chief_number: '25', referee: John Butler, referee_number: '30', umpire: Jenna Schroeder, umpire_number: '20', alternate: Alt Official, alternate_number: '77'}
+          - {_source_file: p2.json, league: nba, _ingest_date: 2026-10-30, page_date: '2026-10-30', away_team: LA Clippers, home_team: Minnesota, crew_chief: JB DeRosa, crew_chief_number: '14', referee: Marat Kogut, referee_number: '32', umpire: Che Flores, umpire_number: '91', alternate: null, alternate_number: null}
+          - {_source_file: p2.json, league: nba, _ingest_date: 2026-10-30, page_date: '2026-10-30', away_team: Chicago, home_team: Boston, crew_chief: Pat Fraher, crew_chief_number: '26', referee: Nate Green, referee_number: '41', umpire: Scott Twardoski, umpire_number: '52', alternate: null, alternate_number: null}
+      - input: ref('team_reference')
+        rows:
+          - {league: nba, abbreviation: CLE, name: Cavaliers, city: Cleveland}
+          - {league: nba, abbreviation: ATL, name: Hawks, city: Atlanta}
+          - {league: nba, abbreviation: GSW, name: Warriors, city: Golden State}
+          - {league: nba, abbreviation: LAC, name: Clippers, city: Los Angeles}
+          - {league: nba, abbreviation: LAL, name: Lakers, city: Los Angeles}
+          - {league: nba, abbreviation: MIN, name: Timberwolves, city: Minnesota}
+          - {league: nba, abbreviation: CHI, name: Bulls, city: Chicago}
+          - {league: nba, abbreviation: BOS, name: Celtics, city: Boston}
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2026-27', game_id: g1, game_date_est: 2026-10-29, away_team_tricode: CLE, home_team_tricode: ATL}
+          - {league: nba, season: '2026-27', game_id: g2, game_date_est: 2026-10-30, away_team_tricode: LAL, home_team_tricode: GSW}
+          - {league: nba, season: '2026-27', game_id: g3, game_date_est: 2026-10-30, away_team_tricode: LAC, home_team_tricode: MIN}
+    expect:
+      rows:
+        - {game_id: g1, official_key: jacyngoble, official_name: Jacyn Goble, role: crew_chief, uniform_number: 68, listed_order: 1, source: both}
+        - {game_id: g1, official_key: jbderosa, official_name: JB DeRosa, role: referee, uniform_number: 14, listed_order: 2, source: both}
+        - {game_id: g1, official_key: mattkallio, official_name: Matt Kallio, role: null, uniform_number: null, listed_order: 3, source: espn}
+        - {game_id: g2, official_key: tonybrothers, official_name: Tony Brothers, role: crew_chief, uniform_number: 25, listed_order: null, source: assignments}
+        - {game_id: g2, official_key: johnbutler, official_name: John Butler, role: referee, uniform_number: 30, listed_order: null, source: assignments}
+        - {game_id: g2, official_key: jennaschroeder, official_name: Jenna Schroeder, role: umpire, uniform_number: 20, listed_order: null, source: assignments}
+        - {game_id: g2, official_key: altofficial, official_name: Alt Official, role: alternate, uniform_number: 77, listed_order: null, source: assignments}
+        - {game_id: g3, official_key: jbderosa, official_name: JB DeRosa, role: crew_chief, uniform_number: 14, listed_order: null, source: assignments}
+        - {game_id: g3, official_key: maratkogut, official_name: Marat Kogut, role: referee, uniform_number: 32, listed_order: null, source: assignments}
+        - {game_id: g3, official_key: cheflores, official_name: Che Flores, role: umpire, uniform_number: 91, listed_order: null, source: assignments}

@@ -289,3 +289,24 @@ Neither effect is distinguishable from zero, so altitude stays out of the matchu
 
 `time_zones_crossed` used each city's standard UTC offset all year. Arizona, Mexico City, Honolulu and a few overseas venues keep standard time, so in summer Phoenix shares Los Angeles's clock, and the WNBA season is in summer. The venues seed now records `observes_dst`, and offsets follow US daylight saving on the game's date (second Sunday of March to first Sunday of November). European venues change on other Sundays, a week or two apart.
 
+
+## Addendum (2026-10-30): referee crews, and whether their tendencies carry over
+
+Two sources name the officials. ESPN's game summaries, already landed for every played game, list each crew (three names in an order, every one called "Referee"); `bronze.espn_summary_officials` reads them, so the history needs no new requests. The leagues post the day's assignments at about 9 am Eastern on official.nba.com, one page with an NBA and a WNBA table: each game's crew chief, referee, umpire and sometimes an alternate, with uniform numbers. The reports run lands that page parsed into one JSON row per game, once per Eastern day and league, keyed by the date the page is for (`ingest/referee_assignments.py`; robots.txt allows the path). An off day's empty table, or a page with no table, records nothing. The 7 pm Eastern reports run, and the build after it, put that night's crews on the site.
+
+`silver.game_officials` gives one row per game and official. A played game takes ESPN's crew through `game_xwalk`, with the role from the page where it named the same official. A game ESPN has no crew for yet takes the page's crew, linked by date and the two team names the page uses ("L.A. Lakers", "LA Clippers", "Golden State") through the teams seed and the schedule's tricodes. Officials match across the sources by name reduced to lowercase letters, so "J.B. DeRosa" and "JB DeRosa" agree. `gold.fct_referee_tendency` compares each official's regular-season games in a league-season with the league-season's average game: total fouls, free-throw attempts, points and pace. In `mart_schedule_upcoming`, a crew's tendency averages its three officials over this season and last, each shrunk toward zero as if they had also worked 20 average games. Streamers' week grid (in the tooltip) and the player page's next games show the crew chief and that tendency. dbt unit tests pin the linking, the tendency arithmetic and the crew average.
+
+Does a crew's record say anything about the next game? Notebook 03 tests this point in time. Each official's tendency comes only from the games they worked before, and the effects framework above is fitted on the earlier seasons and checked on the latest finished one, with player-bootstrap intervals. The run used 4,803 regular-season games (NBA 2023-24 to 2025-26, WNBA 2023 to 2026) rebuilt from ESPN's summaries into the three tables the section reads. Box scores and pace there are ESPN's, not the league's. The notebook runs the same code on the lakehouse's gold tables on every export. Crews with 30 or more prior games between them:
+
+| Latest season, per unit of crew tendency | NBA 2025-26 | WNBA 2026 |
+| --- | --- | --- |
+| Crew tendency, SD (free-throw attempts a game) | 0.67 | 0.54 |
+| The game's free-throw attempts: slope, correlation | +0.72, 0.04 | +0.87, 0.04 |
+| The game's fouls: slope, correlation | +1.06, 0.07 | +1.29, 0.07 |
+| Player free-throw attempts / 30 min, per attempt of tendency | +0.02 (-0.02 to +0.09) | +0.05 (-0.10 to +0.19) |
+| Player fouls / 30 min, per attempt of tendency | +0.01 (-0.03 to +0.05) | -0.04 (-0.13 to +0.08) |
+| Fantasy pts / 30 min, per attempt of tendency | -0.09 (-0.37 to +0.18) | +0.44 (-0.19 to +1.35) |
+| Fantasy pts / 30 min, per possession of pace tendency | +0.20 (-0.33 to +0.80) | -0.13 (-1.98 to +1.31) |
+| Share of fantasy pts / 30 min explained out of sample | +0.002% | +0.002% |
+
+Crews differ, and some of the difference carries over: a crew whose games have run one free-throw attempt above average sees about 0.7 to 0.9 more in its next game. But crews differ little against a game-to-game spread of about 11 attempts. Their tendency explains under half a percent of a game's free throws, and nothing measurable of a player's free throws, fouls or fantasy production. The one interval clear of zero for NBA player free throws, in 2024-25 (+0.11, +0.06 to +0.18), did not hold in 2025-26. The WNBA's fouls-on-pace estimate (+0.27, +0.04 to +0.55) did not replicate in earlier seasons (+0.09). **The crew stays out of the value.** It is shown as context, like rest and altitude, and the notebook re-tests it as seasons accumulate.

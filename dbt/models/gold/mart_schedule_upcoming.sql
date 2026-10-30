@@ -17,10 +17,17 @@
   game_lines): the home spread, the over/under, and the points each side is implied to score.
   The line is shown alongside the matchup value and does not change it until a backtest says it
   adds to it.
+
+  Once the leagues post the day's referee assignments, a game carries its crew chief and the
+  crew's tendency (fct_referee_tendency): the average, over the crew chief, referee and umpire,
+  of each official's fouls, free-throw attempts and pace against the league average game, over
+  this season and last, each official's figure shrunk toward zero as if they had also worked
+  20 average games. It is context only and does not change the value (ADR 0003).
 #}
 
 {% set m = var('fantasy_matchup') %}
 {% set k = m['prior_games'] %}
+{% set referee_prior_games = 20 %}
 
 with upcoming as (
 
@@ -123,6 +130,44 @@ lines as (
     join {{ ref('team_xwalk') }} as ta on ta.league = gl.league and ta.espn_team_id = gl.espn_away_team_id
     where gl.event_date_et >= {{ add_days(as_of_date(), -1) }}
 
+),
+
+crew_members as (
+
+    select
+        o.league,
+        o.game_id,
+        o.official_key,
+        o.official_name,
+        o.role,
+        sum(t.games_worked) as games,
+        sum(t.games_worked * t.fouls_delta) / nullif(sum(t.games_worked), 0) as fouls_delta,
+        sum(t.games_worked * t.free_throws_attempted_delta) / nullif(sum(t.games_worked), 0) as fta_delta,
+        sum(t.games_worked * t.pace_delta) / nullif(sum(t.games_worked), 0) as pace_delta
+    from {{ ref('fct_game_official') }} as o
+    join upcoming as u on u.league = o.league and u.game_id = o.game_id
+    left join previous_season as p on p.league = u.league and p.season = u.season
+    left join {{ ref('fct_referee_tendency') }} as t
+        on t.league = o.league and t.official_key = o.official_key
+        and (t.season = u.season or t.season = p.prev_season)
+    where o.role in ('crew_chief', 'referee', 'umpire')
+    group by o.league, o.game_id, o.official_key, o.official_name, o.role
+
+),
+
+crews as (
+
+    select
+        league,
+        game_id,
+        max(case when role = 'crew_chief' then official_name end) as crew_chief,
+        sum(coalesce(games, 0)) as crew_games,
+        avg(coalesce(fouls_delta * games / (games + {{ referee_prior_games }}), 0)) as crew_fouls_delta,
+        avg(coalesce(fta_delta * games / (games + {{ referee_prior_games }}), 0)) as crew_fta_delta,
+        avg(coalesce(pace_delta * games / (games + {{ referee_prior_games }}), 0)) as crew_pace_delta
+    from crew_members
+    group by league, game_id
+
 )
 
 select
@@ -160,7 +205,13 @@ select
     ac.rest_days as away_rest_days,
     coalesce(ac.is_back_to_back, false) as away_back_to_back,
     ac.miles_travelled as away_miles_travelled,
-    coalesce(hc.at_altitude, false) as at_altitude
+    coalesce(hc.at_altitude, false) as at_altitude,
+    -- The referee crew, once assigned, and its tendency: context only, not in the matchup value.
+    cr.crew_chief,
+    cr.crew_games,
+    case when cr.crew_games > 0 then cr.crew_fouls_delta end as crew_fouls_delta,
+    case when cr.crew_games > 0 then cr.crew_fta_delta end as crew_fta_delta,
+    case when cr.crew_games > 0 then cr.crew_pace_delta end as crew_pace_delta
 from upcoming as u
 left join standardised as h on h.league = u.league and h.season = u.season and h.team_id = u.home_team_id
 left join standardised as a on a.league = u.league and a.season = u.season and a.team_id = u.away_team_id
@@ -174,3 +225,4 @@ left join lines as ls
 left join lines as lf
     on lf.league = u.league and lf.event_date_et = u.game_date
     and lf.home_team_id = u.away_team_id and lf.away_team_id = u.home_team_id
+left join crews as cr on cr.league = u.league and cr.game_id = u.game_id

@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
 import { isLeague } from '../lib/league';
+import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
 import ShotChart from './ShotChart';
 import TrendChart from './TrendChart';
@@ -128,7 +129,7 @@ interface PlayerFile {
 }
 
 /** A game on the published schedule ahead (mart_schedule_upcoming). */
-interface Upcoming {
+interface Upcoming extends CrewFields {
   game_id: string;
   game_date: string;
   game_type: string;
@@ -284,7 +285,7 @@ function NextGames({ games, teamId }: { games: Upcoming[]; teamId: string }) {
               const home = g.home_team_id === teamId;
               const implied = home ? g.home_implied_points : g.away_implied_points;
               const b2b = home ? g.home_back_to_back : g.away_back_to_back;
-              const note = [b2b ? 'Back-to-back' : null, g.game_type !== 'regular' ? g.game_type.replace('_', ' ') : null]
+              const note = [b2b ? 'Back-to-back' : null, g.game_type !== 'regular' ? g.game_type.replace('_', ' ') : null, crewText(g)]
                 .filter(Boolean)
                 .join(' · ');
               return (
@@ -299,7 +300,10 @@ function NextGames({ games, teamId }: { games: Upcoming[]; teamId: string }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-muted">Team pts: the points the betting line implies the team scores, where a line is posted.</p>
+      <p className="mt-2 text-xs text-muted">
+        Team pts: the points the betting line implies the team scores, where a line is posted. The referee crew shows once the
+        league posts it, on the day; its tendency is context only, not in the value.
+      </p>
     </Card>
   );
 }

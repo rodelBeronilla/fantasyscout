@@ -48,6 +48,7 @@ PAYLOADS = [
     ("league", "daily_lineups", "daily_lineups", "nba", "2026-27", "2026-10-29T19"),
     ("espn", "transactions", "transactions", "wnba", "2026", "2026-10-29"),
     ("league", "player_movement", "player_movement", "nba", "2026-27", "2026-10-29"),
+    ("league", "referee_assignments", "referee_assignments", "nba", "2026-27", "2026-10-30"),
     ("espn", "fantasy_players", "fantasy_players", "wnba", "2026", "2026-10-30"),
     ("espn", "fantasy_players", "fantasy_players_nba", "nba", "2026-27", "2026-10-30"),
     ("espn", "news", "news", "wnba", "2026", "2026-10-29T21"),

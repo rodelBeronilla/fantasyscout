@@ -1448,6 +1448,16 @@ models:
         description: "Miles the away team travels from its previous game"
       - name: at_altitude
         description: "True when the game is played 4,000 feet up or more"
+      - name: crew_chief
+        description: "The crew chief the leagues' assignments page names for the game (posted about 9 am Eastern on the day); null until then"
+      - name: crew_games
+        description: "The regular-season games the crew chief, referee and umpire each worked this season and last, added up: the history behind the crew's tendency"
+      - name: crew_fouls_delta
+        description: "The crew's tendency in personal fouls per game (both teams) against the league average game: the average over its three officials of each one's figure for this season and last, shrunk toward zero as if they had also worked 20 average games (fct_referee_tendency). Context only, not in the matchup value"
+      - name: crew_fta_delta
+        description: "The crew's tendency in free-throw attempts per game (both teams) against the league average game, figured as crew_fouls_delta is. Context only"
+      - name: crew_pace_delta
+        description: "The crew's tendency in pace (possessions per regulation game) against the league average game, figured as crew_fouls_delta is. Context only"
 
   - name: mart_streamers
     description: "Players with three or more games in the league's current season and a game within 30 days of the league's latest game, with the team's games in the next seven days, the minutes and value trend, recent production and injury status."

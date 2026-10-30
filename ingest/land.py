@@ -23,6 +23,7 @@ from ingest.http import Throttle, ThrottledClient
 from ingest.injury_report import InjuryReportIngestor, ReportHistoryIngestor
 from ingest.landing import League
 from ingest.lineups import LineupsIngestor
+from ingest.referee_assignments import RefereeAssignmentsIngestor
 from ingest.run import RunSummary, describe
 from ingest.sleeper import SleeperIngestor
 from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
@@ -62,7 +63,7 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
         "fantasy_players",
         "news",
     ),
-    "league": ("injury_report", "daily_lineups", "player_movement"),
+    "league": ("injury_report", "daily_lineups", "player_movement", "referee_assignments"),
     "sleeper": ("players", "trending"),
 }
 
@@ -159,6 +160,7 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
             lines.append(
                 "  and Sleeper's trending adds and drops, with its player directory once a day"
             )
+        lines.append("  and today's referee assignments, parsed, once a day")
         lines.append("  and ESPN's latest 100 transactions")
         lines.append(
             "  and ESPN fantasy's market: draft position and how widely each player is rostered"
@@ -225,6 +227,7 @@ def land(
         elif opts.source == "reports":
             summary = InjuryReportIngestor(client, landing, opts.league, season).run()
             LineupsIngestor(client, landing, opts.league, season).land_into(summary)
+            RefereeAssignmentsIngestor(client, landing, opts.league, season).land_into(summary)
             TransactionsIngestor(client, landing, opts.league, season).land_into(summary)
             EspnFantasyIngestor(client, landing, opts.league, season).land_into(summary)
             EspnNewsIngestor(client, landing, opts.league, season).land_into(summary)

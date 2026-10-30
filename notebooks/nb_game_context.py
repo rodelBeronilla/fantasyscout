@@ -1,4 +1,4 @@
-"""03_game_context: do rest, travel and the opponent change whether and how a regular plays?"""
+"""03_game_context: do rest, travel, the opponent and the referees change how a regular plays?"""
 
 from nb_common import setup
 
@@ -9,8 +9,9 @@ CELLS = [
 
 **The question.** Streamers and the schedule show back-to-backs, three games in four nights,
 miles travelled, time zones, altitude and the opponent's rest beside every game, and the
-matchup value carries the opponent's defence and pace. Do any of them change (i) whether a
-regular plays at all and (ii) how many minutes they get and what they produce per minute?
+matchup value carries the opponent's defence and pace; once the day's referee assignments are
+posted, the crew and its tendency show too. Do any of them change (i) whether a regular plays at
+all and (ii) how many minutes they get and what they produce per minute?
 
 **Why it matters.** A manager setting a daily lineup or choosing between two streamers wants to
 know which of these flags is worth acting on. A second-night rest day costs a whole game; a
@@ -428,6 +429,112 @@ if not listing:
     print('No injury listing in this build lines up with a game yet.')""",
     ),
     (
+        "md",
+        """## The referee crew
+
+Every game's crew comes from ESPN's game summaries (`fct_game_official`); the day's crews are
+posted by the leagues at about 9 am Eastern and shown beside the schedule. Does a crew that has
+called more fouls and free throws, or run faster games, change what a regular does?
+
+- **Crew tendency, point in time.** For each official, the average game they worked before this
+  one (all earlier games, this season and before), as the difference from the league-season's
+  average game in total free-throw attempts, fouls and pace (both teams, `fct_team_game`),
+  shrunk toward zero as if the official had also worked 20 average games (the same shrinkage
+  `mart_schedule_upcoming` applies). The crew's tendency is the average of its officials'. An
+  alternate who did not work the game is not counted.
+- **First, the game.** Does the crew's tendency before a game predict that game's total
+  free-throw attempts, fouls and pace in the latest finished season? The slope is the change in
+  the game's figure per unit of tendency (1.0 would mean the tendency carries over in full).
+- **Then the player,** in the same effects framework as above: personal fouls, free-throw
+  attempts and fantasy points per 30 minutes against the player's own rate so far (games of 10+
+  minutes), on the crew's free-throw and pace tendencies, with the minutes tier as a control;
+  fitted on the earlier seasons and estimated again on the latest finished season, with 95%
+  intervals from resampling players and the share of the outcome explained out of sample.""",
+    ),
+    (
+        "code",
+        """REF_PRIOR = 20  # games of an average official every official's record starts from
+CREW = {'crew_fta': 'Crew free-throw tendency, per attempt a game', 'crew_pace': 'Crew pace tendency, per possession'}
+CREW_OUTCOMES = {'pf30_diff': 'Personal fouls per 30 min vs own rate', 'fta30_diff': 'Free-throw attempts per 30 min vs own rate',
+                 'fp30_diff': OUTCOMES['fp30_diff'][0]}
+OUTCOMES.update({k: (v, 1) for k, v in CREW_OUTCOMES.items() if k not in OUTCOMES})
+GAME_FIGURES = {'fta': 'free-throw attempts', 'fouls': 'personal fouls', 'pace': 'pace'}
+
+
+def crew_games(lg):
+    \"\"\"Each regular-season game's figures against the league-season average, and its crew's tendency before it.\"\"\"
+    cols = ['season', 'game_id', 'fta', 'fouls', 'pace', 'fta_delta', 'fouls_delta', 'pace_delta', 'crew_fta', 'crew_fouls', 'crew_pace', 'crew_prior_games']
+    if not ({'official_key', 'game_id', 'role'} <= columns(con, 'fct_game_official')
+            and {'fouls_personal', 'free_throws_attempted', 'pace'} <= columns(con, 'fct_team_game')):
+        return pd.DataFrame(columns=cols)
+    t = con.sql(f\"\"\"select season, game_id, min(game_date) as game_date, sum(fouls_personal) as fouls,
+                         sum(free_throws_attempted) as fta, avg(pace) as pace
+                  from fct_team_game where league = '{lg}' and substr(game_id, 3, 1) = '2'
+                  group by season, game_id having count(*) = 2\"\"\").df()
+    o = con.sql(f"select game_id, official_key, role from fct_game_official where league = '{lg}'").df()
+    o = o[o['role'].fillna('') != 'alternate']
+    if t.empty or o.empty:
+        return pd.DataFrame(columns=cols)
+    t['game_date'] = pd.to_datetime(t['game_date'])
+    for c in GAME_FIGURES:
+        t[c + '_delta'] = t[c] - t.groupby('season')[c].transform('mean')
+    j = o.merge(t, on='game_id').sort_values(['official_key', 'game_date', 'game_id'])
+    grp = j.groupby('official_key')
+    j['prior_n'] = grp.cumcount()
+    for c in GAME_FIGURES:
+        # the official's earlier games only: sum / (n + prior) is their average shrunk toward zero
+        j['tend_' + c] = (grp[c + '_delta'].cumsum() - j[c + '_delta']) / (j['prior_n'] + REF_PRIOR)
+    crew = j.groupby('game_id').agg(crew_fta=('tend_fta', 'mean'), crew_fouls=('tend_fouls', 'mean'),
+                                    crew_pace=('tend_pace', 'mean'), crew_prior_games=('prior_n', 'sum'))
+    return t.merge(crew, on='game_id')[cols]
+
+
+crew_by_game = {lg: crew_games(lg) for lg in games}
+game_rows, crew_rows, crew_results = [], [], {}
+for lg, cg in crew_by_game.items():
+    if lg not in tests or cg.empty:
+        print(f"{LABEL[lg]}: no referee crews in this build yet" if cg.empty else f"{LABEL[lg]}: no finished season to test on")
+        continue
+    test = tests[lg]
+    g = cg[(cg['season'] == test) & (cg['crew_prior_games'] >= 30)]
+    for c, label in GAME_FIGURES.items():
+        x, y = g['crew_' + c].astype(float), g[c + '_delta'].astype(float)
+        if len(g) >= 50 and x.std() > 0:
+            slope = float(np.polyfit(x, y, 1)[0])
+            game_rows.append({'league': lg, 'season': test, 'game figure': label, 'games': len(g),
+                              'tendency SD': x.std(), 'game SD': y.std(), 'slope': slope, 'correlation': x.corr(y)})
+    m = frames[lg].merge(cg[['season', 'game_id', 'crew_fta', 'crew_pace', 'crew_prior_games']], on=['season', 'game_id'], how='left')
+    box = (con.sql(f"select season, game_id, player_id, fouls_personal, free_throws_attempted from fct_player_game where league = '{lg}'").df()
+           if {'fouls_personal', 'free_throws_attempted'} <= columns(con, 'fct_player_game') else pd.DataFrame())
+    if box.empty:
+        continue
+    m = m.merge(box, on=['season', 'game_id', 'player_id'], how='left')
+    key = [m['season'], m['player_id']]
+    mins = m['minutes'].where(m['played'], 0).fillna(0)
+    for src, out in [('fouls_personal', 'pf30_diff'), ('free_throws_attempted', 'fta30_diff')]:
+        v = pd.to_numeric(m[src], errors='coerce').where(m['played'], 0).fillna(0)
+        pre = v.groupby(key).cumsum() - v
+        m[out] = (30 * (v / m['minutes'] - pre / m['pre_min'])).where(m['played'] & (mins >= 10))
+    m.loc[m['crew_prior_games'] < 30, list(CREW)] = np.nan  # a crew with too little history says nothing yet
+    crew_results[lg] = {o: effects(m, list(CREW), o, test) for o in CREW_OUTCOMES}
+    for o, e in crew_results[lg].items():
+        for f, label in CREW.items():
+            if f in e:
+                est, lo, hi = e[f]
+                crew_rows.append({'league': lg, 'outcome': CREW_OUTCOMES[o], 'context': label, 'estimate': est, 'lo': lo, 'hi': hi,
+                                  'earlier_seasons': e.get(f + '_train'), 'oos_r2_gain_pct': 100 * e.get('oos_r2_gain', np.nan),
+                                  'n_test': e['n_test']})
+crew_game_table, crew_table = pd.DataFrame(game_rows), pd.DataFrame(crew_rows)
+if len(crew_game_table):
+    print("Does the crew's tendency before a game predict the game? (latest finished season, crews with 30+ prior games)")
+    display(crew_game_table.round(3))
+if len(crew_table):
+    print("Crew tendency and the player's game, per unit of tendency (latest finished season, earlier seasons alongside):")
+    display(crew_table.round(3))
+elif not len(crew_game_table):
+    print('This build has no referee crews lined up with played games yet.')""",
+    ),
+    (
         "code",
         """def eff(lg, outcome, f):
     e = effects_table[(effects_table['league'] == lg) & (effects_table['outcome'] == OUTCOMES[outcome][0])
@@ -476,6 +583,20 @@ for lg in LEAGUES:
     elif len(coverage) and lg in coverage.index.get_level_values(0):
         cov = coverage.loc[lg]
         facts.append({'label': 'Travel fields filled, by season', 'value': ', '.join(f"{s} {v:.0%}" for s, v in cov['miles_travelled'].items())})
+    ce = crew_table[(crew_table['league'] == lg)] if len(crew_table) else crew_table
+    cg = crew_game_table[(crew_game_table['league'] == lg)] if len(crew_game_table) else crew_game_table
+    if len(ce):
+        def crew_eff(outcome, f):
+            r = ce[(ce['outcome'] == CREW_OUTCOMES[outcome]) & (ce['context'] == CREW[f])]
+            return r.iloc[0] if len(r) else None
+        fta_game = cg[cg['game figure'] == 'free-throw attempts']
+        game_note = (f"the game's attempts moved {fta_game.iloc[0]['slope']:+.2f} per attempt of tendency; "
+                     if len(fta_game) else '')
+        parts = [f"{label} {show(x)}" for label, x in [('player FTA', crew_eff('fta30_diff', 'crew_fta')),
+                                                         ('fouls', crew_eff('pf30_diff', 'crew_fta')),
+                                                         ('fantasy pts', crew_eff('fp30_diff', 'crew_fta'))] if x is not None]
+        facts.append({'label': 'Referee crew, per free throw a game of tendency (per 30 min)',
+                      'value': game_note + '; '.join(parts)})
     e = effects_table[(effects_table['league'] == lg)]
     table = []
     for f, label in {**REST, **TRAVEL}.items():
@@ -485,9 +606,16 @@ for lg in LEAGUES:
             cells.append(None if x is None else show(x, 1 if o == 'missed' else 2))
         if any(cells):
             table.append([label, *cells])
+    for f, label in CREW.items():
+        cells = []
+        for o in ['fp30_diff']:
+            r = ce[(ce['outcome'] == CREW_OUTCOMES[o]) & (ce['context'] == label)] if len(ce) else ce
+            cells.append(show(r.iloc[0]) if len(r) else None)
+        if any(cells):
+            table.append([label, *cells, None, None])
     findings[lg] = {
         'headline': headline,
-        'facts': facts[:6],
+        'facts': facts[:7],
         'table': {'columns': [f'Context ({test})', 'Fantasy pts / 30 min', 'Minutes', 'Sat out (pts)'], 'rows': table},
         'n': n,
         'n_label': 'player-team-games',
