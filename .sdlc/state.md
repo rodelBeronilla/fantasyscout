@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-30 (new data sources and in-season signals; phase 7 still waits for the go-ahead)
+Last updated: 2026-10-30 (data used everywhere, accurate schema and pipeline pages, notebooks that test the board; phase 7 still waits for the go-ahead)
 
 ## Vision
 
@@ -27,6 +27,16 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 | Production | https://fantasyscout.beronilla.rodeo/ (Cloudflare custom domain on Worker `fantasyscout`, ADR 0001) | Push to `main` |
 
 ## Active Sprint
+
+Data, documentation and analysis (issues #163 to #193), 2026-10-30. Four read-only audits (data usage, schema page, pipeline page, notebooks) drove the work.
+
+- **Correctness**: every gold date cut-off is Eastern (#164); the Board's vs Mkt follows the league's settings; the daily stats ingest now lands playoff games too (#184; the WNBA Finals had blocked the gate); WNBA and NBA ESPN transaction lines link to the players they name (#180).
+- **Freshness and history**: `ops.feed_freshness` + `warn_stale_feeds` + a Data Health table (its first run caught standings never landing); `gold.fct_board_history`, a daily ledger that survives full refreshes, so the newer signals can be backtested; `gold.fct_game_line` (#168).
+- **Signals everywhere** (#170, #174, #178, #190): the player page shows the outlook and next games; headline flags, injury detail, lineup day, fantasy-week games and an ESPN ownership trend (the WNBA's waiver signal) on Board and Streamers; Streamers follow the league's scoring and size, and sort by last-ten production x games, which the streamer notebook found twice as good as the minutes trend.
+- **Schema** (#172, #176): every silver, gold and ops column described, enforced in CI (`ops.schema --require-docs`); the schema page has subject-area ER diagrams, lineage from the landing zone, grain, readers, unit tests, a filter and coverage badges.
+- **Pipeline page** (#187): rewritten against the code, two-part diagrams that fit, one stage numbering, counts from the schema file.
+- **Notebooks** (#185): board backtest (point-in-time replay of the projection, parity with the build), streamer signals, game context, data quality scorecard, shooting stability. `notebooks.yml` runs a branch's notebooks against the published build before merging (#166).
+- **Open from the notebooks**: availability multiplier for short absences (#192), NBA value spread (#193).
 
 Data sources and in-season signals (issues #124 to #143 and #129), 2026-10-29 to 2026-10-30. Each source lands in the reports run (`fs-ingest land reports`, GitHub-hosted, mornings and 7 pm ET), is modelled bronze to gold, and is credited in the footer.
 
