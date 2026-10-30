@@ -105,6 +105,23 @@
 {%- endmacro %}
 
 {# Run date: today unless the build pins one (tests use var('as_of') for determinism). #}
+{#
+  Today in US Eastern time, the calendar the leagues schedule by: a game tonight is still today
+  for a build that runs after 8 pm Eastern, when the UTC date has already turned. The as_of var
+  overrides it, as it does as_of_date().
+#}
+{% macro eastern_today() -%}
+  {%- if var('as_of', none) -%}cast('{{ var('as_of') }}' as date){%- else -%}{{ return(adapter.dispatch('eastern_today', 'fantasyscout')()) }}{%- endif -%}
+{%- endmacro %}
+
+{% macro default__eastern_today() -%}
+  cast(timezone('America/New_York', now()) as date)
+{%- endmacro %}
+
+{% macro databricks__eastern_today() -%}
+  cast(from_utc_timestamp(current_timestamp(), 'America/New_York') as date)
+{%- endmacro %}
+
 {% macro as_of_date() -%}
   {%- if var('as_of', none) -%}cast('{{ var('as_of') }}' as date){%- else -%}current_date{%- endif -%}
 {%- endmacro %}

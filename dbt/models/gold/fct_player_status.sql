@@ -14,7 +14,7 @@ with official_rows as (
     select o.*
     from {{ ref('official_injury_report') }} as o
     where o.is_latest and not o.not_submitted and o.player_name is not null
-        and o.game_date >= {{ as_of_date() }}
+        and o.game_date >= {{ eastern_today() }}
 
 ),
 
