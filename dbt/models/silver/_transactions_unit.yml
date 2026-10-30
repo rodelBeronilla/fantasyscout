@@ -1,0 +1,38 @@
+unit_tests:
+  - name: transactions_link_espn_lines_to_the_players_they_name
+    description: >
+      An ESPN line naming two players gives a row for each; a line naming nobody keeps one row
+      without a player; a name two players share links to neither; a short name is not matched.
+    model: transactions
+    given:
+      - input: ref('espn_transactions')
+        rows:
+          - {league: wnba, season: '2026', _ingest_date: '2026-10-29', _source_file: f1, transaction_at: '2026-09-20T07:00Z', description: 'Signed C Aminata Gueye to a Rest-of-Season Hardship contract. Waived C Nadia Fingall.', espn_team_id: '129689', team_abbreviation: GS}
+          - {league: wnba, season: '2026', _ingest_date: '2026-10-29', _source_file: f1, transaction_at: '2026-10-23T07:00Z', description: 'Announced Kelly Krauskopf stepped down as president.', espn_team_id: '5', team_abbreviation: IND}
+          - {league: wnba, season: '2026', _ingest_date: '2026-10-29', _source_file: f1, transaction_at: '2026-08-24T07:00Z', description: 'Signed G Kiana Williams to a seven-day contract.', espn_team_id: '20', team_abbreviation: TOR}
+          - {league: wnba, season: '2026', _ingest_date: '2026-10-29', _source_file: f1, transaction_at: '2026-08-27T07:00Z', description: 'Waived G/F Aaliyah.', espn_team_id: '20', team_abbreviation: ATL}
+      - input: ref('team_xwalk')
+        rows:
+          - {league: wnba, espn_team_id: '129689', stats_team_id: '1611661331'}
+      - input: ref('players')
+        rows:
+          - {league: wnba, player_id: '1', full_name: 'Aminata Gueye'}
+          - {league: wnba, player_id: '2', full_name: 'Nadia Fingall'}
+          - {league: wnba, player_id: '3', full_name: 'Kiana Williams'}
+          - {league: wnba, player_id: '4', full_name: 'Kiana Williams'}
+          - {league: wnba, player_id: '5', full_name: 'Aaliyah'}
+      - input: ref('league_player_movement')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as varchar) as transaction_date,
+              cast(null as varchar) as team_id, cast(null as varchar) as player_id,
+              cast(null as varchar) as transaction_type, cast(null as varchar) as description,
+              cast(null as date) as _ingest_date, cast(null as varchar) as _source_file
+          where false
+    expect:
+      rows:
+        - {transaction_date: '2026-09-20', player_id: '1', move_type: waive}
+        - {transaction_date: '2026-09-20', player_id: '2', move_type: waive}
+        - {transaction_date: '2026-10-23', player_id: null, move_type: other}
+        - {transaction_date: '2026-08-24', player_id: null, move_type: signing}
+        - {transaction_date: '2026-08-27', player_id: null, move_type: waive}

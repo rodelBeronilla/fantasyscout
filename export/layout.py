@@ -289,16 +289,28 @@ order by league, game_date, game_id
 """
 
 # The latest moves per league, for Streamers' recent moves and the player pages.
+# One row per line: a line naming several players (ESPN's) appears once, without a player.
 TRANSACTIONS_SQL = """
 select league, transaction_date, team_abbreviation, player_id, move_type, description, source
 from (
-    select *,
+    select league, transaction_date, team_abbreviation, move_type, description, source,
+        case
+            when count(*) over (
+                partition by league, source, transaction_date, team_abbreviation, description
+            ) > 1 then null
+            else player_id
+        end as player_id,
         row_number() over (
-            partition by league order by transaction_date desc, transaction_sk
-        ) as rn
+            partition by league, source, transaction_date, team_abbreviation, description
+            order by transaction_sk
+        ) as copy,
+        transaction_sk
     from gold.fct_transaction
-) as t
-where rn <= 150
+) as lines
+where copy = 1
+qualify row_number() over (
+    partition by league order by transaction_date desc, transaction_sk
+) <= 150
 order by league, transaction_date desc, team_abbreviation
 """
 
