@@ -206,12 +206,18 @@ for (const path of ['/pipeline/', '/schema/']) {
 test('the notebooks page shows each analysis with its findings for the league', async ({ page }) => {
   await page.goto('/notebooks/');
   const cards = page.getByTestId('notebooks').locator('section');
-  await expect(cards).toHaveCount(3);
-  await expect(page.getByTestId('findings')).toHaveCount(3);
-  await expect(page.getByTestId('findings').first()).toContainText('points per 100');
+  await expect(cards).toHaveCount(5);
+  // the fixture's WNBA game-context findings say the build has too little history: no zeros
+  await expect(page.getByTestId('findings')).toHaveCount(4);
+  await expect(page.getByTestId('findings-accumulating')).toHaveCount(1);
+  await expect(page.getByTestId('findings-accumulating')).toContainText('not enough history in this build');
+  await expect(cards.nth(2).getByTestId('findings-accumulating')).toBeVisible();
+  await expect(page.getByTestId('findings').first()).toContainText('top 30');
+  await expect(page.getByTestId('findings-n').first()).toContainText('player-checkpoints');
   await expect(page.getByRole('link', { name: /open the full notebook/i }).first()).toBeVisible();
   await page.goto('/notebooks/?league=nba');
-  await expect(page.getByTestId('findings').nth(2)).toContainText('rank correlation');
+  await expect(page.getByTestId('findings')).toHaveCount(5);
+  await expect(page.getByTestId('findings').nth(1)).toContainText('minutes trend');
 });
 
 test('the dashboards page explains the workbook and lists the extract', async ({ page }) => {

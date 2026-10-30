@@ -163,11 +163,13 @@ Three audiences, three doors onto the same gold tables: people who click (web ap
 
 **Notebooks** (`notebooks/`)
 
-1. `01_shot_profiles` — zone efficiency vs league average, WNBA 2026.
-2. `02_reconciliation_audit` — where and why the two sources disagree.
-3. `03_fantasy_value_backtest` — did preseason ranks predict end-of-season value?
+1. `01_board_backtest` — the board replayed point in time before and during past seasons: top-N hit rate, rank correlation, error and capture against last season's numbers and the season to date, with player-bootstrap intervals, reliability, games-share calibration, in- and out-of-sample seasons, and parity with the build's projection.
+2. `02_streamer_signals` — every Monday, which Streamers signal (minutes trend, value trend, recent value, games in the next seven days, starts) finds next week's most productive free agents.
+3. `03_game_context` — rest, travel, time zones, altitude and the opponent against whether a regular plays and what they produce per minute, out of sample; the hazard of missing the next game after missing k.
+4. `04_data_quality` — a scorecard per league and season: source agreement, box closure, shot charts against the box score, lineup completeness, link rates, freshness and the dbt check history.
+5. `05_shooting` — how many attempts before shooting percentages (and shooting over expectation) are more skill than luck, first half against second half, and what a shot is worth by zone.
 
-Each runs both in Databricks and locally through `databricks-sql-connector` (or DuckDB with `--local`). CI executes them with `nbconvert` against DuckDB and publishes the HTML to `/notebooks`.
+Each covers both leagues and runs against the published build, locally through DuckDB or in Databricks through `databricks-sql-connector`. CI executes them with `nbconvert` against the DuckDB sample and the build workflow against every published build, publishing the HTML and each notebook's findings (headline, facts, table, evidence size, or "accumulating" when the build has too little history) to `/notebooks`.
 
 **Dashboard:** one Tableau Public workbook, "League Pulse", built from a gold extract: team pace and ratings, player value distribution, data health trend. Embedded on the Dashboards page. Tableau Public needs a manual publish, so the repo includes the export file and a short README for refreshing it; it is the one step that cannot be fully automated.
 
@@ -222,7 +224,7 @@ fantasyscout/
   dbt/               # dbt project: models/bronze|silver|gold|ops, tests/, seeds/, macros/
   export/            # gold -> Parquet/JSON -> R2, manifest, latest pointer
   ai/                # notes generator, prompts, evals/
-  notebooks/         # 01_shot_profiles, 02_reconciliation_audit, 03_fantasy_value_backtest
+  notebooks/         # 01_board_backtest .. 05_shooting, replay.py, fs.py
   web/               # Astro app
   worker/            # Cloudflare Worker + wrangler.toml
   infra/             # self-hosted runner definition (ADR 0002)
@@ -254,7 +256,7 @@ Each phase ends with something live and a PR that passes CI. Stop and report at 
 | 3. Gold + quality | Star schema, all checks, `ops.test_results`, publish gate, incident issues | Full backfill loaded; zero `error` failures; a deliberately broken fixture opens a `data-incident` issue and blocks publish |
 | 4. Reconciliation | Player crosswalk, `ops.reconciliation`, `source_agreement` | ≥ 99% of player-games matched across sources; conflict rate reported per league and season |
 | 5. Serving + app | Export, manifest, Board, Player, Streamers, Data Health, SQL console | Pages load from R2 data in under 2 s on 4G (Lighthouse); footer shows build ID; rollback to previous build works |
-| 6. Analysis surfaces | Three notebooks, Tableau workbook, dbt docs at `/docs/` | Notebooks execute in CI; dashboard embedded; docs lineage graph live |
+| 6. Analysis surfaces | Analysis notebooks, Tableau workbook, dbt docs at `/docs/` | Notebooks execute in CI; dashboard embedded; docs lineage graph live |
 | 7. AI notes | Notes generator, validator, evals, AI page | Eval shows 100% verified published claims; rejections logged |
 | 8. Polish | README, ADRs, runbook, performance write-up, About page | A stranger can clone, run `make local` on DuckDB and see the app with fixture data |
 

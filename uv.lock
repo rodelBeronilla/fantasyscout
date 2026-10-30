@@ -988,6 +988,7 @@ notebooks = [
     { name = "nbconvert" },
     { name = "nbformat" },
     { name = "pandas" },
+    { name = "pyyaml" },
     { name = "requests" },
 ]
 
@@ -1019,6 +1020,7 @@ notebooks = [
     { name = "nbconvert", specifier = ">=7.16" },
     { name = "nbformat", specifier = ">=5.10" },
     { name = "pandas", specifier = ">=2.2" },
+    { name = "pyyaml", specifier = ">=6" },
     { name = "requests", specifier = ">=2.32" },
 ]
 

@@ -8,8 +8,8 @@ Sources, chosen by FS_NOTEBOOK_SOURCE or, when unset, in this order:
 
 - ``published``: the site's current data build, read over HTTP with DuckDB's Parquet reader.
   Needs nothing but a network connection; this is what the build workflow uses.
-- ``local``: the dbt DuckDB file (``dbt/fantasyscout.duckdb``), when it exists. CI uses this
-  with the fixture sample to prove the notebooks execute.
+- ``local``: the dbt DuckDB file (``dbt/fantasyscout.duckdb``, or the file ``FS_LOCAL_DB``
+  names), when it exists. CI uses this with the fixture sample to prove the notebooks execute.
 - ``databricks``: the lakehouse through ``databricks-sql-connector`` (DATABRICKS_HOST,
   DATABRICKS_HTTP_PATH, DATABRICKS_TOKEN), copied into an in-memory DuckDB.
 
@@ -30,7 +30,7 @@ import duckdb
 
 SITE = os.environ.get("FS_SITE_URL", "https://fantasyscout.beronilla.rodeo").rstrip("/")
 ROOT = Path(__file__).resolve().parent.parent
-LOCAL_DB = ROOT / "dbt" / "fantasyscout.duckdb"
+LOCAL_DB = Path(os.environ.get("FS_LOCAL_DB") or ROOT / "dbt" / "fantasyscout.duckdb")
 _NOTES: dict[int, str] = {}
 
 OPS_TABLES = frozenset(
@@ -53,11 +53,20 @@ TABLES = (
     "fct_event",
     "fct_shot",
     "fct_availability",
+    "fct_injury_status",
+    "fct_player_status",
+    "fct_transaction",
+    "fct_player_news",
+    "fct_team_game_context",
+    "fct_market_value",
+    "fct_waiver_trend",
+    "fct_team_stakes",
     "mart_board",
     "mart_player_projection",
     "mart_category_zscores",
     "mart_player_rolling",
     "mart_streamers",
+    "mart_schedule_upcoming",
     "reconciliation_summary",
     "reconciliation",
     "ingest_log",
@@ -138,7 +147,10 @@ def connect(source: str | None = None) -> duckdb.DuckDBPyConnection:
             for table in TABLES:
                 schema = "ops" if table in OPS_TABLES else "gold"
                 with dbx.cursor() as cur:
-                    cur.execute(f"select * from fantasyscout.{schema}.{table}")
+                    try:
+                        cur.execute(f"select * from fantasyscout.{schema}.{table}")
+                    except Exception:  # a table this lakehouse has not built yet
+                        continue
                     arrow = cur.fetchall_arrow()
                 con.register(table, arrow)
         _NOTES[id(con)] = "Reading the lakehouse through the Databricks SQL connector."
@@ -158,11 +170,41 @@ def leagues(con: duckdb.DuckDBPyConnection) -> list[str]:
     return [lg for lg in ("wnba", "nba") if lg in found]
 
 
+def has_table(con: duckdb.DuckDBPyConnection, name: str) -> bool:
+    """Whether this copy of gold carries a table (an older build may predate it)."""
+    rows = con.execute(
+        "select count(*) from information_schema.tables where table_name = ?", [name]
+    ).fetchall()
+    return bool(rows and rows[0][0])
+
+
+def columns(con: duckdb.DuckDBPyConnection, name: str) -> set[str]:
+    """The columns of a table; empty when the table is missing."""
+    if not has_table(con, name):
+        return set()
+    return {r[0] for r in con.sql(f"describe {name}").fetchall()}
+
+
+def insufficient(reason: str, n: int = 0, n_label: str = "observations") -> dict:
+    """League findings saying the build does not hold enough history yet, instead of zeros."""
+    return {
+        "headline": reason,
+        "facts": [],
+        "table": {"columns": [], "rows": []},
+        "n": int(n),
+        "n_label": n_label,
+        "insufficient_history": True,
+    }
+
+
 def save_findings(name: str, findings: dict) -> Path:
     """Headline findings next to the rendered notebook, for the site's Notebooks page.
 
     The shape is {"title", "leagues": {league: {"headline", "facts": [{"label", "value"}],
-    "table": {"columns": [...], "rows": [[...]]}}}}; values are plain JSON.
+    "table": {"columns": [...], "rows": [[...]]}, "n", "n_label", "insufficient_history"}}};
+    values are plain JSON. ``n`` (described by ``n_label``) is how much evidence the findings
+    rest on; ``insufficient_history`` marks a league this build cannot answer for yet, which the
+    page shows as accumulating rather than as a row of zeros.
     """
     out = Path.cwd() / "_build"
     out.mkdir(exist_ok=True)

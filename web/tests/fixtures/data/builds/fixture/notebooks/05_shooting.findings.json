@@ -1,0 +1,115 @@
+{
+ "title": "Shooting: what is sustainable",
+ "leagues": {
+  "wnba": {
+   "headline": "Half of the spread in WNBA free-throw percentage is skill after about 34 attempts, against 299 three-point attempts and 84 field-goal attempts; a first-half three-point edge keeps 19% of itself after the break.",
+   "facts": [
+    {
+     "label": "FT%: attempts for half skill",
+     "value": "34 (about 13 games at 2.7 a game)"
+    },
+    {
+     "label": "3P%: attempts for half skill",
+     "value": "299 (about 92 games at 3.2 a game)"
+    },
+    {
+     "label": "FG%: attempts for half skill",
+     "value": "84 (about 11 games at 7.7 a game)"
+    },
+    {
+     "label": "Three-point volume (3PA per 36), split-half reliability",
+     "value": "0.98, against 0.25 for 3P%"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Measure",
+     "Attempts for half skill",
+     "Split-half reliability",
+     "First-to-second-half slope",
+     "Player-seasons"
+    ],
+    "rows": [
+     [
+      "FG%",
+      "84",
+      0.73,
+      0.62,
+      955
+     ],
+     [
+      "3P%",
+      "299",
+      0.25,
+      0.19,
+      674
+     ],
+     [
+      "FT%",
+      "34",
+      0.7,
+      0.54,
+      656
+     ]
+    ]
+   },
+   "n": 955,
+   "n_label": "player-seasons with 100 field-goal attempts"
+  },
+  "nba": {
+   "headline": "Half of the spread in NBA free-throw percentage is skill after about 31 attempts, against 326 three-point attempts and 77 field-goal attempts; a first-half three-point edge keeps 27% of itself after the break.",
+   "facts": [
+    {
+     "label": "FT%: attempts for half skill",
+     "value": "31 (about 16 games at 2.0 a game)"
+    },
+    {
+     "label": "3P%: attempts for half skill",
+     "value": "326 (about 90 games at 3.6 a game)"
+    },
+    {
+     "label": "FG%: attempts for half skill",
+     "value": "77 (about 10 games at 7.6 a game)"
+    },
+    {
+     "label": "Three-point volume (3PA per 36), split-half reliability",
+     "value": "0.98, against 0.39 for 3P%"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Measure",
+     "Attempts for half skill",
+     "Split-half reliability",
+     "First-to-second-half slope",
+     "Player-seasons"
+    ],
+    "rows": [
+     [
+      "FG%",
+      "77",
+      0.85,
+      0.73,
+      1238
+     ],
+     [
+      "3P%",
+      "326",
+      0.39,
+      0.27,
+      1081
+     ],
+     [
+      "FT%",
+      "31",
+      0.78,
+      0.65,
+      1000
+     ]
+    ]
+   },
+   "n": 1238,
+   "n_label": "player-seasons with 100 field-goal attempts"
+  }
+ }
+}

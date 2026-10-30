@@ -1,0 +1,99 @@
+{
+ "title": "Data quality scorecard",
+ "leagues": {
+  "wnba": {
+   "headline": "16 of 17 checks pass for the WNBA data in this build, 1 warn and 0 fail; the first to look at: current injury listings linked to a player (current, 93.9%).",
+   "facts": [
+    {
+     "label": "Box scores that add up (2026)",
+     "value": "100.00% (pass)"
+    },
+    {
+     "label": "Injury listings linked",
+     "value": "93.9% (warn)"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Check",
+     "Season",
+     "Value",
+     "Threshold",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Current injury listings linked to a player",
+      "current",
+      "93.9%",
+      "95% / 90%",
+      "warn"
+     ]
+    ]
+   },
+   "n": 17,
+   "n_label": "checks graded"
+  },
+  "nba": {
+   "headline": "9 of 9 checks pass for the NBA data in this build, 0 warn and 0 fail.",
+   "facts": [
+    {
+     "label": "Box scores that add up (2026-27)",
+     "value": "100.00% (pass)"
+    },
+    {
+     "label": "Injury listings linked",
+     "value": "98.9% (pass)"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Check",
+     "Season",
+     "Value",
+     "Threshold",
+     "Status"
+    ],
+    "rows": [
+     [
+      "Team-games whose player rows add up",
+      "2023-24",
+      "100.00%",
+      "all / 99.5%",
+      "pass"
+     ],
+     [
+      "Team turnovers between the players' sum and eight more",
+      "2023-24",
+      "100.0%",
+      "99% / 95%",
+      "pass"
+     ],
+     [
+      "Team-games whose player rows add up",
+      "2024-25",
+      "100.00%",
+      "all / 99.5%",
+      "pass"
+     ],
+     [
+      "Team turnovers between the players' sum and eight more",
+      "2024-25",
+      "100.0%",
+      "99% / 95%",
+      "pass"
+     ],
+     [
+      "Team-games whose player rows add up",
+      "2025-26",
+      "100.00%",
+      "all / 99.5%",
+      "pass"
+     ]
+    ]
+   },
+   "n": 9,
+   "n_label": "checks graded"
+  }
+ }
+}

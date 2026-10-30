@@ -6,19 +6,31 @@ import { Card, Loading, Problem, Td, Th } from './ui';
 
 export const NOTEBOOKS = [
   {
-    name: '01_shot_profiles',
-    title: 'Shot profiles',
-    blurb: 'What a shot is worth in each zone, and which high-volume shooters beat the league there.',
+    name: '01_board_backtest',
+    title: 'Board backtest',
+    blurb:
+      'The board replayed before and during past seasons from the games before each day: how many of its top players finished on top, against last season’s numbers and the season to date.',
   },
   {
-    name: '02_reconciliation_audit',
-    title: 'Reconciliation audit',
-    blurb: 'How much of each season the second source covers, how often the sources agree, and which values differ.',
+    name: '02_streamer_signals',
+    title: 'Streamer signals',
+    blurb: 'Every Monday of past seasons: which Streamers column, sorted on, finds the free agents who produce most over the next seven days.',
   },
   {
-    name: '03_fantasy_value_backtest',
-    title: 'Fantasy value backtest',
-    blurb: 'How well last season’s z-score rank predicts the next, and the biggest risers and fallers.',
+    name: '03_game_context',
+    title: 'Game context',
+    blurb:
+      'Whether back-to-backs, travel, altitude and the opponent change whether a regular plays and what they produce, and how often one missed game becomes several.',
+  },
+  {
+    name: '04_data_quality',
+    title: 'Data quality scorecard',
+    blurb: 'Source agreement, box scores that add up, shot charts against the box, lineups, links and freshness: a value, a threshold and a status for each.',
+  },
+  {
+    name: '05_shooting',
+    title: 'Shooting: what is sustainable',
+    blurb: 'How many attempts it takes before a free-throw, three-point or field-goal percentage is more skill than luck, and what a shot is worth by zone.',
   },
 ] as const;
 
@@ -26,6 +38,11 @@ interface LeagueFindings {
   headline: string;
   facts: { label: string; value: string }[];
   table?: { columns: string[]; rows: (string | number | null)[][] };
+  /** How much evidence the findings rest on, described by n_label. */
+  n?: number;
+  n_label?: string;
+  /** The build cannot answer for this league yet: shown as accumulating, never as zeros. */
+  insufficient_history?: boolean;
 }
 
 interface Findings {
@@ -78,9 +95,19 @@ export default function Notebooks() {
         return (
           <Card key={nb.name} title={nb.title} id={nb.name}>
             <p className="text-sm text-muted">{nb.blurb}</p>
-            {f ? (
+            {f?.insufficient_history ? (
+              <div className="mt-3 grid gap-1" data-testid="findings-accumulating">
+                <p className="text-sm font-medium">Accumulating: not enough history in this build</p>
+                <p className="text-sm text-muted">{f.headline}</p>
+              </div>
+            ) : f ? (
               <div className="mt-3 grid gap-3" data-testid="findings">
                 <p className="text-base font-medium">{f.headline}</p>
+                {f.n !== undefined && f.n > 0 && (
+                  <p className="text-xs text-muted" data-testid="findings-n">
+                    Based on {f.n.toLocaleString('en-US')} {f.n_label ?? 'observations'}.
+                  </p>
+                )}
                 <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                   {f.facts.map((fact) => (
                     <div key={fact.label} className="flex justify-between gap-3 border-b border-line py-1">

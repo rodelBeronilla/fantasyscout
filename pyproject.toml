@@ -36,6 +36,7 @@ notebooks = [
   "matplotlib>=3.9",
   "google-auth>=2.35",
   "requests>=2.32",
+  "pyyaml>=6",
 ]
 
 [build-system]

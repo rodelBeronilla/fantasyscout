@@ -321,8 +321,8 @@ const link = 'underline underline-offset-4';
       <section id="analysis">
         <h2 class="text-lg font-semibold tracking-tight">11. Analysis</h2>
         <p class="mt-2">
-          After a passing nightly build, three <a href={href('/notebooks/')} class={link}>notebooks</a> (shot profiles, the
-          reconciliation audit, a value backtest) run against the staged build over HTTPS and add their pages and findings
+          After a passing nightly build, five <a href={href('/notebooks/')} class={link}>notebooks</a> (a backtest of the
+          board, the streamer signals, game context, a data quality scorecard and shooting) run against the staged build over HTTPS and add their pages and findings
           to it before it goes live; if they fail, the build goes live without them and the incident says so. The Tableau extract does the same: three CSVs into the build and into a Google Sheet, which
           Tableau Public re-reads about daily for the <a href={href('/dashboards/')} class={link}>dashboard</a>.
         </p>

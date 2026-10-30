@@ -1,1 +1,1 @@
-{"build_id": "fixture", "files": ["01_shot_profiles.html", "01_shot_profiles.findings.json", "02_reconciliation_audit.html", "02_reconciliation_audit.findings.json", "03_fantasy_value_backtest.html", "03_fantasy_value_backtest.findings.json"]}
+{"build_id": "fixture", "files": ["01_board_backtest.html", "01_board_backtest.findings.json", "02_streamer_signals.html", "02_streamer_signals.findings.json", "03_game_context.html", "03_game_context.findings.json", "04_data_quality.html", "04_data_quality.findings.json", "05_shooting.html", "05_shooting.findings.json"]}

@@ -1,0 +1,207 @@
+{
+ "title": "Streamer signals",
+ "leagues": {
+  "wnba": {
+   "headline": "On 2026 Mondays, the default sort (minutes trend) put 1.9 of the week's ten best pickups in its top ten. Sorting by last-ten production x games put 3.3; of the columns the page sorts on now, games in the next seven days did best (3.1).",
+   "facts": [
+    {
+     "label": "Weeks and candidates, 2026",
+     "value": "18 Mondays, 1,599 candidate-weeks"
+    },
+    {
+     "label": "Minutes trend, weekly rank correlation",
+     "value": "0.108 (t = 3.6); earlier seasons 0.057"
+    },
+    {
+     "label": "Strongest single signal by rank correlation",
+     "value": "Minutes, last five games: 0.302 (t = 12.6)"
+    },
+    {
+     "label": "Games in the next seven days, rank correlation",
+     "value": "0.185"
+    },
+    {
+     "label": "Week value of the top ten: last-ten production x games vs default",
+     "value": "8.1 vs 6.5"
+    },
+    {
+     "label": "Fitted blend of every signal, top-10 hits",
+     "value": "2.6 of 10 (fitted on earlier seasons)"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Sort",
+     "Top-10 hits, 2026",
+     "Top-10 hits, earlier",
+     "Weekly rank corr, 2026"
+    ],
+    "rows": [
+     [
+      "Last-ten production x games",
+      3.28,
+      4.13,
+      0.297
+     ],
+     [
+      "Games in the next seven days",
+      3.11,
+      3.56,
+      0.185
+     ],
+     [
+      "Starts in the last five games",
+      2.83,
+      3.5,
+      0.184
+     ],
+     [
+      "Minutes, last five games",
+      2.61,
+      3.95,
+      0.302
+     ],
+     [
+      "Fitted blend of all signals",
+      2.61,
+      4.03,
+      0.352
+     ],
+     [
+      "Board value",
+      2.61,
+      3.72,
+      0.252
+     ],
+     [
+      "Value, last ten games",
+      2.0,
+      3.54,
+      0.246
+     ],
+     [
+      "Window value (last-ten value x games)",
+      2.0,
+      2.99,
+      0.037
+     ],
+     [
+      "Minutes trend (the default sort)",
+      1.94,
+      2.94,
+      0.108
+     ],
+     [
+      "Value trend",
+      1.83,
+      2.7,
+      0.037
+     ]
+    ]
+   },
+   "n": 1599,
+   "n_label": "candidate-weeks in 2026"
+  },
+  "nba": {
+   "headline": "On 2025-26 Mondays, the default sort (minutes trend) put 0.9 of the week's ten best pickups in its top ten. Sorting by last-ten production x games put 1.4; of the columns the page sorts on now, minutes, last five games did best (1.2).",
+   "facts": [
+    {
+     "label": "Weeks and candidates, 2025-26",
+     "value": "23 Mondays, 6,957 candidate-weeks"
+    },
+    {
+     "label": "Minutes trend, weekly rank correlation",
+     "value": "0.230 (t = 20.2); earlier seasons 0.150"
+    },
+    {
+     "label": "Strongest single signal by rank correlation",
+     "value": "Minutes, last five games: 0.478 (t = 38.3)"
+    },
+    {
+     "label": "Games in the next seven days, rank correlation",
+     "value": "0.137"
+    },
+    {
+     "label": "Week value of the top ten: last-ten production x games vs default",
+     "value": "24.1 vs 19.0"
+    },
+    {
+     "label": "Fitted blend of every signal, top-10 hits",
+     "value": "1.5 of 10 (fitted on earlier seasons)"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Sort",
+     "Top-10 hits, 2025-26",
+     "Top-10 hits, earlier",
+     "Weekly rank corr, 2025-26"
+    ],
+    "rows": [
+     [
+      "Fitted blend of all signals",
+      1.48,
+      1.96,
+      0.514
+     ],
+     [
+      "Last-ten production x games",
+      1.39,
+      1.52,
+      0.471
+     ],
+     [
+      "Minutes, last five games",
+      1.22,
+      1.35,
+      0.478
+     ],
+     [
+      "Value, last ten games",
+      1.09,
+      1.15,
+      0.453
+     ],
+     [
+      "Window value (last-ten value x games)",
+      1.09,
+      1.11,
+      0.358
+     ],
+     [
+      "Board value",
+      0.96,
+      1.02,
+      0.474
+     ],
+     [
+      "Minutes trend (the default sort)",
+      0.87,
+      0.5,
+      0.23
+     ],
+     [
+      "Value trend",
+      0.74,
+      0.87,
+      0.11
+     ],
+     [
+      "Starts in the last five games",
+      0.61,
+      0.98,
+      0.251
+     ],
+     [
+      "Games in the next seven days",
+      0.43,
+      0.54,
+      0.137
+     ]
+    ]
+   },
+   "n": 6957,
+   "n_label": "candidate-weeks in 2025-26"
+  }
+ }
+}
