@@ -5,44 +5,112 @@ models:
     description: "One row per ingest run, parsed from the run logs the ingestors write to the landing volume."
     columns:
       - name: run_id
-        description: "Run id from the ingestor"
+        description: "Run id the ingestor generates, 12 hex characters"
         data_tests: [unique, not_null]
       - name: source
-        description: "stats or espn"
+        description: "stats, espn or reports (the reports run also lands lineups, transactions, ESPN fantasy, news and Sleeper)"
         data_tests: [not_null]
       - name: league
         description: "wnba or nba"
         data_tests: [not_null]
+      - name: season
+        description: "Season label of the run"
+      - name: started_at
+        description: "When the run started (UTC)"
+      - name: finished_at
+        description: "When the run finished (UTC)"
+      - name: window_since
+        description: "First date of the run's window"
+      - name: window_until
+        description: "Last date of the run's window"
+      - name: full_refresh
+        description: "True when the run re-lands payloads even when unchanged"
+      - name: backend
+        description: "local (a directory) or volume (the Unity Catalog volume)"
+      - name: games
+        description: "Games in the run's window (for reports, matchups on the injury report)"
       - name: landed
         description: "Payloads written this run"
+      - name: unchanged
+        description: "Payloads refetched with the same bytes as the last landing, so nothing new was written"
+      - name: skipped
+        description: "Requests not made: already landed today, or a game's payload already settled"
       - name: failures
         description: "Requests that failed this run"
       - name: missing_at_source
         description: "Keys the source has no payload for (for example an ESPN event with no summary); not failures"
+      - name: _source_file
+        description: "Path of the run log the row was parsed from"
 
   - name: reconciliation
     description: "One row per value the two sources disagree on, with both values and the resolution: the league value wins, ESPN only where the league's is null (ADR 0005). A snapshot of the current comparison."
     columns:
-      - name: reconciliation_key
-        description: "League, game, player and stat"
-        data_tests: [unique, not_null]
+      - name: league
+        description: "wnba or nba"
+      - name: season
+        description: "Season label (2026 in the WNBA, 2025-26 in the NBA)"
+      - name: game_id
+        description: "League stats API game id"
+      - name: event_id
+        description: "ESPN event id of the matched game"
+      - name: stats_player_id
+        description: "League stats API player id"
+      - name: espn_player_id
+        description: "ESPN athlete id"
       - name: stat
-        description: "Compared measure"
+        description: "The compared measure: minutes or one of the twelve box-score counts"
         data_tests: [not_null]
+      - name: reconciliation_key
+        description: "Natural key: league, game id, stats player id and stat; one row per disagreement"
+        data_tests: [unique, not_null]
+      - name: stats_value
+        description: "The league's value; null when the league has none"
+      - name: espn_value
+        description: "ESPN's value; null when ESPN has none"
+      - name: delta
+        description: "espn_value minus stats_value; null when either is null"
       - name: resolution
-        description: "stats or espn"
+        description: "stats (the league's value stands) or espn (only where the league's value is null)"
         data_tests:
           - accepted_values:
               values: [stats, espn]
+      - name: resolved_value
+        description: "The value that stands: the league's, else ESPN's"
+      - name: reconciled_at
+        description: "Build time of the comparison"
 
   - name: reconciliation_summary
     description: "Match and conflict rates per league and season: how many of the league's player-games ESPN also reports and the crosswalk pairs, and how those pairs agree."
     columns:
+      - name: league
+        description: "wnba or nba"
+      - name: season
+        description: "Season label (2026 in the WNBA, 2025-26 in the NBA)"
       - name: summary_key
-        description: "League and season"
+        description: "Natural key: league and season; one row per league-season"
         data_tests: [unique, not_null]
+      - name: player_games
+        description: "Lines in the league box score, inactive players included"
+      - name: matched
+        description: "Lines ESPN also reports and the crosswalk pairs"
+      - name: unmatched
+        description: "Lines with no ESPN pair"
       - name: match_rate
         description: "Matched player-games over every line of the league box score, inactive players included"
         data_tests: [not_null]
+      - name: played_player_games
+        description: "Lines where the player had minutes above zero"
+      - name: played_matched
+        description: "Played lines with an ESPN pair"
       - name: played_match_rate
-        description: "Matched player-games over the lines where the player was on the floor; the coverage check judges this one"
+        description: "Matched player-games over the lines where the player was on the floor; null when none; the coverage check judges this one"
+      - name: exact
+        description: "Matched lines whose verdict is exact"
+      - name: minor
+        description: "Matched lines whose verdict is minor"
+      - name: conflict
+        description: "Matched lines whose verdict is conflict"
+      - name: conflict_rate
+        description: "Conflicts over matched lines; null when none matched"
+      - name: summarised_at
+        description: "Build time of the summary"

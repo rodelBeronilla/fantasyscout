@@ -1,7 +1,7 @@
 {#
   Sleeper's trending players from the newest landing (NBA): one row per player in the most-added
-  or most-dropped lists, with the leagues adding and dropping him over the lookback window and
-  his rank in each list (1 is the most). Sleeper's name, team and birth date come from its
+  or most-dropped lists, with the leagues adding and dropping the player over the lookback window
+  and the player's rank in each list (1 is the most). Sleeper's name, team and birth date come from its
   newest directory, for gold to link the player to the league's id.
 #}
 
