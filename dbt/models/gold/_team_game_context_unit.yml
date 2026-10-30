@@ -2,7 +2,7 @@ unit_tests:
   - name: team_game_context_rest_travel_and_altitude
     description: >
       A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights
-      later: the second game is a back-to-back at altitude 370 miles away in the same time zone,
+      later: the second game is a back-to-back, visiting at altitude, 370 miles away in the same time zone,
       the third is the third game in four nights, 581 miles west and one time zone back. An
       unconfirmed "if necessary" game and a knockout game whose teams are not decided yet (both
       listed as 0) are left out, and the team they play on the second night sees its opponent on
@@ -23,9 +23,36 @@ unit_tests:
           - {city: Los Angeles, latitude: 34.043, longitude: -118.267, elevation_ft: 270, utc_offset: -8}
     expect:
       rows:
-        - {game_id: g1, team_id: A, rest_days: null, is_back_to_back: false, is_3_in_4: false, miles_travelled: null, at_altitude: true, opponent_back_to_back: false}
-        - {game_id: g1, team_id: B, rest_days: null, is_back_to_back: false, is_3_in_4: false, miles_travelled: null, at_altitude: true, opponent_back_to_back: false}
-        - {game_id: g2, team_id: A, rest_days: 0, is_back_to_back: true, is_3_in_4: false, miles_travelled: 370, at_altitude: true, opponent_back_to_back: false}
-        - {game_id: g2, team_id: C, rest_days: null, is_back_to_back: false, is_3_in_4: false, miles_travelled: null, at_altitude: true, opponent_back_to_back: true}
-        - {game_id: g3, team_id: A, rest_days: 1, is_back_to_back: false, is_3_in_4: true, miles_travelled: 581, at_altitude: false, opponent_back_to_back: false}
-        - {game_id: g3, team_id: D, rest_days: null, is_back_to_back: false, is_3_in_4: false, miles_travelled: null, at_altitude: false, opponent_back_to_back: false}
+        - {game_id: g1, team_id: A, rest_days: null, is_back_to_back: false, is_3_in_4: false, miles_travelled: null, at_altitude: true, visiting_at_altitude: false, opponent_back_to_back: false}
+        - {game_id: g1, team_id: B, rest_days: null, is_back_to_back: false, is_3_in_4: false, miles_travelled: null, at_altitude: true, visiting_at_altitude: true, opponent_back_to_back: false}
+        - {game_id: g2, team_id: A, rest_days: 0, is_back_to_back: true, is_3_in_4: false, miles_travelled: 370, at_altitude: true, visiting_at_altitude: true, opponent_back_to_back: false}
+        - {game_id: g2, team_id: C, rest_days: null, is_back_to_back: false, is_3_in_4: false, miles_travelled: null, at_altitude: true, visiting_at_altitude: false, opponent_back_to_back: true}
+        - {game_id: g3, team_id: A, rest_days: 1, is_back_to_back: false, is_3_in_4: true, miles_travelled: 581, at_altitude: false, visiting_at_altitude: false, opponent_back_to_back: false}
+        - {game_id: g3, team_id: D, rest_days: null, is_back_to_back: false, is_3_in_4: false, miles_travelled: null, at_altitude: false, visiting_at_altitude: false, opponent_back_to_back: false}
+
+  - name: team_game_context_time_zones_follow_daylight_saving
+    description: >
+      Phoenix keeps standard time all year. A trip from Phoenix to Los Angeles crosses no time zone
+      in July (both on UTC-7) and one in January (UTC-7 to UTC-8).
+    model: fct_team_game_context
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: wnba, season: '2026', game_id: s1, game_date_est: 2026-07-10, game_type: regular, arena_city: Phoenix, is_neutral: false, if_necessary: false, home_team_id: P, away_team_id: Q}
+          - {league: wnba, season: '2026', game_id: s2, game_date_est: 2026-07-12, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, home_team_id: L, away_team_id: P}
+          - {league: nba, season: '2026-27', game_id: w1, game_date_est: 2027-01-10, game_type: regular, arena_city: Phoenix, is_neutral: false, if_necessary: false, home_team_id: P, away_team_id: Q}
+          - {league: nba, season: '2026-27', game_id: w2, game_date_est: 2027-01-12, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, home_team_id: L, away_team_id: P}
+      - input: ref('venues')
+        rows:
+          - {city: Phoenix, latitude: 33.446, longitude: -112.071, elevation_ft: 1086, utc_offset: -7, observes_dst: false}
+          - {city: Los Angeles, latitude: 34.043, longitude: -118.267, elevation_ft: 270, utc_offset: -8, observes_dst: true}
+    expect:
+      rows:
+        - {game_id: s1, team_id: P, time_zones_crossed: null}
+        - {game_id: s1, team_id: Q, time_zones_crossed: null}
+        - {game_id: s2, team_id: P, time_zones_crossed: 0}
+        - {game_id: s2, team_id: L, time_zones_crossed: null}
+        - {game_id: w1, team_id: P, time_zones_crossed: null}
+        - {game_id: w1, team_id: Q, time_zones_crossed: null}
+        - {game_id: w2, team_id: P, time_zones_crossed: -1}
+        - {game_id: w2, team_id: L, time_zones_crossed: null}
