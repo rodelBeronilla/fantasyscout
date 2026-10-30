@@ -647,6 +647,26 @@ test("streamers list the league's recent moves, and a player's page lists theirs
   await expect(page.getByTestId('player-moves')).toContainText('New York Liberty signed guard X.');
 });
 
+test("a player's page lists ESPN's headlines about them, flagged and linked to ESPN", async ({ page }) => {
+  await page.route(/\/players\/wnba\/[^/]+\.json$/, async (route) => {
+    const file = (await (await route.fetch()).json()) as Record<string, unknown>;
+    await route.fulfill({
+      json: {
+        ...file,
+        news: [
+          { published_date: '2026-10-29', headline: 'Guard (ankle) to miss Game 7', url: 'https://www.espn.com/wnba/story/_/id/1', news_flag: 'injury' },
+          { published_date: '2026-10-27', headline: 'Guard carries the team in Game 5', url: 'https://www.espn.com/wnba/story/_/id/2', news_flag: null },
+        ],
+      },
+    });
+  });
+  await page.goto('/p/wnba/1628932/');
+  const news = page.getByTestId('player-news');
+  await expect(news.locator('li')).toHaveCount(2);
+  await expect(news.locator('li').first()).toContainText('Injury');
+  await expect(news.getByRole('link', { name: 'Guard (ankle) to miss Game 7' })).toHaveAttribute('href', 'https://www.espn.com/wnba/story/_/id/1');
+});
+
 test('the streamers week grid marks the second night of a back-to-back, with travel in the tooltip', async ({ page }) => {
   await page.route('**/schedule/wnba.json', async (route) => {
     const games = (await (await route.fetch()).json()) as Record<string, unknown>[];

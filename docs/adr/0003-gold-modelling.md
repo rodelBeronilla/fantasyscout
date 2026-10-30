@@ -105,6 +105,14 @@ The ingest lands the newest report as parsed JSON (`ingest/injury_report.py`, wh
 
 The official status speaks only to the next game, so the board shows it but the rest-of-season availability multiplier keeps reading ESPN's listing and expected return. A one-game "Rest" or G League "Out" does not erase a season's value. Official rows link to players by name within the team. `warn_official_injury_links` reports more than five unlinked players on the newest report.
 
+## Addendum (2026-10-30): ESPN's headlines on the player page
+
+ESPN's news feed lists each league's latest 50 articles, each tagged with the athletes it is about. The reports run lands the feed twice a day, under the Eastern date and hour (`ingest/espn_news.py`), so headlines accumulate even though the feed itself only reaches back a day or two in season. Only the headline, its date, ESPN's link and the tagged athlete ids land: never the story, the images or the byline. The site shows a headline, its date and a link to the story on ESPN, and credits ESPN.
+
+`silver.player_news` links each tagged athlete through the player crosswalk and sorts the headline by its wording into one flag: out for season, surgery, minutes limit, return, injury, G League or role (first match wins, none when nothing applies). `gold.fct_player_news` keeps articles tagged with the player and at most three others, since a roundup that tags eight players says little about any one of them. Each player's file carries the newest eight.
+
+The flags are labels for the reader, not inputs to the projection. A headline flag is a weaker signal than the official injury report, ESPN's injury listing and the Expected and Confirmed lineups, which the board already reads. With no history of the feed there is nothing to backtest against yet. ESPN's NBA depth charts were considered as a starter prior and left out: the league's lineups already name each game's starters. Checked against the six teams with Expected lineups on 2026-10-29, four depth charts named the same five, and in the other two the lineups carried a change the depth chart had not yet made.
+
 ## Addendum (2026-10-30): rest, travel and altitude
 
 `gold.fct_team_game_context` gives every team-game, played or scheduled, its circumstances:

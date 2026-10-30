@@ -93,10 +93,46 @@ interface PlayerFile {
   } | null;
   /** The player's signings, waivers and trades from the league's feed, newest first (NBA). */
   moves?: { transaction_date: string; team_abbreviation: string | null; move_type: string; description: string }[];
+  /** ESPN's newest headlines about the player: the headline, its date and a link to ESPN (absent in older builds). */
+  news?: { published_date: string; headline: string; url: string; news_flag: string | null }[];
   /** Each status the player's injury listings have held, newest first (absent in older builds). */
   injury_history?: { injury_id: string; status: string; status_group: string; status_from: string; status_to: string; reports: number }[];
   shots: [number, number, number, number][];
   shot_zones: { zone: string; attempts: number; made: number; pct: number | null; league_pct: number | null }[];
+}
+
+/** What a headline's wording says, and how loudly to show it. */
+const NEWS_FLAGS: Record<string, { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' }> = {
+  out_for_season: { label: 'Out for season', tone: 'bad' },
+  surgery: { label: 'Surgery', tone: 'bad' },
+  injury: { label: 'Injury', tone: 'warn' },
+  minutes_limit: { label: 'Minutes limit', tone: 'warn' },
+  return: { label: 'Return', tone: 'good' },
+  g_league: { label: 'G League', tone: 'muted' },
+  role: { label: 'Role', tone: 'muted' },
+};
+
+/** ESPN's headlines about the player, newest first: each links to the story on ESPN. */
+function NewsCard({ news }: { news: NonNullable<PlayerFile['news']> }) {
+  return (
+    <Card title="In the news" id="news">
+      <ul className="grid gap-1.5 text-sm" data-testid="player-news">
+        {news.map((n) => {
+          const flag = n.news_flag ? NEWS_FLAGS[n.news_flag] : undefined;
+          return (
+            <li key={n.url} className="flex flex-wrap items-baseline gap-x-2">
+              <span className="text-xs text-muted">{day(n.published_date)}</span>
+              {flag && <Badge tone={flag.tone}>{flag.label}</Badge>}
+              <a href={n.url} target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+                {n.headline}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-2 text-xs text-muted">Headlines and links from ESPN; the stories are on ESPN.</p>
+    </Card>
+  );
 }
 
 /** The player's current injury: status, since when, expected return, ESPN's news, and how the status got here. */
@@ -199,6 +235,8 @@ export default function PlayerPage() {
       </header>
 
       {player.board?.injury_group && <InjuryCard board={player.board} history={player.injury_history ?? []} />}
+
+      {(player.news ?? []).length > 0 && <NewsCard news={player.news ?? []} />}
 
       {(player.moves ?? []).length > 0 && (
         <Card title="Moves" id="moves">

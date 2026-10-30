@@ -1,0 +1,37 @@
+unit_tests:
+  - name: player_news_flags_headlines_by_their_wording_and_links_players
+    description: >
+      Headlines from ESPN's feed each get the flag their wording gives, first match wins, and none
+      when nothing applies. An athlete the crosswalk knows gets the league id; an article tagged
+      twice counts two athletes; a later landing of the same article replaces the earlier one.
+    model: player_news
+    given:
+      - input: ref('espn_news')
+        rows:
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '1', espn_player_id: e1, headline: "Knicks' Jose Alvarado (ankle) to miss fourth straight vs. 76ers", published_at: '2026-10-30T01:22:00Z', url: 'https://espn.invalid/1'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '2', espn_player_id: e2, headline: "Timberwolves' Anthony Edwards undergoes successful knee scope", published_at: '2026-10-29T19:21:00Z', url: 'https://espn.invalid/2'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '3', espn_player_id: e3, headline: "Hornets bench Naz Reid at half for not meeting 'our standards'", published_at: '2026-10-29T02:43:00Z', url: 'https://espn.invalid/3'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '4', espn_player_id: e4, headline: "Star guard returns from hamstring strain on a minutes restriction", published_at: '2026-10-28T20:00:00Z', url: 'https://espn.invalid/4'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '5', espn_player_id: e5, headline: "Rookie assigned to the G League", published_at: '2026-10-28T18:00:00Z', url: 'https://espn.invalid/5'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '6', espn_player_id: e6, headline: "Forward out for season after tearing ACL", published_at: '2026-10-28T17:00:00Z', url: 'https://espn.invalid/6'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '7', espn_player_id: e1, headline: "Giannis Antetokounmpo, Bam Adebayo lead Heat into win column", published_at: '2026-10-29T11:12:00Z', url: 'https://espn.invalid/7'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '7', espn_player_id: e9, headline: "Giannis Antetokounmpo, Bam Adebayo lead Heat into win column", published_at: '2026-10-29T11:12:00Z', url: 'https://espn.invalid/7'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-28', _source_file: b, article_id: '2', espn_player_id: e2, headline: "Edwards to have knee looked at", published_at: '2026-10-29T19:21:00Z', url: 'https://espn.invalid/2'}
+      - input: ref('player_xwalk')
+        rows:
+          - {league: nba, espn_player_id: e1, stats_player_id: '1'}
+          - {league: nba, espn_player_id: e2, stats_player_id: '2'}
+          - {league: nba, espn_player_id: e3, stats_player_id: '3'}
+          - {league: nba, espn_player_id: e4, stats_player_id: '4'}
+          - {league: nba, espn_player_id: e5, stats_player_id: '5'}
+          - {league: nba, espn_player_id: e6, stats_player_id: '6'}
+    expect:
+      rows:
+        - {article_id: '1', espn_player_id: e1, stats_player_id: '1', athletes_tagged: 1, news_flag: injury, published_date: '2026-10-29'}
+        - {article_id: '2', espn_player_id: e2, stats_player_id: '2', athletes_tagged: 1, news_flag: surgery, published_date: '2026-10-29'}
+        - {article_id: '3', espn_player_id: e3, stats_player_id: '3', athletes_tagged: 1, news_flag: role, published_date: '2026-10-28'}
+        - {article_id: '4', espn_player_id: e4, stats_player_id: '4', athletes_tagged: 1, news_flag: minutes_limit, published_date: '2026-10-28'}
+        - {article_id: '5', espn_player_id: e5, stats_player_id: '5', athletes_tagged: 1, news_flag: g_league, published_date: '2026-10-28'}
+        - {article_id: '6', espn_player_id: e6, stats_player_id: '6', athletes_tagged: 1, news_flag: out_for_season, published_date: '2026-10-28'}
+        - {article_id: '7', espn_player_id: e1, stats_player_id: '1', athletes_tagged: 2, news_flag: null, published_date: '2026-10-29'}
+        - {article_id: '7', espn_player_id: e9, stats_player_id: null, athletes_tagged: 2, news_flag: null, published_date: '2026-10-29'}

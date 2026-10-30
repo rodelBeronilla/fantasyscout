@@ -345,6 +345,26 @@ models:
         description: "League and ESPN athlete id"
         data_tests: [unique, not_null]
 
+  - name: player_news
+    description: "ESPN's headlines per player: one row per article and tagged athlete, linked to the league player id, with a flag from the headline's wording."
+    columns:
+      - name: player_news_key
+        description: "League, article id and ESPN athlete id"
+        data_tests: [unique, not_null]
+      - name: stats_player_id
+        description: "League player id through the player crosswalk; null when the athlete is not linked"
+      - name: athletes_tagged
+        description: "How many athletes the article is tagged with"
+      - name: published_at
+        description: "When ESPN published the article (UTC)"
+      - name: published_date
+        description: "The Eastern date ESPN published it"
+      - name: news_flag
+        description: "out_for_season, surgery, minutes_limit, return, injury, g_league or role, from the headline's wording; null when none applies"
+        data_tests:
+          - accepted_values:
+              values: [out_for_season, surgery, minutes_limit, return, injury, g_league, role]
+
   - name: transactions
     description: "Transactions from the NBA's movement feed (with player ids) and ESPN's feed (both leagues, one line per team and day), sorted by their wording."
     columns:

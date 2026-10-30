@@ -259,7 +259,7 @@
   "fantasy_recent_minutes": 0.5,
   "fantasy_team_change": 0.25
  },
- "generic_tests": 238,
+ "generic_tests": 244,
  "layers": [
   {
    "models": [
@@ -497,6 +497,91 @@
      "read_by": [
       "injuries",
       "injury_status_history"
+     ],
+     "reads": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The day and Eastern hour the feed was landed",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN article id",
+       "name": "article_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's article type: HeadlineNews, Story, Media, Preview or Recap",
+       "name": "article_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The headline as ESPN writes it",
+       "name": "headline",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When ESPN published the article, as ESPN gives it (UTC)",
+       "name": "published_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Link to the story on ESPN",
+       "name": "url",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN athlete id the article is tagged with",
+       "name": "espn_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The athlete's name as ESPN tags it",
+       "name": "athlete_name",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "ESPN's news feed: one row per article and the athlete it is tagged with, per landed payload. Headline, date and link only; the story is never landed.",
+     "materialized": "incremental",
+     "name": "espn_news",
+     "notes": [],
+     "read_by": [
+      "player_news"
      ],
      "reads": []
     },
@@ -6577,6 +6662,113 @@
      "checks": [],
      "columns": [
       {
+       "description": "League, article id and ESPN athlete id",
+       "name": "player_news_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "article_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "article_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "espn_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id through the player crosswalk; null when the athlete is not linked",
+       "name": "stats_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "athlete_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "headline",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When ESPN published the article (UTC)",
+       "name": "published_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "The Eastern date ESPN published it",
+       "name": "published_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "",
+       "name": "url",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "How many athletes the article is tagged with",
+       "name": "athletes_tagged",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "out_for_season, surgery, minutes_limit, return, injury, g_league or role, from the headline's wording; null when none applies",
+       "name": "news_flag",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      }
+     ],
+     "description": "ESPN's headlines per player: one row per article and tagged athlete, linked to the league player id, with a flag from the headline's wording.",
+     "materialized": "table",
+     "name": "player_news",
+     "notes": [
+      "ESPN's headlines per player: one row per article and tagged athlete, the latest landing of each, linked to the league player id through the player crosswalk (null when unlinked). athletes_tagged counts the players an article is tagged with: a roundup tags many, a story about the player few. news_flag sorts the headline by its wording, first match wins: out_for_season  out for the season, season-ending surgery         surgery, a scope or a procedure minutes_limit   a minutes restriction or limit return          returns, is cleared or activated, makes a debut injury          an injury in brackets (\"(ankle)\"), sprains, strains, fractures, to miss, ruled out g_league        a G League assignment role            benched, moved to the bench, a new starter, out of the rotation"
+     ],
+     "read_by": [
+      "fct_player_news"
+     ],
+     "reads": [
+      "espn_news",
+      "player_xwalk"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "",
        "name": "league",
        "tests": [],
@@ -6667,6 +6859,7 @@
       "fct_availability",
       "fct_market_value",
       "player_game_reconciliation",
+      "player_news",
       "player_xwalk_review"
      ],
      "reads": [
@@ -9527,6 +9720,86 @@
       "player_game_advanced",
       "player_game_box",
       "player_game_reconciliation"
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key",
+       "name": "player_news_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id",
+       "name": "stats_player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "article_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "article_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "headline",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "url",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "name": "published_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "",
+       "name": "published_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "out_for_season, surgery, minutes_limit, return, injury, g_league or role; null when none applies",
+       "name": "news_flag",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Headlines about each player for the player page: ESPN articles tagged with the player and at most three others, with the headline, date, a link to ESPN and the headline's flag.",
+     "materialized": "table",
+     "name": "fct_player_news",
+     "notes": [
+      "The headlines about each player for the player page: ESPN articles tagged with the player and at most three others (a roundup that tags many players says little about any one of them), one row per article and player, newest first. The site shows the headline, its date and a link to the story on ESPN, and the flag the headline's wording gives."
+     ],
+     "read_by": [],
+     "reads": [
+      "player_news"
      ]
     },
     {
