@@ -230,10 +230,10 @@ export function RestRiskTag({ risk, stakes }: { risk: boolean | null | undefined
   if (!risk) return null;
   const why =
     stakes === 'clinched'
-      ? 'His team has clinched a playoff place with few games left: regulars may rest'
+      ? 'The team has clinched a playoff place with few games left: regulars may rest'
       : stakes === 'eliminated'
-        ? 'His team is eliminated with few games left: minutes may go to young players'
-        : 'His team has nothing left to play for with few games left: minutes are less certain';
+        ? 'The team is eliminated with few games left: minutes may go to young players'
+        : 'The team has nothing left to play for with few games left: minutes are less certain';
   return (
     <span className="rounded border border-warn px-1 text-[10px] font-semibold text-warn" title={why} data-testid="rest-risk">
       REST?

@@ -104,7 +104,6 @@
   current_timestamp
 {%- endmacro %}
 
-{# Run date: today unless the build pins one (tests use var('as_of') for determinism). #}
 {#
   Today in US Eastern time, the calendar the leagues schedule by: a game tonight is still today
   for a build that runs after 8 pm Eastern, when the UTC date has already turned. The as_of var
@@ -122,6 +121,11 @@
   cast(from_utc_timestamp(current_timestamp(), 'America/New_York') as date)
 {%- endmacro %}
 
+{#
+  The run's date for every cut-off in gold (games remaining, next seven days, the schedule ahead):
+  the Eastern date, the same as eastern_today(), so a build after 8 pm Eastern still counts
+  tonight's games. The as_of var pins it for tests.
+#}
 {% macro as_of_date() -%}
-  {%- if var('as_of', none) -%}cast('{{ var('as_of') }}' as date){%- else -%}current_date{%- endif -%}
+  {{ eastern_today() }}
 {%- endmacro %}

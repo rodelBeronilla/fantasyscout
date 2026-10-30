@@ -636,7 +636,7 @@ test('streamers show waiver heat from Sleeper, filter to players being added, an
   const table = page.getByTestId('trending');
   await expect(table.getByTestId('waiver-heat').filter({ hasText: '+26.4k' })).toHaveCount(1);
   await expect(table.getByTestId('waiver-heat').filter({ hasText: '−7.4k' })).toHaveCount(1);
-  await expect(table.getByTestId('waiver-heat').first()).toHaveAttribute('title', /Sleeper leagues added him/);
+  await expect(table.getByTestId('waiver-heat').first()).toHaveAttribute('title', /Sleeper leagues added the player/);
   await page.getByLabel('Being added on Sleeper').check();
   await expect(table.locator('tbody tr')).toHaveCount(1);
   await expect(page.getByRole('link', { name: 'Sleeper', exact: true }).first()).toHaveAttribute('href', 'https://sleeper.com');
@@ -702,7 +702,7 @@ test('the streamers week grid marks the second night of a back-to-back, with tra
 test("the board sets the fantasy market's rank beside its own, and streamers can leave out widely rostered players", async ({ page }) => {
   await page.route('**/board/wnba.json', async (route) => {
     const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
-    await route.fulfill({ json: rows.map((r, i) => (i === 0 ? { ...r, market_rank: 9, market_gap: 8, ownership_bucket: 'most' } : r)) });
+    await route.fulfill({ json: rows.map((r, i) => (i === 0 ? { ...r, market_rank: 9, market_gap: 99, ownership_bucket: 'most' } : r)) });
   });
   await page.goto('/');
   const board = page.getByTestId('board');
@@ -711,6 +711,12 @@ test("the board sets the fantasy market's rank beside its own, and streamers can
   const mkt = board.getByTestId('market-rank').filter({ hasText: /^9$/ });
   await expect(mkt).toHaveAttribute('title', 'Rostered in most ESPN leagues');
   await expect(board.locator('tbody tr[data-player]').first().locator('td').nth(-2)).toHaveText(/\d/);
+  // The gap is the market's rank minus this board's rank under the league's settings, not the export's default-league gap.
+  const rows = board.locator('tbody tr[data-player]');
+  const at = await rows.evaluateAll((trs) => trs.findIndex((tr) => tr.querySelector('[data-testid="market-rank"]')?.textContent === '9'));
+  expect(at).toBeGreaterThanOrEqual(0);
+  const gap = 9 - (at + 1);
+  await expect(rows.nth(at).getByTestId('market-gap')).toHaveText(gap > 0 ? `+${gap}` : String(gap));
 
   await page.route('**/streamers/wnba.json', async (route) => {
     const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];

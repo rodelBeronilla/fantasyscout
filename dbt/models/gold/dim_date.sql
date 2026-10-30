@@ -1,8 +1,8 @@
-{# One row per calendar date from the first backfilled season through next year. #}
+{# One row per calendar date from the first backfilled season through 2030. #}
 
 with spine as (
 
-    {{ date_spine('2018-01-01', '2027-12-31') }}
+    {{ date_spine('2018-01-01', '2030-12-31') }}
 
 ),
 
