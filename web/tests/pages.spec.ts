@@ -812,6 +812,25 @@ test('the streamers week grid marks the second night of a back-to-back, with tra
   await expect(marker.locator('xpath=..')).toHaveAttribute('title', /Second night of a back-to-back: rest and minutes risk\. 1203 miles from the previous game/);
 });
 
+test("streamers follow the league's scoring and size", async ({ page }) => {
+  await page.route('**/streamers/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r, i) => (i === 0 ? { ...r, last_10_z_total: 5, last_10_z_turnovers: -2 } : r)) });
+  });
+  await page.goto('/league/');
+  await page.getByLabel('Teams in the league').fill('6');
+  await page.getByLabel('Scoring').selectOption('cats8');
+  await page.goto('/streamers/');
+  const table = page.getByTestId('trending');
+  // 8 categories: turnovers leave the last-ten value (5 minus -2)
+  await expect(table.locator('tbody tr').filter({ hasText: '7.00' })).toHaveCount(1);
+  await expect(page.getByLabel('Likely available').locator('option', { hasText: 'your league: 6 ×' })).toHaveCount(1);
+  await page.goto('/league/');
+  await page.getByLabel('Scoring').selectOption('points');
+  await page.goto('/streamers/');
+  await expect(page.getByTestId('points-note')).toBeVisible();
+});
+
 test('the board and streamers show a fresh headline flag, the fantasy week and the ESPN ownership trend', async ({ page }) => {
   await page.route('**/board/wnba.json', async (route) => {
     const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
