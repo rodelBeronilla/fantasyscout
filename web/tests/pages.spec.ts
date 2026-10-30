@@ -754,6 +754,39 @@ test('the streamers week grid marks the second night of a back-to-back, with tra
   await expect(marker.locator('xpath=..')).toHaveAttribute('title', /Second night of a back-to-back: rest and minutes risk\. 1203 miles from the previous game/);
 });
 
+test('the board and streamers show a fresh headline flag, the fantasy week and the ESPN ownership trend', async ({ page }) => {
+  await page.route('**/board/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({
+      json: rows.map((r, i) =>
+        i === 0 ? { ...r, news_flag: 'return', news_headline: 'Guard returns from ankle injury', news_date: '2026-10-29', games_this_week: 3 } : r,
+      ),
+    });
+  });
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  const tag = board.getByTestId('news-tag');
+  await expect(tag).toHaveCount(1);
+  await expect(tag).toHaveText('BACK');
+  await expect(tag).toHaveAttribute('title', /Guard returns from ankle injury/);
+
+  await page.route('**/streamers/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    const extra = [
+      { ownership_trend: 'rising', injury_group: 'questionable', injury_status: 'Questionable', injury_type: 'Ankle', injury_source: 'espn' },
+      { ownership_trend: 'falling' },
+    ];
+    await route.fulfill({ json: rows.map((r, i) => ({ ...r, ...(extra[i] ?? {}) })) });
+  });
+  await page.goto('/streamers/');
+  const table = page.getByTestId('trending');
+  await expect(table.getByTestId('trend-tag')).toHaveCount(2);
+  await expect(table.getByTestId('injury-tag').first()).toHaveAttribute('title', /Ankle/);
+  await page.getByLabel('Rising in ESPN leagues').check();
+  await expect(table.locator('tbody tr')).toHaveCount(1);
+  await expect(page.getByRole('radio', { name: /This week/ })).toBeVisible();
+});
+
 test("the board sets the fantasy market's rank beside its own, and streamers can leave out widely rostered players", async ({ page }) => {
   await page.route('**/board/wnba.json', async (route) => {
     const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { NoBuildError } from '../lib/data';
+import { day } from '../lib/format';
 
 export function Loading({ what }: { what: string }) {
   return (
@@ -202,13 +203,31 @@ export function Star({ on, label, onToggle }: { on: boolean; label: string; onTo
   );
 }
 
-/** Today's role from the league's starting lineups (NBA): a starter, or ruled inactive. */
-export function LineupTag({ role, confirmed }: { role: string | null | undefined; confirmed: boolean | null | undefined }) {
+/** The day a lineup role is for: "today", or the weekday and date of the next game day. */
+function lineupDay(date: string | null | undefined): string {
+  if (!date) return 'today';
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  if (date === today) return 'today';
+  const d = new Date(`${date}T12:00:00Z`);
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+/** The role from the league's starting lineups (NBA) for the next game day: a starter, or ruled inactive. */
+export function LineupTag({
+  role,
+  confirmed,
+  date,
+}: {
+  role: string | null | undefined;
+  confirmed: boolean | null | undefined;
+  date?: string | null;
+}) {
+  const when = lineupDay(date);
   if (role === 'starter') {
     return (
       <span
         className={`rounded border px-1 text-[10px] font-semibold ${confirmed ? 'border-good bg-good text-bg' : 'border-good text-good'}`}
-        title={confirmed ? 'Starting today: confirmed by the team' : 'Expected to start today (not yet confirmed)'}
+        title={confirmed ? `Starting ${when}: confirmed by the team` : `Expected to start ${when} (not yet confirmed)`}
         data-testid="lineup-tag"
       >
         {confirmed ? 'START' : 'START?'}
@@ -217,12 +236,81 @@ export function LineupTag({ role, confirmed }: { role: string | null | undefined
   }
   if (role === 'inactive') {
     return (
-      <span className="rounded border border-bad px-1 text-[10px] font-semibold text-bad" title="Ruled inactive for today's game" data-testid="lineup-tag">
+      <span className="rounded border border-bad px-1 text-[10px] font-semibold text-bad" title={`Ruled inactive ${when}`} data-testid="lineup-tag">
         INACT
       </span>
     );
   }
   return null;
+}
+
+/** The fields behind an injury tag's tooltip, on any page's row. */
+export interface InjuryFields {
+  injury_type?: string | null;
+  injury_since?: string | null;
+  expected_return?: string | null;
+  injury_news?: string | null;
+  injury_note?: string | null;
+  injury_source?: string | null;
+  official_game_date?: string | null;
+  official_report_at?: string | null;
+}
+
+/** An injury tag's tooltip: whose report, the injury, since when, the expected return and the note. */
+export function injuryDetail(row: InjuryFields): string {
+  return [
+    row.injury_source === 'official' && row.official_game_date
+      ? `Official report for ${day(row.official_game_date)}${row.official_report_at ? ` (${row.official_report_at.slice(11, 16)} ET)` : ''}`
+      : row.injury_source === 'espn'
+        ? "ESPN's injury listing"
+        : null,
+    row.injury_type,
+    row.injury_since ? `since ${day(row.injury_since)}` : null,
+    row.expected_return ? `return ${day(row.expected_return)}` : null,
+    row.injury_news || row.injury_note,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+const NEWS_TAGS: Record<string, { label: string; tone: string }> = {
+  out_for_season: { label: 'SEASON', tone: 'border-bad text-bad' },
+  surgery: { label: 'SURG', tone: 'border-bad text-bad' },
+  injury: { label: 'NEWS', tone: 'border-warn text-warn' },
+  minutes_limit: { label: 'MIN LIM', tone: 'border-warn text-warn' },
+  return: { label: 'BACK', tone: 'border-good text-good' },
+  g_league: { label: 'G LG', tone: 'border-line text-muted' },
+  role: { label: 'ROLE', tone: 'border-line text-muted' },
+};
+
+/** The newest flagged ESPN headline about the player in the last three days, the headline in the tooltip. */
+export function NewsTag({ flag, headline, date }: { flag: string | null | undefined; headline?: string | null; date?: string | null }) {
+  if (!flag) return null;
+  const tag = NEWS_TAGS[flag] ?? { label: 'NEWS', tone: 'border-line text-muted' };
+  return (
+    <span
+      className={`rounded border px-1 text-[10px] font-semibold ${tag.tone}`}
+      title={[date ? day(date) : null, headline].filter(Boolean).join(': ') + ' (ESPN)'}
+      data-testid="news-tag"
+    >
+      {tag.label}
+    </span>
+  );
+}
+
+/** ESPN ownership moving a point or more: rising or falling across ESPN leagues. */
+export function TrendTag({ trend }: { trend: string | null | undefined }) {
+  if (trend !== 'rising' && trend !== 'falling') return null;
+  const up = trend === 'rising';
+  return (
+    <span
+      className={up ? 'text-good' : 'text-bad'}
+      title={up ? 'Rising in ESPN leagues: rostered in a point or more of them than before' : 'Falling in ESPN leagues: dropped from a point or more of them'}
+      data-testid="trend-tag"
+    >
+      {up ? '▲' : '▼'}
+    </span>
+  );
 }
 
 /** A player whose team has nothing left to play for in the last stretch: minutes are less certain. */

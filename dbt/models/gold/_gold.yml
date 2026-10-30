@@ -556,6 +556,11 @@ models:
         data_tests:
           - accepted_values:
               values: [most, many, some, few, rare]
+      - name: ownership_trend
+        description: "rising when ESPN's ownership change is +1 point or more, falling at -1 or less, else null: the waiver signal for both leagues"
+        data_tests:
+          - accepted_values:
+              values: [rising, falling]
       - name: percent_owned
         description: "Percent of ESPN leagues rostering the player, 0-100; null when no league does"
       - name: percent_started
@@ -1303,14 +1308,24 @@ models:
         description: "The game the official status is for"
       - name: official_report_at
         description: "When the official report was published, Eastern time"
+      - name: news_flag
+        description: "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role"
+      - name: news_headline
+        description: "That headline, as ESPN wrote it"
+      - name: news_date
+        description: "The Eastern date ESPN published it"
       - name: lineup_role
         description: "starter, bench or inactive in today's game, from the league's starting lineups (NBA only); null without one"
       - name: lineup_confirmed
         description: "True once the team has confirmed today's lineup"
+      - name: lineup_date
+        description: "The game day the lineup role is for (the next game day with a lineup, today or later)"
       - name: market_rank
         description: "Where ESPN drafters take the player (fct_market_value)"
       - name: ownership_bucket
         description: "How widely ESPN leagues roster the player: most, many, some, few or rare"
+      - name: ownership_trend
+        description: "rising or falling ESPN ownership (fct_market_value); null when steady or unknown"
       - name: team_stakes
         description: "What the player's team still plays for: eliminated, clinched or racing (fct_team_stakes)"
       - name: rest_risk
@@ -1322,6 +1337,8 @@ models:
         description: "The team's regular-season games not yet final from the run date on"
       - name: games_next_7
         description: "The team's games in the next seven days, playoffs included, unconfirmed if-necessary games left out"
+      - name: games_this_week
+        description: "Team games left in the fantasy week (Monday to Sunday), from today's Eastern date"
       - name: games_scheduled
         description: "The team's regular-season games scheduled this season"
       - name: season_complete
@@ -1428,6 +1445,8 @@ models:
         description: "True when the league has no games in the next seven days, as between seasons"
       - name: games_next_7
         description: "The team's games in the next seven days (mart_schedule_upcoming)"
+      - name: games_this_week
+        description: "Team games left in the fantasy week (Monday to Sunday), from today's Eastern date"
       - name: last_game_date
         description: "Date of the player's latest game this season"
       - name: games_season
@@ -1500,12 +1519,40 @@ models:
         description: "Status from fct_player_status (official report for the next game, else ESPN); null without one"
       - name: injury_group
         description: "Status group of injury_status; null without a status"
+      - name: injury_type
+        description: "Body part or reason for the listing"
+      - name: expected_return
+        description: "ESPN's expected return date, where given"
+      - name: injury_note
+        description: "ESPN's short comment on the injury"
+      - name: injury_news
+        description: "ESPN's longer injury note"
+      - name: injury_since
+        description: "The date the current status began"
+      - name: injury_source
+        description: "official (the league's report for the next game) or espn"
+      - name: official_game_date
+        description: "The game the official report's status is for"
+      - name: official_report_at
+        description: "When that official report was published (Eastern)"
+      - name: news_flag
+        description: "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role"
+      - name: news_headline
+        description: "That headline, as ESPN wrote it"
+      - name: news_date
+        description: "The Eastern date ESPN published it"
       - name: lineup_role
         description: "starter, bench or inactive in today's game (fct_starting_lineup, NBA only); null without one"
       - name: lineup_confirmed
         description: "True once the team has confirmed today's lineup"
+      - name: lineup_date
+        description: "The game day the lineup role is for (the next game day with a lineup, today or later)"
       - name: ownership_bucket
         description: "How widely ESPN leagues roster the player: most, many, some, few or rare"
+      - name: ownership_trend
+        description: "rising or falling ESPN ownership (fct_market_value); null when steady or unknown"
+      - name: team_stakes
+        description: "What the player's team still plays for: eliminated, clinched or racing (fct_team_stakes)"
       - name: rest_risk
         description: "True when the player's team is clinched or eliminated in the last stretch (fct_team_stakes)"
       - name: sleeper_adds

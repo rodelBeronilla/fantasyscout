@@ -85,13 +85,18 @@ recent_value as (
 
 upcoming as (
 
-    select league, team_id, cast(count(*) as integer) as games_next_7
+    select
+        league,
+        team_id,
+        cast(sum(case when days_ahead < 7 then 1 else 0 end) as integer) as games_next_7,
+        -- the fantasy week runs Monday to Sunday
+        cast(sum(case when game_date < {{ add_days(week_start(as_of_date()), 7) }} then 1 else 0 end) as integer) as games_this_week
     from (
-        select league, home_team_id as team_id, days_ahead from {{ ref('mart_schedule_upcoming') }}
+        select league, home_team_id as team_id, days_ahead, game_date from {{ ref('mart_schedule_upcoming') }}
         union all
-        select league, away_team_id as team_id, days_ahead from {{ ref('mart_schedule_upcoming') }}
+        select league, away_team_id as team_id, days_ahead, game_date from {{ ref('mart_schedule_upcoming') }}
     ) as sides
-    where days_ahead < 7
+    where days_ahead < 14
     group by league, team_id
 
 ),
@@ -108,9 +113,21 @@ league_state as (
 injury as (
 
     -- The official report for the next game where it lists the player, else ESPN.
-    select league, stats_player_id, status, status_group
+    select league, stats_player_id, status, status_group, injury_type, expected_return, short_comment,
+        long_comment, status_since, status_source, official_game_date, official_report_at
     from {{ ref('fct_player_status') }}
     where status_group is not null
+
+),
+
+latest_news as (
+
+    -- The newest headline about the player with a flag (injury, return, role...) in the last three
+    -- days, shown beside the injury tag.
+    select league, stats_player_id, news_flag, headline as news_headline, published_date as news_date
+    from {{ ref('fct_player_news') }}
+    where news_flag is not null and published_date >= {{ add_days(as_of_date(), -3) }}
+    qualify row_number() over (partition by league, stats_player_id order by published_at desc, article_id) = 1
 
 ),
 
@@ -177,6 +194,7 @@ select
     lr.season,
     ls.season_complete,
     cast(coalesce(u.games_next_7, 0) as integer) as games_next_7,
+    cast(coalesce(u.games_this_week, 0) as integer) as games_this_week,
     lr.game_date as last_game_date,
     sl.games as games_season,
     lr.games_in_window_5,
@@ -207,9 +225,23 @@ select
     lr.free_throw_pct_5,
     i.status as injury_status,
     i.status_group as injury_group,
+    i.injury_type,
+    i.expected_return,
+    i.short_comment as injury_note,
+    i.long_comment as injury_news,
+    i.status_since as injury_since,
+    i.status_source as injury_source,
+    i.official_game_date,
+    i.official_report_at,
+    ln.news_flag,
+    ln.news_headline,
+    ln.news_date,
     lu.lineup_role,
     lu.is_confirmed as lineup_confirmed,
+    lu.game_date as lineup_date,
     mk.ownership_bucket,
+    mk.ownership_trend,
+    ts.stakes as team_stakes,
     coalesce(ts.rest_risk, false) as rest_risk,
     wt.adds as sleeper_adds,
     wt.drops as sleeper_drops,
@@ -224,6 +256,7 @@ left join current_stint as cs on cs.league = lr.league and cs.stats_player_id = 
 left join {{ ref('teams') }} as t on t.league = lr.league and t.season = lr.season and t.team_id = cs.team_id
 left join upcoming as u on u.league = lr.league and u.team_id = cs.team_id
 left join injury as i on i.league = lr.league and i.stats_player_id = lr.player_id
+left join latest_news as ln on ln.league = lr.league and ln.stats_player_id = lr.player_id
 left join {{ ref('fct_starting_lineup') }} as lu on lu.league = lr.league and lu.player_id = lr.player_id
 left join {{ ref('fct_market_value') }} as mk on mk.league = lr.league and mk.stats_player_id = lr.player_id
 left join {{ ref('fct_team_stakes') }} as ts on ts.league = lr.league and ts.team_id = cs.team_id
