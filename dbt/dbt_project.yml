@@ -41,10 +41,17 @@ vars:
   # A past season spent mostly on another team: the share of its minutes weight it keeps.
   fantasy_team_change: 0.25
   # In season, projected minutes blend the season-weighted figure with the player's last five
-  # games on his current team at this weight: a role change shows up at once. Backtested on
+  # games on their current team at this weight: a role change shows up at once. Backtested on
   # next-ten-game minutes (ADR 0003): NBA error 3.98 to 3.44 minutes, WNBA 3.92 to 3.30, and a
   # quarter less for players whose role just moved.
   fantasy_recent_minutes: 0.5
+  # In season, a player with 5+ games who is still out, or just back, after three or more straight
+  # team games missed plays fewer minutes at first: projected minutes are cut by per_game_missed
+  # for each game of the absence (at most max_cut) while the player is out, fading to none once
+  # they have played games_back games. Backtested on next-five and next-ten-game minutes (ADR
+  # 0003): for the players cut, error 4.57 to 4.13 and 4.24 to 3.94 minutes out of sample in the
+  # NBA, 4.16 to 3.94 and 4.06 to 4.04 in the WNBA; nobody else moves.
+  fantasy_return_ramp: {min_games_missed: 3, per_game_missed: 0.01, max_cut: 0.5, games_back: 2}
   # Matchups (mart_schedule_upcoming): value per game per standard deviation of the opponent's
   # defensive rating and of the expected pace, from replaying past seasons (ADR 0003); team
   # ratings blend this season to date with last season, last season counting as prior_games.

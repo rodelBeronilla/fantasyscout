@@ -10,8 +10,8 @@ CELLS = [
 **The question.** Every draft pick and most in-season adds lean on the board's ranking. The
 board does more than average past seasons: it blends production per minute and minutes per game
 with recency weights, discounts a role on another team, follows the last five games in season,
-starts every player from a few games of a replacement-level line and scales by how often the
-player plays (ADR 0003). That machinery is only worth having if it ranks the players who go on
+cuts the minutes of a player coming back from an absence, starts every player from a few games
+of a replacement-level line and scales by how often the player plays (ADR 0003). That machinery is only worth having if it ranks the players who go on
 to produce better than what a manager could do with no model: last season's per-game numbers,
 or this season's so far.
 
@@ -49,7 +49,8 @@ season.""",
   the settings (ADR 0003), so results there are in-sample. Earlier seasons are out-of-sample
   (NBA 2023-24 and WNBA 2018 have no season before them, so they start a tenth of the way in).
   The in-season minutes blend was fitted on next-ten-game minutes over all seasons, so no season
-  is fully untouched by it.""",
+  is fully untouched by it. Two later sections test single pieces with their own protocol: the
+  return ramp on next-five and next-ten-game minutes, and an aging curve before the season.""",
     ),
     setup(),
     (
@@ -279,6 +280,285 @@ if len(players):
     if reliability:
         display(pd.concat({LABEL[lg]: r['slope'] for lg, r in reliability.items()}).round(3))
     display(pd.DataFrame({lg: {k: v for k, v in c.items() if k != 'deciles'} for lg, c in calibration.items()}).round(3))""",
+    ),
+    (
+        "md",
+        """## Minutes after a return from absence
+
+A player back from several games out tends to play fewer minutes at first, and the projection's
+last five games only show it once those games have been played. In season the board therefore
+cuts the projected minutes of a player with five or more games this season who has missed three
+or more straight games of their current team: by 1% per game missed (at most 50%) while still out,
+half that after the first game back, and nothing from the second (`fantasy_return_ramp`, ADR 0003).
+The team's games count from the player's first game for it this season, or from its first game
+when it was their main team last season.
+
+The test follows the in-season minutes protocol of ADR 0003. Every 14 days through each regular
+season, every player with five or more games so far is projected as the board would have done,
+with and without the cut, and compared with the mean minutes of their next 5 and next 10 games
+played (at least 5). The rule was chosen on NBA 2023-24 and 2024-25 and WNBA 2018 to 2024
+(`replay.RAMP_FIT_SEASONS`); later seasons are out of sample. *Bias* is actual minus projected
+minutes; the interval is a 95% player-bootstrap interval on the change in error among the players
+the cut applies to. The second table follows players up to five games back by the length of the
+absence: the longer it was, the further the minutes fall short.""",
+    ),
+    (
+        "code",
+        """def minutes_checkpoints(r):
+    \"\"\"Every 14 days of each regular season: projected minutes of every player with 5+ games so
+    far, with the return ramp and without it, against the next 5 and 10 games played.\"\"\"
+    g = r.games
+    out = []
+    for season in r.seasons():
+        reg = g[(g['season'] == season) & g['regular']]
+        if reg.empty:
+            continue
+        earlier = [s for s in r.seasons() if s < season]
+        played = g[(g['season'] == season) & g['played']].sort_values(['game_date', 'game_id'])
+        start, end = reg['game_date'].min(), reg['game_date'].max()
+        for cut in pd.date_range(start + pd.Timedelta(days=14), end - pd.Timedelta(days=10), freq='14D'):
+            before, after = played[played['game_date'] < cut], played[played['game_date'] >= cut]
+            games = before.groupby('player_id').size()
+            team = before[before['player_id'].isin(games[games >= 5].index)].groupby('player_id')['team_id'].last()
+            if team.empty:
+                continue
+            proj = r.project(cut, team.rename('team_id').reset_index(), in_season=True, complete_seasons=earlier)
+            df = proj[['proj_minutes_pg', 'return_minutes_factor', 'absence_games', 'games_since_return']].copy()
+            df['as_built'] = df['proj_minutes_pg'] / df['return_minutes_factor']
+            for n in (5, 10):
+                t = after.groupby('player_id').head(n).groupby('player_id')['minutes'].agg(['mean', 'size'])
+                df[f'next_{n}'] = t['mean'].where(t['size'] >= 5).reindex(df.index)
+            df['season'], df['cut'] = season, cut
+            out.append(df.reset_index())
+    return pd.concat(out, ignore_index=True) if out else pd.DataFrame()
+
+
+def player_interval(diff, players, reps=200, seed=7):
+    \"\"\"Mean of diff with a basic player-bootstrap interval (Poisson weights per player).\"\"\"
+    rng = np.random.default_rng(seed)
+    ids, inv = np.unique(players, return_inverse=True)
+    est = float(np.mean(diff)) if len(diff) else np.nan
+    draws = []
+    for _ in range(reps):
+        w = rng.poisson(1.0, len(ids))[inv]
+        if w.sum():
+            draws.append(np.average(diff, weights=w))
+    return (est, *basic_interval(est, np.array(draws)))
+
+
+ramp_groups, ramp_lengths, ramp_summary = [], [], []
+for lg, r in replays.items():
+    d = minutes_checkpoints(r)
+    if d.empty:
+        continue
+    d = d[d['next_5'].notna()].copy()
+    d['sample'] = np.where(d['season'].isin(rp.RAMP_FIT_SEASONS[lg]), 'fitted on', 'out-of-sample')
+    back = d['games_since_return']
+    d['status'] = np.select([back.isna() | (back > 5), back == 0, back == 1],
+                            ['no absence, or 6+ games back', 'still out', '1 game back'], '2 to 5 games back')
+    for (sample, status), q in d.groupby(['sample', 'status']):
+        row = {'league': LABEL[lg], 'sample': sample, 'status': status, 'players': len(q)}
+        for n in (5, 10):
+            row[f'bias next {n}, as built'] = (q[f'next_{n}'] - q['as_built']).mean()
+            row[f'bias next {n}, ramp'] = (q[f'next_{n}'] - q['proj_minutes_pg']).mean()
+        ramp_groups.append(row)
+    recent = d[back <= 5].copy()
+    recent['missed'] = pd.cut(recent['absence_games'], [2, 5, 10, 20, np.inf], labels=['3 to 5', '6 to 10', '11 to 20', '21 or more'])
+    for (sample, missed), q in recent.groupby(['sample', 'missed'], observed=True):
+        ramp_lengths.append({'league': LABEL[lg], 'sample': sample, 'games missed': missed, 'players': len(q),
+                             'bias next 5, as built': (q['next_5'] - q['as_built']).mean(),
+                             'bias next 5, ramp': (q['next_5'] - q['proj_minutes_pg']).mean(),
+                             'bias next 10, as built': (q['next_10'] - q['as_built']).mean(),
+                             'bias next 10, ramp': (q['next_10'] - q['proj_minutes_pg']).mean()})
+    for sample, q in d.groupby('sample'):
+        cut = (q['return_minutes_factor'] < 1).to_numpy()
+        for n in (5, 10):
+            before = (q[f'next_{n}'] - q['as_built']).abs().to_numpy()
+            after = (q[f'next_{n}'] - q['proj_minutes_pg']).abs().to_numpy()
+            est, lo, hi = player_interval(after[cut] - before[cut], q['player_id'].to_numpy()[cut])
+            ramp_summary.append({'league': LABEL[lg], 'sample': sample, 'target': f'next {n} games',
+                                 'checkpoints': q['cut'].nunique(), 'cut players': int(cut.sum()),
+                                 'cut: as built': before[cut].mean(), 'cut: ramp': after[cut].mean(),
+                                 'change': est, 'lo': lo, 'hi': hi, 'others (unchanged)': before[~cut].mean(),
+                                 'everyone: as built': before.mean(), 'everyone: ramp': after.mean()})
+if ramp_summary:
+    display(pd.DataFrame(ramp_groups).round(2))
+    display(pd.DataFrame(ramp_lengths).round(2))
+    display(pd.DataFrame(ramp_summary).round(3))
+else:
+    print('No regular season long enough for 14-day minutes checkpoints in this build.')""",
+    ),
+    (
+        "md",
+        """## Aging before the season
+
+Before a season the projection rests on last season and the two before it, and says nothing of
+age. Players in their early twenties tend to gain minutes and per-minute production from one
+season to the next, and players past thirty to lose them. The question is whether a curve of that
+change by age makes the preseason board better.
+
+The curve is the year-over-year change in minutes per game and in per-minute production (an equal
+mix of points, rebounds, assists, steals, blocks and threes, each against the league's rate), by
+age at the next season's first game, over players with 200 minutes (NBA) or 100 (WNBA) in both
+seasons, weighted by the harmonic mean of the two seasons' minutes and fitted as a quadratic in age
+(clipped to 20 to 36). Age comes from the roster birth date in `dim_player` ('MAR 03, 1996'). The
+preseason projection's minutes and production are multiplied by the curve, scored again and
+compared with the rest of the season like the board above. *Forward* fits the curve on the
+transitions before the season it is tested on. *Cross-fitted* also uses later transitions, so it
+is not a forward test: it is there because the NBA has a single forward season. Intervals are
+95% player-bootstrap intervals on the change against the board as built.""",
+    ),
+    (
+        "code",
+        """RATE_MIX = ('points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made')
+AGE_METHODS = {'minutes': 'Minutes curve', 'production': 'Production curve', 'both': 'Both curves'}
+
+
+def birth_dates(lg):
+    if 'birth_date' not in columns(con, 'dim_player'):
+        return pd.Series(dtype='datetime64[ns]')
+    b = con.sql(f"select stats_player_id as player_id, max(birth_date) as birth_date from dim_player "
+                f"where league = '{lg}' group by 1").df()
+    return pd.to_datetime(b.set_index('player_id')['birth_date'], format='%b %d, %Y', errors='coerce').dropna()
+
+
+def season_pairs(r, birth, min_minutes):
+    \"\"\"One row per player and pair of consecutive seasons: age, weight and log changes.\"\"\"
+    parts = []
+    for season, part in r.games.groupby('season'):
+        ln = rp.lines(part)
+        if len(ln):
+            parts.append(ln.assign(season=season, start=part['game_date'].min()))
+    if len(parts) < 2:
+        return pd.DataFrame()
+    ln = pd.concat(parts).rename_axis('player_id').reset_index()
+    rate = {c: (ln[f'{c}_pg'] * ln['games']).sum() / ln['total_minutes'].sum() for c in RATE_MIX}
+    ln['mix'] = sum(ln[f'{c}_pg'] / ln['minutes_pg'] / rate[c] for c in RATE_MIX) / len(RATE_MIX)
+    seasons = sorted(ln['season'].unique())
+    a = ln[ln['season'].isin(seasons[:-1])].assign(next=lambda x: x['season'].map(dict(zip(seasons[:-1], seasons[1:]))))
+    p = a.merge(ln, left_on=['player_id', 'next'], right_on=['player_id', 'season'], suffixes=('', '_n'))
+    p = p[(p['total_minutes'] >= min_minutes) & (p['total_minutes_n'] >= min_minutes)].copy()
+    p['age'] = (p['start_n'] - p['player_id'].map(birth)).dt.days / 365.25
+    p['w'] = 2 / (1 / p['total_minutes'] + 1 / p['total_minutes_n'])
+    p['d_minutes'] = np.log(p['minutes_pg_n'] / p['minutes_pg'])
+    p['d_production'] = np.log(p['mix_n'] / p['mix'])
+    return p[p['age'].notna() & np.isfinite(p['d_production'])]
+
+
+def age_curve(p, col):
+    \"\"\"Weighted quadratic in age (clipped to 20 to 36) of a log change.\"\"\"
+    x = p['age'].clip(20, 36).to_numpy() - 27
+    sw = np.sqrt(p['w'].to_numpy())
+    beta = np.linalg.lstsq(np.column_stack([np.ones_like(x), x, x**2]) * sw[:, None], p[col].to_numpy() * sw, rcond=None)[0]
+    return lambda age: np.where(np.isfinite(age), np.polyval(beta[::-1], np.clip(age, 20, 36) - 27), 0.0)
+
+
+def aged(proj, age, minutes=None, production=None):
+    out = proj.copy()
+    a = age.reindex(out.index).to_numpy(dtype=float)
+    m = np.exp(minutes(a)) if minutes else 1.0
+    q = np.exp(production(a)) if production else 1.0
+    out['proj_minutes_pg'] = out['proj_minutes_pg'] * m
+    for c in rp.PRODUCTION:
+        out[f'proj_{c}_pg'] = out[f'proj_{c}_pg'] * m * q
+    return out
+
+
+age_pairs, age_records, age_frames = {}, [], {}
+for lg, r in replays.items():
+    birth = birth_dates(lg)
+    p = season_pairs(r, birth, 200 if lg == 'nba' else 100)
+    if p.empty:
+        continue
+    age_pairs[lg] = p
+    for season in complete_seasons(r):
+        cps = r.checkpoints(season)
+        if not cps or cps[0][0] != 'preseason':
+            continue
+        day = cps[0][1]
+        roster = r.roster_at(season, day, preseason=True)
+        proj = r.project(day, roster, in_season=False, complete_seasons=[s for s in r.seasons() if s < season])
+        real = r.realised(season, day, roster)
+        ids = real.index
+        age = (day - proj.index.to_series().map(birth)).dt.days / 365.25
+        for fit, train in (('forward', p[p['season_n'] < season]), ('cross-fitted', p[p['season_n'] != season])):
+            if train['season_n'].nunique() < 1 or len(train) < 50:
+                continue
+            fm, fp = age_curve(train, 'd_minutes'), age_curve(train, 'd_production')
+            variants = {'built': proj, 'minutes': aged(proj, age, minutes=fm), 'production': aged(proj, age, production=fp),
+                        'both': aged(proj, age, minutes=fm, production=fp)}
+            pred = {}
+            for name, pj in variants.items():
+                v = rp.score(pj, r.settings)
+                total = v['value_per_game'].where(v['value_per_game'] <= 0, v['value_per_game'] * pj['games_share'])
+                pred[name] = (v['value_per_game'].reindex(ids).fillna(0).to_numpy(), total.reindex(ids).fillna(0).to_numpy())
+                age_records.append({'league': lg, 'fit': fit, 'season': season, 'transitions': train['season_n'].nunique(),
+                                    'method': name, **rp.evaluate(*pred[name], real['value_pg'].to_numpy(), real['eligible'].to_numpy(),
+                                                                  real['value_total'].to_numpy(), rp.TOP_N[lg])})
+            age_frames.setdefault((lg, fit), []).append({'season': season, 'player_id': ids.to_numpy(), 'pred': pred,
+                                                         'value_pg': real['value_pg'].to_numpy(), 'eligible': real['eligible'].to_numpy(),
+                                                         'value_total': real['value_total'].to_numpy()})
+if age_pairs:
+    curve = []
+    for lg, p in age_pairs.items():
+        bands = pd.cut(p['age'], [0, 23, 26, 29, 32, 50], labels=['under 23', '23 to 26', '26 to 29', '29 to 32', '32 and over'])
+        for band, q in p.groupby(bands, observed=True):
+            curve.append({'league': LABEL[lg], 'age': band, 'pairs': len(q),
+                          'minutes per game, change': np.expm1(np.average(q['d_minutes'], weights=q['w'])),
+                          'production per minute, change': np.expm1(np.average(q['d_production'], weights=q['w']))})
+    display(pd.DataFrame(curve).round(3))
+else:
+    print('No pair of consecutive seasons with birth dates in this build.')""",
+    ),
+    (
+        "code",
+        """AGE_METRICS = ['top_total', 'top_pg', 'spearman_total', 'spearman_pg', 'mae_pg', 'capture']
+age_rows = []
+age_results = pd.DataFrame(age_records)
+for (lg, fit), fr in age_frames.items():
+    point = age_results[(age_results['league'] == lg) & (age_results['fit'] == fit)]
+    seasons = sorted(point['season'].unique())
+    groups = [('latest', seasons[-(2 if lg == 'wnba' else 1):]), ('every season', seasons)]
+    b = rp.bootstrap(fr, rp.TOP_N[lg], reps=200)
+    b['season'] = b['frame'].map({k: f['season'] for k, f in enumerate(fr)})
+    for label, keep in groups:
+        if label == 'every season' and len(keep) == len(groups[0][1]):
+            continue
+        pm, bm = point[point['season'].isin(keep)], b[b['season'].isin(keep)]
+        means = pm.groupby('method')[AGE_METRICS].mean()
+        kept = [f for f in fr if f['season'] in keep]
+        real_total = np.concatenate([f['value_total'] for f in kept])
+
+        def slope_above(method):
+            pred_total = np.concatenate([f['pred'][method][1] for f in kept])
+            return fit_slope(pred_total[pred_total > 0], real_total[pred_total > 0])
+
+        for method in AGE_METHODS:
+            row = {'league': LABEL[lg], 'fit': fit, 'seasons': f"{keep[0]} to {keep[-1]}" if len(keep) > 1 else keep[0],
+                   'method': AGE_METHODS[method],
+                   'slope above replacement': f"{slope_above('built'):.2f} to {slope_above(method):.2f}"}
+            for m in AGE_METRICS:
+                wide = bm.pivot_table(index=['rep', 'frame'], columns='method', values=m)
+                d = (wide[method] - wide['built']).groupby('rep').mean()
+                gap = means.loc[method, m] - means.loc['built', m]
+                lo, hi = basic_interval(gap, d)
+                row[m] = f"{means.loc['built', m]:.3f} to {means.loc[method, m]:.3f}, {gap:+.3f} ({lo:+.3f} to {hi:+.3f})"
+            age_rows.append(row)
+if age_rows:
+    display(pd.DataFrame(age_rows))
+else:
+    print('No preseason checkpoint with a fitted curve in this build.')""",
+    ),
+    (
+        "md",
+        """On the history behind ADR 0003's aging addendum the curve is real but adds little to what the
+projection already knows. Over seven forward WNBA seasons it raised no hit rate or rank
+correlation, and the only intervals clear of zero were small losses. The NBA's single forward
+season (2025-26, a curve from one transition) gained four of the top 50, but cross-fitted 2024-25
+lost one, and a player bootstrap of one season resamples players, not seasons. Rank correlation
+rose by about 0.01 and the error per game fell in both NBA seasons; a change of scale also lowers
+that error (ADR 0003, the value spread addendum). So the board does not age players, and this
+section re-tests the curve as NBA seasons accumulate.""",
     ),
     (
         "md",

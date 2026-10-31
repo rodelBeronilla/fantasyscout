@@ -20,6 +20,7 @@ const fantasy = schema.fantasy as {
   fantasy_durability: { typical_share: number };
   fantasy_team_change: number;
   fantasy_recent_minutes: number;
+  fantasy_return_ramp: { min_games_missed: number; per_game_missed: number; max_cut: number; games_back: number };
 };
 const nba = fantasy.fantasy['nba']!;
 const wnba = fantasy.fantasy['wnba']!;
@@ -305,6 +306,7 @@ export function valueActivity(): Promise<string> {
   const bar = (w: number) => `shape=box, label="", height=0.05, width=${w}, fillcolor="${T.fg}", color="${T.fg}", fixedsize=true`;
   const pool = (l: { teams: number; roster_spots: number }) => l.teams * l.roster_spots;
   const recent = fantasy.fantasy_recent_minutes;
+  const ramp = fantasy.fantasy_return_ramp;
   return renderDot(`digraph value {
     ${DOT_DEFAULTS}
     rankdir=TB; nodesep=0.3; ranksep=0.22;
@@ -312,7 +314,7 @@ export function valueActivity(): Promise<string> {
     a1 [${act}, label="Per-season lines for this season and the two before (mart_category_zscores),\\nfor players on their team's latest roster", URL="${href('/schema/#m-mart_category_zscores')}"];
     fork [${bar(6)}];
     a3 [${act}, label="Production per minute\\nseasons weighted by\\nminutes × ${fantasy.fantasy_recency.join(' / ')}"];
-    a4 [${act}, label="Minutes per game\\ngames × ${nba.minutes_recency.join(' / ')} (NBA)\\ngames × ${wnba.minutes_recency.join(' / ')} (WNBA)\\nanother team's season × ${fantasy.fantasy_team_change}\\nin season, 5+ games for the team:\\n${1 - recent} of this, ${recent} of the last five games"];
+    a4 [${act}, label="Minutes per game\\ngames × ${nba.minutes_recency.join(' / ')} (NBA)\\ngames × ${wnba.minutes_recency.join(' / ')} (WNBA)\\nanother team's season × ${fantasy.fantasy_team_change}\\nin season, 5+ games for the team:\\n${1 - recent} of this, ${recent} of the last five games\\nback from ${ramp.min_games_missed}+ games missed: cut ${+(ramp.per_game_missed * 100).toFixed(2)}% a game\\nmissed (at most ${+(ramp.max_cut * 100).toFixed(2)}%), gone ${ramp.games_back} games back"];
     a5 [${act}, label="Games share\\nregular season, regressed\\nto ${fantasy.fantasy_durability.typical_share} by ${nba.durability_games} (NBA)\\nor ${wnba.durability_games} (WNBA) games"];
     join [${bar(3.6)}];
     a6 [${act}, label="Projected line = rate × minutes, starting from ${nba.prior_games} (NBA) / ${wnba.prior_games} (WNBA)\\ngames of a replacement-level player", URL="${href('/schema/#m-mart_player_projection')}"];

@@ -420,3 +420,69 @@ In the Streamers unit, production per game, the redistribution changed the error
 **The uplift is real, and the last ten games cannot see it.** Over every player-week, the last ten games are close to unbiased (NBA -0.13 fantasy points a game, WNBA -0.04). For players whose top teammate is out all week they fall short by 2.2 in the NBA, 1.6 in the earlier NBA seasons, and 0.5 to 1.5 in the WNBA. The redistribution sizes the NBA uplift almost exactly (+2.3 against +2.2) but not who receives it. Its move correlates 0.07 with the change that followed in fantasy points and 0.01 in production; in the WNBA it is 0.24 and 0.15, and it overshoots. A week of three or four games swings by about 10 fantasy points a game, so an average 2-point shift spread unevenly over eight players does not lower the absolute error. The flat uplift's gain in the NBA, about 1%, does not hold in the WNBA.
 
 **Nothing is built.** There is no `fct_usage_redistribution` model and no Streamers column. On the measure that ranks streamers and feeds window value, neither the redistribution nor the player's own split beats the last ten games. That is true in either league, out of sample. The one consistent gain, under a minute a game, is too small to be worth a model. Per-minute production barely moves when a teammate is out, so lineup on/off splits from `fct_event`, which measure per-minute effects, are not worth building on this evidence. The notebook re-runs on every build. On the published build, the games the official report covers (NBA 2023-24 on, WNBA 2026) use the listings in place of the approximation.
+
+## Addendum (2026-10-30): minutes after a return from absence
+
+The in-season blend follows a player's last five games. For a player who is still out, or has just come back, those five are the games before the absence, so the projection expects their old minutes at once. The replay of the in-season minutes addendum was run again with each player's absences. An absence is a run of three or more consecutive games of the player's current team that the player did not play (a did-not-play row in `fct_player_game`, or no row). The team's games count from the player's first game for it this season, or from its first game when it was the player's main team last season, so an injury carried over from last season counts. The protocol is the addendum's: a checkpoint every 14 days, every player with five or more games so far, and as target the mean minutes of the next 5 and the next 10 games played (at least 5). The rule was chosen on NBA 2023-24 and 2024-25 and WNBA 2018 to 2024, and tested on NBA 2025-26 and WNBA 2025 and 2026. Bias is actual minus projected minutes, as built:
+
+| Status at the checkpoint, next 5 / next 10 games | NBA, chosen on | NBA 2025-26 | WNBA, chosen on | WNBA 2025 and 2026 |
+| --- | --- | --- | --- | --- |
+| Still out after 3+ games missed | −1.71 / −0.87 | −2.22 / −1.61 | −1.86 / −1.32 | −1.85 / −1.07 |
+| One game back | −0.57 / +0.20 | −0.36 / +0.30 | +0.58 / +0.54 | −0.95 / −0.21 |
+| Two to five games back | +0.01 / +0.44 | +0.04 / +0.54 | +0.43 / +0.57 | +0.41 / +0.82 |
+| No absence, or six or more games back | −0.05 / +0.07 | −0.10 / −0.06 | +0.90 / +0.96 | +0.33 / +0.39 |
+
+The shortfall is in the first games back, and it grows with the absence. Up to five games back in NBA 2025-26, the next five games fell short by 0.53 minutes after 3 to 5 games missed, 1.41 after 6 to 10 and 2.00 after 11 to 20. Two games back the last five already hold the shorter games, and the bias is gone.
+
+**The rule.** One rule for both leagues was searched on the seasons it was chosen on, by the mean of the next-5 and next-10 errors. The grid covered:
+- the shortest absence: 1, 2, 3, 5 or 8 games;
+- how many games back the cut lasts: 1, 2, 3 or 5;
+- the cut per game missed: 0.5% to 2%;
+- the most it can cut: 15%, 25%, 50% or no limit.
+
+The best was 1% per game missed, fading over two games back. A cap of 50% and no cap tied, since only an absence of more than 50 games reaches it. Shortest absences of one to three games scored within 0.002 minutes of each other. Three games leaves a rest day or two alone, so the rule takes three.
+
+So in season, for a player with five or more games this season, projected minutes are cut by 1% for each game of the latest absence of three or more games (at most 50%) while the player is still out. After the first game back half the cut applies, and from the second none (var `fantasy_return_ramp`). Per-minute production is unchanged, so the whole projected line scales with the minutes. Error for the players cut, with 95% player-bootstrap intervals on the change:
+
+| Players cut | Checkpoints | Players | Next 5 games | Next 10 games | Everyone, next 5 / next 10 |
+| --- | --- | --- | --- | --- | --- |
+| NBA 2025-26 (out of sample) | 11 | 703 | 4.57 to 4.13 (−0.45, −0.61 to −0.24) | 4.24 to 3.94 (−0.30, −0.50 to −0.06) | 3.55 to 3.48 / 3.34 to 3.29 |
+| NBA 2023-24 and 2024-25 (chosen on) | 22 | 1,527 | 4.38 to 4.03 (−0.35, −0.50 to −0.17) | 4.25 to 4.05 (−0.21, −0.36 to −0.02) | 3.56 to 3.50 / 3.37 to 3.34 |
+| WNBA 2025 and 2026 (out of sample) | 16 | 178 | 4.16 to 3.94 (−0.22, −0.53 to +0.06) | 4.06 to 4.04 (−0.02, −0.30 to +0.30) | 3.43 to 3.41 / 3.26 to 3.25 |
+| WNBA 2018 to 2024 (chosen on) | 42 | 247 | 4.48 to 4.36 (−0.12, −0.38 to +0.14) | 4.27 to 4.20 (−0.07, −0.33 to +0.17) | 3.68 to 3.68 / 3.55 to 3.55 |
+
+Nobody else's projection moves. Out of sample the cut takes the bias of the players still out from −2.22 to −0.57 (next 5) and from −1.61 to +0.04 (next 10) in the NBA, and from −1.85 to −0.75 and −1.07 to +0.03 in the WNBA. The half cut one game back helps the next five games but overshoots the next ten a little (NBA +0.30 to +0.86). So does the cut after the longest absences: the 61 NBA 2025-26 players back within five games of 21 or more missed went from −1.88 to +1.44 over the next five, against −3.27 to +0.42 on the seasons the rule was chosen on. The WNBA has far fewer long absences, 178 players cut over two seasons, so its intervals include zero; the direction agrees and nothing gets worse, so it takes the same rule rather than one fitted to its own noise.
+
+The rest-of-season board barely moves. At the in-season checkpoints, with and without the cut, top-N hits, rank correlation, error per game and capture changed by at most 0.006, in and out of sample. About 56 NBA and 6 WNBA players are cut at a checkpoint. The cut is a short-horizon correction for the next few games, which is what Streamers and a weekly lineup read.
+
+`mart_player_projection` publishes `absence_games`, `games_since_return` and `return_minutes_factor`. The replay applies the same rule, a dbt unit test pins it on a ten-game team (the cap, the fade, an absence too short to count, one carried over from last season, a player who joined mid-season and one with under five games), and `assert_projected_minutes_blend` now takes the cut out before checking the blend. The board backtest notebook re-tests the rule on every build.
+
+## Addendum (2026-10-30): no aging curve before the season
+
+Before a season the projection rests on the last three seasons and says nothing of age. A player's minutes and per-minute production change from one season to the next with age. The question was whether a curve of that change makes the preseason board better.
+
+The curve is the year-over-year change in minutes per game and in per-minute production, by age at the next season's first game. Production is an equal mix of points, rebounds, assists, steals, blocks and threes, each against the league's rate. The pairs are players with 200 minutes (NBA) or 100 (WNBA) in both seasons, weighted by the harmonic mean of the two seasons' minutes. The fit is a quadratic in age, clipped to 20 to 36. Age comes from the roster birth date in `dim_player` ('MAR 03, 1996', parsed as `stats_birth_date` does), and every player with minutes has one but for about 1% of minutes. Weighted changes over every pair:
+
+| Age at the next season | NBA pairs | NBA minutes / production | WNBA pairs | WNBA minutes / production |
+| --- | --- | --- | --- | --- |
+| Under 23 | 119 | +7.2% / +5.5% | 32 | +2.1% / +1.9% |
+| 23 to 26 | 216 | +2.6% / +2.6% | 238 | +8.5% / +3.6% |
+| 26 to 29 | 175 | −0.1% / +0.4% | 230 | +0.4% / +0.3% |
+| 29 to 32 | 115 | −4.8% / −0.0% | 173 | −1.3% / +0.3% |
+| 32 and over | 101 | −8.1% / −0.7% | 151 | −5.3% / −0.8% |
+
+Age moves minutes far more than per-minute production. The preseason projection's minutes and production were multiplied by the fitted curve, scored again and compared with the rest of the season at the board backtest's preseason checkpoint. *Forward* fits the curve on the transitions before the season tested. The NBA history holds two transitions, so it has one forward season: 2025-26, from a curve fitted on 2023-24 to 2024-25. *Cross-fitted* also uses later transitions, which adds NBA 2024-25 but is not a forward test. Both curves together, with 95% player-bootstrap intervals on the change:
+
+| Preseason | Top-N hits, season value | Top-N hits, per game | Rank correlation, season value | Error per game | Capture | Slope above replacement |
+| --- | --- | --- | --- | --- | --- | --- |
+| NBA 2025-26, forward | 0.560 to 0.640 (+0.080, +0.019 to +0.180) | 0.640 to 0.740 (+0.100, +0.040 to +0.200) | 0.598 to 0.608 (+0.011, −0.007 to +0.025) | 2.095 to 2.016 (−0.079, −0.140 to −0.031) | 0.791 to 0.833 (+0.042, −0.021 to +0.099) | 0.87 to 0.96 |
+| NBA 2024-25 and 2025-26, cross-fitted | 0.610 to 0.640 (+0.030, −0.010 to +0.080) | 0.680 to 0.730 (+0.050, +0.010 to +0.120) | 0.658 to 0.668 (+0.010, −0.001 to +0.019) | 1.930 to 1.869 (−0.062, −0.093 to −0.018) | 0.808 to 0.825 (+0.016, −0.042 to +0.052) | 0.81 to 0.86 |
+| WNBA 2025 and 2026, forward | 0.633 to 0.633 (+0.000, −0.034 to +0.067) | 0.650 to 0.650 (+0.000, −0.050 to +0.050) | 0.637 to 0.634 (−0.003, −0.017 to +0.011) | 2.460 to 2.422 (−0.038, −0.084 to +0.002) | 0.805 to 0.798 (−0.007, −0.030 to +0.030) | 0.80 to 0.80 |
+| WNBA 2020 to 2026, forward | 0.652 to 0.648 (−0.005, −0.033 to +0.024) | 0.690 to 0.676 (−0.014, −0.052 to +0.010) | 0.638 to 0.632 (−0.006, −0.013 to +0.001) | 2.395 to 2.389 (−0.007, −0.038 to +0.030) | 0.814 to 0.804 (−0.010, −0.030 to +0.009) | 0.77 to 0.79 |
+
+The minutes curve alone and the production curve alone show the same pattern. The slope of realised on predicted value above replacement moved toward 1 in the NBA and barely moved in the WNBA. **The board does not age players.**
+- The WNBA has the power: eight transitions of about 100 pairs and seven forward seasons. There the curve raised no hit rate or rank correlation, and the only intervals clear of zero were small losses (the production curve, per-game top 30, −0.010).
+- The NBA gain rests on one forward season. Four more of the top 50 is four players at one checkpoint. Cross-fitted 2024-25 lost one, and a player bootstrap of a single season resamples players, not seasons.
+- Rank correlation rose by about 0.01 and the error per game fell in both NBA seasons. A change of scale also lowers that error (the value spread addendum), so it is not evidence of a better ranking on its own.
+
+The board backtest notebook keeps the test. It is worth another look once NBA 2026-27 is complete, which gives a second forward NBA season. The curve would be adopted only if its top-N and rank-correlation gains then hold in both forward seasons.

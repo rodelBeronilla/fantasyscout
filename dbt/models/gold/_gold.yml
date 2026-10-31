@@ -1045,7 +1045,7 @@ models:
         description: "Sum of the nine category z-scores, a missing one counting as 0"
 
   - name: mart_player_projection
-    description: "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes)."
+    description: "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes) and are cut for a player still out or just back from an absence (fantasy_return_ramp)."
     columns:
       - name: projection_sk
         description: "Surrogate key: one row per league and player"
@@ -1098,12 +1098,19 @@ models:
         description: "Projected share of team games played, regressed toward a typical share (0.8) and capped at 1"
         data_tests: [not_null]
       - name: proj_minutes_pg
-        description: "Projected minutes per game: proj_minutes_season_pg, blended half and half with minutes_last5_pg in season after 5+ games"
+        description: "Projected minutes per game: proj_minutes_season_pg, blended half and half with minutes_last5_pg in season after 5+ games, times return_minutes_factor"
         data_tests: [not_null]
       - name: proj_minutes_season_pg
         description: "Minutes per game from the seasons alone (games by minutes recency, from the replacement prior)"
       - name: minutes_last5_pg
         description: "Minutes per game over the player's last five games this season for the current team; null without any"
+      - name: absence_games
+        description: "Length of the player's latest absence this season: three or more straight games of the current team not played (counted from the team's first game when it was the player's main team last season); null without one"
+      - name: games_since_return
+        description: "Games the player has played for the current team since that absence; 0 while still out; null without an absence"
+      - name: return_minutes_factor
+        description: "Share of projected minutes kept by the return ramp (fantasy_return_ramp): in season, with 5+ games this season, 1 minus 1% per game of the absence (at most 50%) while still out, half that cut after the first game back, 1 otherwise"
+        data_tests: [not_null]
       - name: proj_points_pg
         description: "Projected points per game: the weighted per-minute rate times proj_minutes_pg"
         data_tests: [not_null]

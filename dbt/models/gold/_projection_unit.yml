@@ -1,0 +1,96 @@
+unit_tests:
+  - name: projection_return_ramp_cuts_minutes_after_an_absence
+    description: >
+      Team A has played ten games. p1 missed five in a row (one listed as did not play) and has
+      played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved,
+      keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed
+      two, too few to count. p4, on team A last season, missed the first three games and has played
+      seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth
+      game, which is no absence. p6 has missed six after four games: under five games this season,
+      so no cut. Projected minutes are the blended minutes (30) times the share kept.
+    model: mart_player_projection
+    overrides:
+      vars:
+        as_of: '2026-01-15'
+        fantasy:
+          nba: {teams: 1, roster_spots: 1, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
+        fantasy_return_ramp: {min_games_missed: 3, per_game_missed: 0.125, max_cut: 0.5, games_back: 2}
+    given:
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2025-26', game_id: '0022500001', game_date: 2025-10-23, player_id: p1, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500001', game_date: 2025-10-23, player_id: p2, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500001', game_date: 2025-10-23, player_id: p3, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500001', game_date: 2025-10-23, player_id: p6, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500002', game_date: 2025-10-25, player_id: p1, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500002', game_date: 2025-10-25, player_id: p2, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500002', game_date: 2025-10-25, player_id: p3, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500002', game_date: 2025-10-25, player_id: p6, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500003', game_date: 2025-10-27, player_id: p1, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500003', game_date: 2025-10-27, player_id: p2, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500003', game_date: 2025-10-27, player_id: p3, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500003', game_date: 2025-10-27, player_id: p6, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500004', game_date: 2025-10-29, player_id: p1, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500004', game_date: 2025-10-29, player_id: p2, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500004', game_date: 2025-10-29, player_id: p3, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500004', game_date: 2025-10-29, player_id: p4, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500004', game_date: 2025-10-29, player_id: p6, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500005', game_date: 2025-10-31, player_id: p1, team_id: A, played: false, minutes: null}
+          - {league: nba, season: '2025-26', game_id: '0022500005', game_date: 2025-10-31, player_id: p2, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500005', game_date: 2025-10-31, player_id: p3, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500005', game_date: 2025-10-31, player_id: p4, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500006', game_date: 2025-11-02, player_id: p1, team_id: A, played: false, minutes: null}
+          - {league: nba, season: '2025-26', game_id: '0022500006', game_date: 2025-11-02, player_id: p2, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500006', game_date: 2025-11-02, player_id: p4, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500006', game_date: 2025-11-02, player_id: p5, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500007', game_date: 2025-11-04, player_id: p1, team_id: A, played: false, minutes: null}
+          - {league: nba, season: '2025-26', game_id: '0022500007', game_date: 2025-11-04, player_id: p2, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500007', game_date: 2025-11-04, player_id: p4, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500007', game_date: 2025-11-04, player_id: p5, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500008', game_date: 2025-11-06, player_id: p1, team_id: A, played: false, minutes: null}
+          - {league: nba, season: '2025-26', game_id: '0022500008', game_date: 2025-11-06, player_id: p3, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500008', game_date: 2025-11-06, player_id: p4, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500008', game_date: 2025-11-06, player_id: p5, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500009', game_date: 2025-11-08, player_id: p1, team_id: A, played: false, minutes: null}
+          - {league: nba, season: '2025-26', game_id: '0022500009', game_date: 2025-11-08, player_id: p3, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500009', game_date: 2025-11-08, player_id: p4, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500009', game_date: 2025-11-08, player_id: p5, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500010', game_date: 2025-11-10, player_id: p1, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500010', game_date: 2025-11-10, player_id: p3, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500010', game_date: 2025-11-10, player_id: p4, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', game_id: '0022500010', game_date: 2025-11-10, player_id: p5, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2024-25', game_id: '0022400001', game_date: 2025-01-10, player_id: p1, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2024-25', game_id: '0022400001', game_date: 2025-01-10, player_id: p4, team_id: A, played: true, minutes: 30}
+          - {league: nba, season: '2024-25', game_id: '0022400001', game_date: 2025-01-10, player_id: p5, team_id: B, played: true, minutes: 30}
+      - input: ref('mart_category_zscores')
+        rows:
+          - {league: nba, season: '2025-26', window_name: season, player_id: p1, games: 5, minutes_pg: 30, points_pg: 15}
+          - {league: nba, season: '2025-26', window_name: season, player_id: p2, games: 7, minutes_pg: 30, points_pg: 15}
+          - {league: nba, season: '2025-26', window_name: season, player_id: p3, games: 8, minutes_pg: 30, points_pg: 15}
+          - {league: nba, season: '2025-26', window_name: season, player_id: p4, games: 7, minutes_pg: 30, points_pg: 15}
+          - {league: nba, season: '2025-26', window_name: season, player_id: p5, games: 5, minutes_pg: 30, points_pg: 15}
+          - {league: nba, season: '2025-26', window_name: season, player_id: p6, games: 4, minutes_pg: 30, points_pg: 15}
+          - {league: nba, season: '2024-25', window_name: season, player_id: p1, games: 1, minutes_pg: 30, points_pg: 15}
+          - {league: nba, season: '2024-25', window_name: season, player_id: p4, games: 1, minutes_pg: 30, points_pg: 15}
+          - {league: nba, season: '2024-25', window_name: season, player_id: p5, games: 1, minutes_pg: 30, points_pg: 15}
+      - input: ref('rosters')
+        rows:
+          - {league: nba, season: '2025-26', team_id: A, player_id: p1, age: 25, experience: '3', _ingest_date: 2026-01-14}
+          - {league: nba, season: '2025-26', team_id: A, player_id: p2, age: 25, experience: '3', _ingest_date: 2026-01-14}
+          - {league: nba, season: '2025-26', team_id: A, player_id: p3, age: 25, experience: '3', _ingest_date: 2026-01-14}
+          - {league: nba, season: '2025-26', team_id: A, player_id: p4, age: 25, experience: '3', _ingest_date: 2026-01-14}
+          - {league: nba, season: '2025-26', team_id: A, player_id: p5, age: 25, experience: '3', _ingest_date: 2026-01-14}
+          - {league: nba, season: '2025-26', team_id: A, player_id: p6, age: 25, experience: '3', _ingest_date: 2026-01-14}
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2024-25', game_type: regular, game_status: 3, game_date_est: 2025-01-10}
+          - {league: nba, season: '2025-26', game_type: regular, game_status: 3, game_date_est: 2025-11-10}
+          - {league: nba, season: '2025-26', game_type: regular, game_status: 1, game_date_est: 2026-02-01}
+    expect:
+      rows:
+          - {player_id: p1, absence_games: 5, games_since_return: 1, return_minutes_factor: 0.75, proj_minutes_pg: 22.5}
+          - {player_id: p2, absence_games: 3, games_since_return: 0, return_minutes_factor: 0.625, proj_minutes_pg: 18.75}
+          - {player_id: p3, absence_games: null, games_since_return: null, return_minutes_factor: 1.0, proj_minutes_pg: 30}
+          - {player_id: p4, absence_games: 3, games_since_return: 7, return_minutes_factor: 1.0, proj_minutes_pg: 30}
+          - {player_id: p5, absence_games: null, games_since_return: null, return_minutes_factor: 1.0, proj_minutes_pg: 30}
+          - {player_id: p6, absence_games: 6, games_since_return: 0, return_minutes_factor: 1.0, proj_minutes_pg: 30}
