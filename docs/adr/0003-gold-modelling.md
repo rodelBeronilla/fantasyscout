@@ -310,3 +310,39 @@ Does a crew's record say anything about the next game? Notebook 03 tests this po
 | Share of fantasy pts / 30 min explained out of sample | +0.002% | +0.002% |
 
 Crews differ, and some of the difference carries over: a crew whose games have run one free-throw attempt above average sees about 0.7 to 0.9 more in its next game. But crews differ little against a game-to-game spread of about 11 attempts. Their tendency explains under half a percent of a game's free throws, and nothing measurable of a player's free throws, fouls or fantasy production. The one interval clear of zero for NBA player free throws, in 2024-25 (+0.11, +0.06 to +0.18), did not hold in 2025-26. The WNBA's fouls-on-pace estimate (+0.27, +0.04 to +0.55) did not replicate in earlier seasons (+0.09). **The crew stays out of the value.** It is shown as context, like rest and altitude, and the notebook re-tests it as seasons accumulate.
+
+## Addendum (2026-10-30): expected games, the board's line and opportunity do not beat the Streamers sort
+
+The streamer signals notebook tested three more signals against the Streamers default, last-ten production times the team's games in the week. The setup matches the Streamers sort addendum: every Monday of each regular season, the candidates outside the rostered pool, scored on what they add to the next seven days' category totals. The fits used earlier seasons (NBA 2023-24 and 2024-25, WNBA 2018 to 2025) and the tests the latest (NBA 2025-26, WNBA 2026). The signals were:
+
+1. **Expected games.** Each of the team's games in the week is weighted by the chance the player plays it. The player's status is the official injury report listing on or before the Monday, unless the player has played since. The chance of missing each game comes from the spells of earlier listings with the same status and reason, point in time: a Kaplan-Meier curve over the listings before the Monday, given the games already missed. Spells still running on the Monday are censored. The WNBA uses the NBA's listings until it has 300 for the status. The second night of a back-to-back adds the extra chance of sitting out measured on the games before the Monday (over every season in the build, 2.7 points for an NBA rotation player and 1.4 for a WNBA one). Production times expected games replaces production times games.
+2. **The board's projected line.** `replay.project` as of the Monday, scored on the same contribution scale, times games and times expected games.
+3. **Opportunity trend.** Minutes times usage percentage over the last five games against the minutes trend's baseline, alone and in a fitted blend of every signal.
+
+Out of sample, over all candidates, then over those whose Monday listing was not Out. Streamers hides players listed Out by default (the Health filter), so the second view is the page as a manager sees it. Top-10 hits are the week's ten best pickups found in the sort's top ten; the rank correlation is the weekly mean, with its t-statistic.
+
+| NBA 2025-26 (23 Mondays) | Top-10 hits, all | Rank corr, all | Top-10 hits, listed Out left out | Rank corr, listed Out left out |
+|---|---|---|---|---|
+| Last-ten production x games (default) | 1.39 | 0.471 (t 32.5) | **1.74** | 0.539 (t 39.1) |
+| Last-ten production x expected games | **1.70** (+0.30, t 2.3) | 0.578 (t 49.4) | **1.74** (+0.00) | 0.543 (t 38.1) |
+| Board's line x games | 1.43 | 0.491 (t 36.8) | 1.65 | 0.546 (t 44.6) |
+| Board's line x expected games | 1.52 | 0.574 (t 49.3) | 1.57 | 0.550 (t 41.9) |
+| Opportunity trend | 1.17 | 0.197 (t 16.0) | 1.26 | 0.216 (t 16.0) |
+| Fitted blend of every signal | 1.78 (+0.39, t 2.2) | 0.607 (t 53.0) | 1.83 (+0.09, t 0.4) | 0.589 (t 45.3) |
+
+| WNBA 2026 (18 Mondays) | Top-10 hits, all | Rank corr, all | Top-10 hits, listed Out left out | Rank corr, listed Out left out |
+|---|---|---|---|---|
+| Last-ten production x games (default) | 3.28 | 0.297 (t 9.3) | 3.50 | 0.309 (t 9.8) |
+| Last-ten production x expected games | 3.39 (+0.11, t 0.6) | 0.321 (t 9.9) | 3.44 (-0.06) | 0.307 (t 9.5) |
+| Board's line x games | **3.89** (+0.61, t 1.9) | 0.322 (t 11.0) | 3.83 (+0.33, t 1.0) | 0.334 (t 12.1) |
+| Board's line x expected games | 3.83 | 0.343 (t 11.3) | **3.89** (+0.39, t 1.1) | 0.331 (t 11.3) |
+| Opportunity trend | 1.78 | 0.083 (t 2.3) | 1.83 | 0.078 (t 2.2) |
+| Fitted blend of every signal | 1.89 | 0.257 (t 9.8) | 2.44 | 0.292 (t 11.9) |
+
+The top decile of NBA expected-games production adds 13.6 to the week above the average candidate, against 10.3 for the default. In the WNBA the figures are 4.0 against 3.9.
+
+**Expected games carries only what the Health filter already does.** About 17% of NBA candidate-weeks belong to a player listed Out on the Monday. Their last ten games still rank them high, and they then add about 4 to the week against 14 for an unlisted candidate. Weighting by expected games pushes them down, which is all of its gain. With them left out, it finds the same 1.74 pickups as the default, and Doubtful, Questionable and back-to-back weights change nothing measurable. The page's default filter has the same effect at no cost, so the filter is worth keeping as the default.
+
+**The board's line helps the WNBA and not the NBA.** It found 0.3 to 0.6 more pickups a week in the WNBA (t about 1 to 2) but fewer in the NBA, where the last ten games follow a role change faster than the season-weighted line does. **Opportunity** trends the right way (rank correlation 0.2 NBA, 0.08 WNBA), but less than minutes alone, and the blend gives it almost no weight. **The fitted blend** gains in the NBA because the 2023-24 and 2024-25 seasons it was fitted on carry the listings. It falls far behind in the WNBA, whose fitted seasons have no listings, and its weights on the near-copies of production cancel each other out.
+
+No signal clearly beats the default for the NBA without costing the WNBA, so **the Streamers sort and `mart_streamers` stay as they are.** The notebook keeps the three signals and reports both views each build. As the WNBA's own listings and the NBA's 2026-27 season accumulate, a gain that holds with players listed Out left out would reopen the question. The board's line for the WNBA alone is the candidate to watch.
