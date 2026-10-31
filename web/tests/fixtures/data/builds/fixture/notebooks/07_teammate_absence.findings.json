@@ -1,0 +1,251 @@
+{
+ "title": "Teammate absence",
+ "leagues": {
+  "wnba": {
+   "headline": "In 2026, players whose top teammate was out all week scored +0.5 fantasy points a game against their last ten, and the redistribution moved them +1.9 on average. Its gain in mean absolute error on the last ten was -0.07 (-0.34 to +0.21) points, inside the noise; its moves correlated 0.24 with the change that followed.",
+   "facts": [
+    {
+     "label": "Affected player-weeks, 2026",
+     "value": "187 (137 with 5+ points of usage share newly out)"
+    },
+    {
+     "label": "Minutes per 10 pts of team minutes out (same position / other)",
+     "value": "+1.33 (+0.81 to +1.98) / +1.14 (+0.72 to +1.44)"
+    },
+    {
+     "label": "Usage (pts) per 10 pts of usage share out (same position / other)",
+     "value": "+0.49 (+0.11 to +0.88) / +0.59 (+0.34 to +0.82)"
+    },
+    {
+     "label": "Fantasy pts per game per 10 pts of usage share out (same / other)",
+     "value": "+1.18 (+0.56 to +1.92) / +0.49 (-0.05 to +1.07)"
+    },
+    {
+     "label": "Fantasy pts a game: error gain, flat uplift / redistribution / own split",
+     "value": "-0.14 (-0.33 to +0.04) / -0.07 (-0.34 to +0.21) / -0.22 (-0.45 to +0.01)"
+    },
+    {
+     "label": "Redistribution vs the change that followed, correlation",
+     "value": "0.24 (fantasy pts), 0.14 (production)"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Target",
+     "Predictor",
+     "Mean abs. error, 2026",
+     "Gain on last ten",
+     "95% interval",
+     "Bias"
+    ],
+    "rows": [
+     [
+      "Fantasy pts per game",
+      "Last ten",
+      6.953,
+      0.0,
+      "+0.000 to +0.000",
+      -0.481
+     ],
+     [
+      "Fantasy pts per game",
+      "Last ten plus the average uplift",
+      7.09,
+      -0.137,
+      "-0.328 to +0.043",
+      0.991
+     ],
+     [
+      "Fantasy pts per game",
+      "Last ten plus redistribution",
+      7.018,
+      -0.065,
+      "-0.339 to +0.206",
+      1.414
+     ],
+     [
+      "Fantasy pts per game",
+      "Last ten plus their own split",
+      7.171,
+      -0.218,
+      "-0.450 to +0.007",
+      0.009
+     ],
+     [
+      "Production per game",
+      "Last ten plus the average uplift",
+      3.727,
+      -0.103,
+      "-0.177 to -0.032",
+      0.687
+     ],
+     [
+      "Production per game",
+      "Last ten plus redistribution",
+      3.727,
+      -0.103,
+      "-0.223 to +0.007",
+      0.686
+     ],
+     [
+      "Production per game",
+      "Last ten plus their own split",
+      3.74,
+      -0.116,
+      "-0.246 to -0.011",
+      0.287
+     ],
+     [
+      "Minutes per game",
+      "Last ten plus the average uplift",
+      4.112,
+      0.174,
+      "+0.022 to +0.318",
+      0.082
+     ],
+     [
+      "Minutes per game",
+      "Last ten plus redistribution",
+      3.996,
+      0.29,
+      "-0.037 to +0.619",
+      0.933
+     ],
+     [
+      "Minutes per game",
+      "Last ten plus their own split",
+      4.154,
+      0.133,
+      "+0.013 to +0.296",
+      -0.739
+     ]
+    ]
+   },
+   "n": 187,
+   "n_label": "affected player-weeks in 2026"
+  },
+  "nba": {
+   "headline": "In 2025-26, players whose top teammate was out all week scored +2.2 fantasy points a game against their last ten, and the redistribution moved them +2.3 on average. Its gain in mean absolute error on the last ten was +0.03 (-0.14 to +0.17) points, inside the noise; its moves correlated 0.07 with the change that followed.",
+   "facts": [
+    {
+     "label": "Affected player-weeks, 2025-26",
+     "value": "1,166 (995 with 5+ points of usage share newly out)"
+    },
+    {
+     "label": "Minutes per 10 pts of team minutes out (same position / other)",
+     "value": "+1.98 (+1.64 to +2.25) / +1.38 (+1.13 to +1.60)"
+    },
+    {
+     "label": "Usage (pts) per 10 pts of usage share out (same position / other)",
+     "value": "+0.71 (+0.53 to +0.85) / +0.74 (+0.62 to +0.87)"
+    },
+    {
+     "label": "Fantasy pts per game per 10 pts of usage share out (same / other)",
+     "value": "+2.08 (+1.69 to +2.46) / +1.63 (+1.27 to +1.95)"
+    },
+    {
+     "label": "Fantasy pts a game: error gain, flat uplift / redistribution / own split",
+     "value": "+0.09 (+0.02 to +0.18) / +0.03 (-0.14 to +0.17) / +0.02 (-0.07 to +0.13)"
+    },
+    {
+     "label": "Redistribution vs the change that followed, correlation",
+     "value": "0.07 (fantasy pts), 0.01 (production)"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Target",
+     "Predictor",
+     "Mean abs. error, 2025-26",
+     "Gain on last ten",
+     "95% interval",
+     "Bias"
+    ],
+    "rows": [
+     [
+      "Fantasy pts per game",
+      "Last ten",
+      7.743,
+      0.0,
+      "+0.000 to +0.000",
+      -2.192
+     ],
+     [
+      "Fantasy pts per game",
+      "Last ten plus the average uplift",
+      7.652,
+      0.091,
+      "+0.020 to +0.177",
+      -0.589
+     ],
+     [
+      "Fantasy pts per game",
+      "Last ten plus redistribution",
+      7.714,
+      0.029,
+      "-0.135 to +0.174",
+      0.101
+     ],
+     [
+      "Fantasy pts per game",
+      "Last ten plus their own split",
+      7.725,
+      0.018,
+      "-0.071 to +0.126",
+      -1.489
+     ],
+     [
+      "Production per game",
+      "Last ten plus the average uplift",
+      3.826,
+      0.024,
+      "+0.001 to +0.047",
+      -0.263
+     ],
+     [
+      "Production per game",
+      "Last ten plus redistribution",
+      3.865,
+      -0.015,
+      "-0.058 to +0.029",
+      -0.054
+     ],
+     [
+      "Production per game",
+      "Last ten plus their own split",
+      3.894,
+      -0.044,
+      "-0.088 to +0.001",
+      -0.52
+     ],
+     [
+      "Minutes per game",
+      "Last ten plus the average uplift",
+      4.47,
+      0.127,
+      "+0.041 to +0.207",
+      0.013
+     ],
+     [
+      "Minutes per game",
+      "Last ten plus redistribution",
+      4.545,
+      0.053,
+      "-0.091 to +0.191",
+      0.659
+     ],
+     [
+      "Minutes per game",
+      "Last ten plus their own split",
+      4.488,
+      0.11,
+      "+0.032 to +0.174",
+      -0.828
+     ]
+    ]
+   },
+   "n": 1166,
+   "n_label": "affected player-weeks in 2025-26"
+  }
+ }
+}

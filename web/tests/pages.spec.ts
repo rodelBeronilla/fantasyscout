@@ -206,9 +206,9 @@ for (const path of ['/pipeline/', '/schema/']) {
 test('the notebooks page shows each analysis with its findings for the league', async ({ page }) => {
   await page.goto('/notebooks/');
   const cards = page.getByTestId('notebooks').locator('section');
-  await expect(cards).toHaveCount(5);
+  await expect(cards).toHaveCount(6);
   // the fixture's WNBA game-context findings say the build has too little history: no zeros
-  await expect(page.getByTestId('findings')).toHaveCount(4);
+  await expect(page.getByTestId('findings')).toHaveCount(5);
   await expect(page.getByTestId('findings-accumulating')).toHaveCount(1);
   await expect(page.getByTestId('findings-accumulating')).toContainText('not enough history in this build');
   await expect(cards.nth(2).getByTestId('findings-accumulating')).toBeVisible();
@@ -216,8 +216,13 @@ test('the notebooks page shows each analysis with its findings for the league', 
   await expect(page.getByTestId('findings-n').first()).toContainText('player-checkpoints');
   await expect(page.getByRole('link', { name: /open the full notebook/i }).first()).toBeVisible();
   await page.goto('/notebooks/?league=nba');
-  await expect(page.getByTestId('findings')).toHaveCount(5);
+  await expect(page.getByTestId('findings')).toHaveCount(6);
   await expect(page.getByTestId('findings').nth(1)).toContainText('minutes trend');
+  // the teammate-absence study: the uplift is real, the redistribution adds nothing beyond the last ten
+  const absence = cards.nth(5);
+  await expect(absence).toContainText('Teammate absence');
+  await expect(absence.getByTestId('findings')).toContainText('top teammate was out all week');
+  await expect(absence.getByTestId('findings-n')).toContainText('affected player-weeks');
 });
 
 test('the dashboards page explains the workbook and lists the extract', async ({ page }) => {
