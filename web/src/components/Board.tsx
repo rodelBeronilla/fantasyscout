@@ -10,7 +10,7 @@ import { useWatchlist } from '../lib/watchlist';
 import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
 import { DraftBar, LeagueBar } from './LeagueParts';
-import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th, TrendTag } from './ui';
+import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 
 interface BoardRow {
   player_id: string;
@@ -496,7 +496,7 @@ export default function Board() {
               </span>
             )}
             {row.is_new_team && <NewTeam from={row.prev_team_abbreviation} />}
-            <LineupTag role={row.lineup_role} confirmed={row.lineup_confirmed} date={row.lineup_date} />
+            <LineupTag role={row.lineup_role} confirmed={row.lineup_confirmed} date={row.lineup_date} injuryGroup={row.injury_group} />
             <RestRiskTag risk={row.rest_risk} stakes={row.team_stakes} />
             <NewsTag flag={row.news_flag} headline={row.news_headline} date={row.news_date} />
             <InjuryTag
@@ -819,6 +819,7 @@ export default function Board() {
         </section>
       )}
 
+      <TagLegend />
       <div className="table-scroll max-h-[70vh] overflow-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Scrollable table">
         <table className="w-full text-sm" data-testid="board">
           <thead className="bg-card">

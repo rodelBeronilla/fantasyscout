@@ -212,15 +212,28 @@ function lineupDay(date: string | null | undefined): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
 }
 
-/** The role from the league's starting lineups (NBA) for the next game day: a starter, or ruled inactive. */
+/** The weekday of a lineup's game day for a tag ("TODAY", "THU"). */
+function lineupDayShort(date: string | null | undefined): string {
+  const when = lineupDay(date);
+  if (when === 'today') return 'TODAY';
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }).toUpperCase();
+}
+
+/**
+ * The role from the league's starting lineups (NBA) for the next game day: starting, or listed
+ * inactive by the team (not in uniform: an injury, a G League assignment or the coach's decision).
+ * A player already tagged OUT on the injury report gets no second tag.
+ */
 export function LineupTag({
   role,
   confirmed,
   date,
+  injuryGroup,
 }: {
   role: string | null | undefined;
   confirmed: boolean | null | undefined;
   date?: string | null;
+  injuryGroup?: string | null;
 }) {
   const when = lineupDay(date);
   if (role === 'starter') {
@@ -234,14 +247,43 @@ export function LineupTag({
       </span>
     );
   }
-  if (role === 'inactive') {
+  if (role === 'inactive' && injuryGroup !== 'out') {
     return (
-      <span className="rounded border border-bad px-1 text-[10px] font-semibold text-bad" title={`Ruled inactive ${when}`} data-testid="lineup-tag">
-        INACT
+      <span
+        className="rounded border border-bad px-1 text-[10px] font-semibold text-bad"
+        title={`Not playing ${when}: the team listed the player inactive (not in uniform), for an injury, a G League assignment or the coach's decision`}
+        data-testid="lineup-tag"
+      >
+        OUT {lineupDayShort(date)}
       </span>
     );
   }
   return null;
+}
+
+/** What each tag beside a player's name means. */
+export function TagLegend() {
+  return (
+    <details className="text-xs text-muted" data-testid="tag-legend">
+      <summary className="cursor-pointer select-none">What the tags mean</summary>
+      <dl className="mt-1 grid gap-x-3 gap-y-0.5 sm:grid-cols-[auto_1fr]">
+        <dt className="font-semibold">START / START?</dt>
+        <dd>Starting the next game day: confirmed by the team, or expected (NBA lineups).</dd>
+        <dt className="font-semibold">OUT TODAY / OUT THU</dt>
+        <dd>The team listed the player inactive for that game: not in uniform.</dd>
+        <dt className="font-semibold">OUT, DOUBT, Q, PROB, DTD</dt>
+        <dd>Injury status: the league&apos;s official report for the next game, else ESPN&apos;s listing (hover for detail).</dd>
+        <dt className="font-semibold">REST?</dt>
+        <dd>The team has nothing left to play for late in the season: minutes are less certain.</dd>
+        <dt className="font-semibold">NEW</dt>
+        <dd>On a new team this season.</dd>
+        <dt className="font-semibold">BACK, NEWS, SURG, MIN LIM, ROLE, G LG, SEASON</dt>
+        <dd>A flagged ESPN headline about the player in the last three days (hover for it).</dd>
+        <dt className="font-semibold">▲ / ▼</dt>
+        <dd>Rising or falling in ESPN leagues (ownership up or down a point or more).</dd>
+      </dl>
+    </details>
+  );
 }
 
 /** The fields behind an injury tag's tooltip, on any page's row. */
