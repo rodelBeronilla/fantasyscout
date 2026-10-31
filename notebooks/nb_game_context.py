@@ -10,8 +10,10 @@ CELLS = [
 **The question.** Streamers and the schedule show back-to-backs, three games in four nights,
 miles travelled, time zones, altitude and the opponent's rest beside every game, and the
 matchup value carries the opponent's defence and pace; once the day's referee assignments are
-posted, the crew and its tendency show too. Do any of them change (i) whether a regular plays at
-all and (ii) how many minutes they get and what they produce per minute?
+posted, the crew and its tendency show too, and the sportsbooks' line shows each team's implied
+points. Do any of them change (i) whether a regular plays at all and (ii) how many minutes they
+get and what they produce per minute? And would a matchup read off the line beat the one built
+from defence and pace?
 
 **Why it matters.** A manager setting a daily lineup or choosing between two streamers wants to
 know which of these flags is worth acting on. A second-night rest day costs a whole game; a
@@ -44,7 +46,9 @@ day-to-day listing a quarter of a game, questionable half and doubtful three qua
   seasons' estimate shows whether it replicates. The share of the outcome's variance the context
   explains out of sample is measured against a model with the minutes tier alone.
 - **Missed games.** The hazard of missing the next team game after missing exactly k in a row,
-  for players with 10 or more games and 15 or more minutes a game so far.""",
+  for players with 10 or more games and 15 or more minutes a game so far.
+- **The betting line** (`fct_game_line`, the closing line of each played game) is tested in its
+  own section below, on the games that have one.""",
     ),
     setup(),
     (
@@ -147,7 +151,8 @@ def regulars(lg):
     g = games[lg]
     reg = g[g['regular']]
     sched = team_schedule(g)
-    rows = reg[['season', 'player_id', 'team_id', 'game_id', 'game_date', 'played', 'minutes', 'comment', 'fp']]
+    rows = reg[['season', 'player_id', 'team_id', 'game_id', 'game_date', 'played', 'minutes', 'comment', 'fp']
+               + (['started'] if 'started' in reg else [])]
     stints = rows.groupby(['season', 'player_id', 'team_id'])['game_date'].agg(first='min', last='max').reset_index()
     last_team = rows.sort_values(['game_date', 'game_id']).groupby(['season', 'player_id'])['team_id'].last()
     stints['last_team'] = list(zip(stints['season'], stints['player_id'], strict=True))
@@ -535,6 +540,266 @@ elif not len(crew_game_table):
     print('This build has no referee crews lined up with played games yet.')""",
     ),
     (
+        "md",
+        """## The betting line
+
+`fct_game_line` keeps the closing line of every played game whose ESPN summary carried one: the
+home spread, the over/under, and the points each team is implied to score, (total ∓ spread) / 2.
+The schedule shows the line beside the matchup value; the matchup does not use it. Three questions
+come before it could:
+
+- **Coverage.** The share of each league-season's played games with a line. A season whose
+  summaries carry no line shows a low share, and the tests use only games with a line.
+- **Does the line add to defence and pace?** The team's implied points, standardised over the
+  league-season's team-games with a line, and the absolute spread per 5 points (blowout risk: a
+  lopsided game sends starters to the bench for the fourth quarter) join the opponent's defence and
+  pace in the effects framework above, for fantasy points per 30 minutes and minutes against the
+  player's own figures, with the minutes tier as a control. Regulars are also split by whether they
+  started. Each effect is the test part's, with 95% intervals from resampling players and the fit
+  part's estimate alongside; the gain is the share of the outcome explained out of sample beyond
+  defence, pace and the minutes tier, with its interval.
+- **Which matchup predicts better?** The current matchup (`fantasy_matchup`: the opponent's
+  defence and the average of both teams' pace, as `mart_schedule_upcoming` computes it) against a
+  line matchup (the team's implied points less the league-season average), each given one slope on
+  the fit part, at predicting a regular's fantasy points in the game against their own average so
+  far, and per 30 minutes. Both are scored out of sample on the same test games, as the share
+  explained beyond the minutes tier.
+- **Fit and test.** Earlier seasons with lines fit and the latest finished season tests, as
+  above. When the latest finished season is the only one with enough lines, its games split at
+  the median date: the first half fits, the second tests. With fewer than 500 player-games with a
+  line on either side, the league is reported as accumulating.""",
+    ),
+    (
+        "code",
+        """LINE_COLS = ['league', 'season', 'game_id', 'home_team_id', 'away_team_id', 'home_spread', 'over_under',
+             'home_implied_points', 'away_implied_points']
+MIN_LINE_ROWS = 500  # player-games with a line on each side of the split before the line is tested
+gl = (con.sql(f"select {', '.join(LINE_COLS)} from fct_game_line where home_spread is not null and over_under is not null").df()
+      if set(LINE_COLS) <= columns(con, 'fct_game_line') else pd.DataFrame(columns=LINE_COLS))
+
+
+def as_key(s):
+    \"\"\"Ids as text for joining, whether they arrive as numbers or as strings.\"\"\"
+    n = pd.to_numeric(s, errors='coerce')
+    return n.astype('Int64').astype('string') if n.notna().sum() == s.notna().sum() else s.astype('string')
+
+
+cov = []
+for lg, g in games.items():
+    lined = set(gl.loc[gl['league'] == lg, 'game_id'].astype(str))
+    p = g[g['played']].drop_duplicates('game_id')[['season', 'game_id', 'game_date', 'regular']].copy()
+    p['line'] = p['game_id'].astype(str).isin(lined)
+    for season, x in p.groupby('season'):
+        reg = x[x['regular']]
+        cov.append({'league': lg, 'season': season, 'played_games': len(x), 'with_line': int(x['line'].sum()),
+                    'share': x['line'].mean(), 'regular_share': reg['line'].mean() if len(reg) else np.nan,
+                    'first_line': x.loc[x['line'], 'game_date'].min()})
+line_coverage = pd.DataFrame(cov)
+if gl.empty:
+    print('This build has no closing lines (fct_game_line) yet.')
+if len(line_coverage):
+    print('Share of played games with a closing line, per league-season:')
+    display(line_coverage.round({'share': 3, 'regular_share': 3}))""",
+    ),
+    (
+        "code",
+        """import yaml
+
+MATCHUP = yaml.safe_load(rp.PROJECT_FILE.read_text(encoding='utf-8'))['vars']['fantasy_matchup']
+LINE = {'implied_z': 'Team implied points, per SD', 'blowout_5': 'Absolute spread, per 5 points'}
+BASE = {'opp_def_z': REST['opp_def_z'], 'pace_z': REST['pace_z']}
+ROLES = {'all': 'All regulars', 'starter': 'Started', 'bench': 'Came off the bench'}
+LINE_OUTCOMES = {'fp30_diff': OUTCOMES['fp30_diff'][0], 'minutes_diff': OUTCOMES['minutes_diff'][0]}
+MATCHUP_OUTCOMES = {'fp_diff': 'Fantasy pts in the game vs own average', 'fp30_diff': OUTCOMES['fp30_diff'][0]}
+SIGNALS = {'matchup': 'Defence + pace (current matchup)', 'implied_vs_avg': 'Implied team points vs league average',
+           'both': 'Both together'}
+
+
+def team_lines(lg):
+    \"\"\"Each team's side of each line: implied points (raw, against the league-season average, standardised) and spread.\"\"\"
+    l = gl[gl['league'] == lg]
+    cols = ['season', 'game_id', 'team_id', 'side_home', 'implied', 'spread', 'implied_vs_avg', 'implied_z']
+    if l.empty:
+        return pd.DataFrame(columns=cols)
+
+    def side(home, team, implied, spread):
+        return pd.DataFrame({'season': l['season'], 'game_id': l['game_id'].astype(str), 'team_id': as_key(l[team]),
+                             'side_home': home, 'implied': l[implied].astype(float), 'spread': spread.astype(float)})
+
+    t = pd.concat([side(1.0, 'home_team_id', 'home_implied_points', l['home_spread']),
+                   side(0.0, 'away_team_id', 'away_implied_points', -l['home_spread'])], ignore_index=True)
+    grp = t.groupby('season')['implied']
+    t['implied_vs_avg'] = t['implied'] - grp.transform('mean')
+    t['implied_z'] = t['implied_vs_avg'] / grp.transform('std')
+    return t[cols]
+
+
+def with_lines(lg, m):
+    \"\"\"The regulars frame with the team's side of the line, its own pace and the current matchup value.\"\"\"
+    t = team_lines(lg)
+    feats = ['implied', 'spread', 'implied_vs_avg', 'implied_z']
+    m = m.assign(_gid=m['game_id'].astype(str), _tid=as_key(m['team_id']))
+    by_team = t.dropna(subset=['team_id']).drop_duplicates(['game_id', 'team_id'])
+    m = m.merge(by_team.rename(columns={'game_id': '_gid', 'team_id': '_tid'})[['_gid', '_tid', *feats]],
+                on=['_gid', '_tid'], how='left')
+    by_side = t[t['team_id'].isna()].drop_duplicates(['game_id', 'side_home'])
+    if len(by_side):  # a line whose teams did not link: take the side by home and away
+        x = m[['_gid', 'home']].merge(by_side.rename(columns={'game_id': '_gid', 'side_home': 'home'})[['_gid', 'home', *feats]],
+                                      on=['_gid', 'home'], how='left')
+        for f in feats:
+            m[f] = m[f].fillna(pd.Series(x[f].to_numpy(), index=m.index))
+    m['blowout_5'] = m['spread'].abs() / 5
+    own = opponent_ratings(lg)[['season', 'game_id', 'team_id', 'pace_z']].rename(columns={'pace_z': 'own_pace_z'})
+    m = m.merge(own, on=['season', 'game_id', 'team_id'], how='left')
+    b = MATCHUP.get(lg, {'defense': 0.0, 'pace': 0.0})
+    m['matchup'] = b['defense'] * m['opp_def_z'] + b['pace'] * (m['own_pace_z'] + m['pace_z']) / 2
+    return m.drop(columns=['_gid', '_tid'])
+
+
+def line_model_rows(m, outcome):
+    r = model_rows(m, 'minutes_diff' if outcome == 'fp_diff' else outcome)
+    r['fp_diff'] = r['fp'] - r['pre_fp'] / r['pre_games']
+    return r.dropna(subset=[*BASE, *LINE, 'matchup', 'implied_vs_avg', outcome])
+
+
+def bootstrap_weights(test, reps=100, seed=11):
+    rng = np.random.default_rng(seed)
+    uniq, inv = np.unique(test['player_id'].to_numpy(), return_inverse=True)
+    return [rng.poisson(1.0, len(uniq))[inv].astype(float) for _ in range(reps)]
+
+
+def gain(err, err_base, w=None):
+    w = np.ones(len(err)) if w is None else w
+    return 1 - (w * err).sum() / (w * err_base).sum()
+
+
+def line_effects(train, test, outcome):
+    \"\"\"Defence, pace and the line on the test part with intervals; out-of-sample gain of the line over defence + pace.\"\"\"
+    out = {'n_train': len(train), 'n_test': len(test)}
+    if min(len(train), len(test)) < MIN_LINE_ROWS:
+        return out
+    feats = [*BASE, *LINE]
+    Xt, _ = design(test, feats)
+    Xr, _ = design(train, feats)
+    yt, yr = test[outcome].to_numpy(dtype=float), train[outcome].to_numpy(dtype=float)
+    w = bootstrap_weights(test)
+    beta_test, beta_train = ols(Xt, yt), ols(Xr, yr)
+    draws = np.array([ols(Xt, yt, wi) for wi in w])
+    for i, f in enumerate(feats, start=1):
+        out[f] = (beta_test[i], *np.quantile(draws[:, i], [0.025, 0.975]))
+        out[f + '_train'] = beta_train[i]
+    keep = np.delete(np.arange(Xr.shape[1]), range(1 + len(BASE), 1 + len(feats)))  # drop the line's columns
+    err_full = (yt - Xt @ beta_train) ** 2
+    err_base = (yt - Xt[:, keep] @ ols(Xr[:, keep], yr)) ** 2
+    out['oos_r2_gain'] = (gain(err_full, err_base), *np.quantile([gain(err_full, err_base, wi) for wi in w], [0.025, 0.975]))
+    return out
+
+
+def compare_matchups(train, test, outcome):
+    \"\"\"Out-of-sample share explained beyond the minutes tier by each matchup signal, one slope each, on the same games.\"\"\"
+    out = {'n_train': len(train), 'n_test': len(test)}
+    if min(len(train), len(test)) < MIN_LINE_ROWS:
+        return out
+    yt, yr = test[outcome].to_numpy(dtype=float), train[outcome].to_numpy(dtype=float)
+    X0r, _ = design(train, [])
+    X0t, _ = design(test, [])
+    err0 = (yt - X0t @ ols(X0r, yr)) ** 2
+    errs = {}
+    for name, feats in [('matchup', ['matchup']), ('implied_vs_avg', ['implied_vs_avg']), ('both', ['matchup', 'implied_vs_avg'])]:
+        Xr, _ = design(train, feats)
+        Xt, _ = design(test, feats)
+        errs[name] = (yt - Xt @ ols(Xr, yr)) ** 2
+    w = bootstrap_weights(test, seed=7)
+    for name, err in errs.items():
+        out[name] = (gain(err, err0), *np.quantile([gain(err, err0, wi) for wi in w], [0.025, 0.975]))
+    diff = [gain(errs['implied_vs_avg'], err0, wi) - gain(errs['matchup'], err0, wi) for wi in w]
+    out['line_minus_current'] = (out['implied_vs_avg'][0] - out['matchup'][0], *np.quantile(diff, [0.025, 0.975]))
+    out['corr'] = {name: float(np.corrcoef(test[name].astype(float), yt)[0, 1]) for name in ['matchup', 'implied_vs_avg']}
+    return out
+
+
+line_frames, line_split, line_rows, line_gains, matchup_rows = {}, {}, [], [], []
+for lg, m0 in frames.items():
+    if lg not in tests or gl[gl['league'] == lg].empty:
+        continue
+    m = with_lines(lg, m0)
+    line_frames[lg] = m
+    test_season = tests[lg]
+    p = line_model_rows(m, 'minutes_diff')
+    p = p[p['season'] <= test_season]
+    early, latest = p[p['season'] < test_season], p[p['season'] == test_season]
+    if len(early) >= MIN_LINE_ROWS and len(latest) >= MIN_LINE_ROWS:
+        cut, note = None, f"fit on {', '.join(sorted(early['season'].unique()))}, tested on {test_season}"
+    else:
+        cut = latest['game_date'].median() if len(latest) else pd.NaT
+        note = (f"{test_season} only: fit on games before {cut:%Y-%m-%d}, tested on games from then on"
+                if pd.notna(cut) else f"no game with a line in {test_season}")
+    line_split[lg] = note
+
+    def split(r, cut=cut, test_season=test_season):
+        r = r[r['season'] <= test_season]
+        if cut is None:
+            return r[r['season'] < test_season], r[r['season'] == test_season]
+        r = r[r['season'] == test_season]
+        return r[r['game_date'] < cut], r[r['game_date'] >= cut]
+
+    for outcome, olabel in LINE_OUTCOMES.items():
+        r = line_model_rows(m, outcome)
+        for role, rlabel in ROLES.items():
+            if role != 'all' and 'started' not in r:
+                continue
+            x = r if role == 'all' else r[r['started'].fillna(False).astype(bool) == (role == 'starter')]
+            e = line_effects(*split(x), outcome)
+            for f, flabel in {**BASE, **LINE}.items():
+                if f in e:
+                    est, lo, hi = e[f]
+                    line_rows.append({'league': lg, 'outcome': olabel, 'regulars': rlabel, 'context': flabel, 'estimate': est,
+                                      'lo': lo, 'hi': hi, 'fit_part': e[f + '_train'], 'n_test': e['n_test']})
+            line_gains.append({'league': lg, 'outcome': olabel, 'regulars': rlabel, 'n_fit': e['n_train'], 'n_test': e['n_test'],
+                               **({'gain_pct': 100 * e['oos_r2_gain'][0], 'lo': 100 * e['oos_r2_gain'][1], 'hi': 100 * e['oos_r2_gain'][2]}
+                                  if 'oos_r2_gain' in e else {})})
+    for outcome, olabel in MATCHUP_OUTCOMES.items():
+        c = compare_matchups(*split(line_model_rows(m, outcome)), outcome)
+        for name, slabel in SIGNALS.items():
+            if name in c:
+                matchup_rows.append({'league': lg, 'outcome': olabel, 'signal': slabel, 'gain_pct': 100 * c[name][0],
+                                     'lo': 100 * c[name][1], 'hi': 100 * c[name][2], 'correlation': c['corr'].get(name),
+                                     'n_test': c['n_test']})
+        if 'line_minus_current' in c:
+            d = c['line_minus_current']
+            matchup_rows.append({'league': lg, 'outcome': olabel, 'signal': 'Line minus current', 'gain_pct': 100 * d[0],
+                                 'lo': 100 * d[1], 'hi': 100 * d[2], 'correlation': None, 'n_test': c['n_test']})
+line_table, line_gain_table, matchup_table = pd.DataFrame(line_rows), pd.DataFrame(line_gains), pd.DataFrame(matchup_rows)
+for lg, note in line_split.items():
+    print(f"{LABEL[lg]}: {note}")
+    if len(line_table) and (line_table['league'] == lg).any():
+        display(line_table[line_table['league'] == lg].drop(columns='league').round(3))
+        print('Share of the outcome explained out of sample beyond defence, pace and the minutes tier (%):')
+        display(line_gain_table[line_gain_table['league'] == lg].drop(columns='league').round(3))
+        print('Matchup signals: share explained out of sample beyond the minutes tier (%), on the same games:')
+        display(matchup_table[matchup_table['league'] == lg].drop(columns='league').round(3))
+    else:
+        g = line_gain_table[line_gain_table['league'] == lg] if len(line_gain_table) else line_gain_table
+        n = g[['n_fit', 'n_test']].min().min() if len(g) else 0
+        print(f"  not enough player-games with a line yet ({int(n):,} on the thinner side; {MIN_LINE_ROWS} needed)")
+if not line_split:
+    print('No league has closing lines lined up with a finished season yet.')
+if len(line_table):
+    shown = [lg for lg in line_split if (line_table['league'] == lg).any()]
+    fig, axes = plt.subplots(1, len(shown), figsize=(6.5 * len(shown), 3.8), squeeze=False)
+    for ax, lg in zip(axes[0], shown, strict=False):
+        e = line_table[(line_table['league'] == lg) & (line_table['outcome'] == LINE_OUTCOMES['minutes_diff'])
+                       & (line_table['context'].isin(LINE.values()))]
+        labels = e['context'] + ', ' + e['regulars'].str.lower()
+        ax.errorbar(e['estimate'], range(len(e)), xerr=[e['estimate'] - e['lo'], e['hi'] - e['estimate']], fmt='o', color=COLOR[lg])
+        ax.set_yticks(range(len(e)), labels)
+        ax.axvline(0, color='grey', lw=1)
+        ax.set_xlabel('Minutes vs own average (95% interval)')
+        ax.set_title(f'{LABEL[lg]}: the line and minutes')
+    plt.tight_layout()
+    plt.show()""",
+    ),
+    (
         "code",
         """def eff(lg, outcome, f):
     e = effects_table[(effects_table['league'] == lg) & (effects_table['outcome'] == OUTCOMES[outcome][0])
@@ -597,6 +862,32 @@ for lg in LEAGUES:
                                                          ('fantasy pts', crew_eff('fp30_diff', 'crew_fta'))] if x is not None]
         facts.append({'label': 'Referee crew, per free throw a game of tendency (per 30 min)',
                       'value': game_note + '; '.join(parts)})
+    lc = line_coverage[line_coverage['league'] == lg] if len(line_coverage) else line_coverage
+    if len(lc) and lc['with_line'].sum():
+        facts.append({'label': 'Played games with a closing line, by season',
+                      'value': ', '.join(f"{s} {v:.0%}" for s, v in zip(lc['season'], lc['share'], strict=True))})
+    lt = line_table[line_table['league'] == lg] if len(line_table) else line_table
+    if len(lt):
+        def line_eff(outcome, f, role='all'):
+            r = lt[(lt['outcome'] == LINE_OUTCOMES[outcome]) & (lt['context'] == LINE[f]) & (lt['regulars'] == ROLES[role])]
+            return r.iloc[0] if len(r) else None
+        lg_gain = line_gain_table[(line_gain_table['league'] == lg) & (line_gain_table['regulars'] == ROLES['all'])].dropna(subset=['gain_pct'])
+        gains_txt = '; '.join(f"{'per 30 min' if x['outcome'] == LINE_OUTCOMES['fp30_diff'] else 'minutes'} {x['gain_pct']:+.2f}% "
+                              f"({x['lo']:+.2f} to {x['hi']:+.2f})" for x in lg_gain.to_dict('records'))
+        parts = [f"{label} {show(x)}" for label, x in [('implied pts per SD, fantasy pts / 30 min', line_eff('fp30_diff', 'implied_z')),
+                                                         ("5 pts of spread, starters' minutes", line_eff('minutes_diff', 'blowout_5', 'starter')),
+                                                         ('bench minutes', line_eff('minutes_diff', 'blowout_5', 'bench'))] if x is not None]
+        facts.append({'label': 'The line beyond defence and pace, out of sample',
+                      'value': f"share explained {gains_txt}; " + '; '.join(parts) + f" ({line_split[lg]})"})
+        mt = matchup_table[(matchup_table['league'] == lg) & (matchup_table['outcome'] == MATCHUP_OUTCOMES['fp_diff'])]
+        v = {x['signal']: x for x in mt.to_dict('records')}
+        if {SIGNALS['matchup'], SIGNALS['implied_vs_avg'], 'Line minus current'} <= set(v):
+            cur, lin, d = v[SIGNALS['matchup']], v[SIGNALS['implied_vs_avg']], v['Line minus current']
+            facts.append({'label': 'Matchup from the line against defence and pace: fantasy pts in the game explained out of sample',
+                          'value': f"line {lin['gain_pct']:+.2f}%, current {cur['gain_pct']:+.2f}%; "
+                                   f"difference {d['gain_pct']:+.2f} points ({d['lo']:+.2f} to {d['hi']:+.2f})"})
+    elif lg in line_split:
+        facts.append({'label': 'Betting line backtest', 'value': f"accumulating: too few player-games with a line yet ({line_split[lg]})"})
     e = effects_table[(effects_table['league'] == lg)]
     table = []
     for f, label in {**REST, **TRAVEL}.items():
@@ -613,9 +904,16 @@ for lg in LEAGUES:
             cells.append(show(r.iloc[0]) if len(r) else None)
         if any(cells):
             table.append([label, *cells, None, None])
+    for f, label in LINE.items():
+        cells = []
+        for o in ['fp30_diff', 'minutes_diff']:
+            r = lt[(lt['outcome'] == LINE_OUTCOMES[o]) & (lt['context'] == label) & (lt['regulars'] == ROLES['all'])] if len(lt) else lt
+            cells.append(show(r.iloc[0]) if len(r) else None)
+        if any(cells):
+            table.append([label, *cells, None])
     findings[lg] = {
         'headline': headline,
-        'facts': facts[:7],
+        'facts': facts[:10],
         'table': {'columns': [f'Context ({test})', 'Fantasy pts / 30 min', 'Minutes', 'Sat out (pts)'], 'rows': table},
         'n': n,
         'n_label': 'player-team-games',
