@@ -9,7 +9,7 @@ import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
-import { Card, Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, Td, Th, TrendTag } from './ui';
+import { Card, Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 
 interface StreamerRow {
   player_id: string;
@@ -685,6 +685,7 @@ export default function Streamers() {
             </button>
           </div>
         </div>
+        <TagLegend />
         <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
           <table className="w-full text-sm" data-testid="trending">
             <thead>
@@ -734,7 +735,7 @@ export default function Streamers() {
                         {r.full_name ?? r.player_id}
                       </a>
                       {r.is_new_team && <NewTeam from={r.prev_team_abbreviation} />}
-                      <LineupTag role={r.lineup_role} confirmed={r.lineup_confirmed} date={r.lineup_date} />
+                      <LineupTag role={r.lineup_role} confirmed={r.lineup_confirmed} date={r.lineup_date} injuryGroup={r.injury_group} />
                       <RestRiskTag risk={r.rest_risk} stakes={r.team_stakes} />
                       <NewsTag flag={r.news_flag} headline={r.news_headline} date={r.news_date} />
                       <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />

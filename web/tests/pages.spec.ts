@@ -709,7 +709,8 @@ test("streamers mark today's starters and inactives from the league's lineups, a
     const roles = [
       { lineup_role: 'starter', lineup_confirmed: true },
       { lineup_role: 'starter', lineup_confirmed: false },
-      { lineup_role: 'inactive', lineup_confirmed: true },
+      { lineup_role: 'inactive', lineup_confirmed: true, injury_group: null },
+      { lineup_role: 'inactive', lineup_confirmed: true, injury_group: 'out', injury_status: 'Out' },
     ];
     await route.fulfill({ json: rows.map((r, i) => ({ ...r, ...(roles[i] ?? {}) })) });
   });
@@ -717,7 +718,11 @@ test("streamers mark today's starters and inactives from the league's lineups, a
   const table = page.getByTestId('trending');
   await expect(table.getByTestId('lineup-tag').filter({ hasText: /^START$/ })).toHaveCount(1);
   await expect(table.getByTestId('lineup-tag').filter({ hasText: 'START?' })).toHaveCount(1);
-  await expect(table.getByTestId('lineup-tag').filter({ hasText: 'INACT' })).toHaveCount(1);
+  // Inactive reads as OUT for the day; a player already tagged OUT on the injury report gets no second tag.
+  await expect(table.getByTestId('lineup-tag').filter({ hasText: /^OUT / })).toHaveCount(1);
+  await expect(table.getByTestId('lineup-tag').filter({ hasText: /^OUT / })).toHaveAttribute('title', /listed the player inactive/);
+  await page.getByTestId('tag-legend').locator('summary').click();
+  await expect(page.getByTestId('tag-legend')).toContainText('not in uniform');
   await page.getByLabel('Starting today').check();
   await expect(table.locator('tbody tr')).toHaveCount(2);
 });
