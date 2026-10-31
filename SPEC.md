@@ -169,6 +169,7 @@ Three audiences, three doors onto the same gold tables: people who click (web ap
 4. `04_data_quality` — a scorecard per league and season: source agreement, box closure, shot charts against the box score, lineup completeness, link rates, freshness and the dbt check history.
 5. `05_shooting` — how many attempts before shooting percentages (and shooting over expectation) are more skill than luck, first half against second half, and what a shot is worth by zone.
 6. `06_prop_lines` — how far the board's per-game projections sit from the sportsbooks' player prop lines, by market, and once games are played which was closer to the outcome. Prop lines are a private model input (ADR 0008); the notebook publishes aggregates only.
+7. `07_teammate_absence` — when a teammate who plays big minutes or uses many possessions is known to be out, how much the others' minutes, usage and fantasy production rise (game by game, by role and position, out of sample), and whether adjusting the last ten games for it predicts the affected players' next week better, in Monday replays.
 
 Each covers both leagues and runs against the published build, locally through DuckDB or in Databricks through `databricks-sql-connector`. CI executes them with `nbconvert` against the DuckDB sample and the build workflow against every published build, publishing the HTML and each notebook's findings (headline, facts, table, evidence size, or "accumulating" when the build has too little history) to `/notebooks`.
 
@@ -225,7 +226,7 @@ fantasyscout/
   dbt/               # dbt project: models/bronze|silver|gold|ops, tests/, seeds/, macros/
   export/            # gold -> Parquet/JSON -> R2, manifest, latest pointer
   ai/                # notes generator, prompts, evals/
-  notebooks/         # 01_board_backtest .. 05_shooting, replay.py, fs.py
+  notebooks/         # 01_board_backtest .. 07_teammate_absence, replay.py, fs.py
   web/               # Astro app
   worker/            # Cloudflare Worker + wrangler.toml
   infra/             # self-hosted runner definition (ADR 0002)

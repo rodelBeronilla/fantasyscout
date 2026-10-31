@@ -32,6 +32,12 @@ export const NOTEBOOKS = [
     title: 'Shooting: what is sustainable',
     blurb: 'How many attempts it takes before a free-throw, three-point or field-goal percentage is more skill than luck, and what a shot is worth by zone.',
   },
+  {
+    name: '07_teammate_absence',
+    title: 'Teammate absence',
+    blurb:
+      'When a big-minutes or high-usage teammate is known to be out, how much the others’ minutes, usage and fantasy production rise, and whether adjusting the last ten games for it predicts the next week any better.',
+  },
 ] as const;
 
 interface LeagueFindings {

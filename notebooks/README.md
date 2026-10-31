@@ -1,6 +1,6 @@
 # Notebooks
 
-Six analyses over the gold tables, executed against the newest published build after every
+Seven analyses over the gold tables, executed against the newest published build after every
 export and rendered at `/notebooks/` on the site; CI executes them against the fixture sample on
 every pull request, so a notebook that stops running fails the build.
 
@@ -21,6 +21,7 @@ measures.
 | `04_data_quality` | Per league and season: do the sources agree, do box scores add up, do shot charts match them, are lineups complete, do injury, waiver and status rows link, and are the sources fresh? |
 | `05_shooting` | How many attempts before a free-throw, three-point or field-goal percentage (or shooting over expectation) is more skill than luck, and does a first-half edge last? |
 | `06_prop_lines` | How far do the board's projections sit from the sportsbooks' player lines, and once the games are played, which was closer? Prop lines are private (ADR 0008): aggregates only. |
+| `07_teammate_absence` | When a teammate who plays big minutes or uses many possessions is known to be out, how much do the others' minutes, usage and fantasy production rise, and does adjusting for it beat the last ten games at predicting the affected players' next week? |
 
 `replay.py` re-implements `mart_player_projection` and `mart_board` point in time from
 `fct_player_game`, reading every setting from `dbt/dbt_project.yml`; the board backtest and the

@@ -36,7 +36,7 @@ export/      gold -> Parquet/JSON -> R2, manifest, latest pointer
 ops/         results recorder and publish gate (ops.test_results, ops.publish_gate)
 dbt/         dbt project: models/bronze|silver|gold|ops, tests/ (quality checks), seeds/, macros/, sample/
 ai/          notes generator, prompts, evals/
-notebooks/   01_board_backtest, 02_streamer_signals, 03_game_context, 04_data_quality, 05_shooting, 06_prop_lines; replay.py
+notebooks/   01_board_backtest .. 07_teammate_absence; replay.py
 web/         Astro app
 worker/      Cloudflare Worker + wrangler.toml
 infra/       self-hosted runner for the jobs that need a residential address

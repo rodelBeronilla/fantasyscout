@@ -29,6 +29,7 @@ from nb_game_context import CELLS as GAME_CONTEXT  # noqa: E402
 from nb_prop_lines import CELLS as PROP_LINES  # noqa: E402
 from nb_shooting import CELLS as SHOOTING  # noqa: E402
 from nb_streamer_signals import CELLS as STREAMER_SIGNALS  # noqa: E402
+from nb_teammate_absence import CELLS as TEAMMATE_ABSENCE  # noqa: E402
 
 NOTEBOOKS: dict[str, list[tuple[str, str]]] = {
     "01_board_backtest": BOARD_BACKTEST,
@@ -37,6 +38,7 @@ NOTEBOOKS: dict[str, list[tuple[str, str]]] = {
     "04_data_quality": DATA_QUALITY,
     "05_shooting": SHOOTING,
     "06_prop_lines": PROP_LINES,
+    "07_teammate_absence": TEAMMATE_ABSENCE,
 }
 
 

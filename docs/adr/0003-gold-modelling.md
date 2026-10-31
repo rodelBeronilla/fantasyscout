@@ -381,3 +381,42 @@ The line does carry the blowout. A wider spread takes about half a minute per 5 
 - **Minutes:** it explains 3.0% more of NBA minutes and 0.3% of WNBA minutes. The source is blowout risk: each 5 points of spread costs NBA starters 0.73 minutes (-0.93 to -0.51) and WNBA starters 0.37.
 
 The matchup stays defence and pace. The spread's cost to starters is real but small: a 10-point favourite's starter loses about a minute and a half. It is a candidate for a minutes adjustment on game days, not a change to weekly value.
+
+## Addendum (2026-10-30): a teammate's known absence is real, but the last ten games already price who gains
+
+The in-season minutes addendum found that the minutes of teammates who sat out the latest game add nothing beyond the last five games. Notebook 07 (`07_teammate_absence`) asks a wider question. It uses absences known in advance and targets production and usage over the following week, not only minutes.
+
+**Known in advance.** Where the official injury report covers the game (`fct_official_listing`: NBA 2023-24 on, WNBA 2026), a teammate listed Out who then did not play. Elsewhere, an approximation: a teammate who missed the team's previous game and this one. About three in four absences are part of such a spell. The run below used the approximation throughout, because the local copy of history carries no listings. The published build has them for the NBA, and `notebooks.yml` runs the branch's notebook on it.
+
+**The measure.** A teammate's share is minutes per game so far over the team's minutes, or usage share: usage rate times minutes per game over the game's length. Last season stands in before a teammate's fifth game. Usage shares add to 1 over a team's game. The absence is the known-out share the player's own baseline does not already hold. Each known-out teammate's share counts in proportion to how many of the player's baseline games that teammate played. It is split into teammates at the player's position (G, F or C) and the rest.
+
+**(a) Game by game.** Every regular-season game a player played, with five or more games and 10+ minutes a game so far. Each outcome is measured against the player's season to date. The model is fitted on the earlier seasons and estimated again on the latest finished season, NBA 2025-26 and WNBA 2026, with 95% player-bootstrap intervals. Effects are per 10 points of share newly out. A top teammate is about 20 points of usage share.
+
+| Per 10 points newly out, latest season | NBA, same position | NBA, other | WNBA, same position | WNBA, other |
+| --- | --- | --- | --- | --- |
+| Minutes | +1.98 (+1.64 to +2.25) | +1.38 (+1.13 to +1.60) | +1.33 (+0.81 to +1.98) | +1.14 (+0.72 to +1.44) |
+| Usage, percentage points | +0.71 (+0.53 to +0.85) | +0.74 (+0.62 to +0.87) | +0.49 (+0.11 to +0.88) | +0.59 (+0.34 to +0.82) |
+| Fantasy points per 36 minutes | +0.61 (+0.18 to +1.05) | +0.68 (+0.45 to +0.95) | -0.05 (-0.96 to +1.13) | -0.68 (-1.47 to -0.14) |
+| Fantasy points per game | +2.08 (+1.69 to +2.46) | +1.63 (+1.27 to +1.95) | +1.18 (+0.56 to +1.92) | +0.49 (-0.05 to +1.07) |
+| Production per game (Streamers unit) | +0.64 (+0.46 to +0.84) | +0.50 (+0.34 to +0.65) | +0.35 (+0.04 to +0.78) | -0.03 (-0.34 to +0.30) |
+
+The earlier seasons' estimates agree in size. Bench players gain about twice the minutes starters do: in the NBA, +2.36 and +1.83 minutes against +1.13 and +0.79. The gain is mostly minutes and a little usage. Production per minute barely moves, and in the WNBA not at all. Out of sample, the absence explains 4.3% of the game-to-game swing in NBA minutes, 1.8% of fantasy points per game and 0.6% of production; in the WNBA, 1.7%, 0.3% and nothing.
+
+**(b) Monday replays.** On every regular-season Monday, each team's top teammate is the one with the largest usage share so far. The study takes the teams whose top teammate was known out for the whole week. That was 256 of 2,070 NBA team-weeks and 71 of 1,360 WNBA team-weeks. The affected players are the team's other players with five or more games who played that week: 2,941 NBA and 681 WNBA player-weeks, of which 1,166 and 187 fall in the test seasons. Four predictors of their production per game that week:
+- the last ten games;
+- the last ten plus a flat uplift, the earlier seasons' average change;
+- the last ten plus the redistribution: the slopes from (a), fitted on the earlier seasons, times the share newly out against the last ten games;
+- the last ten plus the player's own split this season without the teammate against with them, shrunk by five games.
+
+| Fantasy points per game, test season | NBA 2025-26: mean abs. error | Gain on the last ten | Bias | WNBA 2026: mean abs. error | Gain on the last ten | Bias |
+| --- | --- | --- | --- | --- | --- | --- |
+| Last ten | 7.74 | | -2.19 | 6.95 | | -0.48 |
+| Plus a flat uplift | 7.65 | +0.09 (+0.02 to +0.18) | -0.59 | 7.09 | -0.14 (-0.33 to +0.04) | +0.99 |
+| Plus the redistribution | 7.71 | +0.03 (-0.14 to +0.17) | +0.10 | 7.02 | -0.07 (-0.34 to +0.21) | +1.41 |
+| Plus the player's own split | 7.73 | +0.02 (-0.07 to +0.13) | -1.49 | 7.17 | -0.22 (-0.45 to +0.01) | +0.01 |
+
+In the Streamers unit, production per game, the redistribution changed the error by -0.015 (-0.058 to +0.029) in the NBA and -0.10 (-0.22 to +0.01) in the WNBA. For minutes alone, the player's own split was a small gain in both leagues: +0.11 (+0.03 to +0.17) and +0.13 (+0.01 to +0.30) minutes, against errors of 4.6 and 4.3.
+
+**The uplift is real, and the last ten games cannot see it.** Over every player-week, the last ten games are close to unbiased (NBA -0.13 fantasy points a game, WNBA -0.04). For players whose top teammate is out all week they fall short by 2.2 in the NBA, 1.6 in the earlier NBA seasons, and 0.5 to 1.5 in the WNBA. The redistribution sizes the NBA uplift almost exactly (+2.3 against +2.2) but not who receives it. Its move correlates 0.07 with the change that followed in fantasy points and 0.01 in production; in the WNBA it is 0.24 and 0.15, and it overshoots. A week of three or four games swings by about 10 fantasy points a game, so an average 2-point shift spread unevenly over eight players does not lower the absolute error. The flat uplift's gain in the NBA, about 1%, does not hold in the WNBA.
+
+**Nothing is built.** There is no `fct_usage_redistribution` model and no Streamers column. On the measure that ranks streamers and feeds window value, neither the redistribution nor the player's own split beats the last ten games. That is true in either league, out of sample. The one consistent gain, under a minute a game, is too small to be worth a model. Per-minute production barely moves when a teammate is out, so lineup on/off splits from `fct_event`, which measure per-minute effects, are not worth building on this evidence. The notebook re-runs on every build. On the published build, the games the official report covers (NBA 2023-24 on, WNBA 2026) use the listings in place of the approximation.
