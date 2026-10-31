@@ -20,7 +20,7 @@ export const NOTEBOOKS = [
     name: '03_game_context',
     title: 'Game context',
     blurb:
-      'Whether back-to-backs, travel, altitude and the opponent change whether a regular plays and what they produce, and how often one missed game becomes several.',
+      'Whether back-to-backs, travel, altitude, the opponent, the referees and the betting line change whether a regular plays and what they produce, whether the line makes a better matchup, and how often one missed game becomes several.',
   },
   {
     name: '04_data_quality',

@@ -346,3 +346,38 @@ The top decile of NBA expected-games production adds 13.6 to the week above the 
 **The board's line helps the WNBA and not the NBA.** It found 0.3 to 0.6 more pickups a week in the WNBA (t about 1 to 2) but fewer in the NBA, where the last ten games follow a role change faster than the season-weighted line does. **Opportunity** trends the right way (rank correlation 0.2 NBA, 0.08 WNBA), but less than minutes alone, and the blend gives it almost no weight. **The fitted blend** gains in the NBA because the 2023-24 and 2024-25 seasons it was fitted on carry the listings. It falls far behind in the WNBA, whose fitted seasons have no listings, and its weights on the near-copies of production cancel each other out.
 
 No signal clearly beats the default for the NBA without costing the WNBA, so **the Streamers sort and `mart_streamers` stay as they are.** The notebook keeps the three signals and reports both views each build. As the WNBA's own listings and the NBA's 2026-27 season accumulate, a gain that holds with players listed Out left out would reopen the question. The board's line for the WNBA alone is the candidate to watch.
+
+## Addendum (2026-10-30): the betting-line backtest
+
+The betting lines addendum promised a backtest before the line moves any score. Notebook 03 now runs it, in three parts.
+
+- **Coverage.** The share of each league-season's played games with a closing line in `fct_game_line`.
+- **Does the line add to defence and pace?** The team's implied points (standardised over the league-season's team-games with a line) and the absolute spread per 5 points (blowout risk) join the opponent's defence and pace in the effects framework. The outcomes are fantasy points per 30 minutes and minutes, each against the player's own figure so far, with the minutes tier as a control, for all regulars and split by whether they started. Reported: effects with player-bootstrap intervals, and the share of the outcome the line explains out of sample beyond defence, pace and the tier.
+- **Which matchup predicts better?** The current matchup (`fantasy_matchup`, computed as `mart_schedule_upcoming` does) against a line matchup (implied team points less the league-season average). Each gets one slope on the fit part, and both are scored out of sample on the same test games, for fantasy points in the game and per 30 minutes.
+
+ESPN's summaries keep the line only for recent games. Probed on 2026-10-30, every NBA summary from 2025-11-25 on carried DraftKings' closing line, and none before it did. Every WNBA 2026 summary carried one, and no WNBA 2025 summary did. So each league has one finished season with lines, unless the build landed older summaries while they still had them. With one season, the notebook fits on its first half by date and tests on the second. Earlier seasons fit once they have lines too. With fewer than 500 player-games with a line on either side, the league is reported as accumulating.
+
+The run here used a sample, not the published build. Box scores for every regular-season game of NBA 2023-24 to 2025-26 and WNBA 2023 to 2026 came from ESPN's summaries, the set the referee addendum used, so box scores and pace are ESPN's. Closing lines came for a random 260 NBA 2025-26 games (198 with a line) and 200 WNBA 2026 games (199). The NBA test is 2025-26 games from 2026-01-27 on (about 1,860 player-games); the WNBA test is 2026 games from 2026-07-17 on (about 1,480).
+
+| Test part, 95% intervals from resampling players | NBA 2025-26 | WNBA 2026 |
+| --- | --- | --- |
+| Implied team points, per SD: fantasy pts / 30 min | +0.62 (-0.03 to +1.46) | -0.30 (-1.06 to +0.79) |
+| Absolute spread, per 5 points: starters' minutes | -0.54 (-0.98 to -0.21); fit part -0.77 | -0.45 (-0.69 to -0.14); fit part -0.09 |
+| Absolute spread, per 5 points: bench minutes | +0.69 (+0.17 to +1.30); fit part +0.56 | +0.27 (-0.52 to +0.94) |
+| Share explained beyond defence, pace and tier: fantasy pts / 30 min | +0.35% (-0.06 to +0.78) | +0.11% (-0.34 to +0.63) |
+| Share explained beyond defence, pace and tier: minutes | +1.56% (+0.64 to +2.25) | +0.19% (-0.41 to +0.72) |
+| Fantasy pts in the game, explained beyond tier: defence + pace matchup | +1.26% (+0.53 to +1.78) | +2.22% (+1.24 to +3.07) |
+| Fantasy pts in the game, explained beyond tier: line matchup | +0.01% (-0.61 to +0.57) | +0.35% (+0.01 to +0.61) |
+| Line matchup minus defence + pace (percentage points) | -1.25 (-1.88 to -0.64) | -1.87 (-2.58 to -1.13) |
+
+The line does carry the blowout. A wider spread takes about half a minute per 5 points from a starter. That holds in both halves of the NBA season and in the WNBA's second half, though not its first (-0.09). NBA bench players gain about as much. Implied points add little to production per minute once defence and pace are in, and the gain in explained variance is under half a percent with an interval that reaches zero. As a matchup on its own, implied team points are clearly worse than defence and pace, in both leagues and per game or per 30 minutes. A likely reason: implied points mostly restate a team's own offence, which the player's own rate already carries. Adding the line to the current matchup adds about nothing (NBA +1.12% together against +1.26% alone; WNBA +2.38% against +2.22%).
+
+**The matchup value is unchanged.** On this sample the line does not beat defence and pace, and its one clear effect, minutes in a lopsided game, is about half a minute per 5 points. That is too small to move a value per game, and it splits starters from bench, which the matchup value does not do. Streamers keeps showing the line as context. On the published build, the notebook's findings will show whether the minutes effect holds over full seasons and whether the line still trails the current matchup. If both hold, the decision stands and the 'to confirm' mark comes off. If the line's minutes effect proves larger, a role-aware minutes adjustment is the place for it, not the matchup.
+
+**Published build (run 41164519437).**
+- **Coverage:** ESPN keeps closing lines only on recent summaries, so lines cover NBA 2025-26 from late November (80% of games) and 2026-27, and WNBA 2026 (99%).
+- **The line as a matchup:** it explains less than defence and pace. Out of sample it is 1.41 fantasy points a game worse in the NBA (-1.68 to -1.21) and 1.17 worse in the WNBA (-1.61 to -0.59).
+- **The line added to defence and pace:** it explains 0.33% more of fantasy points per 30 minutes in the NBA and 0.20% in the WNBA.
+- **Minutes:** it explains 3.0% more of NBA minutes and 0.3% of WNBA minutes. The source is blowout risk: each 5 points of spread costs NBA starters 0.73 minutes (-0.93 to -0.51) and WNBA starters 0.37.
+
+The matchup stays defence and pace. The spread's cost to starters is real but small: a 10-point favourite's starter loses about a minute and a half. It is a candidate for a minutes adjustment on game days, not a change to weekly value.
