@@ -15,7 +15,7 @@ measures.
 
 | Notebook | Question |
 | --- | --- |
-| `01_board_backtest` | Replayed before and during past seasons from the games before each day, does the board's projection find the players who go on to produce, and is it better than last season's numbers or the season to date? |
+| `01_board_backtest` | Replayed before and during past seasons from the games before each day, does the board's projection find the players who go on to produce, and is it better than last season's numbers or the season to date? Does cutting the minutes of a player back from an absence, or an aging curve before the season, make it better? |
 | `02_streamer_signals` | Every Monday, which Streamers signal, sorted on, finds the free agents who produce most over the next seven days, and do expected games (from the official injury listings), the board's projected line or an opportunity trend beat the default? |
 | `03_game_context` | Do back-to-backs, travel, time zones, altitude, the opponent, the referees and the betting line change whether a regular plays and what they produce per minute, would a matchup read off the line beat defence and pace, and how often does one missed game become several? |
 | `04_data_quality` | Per league and season: do the sources agree, do box scores add up, do shot charts match them, are lineups complete, do injury, waiver and status rows link, and are the sources fresh? |

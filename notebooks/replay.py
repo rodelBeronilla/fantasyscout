@@ -9,7 +9,8 @@ re-implements both models in pandas, point in time:
 - minutes per game, counted by games played times the league's minutes recency weight, with a
   past season spent mostly on another team down-weighted (``fantasy_team_change``);
 - in season, projected minutes blended with the last five games for the current team
-  (``fantasy_recent_minutes``);
+  (``fantasy_recent_minutes``), and cut for a player still out or just back from three or more
+  team games missed (``fantasy_return_ramp``);
 - ``prior_games`` games of a replacement-level line, from the latest complete season;
 - the games share, regressed toward a typical share by ``durability_games`` games;
 - value above replacement scored in two pool passes, as ``mart_board`` does.
@@ -84,6 +85,12 @@ TUNING_SEASONS = {
     "nba": frozenset({"2024-25", "2025-26"}),
     "wnba": frozenset({"2021", "2022", "2023", "2024", "2025", "2026"}),
 }
+# Seasons the return ramp (fantasy_return_ramp) was chosen on, by next-five and next-ten-game
+# minutes (ADR 0003, the return ramp addendum); later seasons test it out of sample.
+RAMP_FIT_SEASONS = {
+    "nba": frozenset({"2023-24", "2024-25"}),
+    "wnba": frozenset({"2018", "2019", "2020", "2021", "2022", "2023", "2024"}),
+}
 CHECKPOINTS = (("preseason", 0.0), ("a tenth in", 0.1), ("a quarter in", 0.25), ("half way", 0.5))
 TOP_N = {"nba": 50, "wnba": 30}
 
@@ -102,6 +109,12 @@ class Settings:
     typical_share: float
     team_change: float
     recent_minutes: float
+    # fantasy_return_ramp: minutes cut per team game missed, the most cut, the games back it
+    # lasts, and the shortest absence it applies to (0 per game: no ramp)
+    ramp_per_game: float = 0.0
+    ramp_max: float = 0.0
+    ramp_games: int = 2
+    ramp_min_missed: int = 3
 
     @property
     def pool_size(self) -> int:
@@ -125,6 +138,10 @@ def load_settings(path: Path = PROJECT_FILE) -> dict[str, Settings]:
             typical_share=float(v["fantasy_durability"]["typical_share"]),
             team_change=float(v["fantasy_team_change"]),
             recent_minutes=float(v["fantasy_recent_minutes"]),
+            ramp_per_game=float(v["fantasy_return_ramp"]["per_game_missed"]),
+            ramp_max=float(v["fantasy_return_ramp"]["max_cut"]),
+            ramp_games=int(v["fantasy_return_ramp"]["games_back"]),
+            ramp_min_missed=int(v["fantasy_return_ramp"]["min_games_missed"]),
         )
     return out
 
@@ -460,9 +477,25 @@ class Replay:
         w["minutes_last5_pg"] = recent["mean"].reindex(w.index)
         blend = in_season & (recent["n"].reindex(w.index).fillna(0) >= 5)
         w["proj_minutes_season_pg"] = base
-        w["proj_minutes_pg"] = np.where(
+        blended = np.where(
             blend, (1 - s.recent_minutes) * base + s.recent_minutes * w["minutes_last5_pg"], base
         )
+        # a return from an absence: in season, with 5+ games this season, minutes are cut by
+        # ramp_per_game per team game missed (at most ramp_max) while the player is still out,
+        # fading to none once they have played ramp_games games back
+        last_team = hist.players[hist.players["season"] == ordered[1]] if len(ordered) > 1 else None
+        prev_team = (
+            last_team.set_index("player_id")["season_team"]
+            if last_team is not None
+            else pd.Series(dtype=object)
+        )
+        absence = self.absence(as_of, current, team, prev_team)
+        w["absence_games"] = absence["absence_games"].reindex(w.index)
+        w["games_since_return"] = absence["games_since_return"].reindex(w.index)
+        w["return_minutes_factor"] = ramp_factor(
+            w["absence_games"], w["games_since_return"], s
+        ).where(in_season & (w["games_current"] >= 5), 1.0)
+        w["proj_minutes_pg"] = blended * w["return_minutes_factor"]
         w["games_share"] = np.minimum(
             1.0,
             (w["regular_games_weight"] + s.durability_games * s.typical_share)
@@ -481,6 +514,53 @@ class Replay:
         w["season"] = current
         w["reference_season"] = reference
         return w.drop(columns=[c for c in w.columns if c.startswith("wsum_")])
+
+    def absence(
+        self, as_of: pd.Timestamp, season: str, team: pd.Series, prev_team: pd.Series
+    ) -> pd.DataFrame:
+        """Each player's latest absence from their current team, before ``as_of``.
+
+        An absence is a run of consecutive games of the player's current team (``team``) in
+        ``season`` that the player did not play, of at least ``ramp_min_missed`` games. The team's games
+        count from the player's first game for it this season, or from its first game when it was
+        their main team last season (``prev_team``), so an injury carried over from last season counts.
+        Returns ``absence_games`` (the run's length) and ``games_since_return`` (their games
+        for the team after it; 0 while still out), for players with such an absence.
+        """
+        empty = pd.DataFrame(columns=["absence_games", "games_since_return"], dtype=float)
+        g = self.games
+        rows = g[(g["season"] == season) & (g["game_date"] < as_of)]
+        if rows.empty or team.empty:
+            return empty
+        team_games = rows.drop_duplicates(["team_id", "game_id"])[
+            ["team_id", "game_id", "game_date"]
+        ]
+        slots = team.rename("team_id").rename_axis("player_id").reset_index().merge(team_games)
+        played = rows.loc[rows["played"], ["player_id", "team_id", "game_id"]].drop_duplicates()
+        slots = slots.merge(played.assign(p=True), how="left")
+        slots["p"] = slots["p"].astype("boolean").fillna(False).astype(bool)
+        slots = slots.sort_values(["player_id", "game_date", "game_id"])
+        slots["played_before"] = slots.groupby("player_id")["p"].cumsum()
+        counted = (slots["played_before"] > 0) | (
+            slots["player_id"].map(prev_team) == slots["team_id"]
+        )
+        slots = slots[counted]
+        runs = (
+            slots[~slots["p"]]
+            .groupby(["player_id", "played_before"])
+            .size()
+            .rename("absence_games")
+            .reset_index()
+        )
+        runs = runs[runs["absence_games"] >= self.settings.ramp_min_missed]
+        if runs.empty:
+            return empty
+        latest = (
+            runs.sort_values("played_before").groupby("player_id").tail(1).set_index("player_id")
+        )
+        total = slots.groupby("player_id")["p"].sum()
+        latest["games_since_return"] = total.reindex(latest.index) - latest["played_before"]
+        return latest[["absence_games", "games_since_return"]].astype(float)
 
     def _recent_minutes(self, as_of: pd.Timestamp, season: str, team: pd.Series) -> pd.DataFrame:
         g = self.games
@@ -576,6 +656,18 @@ class Replay:
         out["share"] = (out["games"] / out["team_games_left"]).clip(upper=1).fillna(0)
         out["value_total"] = (out["value_pg"] * out["share"]).fillna(0)
         return out
+
+
+def ramp_factor(absence_games: pd.Series, games_since_return: pd.Series, s: Settings) -> pd.Series:
+    """The share of projected minutes kept after an absence (``fantasy_return_ramp``).
+
+    ``ramp_per_game`` per game missed, at most ``ramp_max``, in full while the player is still out
+    (no games back yet), fading linearly to nothing once they have played ``ramp_games`` games back;
+    1 for a player with no absence (NaN).
+    """
+    cut = np.minimum(s.ramp_max, s.ramp_per_game * absence_games)
+    fade = np.maximum(0.0, 1 - games_since_return / s.ramp_games)
+    return (1 - cut * fade).fillna(1.0)
 
 
 def baseline(replay: Replay, rows: pd.DataFrame, roster: pd.DataFrame) -> pd.Series:

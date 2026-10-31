@@ -376,6 +376,7 @@ def build(
             "fantasy_durability",
             "fantasy_team_change",
             "fantasy_recent_minutes",
+            "fantasy_return_ramp",
             "fantasy_matchup",
         )
         if k in project_vars

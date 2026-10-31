@@ -72,7 +72,7 @@
    ]
   },
   {
-   "about": "Projected minutes are the season-weighted figure, or in season a blend of it with the last five games (var fantasy_recent_minutes): never outside the two.",
+   "about": "Projected minutes are the season-weighted figure, or in season a blend of it with the last five games (var fantasy_recent_minutes): never outside the two once the return ramp's cut (var fantasy_return_ramp) is taken back out. The ramp keeps between 1 - max_cut and all of them.",
    "name": "assert_projected_minutes_blend",
    "reads": [
     "mart_player_projection"
@@ -276,9 +276,15 @@
    0.08
   ],
   "fantasy_recent_minutes": 0.5,
+  "fantasy_return_ramp": {
+   "games_back": 2,
+   "max_cut": 0.5,
+   "min_games_missed": 3,
+   "per_game_missed": 0.01
+  },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 331,
+ "generic_tests": 332,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -18422,7 +18428,7 @@
        "type": "double"
       },
       {
-       "description": "Projected minutes per game: proj_minutes_season_pg, blended half and half with minutes_last5_pg in season after 5+ games",
+       "description": "Projected minutes per game: proj_minutes_season_pg, blended half and half with minutes_last5_pg in season after 5+ games, times return_minutes_factor",
        "name": "proj_minutes_pg",
        "tests": [
         "not_null"
@@ -18439,6 +18445,26 @@
        "description": "Minutes per game over the player's last five games this season for the current team; null without any",
        "name": "minutes_last5_pg",
        "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Length of the player's latest absence this season: three or more straight games of the current team not played (counted from the team's first game when it was the player's main team last season); null without one",
+       "name": "absence_games",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Games the player has played for the current team since that absence; 0 while still out; null without an absence",
+       "name": "games_since_return",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Share of projected minutes kept by the return ramp (fantasy_return_ramp): in season, with 5+ games this season, 1 minus 1% per game of the absence (at most 50%) while still out, half that cut after the first game back, 1 otherwise",
+       "name": "return_minutes_factor",
+       "tests": [
+        "not_null"
+       ],
        "type": "double"
       },
       {
@@ -18522,7 +18548,7 @@
        "type": "double"
       }
      ],
-     "description": "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes).",
+     "description": "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes) and are cut for a player still out or just back from an absence (fantasy_return_ramp).",
      "exported_as": [
       "mart_player_projection.parquet"
      ],
@@ -18540,6 +18566,7 @@
       "One projected line per player on a current roster: what the board scores.",
       "The projection separates how much a player plays from what they do while playing:",
       "- Minutes per game: each season's minutes per game counted by games played times a minutes recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in the current season shows within a few games where the league's roles move a lot (WNBA). A past season spent mostly on another team counts for var fantasy_team_change (0.25) of its minutes weight: the role was a different team's. Per-minute production carries over. In season, with five or more games for the current team, the figure is blended with the player's last five games at var fantasy_recent_minutes (0.5), so a role change shows at once.",
+      "- Return ramp: in season, for a player with five or more games this season who is still out, or just back, after three or more straight games of the current team missed, minutes per game are cut by 1% per game of that absence (at most 50%) while the player is out, half that after the first game back and none from the second (var fantasy_return_ramp). Players come back on reduced minutes, and the last five games only show it once they have been played. The team's games count from the player's first game for it this season, or from its first game when it was their main team last season, so an injury carried over from last season counts.",
       "- Production per minute: each season's totals over its minutes, counted by minutes played times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of 60 games at 8 minutes counts for far less than 60 games at 34.",
       "- Per-game line: production per minute times projected minutes.",
       "- Games share (durability): the share of their team's regular-season games a player played in the seasons they appeared in, by the same recency, regressed toward a typical share by durability_games games (var fantasy.<league>.durability_games, fantasy_durability). Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out.",
@@ -18556,7 +18583,12 @@
       "rosters",
       "schedule"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",
+       "name": "projection_return_ramp_cuts_minutes_after_an_absence"
+      }
+     ]
     },
     {
      "checks": [],
@@ -20360,6 +20392,11 @@
    "description": "Last night's game has ESPN's crew (the newest landed summary wins over an older one) and the page's: the crew chief and the referee keep their roles (\"JB DeRosa\" on the page is \"J.B. DeRosa\" on ESPN), the official only ESPN lists has none, and the page's umpire who did not work the game is left out. Tonight's games have only the page's crew, alternate included, linked by the date and the teams the page names: \"L.A. Lakers\" and \"LA Clippers\" are told apart although both play in Los Angeles. A page row for a game the schedule does not have is left out.",
    "model": "game_officials",
    "name": "game_officials_link_both_sources"
+  },
+  {
+   "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",
+   "model": "mart_player_projection",
+   "name": "projection_return_ramp_cuts_minutes_after_an_absence"
   },
   {
    "description": "Tonight's game has its crew from the assignments page. The crew chief worked 20 games this season and last, 2 free-throw attempts and 1 possession above the league's average game, so shrunk as if 20 average games more, 1 and 0.5; the referee worked 60 games last season 4 attempts below and at the average pace (-3 and 0; the season before does not count); the umpire worked 20 games 1 attempt and 2 possessions above (0.5 and 1). The crew sits half an attempt below the average game and half a possession above it. The alternate does not count. A game without a crew yet has none.",

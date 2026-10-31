@@ -10,6 +10,13 @@
     minutes weight: the role was a different team's. Per-minute production carries over.
     In season, with five or more games for the current team, the figure is blended with the player's
     last five games at var fantasy_recent_minutes (0.5), so a role change shows at once.
+  - Return ramp: in season, for a player with five or more games this season who is still out, or
+    just back, after three or more straight games of the current team missed, minutes per game
+    are cut by 1% per game of that absence (at most 50%) while the player is out, half that after
+    the first game back and none from the second (var fantasy_return_ramp). Players come back on
+    reduced minutes, and the last five games only show it once they have been played. The team's
+    games count from the player's first game for it this season, or from its first game when it
+    was their main team last season, so an injury carried over from last season counts.
   - Production per minute: each season's totals over its minutes, counted by minutes played
     times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of
     60 games at 8 minutes counts for far less than 60 games at 34.
@@ -43,6 +50,17 @@
 
 {% set production = ['points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made', 'turnovers', 'fgm', 'fga', 'ftm', 'fta'] %}
 {% set durability = var('fantasy_durability') %}
+{% set ramp = var('fantasy_return_ramp') %}
+
+{# the share of projected minutes kept after an absence (fantasy_return_ramp; ADR 0003) #}
+{%- set return_factor -%}
+case
+            when coalesce(ins.in_season, false) and w.games_current >= 5 and la.absence_games is not null
+                then 1 - least({{ ramp['max_cut'] }}, {{ ramp['per_game_missed'] }} * la.absence_games)
+                    * greatest(0.0, 1 - cast(la.games_since_return as double) / {{ ramp['games_back'] }})
+            else 1.0
+        end
+{%- endset %}
 
 with regular_games as (
 
@@ -245,6 +263,81 @@ recent_minutes as (
 
 ),
 
+-- The return ramp's absences: the current team's games this season, in order, each played or not
+-- by the player. A run of games missed shares the count of games played before it.
+current_team_games as (
+
+    select g.league, g.team_id, g.game_id, min(g.game_date) as game_date
+    from {{ ref('fct_player_game') }} as g
+    join current_season as cs on cs.league = g.league and cs.season = g.season
+    group by g.league, g.team_id, g.game_id
+
+),
+
+last_season_team as (
+
+    -- the player's main team in the season before the current one
+    select st.league, st.player_id, st.team_id
+    from season_team as st
+    join (select distinct league, season from seasons where season_rank = 2) as s2
+        on s2.league = st.league and s2.season = st.season
+
+),
+
+team_game_slots as (
+
+    select cr.league, cr.player_id, cr.team_id, tg.game_id, tg.game_date, p.game_id is not null as played
+    from current_roster as cr
+    join current_team_games as tg on tg.league = cr.league and tg.team_id = cr.team_id
+    left join (
+        select distinct g.league, g.player_id, g.team_id, g.game_id
+        from {{ ref('fct_player_game') }} as g
+        join current_season as cs on cs.league = g.league and cs.season = g.season
+        where g.played and g.minutes > 0
+    ) as p
+        on p.league = cr.league and p.player_id = cr.player_id and p.team_id = cr.team_id and p.game_id = tg.game_id
+
+),
+
+team_game_runs as (
+
+    select
+        s.*,
+        sum(case when s.played then 1 else 0 end) over (
+            partition by s.league, s.player_id order by s.game_date, s.game_id
+            rows between unbounded preceding and current row
+        ) as played_before
+    from team_game_slots as s
+
+),
+
+absence_runs as (
+
+    -- runs of fantasy_return_ramp.min_games_missed or more, from the player's first game for the
+    -- team this season, or from the team's first game when it was their main team last season
+    select r.league, r.player_id, r.played_before, count(*) as absence_games
+    from team_game_runs as r
+    left join last_season_team as l on l.league = r.league and l.player_id = r.player_id
+    where not r.played and (r.played_before > 0 or l.team_id = r.team_id)
+    group by r.league, r.player_id, r.played_before
+    having count(*) >= {{ ramp['min_games_missed'] }}
+
+),
+
+latest_absence as (
+
+    -- the latest such run, and the player's games for the team since it (0: still out)
+    select a.league, a.player_id, a.absence_games, t.games_played - a.played_before as games_since_return
+    from absence_runs as a
+    join (
+        select league, player_id, sum(case when played then 1 else 0 end) as games_played
+        from team_game_slots
+        group by league, player_id
+    ) as t on t.league = a.league and t.player_id = a.player_id
+    qualify row_number() over (partition by a.league, a.player_id order by a.played_before desc) = 1
+
+),
+
 -- A league is in season while its current season has regular-season games to play.
 in_season as (
 
@@ -269,14 +362,18 @@ projected as (
         -- the prior's minutes: prior_games games of a replacement-level player
         {{ fantasy_setting('prior_games', 'w.league') }} * rl.prior_minutes_pg as prior_minutes,
         -- minutes per game: the season-weighted figure, and in season (5+ games for the current
-        -- team) blended with the last five games at fantasy_recent_minutes (ADR 0003)
+        -- team) blended with the last five games at fantasy_recent_minutes, then cut after an
+        -- absence by the return ramp (ADR 0003)
         case
             when coalesce(ins.in_season, false) and rm.recent_games >= 5
                 then (1 - {{ var('fantasy_recent_minutes') }}) * {{ base_minutes }} + {{ var('fantasy_recent_minutes') }} * rm.recent_minutes_pg
             else {{ base_minutes }}
-        end as proj_minutes_pg,
+        end * {{ return_factor }} as proj_minutes_pg,
         {{ base_minutes }} as proj_minutes_season_pg,
         rm.recent_minutes_pg as minutes_last5_pg,
+        la.absence_games,
+        la.games_since_return,
+        {{ return_factor }} as return_minutes_factor,
         least(1.0, (w.regular_games_weight + {{ fantasy_setting('durability_games', 'w.league') }} * {{ durability['typical_share'] }})
             / (w.team_games_weight + {{ fantasy_setting('durability_games', 'w.league') }})) as games_share,
         {%- for s in production %}
@@ -287,6 +384,7 @@ projected as (
     join current_season as cs on cs.league = w.league
     join replacement_line as rl on rl.league = w.league
     left join recent_minutes as rm on rm.league = w.league and rm.player_id = w.player_id
+    left join latest_absence as la on la.league = w.league and la.player_id = w.player_id
     left join in_season as ins on ins.league = w.league
 
 ),
@@ -332,6 +430,9 @@ select
     proj_minutes_pg,
     proj_minutes_season_pg,
     minutes_last5_pg,
+    cast(absence_games as integer) as absence_games,
+    cast(games_since_return as integer) as games_since_return,
+    return_minutes_factor,
     proj_points_pg,
     proj_rebounds_total_pg,
     proj_assists_pg,

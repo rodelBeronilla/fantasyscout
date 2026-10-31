@@ -87,6 +87,8 @@ def test_settings_follow_the_dbt_project() -> None:
     assert s["wnba"].minutes_recency == (1.0, 0.06, 0.02)
     assert s["nba"].recency == (1.0, 0.25, 0.08)
     assert s["nba"].recent_minutes == 0.5 and s["nba"].team_change == 0.25
+    assert (s["wnba"].ramp_per_game, s["wnba"].ramp_max) == (0.01, 0.5)
+    assert (s["nba"].ramp_games, s["nba"].ramp_min_missed) == (2, 3)
 
 
 def test_a_game_on_or_after_the_checkpoint_changes_nothing() -> None:
@@ -168,6 +170,60 @@ def test_in_season_minutes_blend_the_last_five_games() -> None:
     assert early.loc["p9", "proj_minutes_pg"] == pytest.approx(
         early.loc["p9", "proj_minutes_season_pg"]
     )
+
+
+# The return ramp with round numbers: 0.125 of the minutes a game missed, at most half.
+RAMP = replace(TINY, ramp_per_game=0.125, ramp_max=0.5, ramp_games=2, ramp_min_missed=3)
+
+
+def test_ramp_factor() -> None:
+    missed = pd.Series([3.0, 5.0, 5.0, 5.0, np.nan])
+    back = pd.Series([0.0, 0.0, 1.0, 2.0, np.nan])
+    kept = replay.ramp_factor(missed, back, RAMP)
+    # 3 x 0.125 in full; 5 x 0.125 capped at 0.5, then halved one game back, gone at two
+    assert list(kept) == [0.625, 0.5, 0.75, 1.0, 1.0]
+
+
+def test_minutes_are_cut_after_a_return_from_absence() -> None:
+    rows = league()
+    for g in range(1, 11):
+        rows.append(row("2023-24", g, "p9", "T1", 30))
+    for g in (1, 2, 3, 4, 5, 10):  # misses games 6 to 9; game 6 is listed as did not play
+        rows.append(row("2024-25", g, "p9", "T1", 30))
+    rows.append(row("2024-25", 6, "p9", "T1", 0))
+    for g in range(1, 5):  # p8: four games, then out
+        rows.append(row("2024-25", g, "p8", "T1", 30))
+    rp = replay.Replay(frame(rows), RAMP)
+    who = roster(("p9", "T1"), ("p8", "T1"))
+    back = rp.project(SEASONS["2024-25"] + pd.Timedelta(days=21), who, in_season=True)
+    # four games missed and one played since: 0.5 cut, halved
+    assert back.loc["p9", "absence_games"] == 4 and back.loc["p9", "games_since_return"] == 1
+    assert back.loc["p9", "return_minutes_factor"] == pytest.approx(0.75)
+    assert back.loc["p9", "proj_minutes_pg"] == pytest.approx(0.75 * 30)
+    # per-minute production is unchanged: the line shrinks with the minutes
+    off = rp.project(SEASONS["2024-25"] + pd.Timedelta(days=21), who, in_season=False)
+    assert off.loc["p9", "return_minutes_factor"] == 1
+    assert back.loc["p9", "proj_points_pg"] == pytest.approx(0.75 * off.loc["p9", "proj_points_pg"])
+    # still out the day before game 10 (a game on or after the day changes nothing): the full cut
+    out = rp.project(SEASONS["2024-25"] + pd.Timedelta(days=19), who, in_season=True)
+    assert out.loc["p9", "games_since_return"] == 0
+    assert out.loc["p9", "return_minutes_factor"] == pytest.approx(0.5)
+    # under five games this season: the absence is known but cuts nothing
+    assert back.loc["p8", "absence_games"] == 6
+    assert back.loc["p8", "return_minutes_factor"] == 1
+
+
+def test_an_absence_from_the_season_start_counts_only_on_last_seasons_team() -> None:
+    rows = league()
+    for g in range(4, 11):  # misses the team's first three games
+        rows.append(row("2024-25", g, "p9", "T1", 30))
+    rp = replay.Replay(frame(rows), RAMP)
+    team = pd.Series({"p9": "T1"})
+    as_of = SEASONS["2024-25"] + pd.Timedelta(days=21)
+    same = rp.absence(as_of, "2024-25", team, pd.Series({"p9": "T1"}))
+    assert same.loc["p9", "absence_games"] == 3 and same.loc["p9", "games_since_return"] == 7
+    moved = rp.absence(as_of, "2024-25", team, pd.Series({"p9": "T2"}))
+    assert "p9" not in moved.index
 
 
 def test_a_season_on_another_team_counts_less_for_minutes() -> None:
