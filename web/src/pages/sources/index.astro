@@ -59,6 +59,17 @@ const list = sources.sources as Source[];
     </div>
   </section>
 
+  <section class="mt-8 max-w-3xl" aria-labelledby="retention-h">
+    <h2 id="retention-h" class="text-sm font-medium tracking-wide text-muted uppercase">Retention and privacy</h2>
+    <ul class="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="retention">
+      {sources.retention.map((r) => <li>{r}</li>)}
+    </ul>
+    <p class="mt-2 text-sm text-muted">
+      The full statement, with where each store is and how long it keeps what, is in the repository's
+      <a href="https://github.com/rodelBeronilla/fantasyscout/blob/main/docs/architecture.md#data-retention-and-privacy" class="underline underline-offset-4">architecture page</a>.
+    </p>
+  </section>
+
   <section class="mt-8 max-w-3xl" aria-labelledby="object-h">
     <h2 id="object-h" class="text-sm font-medium tracking-wide text-muted uppercase">To object</h2>
     <p class="mt-2 text-sm">
