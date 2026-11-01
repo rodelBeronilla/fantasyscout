@@ -505,6 +505,18 @@ test('every page but the Board sits under a nav header, and the header opens on 
   await expect(page.getByTestId('nav-coming-soon')).toHaveAttribute('data-current', 'true');
 });
 
+test('on a phone, tapping the Yahoo bookmark link copies its code and shows the steps', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'the clipboard is granted on chromium');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/league/?league=nba');
+  const link = page.getByTestId('yahoo-bookmarklet-link');
+  await expect(link).toHaveAttribute('href', /^javascript:/);
+  await link.click();
+  await expect(page.getByTestId('yahoo-copied')).toContainText(/Code copied|Copy the code/);
+  await expect(page.getByTestId('yahoo-bookmarklet')).toContainText('Phone or tablet');
+  await expect(page).toHaveURL(/league/);
+});
+
 test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the League page imports them', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
   // The fixture build's NBA board is empty: serve the WNBA board for it, and the Yahoo fixture names come from there.
