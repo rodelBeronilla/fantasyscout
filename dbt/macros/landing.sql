@@ -123,3 +123,25 @@
       )
   {%- endif %}
 {%- endmacro %}
+
+
+{#
+  Silver keeps the newest landing per natural key. Two macros say so once.
+
+  latest_landing(keys): the usual `qualify` for a row-level natural key, newest ingest date and
+  newest file first.
+
+  latest_snapshot(relation, keys): a bronze feed the ingest re-lands whole every day (the season's
+  game logs, the standings, the schedule, the player directory, a team's roster) accumulates one
+  copy per landing day in append-only bronze (ADR 0004). Silver only ever wants the newest copy per
+  request key, so this filters the relation to the rows of its newest landing per key before any
+  row-level work, and a window over the whole history becomes a window over one snapshot.
+#}
+{% macro latest_landing(keys) -%}
+qualify row_number() over (partition by {{ keys | join(', ') }} order by _ingest_date desc, _source_file desc) = 1
+{%- endmacro %}
+
+{% macro latest_snapshot(relation, keys=['league', 'season', 'request_key']) -%}
+select * from {{ relation }}
+qualify dense_rank() over (partition by {{ keys | join(', ') }} order by _ingest_date desc, _source_file desc) = 1
+{%- endmacro %}

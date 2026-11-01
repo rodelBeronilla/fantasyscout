@@ -5,7 +5,7 @@ with events as (
     select *
     from {{ ref('espn_scoreboard') }}
     where event_id is not null
-    qualify row_number() over (partition by league, event_id order by _ingest_date desc, _source_file desc) = 1
+    {{ latest_landing(['league', 'event_id']) }}
 
 )
 

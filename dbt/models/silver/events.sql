@@ -31,4 +31,4 @@ select
     _source_file
 from {{ ref('stats_playbyplayv3') }}
 where game_id is not null and action_number is not null
-qualify row_number() over (partition by league, game_id, action_number order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'game_id', 'action_number']) }}

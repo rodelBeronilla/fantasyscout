@@ -26,6 +26,6 @@ select
     try_cast(pfd as integer) as fouls_drawn,
     _ingest_date,
     _source_file
-from {{ ref('stats_playergamelogs_misc') }}
+from ({{ latest_snapshot(ref('stats_playergamelogs_misc')) }}) as newest_stats_playergamelogs_misc
 where game_id is not null and player_id is not null
-qualify row_number() over (partition by league, game_id, player_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'game_id', 'player_id']) }}

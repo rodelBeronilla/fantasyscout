@@ -65,3 +65,14 @@ Consequences:
 
 - An NBA regular season has about 164 game dates, so tracking adds about 1,000 calls to its backfill and the playoffs about 360; at the 2.3 s gap, about 50 minutes per season. A nightly NBA run adds up to 18 calls (three unsettled dates), and the season plan two calls per league.
 - The NBA daily season plan re-lands about 17 MB more (Usage and Misc grow with the season, like Advanced); silver keeps the latest landing per player-game.
+
+## Addendum (2026-11-01): the growth of the daily whole-season snapshots
+
+The daily season plan re-lands the season's player game logs (Advanced, Usage, Misc), the team game log, the standings, the schedule, the player directory and every roster. Bronze is append-only, so each of those tables gains one copy of the snapshot per landing day: the NBA player game logs about 26,000 rows a day per measure set over a season, roughly 165 copies by its end. Silver only ever wants the newest copy, and used to find it with a window over every copy.
+
+Decisions:
+
+- Bronze stays append-only. The copies are the record of what the API said on each day, they are what a point-in-time replay reads, and a bronze table that kept only the newest copy would need a merge keyed by request, per engine, for a saving the volume does not need yet.
+- Silver reads a snapshot feed through `latest_snapshot()` (`dbt/macros/landing.sql`): the rows of the newest landing per league, season and request key, chosen before any row-level work. The windows that dedup player-games, teams and games then run over one snapshot, not the season's worth of them, and a row the newest snapshot no longer carries (a game the schedule dropped) no longer comes through from an older copy.
+- The landed files are kept. At the NBA's 20 MB a day the season plan adds about 7 GB a year to the volume; the lever, should the volume ever need it, is pruning superseded snapshot files (every landing of a request key but the newest and the first of each month), not touching bronze. The trigger is written down as 50 GB on the landing volume; nothing prunes before then.
+

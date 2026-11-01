@@ -40,4 +40,4 @@ select
     _source_file
 from {{ ref('stats_boxscoretraditionalv3') }}
 where game_id is not null and person_id is not null
-qualify row_number() over (partition by league, game_id, person_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'game_id', 'person_id']) }}

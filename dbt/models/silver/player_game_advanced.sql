@@ -38,7 +38,7 @@ with from_gamelog as (
         try_cast(pie as double) as pie,
         _ingest_date,
         _source_file
-    from {{ ref('stats_playergamelogs') }}
+    from ({{ latest_snapshot(ref('stats_playergamelogs')) }}) as newest_stats_playergamelogs
     where request_key like 'advanced-%' and game_id is not null and player_id is not null
 
 ),
@@ -94,4 +94,4 @@ select
     *,
     league || ':' || game_id || ':' || player_id as player_game_key
 from unioned
-qualify row_number() over (partition by league, game_id, player_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'game_id', 'player_id']) }}
