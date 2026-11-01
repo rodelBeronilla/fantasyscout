@@ -1,4 +1,4 @@
-{{ config(partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
+{{ config(tags=['feed_reports'], partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
 
 {# Sleeper's player directory as landed (NBA): one row per active player on a team per landing,
    with Sleeper's id and the fields that link the player to the league's ids. #}

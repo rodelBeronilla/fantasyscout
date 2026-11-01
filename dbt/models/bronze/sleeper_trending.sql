@@ -1,4 +1,4 @@
-{{ config(partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
+{{ config(tags=['feed_reports'], partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
 
 {# Sleeper's trending players as landed (NBA): one row per player and direction (add or drop)
    per landing, with how many Sleeper leagues made the move over the lookback window. #}

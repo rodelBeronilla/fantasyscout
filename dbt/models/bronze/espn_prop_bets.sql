@@ -1,4 +1,4 @@
-{{ config(partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
+{{ config(tags=['feed_reports'], partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
 
 {# DraftKings' player totals from ESPN's core API, as landed (ingest/props.py): one row per player
    and market per snapshot, with the line, the over and under prices and the opening line and

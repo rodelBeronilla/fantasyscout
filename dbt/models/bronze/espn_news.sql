@@ -1,4 +1,4 @@
-{{ config(partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
+{{ config(tags=['feed_reports'], partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
 
 {# ESPN's news feed: one row per article and athlete it is tagged with, per landed payload,
    with the headline, its date and the link to the story on ESPN. The story itself is never

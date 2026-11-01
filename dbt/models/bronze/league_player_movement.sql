@@ -1,4 +1,4 @@
-{{ config(partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
+{{ config(tags=['feed_reports'], partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
 
 {# The NBA's player movement feed, the last 180 days as landed: one row per move. #}
 

@@ -1,4 +1,4 @@
-{{ config(partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
+{{ config(tags=['feed_reports'], partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
 
 {# The Odds API's player props, as landed (ingest/props.py): one row per bookmaker, market, player
    and line per snapshot, with the over and under prices. The ingestor has already paired each
