@@ -1,0 +1,164 @@
+version: 2
+
+# The consumers of gold and ops, so lineage does not stop at the warehouse. The site export's list
+# is the code's (export/layout.py) and the notebooks' are theirs (notebooks/nb_*.py):
+# tests/test_exposures.py fails when they drift apart.
+exposures:
+  - name: site_export
+    label: "The site's data build"
+    type: application
+    maturity: high
+    url: https://fantasyscout.beronilla.rodeo/
+    description: "Every build the lakehouse publishes to the site: per-league JSON for the Board, Streamers, schedule and transactions, one file per player, and a Parquet mirror of every gold and ops table for the SQL console and the notebooks (export/layout.py). The export also carries ops.test_results, ops.publish_gate and ops.build_log, which ops.results writes after the build; they are not dbt nodes, so they are not listed here."
+    owner:
+      name: FantasyScout
+    depends_on:
+      - ref('dim_date')
+      - ref('dim_team')
+      - ref('dim_game')
+      - ref('dim_player')
+      - ref('fct_availability')
+      - ref('fct_injury_status')
+      - ref('fct_player_status')
+      - ref('fct_transaction')
+      - ref('fct_player_news')
+      - ref('fct_team_game_context')
+      - ref('fct_market_value')
+      - ref('fct_waiver_trend')
+      - ref('fct_game_line')
+      - ref('fct_player_prop')
+      - ref('fct_official_listing')
+      - ref('fct_status_calibration')
+      - ref('fct_game_official')
+      - ref('fct_referee_tendency')
+      - ref('fct_board_history')
+      - ref('fct_team_stakes')
+      - ref('fct_team_week_games')
+      - ref('mart_board')
+      - ref('mart_player_projection')
+      - ref('mart_category_zscores')
+      - ref('mart_player_rolling')
+      - ref('mart_streamers')
+      - ref('mart_schedule_upcoming')
+      - ref('fct_player_game')
+      - ref('fct_team_game')
+      - ref('fct_player_tracking')
+      - ref('fct_event')
+      - ref('fct_shot')
+      - ref('reconciliation_summary')
+      - ref('reconciliation')
+      - ref('ingest_log')
+      - ref('fetch_failures')
+      - ref('feed_freshness')
+      - ref('category_config')
+  - name: tableau_league_pulse
+    label: "League Pulse (Tableau Public)"
+    type: dashboard
+    maturity: medium
+    url: https://fantasyscout.beronilla.rodeo/dashboards/
+    description: "The Tableau Public workbook: team pace and ratings, player value and data health, from the CSV extract tableau/extract.py builds after every full build and pushes to its Google Sheet (the data health sheet reads ops.test_results and ops.publish_gate, written after the build, so they are not nodes here)."
+    owner:
+      name: FantasyScout
+    depends_on:
+      - ref('fct_team_game')
+      - ref('mart_board')
+  - name: notebook_board_backtest
+    label: "Notebook 01_board_backtest"
+    type: analysis
+    maturity: medium
+    url: https://fantasyscout.beronilla.rodeo/notebooks/
+    description: "The board, backtested: does the projected value put the right players in the top tiers and the rostered pool, season after season? Rendered after every full build from the published Parquet (notebooks/nb_board_backtest.py)."
+    owner:
+      name: FantasyScout
+    depends_on:
+      - ref('dim_player')
+      - ref('fct_player_game')
+      - ref('mart_board')
+      - ref('mart_player_projection')
+  - name: notebook_streamer_signals
+    label: "Notebook 02_streamer_signals"
+    type: analysis
+    maturity: medium
+    url: https://fantasyscout.beronilla.rodeo/notebooks/
+    description: "Streamer signals: which of the streamers page's signals picked the week's pickups. Rendered after every full build from the published Parquet (notebooks/nb_streamer_signals.py)."
+    owner:
+      name: FantasyScout
+    depends_on:
+      - ref('fct_official_listing')
+      - ref('fct_player_game')
+      - ref('mart_streamers')
+  - name: notebook_game_context
+    label: "Notebook 03_game_context"
+    type: analysis
+    maturity: medium
+    url: https://fantasyscout.beronilla.rodeo/notebooks/
+    description: "Game context: rest, travel, lines, officials and injury listings against what happened. Rendered after every full build from the published Parquet (notebooks/nb_game_context.py)."
+    owner:
+      name: FantasyScout
+    depends_on:
+      - ref('fct_availability')
+      - ref('fct_game_line')
+      - ref('fct_game_official')
+      - ref('fct_official_listing')
+      - ref('fct_player_game')
+      - ref('fct_team_game')
+      - ref('fct_team_game_context')
+      - ref('mart_schedule_upcoming')
+      - ref('fct_status_calibration')
+  - name: notebook_data_quality
+    label: "Notebook 04_data_quality"
+    type: analysis
+    maturity: medium
+    url: https://fantasyscout.beronilla.rodeo/notebooks/
+    description: "Data quality: the checks, the reconciliation and the ingest log read together. Rendered after every full build from the published Parquet (notebooks/nb_data_quality.py)."
+    owner:
+      name: FantasyScout
+    depends_on:
+      - ref('dim_player')
+      - ref('fct_availability')
+      - ref('fct_event')
+      - ref('fct_player_game')
+      - ref('fct_player_status')
+      - ref('fct_shot')
+      - ref('fct_team_game')
+      - ref('fct_waiver_trend')
+      - ref('ingest_log')
+      - ref('reconciliation')
+      - ref('reconciliation_summary')
+  - name: notebook_shooting
+    label: "Notebook 05_shooting"
+    type: analysis
+    maturity: medium
+    url: https://fantasyscout.beronilla.rodeo/notebooks/
+    description: "Shooting: shot profiles from the shot chart against the box score. Rendered after every full build from the published Parquet (notebooks/nb_shooting.py)."
+    owner:
+      name: FantasyScout
+    depends_on:
+      - ref('fct_player_game')
+      - ref('fct_shot')
+  - name: notebook_prop_lines
+    label: "Notebook 06_prop_lines"
+    type: analysis
+    maturity: medium
+    url: https://fantasyscout.beronilla.rodeo/notebooks/
+    description: "Prop lines: the sportsbooks' player lines against the board's projection and the result. Rendered after every full build from the published Parquet (notebooks/nb_prop_lines.py)."
+    owner:
+      name: FantasyScout
+    depends_on:
+      - ref('fct_board_history')
+      - ref('fct_player_game')
+      - ref('fct_player_prop')
+      - ref('mart_board')
+  - name: notebook_teammate_absence
+    label: "Notebook 07_teammate_absence"
+    type: analysis
+    maturity: medium
+    url: https://fantasyscout.beronilla.rodeo/notebooks/
+    description: "Teammate absence: who gains when a teammate is listed out. Rendered after every full build from the published Parquet (notebooks/nb_teammate_absence.py)."
+    owner:
+      name: FantasyScout
+    depends_on:
+      - ref('dim_player')
+      - ref('fct_official_listing')
+      - ref('fct_player_game')
+      - ref('mart_streamers')
