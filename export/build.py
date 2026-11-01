@@ -162,6 +162,7 @@ def assemble(
         else [],
         "row_counts": {name: entry["rows"] for name, entry in manifest_tables.items()},
         "feeds": rows_of(tables["feed_freshness"]) if "feed_freshness" in tables else [],
+        "builds": rows_of(tables["build_log"])[:50] if "build_log" in tables else [],
     }
     add("health.json", to_json(health))
 

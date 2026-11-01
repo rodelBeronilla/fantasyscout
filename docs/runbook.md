@@ -178,6 +178,14 @@ from fantasyscout.ops.test_results where run_id = '<run_id>' and status <> 'pass
 
 Severities follow the spec: keys, arithmetic, box-score closure (except turnovers, see ADR 0003), in-season freshness and completeness are errors; minutes closure, event-to-box agreement, shot location sanity, team turnovers and ingest volume anomalies are warnings.
 
+Every build also writes one row to `ops.build_log` from its Report step: the GitHub run and the ingest run that triggered it, the dbt invocation and its gate, the export's build id, the selector of a light build, each step's outcome and duration and how long the job queued for a runner (from the Actions API), and the rows per table the build published (from its manifest). The same facts go to the run's step summary, and Data Health lists the recent runs.
+
+```sql
+-- how long do builds take, and how long do they wait for a runner?
+select finished_at, event, light, gate_passed, queue_seconds / 60 as queued_min, build_seconds / 60 as dbt_min, total_seconds / 60 as total_min
+from fantasyscout.ops.build_log order by finished_at desc limit 20;
+```
+
 A build run by hand with a `select` input builds only those nodes, so dbt runs only their tests. The workflow then runs every `tag:quality` check as well (into `dbt/target/quality`), and the gate reads both result sets, so a selected build is judged against the whole lakehouse before anything is published; its `publish_gate.reason` starts with `selected build (<selector>)`.
 
 The gate step also prints up to ten failing rows of every failed check (`--sample-failures N`, 0 disables), re-running the check's compiled query with a limit, and the incident comment carries that tail, so an incident names the rows, not only the count.

@@ -92,6 +92,11 @@ jobs:
         run: uv run dbt build --target duckdb --exclude tag:quality
       - name: Record results and decide the publish gate (DuckDB)
         run: uv run python -m ops.results --engine duckdb --duckdb dbt/fantasyscout.duckdb
+      - name: Record the build log row (DuckDB) and print the step summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: success
+        run: uv run python -m ops.build_log --engine duckdb --duckdb dbt/fantasyscout.duckdb --summary
       # The Schema and Pipeline pages render web/src/generated/schema.json; it must match the project.
       - name: The app's schema file is current
         env:
