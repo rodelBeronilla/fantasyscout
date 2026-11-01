@@ -109,6 +109,20 @@ export default function YahooImport({
   const bookmarklet = yahooBookmarklet(typeof window === 'undefined' ? '' : `${window.location.origin}${href('/league/')}?league=nba`);
   // React refuses a javascript: href, so the bookmarklet link gets its address on the element itself.
   const bookmarkRef = useRef<HTMLAnchorElement>(null);
+  // Phones have no bookmarks bar: a tap copies the code and the steps say where to paste it.
+  const [touch] = useState(() => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
+  const [copied, setCopied] = useState<boolean | null>(null);
+  const copyCode = () => {
+    const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;
+    if (!clipboard) {
+      setCopied(false);
+      return;
+    }
+    clipboard.writeText(bookmarklet).then(
+      () => setCopied(true),
+      () => setCopied(false),
+    );
+  };
   useEffect(() => {
     bookmarkRef.current?.setAttribute('href', bookmarklet);
   }, [bookmarklet, status]);
@@ -128,26 +142,53 @@ export default function YahooImport({
           </p>
           <div className="rounded border border-line p-3" data-testid="yahoo-bookmarklet">
             <p>
-              <strong>Import with a bookmark, today.</strong> Drag this to your bookmarks bar:{' '}
+              <strong>Import with a bookmark, today.</strong>{' '}
+              {touch ? 'Tap to copy the bookmark code:' : 'Drag this to your bookmarks bar, or tap it to copy the code:'}{' '}
               <a
                 ref={bookmarkRef}
                 draggable
-                onClick={(e) => e.preventDefault()}
-                title="Drag this link to your bookmarks bar; clicking it here does nothing"
+                onClick={(e) => {
+                  e.preventDefault();
+                  copyCode();
+                }}
+                title="Drag this link to your bookmarks bar, or click to copy its code"
                 className="rounded border border-accent px-2 py-0.5 font-medium text-accent"
                 data-testid="yahoo-bookmarklet-link"
               >
                 Import Yahoo league
               </a>
+              {copied !== null && (
+                <span role="status" className="ml-2 text-xs text-muted" data-testid="yahoo-copied">
+                  {copied ? 'Code copied.' : 'Copy the code from the box below.'}
+                </span>
+              )}
             </p>
             <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-muted">
-              <li>Open your league on Yahoo in this browser, signed in (the My Team or League page).</li>
-              <li>Click the bookmark. It reads each team&apos;s roster page the way your browser does and brings you back here.</li>
+              <li>
+                Save the code as a bookmark. {' '}
+                <strong className="text-fg">Phone or tablet:</strong> bookmark any page, then edit that bookmark and paste the code in
+                place of its address (iPhone: Bookmarks, Edit; Android Chrome: the star, then the pencil).
+              </li>
+              <li>
+                Open your league on Yahoo in this browser, signed in: the My Team or League page, on the website rather than in the Yahoo
+                app.
+              </li>
+              <li>
+                Run the bookmark. On a phone, type its name in the address bar and pick it from the list. It reads each team&apos;s roster
+                page the way your browser does and brings you back here.
+              </li>
               <li>Check the rosters below: a name Yahoo spells differently is listed as not found, and you can add it by hand.</li>
             </ol>
-            <details className="mt-2 text-xs text-muted">
-              <summary className="cursor-pointer">No bookmarks bar? Copy the code into a new bookmark&apos;s address.</summary>
-              <textarea readOnly value={bookmarklet} rows={3} className="mt-1 w-full rounded border border-line bg-bg p-1 font-mono text-[10px]" aria-label="Bookmarklet code" />
+            <details className="mt-2 text-xs text-muted" open={copied === false || undefined}>
+              <summary className="cursor-pointer">The bookmark code</summary>
+              <textarea
+                readOnly
+                value={bookmarklet}
+                rows={3}
+                onFocus={(e) => e.currentTarget.select()}
+                className="mt-1 w-full rounded border border-line bg-bg p-1 font-mono text-[10px]"
+                aria-label="Bookmarklet code"
+              />
             </details>
             <p className="mt-2 text-xs text-muted">
               Nothing leaves your browser except the team and player names, which go to this page in the address after the #, a part the
