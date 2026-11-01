@@ -174,8 +174,9 @@ export default function YahooImport({
                 app.
               </li>
               <li>
-                Run the bookmark. On a phone, type its name in the address bar and pick it from the list. It reads each team&apos;s roster
-                page the way your browser does and brings you back here.
+                Run the bookmark <strong className="text-fg">on that page</strong>. On a phone, tap the address bar, type the bookmark&apos;s
+                name and tap it in the list: opening it from the Bookmarks menu would run it in a new tab instead. It reads each team&apos;s
+                roster page the way your browser does and brings you back here.
               </li>
               <li>Check the rosters below: a name Yahoo spells differently is listed as not found, and you can add it by hand.</li>
             </ol>
