@@ -214,6 +214,89 @@ async function serveData(request: Request, env: Env, rawKey: string, isPrivate =
   return new Response(request.method === 'HEAD' ? null : object.body, { status, headers });
 }
 
+interface PlayerFile {
+  name?: string | null;
+  position?: string | null;
+  team?: string | null;
+  league?: string;
+}
+
+async function currentBuild(env: Env): Promise<string | null> {
+  const latest = await env.DATA.get('latest.json');
+  if (!latest) return null;
+  try {
+    const pointer = (await latest.json()) as { build_id?: string };
+    return pointer.build_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** /sitemap-players.xml: every player file of the current build as a page URL; an hour's cache. */
+async function playersSitemap(env: Env, origin: string): Promise<Response> {
+  const build = await currentBuild(env);
+  const urls: string[] = [];
+  if (build) {
+    const prefix = `builds/${build}/players/`;
+    let cursor: string | undefined;
+    do {
+      const page = await env.DATA.list({ prefix, cursor, limit: 1000 });
+      for (const object of page.objects) {
+        const m = /players\/(wnba|nba)\/([^/]+)\.json$/.exec(object.key);
+        if (m) urls.push(`  <url><loc>${origin}/p/${m[1]}/${m[2]}/</loc><changefreq>daily</changefreq></url>`);
+      }
+      cursor = page.truncated ? page.cursor : undefined;
+    } while (cursor);
+  }
+  const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
+  return new Response(body, {
+    status: 200,
+    headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600' },
+  });
+}
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** The player shell with the player's name, team and position in its title, description and Open Graph tags. */
+async function namePlayer(shell: Response, env: Env, url: URL): Promise<Response> {
+  const m = /^\/p\/(wnba|nba)\/([^/]+)\/?$/.exec(url.pathname);
+  const build = m ? await currentBuild(env) : null;
+  if (!m || !build) return shell;
+  const file = await env.DATA.get(`builds/${build}/players/${m[1]}/${m[2]}.json`);
+  if (!file) return shell;
+  let player: PlayerFile;
+  try {
+    player = (await file.json()) as PlayerFile;
+  } catch {
+    return shell;
+  }
+  if (!player.name) return shell;
+  const league = (m[1] ?? '').toUpperCase();
+  const who = [player.name, [player.team, player.position].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+  const title = escapeHtml(`${who} · ${league} · FantasyScout`);
+  const description = escapeHtml(
+    `${player.name}: season line, rolling trends, shot chart, game log and category strengths for fantasy basketball (${league}).`,
+  );
+  const canonical = `${url.origin}${url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`}`;
+  const attr = (name: string, value: string) => ({
+    element: (e: Element) => {
+      e.setAttribute(name, value);
+    },
+  });
+  return new HTMLRewriter()
+    .on('title', {
+      element: (e) => {
+        e.setInnerContent(title, { html: true });
+      },
+    })
+    .on('meta[name="description"]', attr('content', description))
+    .on('meta[property="og:title"]', attr('content', title))
+    .on('meta[property="og:description"]', attr('content', description))
+    .on('meta[property="og:url"]', attr('content', canonical))
+    .on('link[rel="canonical"]', attr('href', canonical))
+    .transform(shell);
+}
+
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
@@ -260,10 +343,18 @@ export default {
       return served;
     }
 
+    // The players of the current build, one URL each, for crawlers (robots.txt names it).
+    if (url.pathname === '/sitemap-players.xml') {
+      return withSecurityHeaders(await playersSitemap(env, url.origin), url.pathname);
+    }
+
     // One static page serves every player: /p/{league}/{player_id}/ -> /p/ (the island reads the URL).
+    // The shell's title and description name the player, from the build's player file, so a
+    // search result or a link preview says who the page is about before any script runs.
     if (PLAYER_PATH.test(url.pathname)) {
       const page = new URL('/p/', url);
-      return withSecurityHeaders(await env.ASSETS.fetch(new Request(page, request)));
+      const shell = await env.ASSETS.fetch(new Request(page, request));
+      return withSecurityHeaders(await namePlayer(shell, env, url), url.pathname);
     }
 
     return withSecurityHeaders(await env.ASSETS.fetch(request), url.pathname);
