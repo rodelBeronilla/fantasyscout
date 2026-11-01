@@ -315,16 +315,17 @@ def land(
         created = backend.ensure_volume()
         print("volume: " + ", ".join(f"{k} {v}" for k, v in created.items()))
     ensure_landing_dirs(backend)
+    run_id = uuid.uuid4().hex[:12]
     landing = Landing(
         backend,
         ingest_date=today,
         full_refresh=opts.full_refresh,
         workers=4 if isinstance(backend, VolumeBackend) else 1,
         resettle_since=today - timedelta(days=opts.resettle_days) if opts.resettle_days else None,
+        run_id=run_id,
     )
     if opts.resettle_days:
         print(f"resettle: games since {landing.resettle_since} are fetched again")
-    run_id = uuid.uuid4().hex[:12]
     only = replay_filter(opts, backend)
     if only:
         print("replay: only " + ", ".join(only.specs()))
@@ -334,6 +335,8 @@ def land(
             StoppingOnSigterm(),
             ThrottledClient(throttle, on_pace_change=_announce_pace) as client,
         ):
+            # Every sidecar records what the request that produced its payload cost.
+            landing.request_stats = lambda: client.last_request
             summary = _run_source(opts, client, landing, season, since, until, today, env, only)
     finally:
         # Whatever ended the run (a cancelled job sends SIGTERM), the indexes record what landed.

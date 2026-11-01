@@ -19956,6 +19956,12 @@
        "type": "ubigint"
       },
       {
+       "description": "Per endpoint, the run's landed, unchanged, failed and missing counts, as JSON (absent in run logs written before 2026-11); a request skipped as already landed is counted in skipped only",
+       "name": "endpoints",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
        "description": "Path of the run log the row was parsed from",
        "name": "_source_file",
        "tests": [],

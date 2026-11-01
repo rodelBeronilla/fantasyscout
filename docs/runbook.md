@@ -118,7 +118,7 @@ uv run fs-ingest land stats --league nba  --since 2026-10-21 --until 2026-10-27 
 uv run fs-ingest land stats --league wnba --dry-run                           # print the plan only
 ```
 
-Every run writes `landing/_ops/ingest_log/<date>/<source>-<league>-<season>-<run_id>.json` with counts and the list of failed requests. The process exits non-zero when any request failed, but everything that did land stays landed.
+Every landed payload's sidecar (`<key>.meta.json`) records the request's latency, the attempts it took and the run id that made it, so a slow or flaky endpoint can be read off the volume (`select * from read_json('.../landing/stats/boxscoretraditionalv3/nba/*/*/*.meta.json')` in the SQL console works on the sample). Every run writes `landing/_ops/ingest_log/<date>/<source>-<league>-<season>-<run_id>.json` with counts and the list of failed requests. The process exits non-zero when any request failed, but everything that did land stays landed.
 
 The stats API only answers from a residential address (ADR 0002), so run `land stats` from the home machine or the self-hosted runner, never from a cloud runner. The runner itself (start, re-register, remove) is documented in `infra/runner/README.md`.
 

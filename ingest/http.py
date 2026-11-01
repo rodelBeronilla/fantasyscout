@@ -110,6 +110,14 @@ class CircuitOpenError(IngestHTTPError):
     """The host stopped answering (consecutive timeouts): stop the run, do not hammer it."""
 
 
+@dataclass(frozen=True)
+class RequestStats:
+    """What the last request through the client cost: attempts made and the answer's latency."""
+
+    attempts: int
+    latency_ms: int
+
+
 @dataclass
 class HostState:
     """What the client has learned about one host so far."""
@@ -188,6 +196,9 @@ class ThrottledClient:
 
     def close(self) -> None:
         self._client.close()
+
+    # The attempts and latency of the most recent request, for the landing's sidecar.
+    last_request: RequestStats | None = None
 
     def pacing(self) -> dict[str, dict[str, float | int]]:
         """Per-host pacing statistics for the run log."""
@@ -299,5 +310,6 @@ class ThrottledClient:
                     self._backoff(attempt, response.headers.get("retry-after"))
                     continue
                 self._on_success(host, state, latency)
+                self.last_request = RequestStats(attempt + 1, int(latency * 1000))
                 return response
         raise IngestHTTPError(url, attempts, last)
