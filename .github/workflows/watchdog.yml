@@ -1,0 +1,48 @@
+name: Publish watchdog
+
+# Is the live site serving a recent build? Every other alert is a pipeline step that failed, so a
+# pipeline that never starts (a home runner offline, a schedule GitHub stopped firing, a build
+# cancelled before its report step) raises nothing. This job runs outside the pipeline on a
+# GitHub-hosted runner, reads the published pointer and judges its age against the publish SLA
+# (docs/runbook.md, "Publish SLA and the watchdog"). A stale build opens a data-incident issue;
+# the next fresh check closes it.
+
+on:
+  schedule:
+    - cron: "37 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: publish-watchdog
+  cancel-in-progress: true
+
+jobs:
+  watchdog:
+    name: Live build age
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Check the live build
+        id: check
+        env:
+          SITE: https://fantasyscout.beronilla.rodeo
+        run: |
+          set -o pipefail
+          uv run python -m ops.watchdog --site "$SITE" 2>&1 | tee land.log | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Publish stale: the live build is older than the SLA allows"
+          OUTCOME: ${{ steps.check.outcome }}
+          DETAIL: "The watchdog reads the site's /data/latest.json on its own schedule. A stale build means no Build lakehouse run promoted a build in time: check the Ingest and Build runs, the home runners (infra/runner) and whether the schedules fired."
+        run: uv run python .github/scripts/incident.py
