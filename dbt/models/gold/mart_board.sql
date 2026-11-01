@@ -282,8 +282,7 @@ team_names as (
 
 names as (
 
-    select league, stats_player_id, player_sk, full_name, position,
-        {{ stats_birth_date('birth_date') }} as birth_date
+    select league, stats_player_id, player_sk, full_name, position, birth_date
     from {{ ref('dim_player') }}
     where is_current
 

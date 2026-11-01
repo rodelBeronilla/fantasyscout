@@ -143,7 +143,7 @@ models:
       - name: game_date_est
         description: "Game date in US Eastern time"
       - name: game_datetime_utc
-        description: "Tip-off as the schedule gives it, ISO 8601 text in UTC"
+        description: "Tip-off as an instant in UTC (a timestamp; the schedule's ISO 8601 text typed)"
       - name: week_number
         description: "The league's schedule week; 0 outside the weeks it numbers"
       - name: week_name
@@ -565,11 +565,13 @@ models:
       - name: position
         description: "Listed position (G, F, C, G-F and so on); null when blank"
       - name: height
-        description: "Height as feet-inches text (6-1)"
+        description: "Height as the roster writes it, feet-inches text (6-1)"
+      - name: height_inches
+        description: "Height in inches, from the feet-inches text; null when the roster writes it any other way"
       - name: weight_lbs
         description: "Weight in pounds"
       - name: birth_date
-        description: "Birth date as the roster writes it, text such as MAR 16, 2000"
+        description: "Birth date, a date: the roster's MAR 16, 2000 parsed; null when it does not parse"
       - name: age
         description: "Age in years as the roster gives it"
       - name: experience
@@ -601,7 +603,7 @@ models:
         description: "The UTC date of tip-off (an evening game in the US can fall on the next day)"
         data_tests: [not_null]
       - name: event_datetime_utc
-        description: "Tip-off as ESPN gives it, ISO 8601 text in UTC"
+        description: "Tip-off as an instant in UTC (a timestamp; ESPN's ISO 8601 text typed)"
       - name: name
         description: "Long event name (Away Team at Home Team)"
       - name: short_name

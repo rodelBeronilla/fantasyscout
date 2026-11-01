@@ -2,9 +2,13 @@
   Helpers for the gold layer that read the same on DuckDB and Databricks.
 #}
 
-{# Deterministic surrogate key from one or more columns. NULL parts are skipped by concat_ws. #}
+{#
+  Deterministic surrogate key: md5 of the parts joined by ':'. Null when any part is null, so a key
+  to nothing (an opponent whose box did not land, a side the game log lacks) is null rather than a
+  hash of the parts that were there, which no dimension row would ever match.
+#}
 {% macro sk(cols) -%}
-  md5(concat_ws(':', {{ cols | join(', ') }}))
+  case when {{ cols | join(' is null or ') }} is null then null else md5(concat_ws(':', {{ cols | join(', ') }})) end
 {%- endmacro %}
 
 

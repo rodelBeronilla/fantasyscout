@@ -1,0 +1,18 @@
+unit_tests:
+  - name: team_game_without_an_opponent_box_has_no_opponent_key
+    description: >
+      Game g1 has both sides' boxes; game g2 has only team C's (the other side has not landed).
+      Each side of g1 points at the other's team-season; C's opponent id and opponent key are
+      null, not a key made of the parts that were there. The team's own key is unchanged.
+    model: fct_team_game
+    given:
+      - input: ref('team_game_box')
+        rows:
+          - {league: nba, season: '2025-26', game_id: g1, team_id: A, team_abbreviation: AAA, team_game_key: 'nba:g1:A', minutes: 240, points: 100, field_goals_attempted: 90, rebounds_offensive: 10, turnovers: 12, free_throws_attempted: 20}
+          - {league: nba, season: '2025-26', game_id: g1, team_id: B, team_abbreviation: BBB, team_game_key: 'nba:g1:B', minutes: 240, points: 95, field_goals_attempted: 88, rebounds_offensive: 9, turnovers: 14, free_throws_attempted: 18}
+          - {league: nba, season: '2025-26', game_id: g2, team_id: C, team_abbreviation: CCC, team_game_key: 'nba:g2:C', minutes: 240, points: 102, field_goals_attempted: 91, rebounds_offensive: 11, turnovers: 10, free_throws_attempted: 22}
+    expect:
+      rows:
+        - {team_game_key: 'nba:g1:A', team_sk: 'f73f65b4335bc799cd01812d1a7e0f04', opponent_team_id: B, opponent_team_sk: '366dc5ce56cb0de5216ddadd6a21a8c3'}
+        - {team_game_key: 'nba:g1:B', team_sk: '366dc5ce56cb0de5216ddadd6a21a8c3', opponent_team_id: A, opponent_team_sk: 'f73f65b4335bc799cd01812d1a7e0f04'}
+        - {team_game_key: 'nba:g2:C', team_sk: 'aceec1b79731deda878bd3be25c341a0', opponent_team_id: null, opponent_team_sk: null}

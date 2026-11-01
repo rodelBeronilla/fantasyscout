@@ -119,7 +119,7 @@ espn_unmatched as (
 
 stats_birthdates as (
 
-    select league, player_id, max({{ stats_birth_date('birth_date') }}) as birth_date
+    select league, player_id, max(birth_date) as birth_date
     from {{ ref('rosters') }}
     group by league, player_id
 

@@ -25,8 +25,7 @@ ours as (
     select
         p.league,
         p.stats_player_id,
-        -- the league roster writes birth dates as text ("MAR 03, 1996")
-        {{ stats_birth_date('p.birth_date') }} as birth_date,
+        p.birth_date,
         t.abbreviation as team_abbreviation,
         {{ norm_name('p.full_name', keep_suffix=true) }} as name_full,
         {{ norm_name('p.full_name') }} as name_plain

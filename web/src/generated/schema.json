@@ -330,7 +330,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 356,
+ "generic_tests": 357,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -7396,10 +7396,10 @@
        "type": "date"
       },
       {
-       "description": "Tip-off as ESPN gives it, ISO 8601 text in UTC",
+       "description": "Tip-off as an instant in UTC (a timestamp; ESPN's ISO 8601 text typed)",
        "name": "event_datetime_utc",
        "tests": [],
-       "type": "varchar"
+       "type": "timestamp with time zone"
       },
       {
        "description": "Long event name (Away Team at Home Team)",
@@ -11484,10 +11484,16 @@
        "type": "varchar"
       },
       {
-       "description": "Height as feet-inches text (6-1)",
+       "description": "Height as the roster writes it, feet-inches text (6-1)",
        "name": "height",
        "tests": [],
        "type": "varchar"
+      },
+      {
+       "description": "Height in inches, from the feet-inches text; null when the roster writes it any other way",
+       "name": "height_inches",
+       "tests": [],
+       "type": "integer"
       },
       {
        "description": "Weight in pounds",
@@ -11496,10 +11502,10 @@
        "type": "integer"
       },
       {
-       "description": "Birth date as the roster writes it, text such as MAR 16, 2000",
+       "description": "Birth date, a date: the roster's MAR 16, 2000 parsed; null when it does not parse",
        "name": "birth_date",
        "tests": [],
-       "type": "varchar"
+       "type": "date"
       },
       {
        "description": "Age in years as the roster gives it",
@@ -11545,7 +11551,7 @@
      "materialized": "table",
      "name": "rosters",
      "notes": [
-      "One row per rostered player per team per season. Latest landing wins."
+      "One row per rostered player per team per season, typed (height in inches, birth date a date). Latest landing wins."
      ],
      "read_by": [
       "dim_player",
@@ -11556,7 +11562,12 @@
      "reads": [
       "stats_commonteamroster"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "The roster writes height as feet-inches text and the birth date as MAR 03, 1996; silver keeps the text and adds the inches, and types the date. Text that does not parse is null, not an error.",
+       "name": "rosters_type_height_and_birth_date"
+      }
+     ]
     },
     {
      "checks": [
@@ -11639,10 +11650,10 @@
        "type": "date"
       },
       {
-       "description": "Tip-off as the schedule gives it, ISO 8601 text in UTC",
+       "description": "Tip-off as an instant in UTC (a timestamp; the schedule's ISO 8601 text typed)",
        "name": "game_datetime_utc",
        "tests": [],
-       "type": "varchar"
+       "type": "timestamp with time zone"
       },
       {
        "description": "The league's schedule week; 0 outside the weeks it numbers",
@@ -13176,10 +13187,10 @@
        "type": "date"
       },
       {
-       "description": "Tip-off from the schedule, ISO 8601 text in UTC; null when the schedule lacks the game",
+       "description": "Tip-off from the schedule, an instant in UTC (timestamp); null when the schedule lacks the game",
        "name": "game_datetime_utc",
        "tests": [],
-       "type": "varchar"
+       "type": "timestamp with time zone"
       },
       {
        "description": "League team id of the home side (the lower team id at a neutral site)",
@@ -13374,16 +13385,22 @@
        "type": "varchar"
       },
       {
+       "description": "Height in inches from the latest roster (silver.rosters); null when the roster writes it any other way",
+       "name": "height_inches",
+       "tests": [],
+       "type": "integer"
+      },
+      {
        "description": "Weight in pounds from the latest roster",
        "name": "weight_lbs",
        "tests": [],
        "type": "integer"
       },
       {
-       "description": "Birth date as the league roster writes it, text such as MAR 03, 1996, not a date type",
+       "description": "Birth date from the latest roster, a date (silver.rosters parses the roster's MAR 03, 1996)",
        "name": "birth_date",
        "tests": [],
-       "type": "varchar"
+       "type": "date"
       },
       {
        "description": "College or last school before the league, from the latest roster",
@@ -16777,9 +16794,11 @@
        "type": "varchar"
       },
       {
-       "description": "Opponent's team-season (dim_team)",
+       "description": "Opponent's team-season (dim_team); null when the opponent's box did not land",
        "name": "opponent_team_sk",
-       "tests": [],
+       "tests": [
+        "relationships"
+       ],
        "type": "varchar"
       },
       {
@@ -17025,7 +17044,12 @@
      "reads": [
       "team_game_box"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "Game g1 has both sides' boxes; game g2 has only team C's (the other side has not landed). Each side of g1 points at the other's team-season; C's opponent id and opponent key are null, not a key made of the parts that were there. The team's own key is unchanged.",
+       "name": "team_game_without_an_opponent_box_has_no_opponent_key"
+      }
+     ]
     },
     {
      "checks": [],
@@ -19407,10 +19431,10 @@
        "type": "varchar"
       },
       {
-       "description": "Tip-off as the schedule gives it, ISO 8601 text in UTC",
+       "description": "Tip-off as an instant in UTC (timestamp)",
        "name": "game_datetime_utc",
        "tests": [],
-       "type": "varchar"
+       "type": "timestamp with time zone"
       },
       {
        "description": "Value per game the matchup adds for a home player: the away defence and both teams' pace, weighted per league",
@@ -20736,6 +20760,12 @@
    "to": "dim_game"
   },
   {
+   "column": "opponent_team_sk",
+   "field": "team_sk",
+   "from": "fct_team_game",
+   "to": "dim_team"
+  },
+  {
    "column": "team_sk",
    "field": "team_sk",
    "from": "fct_team_game",
@@ -21004,6 +21034,11 @@
    "name": "referee_tendency_against_the_league_season_average"
   },
   {
+   "description": "Game g1 has both sides' boxes; game g2 has only team C's (the other side has not landed). Each side of g1 points at the other's team-season; C's opponent id and opponent key are null, not a key made of the parts that were there. The team's own key is unchanged.",
+   "model": "fct_team_game",
+   "name": "team_game_without_an_opponent_box_has_no_opponent_key"
+  },
+  {
    "description": "A road trip from Denver to Salt Lake City the next night and on to Los Angeles two nights later: the second game is a back-to-back, visiting at altitude, 370 miles away in the same time zone, the third is the third game in four nights, 581 miles west and one time zone back. An unconfirmed \"if necessary\" game and a knockout game whose teams are not decided yet (both listed as 0) are left out, and the team they play on the second night sees its opponent on a back-to-back.",
    "model": "fct_team_game_context",
    "name": "team_game_context_rest_travel_and_altitude"
@@ -21062,6 +21097,11 @@
    "description": "Each price implies a probability (-300 is 0.75, +100 is 0.5); their sum less one is the vig, and the over's share of the sum is its probability with the vig removed. An ESPN event links to the scheduled game with the same two teams on its Eastern date, and an athlete through the player crosswalk; an athlete the crosswalk does not know stays unlinked. A market outside the known set is dropped, and a snapshot taken after the start is not pre-game.",
    "model": "player_props",
    "name": "player_props_remove_the_vig_and_link_espn_athletes_and_events"
+  },
+  {
+   "description": "The roster writes height as feet-inches text and the birth date as MAR 03, 1996; silver keeps the text and adds the inches, and types the date. Text that does not parse is null, not an error.",
+   "model": "rosters",
+   "name": "rosters_type_height_and_birth_date"
   },
   {
    "description": "An ESPN line naming two players gives a row for each; a line naming nobody keeps one row without a player; a name two players share links to neither; a short name is not matched.",
