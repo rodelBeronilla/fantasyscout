@@ -36,6 +36,8 @@ Rolling back the Worker does not touch R2 data; data rollback is a separate step
 
 Every job that holds the warehouse token or the R2 token runs in the `lakehouse` environment (Ingest, Backfill, Build, Export, Query, Probe); the deploys run in `preview` and `production`. An Export run that ignores the gate or rolls the site back runs in `lakehouse-override`, which requires the repository owner's approval before it starts (Actions → the run → Review deployments). The environments exist so the secrets can live there rather than at the repository level: moving `DATABRICKS_TOKEN`, `DATABRICKS_HOST`, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` into `lakehouse` is a settings step for the owner (Settings → Environments → lakehouse → secrets), after which the repository-level copies can go.
 
+The blocks every workflow shares live once, as composite actions under `.github/actions/`: `setup-uv` (uv and the locked environment), `databricks-context` (the workspace origin and the SQL warehouse — the repository variable `DATABRICKS_WAREHOUSE_ID` when set, else the oldest warehouse with a notice if there is more than one), `incident` (the data-incident issue) and `publish-build` (stage, notebooks, extract, promote: the one way a build goes live, used by the nightly build and the hand-run export alike).
+
 Third-party actions are pinned to a commit SHA with the version in a comment; Dependabot (`.github/dependabot.yml`, the `github-actions` group) proposes the bumps and keeps the comments current. The home runner image is pinned by digest (`infra/runner/README.md`, "Update the runner image"); the Lighthouse check pins an exact version.
 
 ## Rotate a key

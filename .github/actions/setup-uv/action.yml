@@ -1,0 +1,24 @@
+name: Set up uv and sync the project
+description: >
+  Installs uv (pinned, cached) and syncs the locked environment with the dependency groups a
+  job needs. Every job runs this after checkout, so the uv version lives in one place.
+
+inputs:
+  groups:
+    description: Dependency groups to sync, space-separated (for example "dbt notebooks")
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      with:
+        enable-cache: true
+    - shell: bash
+      env:
+        GROUPS: ${{ inputs.groups }}
+      run: |
+        args=(sync --frozen)
+        for group in $GROUPS; do args+=(--group "$group"); done
+        uv "${args[@]}"

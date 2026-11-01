@@ -1,0 +1,51 @@
+name: Resolve the Databricks workspace and SQL warehouse
+description: >
+  Turns whatever DATABRICKS_HOST holds into the workspace origin and picks the SQL warehouse,
+  then exports them for every later step under the names dbt, the export and the ops scripts
+  read. The warehouse is the repository variable DATABRICKS_WAREHOUSE_ID when it is set;
+  otherwise the oldest warehouse in the workspace, with a notice when there is more than one,
+  so a second warehouse never changes the target silently.
+
+inputs:
+  host:
+    description: The DATABRICKS_HOST secret (a URL, with or without a path)
+    required: true
+  token:
+    description: The DATABRICKS_TOKEN secret
+    required: true
+  warehouse-id:
+    description: A warehouse id to use instead of the oldest one (vars.DATABRICKS_WAREHOUSE_ID)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        DATABRICKS_HOST: ${{ inputs.host }}
+        DATABRICKS_TOKEN: ${{ inputs.token }}
+        WAREHOUSE_ID: ${{ inputs.warehouse-id }}
+      run: |
+        set -euo pipefail
+        origin=$(uv run python -c "import os; from ingest.store import workspace_origin; print(workspace_origin(os.environ['DATABRICKS_HOST']))")
+        host="${origin#https://}"
+        echo "::add-mask::$host"
+        if [ -n "$WAREHOUSE_ID" ]; then
+          warehouse="$WAREHOUSE_ID"
+        else
+          warehouses=$(curl -sf -H "Authorization: Bearer $DATABRICKS_TOKEN" "$origin/api/2.0/sql/warehouses")
+          count=$(printf '%s' "$warehouses" | uv run python -c "import json,sys; print(len(json.load(sys.stdin)['warehouses']))")
+          warehouse=$(printf '%s' "$warehouses" | uv run python -c "import json,sys; w=json.load(sys.stdin)['warehouses']; print(sorted(w, key=lambda x: x.get('creation_time', 0))[0]['id'])")
+          if [ "$count" != "1" ]; then
+            echo "::notice::$count SQL warehouses in the workspace; using the oldest. Set the repository variable DATABRICKS_WAREHOUSE_ID to choose."
+          fi
+        fi
+        echo "::add-mask::$warehouse"
+        {
+          echo "DATABRICKS_ORIGIN=$origin"
+          echo "DATABRICKS_WAREHOUSE_ID=$warehouse"
+          echo "DBT_DATABRICKS_HOST=$host"
+          echo "DBT_DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/$warehouse"
+          echo "DBT_DATABRICKS_WAREHOUSE_ID=$warehouse"
+        } >> "$GITHUB_ENV"

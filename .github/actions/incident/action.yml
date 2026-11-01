@@ -1,0 +1,41 @@
+name: Open, update or close a data-incident issue
+description: >
+  Runs .github/scripts/incident.py: a failed outcome opens or updates the issue with this title
+  (routed by the title to an area label and a runbook section, assigned to the repository
+  owner), a successful outcome closes it. Reads land.log from the working directory when present.
+
+inputs:
+  title:
+    description: The incident's title; one title per job, stable across runs
+    required: true
+  outcome:
+    description: success or failure (a step's outcome)
+    required: true
+  detail:
+    description: A line put at the top of the issue or comment, optional
+    required: false
+    default: ""
+  area:
+    description: Area label, overriding the title's route (for example area:ops)
+    required: false
+    default: ""
+  priority:
+    description: Priority label, overriding P1-high
+    required: false
+    default: ""
+  token:
+    description: The GitHub token (issues:write)
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        TITLE: ${{ inputs.title }}
+        OUTCOME: ${{ inputs.outcome }}
+        DETAIL: ${{ inputs.detail }}
+        AREA: ${{ inputs.area }}
+        PRIORITY: ${{ inputs.priority }}
+      run: uv run python .github/scripts/incident.py
