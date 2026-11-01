@@ -56,7 +56,13 @@ export default function Dashboards({ vizUrl }: { vizUrl: string }) {
         </div>
       )}
       <section>
-        <h2 className="text-sm font-medium tracking-wide text-muted uppercase">The extract behind it</h2>
+        <h2 className="text-sm font-medium tracking-wide text-muted uppercase">{embed ? 'The extract behind it' : 'The dashboard, as three files'}</h2>
+        {!embed && (
+          <p className="mt-1 text-sm text-muted">
+            Until the workbook is embedded, these are the dashboard: the three files it is built from, refreshed with every build. The
+            repository&apos;s <code>tableau/README.md</code> says, sheet by sheet, which fields make which chart.
+          </p>
+        )}
         {error ? <Problem error={error} /> : null}
         {latest === undefined && <Loading what="the extract list" />}
         {latest !== undefined && (

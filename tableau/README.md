@@ -49,3 +49,36 @@ bridge is a sheet the build keeps current, and the workbook is published once by
 
 From then on nothing is manual: every passing build refreshes the sheet, and Tableau Public picks
 the sheet up within a day. The CSV files stay published with each build for anyone who wants them.
+
+## The sheets, field by field
+
+The three CSVs are the dashboard's whole input, so the workbook can be rebuilt from them in any
+tool; until the embed exists the Dashboards page links them under the current build. Tableau
+Public has no file-based publishing, which is why no `.twb` is kept here: a workbook file written
+without Tableau to open it cannot be checked, and the owner publishes from the sheet.
+
+**`team_pace_ratings.csv`** (`league, season, team_id, team, games, wins, pace, offensive_rating,
+defensive_rating, net_rating, points_for_pg, points_against_pg`; one row per team-season)
+
+| Sheet | Marks | Fields |
+| --- | --- | --- |
+| Pace and ratings | circle | x `offensive_rating`, y `defensive_rating` (axis reversed: down is better), size `pace`, colour `league`, label `team`; filters `season` (latest by default), `league` |
+
+**`player_value.csv`** (`league, season, player_id, player, team, position, games, rank, value_total,
+value_rest_of_season, z_points, z_rebounds, z_assists, z_steals, z_blocks, z_threes, z_fg_pct, z_ft_pct,
+z_turnovers`; one row per board player)
+
+| Sheet | Marks | Fields |
+| --- | --- | --- |
+| Value distribution | bar (histogram) | `value_total` in bins of 1.0, count of players, colour `league`; filter `league` |
+| Top 20 | bar | `player` sorted by `value_total` descending, top 20 by `rank`, label `team` and `position`; filter `league` |
+
+**`data_health.csv`** (`run_at, run_id, engine, git_sha, passed, error_failures, warn_failures,
+checks_pass, checks_warn, checks_fail`; one row per build)
+
+| Sheet | Marks | Fields |
+| --- | --- | --- |
+| Data health | bar | x `run_at` (day), y `checks_fail` and `checks_warn` stacked, colour `passed`; tooltip `run_id`, `git_sha` |
+
+The dashboard **League Pulse** places Pace and ratings on top, Value distribution and Top 20 side by
+side beneath, Data health at the foot, with the `league` filter applied to all four.
