@@ -34,3 +34,10 @@ Option 3, alongside the paste box.
 - The Worker now holds two secrets, which supersedes SPEC.md's "no secrets in the Worker" for this optional feature. Everything it serves from R2 is still public and exported, and its other routes are unchanged.
 - The tests run the whole sign-in and both parsers against a stand-in for Yahoo, so CI needs no Yahoo account (`worker/test/yahoo.test.ts`). The import page has a Playwright test against stubbed routes.
 - The redirect URI registered with Yahoo is the production one. The preview Worker cannot complete a sign-in, so the import is verified on production after the secrets are added.
+
+## Addendum (2026-10-31): a bookmarklet while the API approval is pending
+
+Yahoo's Fantasy API answers 403 until it approves the app, so the import is parked. Rosters still come in without the API: a bookmarklet on the League page runs on the manager's own Yahoo league page, in their signed-in browser. It finds the league id in the address, reads each team's roster page the way the browser would (same-origin fetches with the manager's cookies), takes team names from the league's team links and player names from the player links, notes which team the page calls "My Team", and opens the League page with that data after the `#` in the address. The fragment never reaches a server. The League page matches the names to players (`matchNames`, the same as the paste path), fills the rosters, sets the manager's team and lists any name it could not match.
+
+Nothing is fetched by FantasyScout's servers and nothing is stored beyond the browser, so Yahoo's terms on automated access are not engaged the way an API or a scraper would engage them. The bookmarklet is built against the patterns of Yahoo's pages (team links `/nba/<league>/<team>`, player links to `sports.yahoo.com/nba/players/`); if Yahoo changes them it reports that no rosters were found, and the paste path remains. React refuses `javascript:` links, so the link's address is set on the element directly, and it is dragged to the bookmarks bar rather than clicked.
+

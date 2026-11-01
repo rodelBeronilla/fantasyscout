@@ -474,17 +474,56 @@ test('/trade/ has no accessibility violations once a trade is on the page', asyn
   expect(results.violations).toEqual([]);
 });
 
-test('League and the SQL console sit under a Coming soon dropdown in the nav', async ({ page }) => {
+test('every page but the Board sits under a nav header, and the header opens on its pages', async ({ page }) => {
   await page.goto('/');
   const nav = page.getByRole('navigation', { name: 'Primary' });
-  await expect(nav.getByRole('link', { name: 'Trade' })).toHaveAttribute('href', '/trade/');
-  await expect(nav.getByRole('link', { name: 'League', exact: true })).toBeHidden();
-  const soon = page.getByTestId('coming-soon');
-  await soon.locator('summary').click();
-  await expect(soon.getByRole('link', { name: 'League', exact: true })).toHaveAttribute('href', '/league/');
-  await expect(soon.getByRole('link', { name: 'SQL console' })).toHaveAttribute('href', '/sql/');
+  await expect(nav.getByRole('link', { name: 'Board' })).toHaveAttribute('href', '/');
+  for (const [header, items] of [
+    ['tools', ['Streamers', 'Trade']],
+    ['analysis', ['Notebooks', 'Dashboards']],
+    ['platform', ['Data Health', 'Pipeline', 'Schema', 'Docs']],
+    ['coming-soon', ['League', 'SQL console']],
+  ] as const) {
+    const group = page.getByTestId(`nav-${header}`);
+    await expect(group).not.toHaveAttribute('open', '');
+    await group.locator('summary').click();
+    for (const item of items) await expect(group.getByRole('link', { name: item, exact: true })).toBeVisible();
+  }
+  // Opening one header closes the others, and a click elsewhere closes them all.
+  await expect(page.getByTestId('nav-tools')).not.toHaveAttribute('open', '');
+  await expect(page.getByTestId('nav-coming-soon')).toHaveAttribute('open', '');
+  await page.locator('main h1').click();
+  await expect(page.getByTestId('nav-coming-soon')).not.toHaveAttribute('open', '');
+  // The header of the current page is marked, not opened over the page.
+  await page.goto('/trade/');
+  const tools = page.getByTestId('nav-tools');
+  await expect(tools).toHaveAttribute('data-current', 'true');
+  await expect(tools).not.toHaveAttribute('open', '');
+  await tools.locator('summary').click();
+  await expect(tools.getByRole('link', { name: 'Trade' })).toHaveAttribute('aria-current', 'page');
   await page.goto('/league/');
-  await expect(page.getByTestId('coming-soon')).toHaveAttribute('open', '');
+  await expect(page.getByTestId('nav-coming-soon')).toHaveAttribute('data-current', 'true');
+});
+
+test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the League page imports them', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  // The fixture build's NBA board is empty: serve the WNBA board for it, and the Yahoo fixture names come from there.
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  const link = page.getByTestId('yahoo-bookmarklet-link');
+  await expect(link).toHaveAttribute('href', /^javascript:/);
+  const code = (await link.getAttribute('href')) ?? '';
+  expect(code.startsWith('javascript:')).toBe(true);
+  // A Yahoo-shaped league: the fixture league page links its teams, each team page lists its players.
+  await page.route(/\/nba\/12345\/(\d+)$/, (route) => route.fulfill({ path: `tests/fixtures/data/yahoo/team-${route.request().url().split('/').pop()}.html` }));
+  await page.goto('/data/yahoo/league.html');
+  await page.evaluate(code.slice('javascript:'.length));
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/);
+  await expect(page.getByTestId('team-card')).toHaveCount(4);
+  await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 12 players matched.');
+  await expect(page.getByTestId('team-card').nth(1).getByLabel('Name of team 2')).toHaveValue('Rim Reapers');
+  await expect(page.getByTestId('team-card').nth(1).getByRole('radio')).toBeChecked();
+  await expect(page.getByTestId('team-card').nth(0).getByTestId('roster').locator('li')).toHaveCount(3);
 });
 
 test('the Trade page values both sides for the rest of the season and gives a verdict', async ({ page }) => {

@@ -9,6 +9,7 @@ import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { assign, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues } from '../lib/league-value';
+import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { href } from '../lib/site';
 import { CategoryProfile, DraftBar, LeagueSettingsForm } from './LeagueParts';
 import { Card, Loading, Problem, Td, Th } from './ui';
@@ -107,6 +108,22 @@ export default function LeagueSetup() {
       live = false;
     };
   }, [league]);
+
+  // A Yahoo bookmarklet lands here with the league in the fragment: import it once the board is in.
+  useEffect(() => {
+    if (!rows) return;
+    const payload = parseYahooHash(window.location.hash);
+    if (!payload) return;
+    const result = applyYahooImport(setup, payload, rows);
+    update(() => result.setup);
+    setLoadNote(
+      `Imported ${payload.teams.length} teams from Yahoo: ${result.matched} players matched` +
+        (result.unmatched.length ? `; not found: ${result.unmatched.join(', ')}` : '') +
+        '.',
+    );
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    // runs once, when the board arrives
+  }, [rows]);
 
   const owner = useMemo(() => owners(setup), [setup]);
   const byId = useMemo(() => new Map((rows ?? []).map((r) => [r.player_id, r])), [rows]);
