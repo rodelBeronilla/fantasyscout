@@ -2,7 +2,7 @@
  "title": "Data quality scorecard",
  "leagues": {
   "wnba": {
-   "headline": "87 of 91 checks pass for the WNBA data in this build, 4 warn and 0 fail; the first to look at: current injury listings linked to a player (current, 94.0%).",
+   "headline": "87 of 91 checks pass for the WNBA data in this build, 4 warn and 0 fail; the first to look at: current injury listings linked to a player (current, 93.9%).",
    "facts": [
     {
      "label": "Matched across sources (2026)",
@@ -22,7 +22,7 @@
     },
     {
      "label": "Injury listings linked",
-     "value": "94.0% (warn)"
+     "value": "93.9% (warn)"
     },
     {
      "label": "dbt checks failing, latest run",
@@ -41,7 +41,7 @@
      [
       "Current injury listings linked to a player",
       "current",
-      "94.0%",
+      "93.9%",
       "95% / 90%",
       "warn"
      ],
@@ -62,7 +62,7 @@
      [
       "Latest dbt run: checks warning",
       "current",
-      "1",
+      "2",
       "0",
       "warn"
      ]
@@ -84,11 +84,11 @@
     },
     {
      "label": "Shot chart attempts = box score (2026-27)",
-     "value": "98.8% (warn)"
+     "value": "98.9% (warn)"
     },
     {
      "label": "Lineups complete (2026-27)",
-     "value": "99.3% (pass)"
+     "value": "99.1% (pass)"
     },
     {
      "label": "Injury listings linked",
@@ -118,21 +118,21 @@
      [
       "Latest dbt run: checks warning",
       "current",
-      "1",
+      "2",
       "0",
       "warn"
      ],
      [
       "Conflicts among matched player-games",
       "2026-27",
-      "0.68%",
+      "0.63%",
       "0.5% / 2%",
       "warn"
      ],
      [
       "Shot chart attempts equal to the box score",
       "2026-27",
-      "98.8%",
+      "98.9%",
       "99% / 95%",
       "warn"
      ]

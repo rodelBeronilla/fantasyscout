@@ -1,8 +1,32 @@
 import AxeBuilder from '@axe-core/playwright';
+import type { Page } from '@playwright/test';
 
 import { expect, test } from './fixtures';
 
 // The preview server serves the fixture data build (tests/fixtures/data) under /data/.
+
+type FixtureLeague = 'wnba' | 'nba';
+interface FixtureGame {
+  game_date: string;
+  days_ahead: number;
+  home_team_tricode: string;
+  away_team_tricode: string;
+}
+
+/**
+ * The fixture league with a game in the next seven days, and its schedule. The fixture follows the
+ * live site, so the WNBA is out of season for part of the year and the week grid then belongs to
+ * the NBA: tests of the grid open that league's page and route that league's files. Null when no
+ * league has a game ahead, and the test says so and skips.
+ */
+async function leagueInSeason(page: Page): Promise<{ league: FixtureLeague; games: FixtureGame[] } | null> {
+  for (const league of ['wnba', 'nba'] as const) {
+    const games = (await (await page.request.get(`/data/builds/fixture/schedule/${league}.json`)).json()) as FixtureGame[];
+    if (games.some((g) => g.days_ahead <= 6)) return { league, games };
+  }
+  return null;
+}
+const NO_SEASON = 'no fixture league has a game in the next seven days';
 
 test('the board ranks players and links to player pages', async ({ page }) => {
   await page.goto('/');
@@ -68,15 +92,17 @@ test('a player page renders the season line, shot chart and game log', async ({ 
 });
 
 test('streamers shows the week grid and the candidates', async ({ page }) => {
-  await page.goto('/streamers/');
+  const season = await leagueInSeason(page);
+  test.skip(!season, NO_SEASON);
+  await page.goto(`/streamers/?league=${season!.league}`);
   await expect(page.getByTestId('season-note')).toBeVisible();
   const grid = page.getByTestId('week-grid');
   await expect(grid).toBeVisible();
-  // The grid reads the fixture's schedule: ATL's first game, home ("v") or away ("@").
-  const games = (await (await page.request.get('/data/builds/fixture/schedule/wnba.json')).json()) as { home_team_tricode: string; away_team_tricode: string }[];
-  const atl = games.find((g) => g.home_team_tricode === 'ATL' || g.away_team_tricode === 'ATL')!;
-  const matchup = atl.home_team_tricode === 'ATL' ? `v ${atl.away_team_tricode}` : `@ ${atl.home_team_tricode}`;
-  await expect(grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: /^ATL$/ }) })).toContainText(matchup);
+  // The grid reads the fixture's schedule: the first game's home team, home ("v") or away ("@").
+  const team = season!.games[0].home_team_tricode;
+  const first = season!.games.find((g) => g.home_team_tricode === team || g.away_team_tricode === team)!;
+  const matchup = first.home_team_tricode === team ? `v ${first.away_team_tricode}` : `@ ${first.home_team_tricode}`;
+  await expect(grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: new RegExp(`^${team}$`) }) })).toContainText(matchup);
   const rows = page.getByTestId('trending').locator('tbody tr');
   await expect(rows.first()).toBeVisible();
   expect(await rows.count()).toBeGreaterThan(10);
@@ -783,17 +809,20 @@ test('the SQL console asks the public to sign in as the owner, and every page cr
 });
 
 test('streamers show the points the betting lines imply, in the grid and per player', async ({ page }) => {
+  const season = await leagueInSeason(page);
+  test.skip(!season, NO_SEASON);
   // The fixture build predates the lines: give every game one, home favoured by 4.5 in a 160 total.
-  await page.route('**/schedule/wnba.json', async (route) => {
+  await page.route(`**/schedule/${season!.league}.json`, async (route) => {
     const games = (await (await route.fetch()).json()) as Record<string, unknown>[];
     const lined = games.map((g) => ({ ...g, home_spread: -4.5, over_under: 160, home_implied_points: 82.25, away_implied_points: 77.75 }));
     await route.fulfill({ json: lined });
   });
-  await page.goto('/streamers/');
+  await page.goto(`/streamers/?league=${season!.league}`);
   const grid = page.getByTestId('week-grid');
   await expect(grid.getByTestId('implied-points').first()).toHaveText(/^(82|78) pts$/);
-  const atl = grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: /^ATL$/ }) });
-  await expect(atl.locator('td[title]').first()).toHaveAttribute('title', /^Over\/under 160, \w+ -4\.5: ATL implied (82\.25|77\.75) points/);
+  const team = season!.games[0].home_team_tricode;
+  const row = grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: new RegExp(`^${team}$`) }) });
+  await expect(row.locator('td[title]').first()).toHaveAttribute('title', new RegExp(`^Over/under 160, \\w+ -4\\.5: ${team} implied (82\\.25|77\\.75) points`));
   const table = page.getByTestId('trending');
   await expect(table.locator('thead')).toContainText('Team pts');
   // A player with games in the window shows the average of their team's implied points.
@@ -973,11 +1002,22 @@ test("a player's page lists ESPN's headlines about them, flagged and linked to E
 });
 
 test('the streamers week grid marks the second night of a back-to-back, with travel in the tooltip', async ({ page }) => {
-  await page.route('**/schedule/wnba.json', async (route) => {
+  const season = await leagueInSeason(page);
+  test.skip(!season, NO_SEASON);
+  await page.route(`**/schedule/${season!.league}.json`, async (route) => {
     const games = (await (await route.fetch()).json()) as Record<string, unknown>[];
-    await route.fulfill({ json: games.map((g, i) => (i === 0 ? { ...g, away_back_to_back: true, away_miles_travelled: 1203, at_altitude: false } : g)) });
+    // The live schedule carries its own back-to-backs: one game gets the marker, every other none.
+    await route.fulfill({
+      json: games.map((g, i) => ({
+        ...g,
+        home_back_to_back: false,
+        away_back_to_back: i === 0,
+        away_miles_travelled: i === 0 ? 1203 : null,
+        at_altitude: false,
+      })),
+    });
   });
-  await page.goto('/streamers/');
+  await page.goto(`/streamers/?league=${season!.league}`);
   const grid = page.getByTestId('week-grid');
   const marker = grid.getByTestId('back-to-back');
   await expect(marker).toHaveCount(1);
@@ -985,12 +1025,16 @@ test('the streamers week grid marks the second night of a back-to-back, with tra
 });
 
 test("the streamers week grid names a game's crew chief and the crew's tendency in the tooltip", async ({ page }) => {
-  await page.route('**/schedule/wnba.json', async (route) => {
+  const season = await leagueInSeason(page);
+  test.skip(!season, NO_SEASON);
+  await page.route(`**/schedule/${season!.league}.json`, async (route) => {
     const games = (await (await route.fetch()).json()) as Record<string, unknown>[];
     const crewed = { crew_chief: 'Pat Fraher', crew_games: 120, crew_fouls_delta: 1.43, crew_fta_delta: 2.08, crew_pace_delta: -0.61 };
-    await route.fulfill({ json: games.map((g, i) => (i === 0 ? { ...g, ...crewed } : g)) });
+    // The live schedule names crews once the league posts them: one game gets this crew, every other none.
+    const uncrewed = { crew_chief: null, crew_games: null, crew_fouls_delta: null, crew_fta_delta: null, crew_pace_delta: null };
+    await route.fulfill({ json: games.map((g, i) => ({ ...g, ...(i === 0 ? crewed : uncrewed) })) });
   });
-  await page.goto('/streamers/');
+  await page.goto(`/streamers/?league=${season!.league}`);
   const grid = page.getByTestId('week-grid');
   const cells = grid.locator('td[title*="Crew chief"]');
   await expect(cells).toHaveCount(2); // both sides of the one game
@@ -1024,7 +1068,9 @@ test("a player's next games name the crew chief once the league posts the crew",
 });
 
 test('streamers sort by window value while games are scheduled', async ({ page }) => {
-  await page.goto('/streamers/');
+  const season = await leagueInSeason(page);
+  test.skip(!season, NO_SEASON);
+  await page.goto(`/streamers/?league=${season!.league}`);
   const header = page.getByTestId('trending').locator('th', { hasText: 'Window value' });
   await expect(header).toHaveAttribute('aria-sort', 'descending');
   const values = await page
@@ -1083,15 +1129,21 @@ test('the board and streamers show a fresh headline flag, the fantasy week and t
   await expect(tag).toHaveText('BACK');
   await expect(tag).toHaveAttribute('title', /Guard returns from ankle injury/);
 
-  await page.route('**/streamers/wnba.json', async (route) => {
+  const season = await leagueInSeason(page);
+  test.skip(!season, NO_SEASON);
+  await page.route(`**/streamers/${season!.league}.json`, async (route) => {
     const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
     const extra = [
       { ownership_trend: 'rising', injury_group: 'questionable', injury_status: 'Questionable', injury_type: 'Ankle', injury_source: 'espn' },
       { ownership_trend: 'falling' },
     ];
-    await route.fulfill({ json: rows.map((r, i) => ({ ...r, ...(extra[i] ?? { ownership_trend: null }) })) });
+    // Three rows, so the two tagged ones are on the page whatever the sort puts first; no Sleeper
+    // heat, so the filter is the ESPN one.
+    await route.fulfill({
+      json: rows.slice(0, 3).map((r, i) => ({ ...r, waiver_trend: null, ...(extra[i] ?? { ownership_trend: null }) })),
+    });
   });
-  await page.goto('/streamers/');
+  await page.goto(`/streamers/?league=${season!.league}`);
   const table = page.getByTestId('trending');
   await expect(table.getByTestId('trend-tag')).toHaveCount(2);
   await expect(table.getByTestId('injury-tag').first()).toHaveAttribute('title', /Ankle/);
