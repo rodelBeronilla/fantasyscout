@@ -227,27 +227,38 @@ jobs:
       # profile simulates a slow 4G link with a 4x CPU slowdown, stricter than a plain 4G test.
       # A shared runner's CPU and network vary from run to run, so the page is measured three
       # times and the budget applies to the median.
-      - name: Lighthouse (mobile, simulated 4G, median of three)
+      - name: Lighthouse (mobile, simulated 4G, median of three; home and Streamers under the budget, Schema reported)
         if: steps.touched.outputs.deploy == 'true'
         env:
           URL: ${{ env.BRANCH == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
         run: |
           set -euo pipefail
-          for i in 1 2 3; do
-            npx --yes lighthouse@12.8.2 "$URL/" --quiet --chrome-flags="--headless=new --no-sandbox" \
-              --only-categories=performance --output=json --output-path="./lh-home-$i.json"
+          # The budget holds the home page and the Streamers page. The Schema page is pre-rendered at
+          # 1.6 MB and is measured and reported until it is brought under the budget.
+          for page in home streamers schema; do
+            case "$page" in home) path="/";; streamers) path="/streamers/";; schema) path="/schema/";; esac
+            for i in 1 2 3; do
+              npx --yes lighthouse@12.8.2 "$URL$path" --quiet --chrome-flags="--headless=new --no-sandbox" \
+                --only-categories=performance --output=json --output-path="./lh-$page-$i.json"
+            done
           done
           node -e '
-            const runs = [1, 2, 3].map((i) => require(`./lh-home-${i}.json`));
             const pick = (r) => ({
               perf: Math.round(r.categories.performance.score * 100),
               lcp: r.audits["largest-contentful-paint"].numericValue,
               tti: r.audits["interactive"].numericValue,
               si: r.audits["speed-index"].numericValue,
             });
-            const all = runs.map(pick);
-            for (const m of all) console.log(`performance ${m.perf} | LCP ${Math.round(m.lcp)} ms | TTI ${Math.round(m.tti)} ms | speed index ${Math.round(m.si)} ms`);
-            const lcp = all.map((m) => m.lcp).sort((a, b) => a - b)[1];
-            console.log(`median LCP ${Math.round(lcp)} ms`);
-            if (lcp > 2000) { console.error("::error::median LCP over the 2 s budget"); process.exit(1); }
+            let failed = false;
+            for (const [page, enforced] of [["home", true], ["streamers", true], ["schema", false]]) {
+              const all = [1, 2, 3].map((i) => pick(require(`./lh-${page}-${i}.json`)));
+              for (const m of all) console.log(`${page}: performance ${m.perf} | LCP ${Math.round(m.lcp)} ms | TTI ${Math.round(m.tti)} ms | speed index ${Math.round(m.si)} ms`);
+              const lcp = all.map((m) => m.lcp).sort((a, b) => a - b)[1];
+              console.log(`${page}: median LCP ${Math.round(lcp)} ms`);
+              if (lcp > 2000) {
+                if (enforced) { console.error(`::error::${page}: median LCP over the 2 s budget`); failed = true; }
+                else console.log(`::warning::${page}: median LCP over the 2 s budget (reported, not enforced yet)`);
+              }
+            }
+            if (failed) process.exit(1);
           '
