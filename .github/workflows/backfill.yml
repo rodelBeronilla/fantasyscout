@@ -68,7 +68,8 @@ jobs:
         id: land
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # The ingest's own token when the owner has made one (runbook, "A narrower token for the ingest").
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
         run: |
           set -o pipefail
           uv run fs-ingest land stats --league "${{ inputs.league }}" --season "${{ matrix.season }}" \
@@ -116,7 +117,8 @@ jobs:
         id: land
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # The ingest's own token when the owner has made one (runbook, "A narrower token for the ingest").
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
         run: |
           set -o pipefail
           uv run fs-ingest land espn --league "${{ inputs.league }}" --season "${{ matrix.season }}" \
@@ -164,7 +166,8 @@ jobs:
         id: land
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # The ingest's own token when the owner has made one (runbook, "A narrower token for the ingest").
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
         run: |
           set -o pipefail
           uv run fs-ingest land reports --history --league "${{ inputs.league }}" --season "${{ matrix.season }}"             --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}"             --backend volume 2>&1 | tee land.log
