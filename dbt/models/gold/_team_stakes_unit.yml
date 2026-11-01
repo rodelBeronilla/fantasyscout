@@ -14,14 +14,22 @@ unit_tests:
           - {league: nba, season: '2025-26', team_id: B, clinched_playoffs: false, eliminated: true}
           - {league: nba, season: '2025-26', team_id: C, clinched_playoffs: false, eliminated: false}
           - {league: nba, season: '2025-26', team_id: D, clinched_playoffs: true, eliminated: false}
-      - input: ref('schedule')
+      - input: ref('int_league_season_state')
+        rows:
+          - {league: nba, standings_season: '2025-26'}
+      - input: ref('schedule_team_games')
         format: sql
         rows: |
-          select 'nba' as league, '2025-26' as season, 'regular' as game_type, 1 as game_status,
-              cast('2026-04-02' as date) + cast(n as integer) as game_date_est,
-              case when n < 5 then 'A' else 'D' end as home_team_id,
-              case when n < 5 then 'B' else 'C' end as away_team_id
-          from range(0, 17) as t(n)
+          with games as (
+              select 'nba' as league, '2025-26' as season, 'regular' as game_type, 1 as game_status,
+                  cast('2026-04-02' as date) + cast(n as integer) as game_date_est,
+                  case when n < 5 then 'A' else 'D' end as home_team_id,
+                  case when n < 5 then 'B' else 'C' end as away_team_id
+              from range(0, 17) as t(n)
+          )
+          select league, season, game_type, game_status, game_date_est, home_team_id as team_id, away_team_id as opponent_id, true as is_home from games
+          union all
+          select league, season, game_type, game_status, game_date_est, away_team_id, home_team_id, false from games
     expect:
       rows:
         - {team_id: A, stakes: clinched, games_left: 5, rest_risk: true}

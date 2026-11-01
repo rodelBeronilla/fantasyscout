@@ -25,12 +25,12 @@ unit_tests:
           - {league: nba, stats_player_id: '43', full_name: 'Jalen Williams', birth_date: 'JAN 01, 1997', team_id: '40', is_current: true}
           - {league: nba, stats_player_id: '51', full_name: 'Twin Name', birth_date: 'JAN 01, 2000', team_id: '20', is_current: true}
           - {league: nba, stats_player_id: '52', full_name: 'Twin Name', birth_date: 'FEB 02, 2000', team_id: '30', is_current: true}
-      - input: ref('teams')
+      - input: ref('team_current')
         rows:
-          - {league: nba, season: '2026-27', team_id: '10', abbreviation: GSW}
-          - {league: nba, season: '2026-27', team_id: '20', abbreviation: MIL}
-          - {league: nba, season: '2026-27', team_id: '30', abbreviation: OKC}
-          - {league: nba, season: '2026-27', team_id: '40', abbreviation: BOS}
+          - {league: nba, team_id: '10', abbreviation: GSW}
+          - {league: nba, team_id: '20', abbreviation: MIL}
+          - {league: nba, team_id: '30', abbreviation: OKC}
+          - {league: nba, team_id: '40', abbreviation: BOS}
     expect:
       rows:
         - {sleeper_player_id: s1, stats_player_id: '1', net_adds: 800, waiver_trend: adding}

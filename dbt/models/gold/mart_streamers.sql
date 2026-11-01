@@ -25,9 +25,10 @@
 
 with current_season as (
 
-    select league, max(season) as season
-    from {{ ref('fct_player_game') }}
-    group by league
+    -- the latest season with a game in gold (int_league_season_state.games_season)
+    select league, games_season as season
+    from {{ ref('int_league_season_state') }}
+    where games_season is not null
 
 ),
 
@@ -186,12 +187,9 @@ injury as (
 
 latest_news as (
 
-    -- The newest headline about the player with a flag (injury, return, role...) in the last three
-    -- days, shown beside the injury tag.
-    select league, stats_player_id, news_flag, headline as news_headline, published_date as news_date
-    from {{ ref('fct_player_news') }}
-    where news_flag is not null and published_date >= {{ add_days(as_of_date(), -3) }}
-    qualify row_number() over (partition by league, stats_player_id order by published_at desc, article_id) = 1
+    -- The newest flagged headline about the player in the last three days (int_player_news_latest).
+    select league, stats_player_id, news_flag, news_headline, news_date
+    from {{ ref('int_player_news_latest') }}
 
 ),
 

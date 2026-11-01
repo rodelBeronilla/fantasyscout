@@ -9,13 +9,18 @@ unit_tests:
       a back-to-back.
     model: fct_team_game_context
     given:
-      - input: ref('schedule')
+      - input: ref('schedule_team_games')
         rows:
-          - {league: nba, season: '2026-27', game_id: g1, game_date_est: 2026-11-01, game_type: regular, arena_city: Denver, is_neutral: false, if_necessary: false, home_team_id: A, away_team_id: B}
-          - {league: nba, season: '2026-27', game_id: g2, game_date_est: 2026-11-02, game_type: regular, arena_city: Salt Lake City, is_neutral: false, if_necessary: false, home_team_id: C, away_team_id: A}
-          - {league: nba, season: '2026-27', game_id: g3, game_date_est: 2026-11-04, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, home_team_id: D, away_team_id: A}
-          - {league: nba, season: '2026-27', game_id: g4, game_date_est: 2026-11-05, game_type: playoffs, arena_city: Denver, is_neutral: false, if_necessary: true, home_team_id: A, away_team_id: D}
-          - {league: nba, season: '2026-27', game_id: g5, game_date_est: 2026-12-10, game_type: regular, arena_city: Las Vegas, is_neutral: true, if_necessary: false, home_team_id: '0', away_team_id: '0'}
+          - {league: nba, season: '2026-27', game_id: g1, game_date_est: 2026-11-01, game_type: regular, arena_city: Denver, is_neutral: false, if_necessary: false, team_id: A, opponent_id: B, is_home: true}
+          - {league: nba, season: '2026-27', game_id: g1, game_date_est: 2026-11-01, game_type: regular, arena_city: Denver, is_neutral: false, if_necessary: false, team_id: B, opponent_id: A, is_home: false}
+          - {league: nba, season: '2026-27', game_id: g2, game_date_est: 2026-11-02, game_type: regular, arena_city: Salt Lake City, is_neutral: false, if_necessary: false, team_id: C, opponent_id: A, is_home: true}
+          - {league: nba, season: '2026-27', game_id: g2, game_date_est: 2026-11-02, game_type: regular, arena_city: Salt Lake City, is_neutral: false, if_necessary: false, team_id: A, opponent_id: C, is_home: false}
+          - {league: nba, season: '2026-27', game_id: g3, game_date_est: 2026-11-04, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, team_id: D, opponent_id: A, is_home: true}
+          - {league: nba, season: '2026-27', game_id: g3, game_date_est: 2026-11-04, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, team_id: A, opponent_id: D, is_home: false}
+          - {league: nba, season: '2026-27', game_id: g4, game_date_est: 2026-11-05, game_type: playoffs, arena_city: Denver, is_neutral: false, if_necessary: true, team_id: A, opponent_id: D, is_home: true}
+          - {league: nba, season: '2026-27', game_id: g4, game_date_est: 2026-11-05, game_type: playoffs, arena_city: Denver, is_neutral: false, if_necessary: true, team_id: D, opponent_id: A, is_home: false}
+          - {league: nba, season: '2026-27', game_id: g5, game_date_est: 2026-12-10, game_type: regular, arena_city: Las Vegas, is_neutral: true, if_necessary: false, team_id: '0', opponent_id: '0', is_home: true}
+          - {league: nba, season: '2026-27', game_id: g5, game_date_est: 2026-12-10, game_type: regular, arena_city: Las Vegas, is_neutral: true, if_necessary: false, team_id: '0', opponent_id: '0', is_home: false}
       - input: ref('venues')
         rows:
           - {city: Denver, latitude: 39.749, longitude: -105.008, elevation_ft: 5280, utc_offset: -7}
@@ -36,12 +41,16 @@ unit_tests:
       in July (both on UTC-7) and one in January (UTC-7 to UTC-8).
     model: fct_team_game_context
     given:
-      - input: ref('schedule')
+      - input: ref('schedule_team_games')
         rows:
-          - {league: wnba, season: '2026', game_id: s1, game_date_est: 2026-07-10, game_type: regular, arena_city: Phoenix, is_neutral: false, if_necessary: false, home_team_id: P, away_team_id: Q}
-          - {league: wnba, season: '2026', game_id: s2, game_date_est: 2026-07-12, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, home_team_id: L, away_team_id: P}
-          - {league: nba, season: '2026-27', game_id: w1, game_date_est: 2027-01-10, game_type: regular, arena_city: Phoenix, is_neutral: false, if_necessary: false, home_team_id: P, away_team_id: Q}
-          - {league: nba, season: '2026-27', game_id: w2, game_date_est: 2027-01-12, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, home_team_id: L, away_team_id: P}
+          - {league: wnba, season: '2026', game_id: s1, game_date_est: 2026-07-10, game_type: regular, arena_city: Phoenix, is_neutral: false, if_necessary: false, team_id: P, opponent_id: Q, is_home: true}
+          - {league: wnba, season: '2026', game_id: s1, game_date_est: 2026-07-10, game_type: regular, arena_city: Phoenix, is_neutral: false, if_necessary: false, team_id: Q, opponent_id: P, is_home: false}
+          - {league: wnba, season: '2026', game_id: s2, game_date_est: 2026-07-12, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, team_id: L, opponent_id: P, is_home: true}
+          - {league: wnba, season: '2026', game_id: s2, game_date_est: 2026-07-12, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, team_id: P, opponent_id: L, is_home: false}
+          - {league: nba, season: '2026-27', game_id: w1, game_date_est: 2027-01-10, game_type: regular, arena_city: Phoenix, is_neutral: false, if_necessary: false, team_id: P, opponent_id: Q, is_home: true}
+          - {league: nba, season: '2026-27', game_id: w1, game_date_est: 2027-01-10, game_type: regular, arena_city: Phoenix, is_neutral: false, if_necessary: false, team_id: Q, opponent_id: P, is_home: false}
+          - {league: nba, season: '2026-27', game_id: w2, game_date_est: 2027-01-12, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, team_id: L, opponent_id: P, is_home: true}
+          - {league: nba, season: '2026-27', game_id: w2, game_date_est: 2027-01-12, game_type: regular, arena_city: Los Angeles, is_neutral: false, if_necessary: false, team_id: P, opponent_id: L, is_home: false}
       - input: ref('venues')
         rows:
           - {city: Phoenix, latitude: 33.446, longitude: -112.071, elevation_ft: 1086, utc_offset: -7, observes_dst: false}

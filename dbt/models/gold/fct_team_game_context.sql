@@ -18,16 +18,10 @@
 with sides as (
 
     select league, season, game_id, game_date_est as game_date, game_type, arena_city, is_neutral,
-        home_team_id as team_id, away_team_id as opponent_id, true as is_home
-    from {{ ref('schedule') }}
+        team_id, opponent_id, is_home
+    from {{ ref('schedule_team_games') }}
     where game_type in ('regular', 'play_in', 'playoffs', 'tournament_final') and not coalesce(if_necessary, false)
-        and coalesce(home_team_id, '0') <> '0' and coalesce(away_team_id, '0') <> '0'
-    union all
-    select league, season, game_id, game_date_est, game_type, arena_city, is_neutral,
-        away_team_id, home_team_id, false
-    from {{ ref('schedule') }}
-    where game_type in ('regular', 'play_in', 'playoffs', 'tournament_final') and not coalesce(if_necessary, false)
-        and coalesce(home_team_id, '0') <> '0' and coalesce(away_team_id, '0') <> '0'
+        and coalesce(team_id, '0') <> '0' and coalesce(opponent_id, '0') <> '0'
 
 ),
 

@@ -42,11 +42,11 @@ unit_tests:
       - input: ref('player_xwalk')
         rows:
           - {league: nba, espn_player_id: a1, stats_player_id: '1630001'}
-      - input: ref('teams')
+      - input: ref('team_current')
         format: sql
         rows: |
-          select cast(null as string) as league, cast(null as string) as season, cast(null as string) as team_id,
-              cast(null as string) as team_name, cast(null as string) as name
+          select cast(null as string) as league, cast(null as string) as team_id,
+              cast(null as string) as full_key, cast(null as string) as nick_key
           where false
       - input: ref('players')
         format: sql
@@ -91,11 +91,11 @@ unit_tests:
               cast(null as string) as under_odds, cast(null as string) as over_open_odds, cast(null as string) as under_open_odds,
               cast(null as string) as last_updated, cast(null as date) as _ingest_date, cast(null as string) as _source_file
           where false
-      - input: ref('teams')
+      - input: ref('team_current')
         rows:
-          - {league: nba, season: '2026-27', team_id: '1610612746', team_name: 'LA Clippers', name: Clippers}
-          - {league: nba, season: '2026-27', team_id: '1610612766', team_name: 'Charlotte Hornets', name: Hornets}
-          - {league: nba, season: '2026-27', team_id: '1610612751', team_name: 'Brooklyn Nets', name: Nets}
+          - {league: nba, team_id: '1610612746', full_key: laclippers, nick_key: clippers}
+          - {league: nba, team_id: '1610612766', full_key: charlottehornets, nick_key: hornets}
+          - {league: nba, team_id: '1610612751', full_key: brooklynnets, nick_key: nets}
       - input: ref('schedule')
         rows:
           - {league: nba, season: '2026-27', game_id: '0022600110', game_date_est: '2026-10-30', home_team_id: '1610612746', away_team_id: '1610612766'}

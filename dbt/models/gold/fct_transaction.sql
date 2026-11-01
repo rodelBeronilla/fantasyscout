@@ -16,9 +16,7 @@ with picked as (
 
 team_names as (
 
-    select league, team_id, abbreviation
-    from {{ ref('teams') }}
-    qualify row_number() over (partition by league, team_id order by season desc) = 1
+    select league, team_id, abbreviation from {{ ref('team_current') }}
 
 )
 
