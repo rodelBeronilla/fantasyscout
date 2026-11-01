@@ -68,7 +68,7 @@ describe('routing', () => {
     // the suite's R2 state is shared and the data tests seed latest.json as build 'test' before each of
     // theirs; these two seed the same pointer and add to that build, so nothing leaks between tests
     await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), { httpMetadata: { contentType: 'application/json' } });
-    await env.DATA.put('builds/test/players/wnba/1628932.json', JSON.stringify({ name: "A'ja Wilson", team: 'LVA', position: 'F' }));
+    await env.DATA.put('builds/test/players/wnba/1628932.json', JSON.stringify({ name: "A'ja Wilson", team: { team_id: '1611661319', abbreviation: 'LVA', name: 'Aces' }, position: 'F' }));
     const res = await SELF.fetch(`${ORIGIN}/p/wnba/1628932/`);
     expect(res.status).toBe(200);
     const html = await res.text();

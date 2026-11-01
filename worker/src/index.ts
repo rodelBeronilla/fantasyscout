@@ -214,12 +214,16 @@ async function serveData(request: Request, env: Env, rawKey: string, isPrivate =
   return new Response(request.method === 'HEAD' ? null : object.body, { status, headers });
 }
 
+// The shape export/players.py writes: the team is an object with the abbreviation the pages show.
 interface PlayerFile {
   name?: string | null;
   position?: string | null;
-  team?: string | null;
+  team?: { abbreviation?: string | null; name?: string | null } | string | null;
   league?: string;
 }
+
+const teamLabel = (team: PlayerFile['team']): string =>
+  typeof team === 'string' ? team : (team?.abbreviation ?? team?.name ?? '');
 
 async function currentBuild(env: Env): Promise<string | null> {
   const latest = await env.DATA.get('latest.json');
@@ -272,7 +276,9 @@ async function namePlayer(shell: Response, env: Env, url: URL): Promise<Response
   }
   if (!player.name) return shell;
   const league = (m[1] ?? '').toUpperCase();
-  const who = [player.name, [player.team, player.position].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+  const who = [player.name, [teamLabel(player.team), player.position].filter(Boolean).join(', ')]
+    .filter(Boolean)
+    .join(' · ');
   const title = escapeHtml(`${who} · ${league} · FantasyScout`);
   const description = escapeHtml(
     `${player.name}: season line, rolling trends, shot chart, game log and category strengths for fantasy basketball (${league}).`,
