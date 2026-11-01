@@ -1,0 +1,20 @@
+# Generated release notes: every PR carries one release:* label (the PR template asks for it), and
+# these categories turn the labels into the notes. release:skip and Dependabot's PRs stay out.
+changelog:
+  exclude:
+    labels:
+      - release:skip
+      - dependencies
+  categories:
+    - title: Breaking changes
+      labels:
+        - release:breaking
+    - title: Features
+      labels:
+        - release:feature
+    - title: Fixes
+      labels:
+        - release:fix
+    - title: Other changes
+      labels:
+        - "*"
