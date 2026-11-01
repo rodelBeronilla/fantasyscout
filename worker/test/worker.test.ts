@@ -1,7 +1,7 @@
 // Runs inside workerd via @cloudflare/vitest-plugin, with the real assets binding
 // (web/dist must be built first) and an isolated R2 bucket per test.
 import { env, SELF } from 'cloudflare:test';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { contentRange, parseRange } from '../src/index';
 import { ciReaderKey, sessionCookie } from '../src/owner';
 
@@ -144,6 +144,31 @@ describe('data', () => {
     await env.DATA.put('builds/b1/notebooks/01_board_backtest.html', '<html></html>');
     const page = await SELF.fetch(`${ORIGIN}/data/builds/b1/notebooks/01_board_backtest.html`);
     expect(page.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+  });
+
+  it('answers a public build file from the edge cache the second time', async () => {
+    await env.DATA.put('builds/c1/board/nba.json', '[{"player_id":"1"}]', {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    const first = await SELF.fetch(`${ORIGIN}/data/builds/c1/board/nba.json`);
+    expect(first.status).toBe(200);
+    await first.text();
+    // R2 gone: the cached copy still answers.
+    const spy = vi.spyOn(env.DATA, 'get').mockRejectedValue(new Error('r2 down'));
+    try {
+      const second = await SELF.fetch(`${ORIGIN}/data/builds/c1/board/nba.json`);
+      expect(second.status).toBe(200);
+      expect(await second.json()).toEqual([{ player_id: '1' }]);
+      // A range request, and a private table, bypass the cache and reach R2.
+      const ranged = await SELF.fetch(`${ORIGIN}/data/builds/c1/board/nba.json`, { headers: { range: 'bytes=0-3' } });
+      expect(ranged.status).not.toBe(200);
+      await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, { headers: OWNER });
+    } finally {
+      spy.mockRestore();
+    }
+    const priv = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, { headers: OWNER });
+    expect(priv.status).toBe(200);
+    expect(priv.headers.get('cache-control')).toContain('private');
   });
 
   it('serves build files as immutable with a parquet content type', async () => {
