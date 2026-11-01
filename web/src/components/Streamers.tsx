@@ -180,6 +180,22 @@ interface Team {
   abbreviation: string;
 }
 
+/** Games per team per fantasy week for the rest of the season (fct_team_week_games). */
+interface TeamWeek {
+  league: string;
+  season: string;
+  team_id: string;
+  team_abbreviation: string | null;
+  fantasy_week: string;
+  week_start: string;
+  week_end: string;
+  is_current_week: boolean;
+  games: number;
+  games_left: number;
+  games_if_necessary: number;
+  game_dates: string | null;
+}
+
 /** A streamer row with what the page works out from the schedule and the picked needs. */
 interface Candidate extends StreamerRow {
   games_window: number;
@@ -343,12 +359,65 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
   );
 }
 
+/** Games per team per fantasy week, this week to the last scheduled game: busiest teams first. */
+function WeeksGrid({ weeks }: { weeks: TeamWeek[] }) {
+  const columns = [...new Map(weeks.map((w) => [w.fantasy_week, w])).values()].sort((a, b) => a.week_start.localeCompare(b.week_start));
+  const label = (w: TeamWeek) => w.team_abbreviation ?? w.team_id;
+  const teams = [...new Set(weeks.map(label))];
+  const cell = new Map(weeks.map((w) => [`${label(w)}|${w.fantasy_week}`, w]));
+  const total = new Map(teams.map((t) => [t, columns.reduce((n, c) => n + (cell.get(`${t}|${c.fantasy_week}`)?.games ?? 0), 0)]));
+  const ordered = [...teams].sort((a, b) => (total.get(b) ?? 0) - (total.get(a) ?? 0) || a.localeCompare(b));
+  return (
+    <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+      <table className="w-full text-sm" data-testid="weeks-grid">
+        <thead>
+          <tr>
+            <Th>Team</Th>
+            <Th right>Games</Th>
+            {columns.map((c) => (
+              <th
+                key={c.fantasy_week}
+                scope="col"
+                className={`px-2 py-1.5 text-center text-xs font-medium whitespace-nowrap ${c.is_current_week ? 'text-accent' : 'text-muted'}`}
+                title={`${c.week_start} to ${c.week_end}`}
+              >
+                W{c.fantasy_week.slice(-2)}
+                <div>{c.week_start.slice(5).replace('-', '/')}</div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {ordered.map((t) => (
+            <tr key={t} className="border-t border-line">
+              <Td>{t}</Td>
+              <Td right>{total.get(t) ?? 0}</Td>
+              {columns.map((c) => {
+                const w = cell.get(`${t}|${c.fantasy_week}`);
+                const n = w?.games ?? 0;
+                const tone = n >= 4 ? 'font-semibold text-good' : n <= 2 ? 'text-muted' : '';
+                return (
+                  <td key={c.fantasy_week} className={`px-2 py-1.5 text-center tabular-nums ${tone}`} title={w?.game_dates ?? undefined}>
+                    {n}
+                    {w && w.games_if_necessary > 0 ? <span className="text-xs text-muted"> +{w.games_if_necessary}</span> : null}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function Streamers() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<StreamerRow[] | null>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [moves, setMoves] = useState<Move[]>([]);
   const [teams, setTeams] = useState<string[]>([]);
+  const [weeks, setWeeks] = useState<TeamWeek[]>([]);
   const [start, setStart] = useState<string>(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<unknown>(null);
   const [horizonChoice, setHorizonChoice] = useState<number | 'week'>(7);
@@ -387,14 +456,16 @@ export default function Streamers() {
       fetchBuildJson<Game[]>(`schedule/${league}.json`).catch(() => [] as Game[]),
       fetchBuildJson<Team[]>('dim_team.json'),
       getLatest(),
-      // Older builds have no transactions file.
+      // Older builds have no transactions or team-weeks file.
       fetchBuildJson<Move[]>(`transactions/${league}.json`).catch(() => [] as Move[]),
+      fetchBuildJson<TeamWeek[]>(`team_weeks/${league}.json`).catch(() => [] as TeamWeek[]),
     ])
-      .then(([s, g, t, latest, mv]) => {
+      .then(([s, g, t, latest, mv, tw]) => {
         if (!live) return;
         setRows(s);
         setGames(g);
         setMoves(mv);
+        setWeeks(tw);
         const latestSeason = t.filter((x) => x.league === league).reduce((m, x) => (x.season > m ? x.season : m), '');
         setTeams([...new Set(t.filter((x) => x.league === league && x.season === latestSeason).map((x) => x.abbreviation))]);
         // The grid starts on the build day: the schedule's days_ahead counts from it.
@@ -586,6 +657,16 @@ export default function Streamers() {
             </fieldset>
           </div>
           <WeekGrid games={games} teams={teams} days={days} picked={pickedDays} />
+        </Card>
+      )}
+
+      {weeks.length > 0 && (
+        <Card title="Games per fantasy week, rest of season" id="weeks">
+          <p className="mb-3 text-sm text-muted">
+            Monday-to-Sunday weeks from this one to the last scheduled game, regular season and playoffs. A team with four games
+            is worth a streaming spot that week; two is a week to look elsewhere. &ldquo;+1&rdquo; is an if-necessary playoff game.
+          </p>
+          <WeeksGrid weeks={weeks} />
         </Card>
       )}
 

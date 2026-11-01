@@ -140,6 +140,29 @@ test('streamers shows the week grid and the candidates', async ({ page }) => {
   expect(await rows.count()).toBeGreaterThan(10);
 });
 
+test('streamers shows games per fantasy week for the rest of the season when weeks are left', async ({ page }) => {
+  const weeks = (await (await page.request.get('/data/builds/fixture/team_weeks/wnba.json')).json()) as {
+    team_abbreviation: string | null;
+    team_id: string;
+    fantasy_week: string;
+    games: number;
+  }[];
+  await page.goto('/streamers/');
+  await expect(page.getByTestId('season-note')).toBeVisible();
+  if (weeks.length === 0) {
+    // The fixture season has no week ahead: the card stays away rather than showing an empty grid.
+    await expect(page.getByTestId('weeks-grid')).toHaveCount(0);
+    return;
+  }
+  const grid = page.getByTestId('weeks-grid');
+  await expect(grid).toBeVisible();
+  const first = weeks[0];
+  const team = first.team_abbreviation ?? first.team_id;
+  const row = grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: new RegExp(`^${team}$`) }) });
+  await expect(row).toContainText(String(first.games));
+  await expect(grid.locator('thead th').filter({ hasText: `W${first.fantasy_week.slice(-2)}` })).toBeVisible();
+});
+
 test('streamers can be filtered by position and re-sorted', async ({ page }) => {
   await page.goto('/streamers/');
   const rows = page.getByTestId('trending').locator('tbody tr');

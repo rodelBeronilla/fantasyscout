@@ -30,6 +30,7 @@ builds/fixture/fct_team_game/wnba-2026.parquet
 builds/fixture/fct_team_game_context.parquet
 builds/fixture/fct_team_stakes.json
 builds/fixture/fct_team_stakes.parquet
+builds/fixture/fct_team_week_games.parquet
 builds/fixture/fct_transaction.parquet
 builds/fixture/fct_waiver_trend.parquet
 builds/fixture/feed_freshness.json
@@ -145,6 +146,8 @@ builds/fixture/schedule/wnba.json
 builds/fixture/streamers/nba.json
 builds/fixture/streamers/wnba.json
 builds/fixture/tableau/index.json
+builds/fixture/team_weeks/nba.json
+builds/fixture/team_weeks/wnba.json
 builds/fixture/transactions/nba.json
 builds/fixture/transactions/wnba.json
 builds/fixture/manifest.json

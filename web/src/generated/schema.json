@@ -330,7 +330,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 366,
+ "generic_tests": 375,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -11876,6 +11876,7 @@
      "read_by": [
       "fct_team_game_context",
       "fct_team_stakes",
+      "fct_team_week_games",
       "mart_board"
      ],
      "reads": [
@@ -12423,6 +12424,7 @@
      "read_by": [
       "fct_official_listing",
       "fct_player_status",
+      "fct_team_week_games",
       "fct_transaction",
       "fct_waiver_trend",
       "mart_board",
@@ -13128,7 +13130,9 @@
      "notes": [
       "One row per calendar date from the first backfilled season through 2030."
      ],
-     "read_by": [],
+     "read_by": [
+      "fct_team_week_games"
+     ],
      "reads": [
       "games"
      ],
@@ -17460,6 +17464,138 @@
      "checks": [],
      "columns": [
       {
+       "description": "Surrogate key: one row per league, season, team and fantasy week",
+       "name": "team_week_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id",
+       "name": "team_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The team's current tricode (silver.team_current)",
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Monday-to-Sunday week label, YYYY-Www (dim_date)",
+       "name": "fantasy_week",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The week's Monday",
+       "name": "week_start",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "The week's Sunday",
+       "name": "week_end",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "True for the week the build ran in",
+       "name": "is_current_week",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "Scheduled games in the week, played or not, if-necessary games left out",
+       "name": "games",
+       "tests": [
+        "not_null"
+       ],
+       "type": "integer"
+      },
+      {
+       "description": "Of those, the games not yet final from the run date on",
+       "name": "games_left",
+       "tests": [
+        "not_null"
+       ],
+       "type": "integer"
+      },
+      {
+       "description": "Playoff games in the week that may not be played",
+       "name": "games_if_necessary",
+       "tests": [
+        "not_null"
+       ],
+       "type": "integer"
+      },
+      {
+       "description": "Every game date in the week, sorted and comma-separated, if-necessary games included",
+       "name": "game_dates",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Games per team per fantasy week (Monday to Sunday), from the current week to the last scheduled game: regular-season and playoff games from each team's side of the schedule, with an if-necessary playoff game counted apart. The Streamers page shows it as a grid, so the four-game weeks of the fantasy playoffs can be planned on.",
+     "exported_as": [
+      "fct_team_week_games.parquet",
+      "team_weeks/<league>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "season",
+       "team_id",
+       "fantasy_week"
+      ],
+      "key": "team_week_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_team_week_games",
+     "notes": [
+      "Games per team per fantasy week (Monday to Sunday, dim_date.fantasy_week), from the current week to the last scheduled game: the schedule surface a fantasy manager plans the playoff weeks on, which team plays four times and which plays two. Regular-season and playoff games, from each team's side of the schedule (silver.schedule_team_games); an if-necessary playoff game is counted apart. games counts the week's games played or not, games_left the ones still to play from today; game_dates lists every date, if-necessary games included."
+     ],
+     "read_by": [],
+     "reads": [
+      "dim_date",
+      "schedule_team_games",
+      "team_current"
+     ],
+     "unit_tests": [
+      {
+       "description": "Wednesday the 14th. Team A played Monday, plays today, Friday and Sunday: four games this week, three left. Next week it has one playoff game and one if-necessary game, counted apart. Its game last week is not a week ahead and is left out. Team B played Tuesday and the schedule has not marked it final yet: a game this week, not a game left.",
+       "name": "team_week_games_count_the_week_from_its_monday"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "Surrogate key: one row per transaction (silver transaction_key)",
        "name": "transaction_sk",
        "tests": [
@@ -21161,6 +21297,11 @@
    "description": "With five games left, a clinched team and an eliminated one carry rest risk and a team still racing does not; with twelve left, nobody does yet; a finished season carries none.",
    "model": "fct_team_stakes",
    "name": "team_stakes_flags_rest_risk_late_for_teams_with_nothing_to_play_for"
+  },
+  {
+   "description": "Wednesday the 14th. Team A played Monday, plays today, Friday and Sunday: four games this week, three left. Next week it has one playoff game and one if-necessary game, counted apart. Its game last week is not a week ahead and is left out. Team B played Tuesday and the schedule has not marked it final yet: a game this week, not a game left.",
+   "model": "fct_team_week_games",
+   "name": "team_week_games_count_the_week_from_its_monday"
   },
   {
    "description": "Sleeper's ASCII search name keeps a suffix and folds accents (kristapsporzingis, jimmybutleriii), so it matches the league name with its suffix kept. A plain name match covers a suffix one side leaves off. Between two namesakes the birth date decides, then the team; namesakes neither tells apart stay unlinked, as does a name with no match.",
