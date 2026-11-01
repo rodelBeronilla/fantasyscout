@@ -176,7 +176,7 @@ jobs:
         run: |
           set -euo pipefail
           for i in 1 2 3; do
-            npx --yes lighthouse@12 "$URL/" --quiet --chrome-flags="--headless=new --no-sandbox" \
+            npx --yes lighthouse@12.8.2 "$URL/" --quiet --chrome-flags="--headless=new --no-sandbox" \
               --only-categories=performance --output=json --output-path="./lh-home-$i.json"
           done
           node -e '

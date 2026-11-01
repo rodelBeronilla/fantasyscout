@@ -105,6 +105,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.run_espn == 'true'
     runs-on: ubuntu-latest
+    environment: lakehouse
     concurrency:
       group: espn-${{ matrix.league }}
       cancel-in-progress: false
@@ -148,6 +149,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.run_reports == 'true'
     runs-on: ubuntu-latest
+    environment: lakehouse
     concurrency:
       group: reports-${{ matrix.league }}
       cancel-in-progress: false
@@ -184,6 +186,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.run_stats == 'true'
     runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    environment: lakehouse
     # One job per stats host at a time, across this workflow and Backfill. The two leagues are
     # two hosts, so they may run at once (there are two home runners).
     concurrency:
