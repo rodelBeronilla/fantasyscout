@@ -84,6 +84,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--order-by", default="league, season")
     parser.add_argument("--where", default="", help="filter, SQL without the keyword")
     parser.add_argument("--limit", type=int, default=200, help="maximum rows printed")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit 1 when the query did not run (the build's report step leaves this off so a "
+        "missing table never fails a build; the Query workflow turns it on)",
+    )
     args = parser.parse_args(argv)
 
     statement = f"select {args.columns} from {args.table}"
@@ -103,6 +109,9 @@ def main(argv: list[str] | None = None) -> int:
             )
     except Exception as exc:
         print(f"{args.table}: unavailable ({type(exc).__name__}: {str(exc)[:200]})")
+        if args.strict:
+            print(f"::error::{args.table} could not be read: {str(exc)[:300]}")
+            return 1
         return 0
     print(f"{args.table} ({len(rows)} rows):")
     for line in render(columns, rows, limit=max(args.limit, 1)):

@@ -64,6 +64,17 @@ def test_a_missing_table_never_fails_the_build(
     assert "unavailable" in capsys.readouterr().out
 
 
+def test_strict_fails_when_the_query_did_not_run(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The Query workflow asks for --strict: an unreadable table is a red run, not a green one."""
+    db = tmp_path / "empty.duckdb"
+    duckdb.connect(str(db)).close()
+    assert summary.main(["--engine", "duckdb", "--duckdb", str(db), "--strict"]) == 1
+    out = capsys.readouterr().out
+    assert "unavailable" in out and "::error::" in out
+
+
 def test_where_and_limit_shape_the_statement(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
