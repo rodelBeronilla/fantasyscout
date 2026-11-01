@@ -14,6 +14,7 @@ from ops.results import (
     insert_statements,
     load_rows,
     main,
+    merge_rows,
     write_duckdb,
 )
 
@@ -121,6 +122,64 @@ def test_gate_blocks_on_chaos_and_names_it(tmp_path: Path) -> None:
         load_rows(artifacts(tmp_path, chaos=True), engine="duckdb", git_sha="abc", run_at=RUN_AT)
     )
     assert not gate.passed and "chaos_deliberate_failure" in gate.reason
+
+
+def test_a_selected_build_is_judged_with_the_quality_checks_and_says_so(tmp_path: Path) -> None:
+    # The selected build itself passed; the separate quality run found the completeness check red.
+    selected = artifacts(tmp_path / "selected")
+    quality = tmp_path / "quality"
+    write_artifacts(
+        quality,
+        [
+            {"unique_id": "test.fantasyscout.assert_box_closure.1", "status": "pass"},
+            {
+                "unique_id": "test.fantasyscout.assert_completeness.2",
+                "status": "fail",
+                "failures": 3,
+            },
+        ],
+        {
+            "test.fantasyscout.assert_box_closure.1": {
+                "resource_type": "test",
+                "name": "assert_box_closure",
+                "config": {"severity": "error"},
+                "depends_on": {"nodes": ["model.fantasyscout.fct_player_game"]},
+            },
+            "test.fantasyscout.assert_completeness.2": {
+                "resource_type": "test",
+                "name": "assert_completeness",
+                "config": {"severity": "error"},
+                "depends_on": {"nodes": ["model.fantasyscout.fct_player_game"]},
+            },
+        },
+    )
+    load = lambda d: load_rows(d, engine="duckdb", git_sha="abc", run_at=RUN_AT)  # noqa: E731
+    rows = merge_rows(load(selected), load(quality))
+    # One row per node: the closure check appears once even though both runs reported it.
+    assert [r.node_id for r in rows].count("test.fantasyscout.assert_box_closure.1") == 1
+    gate = decide(rows, selected="+mart_board")
+    assert not gate.passed
+    assert gate.reason.startswith("selected build (+mart_board); blocked by: assert_completeness")
+    # The selected run alone would have passed: that is the hole the merge closes.
+    assert decide(load(selected)).passed
+
+
+def test_main_merges_target_dirs_and_skips_a_missing_one(tmp_path: Path) -> None:
+    target = artifacts(tmp_path, closure_status="fail")
+    code = main(
+        [
+            "--engine",
+            "duckdb",
+            "--target-dir",
+            str(target),
+            "--target-dir",
+            str(tmp_path / "absent"),
+            "--selected",
+            "fct_player_game",
+            "--dry-run",
+        ]
+    )
+    assert code == 2
 
 
 def test_sql_literals_are_safe() -> None:
