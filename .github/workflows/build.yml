@@ -284,6 +284,31 @@ jobs:
             || echo "::warning::the build log row was not recorded"
           OUTCOME="$OUTCOME" DETAIL="$DETAIL" uv run python .github/scripts/incident.py
 
+  # An ingest that was cancelled or timed out (a self-hosted job queued until GitHub gave up on
+  # it, a stats job killed at its limit) used to trigger nothing: no build, no issue. It opens an
+  # incident instead; the next completed ingest closes it through the normal build's report.
+  cancelled-ingest:
+    name: Note a cancelled or timed-out ingest
+    if: >-
+      github.event_name == 'workflow_run' &&
+      (github.event.workflow_run.conclusion == 'cancelled' || github.event.workflow_run.conclusion == 'timed_out')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.2
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: "Ingest ${{ github.event.workflow_run.conclusion }}: no build ran"
+          OUTCOME: failure
+          AREA: area:ops
+          DETAIL: "${{ github.event.workflow_run.name }} ended ${{ github.event.workflow_run.conclusion }} (${{ github.event.workflow_run.html_url }}), so no build ran. A self-hosted job that found no runner is cancelled after a day in the queue: check the home runners (infra/runner). Run Ingest again by hand; the next build's report closes this."
+        run: uv run python .github/scripts/incident.py
+
   bundle:
     name: Deploy the Asset Bundle
     needs: dbt
