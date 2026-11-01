@@ -38,11 +38,36 @@ export function dataHref(path: string): string {
   return href(`/data/${path}`);
 }
 
-/** The current build pointer, or null when no build has been published yet. */
+/**
+ * The pointer could not be read for a reason other than "no build yet": the Worker or the network
+ * failed. The next call fetches again; nothing remembers the failure.
+ */
+export class DataUnavailableError extends Error {
+  constructor(public readonly status?: number) {
+    super(
+      status
+        ? `The data is temporarily unavailable (HTTP ${status}).`
+        : 'The data is temporarily unavailable (the connection failed).',
+    );
+  }
+}
+
+/**
+ * The current build pointer, or null when no build has been published yet (a 404). Any other
+ * failure throws DataUnavailableError and is not memoised, so a later island, or a reload, asks
+ * again rather than reading "no build" for the life of the page.
+ */
 export function getLatest(): Promise<Latest | null> {
   latestPromise ??= fetch(dataHref('latest.json'), { cache: 'no-cache' })
-    .then((r) => (r.ok ? (r.json() as Promise<Latest>) : null))
-    .catch(() => null);
+    .then((r) => {
+      if (r.status === 404) return null;
+      if (!r.ok) throw new DataUnavailableError(r.status);
+      return r.json() as Promise<Latest>;
+    })
+    .catch((e: unknown) => {
+      latestPromise = undefined;
+      throw e instanceof DataUnavailableError ? e : new DataUnavailableError();
+    });
   return latestPromise;
 }
 
