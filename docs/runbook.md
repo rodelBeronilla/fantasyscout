@@ -128,6 +128,10 @@ Backfills pass `--shots team-season`: the shot chart endpoint returns a whole se
 
 Every passing nightly build publishes a data build to the `fantasyscout-data` bucket: `builds/<build_id>/` holds the Parquet and JSON files, the per-player files and `manifest.json`; `latest.json` at the root points at the current build and `builds.json` lists the seven kept. The site reads `latest.json` first, so a build is only visible once every file is up. The nightly build stages a build, adds the notebooks and the Tableau extract to it, then promotes it (`builds.json`, then `latest.json`). To publish by hand, roll back, release a rollback or list what is served, run the "Export data" workflow with `build`, `rollback`, `unpin` or `list`. A hand-made `build` checks the latest publish gate first and refuses when it did not pass; set `ignore_gate` only in an emergency. A rollback pins the site until `unpin` (see "Roll back a data build"). Locally, `uv run fs-export build --engine duckdb --store local --out web/public/data` writes the same layout under the dev server's `/data/`.
 
+## Incident issues
+
+A failed job opens (or updates) a `data-incident` issue and the next passing run of the same job closes it. The title says which job, and the title routes the issue: ingest and backfill failures carry `area:ingest` and point at "Rerun a day" and "Replay failed fetches"; a build failure carries `area:lakehouse` and points at the publish gate section; a stale site (the watchdog) or a cancelled ingest carries `area:ops`. Issues are assigned to the repository owner; the `INCIDENT_ASSIGNEE` environment variable on a Report step names someone else (empty assigns nobody), and `AREA` / `PRIORITY` override the labels. An ingest run that GitHub cancelled or timed out (a self-hosted job queued for a day without a runner) opens an "Ingest cancelled: no build ran" incident from the Build workflow.
+
 ## Rerun a day
 
 When an incident issue names a failed run:
