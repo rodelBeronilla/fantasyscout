@@ -28,6 +28,18 @@ async function leagueInSeason(page: Page): Promise<{ league: FixtureLeague; game
 }
 const NO_SEASON = 'no fixture league has a game in the next seven days';
 
+test('the page preloads the build pointer and the board is populated within budget', async ({ page }) => {
+  const started = Date.now();
+  await page.goto('/');
+  await expect(page.locator('head link[rel="preload"][as="fetch"][href$="/data/latest.json"]')).toHaveCount(1);
+  await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
+  const elapsed = Date.now() - started;
+  // Time to a populated board, the measure that matters (Lighthouse's LCP sees the heading). A
+  // wide budget: the preview server and a cold browser, not the edge.
+  test.info().annotations.push({ type: 'time-to-board-ms', description: String(elapsed) });
+  expect(elapsed).toBeLessThan(10_000);
+});
+
 test('the board ranks players and links to player pages', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
