@@ -65,8 +65,8 @@ describe('routing', () => {
   });
 
   it('names the player in the shell when the current build has the player file', async () => {
-    await env.DATA.put('latest.json', JSON.stringify({ build_id: 'seo1' }), { httpMetadata: { contentType: 'application/json' } });
-    await env.DATA.put('builds/seo1/players/wnba/1628932.json', JSON.stringify({ name: "A'ja Wilson", team: 'LVA', position: 'F' }));
+    // the suite's R2 state is shared, so the tests add to the seeded build 'test' and leave latest.json alone
+    await env.DATA.put('builds/test/players/wnba/1628932.json', JSON.stringify({ name: "A'ja Wilson", team: 'LVA', position: 'F' }));
     const res = await SELF.fetch(`${ORIGIN}/p/wnba/1628932/`);
     expect(res.status).toBe(200);
     const html = await res.text();
@@ -75,15 +75,14 @@ describe('routing', () => {
     expect(html).toContain('name="description" content="A&#39;ja Wilson: season line'.replace('&#39;', "'"));
     expect(html).toContain(`rel="canonical" href="${ORIGIN}/p/wnba/1628932/"`);
     // a player the build does not have keeps the plain shell
-    const other = await SELF.fetch(`${ORIGIN}/p/wnba/999/`);
+    const other = await SELF.fetch(`${ORIGIN}/p/wnba/999999999/`);
     expect(await other.text()).toContain('<title>Player · FantasyScout</title>');
   });
 
   it('serves a sitemap of the current build\'s players', async () => {
-    await env.DATA.put('latest.json', JSON.stringify({ build_id: 'seo2' }), { httpMetadata: { contentType: 'application/json' } });
-    await env.DATA.put('builds/seo2/players/wnba/1.json', '{}');
-    await env.DATA.put('builds/seo2/players/nba/2.json', '{}');
-    await env.DATA.put('builds/seo2/players/index.json', '{}');
+    await env.DATA.put('builds/test/players/wnba/1.json', '{}');
+    await env.DATA.put('builds/test/players/nba/2.json', '{}');
+    await env.DATA.put('builds/test/players/index.json', '{}');
     const res = await SELF.fetch(`${ORIGIN}/sitemap-players.xml`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('application/xml');
