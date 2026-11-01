@@ -12,9 +12,9 @@ unit_tests:
           - {league: nba, season: '2024-25', report: r2, published_at_et: '2025-01-02 17:00:00', game_date: '2025-01-02', team: 'Boston Celtics', player_name: 'Derrick White', status: Questionable, reason_group: injury, injury_detail: 'Ankle', not_submitted: false}
           - {league: nba, season: '2024-25', report: r3, published_at_et: '2025-01-03 17:00:00', game_date: '2025-01-03', team: 'Boston Celtics', player_name: 'Al Horford', status: Out, reason_group: injury, injury_detail: 'Toe', not_submitted: false}
           - {league: nba, season: '2024-25', report: r4, published_at_et: '2025-01-04 19:00:00', game_date: '2025-01-04', team: 'Boston Celtics', player_name: 'Derrick White', status: Doubtful, reason_group: injury, injury_detail: 'Ankle', not_submitted: false}
-      - input: ref('teams')
+      - input: ref('team_current')
         rows:
-          - {league: nba, season: '2024-25', team_id: '1610612738', team_name: 'Boston Celtics'}
+          - {league: nba, team_id: '1610612738', team_key: bostonceltics}
       - input: ref('fct_team_game')
         rows:
           - {league: nba, season: '2024-25', game_id: '0022400001', game_date: '2025-01-01', team_id: '1610612738'}

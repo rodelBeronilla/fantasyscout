@@ -20,9 +20,7 @@ with official_rows as (
 
 team_names as (
 
-    select league, team_id, lower(replace(team_name, ' ', '')) as team_key
-    from {{ ref('teams') }}
-    qualify row_number() over (partition by league, team_id order by season desc) = 1
+    select league, team_id, team_key from {{ ref('team_current') }}
 
 ),
 

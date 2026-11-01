@@ -491,3 +491,7 @@ The board backtest notebook keeps the test. It is worth another look once NBA 20
 
 The calibration (above) is measured on each day's 5 pm Eastern report, the one the history run lands, while the evening ingest landed whatever report was newest at 23:00 UTC (7 pm EDT, 6 pm EST): the production input and the calibration's data were different reports. An evening run now lands the day's 5 pm report as well when the day has passed 5 pm and the newest report is a later one. The two land under their own keys (the publish time), so both are kept; the board still reads the newest listing for the next game, and the calibration keeps reading the 5 pm one.
 
+## Addendum (2026-11-01): one place for the current season, the schedule's sides and the team lookup
+
+The gold models decided "the current season" three ways (the latest season in the season lines, in the games, in the standings) and "in season" four ways, carried six copies of the latest-team-name lookup, three of the schedule's home-and-away union and two of the newest-headline window. They now read `int_league_season_state` (every definition, named for what it means), `silver.team_current`, `silver.schedule_team_games` and `int_player_news_latest`. No definition changed: each model reads the column that is its old definition, so every table is byte-identical; the discrepancy between the standings season and the games season in the preseason is now written down in one place rather than hidden in three.
+

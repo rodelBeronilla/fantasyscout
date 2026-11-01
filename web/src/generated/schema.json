@@ -295,7 +295,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 332,
+ "generic_tests": 335,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -11011,8 +11011,8 @@
       "player_xwalk",
       "players",
       "schedule",
-      "team_xwalk",
-      "teams"
+      "team_current",
+      "team_xwalk"
      ],
      "unit_tests": [
       {
@@ -11716,17 +11716,110 @@
      ],
      "read_by": [
       "dim_game",
-      "fct_team_game_context",
-      "fct_team_stakes",
-      "feed_freshness",
       "game_officials",
-      "mart_board",
+      "int_league_season_state",
       "mart_player_projection",
       "mart_schedule_upcoming",
-      "player_props"
+      "player_props",
+      "schedule_team_games"
      ],
      "reads": [
       "stats_scheduleleaguev2"
+     ],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League game id",
+       "name": "game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Game date, Eastern",
+       "name": "game_date_est",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "regular, play_in, playoffs, tournament_final, preseason or all_star",
+       "name": "game_type",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "1 scheduled, 2 in progress, 3 final",
+       "name": "game_status",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "A playoff game that may not be played",
+       "name": "if_necessary",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "Played at a neutral site",
+       "name": "is_neutral",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "The arena's city",
+       "name": "arena_city",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "This side's team",
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The other side's team",
+       "name": "opponent_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "True for the home side's row",
+       "name": "is_home",
+       "tests": [],
+       "type": "boolean"
+      }
+     ],
+     "description": "The schedule from each team's side: one row per team per scheduled game, home and away, with the opponent and the game's date, type, status and venue flags. Models that count a team's games read this and keep their own filters.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "schedule_team_games",
+     "notes": [
+      "The schedule from each team's side: one row per team per scheduled game, home and away, with the opponent and the game's date, type, status and venue flags. Every model that counts a team's games (remaining, this week, back-to-backs, stakes, travel) reads this instead of unioning the schedule's two sides itself; each keeps its own filters on game type, status and venue."
+     ],
+     "read_by": [
+      "fct_team_game_context",
+      "fct_team_stakes",
+      "mart_board"
+     ],
+     "reads": [
+      "schedule"
      ],
      "unit_tests": []
     },
@@ -12069,7 +12162,8 @@
       "The league's regular-season standings per team, from the latest landing per league-season."
      ],
      "read_by": [
-      "fct_team_stakes"
+      "fct_team_stakes",
+      "int_league_season_state"
      ],
      "reads": [
       "stats_leaguestandingsv3"
@@ -12193,6 +12287,88 @@
      ],
      "reads": [
       "league_daily_lineups"
+     ],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id",
+       "name": "team_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The season the row comes from, the team's latest",
+       "name": "latest_season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Current tricode",
+       "name": "abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Current full name (city and nickname)",
+       "name": "team_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Current nickname",
+       "name": "name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The full name lower-cased without spaces, as the official injury report writes teams",
+       "name": "team_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The full name normalised (norm_name), as a props quote may write it",
+       "name": "full_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The nickname normalised (norm_name)",
+       "name": "nick_key",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Each team as it is named today: the latest season's row of teams per league team id, with the keys the feeds are matched on. The gold models that need a team's current name or abbreviation read this instead of carrying their own lookup.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "team_current",
+     "notes": [
+      "Each team as it is named today: the latest season's row of silver.teams per league team id, with the keys the feeds are matched on (the official report writes \"LosAngelesLakers\", the props quotes a full name or a nickname). Six gold models used to carry their own copy of this lookup."
+     ],
+     "read_by": [
+      "fct_official_listing",
+      "fct_player_status",
+      "fct_transaction",
+      "fct_waiver_trend",
+      "mart_board",
+      "player_props"
+     ],
+     "reads": [
+      "teams"
      ],
      "unit_tests": []
     },
@@ -12584,13 +12760,9 @@
      ],
      "read_by": [
       "dim_team",
-      "fct_official_listing",
-      "fct_player_status",
-      "fct_transaction",
-      "fct_waiver_trend",
       "mart_board",
       "mart_streamers",
-      "player_props",
+      "team_current",
       "team_xwalk"
      ],
      "reads": [
@@ -14698,7 +14870,7 @@
       "fct_team_game",
       "official_injury_report",
       "rosters",
-      "teams"
+      "team_current"
      ],
      "unit_tests": [
       {
@@ -15096,6 +15268,7 @@
      ],
      "read_by": [
       "fct_official_listing",
+      "int_league_season_state",
       "mart_category_zscores",
       "mart_player_projection",
       "mart_player_rolling",
@@ -15201,8 +15374,7 @@
       "The headlines about each player for the player page: ESPN articles tagged with the player and at most three others (a roundup that tags many players says little about any one of them), one row per article and player, newest first. The site shows the headline, its date and a link to the story on ESPN, and the flag the headline's wording gives."
      ],
      "read_by": [
-      "mart_board",
-      "mart_streamers"
+      "int_player_news_latest"
      ],
      "reads": [
       "player_news"
@@ -15555,7 +15727,7 @@
       "dim_player",
       "fct_availability",
       "official_injury_report",
-      "teams"
+      "team_current"
      ],
      "unit_tests": []
     },
@@ -16937,7 +17109,7 @@
       "mart_schedule_upcoming"
      ],
      "reads": [
-      "schedule",
+      "schedule_team_games",
       "venues"
      ],
      "unit_tests": [
@@ -17077,7 +17249,8 @@
       "mart_streamers"
      ],
      "reads": [
-      "schedule",
+      "int_league_season_state",
+      "schedule_team_games",
       "standings"
      ],
      "unit_tests": [
@@ -17168,7 +17341,7 @@
      ],
      "read_by": [],
      "reads": [
-      "teams",
+      "team_current",
       "transactions"
      ],
      "unit_tests": []
@@ -17285,7 +17458,7 @@
      ],
      "reads": [
       "dim_player",
-      "teams",
+      "team_current",
       "waiver_trending"
      ],
      "unit_tests": [
@@ -17294,6 +17467,142 @@
        "name": "waiver_trend_links_sleeper_players_by_name_birth_date_and_team"
       }
      ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The latest season with a game in fct_player_game (mart_streamers)",
+       "name": "games_season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The latest season with a season line in mart_category_zscores (mart_player_projection)",
+       "name": "zscores_season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The latest season with published standings (fct_team_stakes)",
+       "name": "standings_season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The latest season on the schedule",
+       "name": "schedule_season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "A scheduled game within three days either side of today (ops.feed_freshness)",
+       "name": "in_season_window",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "The zscores season still has regular-season games to play (the projection's recent-form blend)",
+       "name": "regular_games_left",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "The date the row was computed for (Eastern today, or the as_of var)",
+       "name": "as_of_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "Where each league stands today, one row per league: the latest season by four definitions (games in gold, season lines, standings, schedule) and two in-season switches. The gold models read the definition they mean from here instead of deriving their own; in the preseason the standings season can be the new one while the games season is last year's, which is why they are named apart.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "int_league_season_state",
+     "notes": [
+      "Where each league stands today, in one place. The gold models used to decide \"the current season\" and \"in season\" each in their own way; the definitions now live here, named for what they mean, and each model says which one it reads:",
+      "- games_season: the latest season with a game in gold (mart_streamers' season).",
+      "- zscores_season: the latest season with a season line in mart_category_zscores (the projection's season; equal to games_season once a season's first games are in).",
+      "- standings_season: the latest season the league has published standings for (fct_team_stakes). In the preseason this can already be the new season while the games season is last year's.",
+      "- schedule_season: the latest season on the schedule.",
+      "- in_season_window: a scheduled game within three days either side of today (ops.feed_freshness: a quiet feed is expected outside it).",
+      "- regular_games_left: the zscores season still has regular-season games to play (the projection's in-season switch for the recent-form blend)."
+     ],
+     "read_by": [
+      "fct_team_stakes",
+      "feed_freshness",
+      "mart_player_projection",
+      "mart_streamers"
+     ],
+     "reads": [
+      "fct_player_game",
+      "mart_category_zscores",
+      "schedule",
+      "standings"
+     ],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "nba or wnba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id",
+       "name": "stats_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The headline's flag: injury, return, role, trade or signing",
+       "name": "news_flag",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The headline",
+       "name": "news_headline",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The headline's publish date (Eastern)",
+       "name": "news_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "The newest headline about each player with a flag (injury, return, role...) in the last three days, shown beside the injury tag on the Board and Streamers. One row per player.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "int_player_news_latest",
+     "notes": [
+      "The newest headline about each player with a flag (injury, return, role...) in the last three days: what the Board and Streamers show beside the injury tag. One row per player."
+     ],
+     "read_by": [
+      "mart_board",
+      "mart_streamers"
+     ],
+     "reads": [
+      "fct_player_news"
+     ],
+     "unit_tests": []
     },
     {
      "checks": [
@@ -18093,13 +18402,14 @@
       "dim_player",
       "fct_market_value",
       "fct_official_listing",
-      "fct_player_news",
       "fct_player_status",
       "fct_starting_lineup",
       "fct_team_stakes",
+      "int_player_news_latest",
       "mart_category_zscores",
       "mart_player_projection",
-      "schedule",
+      "schedule_team_games",
+      "team_current",
       "teams"
      ],
      "unit_tests": []
@@ -18309,6 +18619,7 @@
       "The pool is the top 180 NBA or top 90 WNBA players by total minutes in the window; means and standard deviations come from the pool only. Counting categories use per-game averages. Percentages use a volume-weighted impact: (player pct - pool pct) x player attempts per game, standardised over the pool. Turnovers count negative."
      ],
      "read_by": [
+      "int_league_season_state",
       "mart_board",
       "mart_player_projection",
       "mart_streamers"
@@ -18622,6 +18933,7 @@
      ],
      "reads": [
       "fct_player_game",
+      "int_league_season_state",
       "mart_category_zscores",
       "rosters",
       "schedule"
@@ -19615,11 +19927,12 @@
       "dim_player",
       "fct_market_value",
       "fct_player_game",
-      "fct_player_news",
       "fct_player_status",
       "fct_starting_lineup",
       "fct_team_stakes",
       "fct_waiver_trend",
+      "int_league_season_state",
+      "int_player_news_latest",
       "mart_board",
       "mart_category_zscores",
       "mart_player_rolling",
@@ -19740,12 +20053,12 @@
       "espn_scoreboard",
       "espn_summary_players",
       "espn_transactions",
+      "int_league_season_state",
       "league_daily_lineups",
       "league_injury_report",
       "league_player_movement",
       "league_referee_assignments",
       "odds_api_player_props",
-      "schedule",
       "sleeper_players",
       "sleeper_trending",
       "stats_boxscoreadvancedv3",

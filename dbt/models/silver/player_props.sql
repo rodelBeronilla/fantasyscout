@@ -143,13 +143,8 @@ quotes as (
 
 team_names as (
 
-    select
-        league,
-        team_id,
-        {{ norm_name('team_name') }} as full_key,
-        {{ norm_name('name') }} as nick_key
-    from {{ ref('teams') }}
-    qualify row_number() over (partition by league, team_id order by season desc) = 1
+    select league, team_id, full_key, nick_key
+    from {{ ref('team_current') }}
 
 ),
 

@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: int_league_season_state
+    description: "Where each league stands today, one row per league: the latest season by four definitions (games in gold, season lines, standings, schedule) and two in-season switches. The gold models read the definition they mean from here instead of deriving their own; in the preseason the standings season can be the new one while the games season is last year's, which is why they are named apart."
+    columns:
+      - name: league
+        description: "nba or wnba"
+        data_tests: [unique, not_null]
+      - name: games_season
+        description: "The latest season with a game in fct_player_game (mart_streamers)"
+      - name: zscores_season
+        description: "The latest season with a season line in mart_category_zscores (mart_player_projection)"
+      - name: standings_season
+        description: "The latest season with published standings (fct_team_stakes)"
+      - name: schedule_season
+        description: "The latest season on the schedule"
+      - name: in_season_window
+        description: "A scheduled game within three days either side of today (ops.feed_freshness)"
+      - name: regular_games_left
+        description: "The zscores season still has regular-season games to play (the projection's recent-form blend)"
+      - name: as_of_date
+        description: "The date the row was computed for (Eastern today, or the as_of var)"
+  - name: int_player_news_latest
+    description: "The newest headline about each player with a flag (injury, return, role...) in the last three days, shown beside the injury tag on the Board and Streamers. One row per player."
+    columns:
+      - name: league
+        description: "nba or wnba"
+      - name: stats_player_id
+        description: "League player id"
+      - name: news_flag
+        description: "The headline's flag: injury, return, role, trade or signing"
+      - name: news_headline
+        description: "The headline"
+      - name: news_date
+        description: "The headline's publish date (Eastern)"

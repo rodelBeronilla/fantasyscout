@@ -131,7 +131,10 @@ seasons as (
 
 current_season as (
 
-    select league, max(season) as season from seasons group by league
+    -- the latest season with a season line (int_league_season_state.zscores_season)
+    select league, zscores_season as season
+    from {{ ref('int_league_season_state') }}
+    where zscores_season is not null
 
 ),
 
@@ -338,14 +341,13 @@ latest_absence as (
 
 ),
 
--- A league is in season while its current season has regular-season games to play.
+-- A league is in season while its current season has regular-season games to play
+-- (int_league_season_state.regular_games_left).
 in_season as (
 
-    select s.league, true as in_season
-    from {{ ref('schedule') }} as s
-    join current_season as cs on cs.league = s.league and cs.season = s.season
-    where s.game_type = 'regular' and s.game_status <> 3 and s.game_date_est >= {{ as_of_date() }}
-    group by s.league
+    select league, regular_games_left as in_season
+    from {{ ref('int_league_season_state') }}
+    where regular_games_left
 
 ),
 

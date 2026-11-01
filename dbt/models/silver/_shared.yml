@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: team_current
+    description: "Each team as it is named today: the latest season's row of teams per league team id, with the keys the feeds are matched on. The gold models that need a team's current name or abbreviation read this instead of carrying their own lookup."
+    columns:
+      - name: league
+        description: "nba or wnba"
+      - name: team_id
+        description: "League team id"
+        data_tests: [not_null]
+      - name: latest_season
+        description: "The season the row comes from, the team's latest"
+      - name: abbreviation
+        description: "Current tricode"
+      - name: team_name
+        description: "Current full name (city and nickname)"
+      - name: name
+        description: "Current nickname"
+      - name: team_key
+        description: "The full name lower-cased without spaces, as the official injury report writes teams"
+      - name: full_key
+        description: "The full name normalised (norm_name), as a props quote may write it"
+      - name: nick_key
+        description: "The nickname normalised (norm_name)"
+  - name: schedule_team_games
+    description: "The schedule from each team's side: one row per team per scheduled game, home and away, with the opponent and the game's date, type, status and venue flags. Models that count a team's games read this and keep their own filters."
+    columns:
+      - name: league
+        description: "nba or wnba"
+      - name: season
+        description: "Season label"
+      - name: game_id
+        description: "League game id"
+      - name: game_date_est
+        description: "Game date, Eastern"
+      - name: game_type
+        description: "regular, play_in, playoffs, tournament_final, preseason or all_star"
+      - name: game_status
+        description: "1 scheduled, 2 in progress, 3 final"
+      - name: if_necessary
+        description: "A playoff game that may not be played"
+      - name: is_neutral
+        description: "Played at a neutral site"
+      - name: arena_city
+        description: "The arena's city"
+      - name: team_id
+        description: "This side's team"
+      - name: opponent_id
+        description: "The other side's team"
+      - name: is_home
+        description: "True for the home side's row"

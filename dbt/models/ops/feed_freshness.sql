@@ -78,11 +78,10 @@ landed as (
 
 in_season as (
 
-    select league, true as in_season
-    from {{ ref('schedule') }}
-    where game_date_est >= {{ add_days(eastern_today(), -3) }}
-        and game_date_est <= {{ add_days(eastern_today(), 3) }}
-    group by league
+    -- a scheduled game within three days either side of today (int_league_season_state)
+    select league, in_season_window as in_season
+    from {{ ref('int_league_season_state') }}
+    where in_season_window
 
 )
 

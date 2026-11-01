@@ -10,18 +10,17 @@
 
 with current_season as (
 
-    select league, max(season) as season from {{ ref('standings') }} group by league
+    -- the latest season the league has standings for (int_league_season_state.standings_season)
+    select league, standings_season as season
+    from {{ ref('int_league_season_state') }}
+    where standings_season is not null
 
 ),
 
 remaining as (
 
     select league, season, team_id, count(*) as games_left
-    from (
-        select league, season, home_team_id as team_id, game_type, game_status, game_date_est from {{ ref('schedule') }}
-        union all
-        select league, season, away_team_id, game_type, game_status, game_date_est from {{ ref('schedule') }}
-    ) as sides
+    from {{ ref('schedule_team_games') }}
     where game_type = 'regular' and game_status <> 3 and game_date_est >= {{ eastern_today() }}
     group by league, season, team_id
 

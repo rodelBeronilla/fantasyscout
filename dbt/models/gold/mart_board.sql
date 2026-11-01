@@ -147,9 +147,8 @@ season_lines as (
 
 schedule_sides as (
 
-    select league, season, home_team_id as team_id, game_date_est, game_status, game_type, if_necessary from {{ ref('schedule') }}
-    union all
-    select league, season, away_team_id as team_id, game_date_est, game_status, game_type, if_necessary from {{ ref('schedule') }}
+    select league, season, team_id, game_date_est, game_status, game_type, if_necessary
+    from {{ ref('schedule_team_games') }}
 
 ),
 
@@ -195,12 +194,9 @@ injury as (
 
 latest_news as (
 
-    -- The newest headline about the player with a flag (injury, return, role...) in the last three
-    -- days, shown beside the injury tag.
-    select league, stats_player_id, news_flag, headline as news_headline, published_date as news_date
-    from {{ ref('fct_player_news') }}
-    where news_flag is not null and published_date >= {{ add_days(as_of_date(), -3) }}
-    qualify row_number() over (partition by league, stats_player_id order by published_at desc, article_id) = 1
+    -- The newest flagged headline about the player in the last three days (int_player_news_latest).
+    select league, stats_player_id, news_flag, news_headline, news_date
+    from {{ ref('int_player_news_latest') }}
 
 ),
 
@@ -280,9 +276,7 @@ expected_missed as (
 team_names as (
 
     -- a team's latest abbreviation, for the previous team of a player who moved
-    select league, team_id, abbreviation
-    from {{ ref('teams') }}
-    qualify row_number() over (partition by league, team_id order by season desc) = 1
+    select league, team_id, abbreviation from {{ ref('team_current') }}
 
 ),
 
