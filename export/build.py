@@ -71,15 +71,20 @@ def assemble(
     engine: str,
     git_sha: str,
     build_id: str | None = None,
+    created_at: str | None = None,
     skip_tables: frozenset[str] = frozenset(),
     log: Log = print,
 ) -> Build:
-    """Pull every table once and shape all the files of a build in memory."""
+    """Pull every table once and shape all the files of a build in memory.
+
+    ``created_at`` is normally now; the test fixture pins it so regenerating the fixture changes
+    only what the data changed.
+    """
     build = Build(
         build_id=build_id or new_build_id(git_sha),
         engine=engine,
         git_sha=git_sha,
-        created_at=datetime.now(UTC).isoformat(timespec="seconds"),
+        created_at=created_at or datetime.now(UTC).isoformat(timespec="seconds"),
     )
     tables: dict[str, pa.Table] = {}
     manifest_files: dict[str, dict[str, Any]] = {}

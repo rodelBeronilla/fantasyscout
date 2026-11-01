@@ -10,15 +10,15 @@
     },
     {
      "label": "Board minus last season, top-30 hits (same checkpoints)",
-     "value": "+0.066 (+0.025 to +0.098)"
+     "value": "+0.066 (+0.023 to +0.098)"
     },
     {
      "label": "Board minus season to date, top-30 hits (same checkpoints)",
-     "value": "+0.047 (+0.023 to +0.080)"
+     "value": "+0.047 (+0.021 to +0.078)"
     },
     {
-     "label": "Reliability slope, realised on predicted value",
-     "value": "0.82"
+     "label": "Reliability slope above replacement (per game)",
+     "value": "0.88 (0.82)"
     },
     {
      "label": "Games share, predicted vs played",
@@ -81,15 +81,15 @@
     },
     {
      "label": "Board minus last season, top-50 hits (same checkpoints)",
-     "value": "+0.015 (-0.050 to +0.050)"
+     "value": "+0.018 (-0.043 to +0.052)"
     },
     {
      "label": "Board minus season to date, top-50 hits (same checkpoints)",
-     "value": "+0.029 (-0.005 to +0.060)"
+     "value": "+0.031 (+0.000 to +0.062)"
     },
     {
-     "label": "Reliability slope, realised on predicted value",
-     "value": "0.55"
+     "label": "Reliability slope above replacement (per game)",
+     "value": "0.80 (0.82)"
     },
     {
      "label": "Games share, predicted vs played",
@@ -97,7 +97,7 @@
     },
     {
      "label": "Replay vs this build's projection",
-     "value": "496 of 496 players agree"
+     "value": "501 of 501 players agree"
     }
    ],
    "table": {
@@ -128,13 +128,13 @@
      ],
      [
       "half way",
-      0.633,
+      0.64,
       0.57,
       0.633
      ],
      [
       "all",
-      0.636,
+      0.638,
       0.605,
       0.613
      ]
