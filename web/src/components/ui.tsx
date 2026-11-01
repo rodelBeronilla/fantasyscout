@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { NoBuildError } from '../lib/data';
+import { DataUnavailableError, NoBuildError } from '../lib/data';
 import { day } from '../lib/format';
 
 export function Loading({ what }: { what: string }) {
@@ -12,6 +12,19 @@ export function Loading({ what }: { what: string }) {
 }
 
 export function Problem({ error }: { error: unknown }) {
+  if (error instanceof DataUnavailableError) {
+    return (
+      <div className="rounded-lg border border-line bg-card p-4" role="alert" data-testid="data-unavailable">
+        <p className="font-medium">{error.message}</p>
+        <p className="mt-1 text-sm text-muted">
+          The published data could not be read just now. It is still there: reload in a moment.
+        </p>
+        <button type="button" className="mt-2 rounded border border-line px-3 py-1 text-sm" onClick={() => window.location.reload()}>
+          Reload
+        </button>
+      </div>
+    );
+  }
   if (error instanceof NoBuildError) {
     return (
       <div className="rounded-lg border border-line bg-card p-4" role="status">

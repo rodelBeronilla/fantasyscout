@@ -26,16 +26,18 @@ toggle?.addEventListener('click', () => {
   }
 });
 
-void getLatest().then((latest) => {
-  if (!latest) return;
-  const asOf = document.querySelector('[data-data-as-of]');
-  const id = document.querySelector('[data-data-build-id]');
-  const link = document.querySelector<HTMLAnchorElement>('[data-data-build-link]');
-  if (asOf) {
-    asOf.textContent = Object.entries(latest.data_as_of)
-      .map(([l, d]) => `${l.toUpperCase()} ${d}`)
-      .join(' · ');
-  }
-  if (id) id.textContent = latest.build_id;
-  if (link) link.href = href(`/health/#build-${latest.build_id}`);
-});
+void getLatest()
+  .catch(() => null) // the islands report a failing pointer; the chrome just stays quiet
+  .then((latest) => {
+    if (!latest) return;
+    const asOf = document.querySelector('[data-data-as-of]');
+    const id = document.querySelector('[data-data-build-id]');
+    const link = document.querySelector<HTMLAnchorElement>('[data-data-build-link]');
+    if (asOf) {
+      asOf.textContent = Object.entries(latest.data_as_of)
+        .map(([l, d]) => `${l.toUpperCase()} ${d}`)
+        .join(' · ');
+    }
+    if (id) id.textContent = latest.build_id;
+    if (link) link.href = href(`/health/#build-${latest.build_id}`);
+  });

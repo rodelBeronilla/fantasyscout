@@ -91,6 +91,26 @@ test('a player page renders the season line, shot chart and game log', async ({ 
   await expect(page.getByTestId('game-log').locator('tbody')).toContainText(/[+-]\d/);
 });
 
+test('a failing data pointer says the data is temporarily unavailable, and a reload tries again', async ({ page }) => {
+  // The page chrome and the board island both ask for the pointer: fail every request until the
+  // board has shown the failure, then let the reload through.
+  let failing = true;
+  await page.route('**/data/latest.json', (route) => (failing ? route.fulfill({ status: 503, body: 'down' }) : route.fallback()));
+  await page.goto('/');
+  const alert = page.getByTestId('data-unavailable');
+  await expect(alert).toContainText('temporarily unavailable (HTTP 503)');
+  await expect(page.getByText('No data build has been published yet')).toHaveCount(0);
+  failing = false;
+  await alert.getByRole('button', { name: 'Reload' }).click();
+  await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
+});
+
+test('without any build published, the pages say so', async ({ page }) => {
+  await page.route('**/data/latest.json', (route) => route.fulfill({ status: 404, body: 'nope' }));
+  await page.goto('/');
+  await expect(page.getByRole('status')).toContainText('No data build has been published yet');
+});
+
 test('streamers shows the week grid and the candidates', async ({ page }) => {
   const season = await leagueInSeason(page);
   test.skip(!season, NO_SEASON);
