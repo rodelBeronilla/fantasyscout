@@ -316,3 +316,22 @@ Run the "Release" workflow (Actions → Release → Run workflow) with the versi
 
 The tags so far mark the phases: `v0.1.0` phase 0 (skeleton live), `v0.2.0` phase 1 (ingest), `v0.3.0` phase 2 (lakehouse), `v0.4.0` phase 3 (gold and quality), `v0.5.0` phase 4 (reconciliation), `v0.6.0` phase 5 (serving and the app), `v0.7.0` phase 6 (analysis surfaces), `v0.8.0` the platform-hardening milestone.
 
+## Remove a source on request
+
+ADR 0008 commits the site to complying when a source objects to its use here, and the `/sources/` page tells an operator to open an issue. When one arrives:
+
+1. **Acknowledge in the issue** the same day: what the site takes from the source (the `/sources/` entry), and that collection stops now and the data follows.
+2. **Stop the ingest.** Remove the source's job from the ingest workflow (`ingest.yml`: the matrix entry or the `fs-ingest land <source>` step) and from the planners (`ingest/<source>.py` keeps its code until the next step) in a PR labelled `release:breaking`. For a feed inside a source (one ESPN endpoint), remove that endpoint from the planner only.
+3. **Remove what was landed.** On the lakehouse, delete the source's folder in the landing volume and its bronze tables; the silver and gold models that read them go in the same PR (dbt will not build a model whose source is gone), with their columns taken out of the marts, the export's column lists and the site's types, and the fixture refreshed:
+   ```sql
+   -- after the PR that drops the models has merged and built
+   drop table if exists fantasyscout.bronze.<source>_<endpoint>;
+   ```
+   ```bash
+   databricks fs rm -r dbfs:/Volumes/fantasyscout/raw/landing/<source>
+   ```
+4. **Republish without it.** The next full build publishes a build without the source's data; the kept builds still hold it for up to seven days, so `fs-export prune` with `--keep 1` (or deleting the older builds' folders in R2 by their key lists) removes those copies at once; roll back is then not possible past that build, which the issue should say.
+5. **Record it.** An ADR 0008 addendum naming the source, the date of the request and what was removed; the `/sources/` entry goes, and the footer's credit with it.
+
+A request about a person's rows (a public athlete, coach or official) follows the same path for the rows that name them, with the ADR addendum describing the filter applied in silver.
+

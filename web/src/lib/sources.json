@@ -63,5 +63,11 @@
       "published": "The crew chief and the crew's tendency (fouls, free throws, pace against average) in the schedule's tooltips and the game context notebook.",
       "retention": "As above."
     }
+  ],
+  "retention": [
+    "Landed payloads stay on the lakehouse volume as the record of what each source said each day; pruning of superseded daily snapshots is written down for when it passes 50 GB and has not been needed.",
+    "The published builds the site serves are the newest seven, plus any build a rollback pinned; older ones are deleted after each publish.",
+    "Nothing about a visitor is stored on the server: the league setup, watchlist, theme and league choice live in the visitor's own browser and nowhere else; the owner's sign-in keeps a signed cookie and no token.",
+    "The data holds no personal information beyond what the sources publish about public athletes, coaches and officials; a request to remove a source, or a person's rows, goes through the repository's issues and the runbook's procedure."
   ]
 }

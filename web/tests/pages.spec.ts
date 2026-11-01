@@ -52,6 +52,7 @@ test('the sources page names every source with what is published from it, and th
     await expect(card.locator('dt', { hasText: 'Published' })).toBeVisible();
   }
   await expect(page.getByTestId('principles').locator('li')).toHaveCount(5);
+  await expect(page.getByTestId('retention').locator('li')).toHaveCount(4);
   await expect(page.getByRole('link', { name: 'open an issue' })).toHaveAttribute('href', /github\.com/);
 });
 

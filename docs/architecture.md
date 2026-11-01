@@ -73,6 +73,25 @@ Three doors onto the same gold tables (as the original brief, SPEC.md, asked): t
 
 The app has its own subdomain, `fantasyscout.beronilla.rodeo`, bound to the Worker as a Cloudflare custom domain. It shares no infrastructure with the personal site at the apex. A preview Worker on `workers.dev` deploys from the `preprod` branch. See [ADR 0001](adr/0001-hosting-path.md).
 
+## Data retention and privacy
+
+**What is held.** Public statistics and public biography (name, position, height, weight, birth date, school, team) from the leagues' and ESPN's feeds, the waiver trends Sleeper publishes, the bookmakers' player lines The Odds API aggregates, the leagues' official injury reports and NBA.com's referee assignments. Nothing about a visitor is stored on the server: the site keeps a visitor's league setup, watchlist, theme and league choice in their own browser (`localStorage`, under the `fantasyscout:` namespace) and nowhere else, and reads no analytics beyond Cloudflare's aggregate request counts. The owner's sign-in keeps a signed cookie naming the owner's Yahoo account id and no token (ADR 0008).
+
+**Where, and for how long.**
+
+| Store | Holds | Kept |
+| --- | --- | --- |
+| Landing volume (Databricks, `fantasyscout.raw.landing`) | Every payload as landed, with its sidecar | Indefinitely as the record of what each source said each day; pruning of superseded daily snapshots is written down for when the volume passes 50 GB (ADR 0004 addendum) and has not been needed |
+| Lakehouse tables (bronze, silver, gold, ops) | Derived rows | Rebuilt from the landing on every build; `fct_board_history` and the ops ledgers grow one row per day and are never pruned |
+| Published builds (R2, `builds/<id>/`) | The derived JSON and Parquet the site serves | The newest seven, plus any build a rollback pinned; pruned by the export after each publish (ADR 0006) |
+| Notebook renders and findings | HTML and aggregates per build | With the build they belong to (seven builds) |
+| The Tableau extract's Google Sheet | Three CSVs of aggregates | Overwritten by each full build |
+| GitHub Actions logs and artifacts | Run output, the ingest plan, the web build | GitHub's default retention (90 days for logs) |
+
+**What is published.** Derived tables only; the Parquet mirror to the owner; prop lines to no one; notebooks as aggregates. The site's `/sources/` page says the same per source.
+
+**Removal on request.** ADR 0008 commits the site to complying if a source objects. The runbook's "Remove a source on request" says how: stop the ingest, remove the landed files and the derived tables, republish without them, and record it. A person who appears in the data (every one of them a public athlete, coach or official) can ask the same way, through the repository's issues; there is no personal data to remove beyond what the sources publish, and the site would remove its copy of that.
+
 ## Phase status
 
 | Phase | Status |
