@@ -1,5 +1,7 @@
 # FantasyScout: Basketball Data Platform Spec
 
+> **The original brief (October 2026), kept as written.** It says what was asked for; it is not kept current. The living description of what was built is [docs/architecture.md](docs/architecture.md), and every decision that departed from this brief is an ADR under [docs/adr/](docs/adr/README.md). Where an accepted ADR changed something written here, a callout like this one says which.
+
 ## Purpose
 
 FantasyScout is a WNBA-first basketball data platform with a fantasy front end. The fantasy app is what a visitor uses; the pipelines, models, tests and docs behind it are the platform, and all of it is built in public.
@@ -72,6 +74,8 @@ The primary source is the league stats API behind stats.wnba.com and stats.nba.c
 | ESPN public JSON | Scoreboard, game summary (box score), team rosters, injuries | Game, player-game | Reconciliation, injury status, fallback |
 | Official NBA injury report | Daily PDF during the NBA season | Player-day | Availability; parse with `pdfplumber` |
 | Seeds (in repo) | Team metadata incl. Toronto Tempo, ID overrides, category config | Static | Reference data |
+
+> **Superseded in part.** Sources added since, each with its own terms check (ADR 0008 and its addenda, ADR 0003's addenda): Sleeper's player directory and waiver trends; The Odds API's and ESPN's player prop lines (private model inputs, never published); ESPN's transactions, news headlines and fantasy market; the leagues' official injury reports from their own hosts (the NBA's back to 2023-24); NBA.com's referee assignments; the stats API's `playergamelogs` usage and misc measure sets, player tracking and hustle (ADR 0004 addenda). `synergyplaytypes` was not taken up.
 
 **Backfill scope:** WNBA 2018 to 2026 and NBA 2023-24 to current. That is roughly a few million play-by-play events, enough to make incremental loading and partitioning matter.
 
@@ -202,6 +206,8 @@ FantasyScout is its own Cloudflare Worker, `fantasyscout`, bound to the custom d
 - Security headers: CSP allowing `'wasm-unsafe-eval'` for DuckDB-WASM and `frame-src https://public.tableau.com` for the embed; HSTS, `X-Content-Type-Options`, `Referrer-Policy`.
 - Its own 404 page. No secrets in the Worker: it only reads public, exported data.
 
+> **Superseded.** The Worker holds the Yahoo app's credentials and the owner's account id for the league import and the owner's sign-in (ADR 0007, ADR 0008); the Parquet tables under `/data/` are served to the owner alone, the JSON the pages read stays public (ADR 0008).
+
 **Environments**
 
 | Environment | Worker | URL | Deploys on |
@@ -214,6 +220,8 @@ FantasyScout is its own Cloudflare Worker, `fantasyscout`, bound to the custom d
 - GitHub Actions deploys the Worker with `wrangler deploy` on merge, and the data export uploads to R2 on each passing build.
 - Secrets live only in GitHub Actions secrets: `CLOUDFLARE_API_TOKEN` (scoped to this account: Workers Scripts edit, R2 edit, and on the `beronilla.rodeo` zone Workers Routes edit and DNS edit so the custom domain can be created), `CLOUDFLARE_ACCOUNT_ID`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `ANTHROPIC_API_KEY`. Never in the repo, never in chat.
 - The deploy workflow creates the R2 bucket if it is missing. The custom domain is created by the first production deploy.
+
+> **Superseded in part.** The secrets grew with the sources and the sign-in: `YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET` and `OWNER_YAHOO_GUID` (ADR 0007, ADR 0008), `ODDS_API_KEY` (ADR 0008 addendum), the Google service account behind the Tableau extract's sheet, `DATABRICKS_INGEST_TOKEN` for the ingest's narrower token, and the home runner's registration. They live only in GitHub Actions secrets and the `lakehouse` environment; the runbook names each.
 - Smoke test after every deploy: `/` returns 200 with the app, `/data/latest.json` parses (404 until the first export), one player page renders once players exist.
 
 ## Repo layout and engineering standards
@@ -235,6 +243,11 @@ fantasyscout/
   docs/              # adr/, runbook.md, data-dictionary.md (generated), architecture.md
   ops/               # results recorder and publish gate
   .github/workflows/ # ci.yml, ingest.yml, backfill.yml, build.yml, deploy-web.yml, notes.yml
+```
+
+> **Superseded in part.** The extract lives in `tableau/`, the data dictionary is the site's Schema page (generated from the models' yml), and the workflows are ci, deploy-web, ingest, backfill, build, export, notebooks, probe, query and watchdog (`notes.yml` waits for phase 7). The README's layout table is the current one.
+
+```
 ```
 
 **Standards**
