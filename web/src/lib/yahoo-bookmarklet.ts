@@ -41,7 +41,10 @@ export function collectYahooLeague(target: string): void {
     }
   }
   if (!leagueId) {
-    alert('Open your Yahoo fantasy basketball league first (any page inside it), then run this bookmark again.');
+    alert(
+      'This bookmark ran on a page that is not your Yahoo league. Open your league on the Yahoo website, then run the bookmark on that page: ' +
+        'on a phone, tap the address bar, type the bookmark’s name and tap it in the list (opening it from the Bookmarks menu runs it in a new tab).',
+    );
     return;
   }
   const base = '/nba/' + leagueId + '/';
