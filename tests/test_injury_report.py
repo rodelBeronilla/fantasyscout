@@ -123,19 +123,59 @@ def test_the_nba_run_lands_the_newest_report_once_a_day(tmp_path: Path) -> None:
         return InjuryReportIngestor(client_for(handler), landing, "nba", "2026-27", now=now).run()
 
     first = run()
-    assert first.ok and first.landed == 1 and first.games == 13  # type: ignore[attr-defined]
-    assert calls == ["/nba-injury-report-2026-27-season/", f"/referee/injury/{name}"]
-    landed = next(
-        (tmp_path / "landing/league/injury_report/nba/2026-27").rglob("2026-10-29T18-45.json")
-    )
+    # 19:05 Eastern: the newest report, and the day's 5 pm report the calibration is built on.
+    assert first.ok and first.landed == 2 and first.games == 26  # type: ignore[attr-defined]
+    five = "Injury-Report_2026-10-29_05_00PM.pdf"
+    assert calls == [
+        "/nba-injury-report-2026-27-season/",
+        f"/referee/injury/{name}",
+        f"/referee/injury/{five}",
+    ]
+    folder = tmp_path / "landing/league/injury_report/nba/2026-27"
+    landed = next(folder.rglob("2026-10-29T18-45.json"))
     payload = json.loads(landed.read_text(encoding="utf-8"))
     assert payload["report"] == name and len(payload["rows"]) == 100
     assert payload["published_et"] == "2026-10-29T18:45:00-04:00"
+    assert json.loads(next(folder.rglob("2026-10-29T17-00.json")).read_text())["report"] == five
 
     calls.clear()
     again = run()
+    # The newest report is already landed today, so the run stops there (the 5 pm one came with it).
     assert again.ok and again.landed == 0 and again.skipped == 1  # type: ignore[attr-defined]
-    assert calls == ["/nba-injury-report-2026-27-season/"], "the PDF is not fetched twice in a day"
+    assert calls == ["/nba-injury-report-2026-27-season/"], (
+        "the PDFs are not fetched twice in a day"
+    )
+
+
+def test_before_5pm_the_run_lands_the_newest_report_only(tmp_path: Path) -> None:
+    calls: list[str] = []
+    name = "Injury-Report_2026-10-29_12_45PM.pdf"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        if request.url.host == "official.nba.com":
+            return httpx.Response(200, text=f'<a href="/referee/injury/{name}">latest</a>')
+        return httpx.Response(200, content=NBA_PDF)
+
+    now = datetime(2026, 10, 29, 17, 5, tzinfo=UTC)  # 13:05 Eastern
+    landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
+    summary = InjuryReportIngestor(client_for(handler), landing, "nba", "2026-27", now=now).run()
+    assert summary.ok and summary.landed == 1
+    assert calls == ["/nba-injury-report-2026-27-season/", f"/referee/injury/{name}"]
+
+
+def test_when_the_newest_report_is_the_5pm_one_it_is_landed_once(tmp_path: Path) -> None:
+    name = "Injury-Report_2026-10-29_05_00PM.pdf"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "official.nba.com":
+            return httpx.Response(200, text=f'<a href="/referee/injury/{name}">latest</a>')
+        return httpx.Response(200, content=NBA_PDF)
+
+    now = datetime(2026, 10, 29, 21, 30, tzinfo=UTC)  # 17:30 Eastern
+    landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
+    summary = InjuryReportIngestor(client_for(handler), landing, "nba", "2026-27", now=now).run()
+    assert summary.ok and summary.landed == 1 and summary.skipped == 0
 
 
 def test_the_wnba_run_finds_the_newest_report_by_trying_recent_quarter_hours(
@@ -156,6 +196,9 @@ def test_the_wnba_run_finds_the_newest_report_by_trying_recent_quarter_hours(
         "Injury-Report_2026-07-27_08_30PM.pdf",
         "Injury-Report_2026-07-27_08_15PM.pdf",
         "Injury-Report_2026-07-27_08_00PM.pdf",
+        # past 5 pm: the day's 5 pm report is asked for too (both name forms); none that day
+        "Injury-Report_2026-07-27_05_00PM.pdf",
+        "Injury-Report_2026-07-27_05PM.pdf",
     ], "the probe walks back a quarter hour at a time and reuses the PDF it found"
 
 
