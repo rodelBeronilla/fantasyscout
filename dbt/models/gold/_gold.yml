@@ -384,7 +384,7 @@ models:
         description: "Ingest date of the game log row"
 
   - name: fct_event
-    description: "One row per play-by-play action."
+    description: "One row per play-by-play action. Incremental by game: a game is re-merged when its play-by-play, box score or game record lands again, so a box score that lands after the play-by-play still fills in the lineups and the game date."
     columns:
       - name: event_sk
         description: "Surrogate key: one row per league, game and action number"

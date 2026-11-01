@@ -10013,6 +10013,7 @@
      "read_by": [
       "dim_player",
       "event_lineups",
+      "fct_event",
       "fct_player_game",
       "fct_player_tracking",
       "player_game_reconciliation",
@@ -14023,7 +14024,7 @@
        "type": "date"
       }
      ],
-     "description": "One row per play-by-play action.",
+     "description": "One row per play-by-play action. Incremental by game: a game is re-merged when its play-by-play, box score or game record lands again, so a box score that lands after the play-by-play still fills in the lineups and the game date.",
      "exported_as": [
       "fct_event/<league>-<season>.parquet"
      ],
@@ -14039,15 +14040,22 @@
      "materialized": "incremental",
      "name": "fct_event",
      "notes": [
-      "One row per play-by-play action, with the five players on the floor for each side (silver.event_lineups: comma-separated league player ids, sorted; lineup_complete when both sides have five)."
+      "One row per play-by-play action, with the five players on the floor for each side (silver.event_lineups: comma-separated league player ids, sorted; lineup_complete when both sides have five).",
+      "Incremental by game, not by the event's landing date: the row also carries the game date from games and the lineups from event_lineups, which come from the box score, and a box score may land a day after the play-by-play (the completeness check tolerates exactly that). A game is re-merged whenever any of its inputs landed on or after the newest landing already in the table, so a late box score fills in the lineups without a full refresh."
      ],
      "read_by": [],
      "reads": [
       "event_lineups",
       "events",
-      "games"
+      "games",
+      "player_game_box"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "Game G1's play-by-play landed on the 20th and was merged without lineups because its box score had not landed; on the 21st other games landed, moving the table's newest landing past G1's. On the 22nd G1's box score and G2's play-by-play land. The next run re-merges G1 (its box score landed on or after the table's newest landing) with its lineups, merges G2 as new, and re-merges G3 unchanged (the newest landing day always is). Keyed on the event's own landing date, G1 would have stayed without lineups until a full refresh.",
+       "name": "event_late_box_score_fills_in_the_lineups_on_the_next_run"
+      }
+     ]
     },
     {
      "checks": [],
@@ -20347,6 +20355,11 @@
    "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it.",
    "model": "event_lineups",
    "name": "event_lineups_matches_abbreviated_given_names"
+  },
+  {
+   "description": "Game G1's play-by-play landed on the 20th and was merged without lineups because its box score had not landed; on the 21st other games landed, moving the table's newest landing past G1's. On the 22nd G1's box score and G2's play-by-play land. The next run re-merges G1 (its box score landed on or after the table's newest landing) with its lineups, merges G2 as new, and re-merges G3 unchanged (the newest landing day always is). Keyed on the event's own landing date, G1 would have stayed without lineups until a full refresh.",
+   "model": "fct_event",
+   "name": "event_late_box_score_fills_in_the_lineups_on_the_next_run"
   },
   {
    "description": "NBA players are ranked by average draft position. In the WNBA most players share one placeholder position (54.0, as ESPN shows out of season), so none of them gets a market rank, but a WNBA player drafted ahead of the placeholder does. Ownership falls into its bucket at 70, 40, 10 and 1 per cent, and a player with no share is rare.",
