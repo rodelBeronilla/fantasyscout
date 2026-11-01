@@ -96,6 +96,10 @@ TABLES: tuple[TableSpec, ...] = GOLD + OPS
 
 # The board, the streamers and the upcoming schedule go out per league as compact JSON the
 # pages render directly: only the columns they read, numbers rounded to four decimals.
+# The per-league files carry the columns a page reads and no more (the gold tables keep every
+# column; the Parquet mirror and the player files have their own lists). A column added here
+# needs the fixture refreshed (tests/test_fixture_contract.py); a page that reads a column not
+# listed here reads undefined, so the Board and Streamers types name only these.
 BOARD_COLUMNS = (
     "league",
     "season",
@@ -105,12 +109,7 @@ BOARD_COLUMNS = (
     "team_id",
     "team_abbreviation",
     "games_current",
-    "games_prev",
-    "games_prev2",
-    "w_prior",
-    "minutes_current",
     "games_share",
-    "in_pool",
     "rank_total",
     "value_total",
     "value_per_game",
@@ -232,7 +231,6 @@ STREAMER_COLUMNS = (
     "games_this_week",
     "last_game_date",
     "games_season",
-    "games_in_window_5",
     "minutes_season",
     "minutes_avg_5",
     "minutes_avg_10",
@@ -244,15 +242,7 @@ STREAMER_COLUMNS = (
     "value_trend",
     "last_10_production",
     "last_10_production_turnovers",
-    "last_10_z_points",
-    "last_10_z_rebounds_total",
-    "last_10_z_assists",
-    "last_10_z_steals",
-    "last_10_z_blocks",
-    "last_10_z_three_pointers_made",
     "last_10_z_turnovers",
-    "last_10_z_field_goal_pct",
-    "last_10_z_free_throw_pct",
     "board_rank",
     "board_value",
     "is_new_team",
