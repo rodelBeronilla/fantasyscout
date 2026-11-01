@@ -107,6 +107,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_nb.add_argument("files", nargs="+", type=Path, help="files to publish")
     p_nb.add_argument("--subdir", required=True, help="folder under the build, e.g. notebooks")
     p_nb.add_argument("--build-id", default=None, help="target build (default: latest)")
+
+    p_fh = sub.add_parser(
+        "findings-history",
+        help="append a build's notebook findings to the history the Notebooks page shows",
+    )
+    add_store(p_fh)
+    p_fh.add_argument(
+        "--build-id", default=None, help="the build whose findings to take (default: latest)"
+    )
     return parser
 
 
@@ -152,6 +161,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             for key in keys:
                 print(f"  {key}")
             print(f"published {len(keys)} file(s) under {args.subdir}")
+        elif args.command == "findings-history":
+            history = build_mod.findings_history(store, args.build_id)
+            print(f"findings history holds {len(history.get('notebooks', {}))} notebook(s)")
         else:
             latest, builds = build_mod.list_builds(store)
             pin = " (pinned by a rollback)" if latest.get("pinned") else ""

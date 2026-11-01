@@ -389,6 +389,75 @@ def list_builds(store: Store) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     return _read_json(store, LATEST_KEY) or {}, _read_json(store, BUILDS_KEY) or []
 
 
+FINDINGS_HISTORY_KEY = "notebooks/findings-history.json"
+FINDINGS_HISTORY_KEEP = 90
+
+
+def findings_history(
+    store: Store,
+    build_id: str | None = None,
+    *,
+    keep: int = FINDINGS_HISTORY_KEEP,
+    log: Log = print,
+) -> dict[str, Any]:
+    """Append a build's notebook findings to the history the Notebooks page charts.
+
+    The findings a build publishes (``builds/<id>/notebooks/<nb>.findings.json``) die with the
+    build after seven builds; the history at ``notebooks/findings-history.json`` keeps, per
+    notebook and league, the headline, the evidence count and the facts of the last ``keep``
+    builds, one entry per build (a build run twice replaces its entry). The Worker serves the file
+    with the pointers' short cache.
+    """
+    if build_id is None:
+        latest = _read_json(store, LATEST_KEY) or {}
+        build_id = latest.get("build_id")
+    if not build_id:
+        msg = "no build to take the findings from"
+        raise RuntimeError(msg)
+    prefix = f"builds/{build_id}/notebooks/"
+    index = _read_json(store, prefix + "index.json") or {}
+    manifest = _read_json(store, f"builds/{build_id}/manifest.json") or {}
+    # a build without a manifest (the tests, a hand-made build) is dated now
+    created_at = str(manifest.get("created_at") or datetime.now(UTC).isoformat())
+    history: dict[str, Any] = _read_json(store, FINDINGS_HISTORY_KEY) or {"notebooks": {}}
+    notebooks: dict[str, dict[str, list[dict[str, Any]]]] = history.setdefault("notebooks", {})
+    added = 0
+    for name in index.get("files", []):
+        if not name.endswith(".findings.json"):
+            continue
+        findings = _read_json(store, prefix + name) or {}
+        notebook = name.removesuffix(".findings.json")
+        for league, f in (findings.get("leagues") or {}).items():
+            if not isinstance(f, dict):
+                continue
+            entry = {
+                "build_id": build_id,
+                "created_at": created_at,
+                "headline": str(f.get("headline", "")),
+                "n": f.get("n"),
+                "insufficient_history": bool(f.get("insufficient_history", False)),
+                "facts": {
+                    str(x.get("label")): x.get("value")
+                    for x in f.get("facts", [])
+                    if isinstance(x, dict) and x.get("label") is not None
+                },
+            }
+            series = [
+                e
+                for e in notebooks.setdefault(notebook, {}).setdefault(league, [])
+                if e.get("build_id") != build_id
+            ]
+            series.append(entry)
+            series.sort(key=lambda e: (str(e.get("created_at", "")), str(e.get("build_id", ""))))
+            notebooks[notebook][league] = series[-keep:]
+            added += 1
+    history["updated_at"] = created_at
+    store.put(FINDINGS_HISTORY_KEY, to_json(history))
+    entries = f"{added} league entr{'y' if added == 1 else 'ies'}"
+    log(f"  findings history: {entries} from {build_id} -> {FINDINGS_HISTORY_KEY}")
+    return history
+
+
 def publish_files(
     store: Store,
     files: list[Path],

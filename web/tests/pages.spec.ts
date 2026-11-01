@@ -327,6 +327,33 @@ test('the notebooks page shows each analysis with its findings for the league', 
   await expect(absence.getByTestId('findings-n')).toContainText('affected player-weeks');
 });
 
+test('the notebooks page shows the findings of past builds from the history file', async ({ page }) => {
+  await page.route('**/data/notebooks/findings-history.json', (route) =>
+    route.fulfill({
+      json: {
+        updated_at: '2026-11-01T12:00:00+00:00',
+        notebooks: {
+          '01_board_backtest': {
+            wnba: [
+              { build_id: 'b1', created_at: '2026-10-30T12:00:00+00:00', headline: 'top 30: 0.61 of the pool', facts: {} },
+              { build_id: 'b2', created_at: '2026-10-31T12:00:00+00:00', headline: 'top 30: 0.64 of the pool', facts: {} },
+              { build_id: 'b3', created_at: '2026-11-01T12:00:00+00:00', headline: 'top 30: 0.66 of the pool', facts: {} },
+            ],
+          },
+        },
+      },
+    }),
+  );
+  await page.goto('/notebooks/');
+  const history = page.getByTestId('findings-history').first();
+  await expect(history).toBeVisible();
+  await history.locator('summary').click();
+  const rows = history.locator('li');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.first()).toContainText('2026-11-01');
+  await expect(rows.first()).toContainText('0.66');
+});
+
 test('the dashboards page explains the workbook and lists the extract', async ({ page }) => {
   await page.goto('/dashboards/');
   await expect(page.getByTestId('tableau-pending').or(page.getByTestId('tableau-embed'))).toBeVisible();

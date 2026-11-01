@@ -37,6 +37,18 @@ vars:
     nba: {teams: 12, roster_spots: 13, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
     wnba: {teams: 10, roster_spots: 10, prior_games: 5, minutes_recency: [1.0, 0.06, 0.02], durability_games: 60}
   fantasy_recency: [1.0, 0.25, 0.08]
+  # The data-quality thresholds the warn checks and the data-quality notebook share: [good, ok];
+  # below ok is a failure. warn_crosswalk_coverage reads played_match_rate; the notebook reads all.
+  quality_thresholds:
+    played_match_rate: [0.99, 0.95]
+    conflict_rate: [0.005, 0.02]
+    box_closure: [1.0, 0.995]
+    turnovers_ok: [0.99, 0.95]
+    shot_chart_coverage: [0.98, 0.90]
+    shot_match: [0.99, 0.95]
+    listing_links: [0.95, 0.90]
+    status_known: [0.98, 0.95]
+    landing_age_hours: [36, 168]
   # A league's own injury-listing history calibrates the board's availability multiplier once it
   # has this many listings for a status and reason; until then the NBA's history stands in
   # (fct_status_calibration).

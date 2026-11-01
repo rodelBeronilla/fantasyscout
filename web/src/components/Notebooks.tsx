@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { buildHref, getLatest, type Latest, type League } from '../lib/data';
+import { buildHref, dataHref, getLatest, type Latest, type League } from '../lib/data';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { Card, Loading, Problem, Td, Th } from './ui';
 
@@ -51,6 +51,20 @@ interface LeagueFindings {
   insufficient_history?: boolean;
 }
 
+/** One build's findings for a league, as the history keeps them (export/build.py findings_history). */
+interface HistoryEntry {
+  build_id: string;
+  created_at: string;
+  headline: string;
+  n?: number | null;
+  insufficient_history?: boolean;
+  facts: Record<string, string | number | null>;
+}
+interface FindingsHistory {
+  updated_at?: string;
+  notebooks: Record<string, Record<string, HistoryEntry[]>>;
+}
+
 interface Findings {
   title: string;
   leagues: Partial<Record<League, LeagueFindings>>;
@@ -60,11 +74,17 @@ export default function Notebooks() {
   const [league] = useState<League>(() => currentLeague());
   const [latest, setLatest] = useState<Latest | null | undefined>(undefined);
   const [published, setPublished] = useState<Set<string>>(new Set());
+  const [history, setHistory] = useState<FindingsHistory | null>(null);
   const [findings, setFindings] = useState<Record<string, Findings>>({});
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     let live = true;
+    // The history outlives the kept builds; an older deployment has none.
+    fetch(dataHref('notebooks/findings-history.json'))
+      .then((r) => (r.ok ? (r.json() as Promise<FindingsHistory>) : null))
+      .then((h) => live && setHistory(h))
+      .catch(() => live && setHistory(null));
     (async () => {
       const l = await getLatest();
       if (!live) return;
@@ -98,9 +118,25 @@ export default function Notebooks() {
         const html = `${nb.name}.html`;
         const ready = latest !== null && published.has(html);
         const f = findings[nb.name]?.leagues[league];
+        const past = (history?.notebooks[nb.name]?.[league] ?? []).filter((e) => !e.insufficient_history).slice(-8).reverse();
         return (
           <Card key={nb.name} title={nb.title} id={nb.name}>
             <p className="text-sm text-muted">{nb.blurb}</p>
+            {past.length > 1 && (
+              <details className="mt-2 text-sm" data-testid="findings-history">
+                <summary className="cursor-pointer text-muted">
+                  The last {past.length} builds&apos; findings
+                </summary>
+                <ol className="mt-1 grid gap-1">
+                  {past.map((e) => (
+                    <li key={e.build_id} className="flex flex-wrap items-baseline gap-x-3 border-b border-line py-1">
+                      <span className="font-mono text-xs text-muted">{e.created_at.slice(0, 10)}</span>
+                      <span>{e.headline}</span>
+                    </li>
+                  ))}
+                </ol>
+              </details>
+            )}
             {f?.insufficient_history ? (
               <div className="mt-3 grid gap-1" data-testid="findings-accumulating">
                 <p className="text-sm font-medium">Accumulating: not enough history in this build</p>

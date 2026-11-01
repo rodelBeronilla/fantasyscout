@@ -600,6 +600,13 @@ if has_table(con, 'mart_player_projection'):
             parity[lg]['value_max_abs_diff'] = float((vb['value_per_game'] - vb['replay']).abs().max()) if len(vb) else None
 if parity:
     display(pd.DataFrame(parity).T)
+    # The replay must reproduce the build: every player's projected line within tolerance and the
+    # board's value within 1e-6. A disagreement fails this notebook, which the build reports.
+    for lg, p in parity.items():
+        assert p['agree'] == p['players'], f"{LABEL[lg]}: {p['players'] - p['agree']} of {p['players']} projections differ from the build (max {p['max_abs_diff']:.3g})"
+        value_diff = p.get('value_max_abs_diff')
+        assert value_diff is None or value_diff <= 1e-6, f"{LABEL[lg]}: board value differs from the replay by up to {value_diff:.3g}"
+    print('Parity holds: the replay reproduces the build.')
 else:
     print('This build has no projection rows to compare with.')""",
     ),
