@@ -511,3 +511,7 @@ Decisions:
 - Two unit tests on `mart_board`: the pool is chosen in two passes (a player who scores like a pool player but plays few minutes is pooled, a player who plays many but scores like a replacement is not) and the availability multiplier takes every branch it has (nothing left to play, a return date, out for the season, calibrated on past listings, no status, and the three old charges). The z-scores themselves are square roots and are not pinned to decimals; the availability test's lines are zero so every factor it pins is exact.
 - No `dbt_utils`: every check here is one `relationships`, `accepted_values` or singular test, and the project stays without packages to install on both engines.
 
+## Addendum (2026-11-01): the ledger's holes are reported
+
+`fct_board_history` is merged by every build and never rebuilt, so a nightly build that fails leaves a day with no rows, and the only other copies of that day are the seven kept builds, which roll off in a week. Nothing reported the hole. `warn_board_history_gaps` now lists every Eastern date of the last 45 days, from the league's first snapshot on and while the league was playing, that has no snapshot; the runbook's "Fill a hole in the board ledger" puts a day back from a kept build's Parquet by naming the columns and inserting only that day. The check warns rather than fails, since the build that notices the hole is not the one that caused it.
+
