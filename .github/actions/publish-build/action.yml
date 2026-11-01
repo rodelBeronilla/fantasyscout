@@ -1,0 +1,125 @@
+name: Publish a data build
+description: >
+  The one way a build goes live, shared by the nightly build and the hand-run export: stage the
+  export to R2, add the analysis notebooks and the Tableau extract to the staged build (unless
+  the build is light), then promote it so latest.json points at it. The notebooks and the
+  extract never hold back the day's data: a failure there is reported in the outputs and the
+  build is promoted without them. A failed export or promote fails the step.
+
+inputs:
+  databricks-token:
+    required: true
+  cloudflare-api-token:
+    required: true
+  cloudflare-account-id:
+    required: true
+  reader-secret:
+    description: The secret the notebooks present to read the staged build's private files
+    required: true
+  skip:
+    description: Tables to leave out of the export, comma-separated
+    required: false
+    default: ""
+  light:
+    description: Set to true to skip the notebooks and the Tableau extract (the evening build)
+    required: false
+    default: "false"
+
+outputs:
+  build_id:
+    description: The staged build's id
+    value: ${{ steps.export.outputs.build_id }}
+  export:
+    description: success or failure
+    value: ${{ steps.export.outputs.outcome }}
+  notebooks:
+    description: success, failure or skipped
+    value: ${{ steps.notebooks.outputs.outcome }}
+  extract:
+    description: success, failure or skipped
+    value: ${{ steps.extract.outputs.outcome }}
+  promote:
+    description: success, failure or skipped
+    value: ${{ steps.promote.outputs.outcome }}
+
+runs:
+  using: composite
+  steps:
+    # pipefail: without it tee's exit status hides a failed export and the job goes green.
+    - name: Export gold to R2 (staged)
+      id: export
+      shell: bash
+      env:
+        DATABRICKS_TOKEN: ${{ inputs.databricks-token }}
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        SKIP: ${{ inputs.skip }}
+      run: |
+        set -o pipefail
+        echo "outcome=failure" >> "$GITHUB_OUTPUT"
+        uv run fs-export build --engine databricks --store r2 --skip "$SKIP" --stage 2>&1 | tee export.log | tee -a land.log
+        echo "build_id=$(sed -n 's/^staged //p' export.log | tail -1)" >> "$GITHUB_OUTPUT"
+        echo "outcome=success" >> "$GITHUB_OUTPUT"
+
+    - name: Execute the analysis notebooks against the staged build and add them to it
+      id: notebooks
+      shell: bash
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        FS_NOTEBOOK_SOURCE: published
+        FS_READER_SECRET: ${{ inputs.reader-secret }}
+        FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
+        LIGHT: ${{ inputs.light }}
+      run: |
+        if [ "$LIGHT" = "true" ]; then echo "outcome=skipped" >> "$GITHUB_OUTPUT"; echo "light build: notebooks skipped"; exit 0; fi
+        set -o pipefail
+        if (
+          set -euo pipefail
+          uv sync --frozen --group dbt --group notebooks
+          echo "notebooks read build $FS_BUILD_ID"
+          (cd notebooks && uv run jupyter nbconvert --to html --execute --output-dir _build --ExecutePreprocessor.timeout=1200 *.ipynb)
+          uv run fs-export publish-files --store r2 --subdir notebooks --build-id "$FS_BUILD_ID" notebooks/_build/*.html notebooks/_build/*.findings.json
+        ) 2>&1 | tee -a land.log; then
+          echo "outcome=success" >> "$GITHUB_OUTPUT"
+        else
+          echo "outcome=failure" >> "$GITHUB_OUTPUT"
+          echo "::warning::the notebooks failed; the build goes live without them"
+        fi
+
+    - name: Refresh the Tableau extract and add it to the staged build
+      id: extract
+      shell: bash
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        FS_NOTEBOOK_SOURCE: published
+        FS_READER_SECRET: ${{ inputs.reader-secret }}
+        FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
+        LIGHT: ${{ inputs.light }}
+      run: |
+        if [ "$LIGHT" = "true" ]; then echo "outcome=skipped" >> "$GITHUB_OUTPUT"; echo "light build: Tableau extract skipped"; exit 0; fi
+        set -o pipefail
+        if (
+          set -euo pipefail
+          uv run python tableau/extract.py --out tableau/extract
+          uv run fs-export publish-files --store r2 --subdir tableau --build-id "$FS_BUILD_ID" tableau/extract/*.csv
+        ) 2>&1 | tee -a land.log; then
+          echo "outcome=success" >> "$GITHUB_OUTPUT"
+        else
+          echo "outcome=failure" >> "$GITHUB_OUTPUT"
+          echo "::warning::the Tableau extract failed; the build goes live without it"
+        fi
+
+    - name: Promote the build (latest.json points at it)
+      id: promote
+      shell: bash
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
+        BUILD_ID: ${{ steps.export.outputs.build_id }}
+      run: |
+        set -o pipefail
+        echo "outcome=failure" >> "$GITHUB_OUTPUT"
+        uv run fs-export promote --store r2 --build-id "$BUILD_ID" 2>&1 | tee -a land.log
+        echo "outcome=success" >> "$GITHUB_OUTPUT"

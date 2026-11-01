@@ -45,10 +45,7 @@ jobs:
         season_type: ["Regular Season", "Playoffs"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
+      - uses: ./.github/actions/setup-uv
       - name: Season window
         id: window
         env:
@@ -80,11 +77,11 @@ jobs:
             --backend volume 2>&1 | tee land.log
       - name: Report
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TITLE: "Backfill failure: stats ${{ inputs.league }} ${{ matrix.season }} ${{ matrix.season_type }}"
-          OUTCOME: ${{ steps.land.outcome }}
-        run: uv run python .github/scripts/incident.py
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Backfill failure: stats ${{ inputs.league }} ${{ matrix.season }} ${{ matrix.season_type }}"
+          outcome: ${{ steps.land.outcome }}
 
   espn:
     name: ESPN ${{ inputs.league }} ${{ matrix.season }}
@@ -102,10 +99,7 @@ jobs:
         season: ${{ fromJSON(inputs.seasons) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
+      - uses: ./.github/actions/setup-uv
       - name: Season window
         id: window
         env:
@@ -130,11 +124,11 @@ jobs:
             --pace adaptive --backend volume 2>&1 | tee land.log
       - name: Report
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TITLE: "Backfill failure: espn ${{ inputs.league }} ${{ matrix.season }}"
-          OUTCOME: ${{ steps.land.outcome }}
-        run: uv run python .github/scripts/incident.py
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Backfill failure: espn ${{ inputs.league }} ${{ matrix.season }}"
+          outcome: ${{ steps.land.outcome }}
 
   # The leagues keep their official injury reports on the host (the NBA's back to 2023-24, the
   # WNBA's from 2026): one report a day, the 5 pm Eastern one, for the availability calibration.
@@ -154,10 +148,7 @@ jobs:
         season: ${{ fromJSON(inputs.seasons) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
+      - uses: ./.github/actions/setup-uv
       - name: Season window, up to yesterday
         id: window
         env:
@@ -179,8 +170,8 @@ jobs:
           uv run fs-ingest land reports --history --league "${{ inputs.league }}" --season "${{ matrix.season }}"             --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}"             --backend volume 2>&1 | tee land.log
       - name: Report
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TITLE: "Backfill failure: reports ${{ inputs.league }} ${{ matrix.season }}"
-          OUTCOME: ${{ steps.land.outcome }}
-        run: uv run python .github/scripts/incident.py
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Backfill failure: reports ${{ inputs.league }} ${{ matrix.season }}"
+          outcome: ${{ steps.land.outcome }}

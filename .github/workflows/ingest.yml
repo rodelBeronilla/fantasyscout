@@ -115,10 +115,7 @@ jobs:
         league: ${{ fromJSON(needs.plan.outputs.leagues) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
+      - uses: ./.github/actions/setup-uv
       - name: Land
         id: land
         env:
@@ -138,11 +135,11 @@ jobs:
           uv run fs-ingest "${args[@]}" 2>&1 | tee land.log
       - name: Report
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TITLE: "Ingest failure: espn ${{ matrix.league }}"
-          OUTCOME: ${{ steps.land.outcome }}
-        run: uv run python .github/scripts/incident.py
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Ingest failure: espn ${{ matrix.league }}"
+          outcome: ${{ steps.land.outcome }}
 
   reports:
     name: Injury report ${{ matrix.league }}
@@ -159,10 +156,7 @@ jobs:
         league: ${{ fromJSON(needs.plan.outputs.leagues) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
+      - uses: ./.github/actions/setup-uv
       - name: Land
         id: land
         env:
@@ -175,11 +169,11 @@ jobs:
           uv run fs-ingest land reports --league "${{ matrix.league }}" --backend volume 2>&1 | tee land.log
       - name: Report
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TITLE: "Ingest failure: injury report ${{ matrix.league }}"
-          OUTCOME: ${{ steps.land.outcome }}
-        run: uv run python .github/scripts/incident.py
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Ingest failure: injury report ${{ matrix.league }}"
+          outcome: ${{ steps.land.outcome }}
 
   stats:
     name: Stats API ${{ matrix.league }}
@@ -199,10 +193,7 @@ jobs:
         league: ${{ fromJSON(needs.plan.outputs.leagues) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
+      - uses: ./.github/actions/setup-uv
       - name: Land
         id: land
         env:
@@ -228,8 +219,8 @@ jobs:
           exit $status
       - name: Report
         if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TITLE: "Ingest failure: stats ${{ matrix.league }}"
-          OUTCOME: ${{ steps.land.outcome }}
-        run: uv run python .github/scripts/incident.py
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Ingest failure: stats ${{ matrix.league }}"
+          outcome: ${{ steps.land.outcome }}

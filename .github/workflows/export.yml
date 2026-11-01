@@ -42,27 +42,14 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-        with:
-          enable-cache: true
-      - run: uv sync --frozen
+      - uses: ./.github/actions/setup-uv
       - name: Resolve the workspace host and SQL warehouse
         if: inputs.action == 'build'
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: |
-          set -euo pipefail
-          origin=$(uv run python -c "import os; from ingest.store import workspace_origin; print(workspace_origin(os.environ['DATABRICKS_HOST']))")
-          host="${origin#https://}"
-          echo "::add-mask::$host"
-          warehouse=$(curl -sf -H "Authorization: Bearer $DATABRICKS_TOKEN" "$origin/api/2.0/sql/warehouses" \
-            | uv run python -c "import json,sys; w=json.load(sys.stdin)['warehouses']; print(sorted(w, key=lambda x: x.get('creation_time', 0))[0]['id'])")
-          echo "::add-mask::$warehouse"
-          {
-            echo "DATABRICKS_ORIGIN=$origin"
-            echo "DATABRICKS_WAREHOUSE_ID=$warehouse"
-          } >> "$GITHUB_ENV"
+        uses: ./.github/actions/databricks-context
+        with:
+          host: ${{ secrets.DATABRICKS_HOST }}
+          token: ${{ secrets.DATABRICKS_TOKEN }}
+          warehouse-id: ${{ vars.DATABRICKS_WAREHOUSE_ID }}
       - name: Check the latest publish gate
         if: inputs.action == 'build'
         env:
@@ -75,60 +62,25 @@ jobs:
             uv run python -m ops.gate --engine databricks
           fi
       # A hand-made build goes the same way as the nightly one: staged, completed with the
-      # notebooks and the Tableau extract, then promoted, so it never goes live without them.
-      - name: Export gold to R2 (staged)
-        id: export
+      # notebooks and the Tableau extract, then promoted, so it never goes live without them
+      # (.github/actions/publish-build, shared with the nightly build).
+      - name: Publish the build (stage, notebooks, extract, promote)
+        id: publish
+        if: inputs.action == 'build'
+        uses: ./.github/actions/publish-build
+        with:
+          databricks-token: ${{ secrets.DATABRICKS_TOKEN }}
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          reader-secret: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          skip: ${{ inputs.skip }}
+      - name: What the build carried
         if: inputs.action == 'build'
         env:
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          SKIP: ${{ inputs.skip }}
-        run: |
-          set -o pipefail
-          uv run fs-export build --engine databricks --store r2 --skip "$SKIP" --stage 2>&1 | tee export.log
-          echo "build_id=$(sed -n 's/^staged //p' export.log | tail -1)" >> "$GITHUB_OUTPUT"
-      - name: Execute the analysis notebooks against the staged build and add them to it
-        id: notebooks
-        if: steps.export.outcome == 'success'
-        continue-on-error: true
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          FS_NOTEBOOK_SOURCE: published
-          FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
-          FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
-        run: |
-          set -euo pipefail
-          uv sync --frozen --group dbt --group notebooks
-          (cd notebooks && uv run jupyter nbconvert --to html --execute --output-dir _build --ExecutePreprocessor.timeout=1200 *.ipynb)
-          uv run fs-export publish-files --store r2 --subdir notebooks --build-id "$FS_BUILD_ID" notebooks/_build/*.html notebooks/_build/*.findings.json
-      - name: Refresh the Tableau extract and add it to the staged build
-        id: extract
-        if: steps.export.outcome == 'success'
-        continue-on-error: true
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          FS_NOTEBOOK_SOURCE: published
-          FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
-          FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
-        run: |
-          set -euo pipefail
-          uv run python tableau/extract.py --out tableau/extract
-          uv run fs-export publish-files --store r2 --subdir tableau --build-id "$FS_BUILD_ID" tableau/extract/*.csv
-      - name: Promote the build
-        if: steps.export.outcome == 'success'
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          BUILD_ID: ${{ steps.export.outputs.build_id }}
-          NOTEBOOKS: ${{ steps.notebooks.outcome }}
-          EXTRACT: ${{ steps.extract.outcome }}
-        run: |
-          [ "$NOTEBOOKS" = "success" ] || echo "::warning::the notebooks failed; the build goes live without them"
-          [ "$EXTRACT" = "success" ] || echo "::warning::the Tableau extract failed; the build goes live without it"
-          uv run fs-export promote --store r2 --build-id "$BUILD_ID"
+          NOTEBOOKS: ${{ steps.publish.outputs.notebooks }}
+          EXTRACT: ${{ steps.publish.outputs.extract }}
+          BUILD_ID: ${{ steps.publish.outputs.build_id }}
+        run: echo "build $BUILD_ID promoted; notebooks $NOTEBOOKS, Tableau extract $EXTRACT"
       - name: Roll back, unpin or list
         if: inputs.action != 'build'
         env:
