@@ -4,7 +4,7 @@
 
 with files as (
 
-    select *
+    select *, {{ sha256('landed.payload') }} as _payload_hash
     from ({{ landing_files('espn', 'summary') }}) as landed
     {{ bronze_incremental_filter() }}
 
@@ -25,7 +25,7 @@ select
     plays.season,
     plays._ingest_date,
     plays.request_key,
-    {{ sha256('plays.payload') }} as _payload_hash,
+    plays._payload_hash,
     {{ json_text('plays.payload', '$.header.id') }} as event_id,
     {{ json_text('plays.play', '$.id') }} as play_id,
     {{ json_text('plays.play', '$.sequenceNumber') }} as sequence_number,
