@@ -38,3 +38,7 @@ Checking the documentation against the code (issue #96) found five gaps. Each is
 - **The build runs after any finished ingest.** A failed ingest job keeps its own incident. The completeness check counts a game missing only once it has been final for more than a day, so one failed request no longer costs the day's build.
 - **The build incident covers every step.** That includes the export, promotion, notebooks, extract and sheet push, and the incident names the steps that failed.
 
+## Addendum (2026-11-01): one publisher at a time
+
+Build lakehouse and Export data each had their own concurrency group, so a scheduled build and an export run by hand could promote at the same moment: `promote` reads `builds.json`, inserts the build and writes it back, and `prune` deletes by a build's key list, so two at once could drop a build from the list or prune a build the other had just pointed `latest.json` at. Both workflows now share the `r2-publish` group (never cancelling the one in progress), and `prune` keeps a build that `builds.json` marks pinned whether or not `latest.json` points at it, so the two records a rollback writes protect the build on their own.
+
