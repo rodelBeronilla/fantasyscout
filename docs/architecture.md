@@ -81,8 +81,8 @@ The app has its own subdomain, `fantasyscout.beronilla.rodeo`, bound to the Work
 | 1. Ingest | Done: daily landing of the stats API (home runner) and ESPN (GitHub) into the `landing` volume |
 | 2. Lakehouse | Done: bronze and silver dbt models pass on DuckDB (CI) and Databricks after every ingest; Asset Bundle job deployed |
 | 3. Gold + quality | Built: star schema and marts on both engines, quality checks with severities, `ops.test_results`, publish gate, chaos drill; backfill landing |
-| 4. Reconciliation | Not started |
-| 5. Serving + app | Not started |
-| 6. Analysis surfaces | Not started |
-| 7. AI notes | Not started |
-| 8. Polish | Not started |
+| 4. Reconciliation | Done: the stats API and ESPN box scores reconciled per player-game with a review queue (ADR 0005), crosswalks for players, teams and games |
+| 5. Serving + app | Done: every build published to R2 behind the Worker (ADR 0006), the Board, Streamers, Trade, player pages, Data Health, Pipeline and Schema pages, the owner's SQL console (ADR 0008) |
+| 6. Analysis surfaces | Done: seven notebooks rendered after every full build, the League Pulse Tableau workbook from the extract, the Yahoo league import behind its flag (ADR 0007) |
+| 7. AI notes | Planned: waits for the go-ahead and the API key (the `ai/` folder holds the skeleton) |
+| 8. Polish | In progress: the platform-hardening milestone (issues #241 to #296) |

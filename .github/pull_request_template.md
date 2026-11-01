@@ -17,4 +17,4 @@ Closes #
 - [ ] CI green (lint, tests, dbt build on DuckDB, web build, Playwright)
 - [ ] No secrets in the diff
 - [ ] Issue linked above and a `release:*` label applied
-- [ ] Docs updated (README, data dictionary, runbook or ADR) if behaviour changed
+- [ ] Docs updated (the model's schema yml, the runbook or an ADR; the data dictionary is generated from the yml) if behaviour changed
