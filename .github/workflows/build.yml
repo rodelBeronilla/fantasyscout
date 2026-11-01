@@ -228,6 +228,15 @@ jobs:
           S_EXTRACT: ${{ steps.extract.outcome }}
           S_PROMOTE: ${{ steps.promote.outcome }}
           S_SHEETS: ${{ steps.sheets.outcome }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_ORIGIN: https://${{ env.DBT_DATABRICKS_HOST }}
+          DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
+          BUILD_ID: ${{ steps.export.outputs.build_id }}
+          SELECTED: ${{ inputs.select || env.PLAN_SELECT }}
+          LIGHT: ${{ env.PLAN_LIGHT }}
+          TRIGGER_RUN_ID: ${{ github.event.workflow_run.id }}
+          TRIGGER_RUN_URL: ${{ github.event.workflow_run.html_url }}
+          SITE: https://fantasyscout.beronilla.rodeo
         run: |
           set -euo pipefail
           failed=""
@@ -243,6 +252,10 @@ jobs:
           DETAIL="Steps: dbt build $S_BUILD, gate $S_GATE, export $S_EXPORT, notebooks $S_NOTEBOOKS, extract $S_EXTRACT, promote $S_PROMOTE, sheet push $S_SHEETS."
           [ -n "$failed" ] && DETAIL="Failed: ${failed#, }. $DETAIL"
           echo "$DETAIL"
+          # One row per build in ops.build_log (run, trigger, gate, build id, step timings, rows)
+          # and the same as this run's step summary. Never hides the incident.
+          OUTCOME="$OUTCOME" uv run python -m ops.build_log --engine databricks --summary \
+            || echo "::warning::the build log row was not recorded"
           OUTCOME="$OUTCOME" DETAIL="$DETAIL" uv run python .github/scripts/incident.py
 
   bundle:

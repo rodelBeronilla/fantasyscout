@@ -1141,3 +1141,31 @@ test('players on teams with nothing left to play for late in the season carry a 
   await expect(tag).toHaveCount(1);
   await expect(tag).toHaveAttribute('title', /clinched a playoff place with few games left/);
 });
+
+test('data health lists the recent build runs with their timings and gate', async ({ page }) => {
+  await page.route('**/health.json', async (route) => {
+    const file = (await (await route.fetch()).json()) as Record<string, unknown>;
+    const light = {
+      run_id: '41', run_url: 'https://github.com/o/r/actions/runs/41', run_at: '2026-11-01T16:05:00+00:00', finished_at: '2026-11-01T16:30:00+00:00',
+      event: 'workflow_run', trigger_run_url: null, build_id: '20261101T162100Z-abcdef1', selected: 'tag:feed_reports+ path:models/ops', light: true,
+      outcome: 'success', gate_passed: true, gate_reason: 'all error-severity checks passed', error_checks: 0, warn_checks: 2,
+      queue_seconds: 300, build_seconds: 840, total_seconds: 1500,
+    };
+    const blocked = {
+      run_id: '40', run_url: '', run_at: null, finished_at: '2026-11-01T02:30:00+00:00', event: 'schedule', trigger_run_url: null, build_id: null,
+      selected: null, light: false, outcome: 'failure', gate_passed: false, gate_reason: 'blocked by: assert_completeness', error_checks: 1,
+      warn_checks: 0, queue_seconds: null, build_seconds: null, total_seconds: null,
+    };
+    await route.fulfill({ json: { ...file, builds: [light, blocked] } });
+  });
+  await page.goto('/health/');
+  const rows = page.getByTestId('builds').locator('tbody tr');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText('light');
+  await expect(rows.first()).toContainText('passed');
+  await expect(rows.first()).toContainText('5.0 min');
+  await expect(rows.first().getByRole('link', { name: '41' })).toHaveAttribute('href', /runs\/41$/);
+  await expect(rows.nth(1)).toContainText('blocked');
+  await expect(rows.nth(1)).toContainText('failure');
+});
+
