@@ -12,6 +12,7 @@
     "check": "astro check",
     "lint": "eslint .",
     "test": "playwright test",
+    "test:unit": "vitest run",
     "pretest": "node scripts/copy-fixtures.mjs",
     "posttest": "node scripts/copy-fixtures.mjs --clean"
   },
@@ -37,6 +38,7 @@
     "eslint-plugin-astro": "^3.2.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.0",
-    "typescript-eslint": "^8.72.1"
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
   }
 }

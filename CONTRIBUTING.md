@@ -39,6 +39,7 @@ Web (needs Node 24):
 cd web
 npm ci
 npm run check && npm run lint
+npm run test:unit                 # vitest: the pure libraries under src/lib
 PUBLIC_BUILD_ID=local npm run build
 npx playwright install chromium   # once
 npm test
