@@ -65,7 +65,9 @@ describe('routing', () => {
   });
 
   it('names the player in the shell when the current build has the player file', async () => {
-    // the suite's R2 state is shared, so the tests add to the seeded build 'test' and leave latest.json alone
+    // the suite's R2 state is shared and the data tests seed latest.json as build 'test' before each of
+    // theirs; these two seed the same pointer and add to that build, so nothing leaks between tests
+    await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), { httpMetadata: { contentType: 'application/json' } });
     await env.DATA.put('builds/test/players/wnba/1628932.json', JSON.stringify({ name: "A'ja Wilson", team: 'LVA', position: 'F' }));
     const res = await SELF.fetch(`${ORIGIN}/p/wnba/1628932/`);
     expect(res.status).toBe(200);
@@ -80,6 +82,7 @@ describe('routing', () => {
   });
 
   it('serves a sitemap of the current build\'s players', async () => {
+    await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), { httpMetadata: { contentType: 'application/json' } });
     await env.DATA.put('builds/test/players/wnba/1.json', '{}');
     await env.DATA.put('builds/test/players/nba/2.json', '{}');
     await env.DATA.put('builds/test/players/index.json', '{}');
