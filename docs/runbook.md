@@ -287,3 +287,24 @@ Locally, the same commands are:
 uv run fs-export rollback --store r2 [--to <id>]
 uv run fs-export unpin --store r2 [--to <id>]
 ```
+
+## Fill a hole in the board ledger
+
+`gold.fct_board_history` is the daily ledger of the board (one row per Eastern date, league and player) and the only history of the newer signals: every build merges the day's rows and a full refresh never rebuilds it. A nightly build that fails, or does not run, leaves a day without rows, and nothing else would say so. The warn check `warn_board_history_gaps` lists each missing day of the last 45 while the league was playing (it is in `ops.test_results` and on the Data Health page after every build). To put a day back:
+
+1. Find a build that ran on the missing day. `uv run fs-export list --store r2` shows the kept builds with when they were created (seven are kept, so a hole older than a week has no source; the day is history and the warning stops after 45 days).
+2. Download that build's ledger. The Parquet tables are private to the owner: signed in, open `/data/builds/<build id>/fct_board_history.parquet`; or fetch it the way the notebooks do, with the reader key derived from the Yahoo client secret (`notebooks/fs.py`, `FS_READER_SECRET`).
+3. Put the file in the raw volume, under a folder of its own so no bronze model reads it (the Databricks CLI, signed in as the owner):
+   ```bash
+   databricks fs cp fct_board_history.parquet dbfs:/Volumes/fantasyscout/raw/recover/fct_board_history.parquet
+   ```
+4. Insert the day's rows, naming the columns so the order cannot be wrong, and only the day's rows (the file holds every day the ledger had when the build ran). Take the column list from `describe fantasyscout.gold.fct_board_history`; a kept build older than a change to the ledger lacks the columns added since, so leave those out of both lists and they stay null for the day:
+   ```sql
+   insert into fantasyscout.gold.fct_board_history (<the columns describe lists>)
+   select <the same columns>
+   from parquet.`/Volumes/fantasyscout/raw/recover/fct_board_history.parquet` as k
+   where k.snapshot_date = date '2026-11-01'
+     and not exists (select 1 from fantasyscout.gold.fct_board_history as h where h.board_history_sk = k.board_history_sk);
+   ```
+5. Remove the file from `recover/`, and run the next build (or `dbt test --select warn_board_history_gaps`): the day no longer appears.
+

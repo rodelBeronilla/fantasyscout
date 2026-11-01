@@ -511,6 +511,7 @@ Decisions:
 - Two unit tests on `mart_board`: the pool is chosen in two passes (a player who scores like a pool player but plays few minutes is pooled, a player who plays many but scores like a replacement is not) and the availability multiplier takes every branch it has (nothing left to play, a return date, out for the season, calibrated on past listings, no status, and the three old charges). The z-scores themselves are square roots and are not pinned to decimals; the availability test's lines are zero so every factor it pins is exact.
 - No `dbt_utils`: every check here is one `relationships`, `accepted_values` or singular test, and the project stays without packages to install on both engines.
 
+<<<<<<< HEAD
 ## Addendum (2026-11-01): silver types what gold reads; a key to nothing is null
 
 Three columns crossed from silver into gold as text: the roster's birth date ("JUN 10, 1996"), parsed with `stats_birth_date()` in three gold and silver models; the roster's height ("6-4"); and the two tip-off times, the schedule's `game_datetime_utc` and ESPN's `event_datetime_utc`, carried as ISO 8601 strings into `dim_game` and `mart_schedule_upcoming`. And `sk()` built its hash with `concat_ws`, which skips nulls, so `fct_team_game.opponent_team_sk` for a game whose opponent's box had not landed was `md5('league:season')`, a non-null key that matches no team.
@@ -525,4 +526,9 @@ Consequences:
 
 - The exported player file's `birth_date` is now an ISO date ("1996-06-10") rather than the roster's text; the site types it as a string and shows height from the text, which is unchanged. The upcoming-schedule export's `game_datetime_utc` is an instant serialised with its offset ("2026-04-25T19:00:00+00:00") rather than the schedule's "Z" text; nothing on the site reads it yet.
 - A full refresh is not needed: every model here is a table rebuilt each run.
+=======
+## Addendum (2026-11-01): the ledger's holes are reported
+
+`fct_board_history` is merged by every build and never rebuilt, so a nightly build that fails leaves a day with no rows, and the only other copies of that day are the seven kept builds, which roll off in a week. Nothing reported the hole. `warn_board_history_gaps` now lists every Eastern date of the last 45 days, from the league's first snapshot on and while the league was playing, that has no snapshot; the runbook's "Fill a hole in the board ledger" puts a day back from a kept build's Parquet by naming the columns and inserting only that day. The check warns rather than fails, since the build that notices the hole is not the one that caused it.
+>>>>>>> origin/main
 

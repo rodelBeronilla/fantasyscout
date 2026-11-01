@@ -79,7 +79,7 @@
    "n_label": "player-seasons with 100 field-goal attempts"
   },
   "nba": {
-   "headline": "Half of the spread in NBA free-throw percentage is skill after about 31 attempts, against 331 three-point attempts and 77 field-goal attempts; a first-half three-point edge keeps 27% of itself after the break.",
+   "headline": "Half of the spread in NBA free-throw percentage is skill after about 31 attempts, against 340 three-point attempts and 78 field-goal attempts; a first-half three-point edge keeps 25% of itself after the break.",
    "facts": [
     {
      "label": "FT%: attempts for half skill",
@@ -87,19 +87,19 @@
     },
     {
      "label": "3P%: attempts for half skill",
-     "value": "331 (about 91 games at 3.6 a game)"
+     "value": "340 (about 94 games at 3.6 a game)"
     },
     {
      "label": "FG%: attempts for half skill",
-     "value": "77 (about 10 games at 7.6 a game)"
+     "value": "78 (about 10 games at 7.6 a game)"
     },
     {
      "label": "FG over expectation: attempts for half skill",
-     "value": "273"
+     "value": "274"
     },
     {
      "label": "Three-point volume (3PA per 36), split-half reliability",
-     "value": "0.98, against 0.39 for 3P%"
+     "value": "0.98, against 0.38 for 3P%"
     },
     {
      "label": "Most valuable zone, 2025-26",
@@ -117,42 +117,42 @@
     "rows": [
      [
       "FG%",
-      "77",
+      "78",
       0.85,
       0.72,
-      1251
+      1257
      ],
      [
       "3P%",
-      "331",
-      0.39,
-      0.27,
-      1086
+      "340",
+      0.38,
+      0.25,
+      1089
      ],
      [
       "FT%",
       "31",
       0.79,
       0.65,
-      1009
+      1011
      ],
      [
       "FG over expectation",
-      "273",
+      "274",
       0.61,
-      0.42,
-      856
+      0.41,
+      862
      ],
      [
       "3P over expectation",
-      "342",
-      0.38,
+      "353",
+      0.37,
       0.25,
-      745
+      748
      ]
     ]
    },
-   "n": 1251,
+   "n": 1257,
    "n_label": "player-seasons with 100 field-goal attempts"
   }
  }

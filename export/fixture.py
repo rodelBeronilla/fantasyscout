@@ -84,10 +84,19 @@ def trim_parquet(body: bytes) -> bytes:
 
 
 def trim(path: str, body: bytes) -> bytes:
-    """Root tables trimmed to the fixture league's current season; everything else as is."""
+    """Root tables trimmed to the fixture league's current season; everything else as is.
+
+    The teams stay whole: the streamers page draws its week grid from the league's teams, and the
+    tests open whichever league has a game ahead, which is the NBA while the WNBA is out of
+    season."""
     if path.endswith(".parquet"):
         return trim_parquet(body)
-    if "/" in path or path in ("health.json", "manifest.json", "category_config.json"):
+    if "/" in path or path in (
+        "health.json",
+        "manifest.json",
+        "category_config.json",
+        "dim_team.json",
+    ):
         return body
     data = json.loads(body)
     if not isinstance(data, list) or not data or not isinstance(data[0], dict):
@@ -333,6 +342,16 @@ def main(argv: list[str] | None = None) -> int:
             **from_duckdb(args.duckdb, parquet_only=True),
             **conform(from_live(args.site), shape, args.duckdb),
         }
+        # A file the code exports but the live build predates (a new per-league JSON) comes from
+        # the sample's export, so the fixture is the shape of the code here too.
+        for path, body in shape.files.items():
+            if (
+                keeps(path)
+                and path.endswith(".json")
+                and not path.startswith("players/")
+                and path not in files
+            ):
+                files[path] = trim(path, body)
     if not files.get(f"board/{LEAGUE}.json") or not json.loads(files[f"board/{LEAGUE}.json"]):
         print(f"the {LEAGUE} board is empty: the fixture needs a source with a populated board")
         return 2
