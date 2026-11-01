@@ -57,6 +57,8 @@ export interface LeagueSetup extends LeagueSettings {
   rosters: string[][];
   /** The manager's own team, by index. */
   mine: number;
+  /** Players on an injured-list slot (IL, IL+): owned, but not taking a roster spot. */
+  il: string[];
   drafting: boolean;
   picks: Pick[];
 }
@@ -80,6 +82,7 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
   const rosters = Array.from({ length: teams }, (_, i) =>
     (raw.rosters?.[i] ?? []).filter((id) => typeof id === 'string' && !seen.has(id) && !!seen.add(id)),
   );
+  const il = (raw.il ?? []).filter((id, i, all) => typeof id === 'string' && seen.has(id) && all.indexOf(id) === i);
   const mine = Math.min(teams - 1, Math.max(0, raw.mine ?? 0));
   const picks = (raw.picks ?? []).filter((p) => p.team < teams && rosters[p.team]?.includes(p.player));
   return {
@@ -90,6 +93,7 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
     names,
     rosters,
     mine,
+    il,
     drafting: raw.drafting ?? false,
     picks,
   };
@@ -105,7 +109,14 @@ export function owners(setup: LeagueSetup): Map<string, number> {
 /** Puts a player on a team (or on no team), taking them off any other. */
 export function assign(setup: LeagueSetup, player: string, team: number | null): LeagueSetup {
   const rosters = setup.rosters.map((r, i) => (i === team ? [...r.filter((id) => id !== player), player] : r.filter((id) => id !== player)));
-  return { ...setup, rosters, picks: setup.picks.filter((p) => p.player !== player) };
+  const il = team === null ? setup.il.filter((id) => id !== player) : setup.il;
+  return { ...setup, rosters, il, picks: setup.picks.filter((p) => p.player !== player) };
+}
+
+/** Moves a rostered player onto or off the injured list. */
+export function toggleIl(setup: LeagueSetup, player: string): LeagueSetup {
+  const on = setup.il.includes(player);
+  return { ...setup, il: on ? setup.il.filter((id) => id !== player) : [...setup.il, player] };
 }
 
 /** The pick a snake draft is on: round and pick within it (from 1), and the team on the clock. */
@@ -126,7 +137,7 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
   const last = setup.picks.at(-1);
   if (!last) return setup;
   const rosters = setup.rosters.map((r, i) => (i === last.team ? r.filter((id) => id !== last.player) : r));
-  return { ...setup, rosters, picks: setup.picks.slice(0, -1) };
+  return { ...setup, rosters, il: setup.il.filter((id) => id !== last.player), picks: setup.picks.slice(0, -1) };
 }
 
 const storageKey = (league: League) => `fantasyscout:league:${league}`;

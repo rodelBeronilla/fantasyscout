@@ -134,7 +134,9 @@ export default function TradeAnalyzer() {
 
   // The manager's team before and after, with its rank in each category among the league's teams.
   const myRoster = hasRosters ? (setup.rosters[setup.mine] ?? []) : null;
-  const teamTotals = (roster: string[]) => Object.fromEntries(cats.map((c) => [c, roster.reduce((s, id) => s + (worth.get(id)?.cats[c] ?? 0), 0)]));
+  // Players on the injured list are owned but not playing: they stay out of a team's totals.
+  const teamTotals = (roster: string[]) =>
+    Object.fromEntries(cats.map((c) => [c, roster.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + (worth.get(id)?.cats[c] ?? 0), 0)]));
   const change = (() => {
     if (!myRoster || points) return null;
     const after = (t: number) => {
@@ -182,6 +184,11 @@ export default function TradeAnalyzer() {
             <label className="flex cursor-pointer items-center gap-2">
               <input type="checkbox" checked={picked.includes(p.player_id)} onChange={(e) => toggle(side, p.player_id, e.target.checked)} />
               <span className="min-w-0 flex-1 truncate">{p.full_name ?? p.player_id}</span>
+              {setup.il.includes(p.player_id) && (
+                <span className="rounded border border-warn px-1 text-[10px] font-semibold text-warn" title="On the injured list">
+                  IL
+                </span>
+              )}
               <span className="text-xs text-muted">{p.position ?? '–'}</span>
               <span className="w-12 text-right tabular-nums"><Signed value={worth.get(p.player_id)?.rest ?? 0} digits={1} /></span>
             </label>
