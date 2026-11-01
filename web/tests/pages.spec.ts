@@ -231,7 +231,7 @@ test('the dashboards page explains the workbook and lists the extract', async ({
   await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
 });
 
-for (const path of ['/', '/league/', '/streamers/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/']) {
+for (const path of ['/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/']) {
   test(`${path} has no horizontal scroll on a phone`, async ({ page, isMobile }) => {
     test.skip(!isMobile, 'mobile project only');
     await page.goto(path);
@@ -462,6 +462,72 @@ for (const [path, testid] of [['/', 'board'], ['/streamers/', 'trending']]) {
     expect(after).toEqual(before);
   });
 }
+
+test('/trade/ has no accessibility violations once a trade is on the page', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/trade/');
+  await page.getByLabel('Add a player you give').fill(label(board[0]!));
+  await page.getByLabel('Add a player you get').fill(label(board[1]!));
+  await expect(page.locator('main table').first()).toBeVisible();
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('League and the SQL console sit under a Coming soon dropdown in the nav', async ({ page }) => {
+  await page.goto('/');
+  const nav = page.getByRole('navigation', { name: 'Primary' });
+  await expect(nav.getByRole('link', { name: 'Trade' })).toHaveAttribute('href', '/trade/');
+  await expect(nav.getByRole('link', { name: 'League', exact: true })).toBeHidden();
+  const soon = page.getByTestId('coming-soon');
+  await soon.locator('summary').click();
+  await expect(soon.getByRole('link', { name: 'League', exact: true })).toHaveAttribute('href', '/league/');
+  await expect(soon.getByRole('link', { name: 'SQL console' })).toHaveAttribute('href', '/sql/');
+  await page.goto('/league/');
+  await expect(page.getByTestId('coming-soon')).toHaveAttribute('open', '');
+});
+
+test('the Trade page values both sides for the rest of the season and gives a verdict', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/trade/');
+  await expect(page.getByTestId('trade-no-league')).toBeVisible();
+  // Give the second-best player, get the two best: the trade favours the manager.
+  await page.getByLabel('Add a player you give').fill(label(board[1]!));
+  await page.getByLabel('Add a player you get').fill(label(board[0]!));
+  await page.getByLabel('Add a player you get').fill(label(board[2]!));
+  await expect(page.getByTestId('picked-give').locator('li')).toHaveCount(1);
+  await expect(page.getByTestId('picked-get').locator('li')).toHaveCount(2);
+  await expect(page.getByTestId('trade-verdict')).toContainText('Favours you');
+  await expect(page.getByTestId('trade-spots')).toContainText('you would drop 1');
+  await expect(page.getByTestId('trade-players').locator('tbody tr')).toHaveCount(5);
+  await expect(page.getByTestId('trade-categories').locator('tbody tr')).toHaveCount(9);
+  // Removing a player from a side updates the verdict.
+  await page.getByTestId('picked-get').getByRole('button', { name: board[0]!.full_name }).click();
+  await expect(page.getByTestId('picked-get').locator('li')).toHaveCount(1);
+});
+
+test("with league rosters set up, the Trade page picks from them and shows the manager's team before and after", async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/');
+  await page.getByLabel('Teams in the league').fill('4');
+  await page.getByLabel('Add a player to Team 1').fill(label(board[0]!));
+  await page.getByLabel('Add a player to Team 1').fill(label(board[3]!));
+  await page.getByLabel('Add a player to Team 2').fill(label(board[1]!));
+  await page.getByLabel('Add a player to Team 2').fill(label(board[2]!));
+  await page.goto('/trade/');
+  await expect(page.getByTestId('trade-no-league')).toBeHidden();
+  await expect(page.getByTestId('roster-give').locator('li')).toHaveCount(2);
+  await expect(page.getByTestId('roster-get').locator('li')).toHaveCount(2);
+  await page.getByTestId('roster-give').getByRole('checkbox').first().check();
+  await page.getByTestId('roster-get').getByRole('checkbox').first().check();
+  await expect(page.getByTestId('trade-verdict')).toBeVisible();
+  const cats = page.getByTestId('trade-categories');
+  await expect(cats.locator('thead')).toContainText('Your team before');
+  await expect(cats.locator('thead')).toContainText('Rank of 2');
+  await expect(cats.locator('tbody tr')).toHaveCount(9);
+});
 
 test('the League page sets the league the board values for, and points leagues score fantasy points', async ({ page }) => {
   await page.goto('/');

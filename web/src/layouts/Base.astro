@@ -11,17 +11,23 @@ const { title, description } = Astro.props;
 
 const nav = [
   ['Board', '/'],
-  ['League', '/league/'],
   ['Streamers', '/streamers/'],
+  ['Trade', '/trade/'],
   ['Data Health', '/health/'],
-  ['SQL', '/sql/'],
   ['Notebooks', '/notebooks/'],
   ['Dashboards', '/dashboards/'],
   ['Pipeline', '/pipeline/'],
   ['Schema', '/schema/'],
   ['Docs', '/docs/'],
 ] as const;
+// Pages that are not ready for everyone yet: the League page waits on the Yahoo import and the
+// SQL console is for the owner. They sit under one dropdown so the main nav shows what is ready.
+const comingSoon = [
+  ['League', '/league/'],
+  ['SQL console', '/sql/'],
+] as const;
 const current = Astro.url.pathname;
+const inComingSoon = comingSoon.some(([, path]) => path === current);
 ---
 
 <!doctype html>
@@ -64,6 +70,36 @@ const current = Astro.url.pathname;
               </li>
             ))
           }
+          <li class="relative">
+            <details class="group" open={inComingSoon || undefined} data-testid="coming-soon">
+              <summary
+                class:list={[
+                  'cursor-pointer list-none rounded px-2 py-1 underline-offset-4 hover:underline',
+                  inComingSoon ? 'font-semibold' : 'text-muted',
+                ]}
+              >
+                Coming soon <span aria-hidden="true" class="text-xs">▾</span>
+              </summary>
+              <ul class="absolute left-0 z-20 mt-1 min-w-44 rounded border border-line bg-card p-1 shadow">
+                {
+                  comingSoon.map(([label, path]) => (
+                    <li>
+                      <a
+                        href={href(path)}
+                        class:list={[
+                          'block rounded px-2 py-1 underline-offset-4 hover:underline',
+                          current === path ? 'font-semibold' : 'text-muted',
+                        ]}
+                        aria-current={current === path ? 'page' : undefined}
+                      >
+                        {label}
+                      </a>
+                    </li>
+                  ))
+                }
+              </ul>
+            </details>
+          </li>
         </ul>
         <div class="flex items-center gap-2">
           <div class="flex items-center gap-1 rounded-full border border-line p-1" role="group" aria-label="League">
