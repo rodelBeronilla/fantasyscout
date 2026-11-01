@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-10-30 (data used everywhere, accurate schema and pipeline pages, notebooks that test the board; phase 7 still waits for the go-ahead)
+Last updated: 2026-11-01 (Platform hardening milestone done and released as v0.8.0; phase 7 still waits for the go-ahead)
 
 ## Vision
 
@@ -27,6 +27,14 @@ Python 3.12 + uv (ingest, export, AI), dbt Core on Databricks Free Edition with 
 | Production | https://fantasyscout.beronilla.rodeo/ (Cloudflare custom domain on Worker `fantasyscout`, ADR 0001) | Push to `main` |
 
 ## Active Sprint
+
+Platform hardening (issues #241 to #296, milestone closed 2026-11-01, release v0.8.0). A phase-by-phase audit of the platform produced 56 issues, worked in number order and merged one PR each.
+
+- **Pipelines** (#241 to #266): a watchdog and timeouts on every job, incident routing, pinned actions and environments (`lakehouse`, `lakehouse-override`), composite actions, feed freshness, deploy after CI, runner monitoring, ESPN pacing, the 5 pm report, hash-per-file landing, request stats, a scoped ingest token, the Eastern run date everywhere, settle on content.
+- **Models** (#267 to #275): `dim_player` roster stints, season state consolidated, the play-by-play chain incremental (`replace_changed_games`), relationship and accepted-value tests on the marts, typed silver (dates, inches, a null-propagating `sk()`), `fct_status_calibration` as its own table, `fct_team_week_games` and the Streamers weeks grid, a ledger-gap warning, the dbt README and exposures that name the site export, the dashboard and each notebook.
+- **Serving** (#276 to #285): mutable index files on the pointers' short cache, an R2 publish concurrency group, 503 with retry-after instead of 416, the edge cache for public build files, a "data unavailable" alert with Reload, a `latest.json` preload, canonical and Open Graph tags with robots.txt and two sitemaps and the player's name in the shell (#282), Vitest unit tests for the web library, namespaced browser storage with migration, a lighter board payload with a Lighthouse budget on home and Streamers.
+- **Documentation and process** (#286 to #296): ADRs 0009 to 0012 with a supersession table, SPEC.md status callouts, `fs-dev check` mirroring CI, a sources page with retention, lineage from source endpoint to page on the Schema page, column conventions (time zones, units, nulls) held to by the generator, findings history across builds on the Notebooks page, the Release workflow (`release.yml`, labels to notes), the League Pulse sheets specified field by field, a retention and privacy section.
+- Dependencies re-locked on main (dbt-core 1.12.6, dbt-databricks 1.13.0), superseding Dependabot's conflicting PR.
 
 Data, documentation and analysis (issues #163 to #193), 2026-10-30. Four read-only audits (data usage, schema page, pipeline page, notebooks) drove the work.
 
@@ -94,6 +102,7 @@ Phase 1, Ingest, is done (issue #7; PRs #8, #9, #10, #13, #14). Daily `ingest.ym
 | Phase 4 Reconciliation | Done 2026-10-27 (issue #51): crosswalks, ops.reconciliation, summary per league and season, source_agreement; 99.5% matched, every season ≥ 99.3% played; ADR 0005 |
 | Phase 5 Serving + app | Done 2026-10-27 (issue #58): export to R2 with manifest and rollback, Board, Player, Streamers, Data Health, SQL console, Lighthouse budget in the deploy |
 | Phase 6 Analysis surfaces | Done 2026-10-28 (issue #66): dbt docs at /docs/, notebooks executed in CI and on every build at /notebooks/, Tableau extract and Dashboards page (manual publish pending) |
+| Platform hardening (#241 to #296) | Done 2026-11-01: 56 issues, released as v0.8.0 |
 | Phase 7 AI notes | Not started |
 | Phase 8 Polish | Not started |
 
@@ -103,14 +112,18 @@ N/A, first sprint.
 
 ## Blockers
 
-- None. Tableau Public account exists; needed in phase 6.
+- None in the code. The Tableau Public workbook and the lakehouse ingest token wait on the owner (Next Actions).
 
 ## Tech Debt
 
 - Local Windows machine lacks the Universal C Runtime that workerd needs; Worker tests run in a container or CI until the VC++ Redistributable is installed.
+- The Schema page's Lighthouse score is reported, not enforced, in the deploy (its tables are large by design); home and Streamers are enforced.
+- The Worker test suite shares one R2 state across tests; a test that moves `latest.json` must seed the same pointer the data tests use.
+- The repository has no LICENSE file yet; the choice is the owner's.
 
 ## Next Actions
 
+0. Owner: choose a LICENSE; add `DATABRICKS_INGEST_TOKEN` and the `lakehouse` environment secrets, the home runner's cron and `ODDS_API_KEY` in the repository settings; say when phase 7 (AI notes) may start and add `ANTHROPIC_API_KEY` then.
 1. Owner: the Google Sheets bridge setup in tableau/README.md (service account secret `GOOGLE_SERVICE_ACCOUNT_JSON`, sheet shared with it, variable `TABLEAU_SHEET_ID`), then publish the League Pulse workbook from that sheet and set `TABLEAU_VIZ_URL`; then go-ahead for phase 7 (AI scouting notes with verified claims).
 2. Watch the nightly build log's reconciliation summary; any season under 99% matched warns, and `silver.player_xwalk_review` names the players to add to the overrides seed.
 3. Owner, optional: the Yahoo app exists and its secrets are deployed (2026-10-29), but Yahoo answers 403 until it approves Fantasy Sports API access. Apply at https://sports.yahoo.com/developer/access/, sign the DocuSign agreement, then submit the Client ID at https://sports.yahoo.com/developer/application-confirmation/ (runbook). Earlier note: register a Yahoo developer app (redirect URI https://fantasyscout.beronilla.rodeo/auth/yahoo/callback, Fantasy Sports read) and add the `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET` Actions secrets to turn on the Yahoo league import; then sign in on the League page (NBA) to verify it end to end.
