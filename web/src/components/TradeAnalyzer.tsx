@@ -11,6 +11,7 @@ import { currentLeague } from '../lib/league';
 import { owners, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues } from '../lib/league-value';
 import { href } from '../lib/site';
+import { nearestInValue, openSide, suggestTrades } from '../lib/trade-suggest';
 import { Card, InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th } from './ui';
 
 interface PlayerRow {
@@ -167,6 +168,32 @@ export default function TradeAnalyzer() {
     };
   })();
 
+  // Suggestions: packages from the open side's roster that make the trade about even, ranked by the
+  // category ranks they gain the manager; without rosters, players worth about the same as the target.
+  const ready = giving.players.length > 0 || getting.players.length > 0;
+  const restOf = new Map([...worth].map(([id, w]) => [id, w.rest]));
+  const active = (t: number) => (setup.rosters[t] ?? []).filter((id) => !setup.il.includes(id));
+  const open = openSide(give, get, restOf);
+  const suggestions =
+    ready && hasRosters && partnerTeam >= 0
+      ? suggestTrades({
+          give,
+          get,
+          mine: active(setup.mine),
+          theirs: active(partnerTeam),
+          rest: restOf,
+          cats: points ? [] : cats,
+          catValue: (id) => worth.get(id)?.cats,
+          totals: setup.rosters.map((r) => teamTotals(r)),
+          myTeam: setup.mine,
+          partnerTeam,
+        })
+      : [];
+  const targetSide: Side = get.length ? 'get' : 'give';
+  const nearest = ready && !hasRosters ? nearestInValue(targetSide === 'get' ? get : give, restOf, [...give, ...get]) : [];
+  const nameOf = (id: string) => byId.get(id)?.full_name ?? id;
+  const nameList = (ids: string[]) => ids.map(nameOf).join(' + ');
+
   const add = (side: Side, id: string) => (side === 'give' ? setGive : setGet)((s) => (s.includes(id) ? s : [...s, id]));
   const remove = (side: Side, id: string) => (side === 'give' ? setGive : setGet)((s) => s.filter((x) => x !== id));
   const toggle = (side: Side, id: string, on: boolean) => (on ? add(side, id) : remove(side, id));
@@ -293,7 +320,6 @@ export default function TradeAnalyzer() {
     </tr>
   );
 
-  const ready = giving.players.length > 0 || getting.players.length > 0;
   const rankTone = (before: number, after: number) => (after < before ? 'text-good' : after > before ? 'text-bad' : '');
 
   return (
@@ -350,6 +376,95 @@ export default function TradeAnalyzer() {
               <p className="text-muted">Your league scores points: the values are fantasy points per game above replacement, with your league&apos;s weights.</p>
             )}
           </div>
+        </Card>
+      )}
+
+      {ready && hasRosters && (
+        <Card title="Suggested trades" id="suggestions">
+          {suggestions.length ? (
+            <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+              <table className="w-full text-sm" data-testid="trade-suggestions">
+                <thead>
+                  <tr>
+                    <Th>You give</Th>
+                    <Th>You get</Th>
+                    <Th right>Net</Th>
+                    {!points && <Th>Your ranks</Th>}
+                    <Th>{''}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {suggestions.map((s) => (
+                    <tr key={`${s.give.join()}>${s.get.join()}`} className="border-t border-line">
+                      <Td>{nameList(s.give)}</Td>
+                      <Td>{nameList(s.get)}</Td>
+                      <Td right>
+                        <Signed value={s.net} digits={1} />
+                      </Td>
+                      {!points && (
+                        <Td>
+                          {s.ups.length || s.downs.length ? (
+                            <span className="whitespace-nowrap">
+                              {s.ups.length > 0 && <span className="text-good">↑ {s.ups.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</span>}
+                              {s.ups.length > 0 && s.downs.length > 0 && ' '}
+                              {s.downs.length > 0 && <span className="text-bad">↓ {s.downs.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</span>}
+                            </span>
+                          ) : (
+                            <span className="text-muted">no rank changes</span>
+                          )}
+                        </Td>
+                      )}
+                      <Td>
+                        <button
+                          type="button"
+                          className={button}
+                          onClick={() => {
+                            setGive(s.give);
+                            setGet(s.get);
+                          }}
+                        >
+                          Use this trade
+                        </button>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted" data-testid="trade-no-suggestions">
+              {open === 'give' && !active(setup.mine).length
+                ? 'Add your own roster on the League page to see what you could offer.'
+                : open === 'get' && !active(partnerTeam).length
+                  ? `Add ${setup.names[partnerTeam] ?? 'the partner'}’s roster on the League page to see what you could ask for.`
+                  : `No package of up to three players from ${open === 'give' ? 'your' : `${setup.names[partnerTeam] ?? 'the partner'}’s`} roster comes within 15% of the other side for the ${REST}. Try another partner, or a different player.`}
+            </p>
+          )}
+          <p className="mt-2 text-xs text-muted">
+            {open === 'give' ? 'Packages from your roster' : `Packages from ${setup.names[partnerTeam] ?? 'the partner'}’s roster`} that bring the two sides within 15%
+            of each other for the {REST}
+            {points
+              ? ', the ones that favour you most first.'
+              : ', ranked by the category ranks your team gains (counting the partner’s side changing too), then by value. Pick one to load it into the trade and see the full breakdown.'}
+          </p>
+        </Card>
+      )}
+
+      {ready && !hasRosters && nearest.length > 0 && (
+        <Card title="Players worth about the same" id="suggestions">
+          <ul className="flex flex-wrap gap-1" data-testid="trade-nearest">
+            {nearest.map(({ id, diff }) => (
+              <li key={id}>
+                <button type="button" className={`${button} flex items-center gap-1`} onClick={() => add(targetSide === 'get' ? 'give' : 'get', id)} title="Add to the trade">
+                  {nameOf(id)} <Signed value={diff} digits={1} />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-muted">
+            Players on the board worth about the same for the {REST} as {targetSide === 'get' ? 'what you get' : 'what you give'}, nearest first, with the
+            difference. Tap one to put it on the other side. Set up your league&apos;s rosters to get packages from a partner&apos;s roster instead.
+          </p>
         </Card>
       )}
 

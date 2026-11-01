@@ -562,6 +562,12 @@ test('the Trade page values both sides for the rest of the season and gives a ve
   // Removing a player from a side updates the verdict.
   await page.getByTestId('picked-get').getByRole('button', { name: board[0]!.full_name }).click();
   await expect(page.getByTestId('picked-get').locator('li')).toHaveCount(1);
+  // Without rosters, players worth about the same as the target are offered; one tap puts one on the other side.
+  await page.getByTestId('picked-get').getByRole('button', { name: board[2]!.full_name }).click();
+  const nearest = page.getByTestId('trade-nearest');
+  await expect(nearest.locator('li')).toHaveCount(8);
+  await nearest.getByRole('button').first().click();
+  await expect(page.getByTestId('picked-get').locator('li')).toHaveCount(1);
 });
 
 test("with league rosters set up, the Trade page picks from them and shows the manager's team before and after", async ({ page }) => {
@@ -577,8 +583,13 @@ test("with league rosters set up, the Trade page picks from them and shows the m
   await expect(page.getByTestId('trade-no-league')).toBeHidden();
   await expect(page.getByTestId('roster-give').locator('li')).toHaveCount(2);
   await expect(page.getByTestId('roster-get').locator('li')).toHaveCount(2);
-  await page.getByTestId('roster-give').getByRole('checkbox').first().check();
+  // Asking for a partner's player suggests packages from the manager's roster that make it about even.
   await page.getByTestId('roster-get').getByRole('checkbox').first().check();
+  const suggestions = page.getByTestId('trade-suggestions');
+  await expect(suggestions.locator('tbody tr').first()).toBeVisible();
+  await expect(suggestions.locator('thead')).toContainText('Your ranks');
+  await suggestions.getByRole('button', { name: 'Use this trade' }).first().click();
+  await expect(page.getByTestId('picked-give').locator('li').first()).toBeVisible();
   await expect(page.getByTestId('trade-verdict')).toBeVisible();
   const cats = page.getByTestId('trade-categories');
   await expect(cats.locator('thead')).toContainText('Your team before');
