@@ -1,0 +1,179 @@
+unit_tests:
+  - name: board_pool_is_chosen_in_two_passes
+    description: >
+      Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level
+      the next two). Only points vary, so value is the points z-score. Minutes equal points
+      except for two players: p05 scores like a pool player but plays five minutes, p11 plays
+      forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not
+      p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and
+      p11 out. rank_total follows value, equal points broken by player id. The numbers
+      themselves (a z-score is a square root) are pinned by board_availability_follows_the_status,
+      where they are exact.
+    model: mart_board
+    overrides:
+      vars:
+        as_of: '2026-01-10'
+        fantasy:
+          nba: {teams: 2, roster_spots: 5, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
+    given:
+      - input: ref('mart_player_projection')
+        rows:
+          - {league: nba, season: '2025-26', player_id: p01, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 23.0, proj_minutes_pg: 23.0}
+          - {league: nba, season: '2025-26', player_id: p02, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 23.0, proj_minutes_pg: 23.0}
+          - {league: nba, season: '2025-26', player_id: p03, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p04, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p05, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 5.0}
+          - {league: nba, season: '2025-26', player_id: p06, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p07, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p08, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p09, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 17.0, proj_minutes_pg: 17.0}
+          - {league: nba, season: '2025-26', player_id: p10, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 17.0, proj_minutes_pg: 17.0}
+          - {league: nba, season: '2025-26', player_id: p11, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 15.0, proj_minutes_pg: 40.0}
+          - {league: nba, season: '2025-26', player_id: p12, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 13.0, proj_minutes_pg: 13.0}
+          - {league: nba, season: '2025-26', player_id: p13, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 12.0, proj_minutes_pg: 12.0}
+          - {league: nba, season: '2025-26', player_id: p14, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 11.5, proj_minutes_pg: 11.5}
+          - {league: nba, season: '2025-26', player_id: p15, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 11.0, proj_minutes_pg: 11.0}
+          - {league: nba, season: '2025-26', player_id: p16, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 10.5, proj_minutes_pg: 10.5}
+          - {league: nba, season: '2025-26', player_id: p17, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 10.0, proj_minutes_pg: 10.0}
+          - {league: nba, season: '2025-26', player_id: p18, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 9.5, proj_minutes_pg: 9.5}
+          - {league: nba, season: '2025-26', player_id: p19, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 9.0, proj_minutes_pg: 9.0}
+          - {league: nba, season: '2025-26', player_id: p20, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 8.5, proj_minutes_pg: 8.5}
+          - {league: nba, season: '2025-26', player_id: p21, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 8.0, proj_minutes_pg: 8.0}
+          - {league: nba, season: '2025-26', player_id: p22, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 7.5, proj_minutes_pg: 7.5}
+          - {league: nba, season: '2025-26', player_id: p23, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 7.0, proj_minutes_pg: 7.0}
+          - {league: nba, season: '2025-26', player_id: p24, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 6.5, proj_minutes_pg: 6.5}
+          - {league: nba, season: '2025-26', player_id: p25, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 6.0, proj_minutes_pg: 6.0}
+          - {league: nba, season: '2025-26', player_id: p26, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 5.5, proj_minutes_pg: 5.5}
+          - {league: nba, season: '2025-26', player_id: p27, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 5.0, proj_minutes_pg: 5.0}
+          - {league: nba, season: '2025-26', player_id: p28, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 4.5, proj_minutes_pg: 4.5}
+          - {league: nba, season: '2025-26', player_id: p29, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 4.0, proj_minutes_pg: 4.0}
+          - {league: nba, season: '2025-26', player_id: p30, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 3.5, proj_minutes_pg: 3.5}
+      - input: ref('mart_category_zscores')
+        rows: []
+      - input: ref('schedule_team_games')
+        rows: []
+      - input: ref('fct_player_status')
+        rows: []
+      - input: ref('int_player_news_latest')
+        rows: []
+      - input: ref('fct_official_listing')
+        rows: []
+      - input: ref('team_current')
+        rows: []
+      - input: ref('dim_player')
+        rows: []
+      - input: ref('teams')
+        rows: []
+      - input: ref('fct_starting_lineup')
+        rows: []
+      - input: ref('fct_market_value')
+        rows: []
+      - input: ref('fct_team_stakes')
+        rows: []
+    expect:
+      rows:
+        - {player_id: p01, in_pool: true, rank_total: 1}
+        - {player_id: p02, in_pool: true, rank_total: 2}
+        - {player_id: p03, in_pool: true, rank_total: 3}
+        - {player_id: p04, in_pool: true, rank_total: 4}
+        - {player_id: p05, in_pool: true, rank_total: 5}
+        - {player_id: p06, in_pool: true, rank_total: 6}
+        - {player_id: p07, in_pool: true, rank_total: 7}
+        - {player_id: p08, in_pool: true, rank_total: 8}
+        - {player_id: p09, in_pool: true, rank_total: 9}
+        - {player_id: p10, in_pool: true, rank_total: 10}
+        - {player_id: p11, in_pool: false, rank_total: 11}
+        - {player_id: p12, in_pool: false, rank_total: 12}
+        - {player_id: p13, in_pool: false, rank_total: 13}
+        - {player_id: p14, in_pool: false, rank_total: 14}
+        - {player_id: p15, in_pool: false, rank_total: 15}
+        - {player_id: p16, in_pool: false, rank_total: 16}
+        - {player_id: p17, in_pool: false, rank_total: 17}
+        - {player_id: p18, in_pool: false, rank_total: 18}
+        - {player_id: p19, in_pool: false, rank_total: 19}
+        - {player_id: p20, in_pool: false, rank_total: 20}
+        - {player_id: p21, in_pool: false, rank_total: 21}
+        - {player_id: p22, in_pool: false, rank_total: 22}
+        - {player_id: p23, in_pool: false, rank_total: 23}
+        - {player_id: p24, in_pool: false, rank_total: 24}
+        - {player_id: p25, in_pool: false, rank_total: 25}
+        - {player_id: p26, in_pool: false, rank_total: 26}
+        - {player_id: p27, in_pool: false, rank_total: 27}
+        - {player_id: p28, in_pool: false, rank_total: 28}
+        - {player_id: p29, in_pool: false, rank_total: 29}
+        - {player_id: p30, in_pool: false, rank_total: 30}
+
+  - name: board_availability_follows_the_status
+    description: >
+      Team A has four regular-season games left; team B has played its last. One player per
+      branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season
+      factor of 0, the team's season being over; b (out, back on the 13th) misses the one game
+      before that date, 0.75; c (out for the season) 0; d (officially questionable with an
+      injury, two past questionable listings that cost one and three games) the calibrated
+      average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0;
+      g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially
+      questionable for rest, a reason with no history) the old charge of half a game, 0.875.
+      Every projected line is zero, so value is zero and the factors are exact.
+    model: mart_board
+    overrides:
+      vars:
+        as_of: '2026-01-10'
+        fantasy:
+          nba: {teams: 2, roster_spots: 5, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
+    given:
+      - input: ref('mart_player_projection')
+        rows:
+          - {league: nba, season: '2025-26', player_id: a, team_id: B, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+          - {league: nba, season: '2025-26', player_id: b, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+          - {league: nba, season: '2025-26', player_id: c, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+          - {league: nba, season: '2025-26', player_id: d, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+          - {league: nba, season: '2025-26', player_id: e, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+          - {league: nba, season: '2025-26', player_id: f, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+          - {league: nba, season: '2025-26', player_id: g, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+          - {league: nba, season: '2025-26', player_id: h, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+      - input: ref('schedule_team_games')
+        rows:
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-12}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-14}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-16}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-18}
+          - {league: nba, season: '2025-26', team_id: B, game_type: regular, game_status: 3, game_date_est: 2025-12-01}
+          - {league: nba, season: '2025-26', team_id: B, game_type: regular, game_status: 3, game_date_est: 2025-12-03}
+      - input: ref('fct_player_status')
+        rows:
+          - {league: nba, stats_player_id: b, status: Out, status_group: out, espn_status_group: out, expected_return: 2026-01-13}
+          - {league: nba, stats_player_id: c, status: Out, status_group: out, espn_status_group: out, long_comment: 'He will miss the rest of the season.'}
+          - {league: nba, stats_player_id: d, status: Questionable, status_group: questionable, espn_status_group: questionable, official_status: Questionable, official_reason_group: injury}
+          - {league: nba, stats_player_id: f, status: Out, status_group: out, espn_status_group: out}
+          - {league: nba, stats_player_id: g, status: Doubtful, status_group: doubtful, espn_status_group: doubtful}
+          - {league: nba, stats_player_id: h, status: Questionable, status_group: questionable, espn_status_group: questionable, official_status: Questionable, official_reason_group: rest}
+      - input: ref('fct_official_listing')
+        rows:
+          - {league: nba, status: Questionable, reason_group: injury, games_missed: 1}
+          - {league: nba, status: Questionable, reason_group: injury, games_missed: 3}
+      - input: ref('mart_category_zscores')
+        rows: []
+      - input: ref('int_player_news_latest')
+        rows: []
+      - input: ref('team_current')
+        rows: []
+      - input: ref('dim_player')
+        rows: []
+      - input: ref('teams')
+        rows: []
+      - input: ref('fct_starting_lineup')
+        rows: []
+      - input: ref('fct_market_value')
+        rows: []
+      - input: ref('fct_team_stakes')
+        rows: []
+    expect:
+      rows:
+        - {player_id: a, games_remaining: 0, availability_multiplier: 1.0, expected_games_missed: null, season_complete: false, ros_factor: 0.0}
+        - {player_id: b, games_remaining: 4, availability_multiplier: 0.75, expected_games_missed: null, season_complete: false, ros_factor: 0.75}
+        - {player_id: c, games_remaining: 4, availability_multiplier: 0.0, expected_games_missed: null, season_complete: false, ros_factor: 0.0}
+        - {player_id: d, games_remaining: 4, availability_multiplier: 0.5, expected_games_missed: 2.0, season_complete: false, ros_factor: 0.5}
+        - {player_id: e, games_remaining: 4, availability_multiplier: 1.0, expected_games_missed: null, season_complete: false, ros_factor: 1.0}
+        - {player_id: f, games_remaining: 4, availability_multiplier: 0.0, expected_games_missed: null, season_complete: false, ros_factor: 0.0}
+        - {player_id: g, games_remaining: 4, availability_multiplier: 0.8125, expected_games_missed: null, season_complete: false, ros_factor: 0.8125}
+        - {player_id: h, games_remaining: 4, availability_multiplier: 0.875, expected_games_missed: null, season_complete: false, ros_factor: 0.875}

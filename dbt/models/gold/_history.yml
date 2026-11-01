@@ -117,8 +117,12 @@ models:
       - name: season
         description: "Season label"
       - name: game_id
-        description: "League game id"
-        data_tests: [not_null]
+        description: "League game id, a played game in dim_game"
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_game')
+              field: game_id
       - name: game_date
         description: "The game's date (Eastern)"
       - name: home_team_id
