@@ -40,6 +40,21 @@ test('the page preloads the build pointer and the board is populated within budg
   expect(elapsed).toBeLessThan(10_000);
 });
 
+test('the sources page names every source with what is published from it, and the footer links it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('sources-link').click();
+  await expect(page).toHaveURL(/\/sources\/$/);
+  const cards = page.getByTestId('sources').locator('article');
+  expect(await cards.count()).toBeGreaterThanOrEqual(5);
+  for (const name of ['NBA.com and WNBA.com statistics', 'ESPN', 'Sleeper', 'The Odds API']) {
+    const card = cards.filter({ has: page.locator('h3', { hasText: name }) });
+    await expect(card).toHaveCount(1);
+    await expect(card.locator('dt', { hasText: 'Published' })).toBeVisible();
+  }
+  await expect(page.getByTestId('principles').locator('li')).toHaveCount(5);
+  await expect(page.getByRole('link', { name: 'open an issue' })).toHaveAttribute('href', /github\.com/);
+});
+
 test('the board ranks players and links to player pages', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
@@ -277,7 +292,7 @@ for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/']) {
 }
 
 // Static pages: nothing loads after the first paint. The schema page is checked with every model open.
-for (const path of ['/pipeline/', '/schema/']) {
+for (const path of ['/pipeline/', '/schema/', '/sources/']) {
   test(`${path} has no accessibility violations`, async ({ page }) => {
     // With every model open the schema page is large: axe needs longer than the default.
     test.setTimeout(90_000);
