@@ -189,7 +189,7 @@ select check_name, model, severity, status, failures
 from fantasyscout.ops.test_results where run_id = '<run_id>' and status <> 'pass';
 ```
 
-Severities follow the spec: keys, arithmetic, box-score closure (except turnovers, see ADR 0003), in-season freshness and completeness are errors; minutes closure, event-to-box agreement, shot location sanity, team turnovers and ingest volume anomalies are warnings.
+Severities follow the spec: keys, arithmetic, box-score closure (except turnovers, see ADR 0003), in-season freshness and completeness are errors (`assert_freshness_in_season` for the games in gold; `assert_core_feeds_fresh` for a core source feed stale by more than two days past its allowance, `ops.feed_freshness.is_core`); minutes closure, event-to-box agreement, shot location sanity, team turnovers and ingest volume anomalies are warnings.
 
 Every build also writes one row to `ops.build_log` from its Report step: the GitHub run and the ingest run that triggered it, the dbt invocation and its gate, the export's build id, the selector of a light build, each step's outcome and duration and how long the job queued for a runner (from the Actions API), and the rows per table the build published (from its manifest). The same facts go to the run's step summary, and Data Health lists the recent runs.
 
