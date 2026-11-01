@@ -125,6 +125,19 @@
    ]
   },
   {
+   "about": "Days the board ledger (fct_board_history) should hold a snapshot for but does not: every Eastern date in the last 45 days, from the league's first snapshot on, while the league was playing (a regular-season, play-in or playoff game within three days either side), with no row. A failed nightly build leaves exactly such a hole, and the ledger is the only history of the newer signals; the runbook (\"Fill a hole in the board ledger\") says how to put the day back from a kept build. The 45-day window is what the kept builds can still fill with margin to notice; an older hole is history.",
+   "name": "warn_board_history_gaps",
+   "reads": [
+    "dim_date",
+    "fct_board_history",
+    "schedule"
+   ],
+   "severity": "warn",
+   "tags": [
+    "board"
+   ]
+  },
+  {
    "about": "At least 99% of a season's played player-games are matched to ESPN through the crosswalk (SPEC.md phase 4). The league lists inactive players with a line of zeros that ESPN does not carry, so the rate is judged over players who were on the floor. Seasons with fewer than 100 played player-games are too small to judge.",
    "name": "warn_crosswalk_coverage",
    "reads": [
@@ -11549,6 +11562,7 @@
      "checks": [
       "assert_completeness",
       "assert_freshness_in_season",
+      "warn_board_history_gaps",
       "warn_venue_cities"
      ],
      "columns": [
@@ -13019,7 +13033,9 @@
   {
    "models": [
     {
-     "checks": [],
+     "checks": [
+      "warn_board_history_gaps"
+     ],
      "columns": [
       {
        "description": "Calendar date",
@@ -13734,7 +13750,9 @@
      "unit_tests": []
     },
     {
-     "checks": [],
+     "checks": [
+      "warn_board_history_gaps"
+     ],
      "columns": [
       {
        "description": "Surrogate key: one row per snapshot date, league and player",
