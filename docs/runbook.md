@@ -50,6 +50,17 @@ Third-party actions are pinned to a commit SHA with the version in a comment; De
 2. Update the GitHub Actions secret. Re-run the latest deploy or build workflow to prove the new value works.
 3. Revoke the old one at the provider. Check the next scheduled run is green.
 
+## A narrower token for the ingest
+
+The ingest and backfill jobs only ever write landed files (and read the landing indexes); the build, the export and the query need the SQL warehouse. The stats jobs also run on the home runners, the one place with residential egress, so the token they hold should be able to do nothing else. The workflows read `DATABRICKS_INGEST_TOKEN` for the ingest and backfill jobs and fall back to `DATABRICKS_TOKEN` while it is unset. To make the narrower token, in the workspace:
+
+1. Create a service principal (Settings → Identity and access → Service principals), for example `fantasyscout-ingest`.
+2. Grant it what the landing needs and nothing more, as the owner in a SQL editor: `GRANT USE CATALOG ON CATALOG fantasyscout TO `fantasyscout-ingest``, `GRANT USE SCHEMA ON SCHEMA fantasyscout.raw TO ...`, `GRANT READ VOLUME, WRITE VOLUME ON VOLUME fantasyscout.raw.landing TO ...`. No warehouse access, no other schema.
+3. Give the principal a personal access token (the Files API takes a bearer token; an OAuth machine-to-machine token expires within the hour, too short for a backfill): `POST /api/2.0/token-management/on-behalf-of/tokens` with the principal's application id and a lifetime, as the owner.
+4. Add it as the GitHub Actions secret `DATABRICKS_INGEST_TOKEN`; run Ingest by hand and check the landing step is green; rotate it on the schedule above.
+
+Workload identity federation (no long-lived token at all) would be better still; whether Free Edition supports it is unverified, and the token above is the step that does not depend on that.
+
 ## The owner's sign-in (private tables)
 
 The Parquet tables, and so the SQL console, are private to the site's owner (ADR 0008). The owner signs in with their Yahoo account through the Yahoo app (`YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`), using OpenID, which names the account (ADR 0008 addendum).

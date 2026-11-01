@@ -126,7 +126,8 @@ jobs:
         id: land
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # The ingest's own token when the owner has made one (runbook, "A narrower token for the ingest").
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
           SINCE: ${{ inputs.since }}
           UNTIL: ${{ inputs.until }}
           FULL_REFRESH: ${{ inputs.full_refresh }}
@@ -170,7 +171,8 @@ jobs:
         id: land
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # The ingest's own token when the owner has made one (runbook, "A narrower token for the ingest").
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
           # Player prop lines from The Odds API (private, ADR 0008); skipped while unset.
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
@@ -208,7 +210,8 @@ jobs:
         id: land
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          # The ingest's own token when the owner has made one (runbook, "A narrower token for the ingest").
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
           SINCE: ${{ inputs.since }}
           UNTIL: ${{ inputs.until }}
           FULL_REFRESH: ${{ inputs.full_refresh }}
