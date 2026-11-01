@@ -7,14 +7,20 @@
  */
 import { DEFAULT_SETTINGS, type LeagueSetup, matchNames, normalize } from './fantasy-league';
 
+export interface YahooPlayer {
+  name: string;
+  /** On an injured-list slot (IL, IL+), which does not take a roster spot. */
+  il: boolean;
+}
+
 export interface YahooTeam {
   id: number;
   name: string;
-  players: string[];
+  players: YahooPlayer[];
 }
 
 export interface YahooPayload {
-  v: 1;
+  v: 2;
   leagueId: string;
   /** Yahoo's id of the manager's team, where the page said which one that is. */
   mine: number | null;
@@ -63,11 +69,21 @@ export function collectYahooLeague(target: string): void {
   }
   const ids = names.size ? Array.from(names.keys()).sort((x, y) => x - y) : Array.from({ length: 20 }, (_, i) => i + 1);
   const blocked = /note|news|compare|stats|watch|add|drop|trade/i;
+  // The roster slot sits in the player's row as a short label; IL and IL+ are the injured list.
+  const slot = /^(IL\+?|IR\+?|NA)$/i;
+  const onIl = (a: Element) => {
+    const row = a.closest('tr') || a.closest('li') || a.parentElement;
+    if (!row) return false;
+    return Array.from(row.querySelectorAll('td, th, span, div, abbr, button')).some((el) => {
+      const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
+      return t.length <= 4 && slot.test(t);
+    });
+  };
   const rosterOf = (page: Document) => {
-    const out: string[] = [];
+    const out: { name: string; il: boolean }[] = [];
     for (const a of Array.from(page.querySelectorAll('a[href*="/nba/players/"]'))) {
       const n = (a.textContent || '').replace(/\s+/g, ' ').trim();
-      if (n.length > 2 && n.length < 40 && /\s/.test(n) && !blocked.test(n) && !out.includes(n)) out.push(n);
+      if (n.length > 2 && n.length < 40 && /\s/.test(n) && !blocked.test(n) && !out.some((p) => p.name === n)) out.push({ name: n, il: onIl(a) });
     }
     return out;
   };
@@ -75,7 +91,7 @@ export function collectYahooLeague(target: string): void {
     const teams: YahooTeam[] = [];
     let misses = 0;
     for (const t of ids) {
-      let players: string[] = [];
+      let players: { name: string; il: boolean }[] = [];
       let name = names.get(t) || '';
       try {
         const res = await fetch(base + t, { credentials: 'include' });
@@ -99,7 +115,7 @@ export function collectYahooLeague(target: string): void {
       alert('No rosters were found on this league’s team pages. Open your league on Yahoo (the My Team or League tab) and run the bookmark again.');
       return;
     }
-    const payload: YahooPayload = { v: 1, leagueId, mine, teams };
+    const payload: YahooPayload = { v: 2, leagueId, mine, teams };
     location.href = target.replace(/#.*$/, '') + '#yahoo=' + encodeURIComponent(JSON.stringify(payload));
   })();
 }
@@ -109,40 +125,55 @@ export function yahooBookmarklet(target: string): string {
   return `javascript:(${collectYahooLeague.toString()})(${JSON.stringify(target)})`;
 }
 
+/** A player entry as a bookmark sent it: a version 1 bookmark sends the name alone. */
+function yahooPlayer(x: unknown): YahooPlayer | null {
+  if (typeof x === 'string') return { name: x, il: false };
+  if (!x || typeof x !== 'object' || !('name' in x)) return null;
+  const p = x as { name: unknown; il?: unknown };
+  return { name: String(p.name), il: !!p.il };
+}
+
 /** The payload a bookmarklet put in the URL fragment, or null when there is none or it is malformed. */
 export function parseYahooHash(hash: string): YahooPayload | null {
   const m = hash.match(/^#yahoo=(.+)$/);
   if (!m || !m[1]) return null;
   try {
-    const raw = JSON.parse(decodeURIComponent(m[1])) as Partial<YahooPayload>;
-    if (raw.v !== 1 || !Array.isArray(raw.teams) || !raw.teams.length) return null;
-    const teams = raw.teams
-      .filter((t): t is YahooTeam => !!t && typeof t === 'object' && Array.isArray((t as YahooTeam).players))
-      .map((t) => ({ id: Number(t.id), name: String(t.name || `Team ${t.id}`).slice(0, 60), players: t.players.map(String) }));
-    return teams.length ? { v: 1, leagueId: String(raw.leagueId ?? ''), mine: typeof raw.mine === 'number' ? raw.mine : null, teams } : null;
+    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown };
+    // Version 1 bookmarks (names only) still work; version 2 says who is on the injured list.
+    if ((raw.v !== 1 && raw.v !== 2) || !Array.isArray(raw.teams) || !raw.teams.length) return null;
+    const teams = (raw.teams as unknown[])
+      .filter((t): t is { id: unknown; name?: unknown; players: unknown[] } => !!t && typeof t === 'object' && Array.isArray((t as { players?: unknown }).players))
+      .map((t) => ({
+        id: Number(t.id),
+        name: String(t.name || `Team ${t.id}`).slice(0, 60),
+        players: t.players.map(yahooPlayer).filter((p): p is YahooPlayer => !!p),
+      }));
+    return teams.length ? { v: 2, leagueId: String(raw.leagueId ?? ''), mine: typeof raw.mine === 'number' ? raw.mine : null, teams } : null;
   } catch {
     return null;
   }
 }
 
-/** The league with the imported teams: names, rosters matched by name, and the manager's team. */
+/** The league with the imported teams: names, rosters matched by name, the injured list, and the manager's team. */
 export function applyYahooImport(
   setup: LeagueSetup,
   payload: YahooPayload,
   players: { player_id: string; full_name: string | null }[],
-): { setup: LeagueSetup; matched: number; unmatched: string[] } {
+): { setup: LeagueSetup; matched: number; unmatched: string[]; il: number } {
   const unmatched: string[] = [];
+  const il: string[] = [];
   let matched = 0;
   const rosters = payload.teams.map((t) => {
-    const result = matchNames(t.players.join('\n'), players);
+    const result = matchNames(t.players.map((p) => p.name).join('\n'), players);
     matched += result.matched.length;
     unmatched.push(...result.unmatched);
+    il.push(...matchNames(t.players.filter((p) => p.il).map((p) => p.name).join('\n'), players).matched);
     return result.matched;
   });
   const mine = Math.max(0, payload.teams.findIndex((t) => t.id === payload.mine));
   const next = normalize(
-    { ...setup, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, picks: [], drafting: false },
+    { ...setup, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },
     DEFAULT_SETTINGS['nba'],
   );
-  return { setup: next, matched, unmatched };
+  return { setup: next, matched, unmatched, il: next.il.length };
 }

@@ -7,7 +7,7 @@ import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
-import { assign, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, undoPick, useLeague } from '../lib/fantasy-league';
+import { assign, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { href } from '../lib/site';
@@ -118,6 +118,7 @@ export default function LeagueSetup() {
     update(() => result.setup);
     setLoadNote(
       `Imported ${payload.teams.length} teams from Yahoo: ${result.matched} players matched` +
+        (result.il ? `, ${result.il} on the IL` : '') +
         (result.unmatched.length ? `; not found: ${result.unmatched.join(', ')}` : '') +
         '.',
     );
@@ -154,8 +155,10 @@ export default function LeagueSetup() {
     if (!rows) return null;
     const teams = setup.rosters.map((roster, t) => {
       const totals: Record<string, number> = {};
-      if (catValues) for (const c of cats) totals[c] = roster.reduce((s, id) => s + (catValues.get(id)?.[c] ?? 0), 0);
-      const fpts = pointVals ? roster.reduce((s, id) => s + (pointVals.get(id)?.fpts ?? 0), 0) : 0;
+      // Players on the injured list are owned but not playing: they stay out of the team's totals.
+      const active = roster.filter((id) => !setup.il.includes(id));
+      if (catValues) for (const c of cats) totals[c] = active.reduce((s, id) => s + (catValues.get(id)?.[c] ?? 0), 0);
+      const fpts = pointVals ? active.reduce((s, id) => s + (pointVals.get(id)?.fpts ?? 0), 0) : 0;
       const total = catValues ? cats.reduce((s, c) => s + (totals[c] ?? 0), 0) : fpts;
       return { team: t, totals, fpts, total, size: roster.length };
     });
@@ -166,7 +169,7 @@ export default function LeagueSetup() {
     };
     const ranks = Object.fromEntries(cats.map((c) => [c, rankIn((x) => x.totals[c] ?? 0)]));
     return { teams, ranks, totalRank: rankIn((x) => x.total), ranked: teams.filter((x) => x.size > 0).length };
-  }, [rows, setup.rosters, catValues, pointVals, cats]);
+  }, [rows, setup.rosters, setup.il, catValues, pointVals, cats]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the league" />;
@@ -320,7 +323,11 @@ export default function LeagueSetup() {
             Teams and rosters
           </h2>
           <p className="text-xs text-muted">
-            List teams in draft order. {rostered} of {pool} roster spots filled.
+            List teams in draft order. {rostered - setup.il.length} of {pool} roster spots filled
+            {setup.il.length ? ` (${setup.il.length} more on the IL)` : ''}.
+            <span className="ml-1" title="An injured-list slot (IL, IL+) holds a player without taking a roster spot: mark one with the IL button">
+              IL players do not take a spot.
+            </span>
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -361,14 +368,26 @@ export default function LeagueSetup() {
                               {p?.position ?? ''} {p?.team_abbreviation ?? ''}
                             </span>
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => update((s) => assign(s, id, null))}
-                            className="px-1 text-muted hover:text-bad"
-                            aria-label={`Remove ${p?.full_name ?? id} from ${name}`}
-                          >
-                            ×
-                          </button>
+                          <span className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => update((s) => toggleIl(s, id))}
+                              aria-pressed={setup.il.includes(id)}
+                              aria-label={`Injured list: ${p?.full_name ?? id}`}
+                              title={setup.il.includes(id) ? 'On the injured list (IL): owned, not a roster spot. Click to move off it.' : 'Move to the injured list (IL): keeps the player but frees the roster spot'}
+                              className={`rounded border px-1 text-[10px] font-semibold ${setup.il.includes(id) ? 'border-warn text-warn' : 'border-line text-muted hover:text-fg'}`}
+                            >
+                              IL
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => update((s) => assign(s, id, null))}
+                              className="px-1 text-muted hover:text-bad"
+                              aria-label={`Remove ${p?.full_name ?? id} from ${name}`}
+                            >
+                              ×
+                            </button>
+                          </span>
                         </li>
                       );
                     })}

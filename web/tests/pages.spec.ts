@@ -532,7 +532,13 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   await page.evaluate(code.slice('javascript:'.length));
   await expect(page).toHaveURL(/\/league\/\?league=nba$/);
   await expect(page.getByTestId('team-card')).toHaveCount(4);
-  await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 12 players matched.');
+  await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 12 players matched, 4 on the IL.');
+  // IL players are owned but take no roster spot, and the IL can be toggled by hand.
+  await expect(page.getByRole('button', { name: /^Injured list:/, pressed: true })).toHaveCount(4);
+  await expect(page.getByText(/8 of \d+ roster spots filled \(4 more on the IL\)/)).toBeVisible();
+  await page.getByRole('button', { name: /^Injured list:/, pressed: true }).first().click();
+  await expect(page.getByRole('button', { name: /^Injured list:/, pressed: true })).toHaveCount(3);
+  await expect(page.getByText(/9 of \d+ roster spots filled \(3 more on the IL\)/)).toBeVisible();
   await expect(page.getByTestId('team-card').nth(1).getByLabel('Name of team 2')).toHaveValue('Rim Reapers');
   await expect(page.getByTestId('team-card').nth(1).getByRole('radio')).toBeChecked();
   await expect(page.getByTestId('team-card').nth(0).getByTestId('roster').locator('li')).toHaveCount(3);

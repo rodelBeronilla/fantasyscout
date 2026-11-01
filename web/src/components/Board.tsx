@@ -262,7 +262,11 @@ export default function Board() {
   );
 
   // The manager's team: its category totals set how much each category counts in Fit.
-  const myTeam = useMemo(() => (rows ?? []).filter((r) => owner.get(r.player_id) === setup.mine), [rows, owner, setup.mine]);
+  // The manager's team, without players parked on the injured list.
+  const myTeam = useMemo(
+    () => (rows ?? []).filter((r) => owner.get(r.player_id) === setup.mine && !setup.il.includes(r.player_id)),
+    [rows, owner, setup.mine, setup.il],
+  );
   const teamTotals = useMemo(() => {
     if (!leagueCats || myTeam.length === 0) return null;
     return Object.fromEntries(activeCats.map((c) => [c, myTeam.reduce((s, r) => s + (leagueCats.get(r.player_id)?.[c] ?? 0), 0)]));
