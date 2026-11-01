@@ -14,38 +14,48 @@ rows as (
 
     select
         files.*,
+        {{ stats_headers('files.payload') }} as headers,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
     where files.request_key like 'possessions-%'
 
+),
+
+cells as (
+
+    select
+        rows.*,
+        {{ stats_row_values('rows.row') }} as cell
+    from rows
+
 )
 
 select
-    rows._source_file,
-    rows.league,
-    rows.season,
-    rows._ingest_date,
-    rows.request_key,
-    {{ sha256('rows.payload') }} as _payload_hash,
-    {{ json_text('rows.row', '$[0]') }} as player_id,
-    {{ json_text('rows.row', '$[1]') }} as player_name,
-    {{ json_text('rows.row', '$[2]') }} as team_id,
-    {{ json_text('rows.row', '$[3]') }} as team_abbreviation,
-    {{ json_text('rows.row', '$[4]') }} as gp,
-    {{ json_text('rows.row', '$[5]') }} as w,
-    {{ json_text('rows.row', '$[6]') }} as l,
-    {{ json_text('rows.row', '$[7]') }} as min,
-    {{ json_text('rows.row', '$[8]') }} as points,
-    {{ json_text('rows.row', '$[9]') }} as touches,
-    {{ json_text('rows.row', '$[10]') }} as front_ct_touches,
-    {{ json_text('rows.row', '$[11]') }} as time_of_poss,
-    {{ json_text('rows.row', '$[12]') }} as avg_sec_per_touch,
-    {{ json_text('rows.row', '$[13]') }} as avg_drib_per_touch,
-    {{ json_text('rows.row', '$[14]') }} as pts_per_touch,
-    {{ json_text('rows.row', '$[15]') }} as elbow_touches,
-    {{ json_text('rows.row', '$[16]') }} as post_touches,
-    {{ json_text('rows.row', '$[17]') }} as paint_touches,
-    {{ json_text('rows.row', '$[18]') }} as pts_per_elbow_touch,
-    {{ json_text('rows.row', '$[19]') }} as pts_per_post_touch,
-    {{ json_text('rows.row', '$[20]') }} as pts_per_paint_touch
-from rows
+    cells._source_file,
+    cells.league,
+    cells.season,
+    cells._ingest_date,
+    cells.request_key,
+    {{ sha256('cells.payload') }} as _payload_hash,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_ID') }} as player_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_NAME') }} as player_name,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ID') }} as team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ABBREVIATION') }} as team_abbreviation,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GP') }} as gp,
+    {{ stats_cell('cells.cell', 'cells.headers', 'W') }} as w,
+    {{ stats_cell('cells.cell', 'cells.headers', 'L') }} as l,
+    {{ stats_cell('cells.cell', 'cells.headers', 'MIN') }} as min,
+    {{ stats_cell('cells.cell', 'cells.headers', 'POINTS') }} as points,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TOUCHES') }} as touches,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FRONT_CT_TOUCHES') }} as front_ct_touches,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TIME_OF_POSS') }} as time_of_poss,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AVG_SEC_PER_TOUCH') }} as avg_sec_per_touch,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AVG_DRIB_PER_TOUCH') }} as avg_drib_per_touch,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PTS_PER_TOUCH') }} as pts_per_touch,
+    {{ stats_cell('cells.cell', 'cells.headers', 'ELBOW_TOUCHES') }} as elbow_touches,
+    {{ stats_cell('cells.cell', 'cells.headers', 'POST_TOUCHES') }} as post_touches,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PAINT_TOUCHES') }} as paint_touches,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PTS_PER_ELBOW_TOUCH') }} as pts_per_elbow_touch,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PTS_PER_POST_TOUCH') }} as pts_per_post_touch,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PTS_PER_PAINT_TOUCH') }} as pts_per_paint_touch
+from cells

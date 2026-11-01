@@ -169,6 +169,8 @@ From the Actions tab, run Ingest with the `only` input (space-separated). The ru
 
 ## When a source changes shape
 
+The league stats API's `resultSets` are read by header name (`dbt/macros/stats.sql`: `stats_headers`, `stats_row_values`, `stats_cell`), not by position, so a column the API inserts changes nothing in bronze; a column it renames or removes comes through as null, and the silver `not_null` tests name it. For the ESPN and league JSON feeds, which are read by key, the same holds.
+
 Landed payloads are raw, so a shape change breaks bronze parsing (phase 2), not landing.
 
 1. Compare a fresh payload with the fixture in `tests/fixtures/<source>/<endpoint>.json`.

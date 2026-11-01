@@ -14,45 +14,55 @@ rows as (
 
     select
         files.*,
+        {{ stats_headers('files.payload') }} as headers,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
+
+),
+
+cells as (
+
+    select
+        rows.*,
+        {{ stats_row_values('rows.row') }} as cell
+    from rows
 
 )
 
 select
-    rows._source_file,
-    rows.league,
-    rows.season,
-    rows._ingest_date,
-    rows.request_key,
-    {{ sha256('rows.payload') }} as _payload_hash,
-    {{ json_text('rows.row', '$[0]') }} as season_id,
-    {{ json_text('rows.row', '$[1]') }} as team_id,
-    {{ json_text('rows.row', '$[2]') }} as team_abbreviation,
-    {{ json_text('rows.row', '$[3]') }} as team_name,
-    {{ json_text('rows.row', '$[4]') }} as game_id,
-    {{ json_text('rows.row', '$[5]') }} as game_date,
-    {{ json_text('rows.row', '$[6]') }} as matchup,
-    {{ json_text('rows.row', '$[7]') }} as wl,
-    {{ json_text('rows.row', '$[8]') }} as min,
-    {{ json_text('rows.row', '$[9]') }} as fgm,
-    {{ json_text('rows.row', '$[10]') }} as fga,
-    {{ json_text('rows.row', '$[11]') }} as fg_pct,
-    {{ json_text('rows.row', '$[12]') }} as fg3m,
-    {{ json_text('rows.row', '$[13]') }} as fg3a,
-    {{ json_text('rows.row', '$[14]') }} as fg3_pct,
-    {{ json_text('rows.row', '$[15]') }} as ftm,
-    {{ json_text('rows.row', '$[16]') }} as fta,
-    {{ json_text('rows.row', '$[17]') }} as ft_pct,
-    {{ json_text('rows.row', '$[18]') }} as oreb,
-    {{ json_text('rows.row', '$[19]') }} as dreb,
-    {{ json_text('rows.row', '$[20]') }} as reb,
-    {{ json_text('rows.row', '$[21]') }} as ast,
-    {{ json_text('rows.row', '$[22]') }} as stl,
-    {{ json_text('rows.row', '$[23]') }} as blk,
-    {{ json_text('rows.row', '$[24]') }} as tov,
-    {{ json_text('rows.row', '$[25]') }} as pf,
-    {{ json_text('rows.row', '$[26]') }} as pts,
-    {{ json_text('rows.row', '$[27]') }} as plus_minus,
-    {{ json_text('rows.row', '$[28]') }} as video_available
-from rows
+    cells._source_file,
+    cells.league,
+    cells.season,
+    cells._ingest_date,
+    cells.request_key,
+    {{ sha256('cells.payload') }} as _payload_hash,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SEASON_ID') }} as season_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ID') }} as team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ABBREVIATION') }} as team_abbreviation,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_NAME') }} as team_name,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GAME_ID') }} as game_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GAME_DATE') }} as game_date,
+    {{ stats_cell('cells.cell', 'cells.headers', 'MATCHUP') }} as matchup,
+    {{ stats_cell('cells.cell', 'cells.headers', 'WL') }} as wl,
+    {{ stats_cell('cells.cell', 'cells.headers', 'MIN') }} as min,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FGM') }} as fgm,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FGA') }} as fga,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FG_PCT') }} as fg_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FG3M') }} as fg3m,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FG3A') }} as fg3a,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FG3_PCT') }} as fg3_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FTM') }} as ftm,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FTA') }} as fta,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FT_PCT') }} as ft_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'OREB') }} as oreb,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DREB') }} as dreb,
+    {{ stats_cell('cells.cell', 'cells.headers', 'REB') }} as reb,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AST') }} as ast,
+    {{ stats_cell('cells.cell', 'cells.headers', 'STL') }} as stl,
+    {{ stats_cell('cells.cell', 'cells.headers', 'BLK') }} as blk,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TOV') }} as tov,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PF') }} as pf,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PTS') }} as pts,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLUS_MINUS') }} as plus_minus,
+    {{ stats_cell('cells.cell', 'cells.headers', 'VIDEO_AVAILABLE') }} as video_available
+from cells

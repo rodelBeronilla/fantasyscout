@@ -14,42 +14,52 @@ rows as (
 
     select
         files.*,
+        {{ stats_headers('files.payload') }} as headers,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
     where files.request_key like 'drives-%'
 
+),
+
+cells as (
+
+    select
+        rows.*,
+        {{ stats_row_values('rows.row') }} as cell
+    from rows
+
 )
 
 select
-    rows._source_file,
-    rows.league,
-    rows.season,
-    rows._ingest_date,
-    rows.request_key,
-    {{ sha256('rows.payload') }} as _payload_hash,
-    {{ json_text('rows.row', '$[0]') }} as player_id,
-    {{ json_text('rows.row', '$[1]') }} as player_name,
-    {{ json_text('rows.row', '$[2]') }} as team_id,
-    {{ json_text('rows.row', '$[3]') }} as team_abbreviation,
-    {{ json_text('rows.row', '$[4]') }} as gp,
-    {{ json_text('rows.row', '$[5]') }} as w,
-    {{ json_text('rows.row', '$[6]') }} as l,
-    {{ json_text('rows.row', '$[7]') }} as min,
-    {{ json_text('rows.row', '$[8]') }} as drives,
-    {{ json_text('rows.row', '$[9]') }} as drive_fgm,
-    {{ json_text('rows.row', '$[10]') }} as drive_fga,
-    {{ json_text('rows.row', '$[11]') }} as drive_fg_pct,
-    {{ json_text('rows.row', '$[12]') }} as drive_ftm,
-    {{ json_text('rows.row', '$[13]') }} as drive_fta,
-    {{ json_text('rows.row', '$[14]') }} as drive_ft_pct,
-    {{ json_text('rows.row', '$[15]') }} as drive_pts,
-    {{ json_text('rows.row', '$[16]') }} as drive_pts_pct,
-    {{ json_text('rows.row', '$[17]') }} as drive_passes,
-    {{ json_text('rows.row', '$[18]') }} as drive_passes_pct,
-    {{ json_text('rows.row', '$[19]') }} as drive_ast,
-    {{ json_text('rows.row', '$[20]') }} as drive_ast_pct,
-    {{ json_text('rows.row', '$[21]') }} as drive_tov,
-    {{ json_text('rows.row', '$[22]') }} as drive_tov_pct,
-    {{ json_text('rows.row', '$[23]') }} as drive_pf,
-    {{ json_text('rows.row', '$[24]') }} as drive_pf_pct
-from rows
+    cells._source_file,
+    cells.league,
+    cells.season,
+    cells._ingest_date,
+    cells.request_key,
+    {{ sha256('cells.payload') }} as _payload_hash,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_ID') }} as player_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_NAME') }} as player_name,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ID') }} as team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ABBREVIATION') }} as team_abbreviation,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GP') }} as gp,
+    {{ stats_cell('cells.cell', 'cells.headers', 'W') }} as w,
+    {{ stats_cell('cells.cell', 'cells.headers', 'L') }} as l,
+    {{ stats_cell('cells.cell', 'cells.headers', 'MIN') }} as min,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVES') }} as drives,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_FGM') }} as drive_fgm,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_FGA') }} as drive_fga,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_FG_PCT') }} as drive_fg_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_FTM') }} as drive_ftm,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_FTA') }} as drive_fta,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_FT_PCT') }} as drive_ft_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_PTS') }} as drive_pts,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_PTS_PCT') }} as drive_pts_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_PASSES') }} as drive_passes,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_PASSES_PCT') }} as drive_passes_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_AST') }} as drive_ast,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_AST_PCT') }} as drive_ast_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_TOV') }} as drive_tov,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_TOV_PCT') }} as drive_tov_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_PF') }} as drive_pf,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DRIVE_PF_PCT') }} as drive_pf_pct
+from cells

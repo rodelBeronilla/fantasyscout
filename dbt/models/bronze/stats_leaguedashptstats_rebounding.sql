@@ -14,52 +14,62 @@ rows as (
 
     select
         files.*,
+        {{ stats_headers('files.payload') }} as headers,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
     where files.request_key like 'rebounding-%'
 
+),
+
+cells as (
+
+    select
+        rows.*,
+        {{ stats_row_values('rows.row') }} as cell
+    from rows
+
 )
 
 select
-    rows._source_file,
-    rows.league,
-    rows.season,
-    rows._ingest_date,
-    rows.request_key,
-    {{ sha256('rows.payload') }} as _payload_hash,
-    {{ json_text('rows.row', '$[0]') }} as player_id,
-    {{ json_text('rows.row', '$[1]') }} as player_name,
-    {{ json_text('rows.row', '$[2]') }} as team_id,
-    {{ json_text('rows.row', '$[3]') }} as team_abbreviation,
-    {{ json_text('rows.row', '$[4]') }} as gp,
-    {{ json_text('rows.row', '$[5]') }} as w,
-    {{ json_text('rows.row', '$[6]') }} as l,
-    {{ json_text('rows.row', '$[7]') }} as min,
-    {{ json_text('rows.row', '$[8]') }} as oreb,
-    {{ json_text('rows.row', '$[9]') }} as oreb_contest,
-    {{ json_text('rows.row', '$[10]') }} as oreb_uncontest,
-    {{ json_text('rows.row', '$[11]') }} as oreb_contest_pct,
-    {{ json_text('rows.row', '$[12]') }} as oreb_chances,
-    {{ json_text('rows.row', '$[13]') }} as oreb_chance_pct,
-    {{ json_text('rows.row', '$[14]') }} as oreb_chance_defer,
-    {{ json_text('rows.row', '$[15]') }} as oreb_chance_pct_adj,
-    {{ json_text('rows.row', '$[16]') }} as avg_oreb_dist,
-    {{ json_text('rows.row', '$[17]') }} as dreb,
-    {{ json_text('rows.row', '$[18]') }} as dreb_contest,
-    {{ json_text('rows.row', '$[19]') }} as dreb_uncontest,
-    {{ json_text('rows.row', '$[20]') }} as dreb_contest_pct,
-    {{ json_text('rows.row', '$[21]') }} as dreb_chances,
-    {{ json_text('rows.row', '$[22]') }} as dreb_chance_pct,
-    {{ json_text('rows.row', '$[23]') }} as dreb_chance_defer,
-    {{ json_text('rows.row', '$[24]') }} as dreb_chance_pct_adj,
-    {{ json_text('rows.row', '$[25]') }} as avg_dreb_dist,
-    {{ json_text('rows.row', '$[26]') }} as reb,
-    {{ json_text('rows.row', '$[27]') }} as reb_contest,
-    {{ json_text('rows.row', '$[28]') }} as reb_uncontest,
-    {{ json_text('rows.row', '$[29]') }} as reb_contest_pct,
-    {{ json_text('rows.row', '$[30]') }} as reb_chances,
-    {{ json_text('rows.row', '$[31]') }} as reb_chance_pct,
-    {{ json_text('rows.row', '$[32]') }} as reb_chance_defer,
-    {{ json_text('rows.row', '$[33]') }} as reb_chance_pct_adj,
-    {{ json_text('rows.row', '$[34]') }} as avg_reb_dist
-from rows
+    cells._source_file,
+    cells.league,
+    cells.season,
+    cells._ingest_date,
+    cells.request_key,
+    {{ sha256('cells.payload') }} as _payload_hash,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_ID') }} as player_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_NAME') }} as player_name,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ID') }} as team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ABBREVIATION') }} as team_abbreviation,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GP') }} as gp,
+    {{ stats_cell('cells.cell', 'cells.headers', 'W') }} as w,
+    {{ stats_cell('cells.cell', 'cells.headers', 'L') }} as l,
+    {{ stats_cell('cells.cell', 'cells.headers', 'MIN') }} as min,
+    {{ stats_cell('cells.cell', 'cells.headers', 'OREB') }} as oreb,
+    {{ stats_cell('cells.cell', 'cells.headers', 'OREB_CONTEST') }} as oreb_contest,
+    {{ stats_cell('cells.cell', 'cells.headers', 'OREB_UNCONTEST') }} as oreb_uncontest,
+    {{ stats_cell('cells.cell', 'cells.headers', 'OREB_CONTEST_PCT') }} as oreb_contest_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'OREB_CHANCES') }} as oreb_chances,
+    {{ stats_cell('cells.cell', 'cells.headers', 'OREB_CHANCE_PCT') }} as oreb_chance_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'OREB_CHANCE_DEFER') }} as oreb_chance_defer,
+    {{ stats_cell('cells.cell', 'cells.headers', 'OREB_CHANCE_PCT_ADJ') }} as oreb_chance_pct_adj,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AVG_OREB_DIST') }} as avg_oreb_dist,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DREB') }} as dreb,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DREB_CONTEST') }} as dreb_contest,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DREB_UNCONTEST') }} as dreb_uncontest,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DREB_CONTEST_PCT') }} as dreb_contest_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DREB_CHANCES') }} as dreb_chances,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DREB_CHANCE_PCT') }} as dreb_chance_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DREB_CHANCE_DEFER') }} as dreb_chance_defer,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DREB_CHANCE_PCT_ADJ') }} as dreb_chance_pct_adj,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AVG_DREB_DIST') }} as avg_dreb_dist,
+    {{ stats_cell('cells.cell', 'cells.headers', 'REB') }} as reb,
+    {{ stats_cell('cells.cell', 'cells.headers', 'REB_CONTEST') }} as reb_contest,
+    {{ stats_cell('cells.cell', 'cells.headers', 'REB_UNCONTEST') }} as reb_uncontest,
+    {{ stats_cell('cells.cell', 'cells.headers', 'REB_CONTEST_PCT') }} as reb_contest_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'REB_CHANCES') }} as reb_chances,
+    {{ stats_cell('cells.cell', 'cells.headers', 'REB_CHANCE_PCT') }} as reb_chance_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'REB_CHANCE_DEFER') }} as reb_chance_defer,
+    {{ stats_cell('cells.cell', 'cells.headers', 'REB_CHANCE_PCT_ADJ') }} as reb_chance_pct_adj,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AVG_REB_DIST') }} as avg_reb_dist
+from cells

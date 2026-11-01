@@ -15,32 +15,42 @@ rows as (
 
     select
         files.*,
+        {{ stats_headers('files.payload') }} as headers,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
+
+),
+
+cells as (
+
+    select
+        rows.*,
+        {{ stats_row_values('rows.row') }} as cell
+    from rows
 
 )
 
 select
-    rows._source_file,
-    rows.league,
-    rows.season,
-    rows._ingest_date,
-    rows.request_key,
-    {{ sha256('rows.payload') }} as _payload_hash,
-    {{ json_text('rows.row', '$[2]') }} as team_id,
-    {{ json_text('rows.row', '$[3]') }} as team_city,
-    {{ json_text('rows.row', '$[4]') }} as team_name,
-    {{ json_text('rows.row', '$[6]') }} as conference,
-    {{ json_text('rows.row', '$[8]') }} as playoff_rank,
-    {{ json_text('rows.row', '$[9]') }} as clinch_indicator,
-    {{ json_text('rows.row', '$[13]') }} as wins,
-    {{ json_text('rows.row', '$[14]') }} as losses,
-    {{ json_text('rows.row', '$[15]') }} as win_pct,
-    {{ json_text('rows.row', '$[20]') }} as last_10,
-    {{ json_text('rows.row', '$[37]') }} as current_streak,
-    {{ json_text('rows.row', '$[38]') }} as conference_games_back,
-    {{ json_text('rows.row', '$[40]') }} as clinched_conference,
-    {{ json_text('rows.row', '$[42]') }} as clinched_playoffs,
-    {{ json_text('rows.row', '$[43]') }} as clinched_play_in,
-    {{ json_text('rows.row', '$[44]') }} as eliminated
-from rows
+    cells._source_file,
+    cells.league,
+    cells.season,
+    cells._ingest_date,
+    cells.request_key,
+    {{ sha256('cells.payload') }} as _payload_hash,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TeamID') }} as team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TeamCity') }} as team_city,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TeamName') }} as team_name,
+    {{ stats_cell('cells.cell', 'cells.headers', 'Conference') }} as conference,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PlayoffRank') }} as playoff_rank,
+    {{ stats_cell('cells.cell', 'cells.headers', 'ClinchIndicator') }} as clinch_indicator,
+    {{ stats_cell('cells.cell', 'cells.headers', 'WINS') }} as wins,
+    {{ stats_cell('cells.cell', 'cells.headers', 'LOSSES') }} as losses,
+    {{ stats_cell('cells.cell', 'cells.headers', 'WinPCT') }} as win_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'L10') }} as last_10,
+    {{ stats_cell('cells.cell', 'cells.headers', 'strCurrentStreak') }} as current_streak,
+    {{ stats_cell('cells.cell', 'cells.headers', 'ConferenceGamesBack') }} as conference_games_back,
+    {{ stats_cell('cells.cell', 'cells.headers', 'ClinchedConferenceTitle') }} as clinched_conference,
+    {{ stats_cell('cells.cell', 'cells.headers', 'ClinchedPlayoffBirth') }} as clinched_playoffs,
+    {{ stats_cell('cells.cell', 'cells.headers', 'ClinchedPlayIn') }} as clinched_play_in,
+    {{ stats_cell('cells.cell', 'cells.headers', 'EliminatedConference') }} as eliminated
+from cells
