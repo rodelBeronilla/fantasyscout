@@ -171,6 +171,44 @@ describe('data', () => {
     expect(priv.headers.get('cache-control')).toContain('private');
   });
 
+
+  it('answers an R2 failure with 503 and retry-after, not 416', async () => {
+    const spy = vi.spyOn(env.DATA, 'get').mockRejectedValueOnce(new Error('r2 down'));
+    try {
+      const res = await SELF.fetch(`${ORIGIN}/data/builds/test/board/nba.json`);
+      expect(res.status).toBe(503);
+      expect(res.headers.get('retry-after')).toBe('30');
+      expect(res.headers.get('cache-control')).toBe('no-store');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('still answers 416 when a range was asked and R2 refused it', async () => {
+    const spy = vi.spyOn(env.DATA, 'get').mockRejectedValueOnce(new Error('range not satisfiable'));
+    try {
+      const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, {
+        headers: { ...OWNER, range: 'bytes=500-' },
+      });
+      expect(res.status).toBe(416);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('answers HEAD with the headers and no body', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, { method: 'HEAD', headers: OWNER });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-length')).toBe('100');
+    expect(res.headers.get('etag')).toBeTruthy();
+    expect(await res.text()).toBe('');
+  });
+
+  it('a build that was pruned is simply not found', async () => {
+    const res = await SELF.fetch(`${ORIGIN}/data/builds/gone/board/nba.json`);
+    expect(res.status).toBe(404);
+  });
+
   it('serves build files as immutable with a parquet content type', async () => {
     const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, { headers: OWNER });
     expect(res.status).toBe(200);

@@ -180,8 +180,12 @@ async function serveData(request: Request, env: Env, rawKey: string, isPrivate =
   try {
     object = await env.DATA.get(key, { range, onlyIf: request.headers });
   } catch {
-    // R2 rejects unsatisfiable ranges (offset past the end of the object).
-    return text(416, 'Range Not Satisfiable');
+    // R2 rejects an unsatisfiable range (an offset past the end of the object); that is the one
+    // failure the request caused. Anything else is R2 itself, and the client should try again.
+    if (range) return text(416, 'Range Not Satisfiable');
+    const res = text(503, 'Service Unavailable');
+    res.headers.set('retry-after', '30');
+    return res;
   }
   if (object === null) return text(404, 'Not Found');
 
