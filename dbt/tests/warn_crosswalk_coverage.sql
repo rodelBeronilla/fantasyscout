@@ -13,4 +13,4 @@ select
     match_rate
 from {{ ref('reconciliation_summary') }}
 where played_player_games >= 100
-    and played_match_rate < 0.99
+    and played_match_rate < {{ var('quality_thresholds')['played_match_rate'][0] }}

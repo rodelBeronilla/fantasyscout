@@ -126,6 +126,13 @@ describe('data', () => {
     expect(await res.json()).toEqual({ build_id: 'test' });
   });
 
+  it('serves the notebook findings history with a short cache, since every build rewrites it', async () => {
+    await env.DATA.put('notebooks/findings-history.json', '{"notebooks":{}}', { httpMetadata: { contentType: 'application/json' } });
+    const res = await SELF.fetch(`${ORIGIN}/data/notebooks/findings-history.json`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=60');
+  });
+
   it('serves builds.json with a short cache too', async () => {
     const res = await SELF.fetch(`${ORIGIN}/data/builds.json`);
     expect(res.status).toBe(200);

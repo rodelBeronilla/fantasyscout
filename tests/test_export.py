@@ -220,6 +220,53 @@ def test_prune_keeps_a_pinned_build_whatever_latest_says(tmp_path: Path) -> None
     assert [b["build_id"] for b in json.loads(store.get("builds.json") or b"[]")] == ["b2", "b0"]
 
 
+def test_findings_history_keeps_one_entry_per_build_and_league(tmp_path: Path) -> None:
+    """#293: the findings outlive the seven kept builds."""
+    store = LocalStore(tmp_path)
+    for i in range(2):
+        build_mod.publish(store, fake_build(f"b{i}"), keep=3, log=lambda _: None)
+    nb = tmp_path / "nb"
+    nb.mkdir()
+    findings = nb / "01_board_backtest.findings.json"
+    findings.write_text(
+        json.dumps(
+            {
+                "title": "x",
+                "leagues": {
+                    "wnba": {
+                        "headline": "top 30: 0.66",
+                        "n": 120,
+                        "facts": [{"label": "hit", "value": "0.66"}],
+                    }
+                },
+            }
+        )
+    )
+    build_mod.publish_files(
+        store, [findings], subdir="notebooks", build_id="b0", log=lambda _: None
+    )
+    history = build_mod.findings_history(store, "b0", log=lambda _: None)
+    series = history["notebooks"]["01_board_backtest"]["wnba"]
+    assert [e["build_id"] for e in series] == ["b0"] and series[0]["facts"] == {"hit": "0.66"}
+    # the same build again replaces its entry; a later build appends; the cap holds
+    findings.write_text(
+        json.dumps({"leagues": {"wnba": {"headline": "top 30: 0.70", "facts": []}}})
+    )
+    build_mod.publish_files(
+        store, [findings], subdir="notebooks", build_id="b0", log=lambda _: None
+    )
+    build_mod.findings_history(store, "b0", log=lambda _: None)
+    build_mod.publish_files(
+        store, [findings], subdir="notebooks", build_id="b1", log=lambda _: None
+    )
+    history = build_mod.findings_history(store, "b1", keep=1, log=lambda _: None)
+    series = history["notebooks"]["01_board_backtest"]["wnba"]
+    assert [e["build_id"] for e in series] == ["b1"], "keep=1 leaves the newest build only"
+    assert json.loads(store.get(build_mod.FINDINGS_HISTORY_KEY) or b"{}")["updated_at"]
+    with pytest.raises(RuntimeError, match="no build"):
+        build_mod.findings_history(LocalStore(tmp_path / "empty"), None, log=lambda _: None)
+
+
 def test_a_rollback_holds_until_unpinned(tmp_path: Path) -> None:
     """#96 item 5: the next nightly build must not undo a rollback."""
     store = LocalStore(tmp_path)

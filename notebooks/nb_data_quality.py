@@ -54,6 +54,28 @@ def grade(value, good, ok, higher=True):
     return 'pass' if value <= good else 'warn' if value <= ok else 'fail'
 
 
+def thresholds():
+    # the [good, ok] pairs from dbt_project.yml (vars.quality_thresholds), the same the warn checks read
+    import yaml
+    from fs import ROOT
+    try:
+        project = yaml.safe_load((ROOT / 'dbt' / 'dbt_project.yml').read_text(encoding='utf-8'))
+        return project['vars']['quality_thresholds']
+    except (OSError, KeyError, TypeError):
+        return {}
+
+
+T = thresholds()
+
+
+def label(key, kind='pct'):
+    # the threshold as the table shows it: '99% / 95%', or '36 / 168' for a count
+    good, ok = T[key]
+    if kind == 'pct':
+        return ' / '.join('all' if v == 1.0 else f'{100 * v:g}%' for v in (good, ok))
+    return f'{good:g} / {ok:g}'
+
+
 def add(check, league, season, value, threshold, status, detail=''):
     checks.append({'check': check, 'league': league, 'season': season, 'value': value, 'threshold': threshold,
                    'status': status, 'detail': detail})
@@ -93,10 +115,10 @@ def source_agreement():
         from reconciliation_summary order by league, season
     ''').df()
     for _, r in summary.iterrows():
-        add('Played player-games matched across sources', r['league'], r['season'], pct(r['played_match_rate']), '99% / 95%',
-            grade(r['played_match_rate'], 0.99, 0.95), f"{int(r['played_matched'] or 0):,} of {int(r['played_player_games'] or 0):,}")
-        add('Conflicts among matched player-games', r['league'], r['season'], pct(r['conflict_rate'], 2), '0.5% / 2%',
-            grade(r['conflict_rate'], 0.005, 0.02, higher=False), f"{int(r['conflict'] or 0):,} in conflict")
+        add('Played player-games matched across sources', r['league'], r['season'], pct(r['played_match_rate']), label('played_match_rate'),
+            grade(r['played_match_rate'], *T['played_match_rate']), f"{int(r['played_matched'] or 0):,} of {int(r['played_player_games'] or 0):,}")
+        add('Conflicts among matched player-games', r['league'], r['season'], pct(r['conflict_rate'], 2), label('conflict_rate'),
+            grade(r['conflict_rate'], *T['conflict_rate'], higher=False), f"{int(r['conflict'] or 0):,} in conflict")
 
 
 run('Source agreement', source_agreement)
@@ -148,10 +170,10 @@ if has_table(con, 'reconciliation'):
         group by all order by 1, 2
     ''').df()
     for _, r in df.iterrows():
-        add('Team-games whose player rows add up', r['league'], r['season'], pct(r['closes'], 2), 'all / 99.5%',
-            grade(r['closes'], 1.0, 0.995), f"{int(r['team_games']):,} team-games")
-        add('Team turnovers between the players\\' sum and eight more', r['league'], r['season'], pct(r['turnovers_ok']), '99% / 95%',
-            grade(r['turnovers_ok'], 0.99, 0.95))
+        add('Team-games whose player rows add up', r['league'], r['season'], pct(r['closes'], 2), label('box_closure'),
+            grade(r['closes'], *T['box_closure']), f"{int(r['team_games']):,} team-games")
+        add('Team turnovers between the players\\' sum and eight more', r['league'], r['season'], pct(r['turnovers_ok']), label('turnovers_ok'),
+            grade(r['turnovers_ok'], *T['turnovers_ok']))
 
 
 def shots_vs_box():
@@ -183,13 +205,13 @@ def shots_vs_box():
     for _, r in df.iterrows():
         cover = r['with_shots'] / r['team_games'] if r['team_games'] else None
         if not r['with_shots']:
-            add('Team-games with a shot chart', r['league'], r['season'], '0%', '98% / 90%', 'n/a', 'no shot chart landed for this season')
+            add('Team-games with a shot chart', r['league'], r['season'], '0%', label('shot_chart_coverage'), 'n/a', 'no shot chart landed for this season')
             continue
-        add('Team-games with a shot chart', r['league'], r['season'], pct(cover), '98% / 90%', grade(cover, 0.98, 0.90),
+        add('Team-games with a shot chart', r['league'], r['season'], pct(cover), label('shot_chart_coverage'), grade(cover, *T['shot_chart_coverage']),
             f"{int(r['with_shots']):,} of {int(r['team_games']):,}")
         for col, label in [('fga_match', 'attempts'), ('fgm_match', 'makes'), ('fg3a_match', 'three-point attempts')]:
-            add(f'Shot chart {label} equal to the box score', r['league'], r['season'], pct(r[col]), '99% / 95%',
-                grade(r[col], 0.99, 0.95), f"chart {int(r['chart_attempts'] or 0):,} vs box {int(r['box_attempts'] or 0):,} attempts" if col == 'fga_match' else '')
+            add(f'Shot chart {label} equal to the box score', r['league'], r['season'], pct(r[col]), label('shot_match'),
+                grade(r[col], *T['shot_match']), f"chart {int(r['chart_attempts'] or 0):,} vs box {int(r['box_attempts'] or 0):,} attempts" if col == 'fga_match' else '')
 
 
 def lineups():
@@ -225,8 +247,8 @@ pd.DataFrame(checks).query("check not in ['Played player-games matched across so
             from fct_availability group by 1
         ''').df()
         for _, r in df.iterrows():
-            add('Current injury listings linked to a player', r['league'], 'current', pct(r['linked']), '95% / 90%',
-                grade(r['linked'], 0.95, 0.90), f"{int(r['current'] or 0)} listings; {pct(r['linked_all'])} of all")
+            add('Current injury listings linked to a player', r['league'], 'current', pct(r['linked']), label('listing_links'),
+                grade(r['linked'], *T['listing_links']), f"{int(r['current'] or 0)} listings; {pct(r['linked_all'])} of all")
     else:
         add('Current injury listings linked to a player', 'all', 'current', None, '', 'n/a', 'no fct_availability in this build')
     if {'league', 'stats_player_id'} <= columns(con, 'fct_waiver_trend'):
@@ -237,11 +259,11 @@ pd.DataFrame(checks).query("check not in ['Played player-games matched across so
         for lg in LEAGUES:
             r = df[df['league'] == lg]
             if r.empty or not r.iloc[0]['players']:
-                add('Trending waiver players linked to a player', lg, 'current', None, '95% / 90%', 'n/a', 'no waiver trend rows')
+                add('Trending waiver players linked to a player', lg, 'current', None, label('listing_links'), 'n/a', 'no waiver trend rows')
                 continue
             r = r.iloc[0]
-            add('Trending waiver players linked to a player', lg, 'current', pct(r['linked']), '95% / 90%',
-                grade(r['linked'], 0.95, 0.90), f"{int(r['players'])} trending players")
+            add('Trending waiver players linked to a player', lg, 'current', pct(r['linked']), label('listing_links'),
+                grade(r['linked'], *T['listing_links']), f"{int(r['players'])} trending players")
     if {'league', 'stats_player_id'} <= columns(con, 'fct_player_status') and has_table(con, 'dim_player'):
         df = con.sql('''
             select s.league, count(*) as players,
@@ -252,8 +274,8 @@ pd.DataFrame(checks).query("check not in ['Played player-games matched across so
             group by 1
         ''').df()
         for _, r in df.iterrows():
-            add('Player statuses on a current player', r['league'], 'current', pct(r['known']), '98% / 95%',
-                grade(r['known'], 0.98, 0.95), f"{int(r['players'])} statuses")
+            add('Player statuses on a current player', r['league'], 'current', pct(r['known']), label('status_known'),
+                grade(r['known'], *T['status_known']), f"{int(r['players'])} statuses")
 
 
 def freshness():
@@ -271,7 +293,7 @@ def freshness():
     for _, r in df.iterrows():
         age = (now - pd.Timestamp(r['last_finished']).tz_localize(None)).total_seconds() / 3600 if pd.notna(r['last_finished']) else None
         add(f"Hours since {r['source']} last finished", r['league'], 'current', None if age is None else round(age, 1),
-            '36 / 168', grade(age, 36, 168, higher=False))
+            label('landing_age_hours', 'count'), grade(age, *T['landing_age_hours'], higher=False))
         add(f"Ingest failures, {r['source']}, last 7 days", r['league'], 'current', int(r['failures_7d']), '0',
             'pass' if r['failures_7d'] == 0 else 'warn', f"{int(r['runs_7d'])} runs")
 
