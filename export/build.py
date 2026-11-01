@@ -291,14 +291,19 @@ def publish(
 
 
 def prune(store: Store, *, keep: int = layout.KEEP_BUILDS, log: Log = print) -> list[str]:
-    """Delete every build beyond the newest ``keep``, never the one latest points at."""
+    """Delete every build beyond the newest ``keep``, except latest's and the pinned ones.
+
+    A rollback pins its build in builds.json as well as in latest.json, so the pin protects the
+    build even if latest.json were to point elsewhere for a moment (the workflows share one
+    concurrency group, so they should not, but the two records agree on purpose).
+    """
     builds: list[dict[str, Any]] = _read_json(store, BUILDS_KEY) or []
     latest = _read_json(store, LATEST_KEY) or {}
     current = latest.get("build_id")
     kept: list[dict[str, Any]] = []
     dropped: list[str] = []
     for entry in builds:
-        if len(kept) < keep or entry["build_id"] == current:
+        if len(kept) < keep or entry["build_id"] == current or entry.get("pinned"):
             kept.append(entry)
         else:
             dropped.append(entry["build_id"])

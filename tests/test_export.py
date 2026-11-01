@@ -206,6 +206,20 @@ def test_rollback_points_at_the_previous_build_and_prune_keeps_it(tmp_path: Path
         build_mod.rollback(store, to="nope", log=lambda _: None)
 
 
+def test_prune_keeps_a_pinned_build_whatever_latest_says(tmp_path: Path) -> None:
+    """#277: the pin in builds.json protects the build on its own."""
+    store = LocalStore(tmp_path)
+    for i in range(3):
+        build_mod.publish(store, fake_build(f"b{i}"), keep=3, log=lambda _: None)
+    build_mod.rollback(store, to="b0", log=lambda _: None)
+    # latest.json pointing elsewhere, as a stale concurrent promote could leave it
+    store.put("latest.json", to_json({"build_id": "b2", "manifest": "builds/b2/manifest.json"}))
+    dropped = build_mod.prune(store, keep=1, log=lambda _: None)
+    assert dropped == ["b1"], "b2 is latest, b0 is pinned, only b1 goes"
+    assert store.get("builds/b0/manifest.json") is not None
+    assert [b["build_id"] for b in json.loads(store.get("builds.json") or b"[]")] == ["b2", "b0"]
+
+
 def test_a_rollback_holds_until_unpinned(tmp_path: Path) -> None:
     """#96 item 5: the next nightly build must not undo a rollback."""
     store = LocalStore(tmp_path)
