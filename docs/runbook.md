@@ -110,6 +110,8 @@ Free Edition refuses to create a catalog through the REST API unless a storage l
 
 ## Run an ingest by hand
 
+The scheduled run keeps one process against each host: the stats jobs are one per league (two hosts, two home runners), the ESPN job runs its two leagues one after the other, and the reports job, whose feeds also read ESPN, waits for the ESPN job. A hand run with `league: both` does the same.
+
 From the repo, with `DATABRICKS_HOST` and `DATABRICKS_TOKEN` in the environment for the volume backend (omit `--backend volume` to land under `./landing/` locally):
 
 ```bash
