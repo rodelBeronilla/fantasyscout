@@ -211,7 +211,7 @@ async function serveData(request: Request, env: Env, rawKey: string, isPrivate =
 }
 
 export default {
-  async fetch(request, env): Promise<Response> {
+  async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -234,10 +234,26 @@ export default {
         res.headers.set('cache-control', 'private, no-store');
         return withSecurityHeaders(res, url.pathname);
       }
-      return withSecurityHeaders(
+      // Public files are kept in the edge cache for as long as their cache-control says (the
+      // pointers a minute, a build's files a year), so a page view is answered at the edge rather
+      // than by a Worker round trip to R2. Private tables, HEAD, range and conditional requests
+      // go to R2 every time.
+      const cacheable =
+        !isPrivate &&
+        request.method === 'GET' &&
+        !request.headers.has('range') &&
+        !request.headers.has('if-none-match') &&
+        !request.headers.has('if-modified-since');
+      if (cacheable) {
+        const hit = await caches.default.match(request);
+        if (hit) return withSecurityHeaders(hit, url.pathname);
+      }
+      const served = withSecurityHeaders(
         await serveData(request, env, url.pathname.slice(DATA_PREFIX.length), isPrivate),
         url.pathname,
       );
+      if (cacheable && served.status === 200) ctx.waitUntil(caches.default.put(request, served.clone()));
+      return served;
     }
 
     // One static page serves every player: /p/{league}/{player_id}/ -> /p/ (the island reads the URL).
