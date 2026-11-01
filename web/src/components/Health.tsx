@@ -119,12 +119,13 @@ interface Feed {
   last_landed: string | null;
   age_days: number | null;
   max_age_days: number;
-  status: 'fresh' | 'stale' | 'off_season' | 'never';
+  status: 'fresh' | 'stale' | 'off_season' | 'never' | 'unconfigured';
 }
 
 const FEED_STATUS: Record<Feed['status'], { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' }> = {
   fresh: { label: 'Fresh', tone: 'good' },
   stale: { label: 'Stale', tone: 'bad' },
+  unconfigured: { label: 'Not configured', tone: 'muted' },
   off_season: { label: 'Off season', tone: 'muted' },
   never: { label: 'Never landed', tone: 'warn' },
 };

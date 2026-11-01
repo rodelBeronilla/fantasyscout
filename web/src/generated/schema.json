@@ -60,6 +60,17 @@
    ]
   },
   {
+   "about": "In season, a core feed (ops.feed_freshness.is_core: the schedule, the game log, box scores, play-by-play, shot charts, rosters, ESPN scoreboards) stale by more than two days past its allowance blocks the publish: the board would otherwise go live on last week's games or rosters while looking current. warn_stale_feeds flags the first stale day of every feed.",
+   "name": "assert_core_feeds_fresh",
+   "reads": [
+    "feed_freshness"
+   ],
+   "severity": "error",
+   "tags": [
+    "freshness"
+   ]
+  },
+  {
    "about": "In season, the latest game in gold is within 36 hours of the last completed scheduled game. Out of season (no completed scheduled game in the last 14 days) there is nothing to check.",
    "name": "assert_freshness_in_season",
    "reads": [
@@ -979,6 +990,7 @@
       "DraftKings' player totals from ESPN's core API, as landed (ingest/props.py): one row per player and market per snapshot, with the line, the over and under prices and the opening line and prices. The ingestor has already split ESPN's two quotes into the over and the under and left out milestones, quarter and game lines. Private (ADR 0008)."
      ],
      "read_by": [
+      "feed_freshness",
       "player_props"
      ],
      "reads": [],
@@ -1108,7 +1120,8 @@
       "Raw espn `roster` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
-      "espn_roster_players"
+      "espn_roster_players",
+      "feed_freshness"
      ],
      "reads": [],
      "unit_tests": []
@@ -1660,7 +1673,8 @@
       "Raw espn `summary` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
-      "espn_player_game"
+      "espn_player_game",
+      "feed_freshness"
      ],
      "reads": [],
      "unit_tests": []
@@ -2532,6 +2546,7 @@
       "The leagues' referee assignments as parsed at ingest (official.nba.com): one row per game per landed page, with the crew chief, referee, umpire and alternate and their uniform numbers. Values stay text until silver."
      ],
      "read_by": [
+      "feed_freshness",
       "game_officials"
      ],
      "reads": [],
@@ -2673,6 +2688,7 @@
       "The Odds API's player props, as landed (ingest/props.py): one row per bookmaker, market, player and line per snapshot, with the over and under prices. The ingestor has already paired each over with its under. Private (ADR 0008)."
      ],
      "read_by": [
+      "feed_freshness",
       "player_props"
      ],
      "reads": [],
@@ -2754,6 +2770,7 @@
       "Sleeper's player directory as landed (NBA): one row per active player on a team per landing, with Sleeper's id and the fields that link the player to the league's ids."
      ],
      "read_by": [
+      "feed_freshness",
       "waiver_trending"
      ],
      "reads": [],
@@ -3109,6 +3126,7 @@
       "Raw stats `boxscoreadvancedv3` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
+      "feed_freshness",
       "player_game_advanced"
      ],
      "reads": [],
@@ -3370,6 +3388,7 @@
       "Raw stats `boxscoretraditionalv3` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
+      "feed_freshness",
       "player_game_box"
      ],
      "reads": [],
@@ -3529,6 +3548,7 @@
       "Raw stats `commonallplayers` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
+      "feed_freshness",
       "players"
      ],
      "reads": [],
@@ -3688,6 +3708,7 @@
       "Raw stats `commonteamroster` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
+      "feed_freshness",
       "rosters"
      ],
      "reads": [],
@@ -4060,6 +4081,7 @@
       "Raw stats `leaguedashptstats` payloads, passing tracking for one game date (request keys passing-<date>), parsed to rows; values stay text until silver. NBA only."
      ],
      "read_by": [
+      "feed_freshness",
       "player_day_tracking"
      ],
      "reads": [],
@@ -4888,6 +4910,7 @@
       "Raw stats `leaguegamelog` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
+      "feed_freshness",
       "team_game_box",
       "teams"
      ],
@@ -5114,6 +5137,7 @@
       "Raw stats `leaguehustlestatsplayer` payloads for one game date (request keys hustle-<date>) parsed to rows; values stay text until silver. NBA only."
      ],
      "read_by": [
+      "feed_freshness",
       "player_day_tracking"
      ],
      "reads": [],
@@ -5469,7 +5493,8 @@
       "Raw stats `playbyplayv3` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
-      "events"
+      "events",
+      "feed_freshness"
      ],
      "reads": [],
      "unit_tests": []
@@ -6018,6 +6043,7 @@
       "Raw stats `playergamelogs` payloads of the Advanced measure set (request keys advanced-...) parsed to rows; values stay text until silver. Usage and Misc have their own models."
      ],
      "read_by": [
+      "feed_freshness",
       "player_game_advanced"
      ],
      "reads": [],
@@ -6351,6 +6377,7 @@
       "Raw stats `playergamelogs` payloads of the Misc measure set (request keys misc-...) parsed to rows; values stay text until silver."
      ],
      "read_by": [
+      "feed_freshness",
       "player_game_misc"
      ],
      "reads": [],
@@ -6744,6 +6771,7 @@
       "Raw stats `playergamelogs` payloads of the Usage measure set (request keys usage-...) parsed to rows; values stay text until silver."
      ],
      "read_by": [
+      "feed_freshness",
       "player_game_usage"
      ],
      "reads": [],
@@ -7279,6 +7307,7 @@
       "Raw stats `shotchartdetail` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
+      "feed_freshness",
       "shots"
      ],
      "reads": [],
@@ -19606,6 +19635,7 @@
    "models": [
     {
      "checks": [
+      "assert_core_feeds_fresh",
       "warn_stale_feeds"
      ],
      "columns": [
@@ -19655,6 +19685,12 @@
        "type": "integer"
       },
       {
+       "description": "True for the feeds the board cannot do without (schedule, game log, box scores, play-by-play, shot charts, rosters, ESPN scoreboards): assert_core_feeds_fresh blocks the publish gate when one is stale by more than two days past its allowance",
+       "name": "is_core",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
        "description": "Landed payloads the bronze model holds for the league",
        "name": "payloads",
        "tests": [],
@@ -19667,7 +19703,7 @@
        "type": "boolean"
       },
       {
-       "description": "fresh, stale (older than max_age_days in season), off_season (quiet while the league is not playing) or never (nothing landed)",
+       "description": "fresh, stale (older than max_age_days in season), off_season (quiet while the league is not playing), never (nothing landed) or unconfigured (an optional feed whose key the repository does not have yet)",
        "name": "status",
        "tests": [
         "accepted_values"
@@ -19691,22 +19727,41 @@
      "materialized": "table",
      "name": "feed_freshness",
      "notes": [
-      "How fresh each source feed is, per league: the newest day a payload landed for it and how many days ago that was, against how often the feed should land while the league is playing. A feed that stops keeps its last landing in silver and gold, where it would otherwise look current; warn_stale_feeds reports a stale one. Out of season (no game three days either side of today) a quiet feed is expected. An unchanged payload lands no new file, so the slower feeds get a few days' grace."
+      "How fresh each source feed is, per league: the newest day a payload landed for it and how many days ago that was, against how often the feed should land while the league is playing. A feed that stops keeps its last landing in silver and gold, where it would otherwise look current; warn_stale_feeds reports a stale one. Out of season (no game three days either side of today) a quiet feed is expected. An unchanged payload lands no new file, so the slower feeds get a few days' grace: a roster or a player directory changes some days, not every day.",
+      "Every landed feed is here. A feed landed from one payload that several bronze models read (the ESPN game summary) is listed once, by one of them. A feed that needs a key the repository may not have yet (The Odds API) is optional: never having landed is 'unconfigured', not 'never'. The core feeds (core: true) are the ones the board cannot do without; assert_core_feeds_fresh blocks the publish gate when one of them is stale by more than two days past its allowance."
      ],
      "read_by": [],
      "reads": [
       "espn_fantasy_players",
       "espn_injuries",
       "espn_news",
+      "espn_prop_bets",
+      "espn_roster",
       "espn_scoreboard",
+      "espn_summary_players",
       "espn_transactions",
       "league_daily_lineups",
       "league_injury_report",
       "league_player_movement",
+      "league_referee_assignments",
+      "odds_api_player_props",
       "schedule",
+      "sleeper_players",
       "sleeper_trending",
+      "stats_boxscoreadvancedv3",
+      "stats_boxscoretraditionalv3",
+      "stats_commonallplayers",
+      "stats_commonteamroster",
+      "stats_leaguedashptstats_passing",
+      "stats_leaguegamelog",
+      "stats_leaguehustlestatsplayer",
       "stats_leaguestandingsv3",
-      "stats_scheduleleaguev2"
+      "stats_playbyplayv3",
+      "stats_playergamelogs",
+      "stats_playergamelogs_misc",
+      "stats_playergamelogs_usage",
+      "stats_scheduleleaguev2",
+      "stats_shotchartdetail"
      ],
      "unit_tests": []
     },
