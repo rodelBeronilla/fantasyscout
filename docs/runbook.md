@@ -308,3 +308,11 @@ uv run fs-export unpin --store r2 [--to <id>]
    ```
 5. Remove the file from `recover/`, and run the next build (or `dbt test --select warn_board_history_gaps`): the day no longer appears.
 
+## Cut a release
+
+Versions are tags on `main`. Every PR carries a `release:*` label (the PR template asks for it) and `.github/release.yml` turns the labels into the release notes: breaking changes, features, fixes; `release:skip` and Dependabot's PRs stay out.
+
+Run the "Release" workflow (Actions → Release → Run workflow) with the version, `MAJOR.MINOR.PATCH` without the `v`. It tags `main`, publishes the GitHub release with the generated notes and the data build the site was serving at that moment (its id and data-as-of dates), and opens a PR that bumps `pyproject.toml`; merge that PR. A version already tagged, or one that is not three numbers, fails the run before anything is written.
+
+The tags so far mark the phases: `v0.1.0` phase 0 (skeleton live), `v0.2.0` phase 1 (ingest), `v0.3.0` phase 2 (lakehouse), `v0.4.0` phase 3 (gold and quality), `v0.5.0` phase 4 (reconciliation), `v0.6.0` phase 5 (serving and the app), `v0.7.0` phase 6 (analysis surfaces), `v0.8.0` the platform-hardening milestone.
+

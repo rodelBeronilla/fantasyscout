@@ -1,0 +1,80 @@
+# Cut a release: tag main, publish the GitHub release with notes generated from the PR labels
+# (.github/release.yml) and the data build the site is serving, and open the PR that bumps the
+# version in pyproject.toml. Run by hand: Actions -> Release -> Run workflow, with the version.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The version to release, without the v (0.8.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Check the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must be MAJOR.MINOR.PATCH, got '$VERSION'"; exit 1; }
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then echo "::error::v$VERSION is already tagged"; exit 1; fi
+          current=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
+          echo "current pyproject version: $current -> $VERSION"
+          echo "CURRENT=$current" >> "$GITHUB_ENV"
+
+      - name: The data build the site serves
+        run: |
+          set -euo pipefail
+          latest=$(curl -fsS https://fantasyscout.beronilla.rodeo/data/latest.json || echo '{}')
+          build=$(echo "$latest" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d.get("build_id", "none"))')
+          as_of=$(echo "$latest" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(", ".join(f"{k.upper()} {v}" for k, v in sorted(d.get("data_as_of", {}).items())) or "none")')
+          echo "BUILD_ID=$build" >> "$GITHUB_ENV"
+          echo "DATA_AS_OF=$as_of" >> "$GITHUB_ENV"
+          echo "data build $build ($as_of)"
+
+      - name: Tag and publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "FantasyScout v$VERSION"
+          git push origin "v$VERSION"
+          gh release create "v$VERSION" --title "v$VERSION" --generate-notes \
+            --notes "Data build serving at release: \`$BUILD_ID\` (data as of $DATA_AS_OF). Code: $(git rev-parse --short HEAD)."
+
+      - name: Open the version bump PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          branch="release/v$VERSION"
+          git checkout -b "$branch"
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          git add pyproject.toml
+          git commit -m "chore(release): v$VERSION" -m "The version in pyproject.toml follows the tag v$VERSION (data build $BUILD_ID)."
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" --title "chore(release): v$VERSION" \
+            --label release:skip \
+            --body "Bumps \`pyproject.toml\` to $VERSION after the release [v$VERSION](https://github.com/${{ github.repository }}/releases/tag/v$VERSION) (data build \`$BUILD_ID\`). Merge when the release reads right." \
+            || echo "::warning::could not open the PR (Actions may not be allowed to create pull requests): branch $branch is pushed; open it by hand"
