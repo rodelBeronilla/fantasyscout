@@ -56,6 +56,24 @@ test('the sources page names every source with what is published from it, and th
   await expect(page.getByRole('link', { name: 'open an issue' })).toHaveAttribute('href', /github\.com/);
 });
 
+test('every page carries a canonical address without the query, Open Graph tags, and the site has robots and a sitemap', async ({ page }) => {
+  await page.goto('/streamers/?league=nba');
+  await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', /\/streamers\/$/);
+  await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute('content', /Streamers · FantasyScout/);
+  await expect(page.locator('head meta[property="og:url"]')).toHaveAttribute('content', /\/streamers\/$/);
+  await expect(page.locator('head meta[name="twitter:card"]')).toHaveAttribute('content', 'summary');
+  const robots = await page.request.get('/robots.txt');
+  expect(robots.status()).toBe(200);
+  expect(await robots.text()).toContain('Sitemap: https://fantasyscout.beronilla.rodeo/sitemap.xml');
+  const sitemap = await page.request.get('/sitemap.xml');
+  expect(sitemap.status()).toBe(200);
+  const xml = await sitemap.text();
+  expect(xml).toContain('<loc>https://fantasyscout.beronilla.rodeo/streamers/</loc>');
+  expect(xml).toContain('<loc>https://fantasyscout.beronilla.rodeo/</loc>');
+  expect(xml).not.toContain('/sql/');
+  expect(xml).not.toContain('/p/');
+});
+
 test('the board ranks players and links to player pages', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');

@@ -64,6 +64,38 @@ describe('routing', () => {
     expect(await res.text()).toContain('FantasyScout');
   });
 
+  it('names the player in the shell when the current build has the player file', async () => {
+    // the suite's R2 state is shared and the data tests seed latest.json as build 'test' before each of
+    // theirs; these two seed the same pointer and add to that build, so nothing leaks between tests
+    await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), { httpMetadata: { contentType: 'application/json' } });
+    await env.DATA.put('builds/test/players/wnba/1628932.json', JSON.stringify({ name: "A'ja Wilson", team: 'LVA', position: 'F' }));
+    const res = await SELF.fetch(`${ORIGIN}/p/wnba/1628932/`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("<title>A'ja Wilson · LVA, F · WNBA · FantasyScout</title>");
+    expect(html).toContain(`property="og:title" content="A'ja Wilson · LVA, F · WNBA · FantasyScout"`);
+    expect(html).toContain('name="description" content="A&#39;ja Wilson: season line'.replace('&#39;', "'"));
+    expect(html).toContain(`rel="canonical" href="${ORIGIN}/p/wnba/1628932/"`);
+    // a player the build does not have keeps the plain shell
+    const other = await SELF.fetch(`${ORIGIN}/p/wnba/999999999/`);
+    expect(await other.text()).toContain('<title>Player · FantasyScout</title>');
+  });
+
+  it('serves a sitemap of the current build\'s players', async () => {
+    await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), { httpMetadata: { contentType: 'application/json' } });
+    await env.DATA.put('builds/test/players/wnba/1.json', '{}');
+    await env.DATA.put('builds/test/players/nba/2.json', '{}');
+    await env.DATA.put('builds/test/players/index.json', '{}');
+    const res = await SELF.fetch(`${ORIGIN}/sitemap-players.xml`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('application/xml');
+    expect(res.headers.get('cache-control')).toBe('public, max-age=3600');
+    const xml = await res.text();
+    expect(xml).toContain(`<loc>${ORIGIN}/p/wnba/1/</loc>`);
+    expect(xml).toContain(`<loc>${ORIGIN}/p/nba/2/</loc>`);
+    expect(xml).not.toContain('index');
+  });
+
   it('serves the player page for any /p/{league}/{id}/ address', async () => {
     const res = await SELF.fetch(`${ORIGIN}/p/wnba/1629476/`);
     expect(res.status).toBe(200);

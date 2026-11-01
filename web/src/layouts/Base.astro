@@ -21,6 +21,8 @@ const nav: { label: string; path?: string; items?: readonly (readonly [string, s
   { label: 'Coming soon', items: [['League', '/league/'], ['SQL console', '/sql/']] },
 ];
 const current = Astro.url.pathname;
+// The canonical address drops the query (?league= is a view of the same page) and names the site.
+const canonical = new URL(current, Astro.site ?? Astro.url).href;
 const within = (items: readonly (readonly [string, string])[] | undefined) => !!items?.some(([, path]) => path === current);
 ---
 
@@ -31,6 +33,13 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title} · FantasyScout</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:site_name" content="FantasyScout" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={`${title} · FantasyScout`} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
     <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
     {/* Every island starts from the build pointer: fetch it with the HTML, not after React hydrates. */}
     <link rel="preload" as="fetch" href={href('data/latest.json')} crossorigin="anonymous" />

@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /sql/
+Disallow: /data/
+
+Sitemap: https://fantasyscout.beronilla.rodeo/sitemap.xml
+Sitemap: https://fantasyscout.beronilla.rodeo/sitemap-players.xml
