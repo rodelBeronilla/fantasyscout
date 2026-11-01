@@ -223,6 +223,10 @@ The gate step also prints up to ten failing rows of every failed check (`--sampl
 
 Prove the gate and the incident path on demand, without touching data: run the Build lakehouse workflow with the `chaos` input ticked. The `chaos_deliberate_failure` check fails at error severity, the gate blocks, the run fails and an incident issue opens. Run the workflow again without the input; the gate passes and the issue closes itself. Do this after any change to `ops/results.py`, `incident.py` or the build workflow.
 
+## Job time limits
+
+Every job has a `timeout-minutes`: the daily stats ingest 120 (15 to 30 minutes at the spec's pace, twice), ESPN and the reports 45, the dbt build 120 (25 to 55 minutes), the backfills 330 (one season per job). A job that reaches its limit is cancelled; its Report step still runs and opens the incident naming the step that hung, and the Build workflow's concurrency group is released for the next day. The stalled-job notes under "Backfill status" say how to read a stats job that stopped making progress.
+
 ## Publish SLA and the watchdog
 
 While a league is playing, the site is expected to serve a build no older than **30 hours**: builds run after the morning and the evening ingest, so one missed build still fits. Out of season the limit is 72 hours. The "Publish watchdog" workflow checks this every six hours from a GitHub-hosted runner, outside the pipeline: it reads the site's `/data/latest.json` and the build's `health.json` (whose feeds say which leagues are in season) and judges the build's age. A stale build opens the "Publish stale" incident issue; the next fresh check closes it. Run it by hand from the Actions tab, or locally:
