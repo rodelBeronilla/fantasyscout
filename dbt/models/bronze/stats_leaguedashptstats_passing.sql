@@ -14,35 +14,45 @@ rows as (
 
     select
         files.*,
+        {{ stats_headers('files.payload') }} as headers,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
     where files.request_key like 'passing-%'
 
+),
+
+cells as (
+
+    select
+        rows.*,
+        {{ stats_row_values('rows.row') }} as cell
+    from rows
+
 )
 
 select
-    rows._source_file,
-    rows.league,
-    rows.season,
-    rows._ingest_date,
-    rows.request_key,
-    {{ sha256('rows.payload') }} as _payload_hash,
-    {{ json_text('rows.row', '$[0]') }} as player_id,
-    {{ json_text('rows.row', '$[1]') }} as player_name,
-    {{ json_text('rows.row', '$[2]') }} as team_id,
-    {{ json_text('rows.row', '$[3]') }} as team_abbreviation,
-    {{ json_text('rows.row', '$[4]') }} as gp,
-    {{ json_text('rows.row', '$[5]') }} as w,
-    {{ json_text('rows.row', '$[6]') }} as l,
-    {{ json_text('rows.row', '$[7]') }} as min,
-    {{ json_text('rows.row', '$[8]') }} as passes_made,
-    {{ json_text('rows.row', '$[9]') }} as passes_received,
-    {{ json_text('rows.row', '$[10]') }} as ast,
-    {{ json_text('rows.row', '$[11]') }} as ft_ast,
-    {{ json_text('rows.row', '$[12]') }} as secondary_ast,
-    {{ json_text('rows.row', '$[13]') }} as potential_ast,
-    {{ json_text('rows.row', '$[14]') }} as ast_pts_created,
-    {{ json_text('rows.row', '$[15]') }} as ast_adj,
-    {{ json_text('rows.row', '$[16]') }} as ast_to_pass_pct,
-    {{ json_text('rows.row', '$[17]') }} as ast_to_pass_pct_adj
-from rows
+    cells._source_file,
+    cells.league,
+    cells.season,
+    cells._ingest_date,
+    cells.request_key,
+    {{ sha256('cells.payload') }} as _payload_hash,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_ID') }} as player_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_NAME') }} as player_name,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ID') }} as team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ABBREVIATION') }} as team_abbreviation,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GP') }} as gp,
+    {{ stats_cell('cells.cell', 'cells.headers', 'W') }} as w,
+    {{ stats_cell('cells.cell', 'cells.headers', 'L') }} as l,
+    {{ stats_cell('cells.cell', 'cells.headers', 'MIN') }} as min,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PASSES_MADE') }} as passes_made,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PASSES_RECEIVED') }} as passes_received,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AST') }} as ast,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FT_AST') }} as ft_ast,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SECONDARY_AST') }} as secondary_ast,
+    {{ stats_cell('cells.cell', 'cells.headers', 'POTENTIAL_AST') }} as potential_ast,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AST_PTS_CREATED') }} as ast_pts_created,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AST_ADJ') }} as ast_adj,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AST_TO_PASS_PCT') }} as ast_to_pass_pct,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AST_TO_PASS_PCT_ADJ') }} as ast_to_pass_pct_adj
+from cells

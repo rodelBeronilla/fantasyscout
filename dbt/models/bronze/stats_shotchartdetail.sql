@@ -14,40 +14,50 @@ rows as (
 
     select
         files.*,
+        {{ stats_headers('files.payload') }} as headers,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
+
+),
+
+cells as (
+
+    select
+        rows.*,
+        {{ stats_row_values('rows.row') }} as cell
+    from rows
 
 )
 
 select
-    rows._source_file,
-    rows.league,
-    rows.season,
-    rows._ingest_date,
-    rows.request_key,
-    {{ sha256('rows.payload') }} as _payload_hash,
-    {{ json_text('rows.row', '$[0]') }} as grid_type,
-    {{ json_text('rows.row', '$[1]') }} as game_id,
-    {{ json_text('rows.row', '$[2]') }} as game_event_id,
-    {{ json_text('rows.row', '$[3]') }} as player_id,
-    {{ json_text('rows.row', '$[4]') }} as player_name,
-    {{ json_text('rows.row', '$[5]') }} as team_id,
-    {{ json_text('rows.row', '$[6]') }} as team_name,
-    {{ json_text('rows.row', '$[7]') }} as period,
-    {{ json_text('rows.row', '$[8]') }} as minutes_remaining,
-    {{ json_text('rows.row', '$[9]') }} as seconds_remaining,
-    {{ json_text('rows.row', '$[10]') }} as event_type,
-    {{ json_text('rows.row', '$[11]') }} as action_type,
-    {{ json_text('rows.row', '$[12]') }} as shot_type,
-    {{ json_text('rows.row', '$[13]') }} as shot_zone_basic,
-    {{ json_text('rows.row', '$[14]') }} as shot_zone_area,
-    {{ json_text('rows.row', '$[15]') }} as shot_zone_range,
-    {{ json_text('rows.row', '$[16]') }} as shot_distance,
-    {{ json_text('rows.row', '$[17]') }} as loc_x,
-    {{ json_text('rows.row', '$[18]') }} as loc_y,
-    {{ json_text('rows.row', '$[19]') }} as shot_attempted_flag,
-    {{ json_text('rows.row', '$[20]') }} as shot_made_flag,
-    {{ json_text('rows.row', '$[21]') }} as game_date,
-    {{ json_text('rows.row', '$[22]') }} as htm,
-    {{ json_text('rows.row', '$[23]') }} as vtm
-from rows
+    cells._source_file,
+    cells.league,
+    cells.season,
+    cells._ingest_date,
+    cells.request_key,
+    {{ sha256('cells.payload') }} as _payload_hash,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GRID_TYPE') }} as grid_type,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GAME_ID') }} as game_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GAME_EVENT_ID') }} as game_event_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_ID') }} as player_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_NAME') }} as player_name,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ID') }} as team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_NAME') }} as team_name,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PERIOD') }} as period,
+    {{ stats_cell('cells.cell', 'cells.headers', 'MINUTES_REMAINING') }} as minutes_remaining,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SECONDS_REMAINING') }} as seconds_remaining,
+    {{ stats_cell('cells.cell', 'cells.headers', 'EVENT_TYPE') }} as event_type,
+    {{ stats_cell('cells.cell', 'cells.headers', 'ACTION_TYPE') }} as action_type,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SHOT_TYPE') }} as shot_type,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SHOT_ZONE_BASIC') }} as shot_zone_basic,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SHOT_ZONE_AREA') }} as shot_zone_area,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SHOT_ZONE_RANGE') }} as shot_zone_range,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SHOT_DISTANCE') }} as shot_distance,
+    {{ stats_cell('cells.cell', 'cells.headers', 'LOC_X') }} as loc_x,
+    {{ stats_cell('cells.cell', 'cells.headers', 'LOC_Y') }} as loc_y,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SHOT_ATTEMPTED_FLAG') }} as shot_attempted_flag,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SHOT_MADE_FLAG') }} as shot_made_flag,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GAME_DATE') }} as game_date,
+    {{ stats_cell('cells.cell', 'cells.headers', 'HTM') }} as htm,
+    {{ stats_cell('cells.cell', 'cells.headers', 'VTM') }} as vtm
+from cells

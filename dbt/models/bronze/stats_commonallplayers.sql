@@ -14,33 +14,43 @@ rows as (
 
     select
         files.*,
+        {{ stats_headers('files.payload') }} as headers,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
+
+),
+
+cells as (
+
+    select
+        rows.*,
+        {{ stats_row_values('rows.row') }} as cell
+    from rows
 
 )
 
 select
-    rows._source_file,
-    rows.league,
-    rows.season,
-    rows._ingest_date,
-    rows.request_key,
-    {{ sha256('rows.payload') }} as _payload_hash,
-    {{ json_text('rows.row', '$[0]') }} as person_id,
-    {{ json_text('rows.row', '$[1]') }} as display_last_comma_first,
-    {{ json_text('rows.row', '$[2]') }} as display_first_last,
-    {{ json_text('rows.row', '$[3]') }} as rosterstatus,
-    {{ json_text('rows.row', '$[4]') }} as from_year,
-    {{ json_text('rows.row', '$[5]') }} as to_year,
-    {{ json_text('rows.row', '$[6]') }} as playercode,
-    {{ json_text('rows.row', '$[7]') }} as player_slug,
-    {{ json_text('rows.row', '$[8]') }} as team_id,
-    {{ json_text('rows.row', '$[9]') }} as team_city,
-    {{ json_text('rows.row', '$[10]') }} as team_name,
-    {{ json_text('rows.row', '$[11]') }} as team_abbreviation,
-    {{ json_text('rows.row', '$[12]') }} as team_code,
-    {{ json_text('rows.row', '$[13]') }} as team_slug,
-    {{ json_text('rows.row', '$[14]') }} as is_nba_assigned,
-    {{ json_text('rows.row', '$[15]') }} as nba_assigned_team_id,
-    {{ json_text('rows.row', '$[16]') }} as games_played_flag
-from rows
+    cells._source_file,
+    cells.league,
+    cells.season,
+    cells._ingest_date,
+    cells.request_key,
+    {{ sha256('cells.payload') }} as _payload_hash,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PERSON_ID') }} as person_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DISPLAY_LAST_COMMA_FIRST') }} as display_last_comma_first,
+    {{ stats_cell('cells.cell', 'cells.headers', 'DISPLAY_FIRST_LAST') }} as display_first_last,
+    {{ stats_cell('cells.cell', 'cells.headers', 'ROSTERSTATUS') }} as rosterstatus,
+    {{ stats_cell('cells.cell', 'cells.headers', 'FROM_YEAR') }} as from_year,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TO_YEAR') }} as to_year,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYERCODE') }} as playercode,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_SLUG') }} as player_slug,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ID') }} as team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_CITY') }} as team_city,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_NAME') }} as team_name,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_ABBREVIATION') }} as team_abbreviation,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_CODE') }} as team_code,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TEAM_SLUG') }} as team_slug,
+    {{ stats_cell('cells.cell', 'cells.headers', 'IS_NBA_ASSIGNED') }} as is_nba_assigned,
+    {{ stats_cell('cells.cell', 'cells.headers', 'NBA_ASSIGNED_TEAM_ID') }} as nba_assigned_team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'GAMES_PLAYED_FLAG') }} as games_played_flag
+from cells

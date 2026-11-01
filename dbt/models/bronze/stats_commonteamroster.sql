@@ -14,33 +14,43 @@ rows as (
 
     select
         files.*,
+        {{ stats_headers('files.payload') }} as headers,
         {{ json_rows('files.payload', '$.resultSets[0].rowSet') }} as row
     from files
+
+),
+
+cells as (
+
+    select
+        rows.*,
+        {{ stats_row_values('rows.row') }} as cell
+    from rows
 
 )
 
 select
-    rows._source_file,
-    rows.league,
-    rows.season,
-    rows._ingest_date,
-    rows.request_key,
-    {{ sha256('rows.payload') }} as _payload_hash,
-    {{ json_text('rows.row', '$[0]') }} as team_id,
-    {{ json_text('rows.row', '$[1]') }} as season_src,
-    {{ json_text('rows.row', '$[2]') }} as league_id,
-    {{ json_text('rows.row', '$[3]') }} as player,
-    {{ json_text('rows.row', '$[4]') }} as nickname,
-    {{ json_text('rows.row', '$[5]') }} as player_slug,
-    {{ json_text('rows.row', '$[6]') }} as num,
-    {{ json_text('rows.row', '$[7]') }} as position,
-    {{ json_text('rows.row', '$[8]') }} as height,
-    {{ json_text('rows.row', '$[9]') }} as weight,
-    {{ json_text('rows.row', '$[10]') }} as birth_date,
-    {{ json_text('rows.row', '$[11]') }} as age,
-    {{ json_text('rows.row', '$[12]') }} as exp,
-    {{ json_text('rows.row', '$[13]') }} as school,
-    {{ json_text('rows.row', '$[14]') }} as player_id,
-    {{ json_text('rows.row', '$[15]') }} as how_acquired,
-    {{ json_text('rows.row', '$[16]') }} as supplemental_status
-from rows
+    cells._source_file,
+    cells.league,
+    cells.season,
+    cells._ingest_date,
+    cells.request_key,
+    {{ sha256('cells.payload') }} as _payload_hash,
+    {{ stats_cell('cells.cell', 'cells.headers', 'TeamID') }} as team_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SEASON') }} as season_src,
+    {{ stats_cell('cells.cell', 'cells.headers', 'LeagueID') }} as league_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER') }} as player,
+    {{ stats_cell('cells.cell', 'cells.headers', 'NICKNAME') }} as nickname,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_SLUG') }} as player_slug,
+    {{ stats_cell('cells.cell', 'cells.headers', 'NUM') }} as num,
+    {{ stats_cell('cells.cell', 'cells.headers', 'POSITION') }} as position,
+    {{ stats_cell('cells.cell', 'cells.headers', 'HEIGHT') }} as height,
+    {{ stats_cell('cells.cell', 'cells.headers', 'WEIGHT') }} as weight,
+    {{ stats_cell('cells.cell', 'cells.headers', 'BIRTH_DATE') }} as birth_date,
+    {{ stats_cell('cells.cell', 'cells.headers', 'AGE') }} as age,
+    {{ stats_cell('cells.cell', 'cells.headers', 'EXP') }} as exp,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SCHOOL') }} as school,
+    {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_ID') }} as player_id,
+    {{ stats_cell('cells.cell', 'cells.headers', 'HOW_ACQUIRED') }} as how_acquired,
+    {{ stats_cell('cells.cell', 'cells.headers', 'SUPPLEMENTAL_STATUS') }} as supplemental_status
+from cells
