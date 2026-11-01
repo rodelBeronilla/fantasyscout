@@ -13385,7 +13385,7 @@
      "materialized": "table",
      "name": "dim_player",
      "notes": [
-      "One row per player per team stint (SCD type 2 on team). Stints come from where the player actually appeared in box scores, which is true for every backfilled season; the player directory and rosters add names, position and biography. valid_to is null for the current stint."
+      "One row per player per team stint (SCD type 2 on team). Stints come from where the player actually appeared in box scores, which is true for every backfilled season. The current stint also listens to the latest roster landing: a player the roster puts on a team they have not yet played for (traded, signed, drafted, two-way) opens a stint on the landing date, and a rostered player with no appearance at all gets their first stint from it, so the models that link listings by name within the player's current team (status, availability, waiver trends) find them. The player directory and rosters add names, position and biography. valid_to is null for the current stint."
      ],
      "read_by": [
       "fct_availability",
@@ -13405,7 +13405,12 @@
       "players",
       "rosters"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "P1 played two games for team A; the latest roster, landed later, lists P1 on team B and a rookie P2 on team B with no appearance. P1 gets a second stint on B from the roster date and the A stint closes the day before; P2 gets a first stint on B. P3, rostered where they last played, keeps one stint. When P1 then plays for B, the roster start and the first game for B are one stint (the collapse is covered by the lag over the unioned starts).",
+       "name": "player_current_stint_follows_the_roster"
+      }
+     ]
     },
     {
      "checks": [],
@@ -20817,6 +20822,11 @@
    "description": "The fantasy week is whole Monday-to-Sunday weeks since the first of January of the Monday's year. The days-since-January divided by seven is a fraction; cast straight to an integer it rounds on DuckDB and truncates on Databricks, so the two engines disagreed on four days of every seven. Floored first, both give the same week. The spine is overridden to the days under test.",
    "model": "dim_date",
    "name": "date_fantasy_week_counts_whole_weeks_since_new_year"
+  },
+  {
+   "description": "P1 played two games for team A; the latest roster, landed later, lists P1 on team B and a rookie P2 on team B with no appearance. P1 gets a second stint on B from the roster date and the A stint closes the day before; P2 gets a first stint on B. P3, rostered where they last played, keeps one stint. When P1 then plays for B, the roster start and the first game for B are one stint (the collapse is covered by the lag over the unioned starts).",
+   "model": "dim_player",
+   "name": "player_current_stint_follows_the_roster"
   },
   {
    "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it.",
