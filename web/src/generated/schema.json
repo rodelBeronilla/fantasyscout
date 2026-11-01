@@ -289,6 +289,7 @@
   {
    "path": "_ops/ingest_log",
    "read_by": [
+    "fetch_failures",
     "ingest_log"
    ]
   },
@@ -19707,6 +19708,88 @@
       "stats_leaguestandingsv3",
       "stats_scheduleleaguev2"
      ],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Run id of the ingest run (ingest_log.run_id)",
+       "name": "run_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Source the run pulled from: stats, espn or reports",
+       "name": "source",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League the run covered: wnba or nba",
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label the run landed under",
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the run started (UTC)",
+       "name": "started_at",
+       "tests": [],
+       "type": "timestamp"
+      },
+      {
+       "description": "failed (an error of ours or the host's) or missing (the source has no payload for the key, HTTP 404)",
+       "name": "kind",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Endpoint of the request, as the landing folders name it",
+       "name": "endpoint",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Key the payload lands under: a game id, a team id, a date or a season label",
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The error, as the ingestor recorded it",
+       "name": "reason",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The run log the row was read from",
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Every request an ingest run could not land, one row each, from the run logs: the failures (an error of ours or the host's) and the payloads missing at the source (HTTP 404). Names the endpoint and key so a replay can target them (fs-ingest land --from-run-log or --only).",
+     "exported_as": [
+      "fetch_failures.parquet",
+      "fetch_failures.json"
+     ],
+     "grain": null,
+     "landing": [
+      "_ops/ingest_log"
+     ],
+     "materialized": "table",
+     "name": "fetch_failures",
+     "notes": [
+      "Every request an ingest run could not land, one row each, from the run logs the ingestors write under landing/_ops/ingest_log: the failures (an error of ours or the host's) and the payloads missing at the source (HTTP 404). ingest_log keeps the counts; this names the endpoint and key, so Data Health can show a request that fails every day and a replay can target exactly these keys (fs-ingest land ... --from-run-log, or --only endpoint:key)."
+     ],
+     "read_by": [],
+     "reads": [],
      "unit_tests": []
     },
     {

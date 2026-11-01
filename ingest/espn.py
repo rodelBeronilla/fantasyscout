@@ -13,7 +13,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from ingest.http import CircuitOpenError, ThrottledClient
 from ingest.landing import League
-from ingest.run import MissingPayloadError, RunSummary
+from ingest.run import MissingPayloadError, Only, RunSummary
 from ingest.store import Landing, LandResult, Scope
 
 SOURCE = "espn"
@@ -110,6 +110,10 @@ def team_ids_from_teams(payload: bytes) -> list[str]:
     return sorted(set(ids))
 
 
+# Requests a run plans the rest from: made even when a replay is limited to other keys.
+PLANNING_ENDPOINTS = frozenset({"scoreboard", "teams"})
+
+
 class EspnIngestor:
     def __init__(
         self,
@@ -118,11 +122,13 @@ class EspnIngestor:
         planner: EspnPlanner,
         *,
         now: datetime | None = None,
+        only: Only | None = None,
     ) -> None:
         self.client = client
         self.landing = landing
         self.planner = planner
         self._now = now
+        self.only = only or None
 
     def _clock(self) -> datetime:
         return self._now or datetime.now(UTC)
@@ -169,6 +175,12 @@ class EspnIngestor:
     def _try(
         self, request: Request, summary: RunSummary, played: date | None = None
     ) -> bytes | None:
+        if (
+            self.only is not None
+            and request.endpoint not in PLANNING_ENDPOINTS
+            and not self.only.allows(request.endpoint, request.key)
+        ):
+            return None  # a replay limited to other keys
         try:
             result, body = self.fetch(request, played)
         except CircuitOpenError:

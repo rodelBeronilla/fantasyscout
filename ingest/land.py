@@ -26,7 +26,7 @@ from ingest.landing import League
 from ingest.lineups import LineupsIngestor
 from ingest.props import EspnPropsIngestor, OddsApiIngestor
 from ingest.referee_assignments import RefereeAssignmentsIngestor
-from ingest.run import RunSummary, describe
+from ingest.run import Only, RunSummary, describe, only_from_run_log
 from ingest.sleeper import SleeperIngestor
 from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
 from ingest.store import Backend, Landing, LocalBackend, VolumeBackend
@@ -107,6 +107,10 @@ class LandOptions:
     # reports only: land one official injury report per day over the window (the 5 pm one)
     # instead of the day's feeds.
     history: bool = False
+    # A replay: only these endpoints or endpoint:key pairs (stats and espn), plus the keys an
+    # earlier run's log (a landing path) says failed or were missing.
+    only: tuple[str, ...] = ()
+    from_run_log: str | None = None
 
 
 def default_season(league: League, today: date) -> str:
@@ -178,6 +182,11 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         lines.append(
             f"  and, when the window ends today, {opts.ahead_days} days of upcoming scoreboards"
         )
+    if opts.only or opts.from_run_log:
+        only = ", ".join(Only.parse(opts.only).specs()) or "(from the run log)"
+        lines.append(
+            f"  only {only}" + (f" + failures in {opts.from_run_log}" if opts.from_run_log else "")
+        )
     return lines
 
 
@@ -220,6 +229,19 @@ class StoppingOnSigterm:
         raise StoppedError(f"signal {signum}")
 
 
+def replay_filter(opts: LandOptions, backend: Backend) -> Only | None:
+    """The keys a replay is limited to: --only, plus what an earlier run's log says failed."""
+    only = Only.parse(opts.only)
+    if opts.from_run_log:
+        body = backend.read_bytes(PurePosixPath(opts.from_run_log))
+        if body is None:
+            raise SystemExit(f"run log not found: {opts.from_run_log}")
+        only = only.merged(only_from_run_log(body))
+        if not only:
+            print(f"nothing to replay: {opts.from_run_log} names no failed or missing request")
+    return only or None
+
+
 def _run_source(
     opts: LandOptions,
     client: ThrottledClient,
@@ -229,11 +251,15 @@ def _run_source(
     until: date,
     today: date,
     env: Mapping[str, str],
+    only: Only | None = None,
 ) -> RunSummary:
     """Run the ingestors of one source over the window and return the summary."""
     if opts.source == "stats":
         summary = StatsIngestor(
-            client, landing, StatsPlanner(opts.league, season, opts.season_type, opts.shots)
+            client,
+            landing,
+            StatsPlanner(opts.league, season, opts.season_type, opts.shots),
+            only=only,
         ).run(since=since, until=until)
     elif opts.source == "reports" and opts.history:
         summary = ReportHistoryIngestor(
@@ -256,7 +282,7 @@ def _run_source(
     else:
         # Only a run that ends today looks ahead; a backfill's window is in the past.
         ahead = opts.ahead_days if until == today else 0
-        summary = EspnIngestor(client, landing, EspnPlanner(opts.league, season)).run(
+        summary = EspnIngestor(client, landing, EspnPlanner(opts.league, season), only=only).run(
             since=since, until=until, ahead=ahead
         )
     return summary
@@ -289,13 +315,16 @@ def land(
         workers=4 if isinstance(backend, VolumeBackend) else 1,
     )
     run_id = uuid.uuid4().hex[:12]
+    only = replay_filter(opts, backend)
+    if only:
+        print("replay: only " + ", ".join(only.specs()))
     throttle = Throttle.adaptive() if opts.pace == "adaptive" else Throttle.spec()
     try:
         with (
             StoppingOnSigterm(),
             ThrottledClient(throttle, on_pace_change=_announce_pace) as client,
         ):
-            summary = _run_source(opts, client, landing, season, since, until, today, env)
+            summary = _run_source(opts, client, landing, season, since, until, today, env, only)
     finally:
         # Whatever ended the run (a cancelled job sends SIGTERM), the indexes record what landed.
         landing.flush()

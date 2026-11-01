@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import json
+from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 
@@ -19,6 +20,58 @@ class FetchFailure:
 
 class MissingPayloadError(Exception):
     """The source has no payload for this key (HTTP 404); not a failure of ours."""
+
+
+@dataclass(frozen=True)
+class Only:
+    """A replay's filter: the endpoints, or endpoint:key pairs, a run is limited to.
+
+    The requests a run plans from (the game log, a day's scoreboard) are still made; everything
+    else is skipped unless it matches, so a run can redo exactly the keys an earlier run failed.
+    """
+
+    endpoints: frozenset[str] = frozenset()
+    keys: frozenset[tuple[str, str]] = frozenset()
+
+    @classmethod
+    def parse(cls, specs: Iterable[str]) -> Only:
+        endpoints: set[str] = set()
+        keys: set[tuple[str, str]] = set()
+        for spec in specs:
+            spec = spec.strip()
+            if not spec:
+                continue
+            endpoint, sep, key = spec.partition(":")
+            if sep:
+                keys.add((endpoint, key))
+            else:
+                endpoints.add(endpoint)
+        return cls(frozenset(endpoints), frozenset(keys))
+
+    def __bool__(self) -> bool:
+        return bool(self.endpoints or self.keys)
+
+    def allows(self, endpoint: str, key: str) -> bool:
+        return endpoint in self.endpoints or (endpoint, key) in self.keys
+
+    def merged(self, other: Only) -> Only:
+        return Only(self.endpoints | other.endpoints, self.keys | other.keys)
+
+    def specs(self) -> Iterable[str]:
+        yield from (f"{e}:{k}" for e, k in sorted(self.keys))
+        yield from sorted(self.endpoints)
+
+
+def only_from_run_log(payload: bytes) -> Only:
+    """The failed and missing keys a run log names, as a filter for a replay."""
+    record = json.loads(payload)
+    specs = [
+        f"{item['endpoint']}:{item['key']}"
+        for group in ("failures", "missing")
+        for item in record.get(group, [])
+        if isinstance(item, dict) and "endpoint" in item and "key" in item
+    ]
+    return Only.parse(specs)
 
 
 @dataclass
