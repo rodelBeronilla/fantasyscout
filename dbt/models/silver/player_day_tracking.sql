@@ -29,7 +29,7 @@ with passing as (
         _ingest_date
     from {{ ref('stats_leaguedashptstats_passing') }}
     where player_id is not null
-    qualify row_number() over (partition by league, request_key, player_id order by _ingest_date desc, _source_file desc) = 1
+    {{ latest_landing(['league', 'request_key', 'player_id']) }}
 
 ),
 
@@ -55,7 +55,7 @@ rebounding as (
         _ingest_date
     from {{ ref('stats_leaguedashptstats_rebounding') }}
     where player_id is not null
-    qualify row_number() over (partition by league, request_key, player_id order by _ingest_date desc, _source_file desc) = 1
+    {{ latest_landing(['league', 'request_key', 'player_id']) }}
 
 ),
 
@@ -80,7 +80,7 @@ possessions as (
         _ingest_date
     from {{ ref('stats_leaguedashptstats_possessions') }}
     where player_id is not null
-    qualify row_number() over (partition by league, request_key, player_id order by _ingest_date desc, _source_file desc) = 1
+    {{ latest_landing(['league', 'request_key', 'player_id']) }}
 
 ),
 
@@ -105,7 +105,7 @@ drives as (
         _ingest_date
     from {{ ref('stats_leaguedashptstats_drives') }}
     where player_id is not null
-    qualify row_number() over (partition by league, request_key, player_id order by _ingest_date desc, _source_file desc) = 1
+    {{ latest_landing(['league', 'request_key', 'player_id']) }}
 
 ),
 
@@ -127,7 +127,7 @@ speeddistance as (
         _ingest_date
     from {{ ref('stats_leaguedashptstats_speeddistance') }}
     where player_id is not null
-    qualify row_number() over (partition by league, request_key, player_id order by _ingest_date desc, _source_file desc) = 1
+    {{ latest_landing(['league', 'request_key', 'player_id']) }}
 
 ),
 
@@ -158,7 +158,7 @@ hustle as (
         _ingest_date
     from {{ ref('stats_leaguehustlestatsplayer') }}
     where player_id is not null
-    qualify row_number() over (partition by league, request_key, player_id order by _ingest_date desc, _source_file desc) = 1
+    {{ latest_landing(['league', 'request_key', 'player_id']) }}
 
 ),
 

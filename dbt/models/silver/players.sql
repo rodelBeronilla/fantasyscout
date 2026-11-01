@@ -17,6 +17,6 @@ select
     try_cast(games_played_flag = 'Y' as boolean) as has_played,
     _ingest_date,
     _source_file
-from {{ ref('stats_commonallplayers') }}
+from ({{ latest_snapshot(ref('stats_commonallplayers')) }}) as newest_stats_commonallplayers
 where person_id is not null
-qualify row_number() over (partition by league, person_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'person_id']) }}

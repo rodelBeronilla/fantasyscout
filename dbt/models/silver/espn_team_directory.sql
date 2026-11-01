@@ -14,4 +14,4 @@ select
     _source_file
 from {{ ref('espn_teams') }}
 where team_id is not null
-qualify row_number() over (partition by league, team_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'team_id']) }}

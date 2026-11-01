@@ -15,4 +15,4 @@ select
     _source_file
 from {{ ref('espn_roster') }}
 where athlete_id is not null
-qualify row_number() over (partition by league, athlete_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'athlete_id']) }}

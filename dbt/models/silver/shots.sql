@@ -31,4 +31,4 @@ select
     _source_file
 from {{ ref('stats_shotchartdetail') }}
 where game_id is not null and game_event_id is not null
-qualify row_number() over (partition by league, game_id, game_event_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'game_id', 'game_event_id']) }}

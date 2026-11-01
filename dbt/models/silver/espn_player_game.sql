@@ -38,4 +38,4 @@ from {{ ref('espn_summary_players') }}
 where event_id is not null and athlete_id is not null
     and {{ json_text('stat_keys', '$[0]') }} = 'minutes'
     and {{ json_text('stat_keys', '$[1]') }} = 'points'
-qualify row_number() over (partition by league, event_id, athlete_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'event_id', 'athlete_id']) }}

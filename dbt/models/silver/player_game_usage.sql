@@ -32,6 +32,6 @@ select
     try_cast(pct_pts as double) as team_share_points,
     _ingest_date,
     _source_file
-from {{ ref('stats_playergamelogs_usage') }}
+from ({{ latest_snapshot(ref('stats_playergamelogs_usage')) }}) as newest_stats_playergamelogs_usage
 where game_id is not null and player_id is not null
-qualify row_number() over (partition by league, game_id, player_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'game_id', 'player_id']) }}

@@ -44,6 +44,6 @@ select
     try_cast(away_score as integer) as away_score,
     _ingest_date,
     _source_file
-from {{ ref('stats_scheduleleaguev2') }}
+from ({{ latest_snapshot(ref('stats_scheduleleaguev2')) }}) as newest_stats_scheduleleaguev2
 where game_id is not null
-qualify row_number() over (partition by league, game_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'game_id']) }}

@@ -20,6 +20,6 @@ select
     how_acquired,
     _ingest_date,
     _source_file
-from {{ ref('stats_commonteamroster') }}
+from ({{ latest_snapshot(ref('stats_commonteamroster')) }}) as newest_stats_commonteamroster
 where team_id is not null and player_id is not null
-qualify row_number() over (partition by league, season, team_id, player_id order by _ingest_date desc, _source_file desc) = 1
+{{ latest_landing(['league', 'season', 'team_id', 'player_id']) }}

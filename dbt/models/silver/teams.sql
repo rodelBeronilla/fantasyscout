@@ -9,7 +9,7 @@ with seen as (
         team_abbreviation,
         team_name,
         max(_ingest_date) as _ingest_date
-    from {{ ref('stats_leaguegamelog') }}
+    from ({{ latest_snapshot(ref('stats_leaguegamelog')) }}) as newest_stats_leaguegamelog
     where team_id is not null
     group by league, season, team_id, team_abbreviation, team_name
 
