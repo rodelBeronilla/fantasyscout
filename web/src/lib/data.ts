@@ -58,7 +58,9 @@ export class DataUnavailableError extends Error {
  * again rather than reading "no build" for the life of the page.
  */
 export function getLatest(): Promise<Latest | null> {
-  latestPromise ??= fetch(dataHref('latest.json'), { cache: 'no-cache' })
+  // No cache override: the preload in the page head fetched the pointer already, and the Worker
+  // serves it with a minute's cache, which is the staleness the site accepts (ADR 0006).
+  latestPromise ??= fetch(dataHref('latest.json'))
     .then((r) => {
       if (r.status === 404) return null;
       if (!r.ok) throw new DataUnavailableError(r.status);

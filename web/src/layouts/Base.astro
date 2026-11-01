@@ -32,6 +32,8 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
     <title>{title} · FantasyScout</title>
     <meta name="description" content={description} />
     <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
+    {/* Every island starts from the build pointer: fetch it with the HTML, not after React hydrates. */}
+    <link rel="preload" as="fetch" href={href('data/latest.json')} crossorigin="anonymous" />
     <script src="../scripts/theme.ts"></script>
     <script src="../scripts/nav.ts"></script>
   </head>
