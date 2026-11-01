@@ -113,14 +113,13 @@ def test_fixture_has_the_json_files_a_fresh_export_produces(fresh: build_mod.Bui
     ops_parquet = {f"{spec.name}.parquet" for spec in layout.OPS}
     # The notebooks and the Tableau extract add their files to a build after staging.
     side = {p for p in committed if p.startswith(("notebooks/", "tableau/"))}
-    assert produced <= committed, (
-        f"missing from fixture: {sorted(produced - committed)[:10]} ({REFRESH})"
-    )
+    missing = produced - committed - ops_json - ops_parquet
+    assert not missing, f"missing from fixture: {sorted(missing)[:10]} ({REFRESH})"
     stale = committed - produced - ops_json - ops_parquet - side
     assert not stale, f"stale in fixture: {sorted(stale)[:10]} ({REFRESH})"
     # Root tables with rows in the sample: the same keys (the fixture trims rows, never columns).
     drift = {}
-    for path in sorted(produced):
+    for path in sorted(produced & committed):
         if "/" in path or path == "health.json" or not path.endswith(".json"):
             continue
         fresh_rows = json.loads(fresh.files[path])

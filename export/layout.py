@@ -85,6 +85,7 @@ OPS: tuple[TableSpec, ...] = (
     ),
     TableSpec("ops.feed_freshness", "league, feed", json=True),
     TableSpec("ops.publish_gate", "run_at desc, run_id", json=True),
+    TableSpec("ops.build_log", "finished_at desc, run_id", json=True),
     TableSpec("ops.test_results", "run_at desc, run_id, node_id"),
     TableSpec("ops.category_config", "league, sort_order", json=True),
 )

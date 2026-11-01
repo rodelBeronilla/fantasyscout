@@ -4,6 +4,8 @@ import { fetchBuildJson, getLatest, type Latest } from '../lib/data';
 import { day, int, pct, when } from '../lib/format';
 import { Badge, Card, Loading, Problem, Td, Th } from './ui';
 
+const minutes = (seconds: number | null) => (seconds === null ? '–' : `${(seconds / 60).toFixed(1)} min`);
+
 interface Gate {
   run_id: string;
   run_at: string;
@@ -55,6 +57,27 @@ interface Reconciliation {
   conflict_rate: number | null;
 }
 
+/** One Build lakehouse run (ops.build_log; absent in older builds). */
+interface BuildRun {
+  run_id: string;
+  run_url: string;
+  run_at: string | null;
+  finished_at: string;
+  event: string;
+  trigger_run_url: string | null;
+  build_id: string | null;
+  selected: string | null;
+  light: boolean;
+  outcome: string;
+  gate_passed: boolean | null;
+  gate_reason: string | null;
+  error_checks: number | null;
+  warn_checks: number | null;
+  queue_seconds: number | null;
+  build_seconds: number | null;
+  total_seconds: number | null;
+}
+
 /** A request an ingest run could not land (ops.fetch_failures; absent in older builds). */
 interface FetchFailure {
   run_id: string;
@@ -83,6 +106,8 @@ interface HealthFile {
   row_counts: Record<string, number>;
   /** How fresh each source feed is (ops.feed_freshness; absent in older builds). */
   feeds?: Feed[];
+  /** The recent Build lakehouse runs, newest first (ops.build_log; absent in older builds). */
+  builds?: BuildRun[];
   /** Requests recent ingest runs could not land, newest first (ops.fetch_failures; absent in older builds). */
   fetch_failures?: FetchFailure[];
 }
@@ -349,6 +374,77 @@ export default function Health() {
           </table>
         </div>
       </Card>
+
+      {health.builds && health.builds.length > 0 && (
+        <Card title="Build runs" id="builds">
+          <p className="mb-3 text-sm text-muted">
+            Each run of the Build lakehouse workflow: how long it queued for a runner and ran, what its gate decided, and the build it
+            published. A light build follows the evening ingest and covers the feeds it landed.
+          </p>
+          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+            <table className="w-full text-sm" data-testid="builds">
+              <thead>
+                <tr>
+                  <Th>Finished</Th>
+                  <Th>Run</Th>
+                  <Th>Trigger</Th>
+                  <Th>Gate</Th>
+                  <Th>Build</Th>
+                  <Th right>Queued</Th>
+                  <Th right>dbt</Th>
+                  <Th right>Total</Th>
+                  <Th right>Warns</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {health.builds.map((b) => (
+                  <tr key={b.run_id} className="border-t border-line">
+                    <Td>{when(b.finished_at)}</Td>
+                    <Td>
+                      {b.run_url ? (
+                        <a href={b.run_url} className="underline-offset-4 hover:underline" rel="noopener">
+                          {b.run_id}
+                        </a>
+                      ) : (
+                        b.run_id
+                      )}
+                      {b.outcome !== 'success' && (
+                        <>
+                          {' '}
+                          <Badge tone="bad">{b.outcome}</Badge>
+                        </>
+                      )}
+                    </Td>
+                    <Td>
+                      {b.event}
+                      {b.light && (
+                        <>
+                          {' '}
+                          <Badge tone="muted">light</Badge>
+                        </>
+                      )}
+                    </Td>
+                    <Td>
+                      {b.gate_passed === null ? (
+                        <Badge tone="muted">none</Badge>
+                      ) : (
+                        <Badge tone={b.gate_passed ? 'good' : 'bad'}>{b.gate_passed ? 'passed' : 'blocked'}</Badge>
+                      )}
+                    </Td>
+                    <Td>
+                      <span className="font-mono text-xs">{b.build_id ?? '–'}</span>
+                    </Td>
+                    <Td right>{minutes(b.queue_seconds)}</Td>
+                    <Td right>{minutes(b.build_seconds)}</Td>
+                    <Td right>{minutes(b.total_seconds)}</Td>
+                    <Td right>{b.warn_checks ?? '–'}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
 
       <Card title="Reconciliation: league stats API against ESPN" id="reconciliation">
         <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
