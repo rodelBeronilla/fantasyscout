@@ -130,3 +130,37 @@ def test_volume_backend_ensure_directory_puts_once(tmp_path: Path) -> None:
     backend.ensure_directory(PurePosixPath("landing/stats/playergamelogs"))
     assert puts == ["/api/2.0/fs/directories/Volumes/fantasyscout/raw/landing/stats/playergamelogs"]
     backend.close()
+
+
+def test_a_run_that_dies_still_writes_its_indexes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The first roster lands, then the job is told to stop: the index names what landed.
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        name = request.url.path.rsplit("/", 1)[-1]
+        if name == "roster" and seen.count("roster") == 1:
+            raise land_mod.StoppedError("signal 15")
+        seen.append(name)
+        return httpx.Response(200, content=(FIXTURES / "espn" / f"{name}.json").read_bytes())
+
+    def fake_client(*_: object, **__: object) -> ThrottledClient:
+        return ThrottledClient(
+            Throttle(max_retries=0),
+            transport=httpx.MockTransport(handler),
+            sleep=lambda _: None,
+            clock=lambda: 0.0,
+            rng=random.Random(0),
+        )
+
+    monkeypatch.setattr(land_mod, "ThrottledClient", fake_client)
+    opts = LandOptions(
+        "espn", "wnba", since=date(2026, 9, 24), until=date(2026, 9, 24), root=tmp_path
+    )
+    with pytest.raises(land_mod.StoppedError):
+        land(opts, today=date(2026, 10, 27), env={})
+    indexes = list((tmp_path / "landing" / "espn").rglob("_index.json"))
+    assert indexes, "the indexes must be written when the run is cut short"
+    landed = {k for p in indexes for k in json.loads(p.read_text(encoding="utf-8"))}
+    assert landed, landed

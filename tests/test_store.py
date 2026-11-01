@@ -293,3 +293,30 @@ def test_an_unchanged_payload_counts_as_checked_today(tmp_path: Path) -> None:
     reread = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 9, 26))
     assert reread.already_landed_today(scope, "g1")
     assert reread.settled(scope, "g1", played=date(2026, 9, 24))
+
+
+def test_the_indexes_are_written_every_few_landings(tmp_path: Path) -> None:
+    # A run killed mid-way keeps what it landed up to the last interim write.
+    landing = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 10, 27), flush_every=2)
+    index_path = tmp_path / "landing/stats/leaguegamelog/wnba/2026" / INDEX_NAME
+    _land(landing, "k1", b"one")
+    assert not index_path.exists()
+    _land(landing, "k2", b"two")
+    assert set(json.loads(index_path.read_text())) == {"k1", "k2"}
+    _land(landing, "k3", b"three")
+    assert set(json.loads(index_path.read_text())) == {"k1", "k2"}
+    landing.flush()
+    assert set(json.loads(index_path.read_text())) == {"k1", "k2", "k3"}
+
+
+def test_failures_an_interim_write_finds_are_reported_by_the_next_flush(tmp_path: Path) -> None:
+    landing = Landing(
+        FlakyBackend(tmp_path), ingest_date=date(2026, 10, 27), workers=4, flush_every=2
+    )
+    _land(landing, "bad", b"nope")
+    _land(landing, "good", b"ok")  # the second landing writes the indexes and finds the failure
+    _land(landing, "later", b"ok")
+    failures = landing.flush()
+    landing.close()
+    assert [(f.endpoint, f.key) for f in failures] == [("leaguegamelog", "bad")]
+    assert landing.flush() == [], "a failure is reported once"

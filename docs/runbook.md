@@ -140,6 +140,8 @@ When an incident issue names a failed run:
 3. If a single payload is corrupt rather than missing, re-run with `--full-refresh` for that one day.
 4. The next passing scheduled run closes the incident issue automatically.
 
+A run that is cut short (a job timeout, a cancelled job, a runner restart) keeps what it landed: the per-scope indexes (`_index.json`) are written every 25 landings and once more when the run ends, however it ends, so the next run re-fetches at most the last few requests rather than the whole window.
+
 ## When a source changes shape
 
 Landed payloads are raw, so a shape change breaks bronze parsing (phase 2), not landing.
