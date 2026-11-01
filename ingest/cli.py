@@ -113,7 +113,10 @@ def _run_probe(out: Path | None, markdown: bool) -> int:
         out.write_text(probe_mod.to_json(results) + "\n", encoding="utf-8")
     print(probe_mod.to_markdown(results) if markdown else probe_mod.to_json(results))
     if databricks is None:
-        print("databricks: skipped (DATABRICKS_HOST / DATABRICKS_TOKEN not set)", file=sys.stderr)
+        print(
+            "databricks: skipped (DATABRICKS_HOST and a credential not set)",
+            file=sys.stderr,
+        )
     return 0
 
 

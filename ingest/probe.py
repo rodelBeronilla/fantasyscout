@@ -16,7 +16,7 @@ from dataclasses import asdict, dataclass, field
 import httpx
 
 from ingest.http import Throttle, ThrottledClient, stats_headers
-from ingest.store import workspace_origin
+from ingest.store import credentials_from_env, workspace_origin
 
 __all__ = [
     "DEFAULT_TARGETS",
@@ -175,6 +175,9 @@ def databricks_target(env: Mapping[str, str] = os.environ) -> Target | None:
     """A Unity Catalog call that proves host and token work. None when they are not set."""
     host = workspace_origin(env.get("DATABRICKS_HOST", ""))
     token = env.get("DATABRICKS_TOKEN", "")
+    auth = credentials_from_env(env)
+    if auth is not None:
+        token = auth.token()  # type: ignore[attr-defined]
     if not host or not token:
         return None
     return Target(

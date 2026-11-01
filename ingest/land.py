@@ -29,7 +29,7 @@ from ingest.referee_assignments import RefereeAssignmentsIngestor
 from ingest.run import Only, RunSummary, describe, only_from_run_log
 from ingest.sleeper import SleeperIngestor
 from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
-from ingest.store import Backend, Landing, LocalBackend, VolumeBackend
+from ingest.store import Backend, Landing, LocalBackend, VolumeBackend, credentials_from_env
 from ingest.transactions import TransactionsIngestor
 
 Source = Literal["stats", "espn", "reports"]
@@ -131,10 +131,14 @@ def make_backend(kind: BackendKind, root: Path, env: Mapping[str, str] = os.envi
     if kind == "local":
         return LocalBackend(root)
     host, token = env.get("DATABRICKS_HOST", ""), env.get("DATABRICKS_TOKEN", "")
-    if not host or not token:
-        msg = "backend 'volume' needs DATABRICKS_HOST and DATABRICKS_TOKEN in the environment"
+    auth = credentials_from_env(env)
+    if not host or (auth is None and not token):
+        msg = (
+            "backend 'volume' needs DATABRICKS_HOST and either DATABRICKS_CLIENT_ID with "
+            "DATABRICKS_CLIENT_SECRET (the ingest's service principal) or DATABRICKS_TOKEN"
+        )
         raise SystemExit(msg)
-    return VolumeBackend(host, token)
+    return VolumeBackend(host, token, auth=auth)
 
 
 def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequence[str]:
