@@ -511,7 +511,6 @@ Decisions:
 - Two unit tests on `mart_board`: the pool is chosen in two passes (a player who scores like a pool player but plays few minutes is pooled, a player who plays many but scores like a replacement is not) and the availability multiplier takes every branch it has (nothing left to play, a return date, out for the season, calibrated on past listings, no status, and the three old charges). The z-scores themselves are square roots and are not pinned to decimals; the availability test's lines are zero so every factor it pins is exact.
 - No `dbt_utils`: every check here is one `relationships`, `accepted_values` or singular test, and the project stays without packages to install on both engines.
 
-<<<<<<< HEAD
 ## Addendum (2026-11-01): silver types what gold reads; a key to nothing is null
 
 Three columns crossed from silver into gold as text: the roster's birth date ("JUN 10, 1996"), parsed with `stats_birth_date()` in three gold and silver models; the roster's height ("6-4"); and the two tip-off times, the schedule's `game_datetime_utc` and ESPN's `event_datetime_utc`, carried as ISO 8601 strings into `dim_game` and `mart_schedule_upcoming`. And `sk()` built its hash with `concat_ws`, which skips nulls, so `fct_team_game.opponent_team_sk` for a game whose opponent's box had not landed was `md5('league:season')`, a non-null key that matches no team.
@@ -526,9 +525,18 @@ Consequences:
 
 - The exported player file's `birth_date` is now an ISO date ("1996-06-10") rather than the roster's text; the site types it as a string and shows height from the text, which is unchanged. The upcoming-schedule export's `game_datetime_utc` is an instant serialised with its offset ("2026-04-25T19:00:00+00:00") rather than the schedule's "Z" text; nothing on the site reads it yet.
 - A full refresh is not needed: every model here is a table rebuilt each run.
-=======
+
 ## Addendum (2026-11-01): the ledger's holes are reported
 
 `fct_board_history` is merged by every build and never rebuilt, so a nightly build that fails leaves a day with no rows, and the only other copies of that day are the seven kept builds, which roll off in a week. Nothing reported the hole. `warn_board_history_gaps` now lists every Eastern date of the last 45 days, from the league's first snapshot on and while the league was playing, that has no snapshot; the runbook's "Fill a hole in the board ledger" puts a day back from a kept build's Parquet by naming the columns and inserting only that day. The check warns rather than fails, since the build that notices the hole is not the one that caused it.
->>>>>>> origin/main
 
+## Addendum (2026-11-01): the availability calibration is its own table
+
+The board computed the games a listed player is expected to miss by joining every board player who has a status against every past `fct_official_listing` row with the same status and reason, with the 300-listing league switch written into the join condition, where no test could reach it; the game context notebook recomputed the same averages from the listings on its own.
+
+Decisions:
+
+- `gold.fct_status_calibration` is the histogram: one row per league served, status, reason group and number of games missed, with the past listings that missed exactly that many, `source_league` saying whose listings they are and `own_listings` the count the switch is made on. The threshold is a project variable, `calibration_min_listings` (300), rather than a literal in the board.
+- The board joins a listed player to the rows for their league, status and reason, caps each `games_missed` at the games the team has left and takes the listings-weighted mean. Every board value is unchanged (the weighted mean of a histogram is the mean of the listings; the CI sample is byte-identical), and the join is players × histogram rows rather than players × listings.
+- The notebook reads the histogram and shows what the board uses: for the WNBA, the NBA's rows and the fact that they are borrowed, rather than the WNBA's own handful, which the board does not read yet.
+- Unit tests: `status_calibration_falls_back_to_the_nba_until_a_league_has_enough` pins the switch (a league under 300 reads the NBA's rows with its own count beside them; a league at 300 reads its own; the NBA, its own fallback, gets no row for a reason it has never listed), and the board's availability test gains a listing whose games missed exceed the games left, to pin the cap.

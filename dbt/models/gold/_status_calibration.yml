@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: fct_status_calibration
+    description: "How many games a listed player then misses, by league, status and reason: the histogram the board's availability multiplier reads. One row per league served, status, reason group and games missed, with the number of past official listings (fct_official_listing) that missed exactly that many. A league reads its own listings once it has calibration_min_listings (300) for the status and reason, else the NBA's; source_league says whose."
+    columns:
+      - name: status_calibration_sk
+        description: "Surrogate key: one row per league served, status, reason group and games missed"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "The league the row serves (nba or wnba)"
+        data_tests: [not_null]
+      - name: status
+        description: "The listing status: Out, Doubtful, Questionable or Probable"
+        data_tests:
+          - accepted_values:
+              values: [Out, Doubtful, Questionable, Probable]
+      - name: reason_group
+        description: "The listing's reason group: injury, g_league, rest, personal, suspension, not_with_team or other"
+        data_tests: [not_null]
+      - name: source_league
+        description: "Whose listings the row counts: the league itself once it has calibration_min_listings for the status and reason, else nba"
+        data_tests:
+          - accepted_values:
+              values: [nba, wnba]
+      - name: games_missed
+        description: "Regular-season games the listed player then missed, from the listed game to their next played one"
+        data_tests: [not_null]
+      - name: listings
+        description: "Past listings of the source league with this status and reason that missed exactly games_missed games"
+        data_tests: [not_null]
+      - name: own_listings
+        description: "The served league's own listings for the status and reason, the count the switch to its own history is made on"
+        data_tests: [not_null]
+
+unit_tests:
+  - name: status_calibration_falls_back_to_the_nba_until_a_league_has_enough
+    description: >
+      The NBA has two Out listings (0 and 4 games missed) and three Questionable ones (0, 1, 1).
+      The WNBA has one Questionable listing, far short of the 300 the switch needs, so its
+      Questionable rows are the NBA's with source_league nba and own_listings 1; its Out rows
+      are the NBA's too, with no own listings at all. The WNBA has 300 Out-for-rest listings,
+      so those rows are its own. The NBA has no rest listings and the NBA is its own fallback,
+      so it gets no Out-for-rest row.
+    model: fct_status_calibration
+    given:
+      - input: ref('teams')
+        rows:
+          - {league: nba, season: '2025-26', team_id: '1'}
+          - {league: wnba, season: '2026', team_id: '2'}
+      - input: ref('fct_official_listing')
+        format: sql
+        rows: |
+          select 'nba' as league, 'Out' as status, 'injury' as reason_group, 0 as games_missed
+          union all select 'nba', 'Out', 'injury', 4
+          union all select 'nba', 'Questionable', 'injury', 0
+          union all select 'nba', 'Questionable', 'injury', 1
+          union all select 'nba', 'Questionable', 'injury', 1
+          union all select 'wnba', 'Questionable', 'injury', 2
+          union all select 'wnba', 'Out', 'rest', 1 from range(0, 300) as t(n)
+    expect:
+      rows:
+        - {league: nba, status: Out, reason_group: injury, source_league: nba, games_missed: 0, listings: 1, own_listings: 2}
+        - {league: nba, status: Out, reason_group: injury, source_league: nba, games_missed: 4, listings: 1, own_listings: 2}
+        - {league: nba, status: Questionable, reason_group: injury, source_league: nba, games_missed: 0, listings: 1, own_listings: 3}
+        - {league: nba, status: Questionable, reason_group: injury, source_league: nba, games_missed: 1, listings: 2, own_listings: 3}
+        - {league: wnba, status: Out, reason_group: injury, source_league: nba, games_missed: 0, listings: 1, own_listings: 0}
+        - {league: wnba, status: Out, reason_group: injury, source_league: nba, games_missed: 4, listings: 1, own_listings: 0}
+        - {league: wnba, status: Questionable, reason_group: injury, source_league: nba, games_missed: 0, listings: 1, own_listings: 1}
+        - {league: wnba, status: Questionable, reason_group: injury, source_league: nba, games_missed: 1, listings: 2, own_listings: 1}
+        - {league: wnba, status: Out, reason_group: rest, source_league: wnba, games_missed: 1, listings: 300, own_listings: 300}

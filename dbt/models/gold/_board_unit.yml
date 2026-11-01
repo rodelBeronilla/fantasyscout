@@ -56,7 +56,7 @@ unit_tests:
         rows: []
       - input: ref('int_player_news_latest')
         rows: []
-      - input: ref('fct_official_listing')
+      - input: ref('fct_status_calibration')
         rows: []
       - input: ref('team_current')
         rows: []
@@ -112,7 +112,9 @@ unit_tests:
       injury, two past questionable listings that cost one and three games) the calibrated
       average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0;
       g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially
-      questionable for rest, a reason with no history) the old charge of half a game, 0.875.
+      questionable for rest, a reason with no history) the old charge of half a game, 0.875;
+      i (officially probable, whose one past listing cost ten games) the calibrated games
+      capped at the four the team has left, 0.
       Every projected line is zero, so value is zero and the factors are exact.
     model: mart_board
     overrides:
@@ -131,6 +133,7 @@ unit_tests:
           - {league: nba, season: '2025-26', player_id: f, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
           - {league: nba, season: '2025-26', player_id: g, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
           - {league: nba, season: '2025-26', player_id: h, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+          - {league: nba, season: '2025-26', player_id: i, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
       - input: ref('schedule_team_games')
         rows:
           - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-12}
@@ -147,10 +150,12 @@ unit_tests:
           - {league: nba, stats_player_id: f, status: Out, status_group: out, espn_status_group: out}
           - {league: nba, stats_player_id: g, status: Doubtful, status_group: doubtful, espn_status_group: doubtful}
           - {league: nba, stats_player_id: h, status: Questionable, status_group: questionable, espn_status_group: questionable, official_status: Questionable, official_reason_group: rest}
-      - input: ref('fct_official_listing')
+          - {league: nba, stats_player_id: i, status: Probable, status_group: probable, official_status: Probable, official_reason_group: injury}
+      - input: ref('fct_status_calibration')
         rows:
-          - {league: nba, status: Questionable, reason_group: injury, games_missed: 1}
-          - {league: nba, status: Questionable, reason_group: injury, games_missed: 3}
+          - {league: nba, status: Questionable, reason_group: injury, games_missed: 1, listings: 1}
+          - {league: nba, status: Questionable, reason_group: injury, games_missed: 3, listings: 1}
+          - {league: nba, status: Probable, reason_group: injury, games_missed: 10, listings: 1}
       - input: ref('mart_category_zscores')
         rows: []
       - input: ref('int_player_news_latest')
@@ -177,3 +182,4 @@ unit_tests:
         - {player_id: f, games_remaining: 4, availability_multiplier: 0.0, expected_games_missed: null, season_complete: false, ros_factor: 0.0}
         - {player_id: g, games_remaining: 4, availability_multiplier: 0.8125, expected_games_missed: null, season_complete: false, ros_factor: 0.8125}
         - {player_id: h, games_remaining: 4, availability_multiplier: 0.875, expected_games_missed: null, season_complete: false, ros_factor: 0.875}
+        - {player_id: i, games_remaining: 4, availability_multiplier: 0.0, expected_games_missed: 4.0, season_complete: false, ros_factor: 0.0}

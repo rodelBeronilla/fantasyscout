@@ -383,28 +383,39 @@ Every official injury listing before a regular-season game (the last report by 5
 game's date, back to 2023-24 in the NBA and 2026 in the WNBA) with what followed: whether the
 player missed that game, and how many of the team's games went by before the player played again
 (fct_official_listing). The board charges a listed player the average of those games for the
-status, capped at the games the team has left; before this calibration it charged a fixed share
-of a game (out: every game left without a return date; doubtful 0.75, questionable 0.5,
-day-to-day 0.25).""",
+status, capped at the games the team has left, from the histogram in fct_status_calibration: a
+league's own listings once it has 300 for the status, the NBA's until then (the source column
+says whose). Before this calibration it charged a fixed share of a game (out: every game left
+without a return date; doubtful 0.75, questionable 0.5, day-to-day 0.25).""",
     ),
     (
         "code",
         """OLD = {'Out': 'every game left', 'Doubtful': 0.75, 'Questionable': 0.5, 'Probable': 0.0}
 calibration = {}
-need = {'league', 'status', 'reason_group', 'played', 'games_missed'}
-if need <= columns(con, 'fct_official_listing'):
-    ol = con.sql("select league, status, played, games_missed, team_games_left from fct_official_listing "
-                 "where reason_group = 'injury'").df()
+if has_table(con, 'fct_status_calibration'):
+    hist = con.sql("select league, status, source_league, games_missed, listings, own_listings "
+                   "from fct_status_calibration where reason_group = 'injury'").df()
     for lg in LEAGUES:
-        o = ol[ol['league'] == lg]
+        o = hist[hist['league'] == lg]
         if o.empty:
             continue
-        t = o.groupby('status').agg(listings=('played', 'size'), missed_game=('played', lambda x: 1 - x.mean()),
-                                    games_missed_mean=('games_missed', 'mean'), games_missed_median=('games_missed', 'median'))
-        t = t.reindex([x for x in ['Out', 'Doubtful', 'Questionable', 'Probable', 'Available'] if x in t.index])
+        rows = {}
+        for st, g in o.groupby('status'):
+            g = g.sort_values('games_missed')
+            n = int(g['listings'].sum())
+            cum = g['listings'].cumsum()
+            rows[st] = {'listings': n,
+                        'missed_game': 1 - g.loc[g['games_missed'] == 0, 'listings'].sum() / n,
+                        'games_missed_mean': (g['games_missed'] * g['listings']).sum() / n,
+                        'games_missed_median': g.loc[cum >= n / 2, 'games_missed'].iloc[0],
+                        'own_listings': int(g['own_listings'].iloc[0]),
+                        'source': LABEL[g['source_league'].iloc[0]]}
+        t = pd.DataFrame(rows).T
+        t = t.reindex([x for x in ['Out', 'Doubtful', 'Questionable', 'Probable'] if x in t.index])
         t['old_charge'] = t.index.map(OLD)
         calibration[lg] = t
-        print(LABEL[lg], f'({len(o):,} injury listings)')
+        borrowed = (t['source'] != LABEL[lg]).any()
+        print(LABEL[lg], f"({int(t['listings'].sum()):,} injury listings" + (", the NBA's until this league has 300 of its own" if borrowed else '') + ')')
         display(t.round(2))
 if not calibration:
     print('No official injury listing in this build lines up with a played game yet.')
