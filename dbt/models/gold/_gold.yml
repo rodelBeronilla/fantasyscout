@@ -67,6 +67,9 @@ models:
         data_tests: [not_null]
       - name: season_type
         description: "Regular Season, Playoffs, Preseason or All-Star from the game id's third character; Other for play-in and cup finals"
+        data_tests:
+          - accepted_values:
+              values: [Regular Season, Playoffs, Preseason, All-Star, Other]
       - name: game_date
         description: "Game date, from the team game log"
         data_tests: [not_null]
@@ -1147,18 +1150,26 @@ models:
         data_tests: [unique, not_null]
       - name: league
         description: "wnba or nba"
+        data_tests: [not_null]
       - name: season
         description: "The league's current season (mart_player_projection)"
+        data_tests: [not_null]
       - name: player_id
         description: "League stats API player id"
+        data_tests: [not_null]
       - name: player_sk
         description: "The player's current stint (dim_player)"
+        data_tests:
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
       - name: full_name
         description: "Player name (dim_player)"
       - name: position
         description: "Position (dim_player)"
       - name: team_id
         description: "League team id on the player's current roster"
+        data_tests: [not_null]
       - name: team_abbreviation
         description: "Tricode of that team in the roster season, else in the current season"
       - name: games_current
@@ -1177,6 +1188,7 @@ models:
         description: "Projected share of team games played (mart_player_projection)"
       - name: in_pool
         description: "True for the pool (teams x roster spots, fewer on a small board) that the second valuation pass values most"
+        data_tests: [not_null]
       - name: w_cur
         description: "Share of the per-minute production weight from the current season"
       - name: w_prev
@@ -1327,6 +1339,9 @@ models:
         description: "The status shown: the official report's for the next game, else ESPN's (fct_player_status)"
       - name: injury_group
         description: "Status group of injury_status (fct_player_status.status_group); null without a status or when the official report says Available"
+        data_tests:
+          - accepted_values:
+              values: [out, doubtful, questionable, day_to_day, probable, other]
       - name: injury_type
         description: "The official report's injury detail, else ESPN's injury type"
       - name: expected_return
@@ -1345,6 +1360,9 @@ models:
         description: "When the official report was published, Eastern time"
       - name: news_flag
         description: "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role"
+        data_tests:
+          - accepted_values:
+              values: [out_for_season, surgery, minutes_limit, return, injury, g_league, role]
       - name: news_headline
         description: "That headline, as ESPN wrote it"
       - name: news_date
@@ -1359,10 +1377,16 @@ models:
         description: "Where ESPN drafters take the player (fct_market_value)"
       - name: ownership_bucket
         description: "How widely ESPN leagues roster the player: most, many, some, few or rare"
+        data_tests:
+          - accepted_values:
+              values: [most, many, some, few, rare]
       - name: ownership_trend
         description: "rising or falling ESPN ownership (fct_market_value); null when steady or unknown"
       - name: team_stakes
         description: "What the player's team still plays for: eliminated, clinched or racing (fct_team_stakes)"
+        data_tests:
+          - accepted_values:
+              values: [eliminated, clinched, racing]
       - name: rest_risk
         description: "True when the player's team is clinched or eliminated in the last stretch (fct_team_stakes)"
       - name: availability_multiplier
@@ -1372,6 +1396,7 @@ models:
         description: "Average games missed after past official injury listings with the player's status (the official report's for the next game, else ESPN's), capped at the team's games left; null without a status or a history"
       - name: games_remaining
         description: "The team's regular-season games not yet final from the run date on"
+        data_tests: [not_null]
       - name: games_next_7
         description: "The team's games in the next seven days, playoffs included, unconfirmed if-necessary games left out"
       - name: games_this_week
@@ -1395,6 +1420,7 @@ models:
         data_tests: [not_null]
       - name: rank_total
         description: "Rank by value_total within the league, 1 the highest"
+        data_tests: [not_null]
       - name: market_gap
         description: "market_rank minus rank_total: positive when the market drafts the player later than the board ranks the player"
 
@@ -1478,6 +1504,10 @@ models:
         description: "League stats API player id"
       - name: player_sk
         description: "The player's current stint (dim_player)"
+        data_tests:
+          - relationships:
+              to: ref('dim_player')
+              field: player_sk
       - name: full_name
         description: "Player name (dim_player)"
       - name: position
@@ -1588,6 +1618,9 @@ models:
         description: "When that official report was published (Eastern)"
       - name: news_flag
         description: "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role"
+        data_tests:
+          - accepted_values:
+              values: [out_for_season, surgery, minutes_limit, return, injury, g_league, role]
       - name: news_headline
         description: "That headline, as ESPN wrote it"
       - name: news_date
@@ -1600,10 +1633,16 @@ models:
         description: "The game day the lineup role is for (the next game day with a lineup, today or later)"
       - name: ownership_bucket
         description: "How widely ESPN leagues roster the player: most, many, some, few or rare"
+        data_tests:
+          - accepted_values:
+              values: [most, many, some, few, rare]
       - name: ownership_trend
         description: "rising or falling ESPN ownership (fct_market_value); null when steady or unknown"
       - name: team_stakes
         description: "What the player's team still plays for: eliminated, clinched or racing (fct_team_stakes)"
+        data_tests:
+          - accepted_values:
+              values: [eliminated, clinched, racing]
       - name: rest_risk
         description: "True when the player's team is clinched or eliminated in the last stretch (fct_team_stakes)"
       - name: sleeper_adds

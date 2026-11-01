@@ -19,8 +19,14 @@ models:
       - name: team_id
         description: "League id of the listed player's team"
       - name: player_id
-        description: "League player id, matched by name within the team's season roster or game log"
-        data_tests: [not_null]
+        description: "League player id, matched by name within the team's season roster or game log. Usually a dim_player stint; a listed player who never appeared and is no longer rostered has none, which the relationship reports as a warning"
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: stats_player_id
+              config:
+                severity: warn
       - name: status
         description: "The status on the report: Out, Doubtful, Questionable, Probable or Available"
         data_tests:

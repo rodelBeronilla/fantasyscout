@@ -71,6 +71,28 @@
    ]
   },
   {
+   "about": "Every player has exactly one current stint in dim_player: one row with is_current and one with valid_to null, the same row. The board, the streamers and the status models join a player to their current stint and would double the player otherwise.",
+   "name": "assert_dim_player_one_current_stint",
+   "reads": [
+    "dim_player"
+   ],
+   "severity": "error",
+   "tags": [
+    "player"
+   ]
+  },
+  {
+   "about": "A player's stints follow one another: each ends the day before the next begins and only the last is open. A game joined to the stint whose dates contain it would otherwise fan out.",
+   "name": "assert_dim_player_stints_do_not_overlap",
+   "reads": [
+    "dim_player"
+   ],
+   "severity": "error",
+   "tags": [
+    "player"
+   ]
+  },
+  {
    "about": "In season, the latest game in gold is within 36 hours of the last completed scheduled game. Out of season (no completed scheduled game in the last 14 days) there is nothing to check.",
    "name": "assert_freshness_in_season",
    "reads": [
@@ -295,7 +317,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 335,
+ "generic_tests": 356,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -13124,7 +13146,9 @@
       {
        "description": "Regular Season, Playoffs, Preseason or All-Star from the game id's third character; Other for play-in and cup finals",
        "name": "season_type",
-       "tests": [],
+       "tests": [
+        "accepted_values"
+       ],
        "type": "varchar"
       },
       {
@@ -13281,7 +13305,10 @@
      "unit_tests": []
     },
     {
-     "checks": [],
+     "checks": [
+      "assert_dim_player_one_current_stint",
+      "assert_dim_player_stints_do_not_overlap"
+     ],
      "columns": [
       {
        "description": "Surrogate key: one row per league, player and team stint (by the stint's first game date)",
@@ -14308,10 +14335,11 @@
        "type": "varchar"
       },
       {
-       "description": "League game id",
+       "description": "League game id, a played game in dim_game",
        "name": "game_id",
        "tests": [
-        "not_null"
+        "not_null",
+        "relationships"
        ],
        "type": "varchar"
       },
@@ -14806,10 +14834,11 @@
        "type": "varchar"
       },
       {
-       "description": "League player id, matched by name within the team's season roster or game log",
+       "description": "League player id, matched by name within the team's season roster or game log. Usually a dim_player stint; a listed player who never appeared and is no longer rostered has none, which the relationship reports as a warning",
        "name": "player_id",
        "tests": [
-        "not_null"
+        "not_null",
+        "relationships"
        ],
        "type": "varchar"
       },
@@ -15427,10 +15456,11 @@
        "type": "varchar"
       },
       {
-       "description": "League game id",
+       "description": "League game id, a game on the schedule (props are quoted before the game is played, so dim_game may not have it yet)",
        "name": "game_id",
        "tests": [
-        "not_null"
+        "not_null",
+        "relationships"
        ],
        "type": "varchar"
       },
@@ -15447,10 +15477,11 @@
        "type": "timestamp with time zone"
       },
       {
-       "description": "League player id",
+       "description": "League player id, matched through the crosswalk or by name in the player directory. Usually a dim_player stint; a directory player with no appearance and no roster spot has none, which the relationship reports as a warning",
        "name": "player_id",
        "tests": [
-        "not_null"
+        "not_null",
+        "relationships"
        ],
        "type": "varchar"
       },
@@ -17641,25 +17672,33 @@
       {
        "description": "wnba or nba",
        "name": "league",
-       "tests": [],
+       "tests": [
+        "not_null"
+       ],
        "type": "varchar"
       },
       {
        "description": "The league's current season (mart_player_projection)",
        "name": "season",
-       "tests": [],
+       "tests": [
+        "not_null"
+       ],
        "type": "varchar"
       },
       {
        "description": "League stats API player id",
        "name": "player_id",
-       "tests": [],
+       "tests": [
+        "not_null"
+       ],
        "type": "varchar"
       },
       {
        "description": "The player's current stint (dim_player)",
        "name": "player_sk",
-       "tests": [],
+       "tests": [
+        "relationships"
+       ],
        "type": "varchar"
       },
       {
@@ -17677,7 +17716,9 @@
       {
        "description": "League team id on the player's current roster",
        "name": "team_id",
-       "tests": [],
+       "tests": [
+        "not_null"
+       ],
        "type": "varchar"
       },
       {
@@ -17731,7 +17772,9 @@
       {
        "description": "True for the pool (teams x roster spots, fewer on a small board) that the second valuation pass values most",
        "name": "in_pool",
-       "tests": [],
+       "tests": [
+        "not_null"
+       ],
        "type": "boolean"
       },
       {
@@ -18181,7 +18224,9 @@
       {
        "description": "Status group of injury_status (fct_player_status.status_group); null without a status or when the official report says Available",
        "name": "injury_group",
-       "tests": [],
+       "tests": [
+        "accepted_values"
+       ],
        "type": "varchar"
       },
       {
@@ -18235,7 +18280,9 @@
       {
        "description": "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role",
        "name": "news_flag",
-       "tests": [],
+       "tests": [
+        "accepted_values"
+       ],
        "type": "varchar"
       },
       {
@@ -18277,7 +18324,9 @@
       {
        "description": "How widely ESPN leagues roster the player: most, many, some, few or rare",
        "name": "ownership_bucket",
-       "tests": [],
+       "tests": [
+        "accepted_values"
+       ],
        "type": "varchar"
       },
       {
@@ -18289,7 +18338,9 @@
       {
        "description": "What the player's team still plays for: eliminated, clinched or racing (fct_team_stakes)",
        "name": "team_stakes",
-       "tests": [],
+       "tests": [
+        "accepted_values"
+       ],
        "type": "varchar"
       },
       {
@@ -18315,7 +18366,9 @@
       {
        "description": "The team's regular-season games not yet final from the run date on",
        "name": "games_remaining",
-       "tests": [],
+       "tests": [
+        "not_null"
+       ],
        "type": "integer"
       },
       {
@@ -18379,7 +18432,9 @@
       {
        "description": "Rank by value_total within the league, 1 the highest",
        "name": "rank_total",
-       "tests": [],
+       "tests": [
+        "not_null"
+       ],
        "type": "bigint"
       },
       {
@@ -18431,7 +18486,16 @@
       "team_current",
       "teams"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875. Every projected line is zero, so value is zero and the factors are exact.",
+       "name": "board_availability_follows_the_status"
+      },
+      {
+       "description": "Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level the next two). Only points vary, so value is the points z-score. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out. rank_total follows value, equal points broken by player id. The numbers themselves (a z-score is a square root) are pinned by board_availability_follows_the_status, where they are exact.",
+       "name": "board_pool_is_chosen_in_two_passes"
+      }
+     ]
     },
     {
      "checks": [],
@@ -19512,7 +19576,9 @@
       {
        "description": "The player's current stint (dim_player)",
        "name": "player_sk",
-       "tests": [],
+       "tests": [
+        "relationships"
+       ],
        "type": "varchar"
       },
       {
@@ -19842,7 +19908,9 @@
       {
        "description": "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role",
        "name": "news_flag",
-       "tests": [],
+       "tests": [
+        "accepted_values"
+       ],
        "type": "varchar"
       },
       {
@@ -19878,7 +19946,9 @@
       {
        "description": "How widely ESPN leagues roster the player: most, many, some, few or rare",
        "name": "ownership_bucket",
-       "tests": [],
+       "tests": [
+        "accepted_values"
+       ],
        "type": "varchar"
       },
       {
@@ -19890,7 +19960,9 @@
       {
        "description": "What the player's team still plays for: eliminated, clinched or racing (fct_team_stakes)",
        "name": "team_stakes",
-       "tests": [],
+       "tests": [
+        "accepted_values"
+       ],
        "type": "varchar"
       },
       {
@@ -20574,6 +20646,18 @@
    "to": "dim_game"
   },
   {
+   "column": "game_id",
+   "field": "game_id",
+   "from": "fct_game_line",
+   "to": "dim_game"
+  },
+  {
+   "column": "player_id",
+   "field": "stats_player_id",
+   "from": "fct_official_listing",
+   "to": "dim_player"
+  },
+  {
    "column": "game_sk",
    "field": "game_sk",
    "from": "fct_player_game",
@@ -20590,6 +20674,18 @@
    "field": "team_sk",
    "from": "fct_player_game",
    "to": "dim_team"
+  },
+  {
+   "column": "game_id",
+   "field": "game_id",
+   "from": "fct_player_prop",
+   "to": "schedule"
+  },
+  {
+   "column": "player_id",
+   "field": "stats_player_id",
+   "from": "fct_player_prop",
+   "to": "dim_player"
   },
   {
    "column": "game_sk",
@@ -20626,6 +20722,18 @@
    "field": "team_sk",
    "from": "fct_team_game",
    "to": "dim_team"
+  },
+  {
+   "column": "player_sk",
+   "field": "player_sk",
+   "from": "mart_board",
+   "to": "dim_player"
+  },
+  {
+   "column": "player_sk",
+   "field": "player_sk",
+   "from": "mart_streamers",
+   "to": "dim_player"
   }
  ],
  "seeds": [
@@ -20901,6 +21009,16 @@
    "description": "Last night's game has ESPN's crew (the newest landed summary wins over an older one) and the page's: the crew chief and the referee keep their roles (\"JB DeRosa\" on the page is \"J.B. DeRosa\" on ESPN), the official only ESPN lists has none, and the page's umpire who did not work the game is left out. Tonight's games have only the page's crew, alternate included, linked by the date and the teams the page names: \"L.A. Lakers\" and \"LA Clippers\" are told apart although both play in Los Angeles. A page row for a game the schedule does not have is left out.",
    "model": "game_officials",
    "name": "game_officials_link_both_sources"
+  },
+  {
+   "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875. Every projected line is zero, so value is zero and the factors are exact.",
+   "model": "mart_board",
+   "name": "board_availability_follows_the_status"
+  },
+  {
+   "description": "Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level the next two). Only points vary, so value is the points z-score. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out. rank_total follows value, equal points broken by player id. The numbers themselves (a z-score is a square root) are pinned by board_availability_follows_the_status, where they are exact.",
+   "model": "mart_board",
+   "name": "board_pool_is_chosen_in_two_passes"
   },
   {
    "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",

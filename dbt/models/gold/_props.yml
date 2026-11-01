@@ -13,15 +13,25 @@ models:
       - name: season
         description: "Season label of the game"
       - name: game_id
-        description: "League game id"
-        data_tests: [not_null]
+        description: "League game id, a game on the schedule (props are quoted before the game is played, so dim_game may not have it yet)"
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('schedule')
+              field: game_id
       - name: game_date
         description: "The game's Eastern date"
       - name: commence_at
         description: "Scheduled start of the game (UTC)"
       - name: player_id
-        description: "League player id"
-        data_tests: [not_null]
+        description: "League player id, matched through the crosswalk or by name in the player directory. Usually a dim_player stint; a directory player with no appearance and no roster spot has none, which the relationship reports as a warning"
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_player')
+              field: stats_player_id
+              config:
+                severity: warn
       - name: player_link
         description: "How the player was linked: player_xwalk, name_and_team or name (silver player_props)"
       - name: market
