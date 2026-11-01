@@ -26,3 +26,16 @@ Then set the repository variable `STATS_RUNNER_LABEL` to `home` (Settings → Se
 - Update: `docker compose -f infra/runner/compose.yml pull && docker compose -f infra/runner/compose.yml up -d`. The runner also self-updates.
 - Re-register after a token rotation or a wiped volume: `docker compose ... down -v`, then the Start steps.
 - Remove: deregister with `./config.sh remove --token <remove-token>` (see `compose.yml`), then `down -v`.
+
+## Update the runner image
+
+`compose.yml` pins the runner image to a version and a digest, so the host never pulls an image nobody looked at. To move to a newer runner:
+
+```bash
+ver=$(curl -s https://api.github.com/repos/actions/runner/releases/latest | python -c "import json,sys; print(json.load(sys.stdin)['tag_name'].lstrip('v'))")
+tok=$(curl -s "https://ghcr.io/token?scope=repository:actions/actions-runner:pull" | python -c "import json,sys; print(json.load(sys.stdin)['token'])")
+curl -sI -H "Authorization: Bearer $tok" -H "Accept: application/vnd.oci.image.index.v1+json" "https://ghcr.io/v2/actions/actions-runner/manifests/$ver" | grep -i docker-content-digest
+```
+
+Put `<ver>@<digest>` in `compose.yml`, open a PR, then on the host `docker compose -f infra/runner/compose.yml pull && docker compose -f infra/runner/compose.yml up -d`. The runner's own self-update stays on; the image pin decides what the container starts from.
+

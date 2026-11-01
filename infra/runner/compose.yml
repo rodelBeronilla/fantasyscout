@@ -14,7 +14,9 @@
 #   docker compose -f infra/runner/compose.yml down -v
 
 x-runner: &runner
-  image: ghcr.io/actions/actions-runner:latest
+  # Pinned by digest: the runner image is the one unpinned update channel on the machine with
+  # residential egress. Bump by hand (infra/runner/README.md, "Update the runner image").
+  image: ghcr.io/actions/actions-runner:2.338.2@sha256:759a1d94a15b05941aba5196974ff43fe15b4cbba29b694b35cbc32a1166b232
   restart: unless-stopped
   command:
     - bash

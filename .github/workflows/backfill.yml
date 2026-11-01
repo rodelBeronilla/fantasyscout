@@ -32,6 +32,7 @@ jobs:
     name: Stats API ${{ inputs.league }} ${{ matrix.season }} ${{ matrix.season_type }}
     if: inputs.source == 'both' || inputs.source == 'stats'
     runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    environment: lakehouse
     timeout-minutes: 330
     concurrency:
       group: stats-${{ inputs.league }}
@@ -43,8 +44,8 @@ jobs:
         season: ${{ fromJSON(inputs.seasons) }}
         season_type: ["Regular Season", "Playoffs"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
       - run: uv sync --frozen
@@ -89,6 +90,7 @@ jobs:
     name: ESPN ${{ inputs.league }} ${{ matrix.season }}
     if: inputs.source == 'both' || inputs.source == 'espn'
     runs-on: ubuntu-latest
+    environment: lakehouse
     timeout-minutes: 330
     concurrency:
       group: espn-${{ inputs.league }}
@@ -99,8 +101,8 @@ jobs:
       matrix:
         season: ${{ fromJSON(inputs.seasons) }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
       - run: uv sync --frozen
@@ -140,6 +142,7 @@ jobs:
     name: Injury reports ${{ inputs.league }} ${{ matrix.season }}
     if: inputs.source == 'reports'
     runs-on: ubuntu-latest
+    environment: lakehouse
     timeout-minutes: 120
     concurrency:
       group: reports-${{ inputs.league }}
@@ -150,8 +153,8 @@ jobs:
       matrix:
         season: ${{ fromJSON(inputs.seasons) }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.3.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
         with:
           enable-cache: true
       - run: uv sync --frozen
