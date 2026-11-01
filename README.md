@@ -1,6 +1,6 @@
 # FantasyScout
 
-**Live:** https://fantasyscout.beronilla.rodeo · **Spec:** [SPEC.md](SPEC.md) · **Architecture:** [docs/architecture.md](docs/architecture.md)
+**Live:** https://fantasyscout.beronilla.rodeo · **Original brief:** [SPEC.md](SPEC.md) · **Architecture:** [docs/architecture.md](docs/architecture.md)
 
 FantasyScout is a WNBA-first basketball data platform with a fantasy front end. The fantasy app is what you use; the pipelines, models, tests and docs behind it are the platform, built in public.
 
