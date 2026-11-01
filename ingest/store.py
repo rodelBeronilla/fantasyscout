@@ -28,6 +28,10 @@ import httpx
 from ingest.landing import League, Sidecar, landing_key, payload_hash
 
 INDEX_NAME = "_index.json"
+# Landings between two writes of the indexes. A run killed mid-way (a job timeout, a runner
+# restart) then loses at most this many entries, not the whole run's; the payloads already in
+# the volume are re-fetched once, not re-landed under a new date.
+FLUSH_EVERY = 25
 # Days after a game by which the leagues' stat corrections are in: a game's payload landed this
 # long after it was played is final, and fetching it again returns the same bytes.
 SETTLE_DAYS = 2
@@ -294,7 +298,9 @@ class Landing:
     """Writes payloads and sidecars through a backend and keeps the per-scope indexes.
 
     With ``workers`` > 1 the writes run on a small thread pool so uploads overlap the
-    mandatory pause between requests; ``flush()`` waits for them and reports failures.
+    mandatory pause between requests; ``flush()`` waits for them and reports failures. The
+    indexes are also written every ``flush_every`` landings, so a run that dies keeps most of
+    what it landed; the failures those writes find are reported by the next ``flush()``.
     """
 
     def __init__(
@@ -304,14 +310,18 @@ class Landing:
         ingest_date: date,
         full_refresh: bool = False,
         workers: int = 1,
+        flush_every: int = FLUSH_EVERY,
     ) -> None:
         self.backend = backend
         self.ingest_date = ingest_date
         self.full_refresh = full_refresh
+        self.flush_every = flush_every
         self._indexes: dict[Scope, dict[str, IndexEntry]] = {}
         self._dirty: set[Scope] = set()
         self._pool = ThreadPoolExecutor(max_workers=workers) if workers > 1 else None
         self._pending: list[tuple[Scope, str, Future[None]]] = []
+        self._since_flush = 0
+        self._deferred: list[WriteFailure] = []
 
     def _index(self, scope: Scope) -> dict[str, IndexEntry]:
         if scope not in self._indexes:
@@ -393,10 +403,23 @@ class Landing:
             checked_date=self.ingest_date.isoformat(),
         )
         self._dirty.add(scope)
+        self._since_flush += 1
+        if self.flush_every and self._since_flush >= self.flush_every:
+            self._deferred.extend(self._settle())
         return LandResult("landed", path, sha)
 
     def flush(self) -> list[WriteFailure]:
-        """Wait for queued writes, drop failed keys from the indexes, persist the indexes."""
+        """Wait for queued writes, drop failed keys from the indexes, persist the indexes.
+
+        Returns every write failure since the last call, including those an interim write of
+        the indexes found.
+        """
+        failures = [*self._deferred, *self._settle()]
+        self._deferred = []
+        return failures
+
+    def _settle(self) -> list[WriteFailure]:
+        self._since_flush = 0
         failures: list[WriteFailure] = []
         failed_keys: set[tuple[Scope, str]] = set()
         for scope, key, future in self._pending:

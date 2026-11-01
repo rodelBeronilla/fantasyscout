@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -191,6 +192,76 @@ def run_log_path(summary: RunSummary, run_id: str, day: date | None = None) -> P
     return RUN_LOG_DIR / folder / name
 
 
+class StoppedError(BaseException):
+    """The job was told to stop (SIGTERM); the run ends and the indexes are written.
+
+    A BaseException, like KeyboardInterrupt, so the ingestors' "a failed request never fails
+    the run" handlers do not swallow it when the signal lands mid-request.
+    """
+
+
+class StoppingOnSigterm:
+    """Turn SIGTERM into an exception so ``finally`` blocks run (a cancelled Actions job)."""
+
+    def __enter__(self) -> None:
+        self._previous: object = None
+        if hasattr(signal, "SIGTERM"):
+            try:
+                self._previous = signal.signal(signal.SIGTERM, self._raise)
+            except ValueError:  # not the main thread
+                self._previous = None
+
+    def __exit__(self, *exc: object) -> None:
+        if self._previous is not None:
+            signal.signal(signal.SIGTERM, self._previous)  # type: ignore[arg-type]
+
+    @staticmethod
+    def _raise(signum: int, frame: object) -> None:
+        raise StoppedError(f"signal {signum}")
+
+
+def _run_source(
+    opts: LandOptions,
+    client: ThrottledClient,
+    landing: Landing,
+    season: str,
+    since: date,
+    until: date,
+    today: date,
+    env: Mapping[str, str],
+) -> RunSummary:
+    """Run the ingestors of one source over the window and return the summary."""
+    if opts.source == "stats":
+        summary = StatsIngestor(
+            client, landing, StatsPlanner(opts.league, season, opts.season_type, opts.shots)
+        ).run(since=since, until=until)
+    elif opts.source == "reports" and opts.history:
+        summary = ReportHistoryIngestor(
+            client, landing, opts.league, season, since=since, until=until
+        ).run()
+    elif opts.source == "reports":
+        summary = InjuryReportIngestor(client, landing, opts.league, season).run()
+        LineupsIngestor(client, landing, opts.league, season).land_into(summary)
+        RefereeAssignmentsIngestor(client, landing, opts.league, season).land_into(summary)
+        TransactionsIngestor(client, landing, opts.league, season).land_into(summary)
+        EspnFantasyIngestor(client, landing, opts.league, season).land_into(summary)
+        EspnNewsIngestor(client, landing, opts.league, season).land_into(summary)
+        SleeperIngestor(client, landing, opts.league, season).land_into(summary)
+        EspnPropsIngestor(client, landing, opts.league, season).land_into(summary)
+        odds_key = env.get("ODDS_API_KEY", "")
+        OddsApiIngestor(client, landing, opts.league, season, odds_key).land_into(summary)
+        for failure in landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
+        summary.pacing = client.pacing()
+    else:
+        # Only a run that ends today looks ahead; a backfill's window is in the past.
+        ahead = opts.ahead_days if until == today else 0
+        summary = EspnIngestor(client, landing, EspnPlanner(opts.league, season)).run(
+            since=since, until=until, ahead=ahead
+        )
+    return summary
+
+
 def land(
     opts: LandOptions, *, today: date | None = None, env: Mapping[str, str] = os.environ
 ) -> RunSummary | None:
@@ -219,37 +290,16 @@ def land(
     )
     run_id = uuid.uuid4().hex[:12]
     throttle = Throttle.adaptive() if opts.pace == "adaptive" else Throttle.spec()
-    with ThrottledClient(throttle, on_pace_change=_announce_pace) as client:
-        if opts.source == "stats":
-            summary = StatsIngestor(
-                client, landing, StatsPlanner(opts.league, season, opts.season_type, opts.shots)
-            ).run(since=since, until=until)
-        elif opts.source == "reports" and opts.history:
-            summary = ReportHistoryIngestor(
-                client, landing, opts.league, season, since=since, until=until
-            ).run()
-        elif opts.source == "reports":
-            summary = InjuryReportIngestor(client, landing, opts.league, season).run()
-            LineupsIngestor(client, landing, opts.league, season).land_into(summary)
-            RefereeAssignmentsIngestor(client, landing, opts.league, season).land_into(summary)
-            TransactionsIngestor(client, landing, opts.league, season).land_into(summary)
-            EspnFantasyIngestor(client, landing, opts.league, season).land_into(summary)
-            EspnNewsIngestor(client, landing, opts.league, season).land_into(summary)
-            SleeperIngestor(client, landing, opts.league, season).land_into(summary)
-            EspnPropsIngestor(client, landing, opts.league, season).land_into(summary)
-            odds_key = env.get("ODDS_API_KEY", "")
-            OddsApiIngestor(client, landing, opts.league, season, odds_key).land_into(summary)
-            for failure in landing.flush():
-                summary.fail(failure.endpoint, failure.key, failure.error)
-            summary.pacing = client.pacing()
-        else:
-            # Only a run that ends today looks ahead; a backfill's window is in the past.
-            ahead = opts.ahead_days if until == today else 0
-            summary = EspnIngestor(client, landing, EspnPlanner(opts.league, season)).run(
-                since=since, until=until, ahead=ahead
-            )
-    landing.close()
-
+    try:
+        with (
+            StoppingOnSigterm(),
+            ThrottledClient(throttle, on_pace_change=_announce_pace) as client,
+        ):
+            summary = _run_source(opts, client, landing, season, since, until, today, env)
+    finally:
+        # Whatever ended the run (a cancelled job sends SIGTERM), the indexes record what landed.
+        landing.flush()
+        landing.close()
     record = {
         **summary.to_dict(),
         "run_id": run_id,
