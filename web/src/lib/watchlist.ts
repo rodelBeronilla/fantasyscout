@@ -6,12 +6,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { League } from './data';
+import { readRaw, storageKey, writeRaw } from './storage';
 
-const key = (league: League) => `fantasyscout:watchlist:${league}`;
+const key = (league: League) => storageKey('watchlist', league);
 
 function read(league: League): Set<string> {
   try {
-    const raw = window.localStorage.getItem(key(league));
+    const raw = readRaw(key(league));
     const parsed: unknown = raw ? JSON.parse(raw) : [];
     return new Set(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : []);
   } catch {
@@ -20,11 +21,7 @@ function read(league: League): Set<string> {
 }
 
 function write(league: League, ids: Set<string>): void {
-  try {
-    window.localStorage.setItem(key(league), JSON.stringify([...ids].sort()));
-  } catch {
-    // storage unavailable: the list lives for this page view only
-  }
+  writeRaw(key(league), JSON.stringify([...ids].sort()));
 }
 
 export function useWatchlist(league: League): { watched: Set<string>; toggleWatched: (id: string) => void } {

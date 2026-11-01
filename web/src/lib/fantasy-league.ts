@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { League } from './data';
+import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
 
 export type Scoring = 'cats9' | 'cats8' | 'points';
 
@@ -140,37 +141,79 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
   return { ...setup, rosters, il: setup.il.filter((id) => id !== last.player), picks: setup.picks.slice(0, -1) };
 }
 
-const storageKey = (league: League) => `fantasyscout:league:${league}`;
+/**
+ * The version of the stored object. Raise it with every change to what is stored and add the step
+ * to `migrate`; an object without a version is the shape the League page first wrote.
+ *
+ * 1: the first League page (teams, names, rosters, mine, picks); the board's Mine marks lived
+ *    under their own key and joined the manager's team on first read.
+ * 2: the injured list (`il`) and the point-scoring weights.
+ */
+export const SETUP_VERSION = 2;
+
+export interface StoredSetup extends LeagueSetup {
+  version: number;
+}
+
+/** What an older build left under its own keys, for the migrations that read it. */
+export interface LegacyStorage {
+  /** `fantasyscout:marks:<league>` from before the League page: the players marked Mine on the board. */
+  marks?: string[];
+}
+
+/**
+ * The stored object of any version, brought to the current shape. Each step takes the object from
+ * one version to the next, so a browser that skipped versions walks every step; `normalize`
+ * then sizes and cleans it as it always has. An object from a newer build than this one keeps
+ * what this build understands.
+ */
+export function migrate(raw: unknown, fallback: LeagueSettings, legacy: LegacyStorage = {}): LeagueSetup {
+  let value: Partial<StoredSetup> = raw && typeof raw === 'object' ? (raw as Partial<StoredSetup>) : {};
+  const version = typeof value.version === 'number' && value.version >= 1 ? value.version : 1;
+  if (version === 1) {
+    // 1 -> 2: the injured list arrives empty; the weights take the league's preset. (The next step,
+    // when there is one, follows here and reads the object as version 2.)
+    value = { ...value, il: Array.isArray(value.il) ? value.il : [], weights: { ...fallback.weights, ...value.weights } };
+  }
+  const setup = normalize(value, fallback);
+  if (legacy.marks?.length) {
+    // The board's Mine marks join the manager's team, once.
+    setup.rosters[setup.mine] = [...new Set([...(setup.rosters[setup.mine] ?? []), ...legacy.marks])];
+  }
+  return normalize(setup, fallback);
+}
+
+const setupKey = (league: League) => storageKey('league', league);
+const marksKey = (league: League) => storageKey('marks', league);
+
+function parseJson(text: string | null): unknown {
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+}
 
 function load(league: League): LeagueSetup {
   const fallback = DEFAULT_SETTINGS[league];
-  let raw: Partial<LeagueSetup> = {};
-  try {
-    const text = window.localStorage.getItem(storageKey(league));
-    if (text) raw = JSON.parse(text) as Partial<LeagueSetup>;
-    // Players marked Mine on the board before the League page existed join the manager's team.
-    const oldKey = `fantasyscout:marks:${league}`;
-    const old = window.localStorage.getItem(oldKey);
-    if (old) {
-      const mine = (JSON.parse(old) as { mine?: string[] }).mine ?? [];
-      const setup = normalize(raw, fallback);
-      setup.rosters[setup.mine] = [...new Set([...(setup.rosters[setup.mine] ?? []), ...mine])];
-      raw = setup;
-      window.localStorage.setItem(storageKey(league), JSON.stringify(raw));
-      window.localStorage.removeItem(oldKey);
-    }
-  } catch {
-    // storage unavailable or unreadable: the defaults apply
+  const stored = parseJson(readRaw(setupKey(league)));
+  const marks = parseJson(readRaw(marksKey(league))) as { mine?: unknown } | undefined;
+  const legacy: LegacyStorage = {
+    marks: Array.isArray(marks?.mine) ? marks.mine.filter((id): id is string => typeof id === 'string') : undefined,
+  };
+  const setup = migrate(stored, fallback, legacy);
+  if (legacy.marks || (stored && (stored as { version?: unknown }).version !== SETUP_VERSION)) {
+    // migrated: write the current shape back and retire the old key
+    save(league, setup);
+    removeRaw(marksKey(league));
   }
-  return normalize(raw, fallback);
+  return setup;
 }
 
 function save(league: League, setup: LeagueSetup): void {
-  try {
-    window.localStorage.setItem(storageKey(league), JSON.stringify(setup));
-  } catch {
-    // storage unavailable: the league lasts for this page view
-  }
+  const stored: StoredSetup = { ...setup, version: SETUP_VERSION };
+  writeRaw(setupKey(league), JSON.stringify(stored));
 }
 
 /**
@@ -182,7 +225,7 @@ export function useLeague(league: League): [LeagueSetup, (change: (current: Leag
   useEffect(() => {
     setSetup(load(league));
     const onStorage = (e: StorageEvent) => {
-      if (e.key === storageKey(league)) setSetup(load(league));
+      if (e.key === setupKey(league)) setSetup(load(league));
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
