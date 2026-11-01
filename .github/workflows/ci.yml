@@ -147,6 +147,7 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run lint
+      - run: npm run test:unit
       - name: Build
         env:
           # The Tableau Public viz URL, once the workbook is published (tableau/README.md). The
