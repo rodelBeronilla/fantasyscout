@@ -17,7 +17,7 @@ import contextlib
 import json
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timedelta
@@ -52,6 +52,86 @@ def workspace_origin(host: str) -> str:
     if "://" not in raw:
         raw = f"https://{raw}"
     return f"https://{httpx.URL(raw).host}"
+
+
+# A service principal's OAuth client credentials (the principal's Secrets tab in the workspace)
+# are exchanged for a one-hour access token at the workspace's token endpoint. The principal holds
+# only the landing grants, the secret never leaves the job's environment, and the token is renewed
+# before it expires, so a backfill that runs for hours keeps going. Databricks' own tooling reads
+# the same two variables.
+TOKEN_PATH = "/oidc/v1/token"
+TOKEN_RENEW_MARGIN = 300.0  # seconds before expiry at which the next request fetches a new token
+
+
+class ClientCredentials(httpx.Auth):
+    """``httpx.Auth`` that signs every request with a current access token for the principal."""
+
+    requires_response_body = False
+
+    def __init__(
+        self,
+        host: str,
+        client_id: str,
+        client_secret: str,
+        *,
+        transport: httpx.BaseTransport | None = None,
+        timeout: float = 30.0,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self.host = workspace_origin(host)
+        self.client_id = client_id
+        self._secret = client_secret
+        self._clock = clock
+        self._http = httpx.Client(transport=transport, timeout=timeout)
+        self._lock = threading.Lock()
+        self._token = ""
+        self._expires_at = 0.0
+        self.exchanges = 0
+
+    def token(self, *, force: bool = False) -> str:
+        """The current access token, fetched when there is none or it is about to expire."""
+        with self._lock:
+            if force or not self._token or self._clock() >= self._expires_at:
+                response = self._http.post(
+                    f"{self.host}{TOKEN_PATH}",
+                    auth=(self.client_id, self._secret),
+                    data={"grant_type": "client_credentials", "scope": "all-apis"},
+                )
+                if response.status_code != 200:
+                    msg = (
+                        "the service principal's client credentials were refused: "
+                        f"HTTP {response.status_code} {response.text[:200]}"
+                    )
+                    raise RuntimeError(msg)
+                body = response.json()
+                self._token = str(body["access_token"])
+                lifetime = float(body.get("expires_in", 3600))
+                self._expires_at = self._clock() + max(lifetime - TOKEN_RENEW_MARGIN, 30.0)
+                self.exchanges += 1
+            return self._token
+
+    def auth_flow(self, request: httpx.Request):  # type: ignore[no-untyped-def]
+        request.headers["Authorization"] = f"Bearer {self.token()}"
+        response = yield request
+        if response.status_code == 401:
+            # the token was revoked or expired early: one fresh token, one retry
+            request.headers["Authorization"] = f"Bearer {self.token(force=True)}"
+            yield request
+
+    def close(self) -> None:
+        self._http.close()
+
+
+def credentials_from_env(
+    env: Mapping[str, str], *, transport: httpx.BaseTransport | None = None
+) -> httpx.Auth | None:
+    """The principal's client credentials when the environment carries both, else None."""
+    client_id = env.get("DATABRICKS_CLIENT_ID", "")
+    secret = env.get("DATABRICKS_CLIENT_SECRET", "")
+    host = env.get("DATABRICKS_HOST", "")
+    if client_id and secret and host:
+        return ClientCredentials(host, client_id, secret, transport=transport)
+    return None
 
 
 class Backend(Protocol):
@@ -102,11 +182,14 @@ class VolumeBackend:
         root: str = "/Volumes/fantasyscout/raw",
         transport: httpx.BaseTransport | None = None,
         timeout: float = 60.0,
+        auth: httpx.Auth | None = None,
     ) -> None:
         self.host = workspace_origin(host)
         self.root = root.rstrip("/")
+        # a service principal's credentials sign each request; a token is a fixed header
+        headers = {} if auth is not None else {"Authorization": f"Bearer {token}"}
         self._client = httpx.Client(
-            headers={"Authorization": f"Bearer {token}"}, transport=transport, timeout=timeout
+            headers=headers, auth=auth, transport=transport, timeout=timeout
         )
         self._known_dirs: set[str] = set()
         self._dir_lock = threading.Lock()
