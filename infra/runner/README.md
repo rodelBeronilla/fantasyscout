@@ -21,6 +21,23 @@ Then set the repository variable `STATS_RUNNER_LABEL` to `home` (Settings → Se
 - The container holds no secrets at rest. Job secrets are injected by GitHub per job and the only ones used are the Databricks host and token.
 - Jobs run as the unprivileged `runner` user inside the container; nothing from the host is mounted.
 
+## Monitor
+
+GitHub cannot tell the workflows that a self-hosted runner is gone: a stats job just queues, for up to a day, and nothing reports. Two things watch for that. On the host, `check.sh` asks GitHub for the runners' status and Docker for the containers' health, and opens, updates or closes the "Home runner offline" incident issue the same way a failed job does; run it from cron every half hour with `gh` signed in to a token that has the `repo` scope:
+
+```cron
+*/30 * * * *  /path/to/fantasyscout/infra/runner/check.sh >> /var/log/fantasyscout-runner.log 2>&1
+```
+
+Independently, the Publish watchdog (`docs/runbook.md`, "Publish SLA and the watchdog") notices a site whose build is overdue, whatever stopped it, and the Build workflow opens an incident when an ingest run was cancelled for want of a runner. Each container also has a Docker healthcheck (the runner process listening for jobs), so `docker ps` shows `healthy` or `unhealthy` and `restart: unless-stopped` brings a crashed container back.
+
+## Runner shows offline
+
+1. `docker ps -a --filter name=fantasyscout-runner` and `docker logs --tail 50 fantasyscout-runner` (or `-2`). "Listening for Jobs" means registered and connected; a loop of registration errors means the credentials in the volume no longer match GitHub (the runner was removed from the repository, or the volume was recreated).
+2. A stopped container: `docker compose -f infra/runner/compose.yml up -d`. An unhealthy one: `docker compose -f infra/runner/compose.yml restart runner-1` (or `runner-2`).
+3. Registration lost: `docker compose -f infra/runner/compose.yml down -v`, then the Start steps with a fresh registration token. The two runners are independent; one can be re-registered while the other keeps working.
+4. GitHub lists the runner online but jobs still queue: the label (`home`) or `STATS_RUNNER_LABEL` changed, or the job's concurrency group is held by a run that hung (cancel it from the Actions tab; the job time limits release it within two hours anyway).
+
 ## Maintain
 
 - Update: `docker compose -f infra/runner/compose.yml pull && docker compose -f infra/runner/compose.yml up -d`. The runner also self-updates.
