@@ -21,6 +21,10 @@ Operational procedures. Each section is a checklist someone can follow at 3 a.m.
    curl -sI https://fantasyscout.beronilla.rodeo/ | grep -ci content-security-policy   # 1
    ```
 
+## When the site deploys
+
+The "Deploy web" workflow runs when CI has passed on a push to `main` (production) or `preprod` (preview), and ships the very build CI tested: the `web-dist` and `dbt-docs` artifacts of that CI run, so nothing goes live that CI did not check and nothing is built twice. A push that touched neither `web/`, `worker/` nor the deploy workflow is not deployed. Run it by hand (Actions → Deploy web → Run workflow on a branch) to build and deploy without a CI run.
+
 ## Roll back a web deploy
 
 Workers keep previous versions. From `worker/` with the token in the environment:

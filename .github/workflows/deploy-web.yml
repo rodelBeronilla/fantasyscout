@@ -2,35 +2,64 @@ name: Deploy web
 
 # preprod -> wrangler environment "preview"    (Worker fantasyscout-preview on workers.dev)
 # main    -> wrangler environment "production" (Worker fantasyscout on fantasyscout.beronilla.rodeo)
-# The deploy copies the Yahoo credentials and the owner's id into each Worker as secrets (ADR 0007,
-# 0008); everything else needs only the Cloudflare token and account id.
+# Runs when CI has passed on a push to main or preprod, and ships the very build CI tested (the
+# web-dist and dbt-docs artifacts of that run), so nothing goes live that CI did not check and
+# nothing is built twice. A push that touched neither the app, the Worker nor the data the pages
+# are built from (web/, worker/, the schema file) is not deployed. The deploy copies the Yahoo
+# credentials and the owner's id into each Worker as secrets (ADR 0007, 0008); everything else
+# needs only the Cloudflare token and account id.
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main, preprod]
-    paths:
-      - web/**
-      - worker/**
-      - .github/workflows/deploy-web.yml
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: deploy-${{ github.ref }}
+  group: deploy-${{ github.event.workflow_run.head_branch || github.ref_name }}
   cancel-in-progress: false
+
+env:
+  BRANCH: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
   deploy:
-    name: Deploy ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+    name: Deploy ${{ (github.event.workflow_run.head_branch || github.ref_name) == 'main' && 'production' || 'preview' }}
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+    timeout-minutes: 30
+    environment: ${{ (github.event.workflow_run.head_branch || github.ref_name) == 'main' && 'production' || 'preview' }}
     env:
-      WRANGLER_ENV: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+      WRANGLER_ENV: ${{ (github.event.workflow_run.head_branch || github.ref_name) == 'main' && 'production' || 'preview' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 2
+
+      - name: Did this push touch the site?
+        id: touched
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then echo "deploy=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          changed=$(git diff --name-only HEAD^ HEAD -- web worker .github/workflows/deploy-web.yml | head -20)
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::nothing under web/, worker/ or the deploy workflow changed; no deploy"
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        if: steps.touched.outputs.deploy == 'true'
         with:
           node-version: 24
           cache: npm
@@ -38,39 +67,63 @@ jobs:
             web/package-lock.json
             worker/package-lock.json
 
-      - name: Build web
+      # The build CI tested, on a workflow_run; a dispatch builds it here.
+      - name: Take the web build from the CI run
+        if: steps.touched.outputs.deploy == 'true' && github.event_name == 'workflow_run'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: web-dist
+          path: web/dist
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Take the dbt docs from the CI run
+        if: steps.touched.outputs.deploy == 'true' && github.event_name == 'workflow_run'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: dbt-docs
+          path: web/dist/docs
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Build web (dispatch only)
+        if: steps.touched.outputs.deploy == 'true' && github.event_name == 'workflow_dispatch'
         working-directory: web
         env:
-          # The Tableau Public viz URL, once the workbook is published (tableau/README.md).
           PUBLIC_TABLEAU_VIZ_URL: ${{ vars.TABLEAU_VIZ_URL }}
         run: |
           npm ci
           PUBLIC_BUILD_ID="${GITHUB_SHA::7}" npm run build
-
-      # dbt docs (lineage graph, model and column definitions) are generated from the sample on
-      # DuckDB, whose schema and lineage are identical to the lakehouse's, and served at /docs/.
-      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - uses: ./.github/actions/setup-uv
+        if: steps.touched.outputs.deploy == 'true' && github.event_name == 'workflow_dispatch'
         with:
-          enable-cache: true
-      - name: Generate dbt docs
+          groups: "dbt"
+      - name: Generate dbt docs (dispatch only)
+        if: steps.touched.outputs.deploy == 'true' && github.event_name == 'workflow_dispatch'
         env:
           DBT_PROFILES_DIR: .
         run: |
           set -euo pipefail
-          uv sync --frozen --group dbt
           uv run python dbt/sample/build_sample.py >/dev/null
           (cd dbt && uv run dbt build --target duckdb --exclude tag:quality >/dev/null && uv run dbt docs generate --target duckdb >/dev/null)
           mkdir -p web/dist/docs
           cp dbt/target/index.html dbt/target/manifest.json dbt/target/catalog.json web/dist/docs/
-          ls -la web/dist/docs
+      - name: The build is in place
+        if: steps.touched.outputs.deploy == 'true'
+        run: ls -la web/dist/docs && test -f web/dist/index.html
+
+      - name: Install web dependencies (the Worker's CSP step reads the build)
+        if: steps.touched.outputs.deploy == 'true'
+        working-directory: web
+        run: npm ci
 
       - name: Install worker dependencies and collect the CSP hashes of the build
+        if: steps.touched.outputs.deploy == 'true'
         working-directory: worker
         run: |
           npm ci
           npm run csp
 
       - name: Ensure the R2 bucket exists
+        if: steps.touched.outputs.deploy == 'true'
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -83,6 +136,7 @@ jobs:
       # limit, so the SQL console loads it from the data bucket, same origin. Uploaded once per version.
       # (wrangler's r2 object commands default to local storage; --remote targets the real bucket.)
       - name: Vendor DuckDB-WASM into the data bucket
+        if: steps.touched.outputs.deploy == 'true'
         working-directory: web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -103,6 +157,7 @@ jobs:
 
       - name: Deploy Worker
         id: deploy
+        if: steps.touched.outputs.deploy == 'true'
         uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -116,6 +171,7 @@ jobs:
       # (ADR 0008), and serve the optional league import (ADR 0007). They come from Actions
       # secrets; without them the tables are closed to everyone, the notebooks included.
       - name: Give the Worker the Yahoo app's credentials, when they are set
+        if: steps.touched.outputs.deploy == 'true'
         working-directory: worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -138,8 +194,9 @@ jobs:
           rm -f "$RUNNER_TEMP/yahoo.json"
 
       - name: Smoke test
+        if: steps.touched.outputs.deploy == 'true'
         env:
-          URL: ${{ github.ref_name == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
+          URL: ${{ env.BRANCH == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
         run: |
           set -euo pipefail
           echo "deployed to $URL"
@@ -171,8 +228,9 @@ jobs:
       # A shared runner's CPU and network vary from run to run, so the page is measured three
       # times and the budget applies to the median.
       - name: Lighthouse (mobile, simulated 4G, median of three)
+        if: steps.touched.outputs.deploy == 'true'
         env:
-          URL: ${{ github.ref_name == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
+          URL: ${{ env.BRANCH == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
         run: |
           set -euo pipefail
           for i in 1 2 3; do
