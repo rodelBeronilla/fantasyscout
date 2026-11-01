@@ -21,6 +21,7 @@
   table, so a late box score fills in the lineups without a full refresh.
 #}
 
+-- depends_on: {{ ref('player_game_box') }}
 {% if is_incremental() %}
 with changed as (
 
