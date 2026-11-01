@@ -55,6 +55,7 @@ GOLD: tuple[TableSpec, ...] = (
         "gold.fct_player_prop", "league, game_date, game_id, player_id, market, source, bookmaker"
     ),
     TableSpec("gold.fct_official_listing", "league, season, game_date, game_id, player_id"),
+    TableSpec("gold.fct_status_calibration", "league, status, reason_group, games_missed"),
     TableSpec("gold.fct_game_official", "league, season, game_date, game_id, official_key"),
     TableSpec("gold.fct_referee_tendency", "league, season, official_key"),
     TableSpec("gold.fct_board_history", "league, snapshot_date, rank_total, player_id"),

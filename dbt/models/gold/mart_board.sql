@@ -29,8 +29,9 @@
   games the player then missed, capped at the games the team has left, with the same reason (an
   official Out for rest is averaged over rest listings, not injuries). The status is the
   official report's for the next game, else ESPN's listing in the report's words (day-to-day
-  reads as questionable); the league's own listings are used once it has 300 for the status,
-  else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the
+  reads as questionable); the history is fct_status_calibration's histogram, the league's own
+  listings once it has 300 for the status and reason, else the NBA's. ESPN's expected return
+  date, when given for a player ruled out, counts the
   games before it instead, and a note that the player is out for the season counts them all.
   Without any history the old charges apply (out: every game; doubtful 0.75 of a game,
   questionable 0.5, day-to-day 0.25). value_rest_of_season
@@ -241,33 +242,21 @@ calibration_status as (
 
 ),
 
--- Each league's listings per status and reason: a league uses its own once it has 300.
-calibration_source as (
-
-    select league, status, reason_group, count(*) as listings
-    from {{ ref('fct_official_listing') }}
-    group by league, status, reason_group
-
-),
-
 expected_missed as (
 
-    -- The average, over past listings with the same status and reason, of the games the player
-    -- then missed, capped at the games the team has left: a night of rest is not an injury.
+    -- The listings-weighted mean, over the histogram rows for the player's league, status and
+    -- reason (fct_status_calibration), of the games then missed, each capped at the games the
+    -- team has left: a night of rest is not an injury.
     select
         b.league,
         b.player_id,
-        avg(least(l.games_missed, r.games_remaining) * 1.0) as games_missed,
-        count(*) as listings
+        sum(least(c.games_missed, r.games_remaining) * c.listings) * 1.0 / sum(c.listings) as games_missed,
+        sum(c.listings) as listings
     from base as b
     join remaining as r on r.league = b.league and r.season = b.season and r.team_id = b.team_id
     join calibration_status as cst on cst.league = b.league and cst.stats_player_id = b.player_id
-    left join calibration_source as own
-        on own.league = b.league and own.status = cst.status and own.reason_group = cst.reason_group
-    join {{ ref('fct_official_listing') }} as l
-        on l.league = case when coalesce(own.listings, 0) >= 300 then b.league else 'nba' end
-        and l.status = cst.status
-        and l.reason_group = cst.reason_group
+    join {{ ref('fct_status_calibration') }} as c
+        on c.league = b.league and c.status = cst.status and c.reason_group = cst.reason_group
     where r.games_remaining > 0
     group by b.league, b.player_id
 

@@ -25,6 +25,7 @@ builds/fixture/fct_player_status.parquet
 builds/fixture/fct_player_tracking.parquet
 builds/fixture/fct_referee_tendency.parquet
 builds/fixture/fct_shot/wnba-2026.parquet
+builds/fixture/fct_status_calibration.parquet
 builds/fixture/fct_team_game/wnba-2026.parquet
 builds/fixture/fct_team_game_context.parquet
 builds/fixture/fct_team_stakes.json
