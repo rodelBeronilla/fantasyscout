@@ -90,6 +90,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="stats and espn: land only this endpoint, or this endpoint and key (repeatable)",
     )
     p_land.add_argument(
+        "--resettle-days",
+        type=int,
+        metavar="N",
+        help="stats and espn: fetch the game payloads of the last N days again, settled or not",
+    )
+    p_land.add_argument(
         "--from-run-log",
         metavar="PATH",
         help="stats and espn: replay the failed and missing keys of this run log (a landing path)",
@@ -128,6 +134,7 @@ def _run_land(args: argparse.Namespace) -> int:
         root=args.root,
         only=tuple(args.only or ()),
         from_run_log=args.from_run_log,
+        resettle_days=args.resettle_days,
     )
     summary = land_mod.land(opts)
     if summary is None:

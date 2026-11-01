@@ -11,6 +11,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 
+from ingest import complete
 from ingest.http import CircuitOpenError, ThrottledClient
 from ingest.landing import League
 from ingest.run import MissingPayloadError, Only, RunSummary
@@ -169,6 +170,9 @@ class EspnIngestor:
             params=dict(request.params),
             status=response.status_code,
             fetched_at=self._clock(),
+            # A summary published before its box score (ADR 0005) is fetched again until whole.
+            complete=played is None
+            or complete.is_complete(complete.ESPN, request.endpoint, response.content),
         )
         return result, response.content
 

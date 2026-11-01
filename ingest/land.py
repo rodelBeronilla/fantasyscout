@@ -111,6 +111,9 @@ class LandOptions:
     # earlier run's log (a landing path) says failed or were missing.
     only: tuple[str, ...] = ()
     from_run_log: str | None = None
+    # A sweep: fetch the game payloads of the last N days again, settled or not, for the
+    # corrections the leagues post after the two-day settle window.
+    resettle_days: int | None = None
 
 
 def default_season(league: League, today: date) -> str:
@@ -317,7 +320,10 @@ def land(
         ingest_date=today,
         full_refresh=opts.full_refresh,
         workers=4 if isinstance(backend, VolumeBackend) else 1,
+        resettle_since=today - timedelta(days=opts.resettle_days) if opts.resettle_days else None,
     )
+    if opts.resettle_days:
+        print(f"resettle: games since {landing.resettle_since} are fetched again")
     run_id = uuid.uuid4().hex[:12]
     only = replay_filter(opts, backend)
     if only:
