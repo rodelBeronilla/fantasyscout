@@ -1,8 +1,12 @@
 {#
   One row per player per team stint (SCD type 2 on team). Stints come from where the player
-  actually appeared in box scores, which is true for every backfilled season; the player
-  directory and rosters add names, position and biography. valid_to is null for the current
-  stint.
+  actually appeared in box scores, which is true for every backfilled season. The current stint
+  also listens to the latest roster landing: a player the roster puts on a team they have not yet
+  played for (traded, signed, drafted, two-way) opens a stint on the landing date, and a rostered
+  player with no appearance at all gets their first stint from it, so the models that link
+  listings by name within the player's current team (status, availability, waiver trends) find
+  them. The player directory and rosters add names, position and biography. valid_to is null for
+  the current stint.
 #}
 
 with appearances as (
@@ -20,7 +24,7 @@ with appearances as (
 
 ),
 
-stint_starts as (
+appearance_starts as (
 
     select
         league,
@@ -29,6 +33,58 @@ stint_starts as (
         game_date as valid_from
     from appearances
     where prev_team_id is null or prev_team_id <> team_id
+
+),
+
+last_appearance as (
+
+    select league, player_id, team_id, game_date as last_game_date
+    from appearances
+    qualify row_number() over (partition by league, player_id order by game_date desc, game_id desc) = 1
+
+),
+
+current_roster as (
+
+    -- The latest roster landing per team in the latest season; a player on two teams' latest
+    -- landings (traded between them) belongs to the newer landing.
+    select league, player_id, team_id, roster_date
+    from (
+        select league, player_id, team_id, _ingest_date as roster_date
+        from {{ ref('rosters') }}
+        qualify season = max(season) over (partition by league)
+            and _ingest_date = max(_ingest_date) over (partition by league, season, team_id)
+    ) as latest
+    qualify row_number() over (partition by league, player_id order by roster_date desc, team_id) = 1
+
+),
+
+roster_starts as (
+
+    -- A roster that names a team the player has not yet appeared for, landed after their last
+    -- game: a stint that begins the day the roster landed.
+    select r.league, r.player_id, r.team_id, r.roster_date as valid_from
+    from current_roster as r
+    left join last_appearance as la
+        on la.league = r.league and la.player_id = r.player_id
+    where la.player_id is null
+        or (la.team_id <> r.team_id and r.roster_date > la.last_game_date)
+
+),
+
+stint_starts as (
+
+    -- Consecutive starts for the same team collapse into one stint (the roster stint, then the
+    -- first appearance for that team).
+    select league, player_id, team_id, valid_from
+    from (
+        select league, player_id, team_id, valid_from
+        from appearance_starts
+        union all
+        select league, player_id, team_id, valid_from
+        from roster_starts
+    ) as starts
+    qualify lag(team_id) over (partition by league, player_id order by valid_from) is distinct from team_id
 
 ),
 

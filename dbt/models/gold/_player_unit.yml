@@ -1,0 +1,38 @@
+unit_tests:
+  - name: player_current_stint_follows_the_roster
+    description: >
+      P1 played two games for team A; the latest roster, landed later, lists P1 on team B and
+      a rookie P2 on team B with no appearance. P1 gets a second stint on B from the roster date
+      and the A stint closes the day before; P2 gets a first stint on B. P3, rostered where they
+      last played, keeps one stint. When P1 then plays for B, the roster start and the first game
+      for B are one stint (the collapse is covered by the lag over the unioned starts).
+    model: dim_player
+    given:
+      - input: ref('player_game_box')
+        rows:
+          - {league: nba, game_id: G1, player_id: P1, team_id: A, position: G, season: '2026-27'}
+          - {league: nba, game_id: G2, player_id: P1, team_id: A, position: G, season: '2026-27'}
+          - {league: nba, game_id: G1, player_id: P3, team_id: B, position: F, season: '2026-27'}
+      - input: ref('games')
+        rows:
+          - {league: nba, game_id: G1, game_date: 2026-10-21}
+          - {league: nba, game_id: G2, game_date: 2026-10-23}
+      - input: ref('rosters')
+        rows:
+          - {league: nba, season: '2026-27', team_id: B, player_id: P1, player_name: 'Pat One', position: G, _ingest_date: 2026-10-27}
+          - {league: nba, season: '2026-27', team_id: B, player_id: P2, player_name: 'Pat Two', position: C, _ingest_date: 2026-10-27}
+          - {league: nba, season: '2026-27', team_id: B, player_id: P3, player_name: 'Pat Three', position: F, _ingest_date: 2026-10-27}
+          - {league: nba, season: '2026-27', team_id: A, player_id: P9, player_name: 'Pat Nine', position: G, _ingest_date: 2026-10-27}
+      - input: ref('players')
+        rows: []
+      - input: ref('player_xwalk')
+        rows: []
+      - input: ref('espn_roster_players')
+        rows: []
+    expect:
+      rows:
+        - {stats_player_id: P1, team_id: A, valid_from: 2026-10-21, valid_to: 2026-10-26, is_current: false, full_name: 'Pat One'}
+        - {stats_player_id: P1, team_id: B, valid_from: 2026-10-27, valid_to: null, is_current: true, full_name: 'Pat One'}
+        - {stats_player_id: P2, team_id: B, valid_from: 2026-10-27, valid_to: null, is_current: true, full_name: 'Pat Two'}
+        - {stats_player_id: P3, team_id: B, valid_from: 2026-10-21, valid_to: null, is_current: true, full_name: 'Pat Three'}
+        - {stats_player_id: P9, team_id: A, valid_from: 2026-10-27, valid_to: null, is_current: true, full_name: 'Pat Nine'}
