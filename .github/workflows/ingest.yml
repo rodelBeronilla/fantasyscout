@@ -105,6 +105,9 @@ jobs:
           path: ingest-plan/ingest-plan.json
           retention-days: 3
 
+  # One process at a time against site.api.espn.com (SPEC.md: one request at a time per host):
+  # the two leagues run one after the other, and the reports job, which also reads ESPN, waits
+  # for this one.
   espn:
     name: ESPN ${{ matrix.league }}
     needs: plan
@@ -117,6 +120,7 @@ jobs:
       cancel-in-progress: false
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         league: ${{ fromJSON(needs.plan.outputs.leagues) }}
     steps:
@@ -152,8 +156,10 @@ jobs:
 
   reports:
     name: Injury report ${{ matrix.league }}
-    needs: plan
-    if: needs.plan.outputs.run_reports == 'true'
+    # After the ESPN job (which may be skipped, on the evening schedule, or have failed): the
+    # reports feeds call ESPN too, so the two never run against the host at once.
+    needs: [plan, espn]
+    if: always() && needs.plan.outputs.run_reports == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: lakehouse
@@ -162,6 +168,7 @@ jobs:
       cancel-in-progress: false
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         league: ${{ fromJSON(needs.plan.outputs.leagues) }}
     steps:
