@@ -330,7 +330,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 357,
+ "generic_tests": 366,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -12821,6 +12821,7 @@
      ],
      "read_by": [
       "dim_team",
+      "fct_status_calibration",
       "mart_board",
       "mart_streamers",
       "team_current",
@@ -14945,7 +14946,7 @@
       "- played: whether the player played the listed game."
      ],
      "read_by": [
-      "mart_board"
+      "fct_status_calibration"
      ],
      "reads": [
       "dim_player",
@@ -16762,6 +16763,109 @@
      "unit_tests": []
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league served, status, reason group and games missed",
+       "name": "status_calibration_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The league the row serves (nba or wnba)",
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The listing status: Out, Doubtful, Questionable or Probable",
+       "name": "status",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The listing's reason group: injury, g_league, rest, personal, suspension, not_with_team or other",
+       "name": "reason_group",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Whose listings the row counts: the league itself once it has calibration_min_listings for the status and reason, else nba",
+       "name": "source_league",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Regular-season games the listed player then missed, from the listed game to their next played one",
+       "name": "games_missed",
+       "tests": [
+        "not_null"
+       ],
+       "type": "integer"
+      },
+      {
+       "description": "Past listings of the source league with this status and reason that missed exactly games_missed games",
+       "name": "listings",
+       "tests": [
+        "not_null"
+       ],
+       "type": "bigint"
+      },
+      {
+       "description": "The served league's own listings for the status and reason, the count the switch to its own history is made on",
+       "name": "own_listings",
+       "tests": [
+        "not_null"
+       ],
+       "type": "bigint"
+      }
+     ],
+     "description": "How many games a listed player then misses, by league, status and reason: the histogram the board's availability multiplier reads. One row per league served, status, reason group and games missed, with the number of past official listings (fct_official_listing) that missed exactly that many. A league reads its own listings once it has calibration_min_listings (300) for the status and reason, else the NBA's; source_league says whose.",
+     "exported_as": [
+      "fct_status_calibration.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "status",
+       "reason_group",
+       "games_missed"
+      ],
+      "key": "status_calibration_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_status_calibration",
+     "notes": [
+      "How many games a listed player then misses, by league, status and reason: the histogram the board's availability multiplier reads (ADR 0003, 2026-11-01 addendum).",
+      "One row per league served, status, reason group and number of games missed, with the past listings that missed exactly that many (fct_official_listing). A league reads its own listings once it has calibration_min_listings (300) for the status and reason; until then the NBA's stand in, since the WNBA archive only starts in 2026, and source_league says whose they are. The board joins a listed player to the rows for their league, status and reason, caps each games_missed at the games the team has left and takes the listings-weighted mean; the game context notebook shows the same rows. own_listings is the league's own count for the status and reason, the number the switch is made on."
+     ],
+     "read_by": [
+      "mart_board"
+     ],
+     "reads": [
+      "fct_official_listing",
+      "teams"
+     ],
+     "unit_tests": [
+      {
+       "description": "The NBA has two Out listings (0 and 4 games missed) and three Questionable ones (0, 1, 1). The WNBA has one Questionable listing, far short of the 300 the switch needs, so its Questionable rows are the NBA's with source_league nba and own_listings 1; its Out rows are the NBA's too, with no own listings at all. The WNBA has 300 Out-for-rest listings, so those rows are its own. The NBA has no rest listings and the NBA is its own fallback, so it gets no Out-for-rest row.",
+       "name": "status_calibration_falls_back_to_the_nba_until_a_league_has_enough"
+      }
+     ]
+    },
+    {
      "checks": [
       "assert_box_closure",
       "warn_minutes_closure",
@@ -18508,7 +18612,7 @@
       "Value is scored once, on each player's projected per-game line (mart_player_projection: per-minute production times projected minutes), in two passes. Pass one standardises the nine categories over the pool_size players with the most projected minutes; pass two repeats it over the pool_size players pass one values most, so the means and spreads describe the players a fantasy league actually rosters. Counting categories are z-scores of the projected per-game numbers (turnovers negative); percentages are volume-weighted, (player pct - pool pct) x attempts per game, standardised over the pool.",
       "Every category then has replacement level subtracted: the average category score of the next `teams` players after the pool. Zero is a freely available player, so the nine values sum to value per game above replacement (value_per_game) and a punt build is the sum without the punted columns. value_total counts games: value per game times the projected share of team games the player plays (games_share), since a missed game is filled by a replacement-level player; a value below replacement is left as it is.",
       "Alongside the value the row carries the current season's z-scores over the whole season and the last twenty and ten games, the per-game line, the projected line itself, and the player's age and rookie status from the roster, so the app can rank on recent form or raw production too and filter the way a fantasy manager does.",
-      "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current status. The games a listed player is expected to miss are calibrated on history (fct_official_listing): the average, over past injury listings with the same status, of the games the player then missed, capped at the games the team has left, with the same reason (an official Out for rest is averaged over rest listings, not injuries). The status is the official report's for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable); the league's own listings are used once it has 300 for the status, else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the games before it instead, and a note that the player is out for the season counts them all. Without any history the old charges apply (out: every game; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. games_next_7 counts playoff games too."
+      "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current status. The games a listed player is expected to miss are calibrated on history (fct_official_listing): the average, over past injury listings with the same status, of the games the player then missed, capped at the games the team has left, with the same reason (an official Out for rest is averaged over rest listings, not injuries). The status is the official report's for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable); the history is fct_status_calibration's histogram, the league's own listings once it has 300 for the status and reason, else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the games before it instead, and a note that the player is out for the season counts them all. Without any history the old charges apply (out: every game; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. games_next_7 counts playoff games too."
      ],
      "read_by": [
       "fct_board_history",
@@ -18517,9 +18621,9 @@
      "reads": [
       "dim_player",
       "fct_market_value",
-      "fct_official_listing",
       "fct_player_status",
       "fct_starting_lineup",
+      "fct_status_calibration",
       "fct_team_stakes",
       "int_player_news_latest",
       "mart_category_zscores",
@@ -18530,7 +18634,7 @@
      ],
      "unit_tests": [
       {
-       "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875. Every projected line is zero, so value is zero and the factors are exact.",
+       "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0. Every projected line is zero, so value is zero and the factors are exact.",
        "name": "board_availability_follows_the_status"
       },
       {
@@ -21034,6 +21138,11 @@
    "name": "referee_tendency_against_the_league_season_average"
   },
   {
+   "description": "The NBA has two Out listings (0 and 4 games missed) and three Questionable ones (0, 1, 1). The WNBA has one Questionable listing, far short of the 300 the switch needs, so its Questionable rows are the NBA's with source_league nba and own_listings 1; its Out rows are the NBA's too, with no own listings at all. The WNBA has 300 Out-for-rest listings, so those rows are its own. The NBA has no rest listings and the NBA is its own fallback, so it gets no Out-for-rest row.",
+   "model": "fct_status_calibration",
+   "name": "status_calibration_falls_back_to_the_nba_until_a_league_has_enough"
+  },
+  {
    "description": "Game g1 has both sides' boxes; game g2 has only team C's (the other side has not landed). Each side of g1 points at the other's team-season; C's opponent id and opponent key are null, not a key made of the parts that were there. The team's own key is unchanged.",
    "model": "fct_team_game",
    "name": "team_game_without_an_opponent_box_has_no_opponent_key"
@@ -21064,7 +21173,7 @@
    "name": "game_officials_link_both_sources"
   },
   {
-   "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875. Every projected line is zero, so value is zero and the factors are exact.",
+   "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0. Every projected line is zero, so value is zero and the factors are exact.",
    "model": "mart_board",
    "name": "board_availability_follows_the_status"
   },
