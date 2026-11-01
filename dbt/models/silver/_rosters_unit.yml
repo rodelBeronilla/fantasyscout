@@ -1,0 +1,20 @@
+unit_tests:
+  - name: rosters_type_height_and_birth_date
+    description: >
+      The roster writes height as feet-inches text and the birth date as MAR 03, 1996; silver
+      keeps the text and adds the inches, and types the date. Text that does not parse is null,
+      not an error.
+    model: rosters
+    given:
+      - input: ref('stats_commonteamroster')
+        rows:
+          - {league: nba, season: '2025-26', request_key: '10', team_id: '10', player_id: '1', player: 'A One', height: '6-4', birth_date: 'MAR 03, 1996', _ingest_date: 2026-10-20, _source_file: a.json}
+          - {league: nba, season: '2025-26', request_key: '10', team_id: '10', player_id: '2', player: 'B Two', height: '7-0', birth_date: 'JUN 10, 1996', _ingest_date: 2026-10-20, _source_file: a.json}
+          - {league: nba, season: '2025-26', request_key: '10', team_id: '10', player_id: '3', player: 'C Three', height: null, birth_date: 'not a date', _ingest_date: 2026-10-20, _source_file: a.json}
+          - {league: nba, season: '2025-26', request_key: '10', team_id: '10', player_id: '4', player: 'D Four', height: '6', birth_date: null, _ingest_date: 2026-10-20, _source_file: a.json}
+    expect:
+      rows:
+        - {player_id: '1', height: '6-4', height_inches: 76, birth_date: 1996-03-03}
+        - {player_id: '2', height: '7-0', height_inches: 84, birth_date: 1996-06-10}
+        - {player_id: '3', height: null, height_inches: null, birth_date: null}
+        - {player_id: '4', height: '6', height_inches: null, birth_date: null}

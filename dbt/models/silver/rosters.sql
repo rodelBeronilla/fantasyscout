@@ -1,4 +1,4 @@
-{# One row per rostered player per team per season. Latest landing wins. #}
+{# One row per rostered player per team per season, typed (height in inches, birth date a date). Latest landing wins. #}
 
 select
     league,
@@ -12,8 +12,11 @@ select
     num as jersey,
     {{ clean_text('position') }} as position,
     height,
+    -- "6-4" to inches; a height the roster writes any other way is null
+    try_cast(split_part(height, '-', 1) as integer) * 12 + try_cast(split_part(height, '-', 2) as integer) as height_inches,
     try_cast(weight as integer) as weight_lbs,
-    birth_date,
+    -- "MAR 16, 2000" to a date
+    {{ stats_birth_date('birth_date') }} as birth_date,
     try_cast(age as integer) as age,
     exp as experience,
     school,

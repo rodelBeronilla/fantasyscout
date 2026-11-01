@@ -25,7 +25,7 @@ select
     try_cast(game_status as integer) as game_status,
     game_status_text,
     cast(substr(game_date_est, 1, 10) as date) as game_date_est,
-    game_date_time_utc as game_datetime_utc,
+    {{ utc_timestamp('game_date_time_utc') }} as game_datetime_utc,
     try_cast(week_number as integer) as week_number,
     week_name,
     cast(if_necessary as boolean) as if_necessary,

@@ -44,7 +44,7 @@ select
     c.athlete_name,
     c.headline,
     {{ espn_ts('c.published_at') }} as published_at,
-    {{ utc_to_eastern_date('c.published_at') }} as published_date,
+    {{ utc_to_eastern_date(espn_ts('c.published_at')) }} as published_date,
     c.url,
     c.athletes_tagged,
     case

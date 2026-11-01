@@ -74,7 +74,7 @@ models:
         description: "Game date, from the team game log"
         data_tests: [not_null]
       - name: game_datetime_utc
-        description: "Tip-off from the schedule, ISO 8601 text in UTC; null when the schedule lacks the game"
+        description: "Tip-off from the schedule, an instant in UTC (timestamp); null when the schedule lacks the game"
       - name: home_team_id
         description: "League team id of the home side (the lower team id at a neutral site)"
       - name: home_team_sk
@@ -139,10 +139,12 @@ models:
         description: "Position from the latest roster, else ESPN's roster, else the position started at most in the latest season started"
       - name: height
         description: "Height from the latest roster, feet-inches text (6-1); the same on every stint"
+      - name: height_inches
+        description: "Height in inches from the latest roster (silver.rosters); null when the roster writes it any other way"
       - name: weight_lbs
         description: "Weight in pounds from the latest roster"
       - name: birth_date
-        description: "Birth date as the league roster writes it, text such as MAR 03, 1996, not a date type"
+        description: "Birth date from the latest roster, a date (silver.rosters parses the roster's MAR 03, 1996)"
       - name: school
         description: "College or last school before the league, from the latest roster"
       - name: team_id
@@ -312,7 +314,11 @@ models:
               to: ref('dim_team')
               field: team_sk
       - name: opponent_team_sk
-        description: "Opponent's team-season (dim_team)"
+        description: "Opponent's team-season (dim_team); null when the opponent's box did not land"
+        data_tests:
+          - relationships:
+              to: ref('dim_team')
+              field: team_sk
       - name: team_game_key
         description: "Natural key from silver: league, game id and team id"
       - name: league
@@ -1452,7 +1458,7 @@ models:
       - name: away_team_tricode
         description: "League tricode of the away team"
       - name: game_datetime_utc
-        description: "Tip-off as the schedule gives it, ISO 8601 text in UTC"
+        description: "Tip-off as an instant in UTC (timestamp)"
       - name: home_matchup
         description: "Value per game the matchup adds for a home player: the away defence and both teams' pace, weighted per league"
       - name: away_matchup

@@ -117,31 +117,42 @@
   ESPN writes event times as "2026-09-24T23:00Z" (minute precision). Games are dated in
   Eastern time by the league, so a 10 pm tip-off is the next calendar day in UTC.
 #}
-{% macro espn_ts(col) -%}
-  {{ return(adapter.dispatch('espn_ts', 'fantasyscout')(col)) }}
+{#
+  ISO 8601 UTC text as an instant: timestamptz on DuckDB, timestamp on Databricks. The league's
+  schedule writes seconds ("2026-04-25T19:00:00Z"); ESPN writes to the minute ("2026-09-24T23:00Z"),
+  which the cast alone would not take. Silver types every tip-off and publish time with it; espn_ts
+  is the same macro under the name the ESPN models have used.
+#}
+{% macro utc_timestamp(col) -%}
+  {{ return(adapter.dispatch('utc_timestamp', 'fantasyscout')(col)) }}
 {%- endmacro %}
 
-{% macro default__espn_ts(col) -%}
+{% macro default__utc_timestamp(col) -%}
   cast(case when length({{ col }}) = 17 then substr({{ col }}, 1, 16) || ':00+00:00' else {{ col }} end as timestamptz)
 {%- endmacro %}
 
-{% macro databricks__espn_ts(col) -%}
+{% macro databricks__utc_timestamp(col) -%}
   cast(case when length({{ col }}) = 17 then substr({{ col }}, 1, 16) || ':00+00:00' else {{ col }} end as timestamp)
 {%- endmacro %}
 
+{% macro espn_ts(col) -%}
+  {{ utc_timestamp(col) }}
+{%- endmacro %}
+
+{# The Eastern date of a typed UTC instant: an evening game in the US lands on the next UTC day. #}
 {% macro utc_to_eastern_date(col) -%}
   {{ return(adapter.dispatch('utc_to_eastern_date', 'fantasyscout')(col)) }}
 {%- endmacro %}
 
 {% macro default__utc_to_eastern_date(col) -%}
-  cast(timezone('America/New_York', {{ espn_ts(col) }}) as date)
+  cast(timezone('America/New_York', {{ col }}) as date)
 {%- endmacro %}
 
 {% macro databricks__utc_to_eastern_date(col) -%}
-  cast(from_utc_timestamp({{ espn_ts(col) }}, 'America/New_York') as date)
+  cast(from_utc_timestamp({{ col }}, 'America/New_York') as date)
 {%- endmacro %}
 
-{# The league roster writes birthdates as "JUN 10, 1996"; ESPN as "1996-06-10T07:00Z". #}
+{# The league roster writes birthdates as "JUN 10, 1996" (silver.rosters types them); ESPN as "1996-06-10T07:00Z". #}
 {% macro stats_birth_date(col) -%}
   {{ return(adapter.dispatch('stats_birth_date', 'fantasyscout')(col)) }}
 {%- endmacro %}
