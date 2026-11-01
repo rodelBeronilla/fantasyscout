@@ -8060,18 +8060,25 @@
         "not_null"
        ],
        "type": "boolean"
+      },
+      {
+       "description": "The newer of the two landings the game's lineups were built from, its play-by-play's and its box score's; the incremental watermark",
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
       }
      ],
-     "description": "The five players on the floor for each side at every play-by-play action (substitution intervals; period starters inferred after the first period).",
+     "description": "The five players on the floor for each side at every play-by-play action (substitution intervals; period starters inferred after the first period). Incremental by game: a game's lineups are recomputed and its rows replaced when its play-by-play or its box score lands again.",
      "exported_as": [],
      "grain": null,
      "landing": [],
-     "materialized": "table",
+     "materialized": "incremental",
      "name": "event_lineups",
      "notes": [
       "The five players on the floor for each team at every play-by-play action.",
       "The league's play-by-play names only the player leaving on a substitution (\"SUB: Key FOR Fagbenle\", with the leaving player's id); the player coming on is matched by surname to the game's box score for that team. When two teammates share a surname the feed adds the start of the given name (\"SUB: K. Mitchell FOR T. Mitchell\", \"SUB: Jay. Williams FOR Mitchell\"), which must match the given name too; names the feed writes in the other order (\"Xu\" for Han Xu) match by given name, and a name with more words (\"J.J. Redick\") by its last word. A player's time on the floor is a set of intervals within a period: a period starter is on from the start, a substitution in opens an interval and one out closes it; the action that is the substitution belongs to the lineup before it. Order is the game clock within the period, with the action number only breaking ties: the feed logs some substitutions late, so action numbers alone are not chronological.",
-      "Period starters: period 1 from the box score (starters carry a position). Later periods are inferred: a player is on at the start of a period when, in that period, their first substitution is out, or they record an action before any substitution in. A player who plays a whole period without an action or a substitution is not seen; lineup_complete (five a side) is false for those actions, and the share of complete lineups is checked per season."
+      "Period starters: period 1 from the box score (starters carry a position). Later periods are inferred: a player is on at the start of a period when, in that period, their first substitution is out, or they record an action before any substitution in. A player who plays a whole period without an action or a substitution is not seen; lineup_complete (five a side) is false for those actions, and the share of complete lineups is checked per season.",
+      "Incremental by game (dbt/macros/incremental.sql): a game's lineups are recomputed, and its rows replaced, when its play-by-play or its box score landed on or after the newest landing in the table; _ingest_date is the newer of the two landings a game was built from."
      ],
      "read_by": [
       "fct_event"
@@ -8082,7 +8089,7 @@
      ],
      "unit_tests": [
       {
-       "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it.",
+       "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it. The row's _ingest_date is the newer of the play-by-play's and the box score's landing.",
        "name": "event_lineups_matches_abbreviated_given_names"
       }
      ]
@@ -8270,14 +8277,15 @@
        "type": "varchar"
       }
      ],
-     "description": "One row per play-by-play action, typed.",
+     "description": "One row per play-by-play action, typed. The newest landing of a game is the whole game (a landing is one game's play-by-play). Incremental by game: a game's rows are recomputed and replaced when a landing of it is new (on or after the table's newest); games nothing landed for are not read (ADR 0004, 2026-11-01 addendum).",
      "exported_as": [],
      "grain": null,
      "landing": [],
-     "materialized": "table",
+     "materialized": "incremental",
      "name": "events",
      "notes": [
-      "One row per play-by-play action, typed. Latest landing wins."
+      "One row per play-by-play action, typed.",
+      "A play-by-play landing is one whole game (its request key is the game id), so the newest landing of a game is the game: an action a corrected feed no longer carries is not kept from an older landing. Incremental by game (dbt/macros/incremental.sql): a run reads only the landings of the games whose play-by-play landed on or after the newest landing in the table, and replaces those games' rows; the games nothing landed for are not read."
      ],
      "read_by": [
       "event_lineups",
@@ -8286,7 +8294,12 @@
      "reads": [
       "stats_playbyplayv3"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "The table holds G1 and G2 from a landing on the 20th and G0 from the 21st, its newest. On the 22nd G1's play-by-play lands again, corrected and one action fewer, and G3 lands for the first time. The run recomputes G1 from its newest landing alone (the dropped action is not kept from the 20th's landing; the pre-hook, which a unit test does not run, has deleted its old rows), G3 as new, and G0 unchanged (the newest landing day is always redone). G2 is not read at all.",
+       "name": "events_recomputes_only_the_games_that_landed_again"
+      }
+     ]
     },
     {
      "checks": [
@@ -12008,14 +12021,15 @@
        "type": "varchar"
       }
      ],
-     "description": "One row per field goal attempt with court coordinates.",
+     "description": "One row per field goal attempt with court coordinates. Incremental by game, like events: every game a new landing carries (one game, or a team's season on a backfill) is recomputed from all its landings and its rows replaced.",
      "exported_as": [],
      "grain": null,
      "landing": [],
-     "materialized": "table",
+     "materialized": "incremental",
      "name": "shots",
      "notes": [
-      "One row per field goal attempt with court coordinates. Latest landing wins."
+      "One row per field goal attempt with court coordinates. Latest landing wins per shot.",
+      "Incremental by game (dbt/macros/incremental.sql): a landing carries one game's shots, or a team's whole season on a backfill; every game it carries is recomputed from all its landings and its rows replaced."
      ],
      "read_by": [
       "fct_shot"
@@ -14236,7 +14250,7 @@
        "type": "date"
       }
      ],
-     "description": "One row per play-by-play action. Incremental by game: a game is re-merged when its play-by-play, box score or game record lands again, so a box score that lands after the play-by-play still fills in the lineups and the game date.",
+     "description": "One row per play-by-play action. Incremental by game: a game's rows are replaced when its play-by-play, box score or game record lands again, so a box score that lands after the play-by-play still fills in the lineups and the game date, and an action a re-landed feed no longer carries goes away.",
      "exported_as": [
       "fct_event/<league>-<season>.parquet"
      ],
@@ -14253,7 +14267,7 @@
      "name": "fct_event",
      "notes": [
       "One row per play-by-play action, with the five players on the floor for each side (silver.event_lineups: comma-separated league player ids, sorted; lineup_complete when both sides have five).",
-      "Incremental by game, not by the event's landing date: the row also carries the game date from games and the lineups from event_lineups, which come from the box score, and a box score may land a day after the play-by-play (the completeness check tolerates exactly that). A game is re-merged whenever any of its inputs landed on or after the newest landing already in the table, so a late box score fills in the lineups without a full refresh."
+      "Incremental by game, not by the event's landing date: the row also carries the game date from games and the lineups from event_lineups, which come from the box score, and a box score may land a day after the play-by-play (the completeness check tolerates exactly that). A game is recomputed, its rows replaced (dbt/macros/incremental.sql), whenever any of its inputs landed on or after the newest landing already in the table, so a late box score fills in the lineups without a full refresh and an action a re-landed feed no longer carries goes away."
      ],
      "read_by": [],
      "reads": [
@@ -16556,7 +16570,7 @@
        "type": "date"
       }
      ],
-     "description": "One row per field goal attempt with court coordinates.",
+     "description": "One row per field goal attempt with court coordinates. Incremental by game: a game's rows are replaced when its shots land again.",
      "exported_as": [
       "fct_shot/<league>-<season>.parquet",
       "players/<league>/<player_id>.json"
@@ -16573,7 +16587,7 @@
      "materialized": "incremental",
      "name": "fct_shot",
      "notes": [
-      "One row per field goal attempt with court coordinates (tenths of a foot from the basket)."
+      "One row per field goal attempt with court coordinates (tenths of a foot from the basket). Incremental by game (dbt/macros/incremental.sql): a game's rows are replaced when its shots land again."
      ],
      "read_by": [],
      "reads": [
@@ -20829,9 +20843,14 @@
    "name": "player_current_stint_follows_the_roster"
   },
   {
-   "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it.",
+   "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it. The row's _ingest_date is the newer of the play-by-play's and the box score's landing.",
    "model": "event_lineups",
    "name": "event_lineups_matches_abbreviated_given_names"
+  },
+  {
+   "description": "The table holds G1 and G2 from a landing on the 20th and G0 from the 21st, its newest. On the 22nd G1's play-by-play lands again, corrected and one action fewer, and G3 lands for the first time. The run recomputes G1 from its newest landing alone (the dropped action is not kept from the 20th's landing; the pre-hook, which a unit test does not run, has deleted its old rows), G3 as new, and G0 unchanged (the newest landing day is always redone). G2 is not read at all.",
+   "model": "events",
+   "name": "events_recomputes_only_the_games_that_landed_again"
   },
   {
    "description": "Game G1's play-by-play landed on the 20th and was merged without lineups because its box score had not landed; on the 21st other games landed, moving the table's newest landing past G1's. On the 22nd G1's box score and G2's play-by-play land. The next run re-merges G1 (its box score landed on or after the table's newest landing) with its lineups, merges G2 as new, and re-merges G3 unchanged (the newest landing day always is). Keyed on the event's own landing date, G1 would have stayed without lineups until a full refresh.",

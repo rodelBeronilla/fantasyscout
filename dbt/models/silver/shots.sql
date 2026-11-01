@@ -1,4 +1,22 @@
-{# One row per field goal attempt with court coordinates. Latest landing wins. #}
+{{
+    config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key='shot_key',
+        on_schema_change='append_new_columns',
+        partition_by=(['league', 'season'] if target.type == 'databricks' else none),
+        zorder=(['game_id'] if target.type == 'databricks' else none),
+        pre_hook="{{ replace_changed_games([ref('stats_shotchartdetail')]) }}",
+    )
+}}
+
+{#
+  One row per field goal attempt with court coordinates. Latest landing wins per shot.
+
+  Incremental by game (dbt/macros/incremental.sql): a landing carries one game's shots, or a
+  team's whole season on a backfill; every game it carries is recomputed from all its landings
+  and its rows replaced.
+#}
 
 select
     league,
@@ -31,4 +49,5 @@ select
     _source_file
 from {{ ref('stats_shotchartdetail') }}
 where game_id is not null and game_event_id is not null
+    and {{ only_changed_games([ref('stats_shotchartdetail')]) }}
 {{ latest_landing(['league', 'game_id', 'game_event_id']) }}

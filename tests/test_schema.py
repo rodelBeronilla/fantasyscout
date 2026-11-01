@@ -37,6 +37,22 @@ def test_notes_skip_a_leading_config_block() -> None:
     assert schema.model_notes("select 1 {# too late #}") == []
 
 
+def test_notes_survive_a_hook_that_closes_its_own_braces() -> None:
+    # The play-by-play chain's pre-hook is Jinja inside the config, so the config holds ") }}"
+    # before its own end; the config is skipped whole, by its parentheses.
+    hooked = (
+        "{{\n    config(\n        materialized='incremental',\n"
+        "        partition_by=(['league'] if target.type == 'databricks' else none),\n"
+        "        pre_hook=\"{{ replace_changed_games([ref('events'), ref('games')]) }}\",\n"
+        "    )\n}}\n\n{#\n  One row per action.\n\n  Incremental by game.\n#}\n\nselect 1"
+    )
+    assert schema.model_notes(hooked) == ["One row per action.", "Incremental by game."]
+    # An unbalanced config is left alone rather than swallowing the file.
+    assert schema.skip_leading_config("{{ config(materialized='table' }}\n{# x #}") == (
+        "{{ config(materialized='table' }}\n{# x #}"
+    )
+
+
 def test_grain_is_the_models_own_key_without_aliases_or_casts() -> None:
     cols = {"player_game_sk", "game_sk", "league", "game_id", "player_id"}
     grain = schema.model_grain(GOLD, cols, "player_game_sk")
