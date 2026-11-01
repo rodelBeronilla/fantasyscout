@@ -3,8 +3,10 @@
  * per link with `?league=nba` so a page can be shared for either league.
  */
 import type { League } from './data';
+import { readRaw, storageKey, writeRaw } from './storage';
 
-const KEY = 'fantasyscout.league';
+const KEY = storageKey('current-league');
+const OLD_KEY = 'fantasyscout.league';
 
 export function isLeague(value: unknown): value is League {
   return value === 'wnba' || value === 'nba';
@@ -14,21 +16,13 @@ export function currentLeague(): League {
   if (typeof window === 'undefined') return 'wnba';
   const fromUrl = new URL(window.location.href).searchParams.get('league');
   if (isLeague(fromUrl)) return fromUrl;
-  try {
-    const stored = window.localStorage.getItem(KEY);
-    if (isLeague(stored)) return stored;
-  } catch {
-    // storage may be unavailable; the default stands
-  }
+  const stored = readRaw(KEY, OLD_KEY);
+  if (isLeague(stored)) return stored;
   return 'wnba';
 }
 
 export function rememberLeague(league: League): void {
-  try {
-    window.localStorage.setItem(KEY, league);
-  } catch {
-    // ignore
-  }
+  writeRaw(KEY, league);
 }
 
 /** The same page for the other league, keeping every other query parameter. */

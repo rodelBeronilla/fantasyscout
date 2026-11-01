@@ -1,4 +1,5 @@
 // The page chrome: league toggle, theme toggle, and the footer's data-as-of and build id.
+import { writeRaw } from '../lib/storage';
 import { getLatest } from '../lib/data';
 import { currentLeague, leagueHref, rememberLeague } from '../lib/league';
 import { href } from '../lib/site';
@@ -19,11 +20,7 @@ toggle?.addEventListener('click', () => {
     : window.matchMedia('(prefers-color-scheme: dark)').matches;
   const next = dark ? 'light' : 'dark';
   root.dataset.theme = next;
-  try {
-    window.localStorage.setItem('fantasyscout.theme', next);
-  } catch {
-    // ignore
-  }
+  writeRaw('fantasyscout:theme', next);
 });
 
 void getLatest()
