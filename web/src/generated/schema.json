@@ -12866,7 +12866,12 @@
      "reads": [
       "games"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "The fantasy week is whole Monday-to-Sunday weeks since the first of January of the Monday's year. The days-since-January divided by seven is a fraction; cast straight to an integer it rounds on DuckDB and truncates on Databricks, so the two engines disagreed on four days of every seven. Floored first, both give the same week. The spine is overridden to the days under test.",
+       "name": "date_fantasy_week_counts_whole_weeks_since_new_year"
+      }
+     ]
     },
     {
      "checks": [],
@@ -20351,6 +20356,11 @@
   }
  ],
  "unit_tests": [
+  {
+   "description": "The fantasy week is whole Monday-to-Sunday weeks since the first of January of the Monday's year. The days-since-January divided by seven is a fraction; cast straight to an integer it rounds on DuckDB and truncates on Databricks, so the two engines disagreed on four days of every seven. Floored first, both give the same week. The spine is overridden to the days under test.",
+   "model": "dim_date",
+   "name": "date_fantasy_week_counts_whole_weeks_since_new_year"
+  },
   {
    "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it.",
    "model": "event_lineups",
