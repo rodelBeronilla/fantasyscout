@@ -1,0 +1,67 @@
+{
+  "updated": "2026-11-01",
+  "contact": "https://github.com/rodelBeronilla/fantasyscout/issues",
+  "principles": [
+    "Raw payloads are never redistributed. What the site publishes is derived: per-game and per-player tables, the board's values and projections, the schedule with context, aggregates in the notebooks.",
+    "The Parquet mirror of the gold tables is served to the site's owner alone (ADR 0008); the JSON the pages read is public.",
+    "Betting lines are model inputs and analysis aids: the game line is shown as context, player prop lines are never published (ADR 0008 addendum).",
+    "Collection is polite: one request at a time per host with a pacing gap, no retries beyond the shared client's, scheduled runs morning and evening.",
+    "The site is free, non-commercial and not affiliated with any of the organisations below. If a source objects, the site complies: open an issue or write to the address on the GitHub profile."
+  ],
+  "sources": [
+    {
+      "name": "NBA.com and WNBA.com statistics",
+      "host": "stats.nba.com, stats.wnba.com",
+      "terms": "https://www.nba.com/termsofuse",
+      "feeds": "Game logs, box scores (traditional and advanced), play-by-play, shot charts, player game logs (usage and misc), tracking and hustle, rosters, the player directory, standings and the schedule.",
+      "cadence": "Daily, with a settling window for late corrections; backfills by season. From a home connection, since the stats host blocks cloud addresses (ADR 0002).",
+      "published": "Derived per-game and per-player tables, the board's values, projections and rolling lines, shot charts on the player pages, event-level facts in the owner-only Parquet. No raw payload.",
+      "retention": "Landed payloads are kept on the lakehouse volume (the record of what the API said each day; pruning is written down for 50 GB and has not been needed). Seven published builds are kept."
+    },
+    {
+      "name": "ESPN",
+      "host": "site.api.espn.com, site.web.api.espn.com",
+      "terms": "https://disneytermsofuse.com/",
+      "feeds": "Scoreboard and game summaries (box scores, betting lines), team rosters, injuries, transactions, news headlines, the fantasy market (average draft position and ownership), player prop lines.",
+      "cadence": "Daily, morning and evening, from GitHub Actions.",
+      "published": "Reconciliation against the league box scores, injury status and the expected-return note, schedules with the closing line as context, headline flags and the headline, the market's rank and ownership bucket, the transaction log. Prop lines: never (a private model input).",
+      "retention": "As above: landed payloads kept, seven published builds."
+    },
+    {
+      "name": "Sleeper",
+      "host": "api.sleeper.app",
+      "terms": "https://sleeper.com/terms",
+      "feeds": "The player directory and the daily waiver trends (adds and drops across Sleeper leagues).",
+      "cadence": "Daily.",
+      "published": "The add and drop counts and ranks beside the player, as waiver heat on the Streamers page.",
+      "retention": "As above."
+    },
+    {
+      "name": "The Odds API",
+      "host": "api.the-odds-api.com",
+      "terms": "https://the-odds-api.com/",
+      "feeds": "Player prop lines from the bookmakers it aggregates (DraftKings among them).",
+      "cadence": "Twice daily, behind its key; off until the key is set.",
+      "published": "Nothing. The lines are a check on the board's projections; the prop-lines notebook publishes aggregates only (ADR 0008 addendum).",
+      "retention": "As above."
+    },
+    {
+      "name": "The leagues' official injury reports",
+      "host": "official.nba.com, the WNBA's equivalent",
+      "terms": "https://www.nba.com/termsofuse",
+      "feeds": "The official injury report before each game day (the NBA's archive back to 2023-24), 5 pm Eastern and the morning's.",
+      "cadence": "Morning and evening in season; the archive landed once.",
+      "published": "Each player's official status and reason for the next game, and the calibration of expected games missed built from past listings (aggregates by status and reason).",
+      "retention": "As above."
+    },
+    {
+      "name": "NBA.com referee assignments",
+      "host": "official.nba.com",
+      "terms": "https://www.nba.com/termsofuse",
+      "feeds": "The day's crew per game.",
+      "cadence": "Daily in season.",
+      "published": "The crew chief and the crew's tendency (fouls, free throws, pace against average) in the schedule's tooltips and the game context notebook.",
+      "retention": "As above."
+    }
+  ]
+}
