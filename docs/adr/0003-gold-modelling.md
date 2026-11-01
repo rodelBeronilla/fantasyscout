@@ -486,3 +486,8 @@ The minutes curve alone and the production curve alone show the same pattern. Th
 - Rank correlation rose by about 0.01 and the error per game fell in both NBA seasons. A change of scale also lowers that error (the value spread addendum), so it is not evidence of a better ranking on its own.
 
 The board backtest notebook keeps the test. It is worth another look once NBA 2026-27 is complete, which gives a second forward NBA season. The curve would be adopted only if its top-N and rank-correlation gains then hold in both forward seasons.
+
+## Addendum (2026-11-01): the evening run lands the 5 pm report too
+
+The calibration (above) is measured on each day's 5 pm Eastern report, the one the history run lands, while the evening ingest landed whatever report was newest at 23:00 UTC (7 pm EDT, 6 pm EST): the production input and the calibration's data were different reports. An evening run now lands the day's 5 pm report as well when the day has passed 5 pm and the newest report is a later one. The two land under their own keys (the publish time), so both are kept; the board still reads the newest listing for the next game, and the calibration keeps reading the 5 pm one.
+

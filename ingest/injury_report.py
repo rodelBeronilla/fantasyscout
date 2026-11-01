@@ -301,6 +301,23 @@ class InjuryReportIngestor:
             )
             summary.games = len({r["matchup"] for r in rows if r["matchup"]})
             summary.record(result)
+            # The availability calibration is built on each day's 5 pm Eastern report (the
+            # history run lands that one). An evening run lands it too, when the day has passed
+            # 5 pm and the newest report is a later one, so the board reads the same report
+            # the calibration was measured on; the keys name the publish time, so both coexist.
+            local = self._clock().astimezone(EASTERN)
+            if local.hour >= HISTORY_HOUR:
+                five = report_time(history_names(local.date())[0])
+                if five is not None and five.strftime("%Y-%m-%dT%H-%M") != key:
+                    ReportHistoryIngestor(
+                        self.client,
+                        self.landing,
+                        self.league,
+                        self.season,
+                        since=local.date(),
+                        until=local.date(),
+                        now=self.now,
+                    )._land_day(summary, scope, local.date(), self._clock())
         except CircuitOpenError as exc:
             summary.aborted = str(exc)
         except Exception as exc:  # a broken report never fails the ingest
