@@ -106,6 +106,20 @@ jobs:
           (cd dbt && uv run dbt build --target duckdb --exclude tag:quality >/dev/null && uv run dbt docs generate --target duckdb >/dev/null)
           mkdir -p web/dist/docs
           cp dbt/target/index.html dbt/target/manifest.json dbt/target/catalog.json web/dist/docs/
+          # The docs are generated from the CI fixture sample, not the lakehouse: say so at the top.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("web/dist/docs/index.html")
+          html = p.read_text(encoding="utf-8")
+          banner = ('<div style="background:#fde68a;color:#1f2937;padding:.5rem 1rem;font:14px system-ui,sans-serif">'
+                    'These dbt docs are generated from the CI fixture sample (a few rows per source), so column types are DuckDB&#39;s and '
+                    'row counts are the sample&#39;s. The models are the lakehouse&#39;s; its numbers are on '
+                    '<a href="/health/">Data Health</a>, and the <a href="/schema/">Schema</a> page describes every model with its lineage.</div>')
+          assert "<body" in html, "no body tag in the dbt docs"
+          i = html.index(">", html.index("<body")) + 1
+          p.write_text(html[:i] + banner + html[i:], encoding="utf-8")
+          PY
+          grep -q "fixture sample" web/dist/docs/index.html
       - name: The build is in place
         if: steps.touched.outputs.deploy == 'true'
         run: ls -la web/dist/docs && test -f web/dist/index.html

@@ -137,6 +137,118 @@ def model_grain(raw_code: str, columns: set[str], key: str | None) -> dict[str, 
     return {"key": chosen[0], "columns": parts}
 
 
+# The left end of the lineage: who lands each source, from where, on which runner, how often. The
+# landing folders a bronze model reads (``landing/<source>/<endpoint>``) join a source by their
+# first segment.
+SOURCES: dict[str, dict[str, str]] = {
+    "stats": {
+        "name": "League stats API",
+        "host": "stats.nba.com, stats.wnba.com",
+        "module": "ingest/stats.py",
+        "runner": "the home runner (ADR 0002: the host blocks cloud addresses)",
+        "cadence": "daily, morning and evening; backfills by season (ingest.yml, backfill.yml)",
+    },
+    "espn": {
+        "name": "ESPN",
+        "host": "site.api.espn.com, site.web.api.espn.com",
+        "module": "ingest/espn.py, espn_fantasy.py, espn_news.py, transactions.py, props.py",
+        "runner": "GitHub-hosted",
+        "cadence": "daily, morning and evening (ingest.yml)",
+    },
+    "league": {
+        "name": "The leagues' own sites",
+        "host": "official.nba.com and the WNBA's equivalent",
+        "module": "ingest/injury_report.py, lineups.py, referee_assignments.py, transactions.py",
+        "runner": "GitHub-hosted",
+        "cadence": "morning and evening in season; the injury-report archive landed once "
+        "(ingest.yml)",
+    },
+    "sleeper": {
+        "name": "Sleeper",
+        "host": "api.sleeper.app",
+        "module": "ingest/sleeper.py",
+        "runner": "GitHub-hosted",
+        "cadence": "daily (ingest.yml)",
+    },
+    "odds_api": {
+        "name": "The Odds API",
+        "host": "api.the-odds-api.com",
+        "module": "ingest/props.py",
+        "runner": "GitHub-hosted",
+        "cadence": "twice daily, behind ODDS_API_KEY (ingest.yml)",
+    },
+    "_ops": {
+        "name": "The ingest's own run log",
+        "host": "written by every ingest run",
+        "module": "ingest/run.py",
+        "runner": "wherever the run ran",
+        "cadence": "every run",
+    },
+}
+
+
+def sources_of(landing_paths: list[str]) -> list[dict[str, Any]]:
+    """The sources behind the landing folders, each with the folders it lands."""
+    by_source: dict[str, list[str]] = {}
+    for path in landing_paths:
+        by_source.setdefault(path.split("/", 1)[0], []).append(path)
+    out = []
+    for key, folders in sorted(by_source.items()):
+        info = SOURCES.get(
+            key, {"name": key, "host": "", "module": "", "runner": "", "cadence": ""}
+        )
+        out.append({"key": key, **info, "folders": sorted(folders)})
+    return out
+
+
+_FETCH = re.compile(r"fetchBuildJson<[^>]*>\(\s*[`'\"]([a-z_]+)")
+_COMPONENT_IMPORT = re.compile(
+    r"import\s+([A-Z][A-Za-z]+)\s+from\s+'\.\.?/(?:\.\./)?components/([A-Za-z]+)'"
+)
+
+
+def page_reads(web_src: Path) -> dict[str, list[str]]:
+    """Which site routes read each published file name: ``board`` -> ``['/']`` and so on.
+
+    A page is a ``.astro`` file under ``pages/``; the files it reads are the ``fetchBuildJson``
+    calls
+    of the
+    components it imports (the per-player file reads ``players/<league>/<id>.json``, named here as
+    ``players``). The right end of the lineage, read off the code rather than kept by hand.
+    """
+    pages_dir = web_src / "pages"
+    components = web_src / "components"
+    if not pages_dir.is_dir() or not components.is_dir():
+        return {}
+    reads_of: dict[str, set[str]] = {}
+    for comp in components.glob("*.tsx"):
+        names = set(_FETCH.findall(comp.read_text(encoding="utf-8", errors="ignore")))
+        if names:
+            reads_of[comp.stem] = names
+    out: dict[str, set[str]] = {}
+    for page in pages_dir.rglob("*.astro"):
+        rel = page.relative_to(pages_dir).as_posix()
+        route = (
+            "/"
+            if rel == "index.astro"
+            else "/" + rel.removesuffix("index.astro").removesuffix(".astro").rstrip("/") + "/"
+        )
+        for _, comp in _COMPONENT_IMPORT.findall(page.read_text(encoding="utf-8", errors="ignore")):
+            for name in reads_of.get(comp, set()):
+                out.setdefault(name, set()).add(route)
+    return {name: sorted(routes) for name, routes in sorted(out.items())}
+
+
+def pages_reading(exported_as: list[str], pages: dict[str, list[str]]) -> list[str]:
+    """The routes that read any of a model's published files (``board/<league>.json`` is
+    ``board``)."""
+    routes: set[str] = set()
+    for file in exported_as:
+        name = file.split("/", 1)[0].removesuffix(".json").removesuffix(".parquet")
+        routes.update(pages.get(name, []))
+    return sorted(routes)
+
+
 def landing_reads(raw_code: str) -> list[str]:
     """The landing folders (``<source>/<endpoint>``) a model reads its files from."""
     found = {f"{s}/{e}" for s, e in _LANDING.findall(raw_code)}
@@ -327,6 +439,7 @@ def build(
                 )
         return out
 
+    pages = page_reads(ROOT / "web" / "src")
     landing: dict[str, set[str]] = {}
     layers: list[dict[str, Any]] = []
     for layer in LAYERS:
@@ -354,6 +467,7 @@ def build(
                     "reads": sorted({names[d] for d in node["depends_on"]["nodes"] if d in names}),
                     "read_by": sorted(referenced_by.get(node["name"], set())),
                     "exported_as": consumers.get(node["name"], []),
+                    "read_by_pages": pages_reading(consumers.get(node["name"], []), pages),
                     "checks": sorted(model_checks.get(node["name"], [])),
                     "unit_tests": units_of.get(node["name"], []),
                     "columns": cols,
@@ -404,6 +518,11 @@ def build(
     return {
         "layers": layers,
         "landing": [{"path": p, "read_by": sorted(landing[p])} for p in sorted(landing)],
+        "sources": sources_of(sorted(landing)),
+        "pages": [
+            {"route": r, "reads": sorted(n for n, rs in pages.items() if r in rs)}
+            for r in sorted({r for rs in pages.values() for r in rs})
+        ],
         "seeds": seed_list,
         "checks": sorted(singular, key=lambda t: (t["severity"], t["name"])),
         "unit_tests": unit_tests,

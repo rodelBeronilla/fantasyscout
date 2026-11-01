@@ -637,6 +637,7 @@
       "espn_fantasy_market",
       "feed_freshness"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -774,6 +775,7 @@
       "injuries",
       "injury_status_history"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -868,6 +870,7 @@
       "feed_freshness",
       "player_news"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -1028,6 +1031,7 @@
       "feed_freshness",
       "player_props"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -1158,6 +1162,7 @@
       "espn_roster_players",
       "feed_freshness"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -1306,6 +1311,7 @@
       "espn_events",
       "feed_freshness"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -1399,6 +1405,7 @@
      "read_by": [
       "game_lines"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -1492,6 +1499,7 @@
      "read_by": [
       "game_lines"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -1575,6 +1583,7 @@
      "read_by": [
       "game_officials"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -1711,6 +1720,7 @@
       "espn_player_game",
       "feed_freshness"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -1880,6 +1890,7 @@
       "Raw espn `summary` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -1965,6 +1976,7 @@
       "Raw espn `summary` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -2064,6 +2076,7 @@
      "read_by": [
       "espn_team_directory"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -2140,6 +2153,7 @@
       "feed_freshness",
       "transactions"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -2252,6 +2266,7 @@
       "feed_freshness",
       "starting_lineups"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -2376,6 +2391,7 @@
       "feed_freshness",
       "official_injury_report"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -2458,6 +2474,7 @@
       "feed_freshness",
       "transactions"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -2584,6 +2601,7 @@
       "feed_freshness",
       "game_officials"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -2726,6 +2744,7 @@
       "feed_freshness",
       "player_props"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -2808,6 +2827,7 @@
       "feed_freshness",
       "waiver_trending"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -2884,6 +2904,7 @@
       "feed_freshness",
       "waiver_trending"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -3164,6 +3185,7 @@
       "feed_freshness",
       "player_game_advanced"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -3426,6 +3448,7 @@
       "feed_freshness",
       "player_game_box"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -3586,6 +3609,7 @@
       "feed_freshness",
       "players"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -3746,6 +3770,7 @@
       "feed_freshness",
       "rosters"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -3953,6 +3978,7 @@
      "read_by": [
       "player_day_tracking"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -4119,6 +4145,7 @@
       "feed_freshness",
       "player_day_tracking"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -4302,6 +4329,7 @@
      "read_by": [
       "player_day_tracking"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -4569,6 +4597,7 @@
      "read_by": [
       "player_day_tracking"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -4716,6 +4745,7 @@
      "read_by": [
       "player_day_tracking"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -4949,6 +4979,7 @@
       "team_game_box",
       "teams"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -5175,6 +5206,7 @@
       "feed_freshness",
       "player_day_tracking"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -5329,6 +5361,7 @@
       "feed_freshness",
       "standings"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -5531,6 +5564,7 @@
       "events",
       "feed_freshness"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -6081,6 +6115,7 @@
       "feed_freshness",
       "player_game_advanced"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -6415,6 +6450,7 @@
       "feed_freshness",
       "player_game_misc"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -6809,6 +6845,7 @@
       "feed_freshness",
       "player_game_usage"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -7143,6 +7180,7 @@
       "feed_freshness",
       "schedule"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -7345,6 +7383,7 @@
       "feed_freshness",
       "shots"
      ],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     }
@@ -7509,6 +7548,7 @@
       "game_lines",
       "game_xwalk"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_scoreboard"
      ],
@@ -7617,6 +7657,7 @@
      "read_by": [
       "fct_market_value"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_fantasy_players"
      ],
@@ -7849,6 +7890,7 @@
       "player_xwalk",
       "player_xwalk_review"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_summary_players"
      ],
@@ -7949,6 +7991,7 @@
       "fct_availability",
       "player_xwalk"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_roster"
      ],
@@ -8041,6 +8084,7 @@
      "read_by": [
       "team_xwalk"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_teams"
      ],
@@ -8118,6 +8162,7 @@
      "read_by": [
       "fct_event"
      ],
+     "read_by_pages": [],
      "reads": [
       "events",
       "player_game_box"
@@ -8326,6 +8371,7 @@
       "event_lineups",
       "fct_event"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_playbyplayv3"
      ],
@@ -8468,6 +8514,7 @@
       "fct_game_line",
       "mart_schedule_upcoming"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_events",
       "espn_scoreboard_odds",
@@ -8576,6 +8623,7 @@
      "read_by": [
       "fct_game_official"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_summary_officials",
       "game_xwalk",
@@ -8675,6 +8723,7 @@
       "player_xwalk",
       "player_xwalk_review"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_events",
       "games",
@@ -8802,6 +8851,7 @@
       "fct_player_tracking",
       "game_xwalk"
      ],
+     "read_by_pages": [],
      "reads": [
       "team_game_box"
      ],
@@ -8942,6 +8992,7 @@
      "read_by": [
       "fct_availability"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_injuries"
      ],
@@ -9037,6 +9088,7 @@
       "fct_availability",
       "fct_injury_status"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_injuries"
      ],
@@ -9189,6 +9241,7 @@
       "fct_official_listing",
       "fct_player_status"
      ],
+     "read_by_pages": [],
      "reads": [
       "league_injury_report"
      ],
@@ -9617,6 +9670,7 @@
      "read_by": [
       "fct_player_tracking"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_leaguedashptstats_drives",
       "stats_leaguedashptstats_passing",
@@ -9846,6 +9900,7 @@
      "read_by": [
       "fct_player_game"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_boxscoreadvancedv3",
       "stats_playergamelogs"
@@ -10099,6 +10154,7 @@
       "player_xwalk_review",
       "reconciliation_summary"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_boxscoretraditionalv3"
      ],
@@ -10257,6 +10313,7 @@
      "read_by": [
       "fct_player_game"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_playergamelogs_misc"
      ],
@@ -10518,6 +10575,7 @@
       "reconciliation",
       "reconciliation_summary"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_player_game",
       "game_xwalk",
@@ -10715,6 +10773,7 @@
      "read_by": [
       "fct_player_game"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_playergamelogs_usage"
      ],
@@ -10825,6 +10884,7 @@
      "read_by": [
       "fct_player_news"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_news",
       "player_xwalk"
@@ -11052,6 +11112,7 @@
      "read_by": [
       "fct_player_prop"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_prop_bets",
       "game_xwalk",
@@ -11174,6 +11235,7 @@
       "player_props",
       "player_xwalk_review"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_player_game",
       "espn_roster_players",
@@ -11270,6 +11332,7 @@
       "Players in matched games that the crosswalk could not pair, from either side, with the closest candidate on the same team in the same games. The fix for a true pair is a row in seeds/player_id_overrides.csv (runbook, \"Reconciliation review\")."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [
       "espn_player_game",
       "game_xwalk",
@@ -11402,6 +11465,7 @@
       "player_props",
       "transactions"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_commonallplayers"
      ],
@@ -11559,6 +11623,7 @@
       "mart_player_projection",
       "player_xwalk"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_commonteamroster"
      ],
@@ -11783,6 +11848,7 @@
       "player_props",
       "schedule_team_games"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_scheduleleaguev2"
      ],
@@ -11879,6 +11945,7 @@
       "fct_team_week_games",
       "mart_board"
      ],
+     "read_by_pages": [],
      "reads": [
       "schedule"
      ],
@@ -12082,6 +12149,7 @@
      "read_by": [
       "fct_shot"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_shotchartdetail"
      ],
@@ -12227,6 +12295,7 @@
       "fct_team_stakes",
       "int_league_season_state"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_leaguestandingsv3"
      ],
@@ -12347,6 +12416,7 @@
      "read_by": [
       "fct_starting_lineup"
      ],
+     "read_by_pages": [],
      "reads": [
       "league_daily_lineups"
      ],
@@ -12430,6 +12500,7 @@
       "mart_board",
       "player_props"
      ],
+     "read_by_pages": [],
      "reads": [
       "teams"
      ],
@@ -12651,6 +12722,7 @@
       "fct_team_game",
       "games"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_leaguegamelog"
      ],
@@ -12725,6 +12797,7 @@
       "player_xwalk_review",
       "transactions"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_team_directory",
       "teams"
@@ -12829,6 +12902,7 @@
       "team_current",
       "team_xwalk"
      ],
+     "read_by_pages": [],
      "reads": [
       "stats_leaguegamelog",
       "team_reference"
@@ -12917,6 +12991,7 @@
      "read_by": [
       "fct_transaction"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_transactions",
       "league_player_movement",
@@ -13035,6 +13110,7 @@
      "read_by": [
       "fct_waiver_trend"
      ],
+     "read_by_pages": [],
      "reads": [
       "sleeper_players",
       "sleeper_trending"
@@ -13133,6 +13209,7 @@
      "read_by": [
       "fct_team_week_games"
      ],
+     "read_by_pages": [],
      "reads": [
       "games"
      ],
@@ -13330,6 +13407,9 @@
       "One row per game: result from the game log, context from the schedule."
      ],
      "read_by": [],
+     "read_by_pages": [
+      "/p/"
+     ],
      "reads": [
       "games",
       "schedule"
@@ -13476,6 +13556,9 @@
       "mart_board",
       "mart_streamers"
      ],
+     "read_by_pages": [
+      "/p/"
+     ],
      "reads": [
       "espn_roster_players",
       "games",
@@ -13581,6 +13664,10 @@
       "One row per team-season."
      ],
      "read_by": [],
+     "read_by_pages": [
+      "/p/",
+      "/streamers/"
+     ],
      "reads": [
       "teams"
      ],
@@ -13761,6 +13848,7 @@
       "fct_injury_status",
       "fct_player_status"
      ],
+     "read_by_pages": [],
      "reads": [
       "dim_player",
       "espn_roster_players",
@@ -14098,6 +14186,7 @@
       "A daily ledger of the board: what the board said about each player on each Eastern date, kept after the builds that published it roll off. Every build merges today's rows (a later build the same day replaces them), and a full refresh never rebuilds it (full_refresh=false), so the history only grows. It holds the projection and value, and the context the board shows beside the value (availability with the official status and reason, lineups, the ESPN market with its raw shares, stakes, waiver heat, last-ten production, the newest headline flag), so the signals that have only days of history so far can be backtested once they have a season."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [
       "fct_market_value",
       "fct_player_status",
@@ -14337,6 +14426,7 @@
       "Incremental by game, not by the event's landing date: the row also carries the game date from games and the lineups from event_lineups, which come from the box score, and a box score may land a day after the play-by-play (the completeness check tolerates exactly that). A game is recomputed, its rows replaced (dbt/macros/incremental.sql), whenever any of its inputs landed on or after the newest landing already in the table, so a late box score fills in the lineups without a full refresh and an action a re-landed feed no longer carries goes away."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [
       "event_lineups",
       "events",
@@ -14474,6 +14564,7 @@
       "The betting line for each played game: ESPN's closing line from the game summary (or the last scoreboard line when the summary had none), linked to the league's game id through the game crosswalk, with the points each team was implied to score. Upcoming games' lines are in mart_schedule_upcoming; this table is the history, for analyses of what the line said against what happened."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [
       "game_lines",
       "game_xwalk",
@@ -14592,6 +14683,7 @@
       "fct_referee_tendency",
       "mart_schedule_upcoming"
      ],
+     "read_by_pages": [],
      "reads": [
       "game_officials"
      ],
@@ -14692,6 +14784,9 @@
       "Each player's injury statuses over time, linked to the league player id: one row per run of the same status on an injury listing (silver.injury_status_history), with the first and last daily report it appeared in. The player page draws a player's injury history from it."
      ],
      "read_by": [],
+     "read_by_pages": [
+      "/p/"
+     ],
      "reads": [
       "fct_availability",
       "injury_status_history"
@@ -14818,6 +14913,7 @@
       "mart_board",
       "mart_streamers"
      ],
+     "read_by_pages": [],
      "reads": [
       "espn_fantasy_market",
       "player_xwalk"
@@ -14952,6 +15048,7 @@
      "read_by": [
       "fct_status_calibration"
      ],
+     "read_by_pages": [],
      "reads": [
       "dim_player",
       "fct_player_game",
@@ -15362,6 +15459,9 @@
       "mart_player_rolling",
       "mart_streamers"
      ],
+     "read_by_pages": [
+      "/p/"
+     ],
      "reads": [
       "dim_player",
       "games",
@@ -15463,6 +15563,9 @@
      ],
      "read_by": [
       "int_player_news_latest"
+     ],
+     "read_by_pages": [
+      "/p/"
      ],
      "reads": [
       "player_news"
@@ -15654,6 +15757,7 @@
       "- Consensus: the mean line, and the mean over probability with the vig removed, across the bookmakers quoting the player's market for the game, each bookmaker counted once. DraftKings comes from both sources; the later snapshot counts, and The Odds API's on a tie."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [
       "player_props"
      ],
@@ -15813,6 +15917,7 @@
       "mart_board",
       "mart_streamers"
      ],
+     "read_by_pages": [],
      "reads": [
       "dim_player",
       "fct_availability",
@@ -16292,6 +16397,7 @@
       "Player x game tracking and hustle totals, NBA only (the WNBA host serves no tracking). The source reports by game date; a player plays at most one game a day, so the game is the one the player's box score puts on that date. The source's team is the player's team when it was fetched, not on the game date (a player traded since shows the new team), so the game and the team come from the box score, never from the tracking row. These are inputs for later backtests; no projection reads them yet."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [
       "dim_player",
       "games",
@@ -16451,6 +16557,7 @@
      "read_by": [
       "mart_schedule_upcoming"
      ],
+     "read_by_pages": [],
      "reads": [
       "fct_game_official",
       "fct_team_game"
@@ -16661,6 +16768,9 @@
       "One row per field goal attempt with court coordinates (tenths of a foot from the basket). Incremental by game (dbt/macros/incremental.sql): a game's rows are replaced when its shots land again."
      ],
      "read_by": [],
+     "read_by_pages": [
+      "/p/"
+     ],
      "reads": [
       "shots"
      ],
@@ -16761,6 +16871,7 @@
       "mart_board",
       "mart_streamers"
      ],
+     "read_by_pages": [],
      "reads": [
       "starting_lineups"
      ],
@@ -16858,6 +16969,7 @@
      "read_by": [
       "mart_board"
      ],
+     "read_by_pages": [],
      "reads": [
       "fct_official_listing",
       "teams"
@@ -17149,6 +17261,7 @@
       "fct_referee_tendency",
       "mart_schedule_upcoming"
      ],
+     "read_by_pages": [],
      "reads": [
       "team_game_box"
      ],
@@ -17308,6 +17421,7 @@
      "read_by": [
       "mart_schedule_upcoming"
      ],
+     "read_by_pages": [],
      "reads": [
       "schedule_team_games",
       "venues"
@@ -17448,6 +17562,7 @@
       "mart_board",
       "mart_streamers"
      ],
+     "read_by_pages": [],
      "reads": [
       "int_league_season_state",
       "schedule_team_games",
@@ -17580,6 +17695,9 @@
       "Games per team per fantasy week (Monday to Sunday, dim_date.fantasy_week), from the current week to the last scheduled game: the schedule surface a fantasy manager plans the playoff weeks on, which team plays four times and which plays two. Regular-season and playoff games, from each team's side of the schedule (silver.schedule_team_games); an if-necessary playoff game is counted apart. games counts the week's games played or not, games_left the ones still to play from today; game_dates lists every date, if-necessary games included."
      ],
      "read_by": [],
+     "read_by_pages": [
+      "/streamers/"
+     ],
      "reads": [
       "dim_date",
       "schedule_team_games",
@@ -17672,6 +17790,10 @@
       "Transactions for the site: the NBA's movement feed, which names the player, and ESPN's feed for the WNBA and for the NBA moves the league's feed does not carry (G League assignments and recalls, suspensions). Each with the team's abbreviation."
      ],
      "read_by": [],
+     "read_by_pages": [
+      "/p/",
+      "/streamers/"
+     ],
      "reads": [
       "team_current",
       "transactions"
@@ -17788,6 +17910,7 @@
      "read_by": [
       "mart_streamers"
      ],
+     "read_by_pages": [],
      "reads": [
       "dim_player",
       "team_current",
@@ -17876,6 +17999,7 @@
       "mart_player_projection",
       "mart_streamers"
      ],
+     "read_by_pages": [],
      "reads": [
       "fct_player_game",
       "mart_category_zscores",
@@ -17931,6 +18055,7 @@
       "mart_board",
       "mart_streamers"
      ],
+     "read_by_pages": [],
      "reads": [
       "fct_player_news"
      ],
@@ -18754,6 +18879,12 @@
       "fct_board_history",
       "mart_streamers"
      ],
+     "read_by_pages": [
+      "/",
+      "/league/",
+      "/p/",
+      "/trade/"
+     ],
      "reads": [
       "dim_player",
       "fct_market_value",
@@ -18988,6 +19119,9 @@
       "mart_board",
       "mart_player_projection",
       "mart_streamers"
+     ],
+     "read_by_pages": [
+      "/p/"
      ],
      "reads": [
       "fct_player_game"
@@ -19296,6 +19430,7 @@
      "read_by": [
       "mart_board"
      ],
+     "read_by_pages": [],
      "reads": [
       "fct_player_game",
       "int_league_season_state",
@@ -19591,6 +19726,9 @@
      "read_by": [
       "mart_streamers"
      ],
+     "read_by_pages": [
+      "/p/"
+     ],
      "reads": [
       "fct_player_game"
      ],
@@ -19814,6 +19952,10 @@
      ],
      "read_by": [
       "mart_streamers"
+     ],
+     "read_by_pages": [
+      "/p/",
+      "/streamers/"
      ],
      "reads": [
       "fct_game_official",
@@ -20296,6 +20438,9 @@
      "read_by": [
       "fct_board_history"
      ],
+     "read_by_pages": [
+      "/streamers/"
+     ],
      "reads": [
       "dim_player",
       "fct_market_value",
@@ -20417,6 +20562,7 @@
       "Every landed feed is here. A feed landed from one payload that several bronze models read (the ESPN game summary) is listed once, by one of them. A feed that needs a key the repository may not have yet (The Odds API) is optional: never having landed is 'unconfigured', not 'never'. The core feeds (core: true) are the ones the board cannot do without; assert_core_feeds_fresh blocks the publish gate when one of them is stale by more than two days past its allowance."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [
       "espn_fantasy_players",
       "espn_injuries",
@@ -20530,6 +20676,7 @@
       "Every request an ingest run could not land, one row each, from the run logs the ingestors write under landing/_ops/ingest_log: the failures (an error of ours or the host's) and the payloads missing at the source (HTTP 404). ingest_log keeps the counts; this names the endpoint and key, so Data Health can show a request that fails every day and a replay can target exactly these keys (fs-ingest land ... --from-run-log, or --only endpoint:key)."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -20669,6 +20816,7 @@
       "One row per ingest run, from the run logs the ingestors write under landing/_ops/ingest_log."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [],
      "unit_tests": []
     },
@@ -20779,6 +20927,7 @@
       "One row per value the two sources disagree on, with both values and the resolution (SPEC.md): the league stats API wins by default; ESPN wins only where the league value is null. Two disagreements are noise and are left out: a player neither source has on the floor (zeros against blanks), and minutes within half a minute (ESPN rounds to the minute). Rebuilt from the current comparison on every build; reconciled_at is the build time."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [
       "player_game_reconciliation"
      ],
@@ -20898,6 +21047,7 @@
       "Match and conflict rates per league and season (SPEC.md phase 4, \"done when\"): how many of the league's player-games ESPN also reports and the crosswalk pairs, and how those pairs agree. Two rates: over every line the league's box score carries, and over the lines where the player was on the floor. The league lists inactive players with a line of zeros and ESPN leaves them out, so the played rate is the one the coverage check judges. Data Health reads this table."
      ],
      "read_by": [],
+     "read_by_pages": [],
      "reads": [
       "player_game_box",
       "player_game_reconciliation"
@@ -20906,6 +21056,49 @@
     }
    ],
    "name": "ops"
+  }
+ ],
+ "pages": [
+  {
+   "reads": [
+    "board"
+   ],
+   "route": "/"
+  },
+  {
+   "reads": [
+    "health"
+   ],
+   "route": "/health/"
+  },
+  {
+   "reads": [
+    "board"
+   ],
+   "route": "/league/"
+  },
+  {
+   "reads": [
+    "players",
+    "schedule"
+   ],
+   "route": "/p/"
+  },
+  {
+   "reads": [
+    "dim_team",
+    "schedule",
+    "streamers",
+    "team_weeks",
+    "transactions"
+   ],
+   "route": "/streamers/"
+  },
+  {
+   "reads": [
+    "board"
+   ],
+   "route": "/trade/"
   }
  ],
  "relationships": [
@@ -21225,6 +21418,97 @@
    "read_by": [
     "fct_team_game_context"
    ]
+  }
+ ],
+ "sources": [
+  {
+   "cadence": "every run",
+   "folders": [
+    "_ops/ingest_log"
+   ],
+   "host": "written by every ingest run",
+   "key": "_ops",
+   "module": "ingest/run.py",
+   "name": "The ingest's own run log",
+   "runner": "wherever the run ran"
+  },
+  {
+   "cadence": "daily, morning and evening (ingest.yml)",
+   "folders": [
+    "espn/fantasy_players",
+    "espn/injuries",
+    "espn/news",
+    "espn/prop_bets",
+    "espn/roster",
+    "espn/scoreboard",
+    "espn/summary",
+    "espn/teams",
+    "espn/transactions"
+   ],
+   "host": "site.api.espn.com, site.web.api.espn.com",
+   "key": "espn",
+   "module": "ingest/espn.py, espn_fantasy.py, espn_news.py, transactions.py, props.py",
+   "name": "ESPN",
+   "runner": "GitHub-hosted"
+  },
+  {
+   "cadence": "morning and evening in season; the injury-report archive landed once (ingest.yml)",
+   "folders": [
+    "league/daily_lineups",
+    "league/injury_report",
+    "league/player_movement",
+    "league/referee_assignments"
+   ],
+   "host": "official.nba.com and the WNBA's equivalent",
+   "key": "league",
+   "module": "ingest/injury_report.py, lineups.py, referee_assignments.py, transactions.py",
+   "name": "The leagues' own sites",
+   "runner": "GitHub-hosted"
+  },
+  {
+   "cadence": "twice daily, behind ODDS_API_KEY (ingest.yml)",
+   "folders": [
+    "odds_api/player_props"
+   ],
+   "host": "api.the-odds-api.com",
+   "key": "odds_api",
+   "module": "ingest/props.py",
+   "name": "The Odds API",
+   "runner": "GitHub-hosted"
+  },
+  {
+   "cadence": "daily (ingest.yml)",
+   "folders": [
+    "sleeper/players",
+    "sleeper/trending"
+   ],
+   "host": "api.sleeper.app",
+   "key": "sleeper",
+   "module": "ingest/sleeper.py",
+   "name": "Sleeper",
+   "runner": "GitHub-hosted"
+  },
+  {
+   "cadence": "daily, morning and evening; backfills by season (ingest.yml, backfill.yml)",
+   "folders": [
+    "stats/boxscoreadvancedv3",
+    "stats/boxscoretraditionalv3",
+    "stats/commonallplayers",
+    "stats/commonteamroster",
+    "stats/leaguedashptstats",
+    "stats/leaguegamelog",
+    "stats/leaguehustlestatsplayer",
+    "stats/leaguestandingsv3",
+    "stats/playbyplayv3",
+    "stats/playergamelogs",
+    "stats/scheduleleaguev2",
+    "stats/shotchartdetail"
+   ],
+   "host": "stats.nba.com, stats.wnba.com",
+   "key": "stats",
+   "module": "ingest/stats.py",
+   "name": "League stats API",
+   "runner": "the home runner (ADR 0002: the host blocks cloud addresses)"
   }
  ],
  "unit_tests": [

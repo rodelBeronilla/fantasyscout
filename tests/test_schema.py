@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from export import layout
 from ops import schema
+
+ROOT = Path(__file__).resolve().parent.parent
 
 BRONZE = """{{ config(partition_by=(['league', 'season'] if target.type == 'databricks')) }}
 
@@ -188,3 +191,19 @@ def test_require_docs_checks_the_player_files_columns_too() -> None:
     problems = schema.undocumented({"layers": [{"name": "gold", "models": models}]})
     assert "mart_player_rolling.points_avg_10: exported but not a column" in problems
     assert not any(p.startswith(("mart_board.", "mart_category_zscores.")) for p in problems)
+
+
+def test_pages_are_read_off_the_code_and_sources_off_the_landing_folders() -> None:
+    reads = schema.page_reads(ROOT / "web" / "src")
+    assert "/" in reads["board"] and "/trade/" in reads["board"]
+    assert reads["streamers"] == ["/streamers/"]
+    assert "/p/" in reads["players"]
+    assert schema.pages_reading(["board/nba.json", "board/wnba.json"], reads) == reads["board"]
+    assert schema.pages_reading(["fct_shot/wnba-2026.parquet"], reads) == []
+    sources = schema.sources_of(
+        ["stats/leaguegamelog", "stats/boxscoretraditionalv3", "espn/scoreboard", "nowhere/x"]
+    )
+    assert [s["key"] for s in sources] == ["espn", "nowhere", "stats"]
+    assert sources[2]["folders"] == ["stats/boxscoretraditionalv3", "stats/leaguegamelog"]
+    assert sources[2]["host"].startswith("stats.nba.com")
+    assert sources[1]["name"] == "nowhere" and sources[1]["host"] == ""
