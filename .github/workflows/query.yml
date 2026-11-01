@@ -54,5 +54,5 @@ jobs:
           ORDER_BY: ${{ inputs.order_by }}
           LIMIT: ${{ inputs.limit }}
         run: |
-          uv run python -m ops.summary --engine databricks --table "$TABLE" --columns "$COLUMNS" \
+          uv run python -m ops.summary --engine databricks --strict --table "$TABLE" --columns "$COLUMNS" \
             --where "$WHERE" --order-by "$ORDER_BY" --limit "$LIMIT"
