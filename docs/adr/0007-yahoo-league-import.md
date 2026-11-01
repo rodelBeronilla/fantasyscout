@@ -1,6 +1,7 @@
-# ADR 0007: Importing a Yahoo Fantasy league
+# 0007. Importing a Yahoo Fantasy league
 
-Status: accepted, 2026-10-29
+Date: 2026-10-29
+Status: Accepted
 
 ## Context
 

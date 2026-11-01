@@ -1,6 +1,7 @@
-# ADR 0006: How gold reaches the site
+# 0006. How gold reaches the site
 
-Status: accepted, 2026-10-27
+Date: 2026-10-27
+Status: Accepted
 
 ## Context
 
