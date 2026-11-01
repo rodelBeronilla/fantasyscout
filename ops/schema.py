@@ -297,8 +297,53 @@ def exported_columns(schema: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
     return out
 
 
+# The column conventions the Schema page states and --require-docs holds the yml to. A column
+# whose name or type makes the convention apply says nothing; one that departs from it says so in
+# ``meta``: ``tz`` for an instant (UTC unless stated), ``unit`` for a measure, ``null_when`` for a
+# column that is null by design. Every timestamp column carries ``meta.tz`` explicitly.
+CONVENTIONS: tuple[dict[str, str], ...] = (
+    {
+        "name": "dates",
+        "rule": "A `*_date` column (and `date_day`, `valid_from`, `valid_to`, `week_start`) is the "
+        "Eastern game date: the day the league counts the game on, which is the day it is "
+        "played in the US.",
+    },
+    {
+        "name": "instants",
+        "rule": "A `*_at` or `*_datetime_utc` column is an instant, in UTC unless its `tz` badge "
+        "says otherwise (the official injury reports are published in Eastern time and kept "
+        "so). Every timestamp column carries `tz`.",
+    },
+    {
+        "name": "units",
+        "rule": "Minutes are minutes, distances miles (`*_miles_travelled`), heights inches, "
+        "weights pounds, percentages ratios from 0 to 1 (`*_pct`), latencies milliseconds "
+        "(`*_ms`); a `*_pg` column is per game played. A `unit` badge says so where the name "
+        "alone would not.",
+    },
+    {
+        "name": "nulls",
+        "rule": "Null means not known or not applicable, never zero; a `null_when` badge says the "
+        "condition where it is by design (a listing without a return date, a game without a line).",
+    },
+)
+
+TZ_OF: dict[str, str] = {"utc": "UTC", "eastern": "America/New_York"}
+
+
+def column_meta(doc: dict[str, Any]) -> dict[str, str]:
+    """The ``meta`` keys the conventions know (tz, unit, null_when), as strings."""
+    meta = doc.get("meta") or {}
+    return {
+        k: str(meta[k])
+        for k in ("tz", "unit", "null_when")
+        if k in meta and meta[k] not in (None, "")
+    }
+
+
 def undocumented(schema: dict[str, Any]) -> list[str]:
-    """Exported gold columns with no description, and per-league JSON columns the model lacks."""
+    """Exported gold columns with no description or, for a timestamp, no time zone; and per-league
+    JSON columns the model lacks."""
     problems: list[str] = []
     exported = exported_columns(schema)
     for name, cols in exported.items():
@@ -307,6 +352,10 @@ def undocumented(schema: dict[str, Any]) -> list[str]:
         for col in cols:
             if not str(col.get("description", "")).strip():
                 problems.append(f"{name}.{col['name']}: no description")
+            if str(col.get("type", "")).startswith("timestamp") and not col.get("meta", {}).get(
+                "tz"
+            ):
+                problems.append(f"{name}.{col['name']}: a timestamp without meta.tz")
     for model, wanted in (
         ("mart_board", layout.BOARD_COLUMNS),
         ("mart_streamers", layout.STREAMER_COLUMNS),
@@ -424,6 +473,7 @@ def build(
                     "name": name,
                     "type": str(col["type"]).lower(),
                     "description": doc.get("description", ""),
+                    "meta": column_meta(doc),
                     "tests": sorted(set(column_tests.get((node["name"], name), []))),
                 }
             )
@@ -434,6 +484,7 @@ def build(
                         "name": name,
                         "type": "",
                         "description": doc.get("description", ""),
+                        "meta": column_meta(doc),
                         "tests": sorted(set(column_tests.get((node["name"], name), []))),
                     }
                 )
@@ -528,6 +579,7 @@ def build(
         "unit_tests": unit_tests,
         "relationships": sorted(relationships, key=lambda r: (r["from"], r["column"])),
         "generic_tests": sum(len(v) for v in column_tests.values()),
+        "conventions": list(CONVENTIONS),
         "fantasy": fantasy,
     }
 

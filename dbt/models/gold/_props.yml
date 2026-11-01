@@ -22,6 +22,7 @@ models:
       - name: game_date
         description: "The game's Eastern date"
       - name: commence_at
+        meta: {tz: UTC}
         description: "Scheduled start of the game (UTC)"
       - name: player_id
         description: "League player id, matched through the crosswalk or by name in the player directory. Usually a dim_player stint; a directory player with no appearance and no roster spot has none, which the relationship reports as a warning"
@@ -59,8 +60,10 @@ models:
       - name: snapshot_key
         description: "Eastern date and hour of the run whose lines these are, YYYY-MM-DDTHH"
       - name: snapshot_at
+        meta: {tz: UTC}
         description: "When that run fetched the lines (UTC), before the game's start"
       - name: line_updated_at
+        meta: {tz: UTC}
         description: "When the bookmaker last moved the line or a price (UTC)"
       - name: consensus_line
         description: "Mean line across the bookmakers quoting the player's market for the game, each bookmaker once"

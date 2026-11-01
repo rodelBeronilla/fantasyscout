@@ -11,6 +11,7 @@ models:
         description: "The Eastern date of the build that wrote the row (a later build the same day replaces it)"
         data_tests: [not_null]
       - name: snapshot_at
+        meta: {tz: UTC}
         description: "When the build wrote the row"
       - name: league
         description: "nba or wnba"
@@ -38,6 +39,7 @@ models:
       - name: games_next_7
         description: "Games the team plays in the next seven days"
       - name: proj_minutes_pg
+        meta: {unit: minutes}
         description: "Projected minutes per game"
       - name: proj_points_pg
         description: "Projected points per game"
@@ -54,8 +56,10 @@ models:
       - name: proj_turnovers_pg
         description: "Projected turnovers per game"
       - name: proj_field_goal_pct
+        meta: {unit: ratio 0 to 1}
         description: "Projected field-goal percentage (0 to 1)"
       - name: proj_free_throw_pct
+        meta: {unit: ratio 0 to 1}
         description: "Projected free-throw percentage (0 to 1)"
       - name: injury_status
         description: "The status shown on the board: the official report for the next game, else ESPN's listing"

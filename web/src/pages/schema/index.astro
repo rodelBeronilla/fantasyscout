@@ -10,6 +10,7 @@ interface Column {
   type: string;
   description: string;
   tests: string[];
+  meta?: { tz?: string; unit?: string; null_when?: string };
 }
 interface UnitTest {
   name: string;
@@ -47,6 +48,9 @@ const unitTests = schema.unit_tests as { name: string; model: string; descriptio
 const seeds = schema.seeds as Seed[];
 const landing = schema.landing as { path: string; read_by: string[] }[];
 const sources = schema.sources as { key: string; name: string; host: string; module: string; runner: string; cadence: string; folders: string[] }[];
+const conventions = schema.conventions as { name: string; rule: string }[];
+const badges = (c: Column) =>
+  Object.entries(c.meta ?? {}).map(([k, v]) => ({ key: k, text: k === 'tz' ? `tz ${v}` : k === 'unit' ? `${v}` : `null when ${v}` }));
 const seedNames = new Set(seeds.map((s) => s.name));
 const anchor = (name: string) => `m-${name}`;
 const refAnchor = (name: string) => (seedNames.has(name) ? `seed-${name}` : anchor(name));
@@ -116,6 +120,14 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
       by subject area below, every model's <a href="#lineage" class={link}>lineage</a> follows, and how the layers fit together
       is on the <a href={href('/pipeline/')} class={link}>Pipeline</a> page.
     </p>
+    <dl class="mt-3 grid max-w-3xl gap-1 text-sm" data-testid="conventions">
+      <dt class="text-xs font-medium tracking-wide text-muted uppercase">Column conventions</dt>
+      {conventions.map((c) => (
+        <dd class="text-muted">
+          <span class="font-medium">{c.name}:</span> <Fragment set:html={c.rule.replace(/`([^`]+)`/g, '<code>$1</code>')} />
+        </dd>
+      ))}
+    </dl>
 
     <nav class="mt-4 flex flex-wrap gap-2 text-sm" aria-label="Sections">
       <a href="#er" class={pill}>diagrams</a>
@@ -393,7 +405,14 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
                               <td class="px-2 py-1 font-mono whitespace-nowrap">{c.name}</td>
                               <td class="px-2 py-1 font-mono whitespace-nowrap text-muted">{c.type || '–'}</td>
                               <td class="px-2 py-1 whitespace-nowrap">{c.tests.join(', ') || '–'}</td>
-                              <td class="min-w-56 px-2 py-1">{c.description || ''}</td>
+                              <td class="min-w-56 px-2 py-1">
+                                {c.description || ''}
+                                {badges(c).map((b) => (
+                                  <span class="ml-1 rounded border border-line px-1 font-mono text-[10px] text-muted" data-meta={b.key}>
+                                    {b.text}
+                                  </span>
+                                ))}
+                              </td>
                             </tr>
                           ))}
                         </tbody>

@@ -37,6 +37,7 @@ models:
       - name: injury_detail
         description: "The reason without its Injury/Illness prefix"
       - name: report_at
+        meta: {tz: America/New_York}
         description: "When the report was published (Eastern)"
       - name: played
         description: "True when the player played the listed game"

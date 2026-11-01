@@ -30,6 +30,7 @@ models:
       - name: game_date
         description: "The game's Eastern date"
       - name: commence_at
+        meta: {tz: UTC}
         description: "Scheduled start of the game (UTC)"
       - name: espn_player_id
         description: "ESPN athlete id (ESPN rows only)"
@@ -75,8 +76,10 @@ models:
         description: "Eastern date and hour of the run that landed the lines, YYYY-MM-DDTHH"
         data_tests: [not_null]
       - name: snapshot_at
+        meta: {tz: UTC}
         description: "When the run fetched the lines (UTC)"
       - name: line_updated_at
+        meta: {tz: UTC}
         description: "When the bookmaker last moved the line or a price (UTC)"
       - name: is_pre_game
         description: "True when the lines were fetched before the game's scheduled start"

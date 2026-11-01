@@ -41,6 +41,7 @@ models:
       - name: min
         description: "Source column `MIN`"
       - name: usg_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `USG_PCT`"
       - name: pct_fgm
         description: "Source column `PCT_FGM`"

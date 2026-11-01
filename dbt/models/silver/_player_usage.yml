@@ -22,6 +22,7 @@ models:
         description: "Natural key: league, game id and player id; one row per player per game"
         data_tests: [unique, not_null]
       - name: minutes
+        meta: {unit: minutes}
         description: "Minutes played as a decimal"
       - name: usage_percentage
         description: "Share of the team's possessions the player used while on the floor, decimal 0-1"
@@ -85,6 +86,7 @@ models:
         description: "Natural key: league, game id and player id; one row per player per game"
         data_tests: [unique, not_null]
       - name: minutes
+        meta: {unit: minutes}
         description: "Minutes played as a decimal"
       - name: points_off_turnovers
         description: "Points the player scored off opponent turnovers"

@@ -47,6 +47,7 @@ models:
       - name: is_home
         description: "True when the player's team was the home side"
       - name: minutes
+        meta: {unit: minutes}
         description: "Minutes played, as tracking reports them"
       - name: passes_made
         description: "Passes the player made"

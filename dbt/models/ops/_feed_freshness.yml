@@ -31,4 +31,5 @@ models:
           - accepted_values:
               values: [fresh, stale, off_season, never, unconfigured]
       - name: checked_at
+        meta: {tz: UTC}
         description: "When the build computed the row"
