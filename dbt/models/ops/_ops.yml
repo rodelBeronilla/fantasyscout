@@ -37,6 +37,8 @@ models:
         description: "Requests not made: already landed today, or a game's payload already settled"
       - name: failures
         description: "Requests that failed this run"
+      - name: endpoints
+        description: "Per endpoint, the run's landed, unchanged, failed and missing counts, as JSON (absent in run logs written before 2026-11); a request skipped as already landed is counted in skipped only"
       - name: missing_at_source
         description: "Keys the source has no payload for (for example an ESPN event with no summary); not failures"
       - name: _source_file

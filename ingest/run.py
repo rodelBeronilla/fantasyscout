@@ -90,6 +90,8 @@ class RunSummary:
     missing: list[FetchFailure] = field(default_factory=list)
     pacing: dict[str, dict[str, float | int]] = field(default_factory=dict)
     aborted: str | None = None
+    # Per endpoint: landed, unchanged, failed and missing counts (a skipped request names none).
+    endpoints: dict[str, dict[str, int]] = field(default_factory=dict)
 
     heartbeat_every: int = 25
 
@@ -98,9 +100,16 @@ class RunSummary:
             self.skipped += 1
         elif result.outcome == "landed":
             self.landed += 1
+            self._count(result.endpoint, "landed")
         else:
             self.unchanged += 1
+            self._count(result.endpoint, "unchanged")
         self._heartbeat()
+
+    def _count(self, endpoint: str, what: str) -> None:
+        if endpoint:
+            tally = self.endpoints.setdefault(endpoint, {})
+            tally[what] = tally.get(what, 0) + 1
 
     @property
     def processed(self) -> int:
@@ -120,10 +129,12 @@ class RunSummary:
 
     def fail(self, endpoint: str, key: str, exc: BaseException) -> None:
         self.failures.append(FetchFailure(endpoint, key, f"{type(exc).__name__}: {exc}"))
+        self._count(endpoint, "failed")
         self._heartbeat()
 
     def miss(self, endpoint: str, key: str, reason: str) -> None:
         self.missing.append(FetchFailure(endpoint, key, reason))
+        self._count(endpoint, "missing")
 
     @property
     def ok(self) -> bool:

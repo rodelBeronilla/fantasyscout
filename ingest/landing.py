@@ -85,6 +85,11 @@ class Sidecar(BaseModel):
     size_bytes: int = Field(ge=0)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     fetched_at: datetime
+    # What the request cost and which run made it (absent in sidecars written before these
+    # existed): the answer's latency, the attempts it took, the ingest run's id.
+    latency_ms: int | None = Field(default=None, ge=0)
+    attempts: int | None = Field(default=None, ge=1)
+    run_id: str | None = None
 
     @classmethod
     def for_response(
@@ -94,6 +99,10 @@ class Sidecar(BaseModel):
         status: int,
         body: bytes,
         fetched_at: datetime,
+        *,
+        latency_ms: int | None = None,
+        attempts: int | None = None,
+        run_id: str | None = None,
     ) -> Sidecar:
         return cls(
             url=url,
@@ -102,6 +111,9 @@ class Sidecar(BaseModel):
             size_bytes=len(body),
             sha256=payload_hash(body),
             fetched_at=fetched_at,
+            latency_ms=latency_ms,
+            attempts=attempts,
+            run_id=run_id,
         )
 
     def sidecar_path(self, landing_path: PurePosixPath) -> PurePosixPath:

@@ -17,6 +17,7 @@ import contextlib
 import json
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timedelta
@@ -288,6 +289,9 @@ class LandResult:
     outcome: Outcome
     path: PurePosixPath
     sha256: str
+    # Which request this was, so the run summary can count by endpoint.
+    endpoint: str = ""
+    key: str = ""
 
 
 @dataclass(frozen=True)
@@ -315,11 +319,17 @@ class Landing:
         workers: int = 1,
         flush_every: int = FLUSH_EVERY,
         resettle_since: date | None = None,
+        run_id: str | None = None,
+        request_stats: Callable[[], object] | None = None,
     ) -> None:
         self.backend = backend
         self.ingest_date = ingest_date
         self.full_refresh = full_refresh
         self.flush_every = flush_every
+        # Stamped on every sidecar: the run, and what the request that produced the payload cost
+        # (``request_stats`` returns the client's last RequestStats, or None).
+        self.run_id = run_id
+        self.request_stats = request_stats
         # A sweep: games played on or after this date are fetched again even when settled.
         self.resettle_since = resettle_since
         self._indexes: dict[Scope, dict[str, IndexEntry]] = {}
@@ -393,10 +403,18 @@ class Landing:
                 previous, checked_date=self.ingest_date.isoformat(), complete=complete
             )
             self._dirty.add(scope)
-            return LandResult("unchanged", PurePosixPath(previous.path), sha)
+            return LandResult("unchanged", PurePosixPath(previous.path), sha, scope.endpoint, key)
 
+        stats = self.request_stats() if self.request_stats is not None else None
         sidecar = Sidecar.for_response(
-            url=url, params=params, status=status, body=body, fetched_at=fetched_at
+            url=url,
+            params=params,
+            status=status,
+            body=body,
+            fetched_at=fetched_at,
+            latency_ms=getattr(stats, "latency_ms", None),
+            attempts=getattr(stats, "attempts", None),
+            run_id=self.run_id,
         )
         sidecar_bytes = sidecar.model_dump_json(indent=2).encode("utf-8")
         sidecar_path = sidecar.sidecar_path(path)
@@ -421,7 +439,7 @@ class Landing:
         self._since_flush += 1
         if self.flush_every and self._since_flush >= self.flush_every:
             self._deferred.extend(self._settle())
-        return LandResult("landed", path, sha)
+        return LandResult("landed", path, sha, scope.endpoint, key)
 
     def flush(self) -> list[WriteFailure]:
         """Wait for queued writes, drop failed keys from the indexes, persist the indexes.
