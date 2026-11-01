@@ -4,7 +4,7 @@
 
 with files as (
 
-    select *
+    select *, {{ sha256('landed.payload') }} as _payload_hash
     from ({{ landing_files('stats', 'boxscoreadvancedv3') }}) as landed
     {{ bronze_incremental_filter() }}
 
@@ -36,7 +36,7 @@ select
     players.season,
     players._ingest_date,
     players.request_key,
-    {{ sha256('players.payload') }} as _payload_hash,
+    players._payload_hash,
     {{ json_text('players.payload', '$.boxScoreAdvanced.gameId') }} as game_id,
     {{ json_text('players.payload', '$.boxScoreAdvanced.homeTeamId') }} as home_team_id,
     {{ json_text('players.payload', '$.boxScoreAdvanced.awayTeamId') }} as away_team_id,

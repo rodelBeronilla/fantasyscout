@@ -5,7 +5,7 @@
 
 with files as (
 
-    select *
+    select *, {{ sha256('landed.payload') }} as _payload_hash
     from ({{ landing_files('stats', 'playergamelogs') }}) as landed
     {{ bronze_incremental_filter() }}
 
@@ -37,7 +37,7 @@ select
     cells.season,
     cells._ingest_date,
     cells.request_key,
-    {{ sha256('cells.payload') }} as _payload_hash,
+    cells._payload_hash,
     {{ stats_cell('cells.cell', 'cells.headers', 'SEASON_YEAR') }} as season_year,
     {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_ID') }} as player_id,
     {{ stats_cell('cells.cell', 'cells.headers', 'PLAYER_NAME') }} as player_name,

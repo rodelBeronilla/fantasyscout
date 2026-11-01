@@ -32,6 +32,11 @@
   element_at(split({{ col }}, '/'), -{{ n_from_end }})
 {%- endmacro %}
 
+{#
+  Bronze models hash each landed payload once, in their files CTE (`sha256(landed.payload) as
+  _payload_hash`), before exploding it into rows: a season payload of 10 MB and 26,000 rows is
+  hashed once, not 26,000 times. The exploded rows carry the column along.
+#}
 {% macro landing_files(source, endpoint) -%}
   {{ return(adapter.dispatch('landing_files', 'fantasyscout')(source, endpoint)) }}
 {%- endmacro %}
