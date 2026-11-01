@@ -19,16 +19,14 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from ingest.http import CircuitOpenError, ThrottledClient
-from ingest.landing import League
+from ingest.landing import EASTERN, League
 from ingest.run import RunSummary
 from ingest.store import Landing, Scope
 
 SOURCE = "league"
 ENDPOINT = "referee_assignments"
-EASTERN = ZoneInfo("America/New_York")
 URL = "https://official.nba.com/referee-assignments/"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

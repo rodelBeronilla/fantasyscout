@@ -14,15 +14,13 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from ingest.http import CircuitOpenError, ThrottledClient
-from ingest.landing import League
+from ingest.landing import EASTERN, League
 from ingest.run import RunSummary
 from ingest.store import Landing, Scope
 
 BASE = "https://api.sleeper.app/v1/players/{league}"
-EASTERN = ZoneInfo("America/New_York")
 LOOKBACK_HOURS = 24
 LIMIT = 50
 PLAYER_FIELDS = ("player_id", "full_name", "search_full_name", "team", "birth_date")

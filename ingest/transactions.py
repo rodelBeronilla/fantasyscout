@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from ingest.http import CircuitOpenError, ThrottledClient, stats_headers
-from ingest.landing import League
+from ingest.landing import League, eastern_date
 from ingest.run import RunSummary
 from ingest.store import Landing, Scope
 
@@ -69,7 +69,7 @@ class TransactionsIngestor:
         return self.now or datetime.now(UTC)
 
     def land_into(self, summary: RunSummary) -> None:
-        today = self._clock().date()
+        today = eastern_date(self._clock())
         key = today.isoformat()
         espn_url = ESPN_URL.format(league=self.league)
 

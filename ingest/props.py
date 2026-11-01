@@ -32,16 +32,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import httpx
 
 from ingest.http import CircuitOpenError, ThrottledClient
-from ingest.landing import League
+from ingest.landing import EASTERN, League
 from ingest.run import RunSummary
 from ingest.store import Landing, Scope
-
-EASTERN = ZoneInfo("America/New_York")
 
 SCOREBOARD_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/{league}/scoreboard"
 PROP_BETS_URL = (

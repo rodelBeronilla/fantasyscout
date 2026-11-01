@@ -13,15 +13,13 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from ingest.http import CircuitOpenError, ThrottledClient
-from ingest.landing import League
+from ingest.landing import EASTERN, League
 from ingest.run import RunSummary
 from ingest.store import Landing, Scope
 
 URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/{league}/news"
-EASTERN = ZoneInfo("America/New_York")
 
 
 def trim_articles(body: bytes) -> list[dict[str, Any]]:
