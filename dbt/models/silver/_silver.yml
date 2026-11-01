@@ -335,7 +335,7 @@ models:
         data_tests: [unique, not_null]
 
   - name: events
-    description: "One row per play-by-play action, typed."
+    description: "One row per play-by-play action, typed. The newest landing of a game is the whole game (a landing is one game's play-by-play). Incremental by game: a game's rows are recomputed and replaced when a landing of it is new (on or after the table's newest); games nothing landed for are not read (ADR 0004, 2026-11-01 addendum)."
     columns:
       - name: league
         description: "wnba or nba"
@@ -400,7 +400,7 @@ models:
         description: "Path of the landed payload the row was parsed from"
 
   - name: shots
-    description: "One row per field goal attempt with court coordinates."
+    description: "One row per field goal attempt with court coordinates. Incremental by game, like events: every game a new landing carries (one game, or a team's season on a backfill) is recomputed from all its landings and its rows replaced."
     columns:
       - name: league
         description: "wnba or nba"
@@ -1346,7 +1346,7 @@ models:
         description: "Ingest date of the league box score row"
 
   - name: event_lineups
-    description: "The five players on the floor for each side at every play-by-play action (substitution intervals; period starters inferred after the first period)."
+    description: "The five players on the floor for each side at every play-by-play action (substitution intervals; period starters inferred after the first period). Incremental by game: a game's lineups are recomputed and its rows replaced when its play-by-play or its box score lands again."
     columns:
       - name: league
         description: "wnba or nba"
@@ -1364,3 +1364,5 @@ models:
       - name: lineup_complete
         description: "True when both sides have exactly five players; false where a player was not seen in a period"
         data_tests: [not_null]
+      - name: _ingest_date
+        description: "The newer of the two landings the game's lineups were built from, its play-by-play's and its box score's; the incremental watermark"

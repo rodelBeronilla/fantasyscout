@@ -6,10 +6,15 @@
         on_schema_change='append_new_columns',
         partition_by=(['league', 'season'] if target.type == 'databricks' else none),
         zorder=(['player_id'] if target.type == 'databricks' else none),
+        pre_hook="{{ replace_changed_games([ref('shots')]) }}",
     )
 }}
 
-{# One row per field goal attempt with court coordinates (tenths of a foot from the basket). #}
+{#
+  One row per field goal attempt with court coordinates (tenths of a foot from the basket).
+  Incremental by game (dbt/macros/incremental.sql): a game's rows are replaced when its shots
+  land again.
+#}
 
 select
     {{ sk(['s.league', 's.game_id', "cast(s.game_event_id as string)"]) }} as shot_sk,
@@ -41,6 +46,4 @@ select
     case when s.shot_made then case when s.shot_type like '3PT%' then 3 else 2 end else 0 end as points,
     s._ingest_date
 from {{ ref('shots') }} as s
-{% if is_incremental() %}
-where s._ingest_date >= (select coalesce(max(_ingest_date), cast('1900-01-01' as date)) from {{ this }})
-{% endif %}
+where {{ only_changed_games([ref('shots')]) }}

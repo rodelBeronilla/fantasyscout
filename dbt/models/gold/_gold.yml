@@ -384,7 +384,7 @@ models:
         description: "Ingest date of the game log row"
 
   - name: fct_event
-    description: "One row per play-by-play action. Incremental by game: a game is re-merged when its play-by-play, box score or game record lands again, so a box score that lands after the play-by-play still fills in the lineups and the game date."
+    description: "One row per play-by-play action. Incremental by game: a game's rows are replaced when its play-by-play, box score or game record lands again, so a box score that lands after the play-by-play still fills in the lineups and the game date, and an action a re-landed feed no longer carries goes away."
     columns:
       - name: event_sk
         description: "Surrogate key: one row per league, game and action number"
@@ -459,7 +459,7 @@ models:
         description: "Ingest date of the play-by-play landing; incremental builds merge from the latest one"
 
   - name: fct_shot
-    description: "One row per field goal attempt with court coordinates."
+    description: "One row per field goal attempt with court coordinates. Incremental by game: a game's rows are replaced when its shots land again."
     columns:
       - name: shot_sk
         description: "Surrogate key: one row per league, game and shot event id"

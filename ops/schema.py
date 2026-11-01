@@ -36,7 +36,8 @@ LAYERS = ("bronze", "silver", "gold", "ops")
 PROJECT = "fantasyscout"
 
 _JINJA_COMMENT = re.compile(r"\{#(.*?)#\}", re.S)
-_LEADING_CONFIG = re.compile(r"\s*\{\{\s*config\(.*?\)\s*\}\}", re.S)
+_CONFIG_OPEN = re.compile(r"\s*\{\{\s*config\(")
+_CLOSING_BRACES = re.compile(r"\s*\}\}")
 _REF = re.compile(r"ref\(['\"]([^'\"]+)['\"]\)")
 _SK = re.compile(r"\{\{\s*sk\(\s*\[(.*?)\]\s*\)\s*\}\}\s+as\s+(\w+)", re.S)
 _QUOTED = re.compile(r"'([^']*)'|\"([^\"]*)\"")
@@ -66,13 +67,29 @@ def _paragraphs(text: str) -> list[str]:
     return [p for p in out if p]
 
 
+def skip_leading_config(code: str) -> str:
+    """The code after any leading ``{{ config(...) }}`` calls.
+
+    A hook inside the config is itself Jinja and can end in ``) }}``, so the call's end is found
+    by balancing its parentheses, not at the first closing braces."""
+    rest = code
+    while m := _CONFIG_OPEN.match(rest):
+        depth, i = 1, m.end()
+        while i < len(rest) and depth:
+            depth += {"(": 1, ")": -1}.get(rest[i], 0)
+            i += 1
+        close = _CLOSING_BRACES.match(rest, i)
+        if depth or not close:
+            break
+        rest = rest[close.end() :]
+    return rest
+
+
 def model_notes(raw_code: str) -> list[str]:
     """The leading ``{# ... #}`` block of a model, where its method is described.
 
     A ``{{ config(...) }}`` call may come first (every bronze model has one); it is skipped."""
-    rest = raw_code
-    while m := _LEADING_CONFIG.match(rest):
-        rest = rest[m.end() :]
+    rest = skip_leading_config(raw_code)
     m = _JINJA_COMMENT.search(rest)
     if not m or rest[: m.start()].strip():
         return []

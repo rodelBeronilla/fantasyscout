@@ -1,3 +1,15 @@
+{{
+    config(
+        materialized='incremental',
+        incremental_strategy='merge',
+        unique_key='event_key',
+        on_schema_change='append_new_columns',
+        partition_by=(['league', 'season'] if target.type == 'databricks' else none),
+        zorder=(['game_id'] if target.type == 'databricks' else none),
+        pre_hook="{{ replace_changed_games([ref('events'), ref('player_game_box')]) }}",
+    )
+}}
+
 {#
   The five players on the floor for each team at every play-by-play action.
 
@@ -18,22 +30,27 @@
   substitution is out, or they record an action before any substitution in. A player who plays
   a whole period without an action or a substitution is not seen; lineup_complete (five a
   side) is false for those actions, and the share of complete lineups is checked per season.
+
+  Incremental by game (dbt/macros/incremental.sql): a game's lineups are recomputed, and its rows
+  replaced, when its play-by-play or its box score landed on or after the newest landing in the
+  table; _ingest_date is the newer of the two landings a game was built from.
 #}
 
 with box as (
 
-    select league, game_id, team_id, player_id, side, starter,
+    select league, game_id, team_id, player_id, side, starter, _ingest_date,
         {{ norm_name('family_name') }} as norm_family, {{ norm_name('first_name') }} as norm_first,
         {{ norm_name('family_name', keep_suffix=true) }} as full_family,
         {{ norm_name("regexp_extract(family_name, '^([^-]+)-', 1)") }} as family_head
     from {{ ref('player_game_box') }}
+    where {{ only_changed_games([ref('events'), ref('player_game_box')]) }}
 
 ),
 
 events as (
 
     select
-        league, season, game_id, event_key, period, team_id, player_id, action_type, description,
+        league, season, game_id, event_key, period, team_id, player_id, action_type, description, _ingest_date,
         row_number() over (
             partition by league, game_id
             order by period,
@@ -41,6 +58,7 @@ events as (
                 action_number
         ) as action_number
     from {{ ref('events') }}
+    where {{ only_changed_games([ref('events'), ref('player_game_box')]) }}
 
 ),
 
@@ -203,16 +221,46 @@ per_side as (
     from on_floor
     group by league, season, game_id, event_key, side
 
+),
+
+lineups as (
+
+    select
+        league,
+        season,
+        game_id,
+        event_key,
+        max(case when side = 'home' then lineup end) as lineup_home,
+        max(case when side = 'away' then lineup end) as lineup_away,
+        max(case when side = 'home' then players else 0 end) = 5
+            and max(case when side = 'away' then players else 0 end) = 5 as lineup_complete
+    from per_side
+    group by league, season, game_id, event_key
+
+),
+
+landed as (
+
+    -- the newest landing a game's lineups were built from: its play-by-play or its box score
+    select league, game_id, max(_ingest_date) as _ingest_date
+    from (
+        select league, game_id, _ingest_date from events
+        union all
+        select league, game_id, _ingest_date from box
+    ) as inputs
+    group by league, game_id
+
 )
 
 select
-    league,
-    season,
-    game_id,
-    event_key,
-    max(case when side = 'home' then lineup end) as lineup_home,
-    max(case when side = 'away' then lineup end) as lineup_away,
-    max(case when side = 'home' then players else 0 end) = 5
-        and max(case when side = 'away' then players else 0 end) = 5 as lineup_complete
-from per_side
-group by league, season, game_id, event_key
+    lineups.league,
+    lineups.season,
+    lineups.game_id,
+    lineups.event_key,
+    lineups.lineup_home,
+    lineups.lineup_away,
+    lineups.lineup_complete,
+    landed._ingest_date
+from lineups
+join landed
+    on landed.league = lineups.league and landed.game_id = lineups.game_id

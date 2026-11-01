@@ -6,6 +6,7 @@
         on_schema_change='append_new_columns',
         partition_by=(['league', 'season'] if target.type == 'databricks' else none),
         zorder=(['game_id'] if target.type == 'databricks' else none),
+        pre_hook="{{ replace_changed_games([ref('events'), ref('player_game_box'), ref('games')]) }}",
     )
 }}
 
@@ -17,23 +18,16 @@
   Incremental by game, not by the event's landing date: the row also carries the game date from
   games and the lineups from event_lineups, which come from the box score, and a box score may
   land a day after the play-by-play (the completeness check tolerates exactly that). A game is
-  re-merged whenever any of its inputs landed on or after the newest landing already in the
-  table, so a late box score fills in the lineups without a full refresh.
+  recomputed, its rows replaced (dbt/macros/incremental.sql), whenever any of its inputs landed
+  on or after the newest landing already in the table, so a late box score fills in the lineups
+  without a full refresh and an action a re-landed feed no longer carries goes away.
 #}
 
 -- depends_on: {{ ref('player_game_box') }}
 {% if is_incremental() %}
 with changed as (
 
-    select distinct league, game_id
-    from (
-        select league, game_id, _ingest_date from {{ ref('events') }}
-        union all
-        select league, game_id, _ingest_date from {{ ref('player_game_box') }}
-        union all
-        select league, game_id, _ingest_date from {{ ref('games') }}
-    ) as landed
-    where _ingest_date >= (select coalesce(max(_ingest_date), cast('1900-01-01' as date)) from {{ this }})
+    {{ changed_games([ref('events'), ref('player_game_box'), ref('games')]) }}
 
 )
 

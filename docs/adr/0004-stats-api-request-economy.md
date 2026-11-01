@@ -76,3 +76,20 @@ Decisions:
 - Silver reads a snapshot feed through `latest_snapshot()` (`dbt/macros/landing.sql`): the rows of the newest landing per league, season and request key, chosen before any row-level work. The windows that dedup player-games, teams and games then run over one snapshot, not the season's worth of them, and a row the newest snapshot no longer carries (a game the schedule dropped) no longer comes through from an older copy.
 - The landed files are kept. At the NBA's 20 MB a day the season plan adds about 7 GB a year to the volume; the lever, should the volume ever need it, is pruning superseded snapshot files (every landing of a request key but the newest and the first of each month), not touching bronze. The trigger is written down as 50 GB on the landing volume; nothing prunes before then.
 
+## Addendum (2026-11-01): the play-by-play chain is incremental by game
+
+Silver was `materialized: table`: every build deduplicated every landing of `playbyplayv3` across thirteen league-seasons to make `events`, ran `event_lineups`' per-game substitution logic over all of it, did the same for `shots`, and then `fct_event` and `fct_shot` merged one day's slice. Gold's incremental merge saved nothing, because everything above it had already been recomputed.
+
+Decisions:
+
+- `events`, `shots`, `event_lineups`, `fct_event` and `fct_shot` are incremental by game (`dbt/macros/incremental.sql`). Each row carries `_ingest_date`, the newest landing it was built from; a game is recomputed when any of the table's inputs landed it on or after the newest landing the table holds. The newest day is always redone, because several landings can share a day (a backfill run after the morning's build, say); everything older is not read. A nightly run therefore redoes the day's games; the day after a backfill that landed a season in one day redoes that season once.
+- A play-by-play landing is one whole game (its request key is the game id), so `events` takes the newest landing of a game as the game, through `latest_snapshot()`: an action a corrected feed no longer carries is not kept from an older landing. `shots` keeps the latest landing per shot, as before, because a shot landing is one game or a team's whole season and a game's shots can come from several.
+- Recomputing a game replaces its rows: the model's pre-hook deletes them, the merge writes them back. An action that a re-landed play-by-play no longer carries goes away, as it would on a full refresh, instead of lingering under a merge that only ever updates. The hook pins its watermark before deleting, the body reads it after (which can only widen the body's set), and the merge makes writing a game twice harmless; a run that fails between the delete and the merge leaves the next run a wider set, nothing else.
+- `event_lineups` gains `_ingest_date`, the newer of the play-by-play's and the box score's landing for the game, so a box score that lands a day after the play-by-play recomputes the lineups (and, downstream, `fct_event`) on the next run, which is what the completeness check already tolerates.
+- The chain forgets a game's rows only when the game lands again or on a full refresh ("Build lakehouse" → "full refresh"). The play-by-play and shot payloads are landed per game, or per team-season on a shot backfill, not as daily snapshots, so the snapshot-pruning lever above never touches them, and a full refresh re-reads every one of them; they are kept.
+
+Consequences:
+
+- The CI shape sample keeps every silver and gold table byte-identical apart from the new column; two dbt unit tests pin the incremental branch (`events` recomputes only the games that landed again; `fct_event` picks up a late box score) and a third pins the lineups' watermark.
+- A model in the chain that changes shape or logic needs a full refresh to apply to the games already built, as any incremental model does; the Build lakehouse workflow's "full refresh" input is the lever, and the runbook says so.
+

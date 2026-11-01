@@ -1,0 +1,35 @@
+unit_tests:
+  - name: events_recomputes_only_the_games_that_landed_again
+    description: >
+      The table holds G1 and G2 from a landing on the 20th and G0 from the 21st, its newest. On
+      the 22nd G1's play-by-play lands again, corrected and one action fewer, and G3 lands for the
+      first time. The run recomputes G1 from its newest landing alone (the dropped action is not
+      kept from the 20th's landing; the pre-hook, which a unit test does not run, has deleted its
+      old rows), G3 as new, and G0 unchanged (the newest landing day is always redone). G2 is not
+      read at all.
+    model: events
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: this
+        format: sql
+        rows: |
+          select 'nba:G0:1' as event_key, 'nba' as league, 'G0' as game_id, cast('2026-10-21' as date) as _ingest_date
+          union all
+          select 'nba:G1:1' as event_key, 'nba' as league, 'G1' as game_id, cast('2026-10-20' as date) as _ingest_date
+          union all
+          select 'nba:G2:1' as event_key, 'nba' as league, 'G2' as game_id, cast('2026-10-20' as date) as _ingest_date
+      - input: ref('stats_playbyplayv3')
+        rows:
+          - {league: nba, season: '2025-26', request_key: G0, game_id: G0, action_number: '1', period: '1', description: 'Jump Ball', _ingest_date: 2026-10-21, _source_file: a/G0.json}
+          - {league: nba, season: '2025-26', request_key: G1, game_id: G1, action_number: '1', period: '1', description: 'Jump Ball', _ingest_date: 2026-10-20, _source_file: a/G1.json}
+          - {league: nba, season: '2025-26', request_key: G1, game_id: G1, action_number: '2', period: '1', description: 'Miss', _ingest_date: 2026-10-20, _source_file: a/G1.json}
+          - {league: nba, season: '2025-26', request_key: G1, game_id: G1, action_number: '1', period: '1', description: 'Jump Ball (corrected)', _ingest_date: 2026-10-22, _source_file: b/G1.json}
+          - {league: nba, season: '2025-26', request_key: G2, game_id: G2, action_number: '1', period: '1', description: 'Jump Ball', _ingest_date: 2026-10-20, _source_file: a/G2.json}
+          - {league: nba, season: '2025-26', request_key: G3, game_id: G3, action_number: '1', period: '1', description: 'Jump Ball', _ingest_date: 2026-10-22, _source_file: b/G3.json}
+    expect:
+      rows:
+        - {event_key: 'nba:G0:1', game_id: G0, action_number: 1, description: 'Jump Ball', _ingest_date: 2026-10-21}
+        - {event_key: 'nba:G1:1', game_id: G1, action_number: 1, description: 'Jump Ball (corrected)', _ingest_date: 2026-10-22}
+        - {event_key: 'nba:G3:1', game_id: G3, action_number: 1, description: 'Jump Ball', _ingest_date: 2026-10-22}
