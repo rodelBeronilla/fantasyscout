@@ -80,6 +80,9 @@ OPS: tuple[TableSpec, ...] = (
     TableSpec("ops.reconciliation_summary", "league, season", json=True),
     TableSpec("ops.reconciliation", "league, season, game_id, stats_player_id, stat"),
     TableSpec("ops.ingest_log", "started_at desc, run_id", json=True),
+    TableSpec(
+        "ops.fetch_failures", "started_at desc, run_id, kind, endpoint, request_key", json=True
+    ),
     TableSpec("ops.feed_freshness", "league, feed", json=True),
     TableSpec("ops.publish_gate", "run_at desc, run_id", json=True),
     TableSpec("ops.test_results", "run_at desc, run_id, node_id"),

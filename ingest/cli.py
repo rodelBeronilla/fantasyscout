@@ -83,6 +83,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="local directory (default) or the Unity Catalog volume via DATABRICKS_HOST/TOKEN",
     )
     p_land.add_argument("--root", type=Path, default=Path("."), help="root for the local backend")
+    p_land.add_argument(
+        "--only",
+        action="append",
+        metavar="ENDPOINT[:KEY]",
+        help="stats and espn: land only this endpoint, or this endpoint and key (repeatable)",
+    )
+    p_land.add_argument(
+        "--from-run-log",
+        metavar="PATH",
+        help="stats and espn: replay the failed and missing keys of this run log (a landing path)",
+    )
     return parser
 
 
@@ -115,6 +126,8 @@ def _run_land(args: argparse.Namespace) -> int:
         history=args.history,
         backend=args.backend,
         root=args.root,
+        only=tuple(args.only or ()),
+        from_run_log=args.from_run_log,
     )
     summary = land_mod.land(opts)
     if summary is None:

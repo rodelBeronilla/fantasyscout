@@ -16,7 +16,7 @@ from typing import Literal
 
 from ingest.http import CircuitOpenError, ThrottledClient, stats_headers
 from ingest.landing import League
-from ingest.run import RunSummary
+from ingest.run import Only, RunSummary
 from ingest.store import Landing, LandResult, Scope
 
 SOURCE = "stats"
@@ -370,6 +370,10 @@ def teams_in_payload(payload: bytes | None) -> set[str]:
     return {t for t in teams if t and t != "0"}
 
 
+# Requests a run plans the rest from: made even when a replay is limited to other keys.
+PLANNING_ENDPOINTS = frozenset({"leaguegamelog", "commonallplayers"})
+
+
 class StatsIngestor:
     """Fetches planned requests and lands them. A failed request is recorded, never raised."""
 
@@ -380,11 +384,13 @@ class StatsIngestor:
         planner: StatsPlanner,
         *,
         now: datetime | None = None,
+        only: Only | None = None,
     ) -> None:
         self.client = client
         self.landing = landing
         self.planner = planner
         self._now = now
+        self.only = only or None
 
     def _clock(self) -> datetime:
         return self._now or datetime.now(UTC)
@@ -422,6 +428,12 @@ class StatsIngestor:
     def _try(
         self, request: Request, summary: RunSummary, played: date | None = None
     ) -> bytes | None:
+        if (
+            self.only is not None
+            and request.endpoint not in PLANNING_ENDPOINTS
+            and not self.only.allows(request.endpoint, request.key)
+        ):
+            return None  # a replay limited to other keys
         try:
             result, body = self.fetch(request, played)
         except CircuitOpenError:

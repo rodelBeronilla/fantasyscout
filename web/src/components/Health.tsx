@@ -55,6 +55,19 @@ interface Reconciliation {
   conflict_rate: number | null;
 }
 
+/** A request an ingest run could not land (ops.fetch_failures; absent in older builds). */
+interface FetchFailure {
+  run_id: string;
+  source: string;
+  league: string;
+  season: string;
+  started_at: string;
+  kind: 'failed' | 'missing';
+  endpoint: string;
+  request_key: string;
+  reason: string | null;
+}
+
 interface HealthFile {
   build_id: string;
   created_at: string;
@@ -70,6 +83,8 @@ interface HealthFile {
   row_counts: Record<string, number>;
   /** How fresh each source feed is (ops.feed_freshness; absent in older builds). */
   feeds?: Feed[];
+  /** Requests recent ingest runs could not land, newest first (ops.fetch_failures; absent in older builds). */
+  fetch_failures?: FetchFailure[];
 }
 
 interface Feed {
@@ -249,6 +264,49 @@ export default function Health() {
                       </Td>
                     </tr>
                   ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {health.fetch_failures && health.fetch_failures.length > 0 && (
+        <Card title="Failed fetches" id="fetch-failures">
+          <p className="mb-3 text-sm text-muted">
+            Requests the recent ingest runs could not land, newest first: the endpoint and key to replay (runbook, &ldquo;Replay failed
+            fetches&rdquo;) and why. A payload missing at the source is the source&apos;s gap, not ours.
+          </p>
+          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+            <table className="w-full text-sm" data-testid="fetch-failures">
+              <thead>
+                <tr>
+                  <Th>Run started</Th>
+                  <Th>Source</Th>
+                  <Th>Kind</Th>
+                  <Th>Endpoint</Th>
+                  <Th>Key</Th>
+                  <Th>Reason</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {health.fetch_failures.map((f, i) => (
+                  <tr key={`${f.run_id}-${f.endpoint}-${f.request_key}-${i}`} className="border-t border-line">
+                    <Td>{when(f.started_at)}</Td>
+                    <Td>
+                      {f.source} {f.league.toUpperCase()}
+                    </Td>
+                    <Td>
+                      <Badge tone={f.kind === 'failed' ? 'bad' : 'muted'}>{f.kind}</Badge>
+                    </Td>
+                    <Td>{f.endpoint}</Td>
+                    <Td>
+                      <span className="font-mono text-xs">{f.request_key}</span>
+                    </Td>
+                    <Td>
+                      <span className="text-xs text-muted">{f.reason ?? ''}</span>
+                    </Td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

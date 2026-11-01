@@ -42,6 +42,30 @@ models:
       - name: _source_file
         description: "Path of the run log the row was parsed from"
 
+  - name: fetch_failures
+    description: "Every request an ingest run could not land, one row each, from the run logs: the failures (an error of ours or the host's) and the payloads missing at the source (HTTP 404). Names the endpoint and key so a replay can target them (fs-ingest land --from-run-log or --only)."
+    columns:
+      - name: run_id
+        description: "Run id of the ingest run (ingest_log.run_id)"
+      - name: source
+        description: "Source the run pulled from: stats, espn or reports"
+      - name: league
+        description: "League the run covered: wnba or nba"
+      - name: season
+        description: "Season label the run landed under"
+      - name: started_at
+        description: "When the run started (UTC)"
+      - name: kind
+        description: "failed (an error of ours or the host's) or missing (the source has no payload for the key, HTTP 404)"
+      - name: endpoint
+        description: "Endpoint of the request, as the landing folders name it"
+      - name: request_key
+        description: "Key the payload lands under: a game id, a team id, a date or a season label"
+      - name: reason
+        description: "The error, as the ingestor recorded it"
+      - name: _source_file
+        description: "The run log the row was read from"
+
   - name: reconciliation
     description: "One row per value the two sources disagree on, with both values and the resolution: the league value wins, ESPN only where the league's is null (ADR 0005). A snapshot of the current comparison."
     columns:

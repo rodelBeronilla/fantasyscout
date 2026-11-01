@@ -142,6 +142,19 @@ When an incident issue names a failed run:
 
 A run that is cut short (a job timeout, a cancelled job, a runner restart) keeps what it landed: the per-scope indexes (`_index.json`) are written every 25 landings and once more when the run ends, however it ends, so the next run re-fetches at most the last few requests rather than the whole window.
 
+## Replay failed fetches
+
+`ops.fetch_failures` names every request a run could not land (Data Health, "Failed fetches"; `select * from fantasyscout.ops.fetch_failures order by started_at desc`). Redo exactly those keys, not the whole window:
+
+```bash
+# the failed and missing keys of one run, from its run log (the path is in the incident's log tail)
+uv run fs-ingest land stats --league wnba --backend volume --from-run-log landing/_ops/ingest_log/2026-10-27/stats-wnba-2026-<run_id>.json
+# or by hand: an endpoint, or an endpoint and key, repeatable
+uv run fs-ingest land espn --league nba --backend volume --only summary:401736812 --only injuries
+```
+
+From the Actions tab, run Ingest with the `only` input (space-separated). The run still makes the requests it plans from (the game log and the player directory; a day's scoreboard and the teams list), skips everything else, and lands only what matches; a same-day key that already landed is not fetched again. `--only` and `--from-run-log` apply to the stats and espn sources; the reports feeds are a minute's work to rerun whole.
+
 ## When a source changes shape
 
 Landed payloads are raw, so a shape change breaks bronze parsing (phase 2), not landing.

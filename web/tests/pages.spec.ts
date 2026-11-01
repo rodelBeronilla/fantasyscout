@@ -1141,3 +1141,22 @@ test('players on teams with nothing left to play for late in the season carry a 
   await expect(tag).toHaveCount(1);
   await expect(tag).toHaveAttribute('title', /clinched a playoff place with few games left/);
 });
+
+test('data health names the requests the ingest could not land', async ({ page }) => {
+  await page.route('**/health.json', async (route) => {
+    const file = (await (await route.fetch()).json()) as Record<string, unknown>;
+    const failures = [
+      { run_id: 'abc123def456', source: 'stats', league: 'nba', season: '2026-27', started_at: '2026-11-01T09:20:00+00:00', kind: 'failed', endpoint: 'boxscoretraditionalv3', request_key: '0022600123', reason: 'RuntimeError: HTTP 500' },
+      { run_id: 'abc123def456', source: 'espn', league: 'wnba', season: '2026', started_at: '2026-11-01T09:15:00+00:00', kind: 'missing', endpoint: 'summary', request_key: '401736812', reason: 'HTTP 404' },
+    ];
+    await route.fulfill({ json: { ...file, fetch_failures: failures } });
+  });
+  await page.goto('/health/');
+  const rows = page.getByTestId('fetch-failures').locator('tbody tr');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText('stats NBA');
+  await expect(rows.first()).toContainText('failed');
+  await expect(rows.first()).toContainText('0022600123');
+  await expect(rows.nth(1)).toContainText('missing');
+});
+

@@ -60,7 +60,8 @@ def main() -> int:
 
     body = (
         f"Outcome: **{outcome}**. [Run {run_id}]({run_url})\n\n{lead}```\n{tail}\n```\n\n"
-        'See docs/runbook.md ("Rerun a day").'
+        'See docs/runbook.md ("Rerun a day"; to redo only the failed keys, '
+        '"Replay failed fetches").'
     )
     if existing is not None:
         client.post(f"/issues/{existing}/comments", json={"body": body}).raise_for_status()

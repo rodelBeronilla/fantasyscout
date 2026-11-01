@@ -157,6 +157,9 @@ def assemble(
             for status in ("pass", "warn", "fail", "error")
         },
         "ingest_runs": rows_of(tables["ingest_log"])[:100] if "ingest_log" in tables else [],
+        "fetch_failures": rows_of(tables["fetch_failures"])[:100]
+        if "fetch_failures" in tables
+        else [],
         "reconciliation": rows_of(tables["reconciliation_summary"])
         if "reconciliation_summary" in tables
         else [],
