@@ -68,6 +68,10 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+          if [[ "$CURRENT" == "$VERSION" ]]; then
+            echo "pyproject.toml already reads $VERSION; no bump PR needed"
+            exit 0
+          fi
           branch="release/v$VERSION"
           git checkout -b "$branch"
           sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
