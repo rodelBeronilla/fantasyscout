@@ -25,6 +25,7 @@ interface Model {
   reads: string[];
   read_by: string[];
   exported_as: string[];
+  read_by_pages: string[];
   checks: string[];
   unit_tests: UnitTest[];
   columns: Column[];
@@ -45,6 +46,7 @@ const checks = schema.checks as { name: string; severity: string; tags: string[]
 const unitTests = schema.unit_tests as { name: string; model: string; description: string }[];
 const seeds = schema.seeds as Seed[];
 const landing = schema.landing as { path: string; read_by: string[] }[];
+const sources = schema.sources as { key: string; name: string; host: string; module: string; runner: string; cadence: string; folders: string[] }[];
 const seedNames = new Set(seeds.map((s) => s.name));
 const anchor = (name: string) => `m-${name}`;
 const refAnchor = (name: string) => (seedNames.has(name) ? `seed-${name}` : anchor(name));
@@ -216,6 +218,34 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
         <section id={l.name} class="mt-8" data-testid={`layer-${l.name}`} data-schema-group>
           <h2 class="text-lg font-semibold tracking-tight">{l.name}</h2>
           <p class="mt-1 max-w-3xl text-sm text-muted">{LAYER_ABOUT[l.name]}</p>
+              {l.name === 'bronze' && (
+                <div class="table-scroll mt-3 max-h-[60vh] overflow-auto" tabindex="0" role="region" aria-label="Scrollable table" data-testid="sources">
+                  <table class="w-full text-xs">
+                    <thead>
+                      <tr class="text-left text-muted">
+                        <th class="py-1 pr-3 font-medium">Source</th>
+                        <th class="py-1 pr-3 font-medium">Host</th>
+                        <th class="py-1 pr-3 font-medium">Ingest module</th>
+                        <th class="py-1 pr-3 font-medium">Runner</th>
+                        <th class="py-1 pr-3 font-medium">Cadence</th>
+                        <th class="py-1 font-medium">Landing folders</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sources.map((src) => (
+                        <tr class="border-t border-line align-top">
+                          <td class="py-1 pr-3 font-medium">{src.name}</td>
+                          <td class="py-1 pr-3">{src.host}</td>
+                          <td class="py-1 pr-3 font-mono">{src.module}</td>
+                          <td class="py-1 pr-3">{src.runner}</td>
+                          <td class="py-1 pr-3">{src.cadence}</td>
+                          <td class="py-1 font-mono">{src.folders.join(', ')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
           <div class="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
             {l.models.map((m) => {
               const doc = described(m.columns);
@@ -296,6 +326,21 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
                             ) : (
                               'not published on its own; it reaches the site through the marts that read it'
                             )}
+                          </dd>
+                        </div>
+                      )}
+                      {m.read_by_pages.length > 0 && (
+                        <div data-testid="read-by-pages">
+                          <dt class="inline text-muted">Read by pages </dt>
+                          <dd class="inline">
+                            {m.read_by_pages.map((r, i) => (
+                              <>
+                                {i > 0 && ', '}
+                                <a href={href(r)} class="font-mono underline-offset-4 hover:underline">
+                                  {r}
+                                </a>
+                              </>
+                            ))}
                           </dd>
                         </div>
                       )}
