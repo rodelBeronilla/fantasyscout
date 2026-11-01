@@ -22,7 +22,7 @@
     },
     {
      "label": "Against the outcome",
-     "value": "accumulating: 0 of 200 player-game-markets"
+     "value": "accumulating: 70 of 200 player-game-markets"
     }
    ],
    "table": {
@@ -105,15 +105,15 @@
    "n_label": "player-game-market lines compared"
   },
   "nba": {
-   "headline": "Across 1,507 NBA player-game lines, the board's projection sits 1.24 from the books' line on average; on points it is -0.28 a game from the line.",
+   "headline": "Across 1,868 NBA player-game lines, the board's projection sits 1.23 from the books' line on average; on points it is -0.35 a game from the line.",
    "facts": [
     {
      "label": "Games with lines",
-     "value": "17 games on 2 dates"
+     "value": "21 games on 3 dates"
     },
     {
      "label": "Players with a line",
-     "value": "198"
+     "value": "204"
     },
     {
      "label": "Share of the board's rostered pool with a line",
@@ -125,7 +125,7 @@
     },
     {
      "label": "Against the outcome",
-     "value": "accumulating: 878 of 200 player-game-markets"
+     "value": "accumulating: 1443 of 200 player-game-markets"
     }
    ],
    "table": {
@@ -140,87 +140,87 @@
     "rows": [
      [
       "points",
-      212,
-      1.58,
-      -0.28,
-      null,
-      null
-     ],
-     [
-      "rebounds",
-      200,
-      0.53,
-      -0.08,
-      null,
-      null
-     ],
-     [
-      "points_rebounds",
-      200,
-      1.98,
-      -0.67,
-      null,
-      null
-     ],
-     [
-      "threes",
-      176,
-      0.32,
-      0.03,
-      null,
-      null
-     ],
-     [
-      "points_rebounds_assists",
-      174,
-      2.39,
-      -1.12,
-      null,
-      null
-     ],
-     [
-      "points_assists",
-      163,
-      2.04,
-      -0.9,
-      null,
-      null
-     ],
-     [
-      "rebounds_assists",
-      158,
-      0.79,
+      264,
+      1.56,
       -0.35,
       null,
       null
      ],
      [
+      "points_rebounds",
+      249,
+      1.93,
+      -0.76,
+      null,
+      null
+     ],
+     [
+      "rebounds",
+      248,
+      0.53,
+      -0.12,
+      null,
+      null
+     ],
+     [
+      "threes",
+      221,
+      0.32,
+      0.02,
+      null,
+      null
+     ],
+     [
+      "points_rebounds_assists",
+      211,
+      2.4,
+      -1.31,
+      null,
+      null
+     ],
+     [
+      "points_assists",
+      200,
+      2.04,
+      -1.05,
+      null,
+      null
+     ],
+     [
       "assists",
-      156,
-      0.48,
-      -0.11,
+      194,
+      0.5,
+      -0.15,
+      null,
+      null
+     ],
+     [
+      "rebounds_assists",
+      194,
+      0.81,
+      -0.41,
       null,
       null
      ],
      [
       "steals",
-      49,
+      64,
       0.31,
-      -0.09,
+      -0.1,
       null,
       null
      ],
      [
       "blocks",
-      13,
-      0.31,
-      -0.08,
+      16,
+      0.34,
+      -0.07,
       null,
       null
      ],
      [
       "steals_blocks",
-      6,
+      7,
       0.22,
       0.16,
       null,
@@ -228,7 +228,7 @@
      ]
     ]
    },
-   "n": 1507,
+   "n": 1868,
    "n_label": "player-game-market lines compared"
   }
  }

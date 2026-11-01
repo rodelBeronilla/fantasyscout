@@ -2,7 +2,7 @@
  "title": "Game context",
  "leagues": {
   "wnba": {
-   "headline": "In 2026, the second night of a back-to-back changed a regular's chance of sitting out by +3.2 points and production by +0.50 fantasy points per 30 minutes, while a standard deviation of opponent defence moved production by +1.14; after missing one game, 58% missed the next.",
+   "headline": "In 2026, the second night of a back-to-back changed a regular's chance of sitting out by +3.2 points and production by +0.50 fantasy points per 30 minutes, while a standard deviation of opponent defence moved production by +1.15; after missing one game, 58% missed the next.",
    "facts": [
     {
      "label": "Back-to-back: chance of sitting out",
@@ -14,7 +14,7 @@
     },
     {
      "label": "Opponent defence, per SD: fantasy pts / 30 min",
-     "value": "+1.14 (+0.64 to +1.63)"
+     "value": "+1.15 (+0.64 to +1.63)"
     },
     {
      "label": "Travel, per 1,000 miles: fantasy pts / 30 min",
@@ -38,7 +38,7 @@
     },
     {
      "label": "The line beyond defence and pace, out of sample",
-     "value": "share explained per 30 min +0.20% (-0.11 to +0.51); minutes +0.26% (+0.00 to +0.50); implied pts per SD, fantasy pts / 30 min +0.09 (-0.55 to +0.81); 5 pts of spread, starters' minutes -0.37 (-0.67 to -0.17); bench minutes +0.34 (-0.12 to +0.85) (2026 only: fit on games before 2026-07-18, tested on games from then on)"
+     "value": "share explained per 30 min +0.20% (-0.11 to +0.51); minutes +0.26% (+0.00 to +0.50); implied pts per SD, fantasy pts / 30 min +0.09 (-0.55 to +0.82); 5 pts of spread, starters' minutes -0.37 (-0.67 to -0.17); bench minutes +0.34 (-0.12 to +0.85) (2026 only: fit on games before 2026-07-18, tested on games from then on)"
     },
     {
      "label": "Matchup from the line against defence and pace: fantasy pts in the game explained out of sample",
@@ -79,14 +79,14 @@
      ],
      [
       "Opponent defence, per SD (higher rating = leakier)",
-      "+1.14 (+0.64 to +1.63)",
-      "+0.04 (-0.18 to +0.22)",
+      "+1.15 (+0.64 to +1.63)",
+      "+0.04 (-0.18 to +0.23)",
       "+0.3 (-0.5 to +1.4)"
      ],
      [
       "Opponent pace, per SD",
-      "+1.00 (+0.51 to +1.58)",
-      "+0.03 (-0.18 to +0.26)",
+      "+1.00 (+0.51 to +1.59)",
+      "+0.03 (-0.18 to +0.27)",
       "+0.3 (-0.6 to +1.2)"
      ],
      [
@@ -115,8 +115,8 @@
      ],
      [
       "Team implied points, per SD",
-      "+0.09 (-0.55 to +0.81)",
-      "-0.88 (-1.43 to -0.29)",
+      "+0.09 (-0.55 to +0.82)",
+      "-0.89 (-1.44 to -0.29)",
       null
      ],
      [
@@ -155,7 +155,7 @@
     },
     {
      "label": "Official listings: missed the game; games missed on average",
-     "value": "Out 100%, 13.9 (n 18,259); Doubtful 99%, 4.7 (n 626); Questionable 46%, 1.4 (n 4,316); Probable 7%, 0.2 (n 1,761)"
+     "value": "Out 100%, 13.9 (n 18,281); Doubtful 99%, 4.7 (n 627); Questionable 46%, 1.4 (n 4,322); Probable 7%, 0.2 (n 1,761)"
     },
     {
      "label": "Referee crew, per free throw a game of tendency (per 30 min)",
@@ -268,7 +268,7 @@
      ]
     ]
    },
-   "n": 86549,
+   "n": 86652,
    "n_label": "player-team-games"
   }
  }
