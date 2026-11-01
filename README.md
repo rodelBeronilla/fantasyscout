@@ -26,24 +26,25 @@ sources ─► GitHub Actions ingest ─► Databricks lakehouse (dbt: bronze/si
 
 ## Status
 
-Built phase by phase; each phase ends with something live and a PR that passes CI. Current: **phase 0, skeleton**. See [docs/architecture.md](docs/architecture.md#phase-status) and [.sdlc/state.md](.sdlc/state.md).
+Built phase by phase; each phase ends with something live and a PR that passes CI. Phases 0 to 6 are live (ingest, lakehouse, gold and quality, reconciliation, the site, the analysis surfaces); the AI notes of phase 7 wait for the go-ahead. The current state, sprint and blockers are in [.sdlc/state.md](.sdlc/state.md); the phase table in [docs/architecture.md](docs/architecture.md#phase-status).
 
 ## Repo layout
 
 ```
 ingest/      Python ingestors, one module per source; CLI: fs-ingest
-export/      gold -> Parquet/JSON -> R2, manifest, latest pointer
-ops/         results recorder and publish gate (ops.test_results, ops.publish_gate)
+export/      gold -> Parquet/JSON -> R2, manifest, latest pointer, the Playwright fixture
+ops/         results recorder, publish gate, build log, watchdog, schema file for the site's data dictionary
 dbt/         dbt project: models/bronze|silver|gold|ops, tests/ (quality checks), seeds/, macros/, sample/
-ai/          notes generator, prompts, evals/
-notebooks/   01_board_backtest .. 07_teammate_absence; replay.py
-web/         Astro app
-worker/      Cloudflare Worker + wrangler.toml
+ai/          notes generator, prompts, evals/ (phase 7: planned, not built)
+notebooks/   01_board_backtest .. 07_teammate_absence as nb_*.py cell sources and committed .ipynb; replay.py
+tableau/     the League Pulse extract (three CSVs) and the Google Sheet push behind the Tableau Public workbook
+web/         Astro app (React islands), Playwright and vitest tests, the committed data fixture
+worker/      Cloudflare Worker + wrangler.toml: the site, the data route, the owner's sign-in
 infra/       self-hosted runner for the jobs that need a residential address
 bundles/     Databricks Asset Bundle: jobs, schedules, targets
-dashboards/  Tableau extract script + publish README
-docs/        adr/, runbook.md, architecture.md, data-dictionary.md (generated)
-.github/     ci.yml, deploy-web.yml (ingest.yml, build.yml, notes.yml arrive with their phases)
+tests/       Python tests (ingest, export, ops, the fixture contract)
+docs/        adr/, runbook.md, architecture.md (the data dictionary is the site's Schema page, from web/src/generated/schema.json)
+.github/     workflows: ci, deploy-web, ingest, backfill, build, export, notebooks, probe, query, watchdog; composite actions
 ```
 
 ## Run it locally
