@@ -161,6 +161,8 @@ cd dbt && uv run dbt build --target databricks
 
 Bronze models are append-only and incremental on `_ingest_date`; a full refresh re-reads every landed file. Silver models rebuild from bronze each run and keep the latest landing per natural key.
 
+The evening ingest (23:00 UTC) lands the injury reports and the other evening feeds only, and the build it triggers is a **light build**: the Ingest run leaves an `ingest-plan` artifact naming what it landed, and Build selects `tag:feed_reports+ path:models/ops`, those feeds' bronze models and everything downstream of them (the board and streamers included) plus the ops tables. Every quality check still runs before the gate, the export and promote are full, and the notebooks and the Tableau extract wait for the morning's full build. A build run by hand, or after an ingest without the artifact, is a full build.
+
 ## Quality checks, results table and the publish gate
 
 Every build writes one row per model and test to `ops.test_results` (check, model, severity, status, failing rows, run id) and one row to `ops.publish_gate`. The gate passes only when no error-severity check failed and no model errored; warn-severity failures publish and are reported. In the Build lakehouse workflow a blocked gate fails the run and opens or updates the "Build failure" incident issue; the next passing build closes it.

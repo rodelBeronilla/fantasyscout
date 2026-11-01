@@ -1,4 +1,4 @@
-{{ config(partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
+{{ config(tags=['feed_reports'], partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
 
 {# The leagues' referee assignments as parsed at ingest (official.nba.com): one row per game per
    landed page, with the crew chief, referee, umpire and alternate and their uniform numbers.

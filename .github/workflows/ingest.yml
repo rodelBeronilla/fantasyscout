@@ -36,6 +36,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: write
 
 env:
   LEAGUES: ${{ (inputs.league == 'wnba' && '["wnba"]') || (inputs.league == 'nba' && '["nba"]') || '["wnba","nba"]' }}
@@ -80,6 +81,20 @@ jobs:
               echo "::notice::stats job skipped: STATS_RUNNER_LABEL is not set (ADR 0002)"
             fi
           fi
+      # Build lakehouse reads this from the run that triggered it: an ingest that landed only the
+      # reports gets a light build of the feeds' models and their consumers, not the whole graph.
+      - name: Say what this run lands
+        env:
+          SOURCE: ${{ (github.event.schedule == '0 23 * * *' && 'reports') || inputs.source || 'both' }}
+        run: |
+          mkdir -p ingest-plan
+          printf '{"source": "%s", "leagues": %s}\n' "$SOURCE" "$LEAGUES" > ingest-plan/ingest-plan.json
+          cat ingest-plan/ingest-plan.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ingest-plan
+          path: ingest-plan/ingest-plan.json
+          retention-days: 3
 
   espn:
     name: ESPN ${{ matrix.league }}

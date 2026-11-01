@@ -1,4 +1,4 @@
-{{ config(partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
+{{ config(tags=['feed_reports'], partition_by=(['league', 'season'] if target.type == 'databricks' else none)) }}
 
 {# The leagues' official injury reports, as the ingest parsed them from the PDF: one row per
    player (or team not yet submitted) per landed report. Values stay text until silver. #}

@@ -6,7 +6,10 @@ name: Build lakehouse
 # completeness check only counts a game missing once it has been final for more than a day
 # (the next daily window fetches it again). A cancelled run does not trigger a build. Runs by
 # hand too. A failed build opens or updates a data-incident issue; the next passing build
-# closes it.
+# closes it. An ingest that landed only the injury reports and the other evening feeds (the
+# 23:00 UTC schedule) gets a light build: those feeds' models and everything downstream of them
+# (the board and streamers included), with every quality check, and no notebooks or Tableau
+# extract, which the morning's full build refreshes.
 
 on:
   workflow_run:
@@ -30,6 +33,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: read
 
 concurrency:
   group: build-lakehouse
@@ -49,6 +53,26 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --frozen --group dbt
+
+      - name: Read what the ingest landed
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: ingest-plan
+          path: ingest-plan
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Choose a full or a light build
+        if: github.event_name == 'workflow_run'
+        run: |
+          source=$(uv run python -c "import json,sys; print(json.load(open('ingest-plan/ingest-plan.json'))['source'])" 2>/dev/null || echo "unknown")
+          echo "the ingest landed: $source"
+          if [ "$source" = "reports" ]; then
+            echo "PLAN_SELECT=tag:feed_reports+ path:models/ops" >> "$GITHUB_ENV"
+            echo "PLAN_LIGHT=true" >> "$GITHUB_ENV"
+            echo "::notice::light build: the evening ingest landed the reports only, so the build covers those feeds' models and their consumers; notebooks and the Tableau extract wait for the morning's full build"
+          fi
 
       - name: Note an ingest that ended with a failed job
         if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure'
@@ -91,7 +115,7 @@ jobs:
           DBT_TARGET: databricks
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           FULL_REFRESH: ${{ inputs.full_refresh }}
-          SELECT: ${{ inputs.select }}
+          SELECT: ${{ inputs.select || env.PLAN_SELECT }}
           CHAOS: ${{ inputs.chaos }}
         run: |
           set -o pipefail
@@ -126,7 +150,7 @@ jobs:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_ORIGIN: https://${{ env.DBT_DATABRICKS_HOST }}
           DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
-          SELECT: ${{ inputs.select }}
+          SELECT: ${{ inputs.select || env.PLAN_SELECT }}
         run: |
           set -o pipefail
           uv run python -m ops.results --engine databricks --target-dir dbt/target --target-dir dbt/target/quality --selected "$SELECT" 2>&1 | tee -a land.log
@@ -161,7 +185,7 @@ jobs:
       # without it, and the Report step opens an incident naming the step.
       - name: Execute the analysis notebooks against the staged build and add them to it
         id: notebooks
-        if: steps.export.outcome == 'success'
+        if: steps.export.outcome == 'success' && env.PLAN_LIGHT != 'true'
         continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -178,7 +202,7 @@ jobs:
 
       - name: Refresh the Tableau extract and add it to the staged build
         id: extract
-        if: steps.export.outcome == 'success'
+        if: steps.export.outcome == 'success' && env.PLAN_LIGHT != 'true'
         continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -241,6 +265,7 @@ jobs:
           done
           if [ -n "$failed" ]; then OUTCOME=failure; else OUTCOME=success; fi
           DETAIL="Steps: dbt build $S_BUILD, gate $S_GATE, export $S_EXPORT, notebooks $S_NOTEBOOKS, extract $S_EXTRACT, promote $S_PROMOTE, sheet push $S_SHEETS."
+          [ "${PLAN_LIGHT:-}" = "true" ] && DETAIL="Light build (the ingest landed the reports only; selector: $PLAN_SELECT). $DETAIL"
           [ -n "$failed" ] && DETAIL="Failed: ${failed#, }. $DETAIL"
           echo "$DETAIL"
           OUTCOME="$OUTCOME" DETAIL="$DETAIL" uv run python .github/scripts/incident.py
