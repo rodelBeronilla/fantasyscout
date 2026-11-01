@@ -155,13 +155,11 @@ def from_live(site: str, log: Callable[[str], None] = print) -> dict[str, bytes]
     return files
 
 
-def from_duckdb(
-    path: Path, log: Callable[[str], None] = print, *, parquet_only: bool = False
-) -> dict[str, bytes]:
-    """A local lakehouse's export, as the fixture keeps it (or just its Parquet)."""
+def export_of(path: Path, log: Callable[[str], None] = print) -> build_mod.Build:
+    """The current code's export of a local lakehouse."""
     source = DuckDBSource(path)
     try:
-        build = build_mod.assemble(
+        return build_mod.assemble(
             source,
             engine="duckdb",
             git_sha=GIT_SHA,
@@ -172,6 +170,91 @@ def from_duckdb(
         )
     finally:
         source.close()
+
+
+def _align(row: object, keys: list[str]) -> object:
+    return {k: row.get(k) for k in keys} if isinstance(row, dict) else row
+
+
+def _keys_of(body: bytes) -> list[str]:
+    data = json.loads(body)
+    rows = data if isinstance(data, list) else [data]
+    keys: list[str] = []
+    for row in rows:
+        if isinstance(row, dict):
+            keys.extend(k for k in row if k not in keys)
+    return keys
+
+
+def conform(files: dict[str, bytes], shape: build_mod.Build, duckdb: Path) -> dict[str, bytes]:
+    """The live files with the keys the current code exports.
+
+    The live build ran the code of its day; a column added since then is missing from its files
+    and one dropped since is still there. Each file's rows take the keys the code's export gives
+    them (from the sample's export, or the export query's schema where the sample has no rows):
+    a new column is null until the next build, a dropped one goes. The fixture is then always
+    the shape of the code with the newest values the site has.
+    """
+    source = DuckDBSource(duckdb)
+    try:
+        per_league = {
+            name: list(source.query(sql).schema.names) for name, sql in layout.PER_LEAGUE_JSON
+        }
+        board_keys = [
+            c
+            for c in source.query("select * from gold.mart_board limit 0").schema.names
+            if c not in ("league", "player_id", "board_sk")
+        ]
+    finally:
+        source.close()
+    sample_player = next((p for p in sorted(shape.files) if p.startswith("players/")), None)
+    player_shape = json.loads(shape.files[sample_player]) if sample_player else {}
+    out: dict[str, bytes] = {}
+    for path, body in files.items():
+        if not path.endswith(".json") or path.startswith(("notebooks/", "tableau/")):
+            out[path] = body
+            continue
+        data = json.loads(body)
+        if path.startswith("players/"):
+            player = {k: data.get(k) for k in player_shape} if player_shape else data
+            for section, value in player.items():
+                sample = player_shape.get(section)
+                if (
+                    isinstance(value, list)
+                    and isinstance(sample, list)
+                    and sample
+                    and isinstance(sample[0], dict)
+                ):
+                    player[section] = [_align(r, list(sample[0])) for r in value]
+                elif section == "board" and isinstance(value, dict):
+                    player[section] = _align(value, board_keys)
+            out[path] = to_json(player)
+            continue
+        name = path.split("/")[0]
+        keys = (
+            per_league.get(name)
+            if "/" in path
+            else (
+                _keys_of(shape.files[path])
+                if path in shape.files and json.loads(shape.files[path])
+                else None
+            )
+        )
+        if path == "health.json":
+            keys = _keys_of(shape.files["health.json"])
+            out[path] = to_json(_align(data, keys))
+        elif keys and isinstance(data, list):
+            out[path] = to_json([_align(r, keys) for r in data])
+        else:
+            out[path] = body
+    return out
+
+
+def from_duckdb(
+    path: Path, log: Callable[[str], None] = print, *, parquet_only: bool = False
+) -> dict[str, bytes]:
+    """A local lakehouse's export, as the fixture keeps it (or just its Parquet)."""
+    build = export_of(path, log)
     wanted = player_ids(build.files)
     files: dict[str, bytes] = {}
     for name, body in build.files.items():
@@ -249,7 +332,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.local:
         files = from_duckdb(args.duckdb)
     else:
-        files = {**from_duckdb(args.duckdb, parquet_only=True), **from_live(args.site)}
+        shape = export_of(args.duckdb, log=lambda _: None)
+        files = {
+            **from_duckdb(args.duckdb, parquet_only=True),
+            **conform(from_live(args.site), shape, args.duckdb),
+        }
     if not files.get(f"board/{LEAGUE}.json") or not json.loads(files[f"board/{LEAGUE}.json"]):
         print(f"the {LEAGUE} board is empty: the fixture needs a source with a populated board")
         return 2

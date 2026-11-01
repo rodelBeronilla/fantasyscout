@@ -1089,7 +1089,7 @@ test('the board and streamers show a fresh headline flag, the fantasy week and t
       { ownership_trend: 'rising', injury_group: 'questionable', injury_status: 'Questionable', injury_type: 'Ankle', injury_source: 'espn' },
       { ownership_trend: 'falling' },
     ];
-    await route.fulfill({ json: rows.map((r, i) => ({ ...r, ownership_trend: null, ...(extra[i] ?? {}) })) });
+    await route.fulfill({ json: rows.map((r, i) => ({ ...r, ...(extra[i] ?? { ownership_trend: null }) })) });
   });
   await page.goto('/streamers/');
   const table = page.getByTestId('trending');
