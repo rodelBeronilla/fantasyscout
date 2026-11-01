@@ -1,6 +1,7 @@
-# ADR 0008: The statistics' terms, source credit and the private tables
+# 0008. The statistics' terms, source credit and the private tables
 
-Status: accepted, 2026-10-29
+Date: 2026-10-29
+Status: Accepted
 
 ## Context
 

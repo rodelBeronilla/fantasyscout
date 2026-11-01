@@ -9,7 +9,7 @@ Phase 3 turns the typed silver layer into the star schema and fantasy marts the 
 
 ## Decisions
 
-**Player stints come from appearances, not from the player directory.** `dim_player` is SCD type 2 on team. The directory (`commonallplayers`) only knows a player's current team, and daily snapshots exist only from the day ingestion started, so team history for the backfilled seasons has to come from where the player actually played: a stint starts at the first game with a new team and ends the day before the next team's first game. Names, position and biography come from the directory and rosters. The ESPN id column waits for the phase 4 crosswalk.
+**Player stints come from appearances, not from the player directory.** `dim_player` is SCD type 2 on team. The directory (`commonallplayers`) only knows a player's current team, and daily snapshots exist only from the day ingestion started, so team history for the backfilled seasons has to come from where the player actually played: a stint starts at the first game with a new team and ends the day before the next team's first game. Names, position and biography come from the directory and rosters. The ESPN id column waits for the phase 4 crosswalk. _Superseded: `silver.player_xwalk` fills it (ADR 0005)._
 
 **Box score closure excludes turnovers.** On real data every counting stat sums from player rows to the team row exactly, except turnovers: the team figure includes team turnovers (shot-clock, 8-second and inbound violations) that belong to no player. The error-severity closure check covers every other stat; a warn-severity check asserts the team figure is at least the players' sum and not more than eight above it.
 
@@ -19,7 +19,16 @@ Phase 3 turns the typed silver layer into the star schema and fantasy marts the 
 
 **Fixture sample is a shape fixture.** The sample built from recorded fixtures has a few rows per payload and is not a coherent season, so the data-quality checks (`tag:quality`) run only against real data in the nightly build; CI runs the structural tests (keys, relationships, accepted values) and the gate on the sample.
 
-**Lineups and tracking facts are deferred.** `fct_event` reserves lineup columns; deriving the five on the floor needs substitution tracking across periods and is its own piece of work. `fct_player_tracking_season` needs the tracking endpoints, which are not ingested yet. Both are listed for phase 5 or 6 alongside the surfaces that would show them.
+**Lineups and tracking facts are deferred.** _Superseded: `silver.event_lineups` and `fct_event`'s lineups shipped 2026-10-29 (the lineups addendum below), `fct_player_tracking` on 2026-10-30 (ADR 0004 addendum)._ `fct_event` reserves lineup columns; deriving the five on the floor needs substitution tracking across periods and is its own piece of work. `fct_player_tracking_season` needs the tracking endpoints, which are not ingested yet. Both are listed for phase 5 or 6 alongside the surfaces that would show them.
+
+## Decisions recorded on their own
+
+These began as addenda here and were moved to their own records on 2026-11-01, text unchanged:
+
+- **Board value** (the projection, the two-pass pool, replacement level, the backtested settings, minutes in season and after an absence, age): [ADR 0009](0009-board-value.md).
+- **Availability calibration** (the games a listed player is expected to miss, from past official listings): [ADR 0010](0010-availability-calibration.md).
+- **Streamers sort** (what a player adds to the week): [ADR 0011](0011-streamers-sort.md).
+- **Signals tested and not built** (defence by position, expected games, the board's line, the betting line, a teammate's absence, referee crews): [ADR 0012](0012-signals-tested-and-not-built.md).
 
 ## Consequences
 
@@ -34,51 +43,6 @@ Phase 3 turns the typed silver layer into the star schema and fantasy marts the 
 **Rest of season** counts regular-season games only, the ones fantasy leagues score. Once a league's regular season is over (playoffs or the off-season) the board marks `season_complete` and the rest-of-season value equals the blend, instead of scaling everyone to zero.
 
 **Lineups.** `silver.event_lineups` gives every play-by-play action the five players on the floor per side. The feed's substitution names only the player leaving by id; the player coming on is matched against the game's box score by a ranked set of name rules: surname with any given-name prefix the feed adds to tell teammates apart ("K. Mitchell", "Jal. Williams"), suffix kept so "Carter Jr." is not his teammate Carter; then surname without the suffix; then the first part of a hyphenated surname, for names that changed since (the box score says "Laney-Hamilton", a 2019 substitution says "Laney"); then given name, for names the feed writes in the other order; then the last word of a longer name. A dbt unit test pins each rule. Events are ordered by game clock within the period, because the feed logs some substitutions late and action numbers are not chronological. Period starters come from the box score in the first period and are inferred afterwards (a first substitution out, or an action before any substitution in). Over the full history every season has five a side on at least 93.5% of actions: 98.6% to 99.3% for each NBA season, 99.1% or better for WNBA 2020 to 2026, and 93.5% and 94.8% for WNBA 2018 and 2019, whose feed misses more substitutions. A warn check flags any season under 90%.
-
-## Addendum (2026-10-29): board value
-
-The first board blended each season's z-scores, which had three faults on the live data. A missing season handed its weight to the others, so three games could carry a player's whole value (13th in the NBA). Zero meant "average of the top 180", so scaling by availability lifted injured below-average players (310th to 109th). And anyone with games in three seasons was listed, retired or not.
-
-**Only rostered players.** The board lists players on their team's latest roster landing for the league's latest roster season (`silver.rosters`); an error-severity check holds it. Injured players stay, since they are still rostered.
-
-**Project, then score once.** `mart_player_projection` gives every rostered player one per-game line: the current season and the two before it, each counted by games played times a recency weight (1.0, 0.25, 0.08), plus `prior_games` games of a replacement-level line (3 NBA, 5 WNBA). The replacement line is the average of the players just outside a fantasy league's rosters by total minutes in the latest complete season. A missing season adds nothing instead of handing its weight on.
-
-**Value above replacement.** `mart_board` scores the projections in two passes: z-scores over the `pool_size` players with the most projected minutes, then again over the `pool_size` players the first pass values most (pool size is teams x roster spots: 12 x 13 NBA, 10 x 10 WNBA). Each category then has replacement level subtracted, the average of the next `teams` players, so zero is a freely available player and a punt build is the sum without the punted columns. Rest of season scales only value above replacement: a game missed by a player not worth rostering costs nothing.
-
-**Settings chosen by backtest.** Seasons 2021 to 2026 (WNBA) and 2024-25 to 2025-26 (NBA) were replayed before the season and a tenth, a quarter and half way in, ranking players with each method and comparing with per-game value over the rest of the season (players with 15 or more games after). Means over the checkpoints:
-
-| Measure | Previous blend | Projection |
-| --- | --- | --- |
-| Share of predicted top 50 NBA / top 30 WNBA that finish there | 0.636 | 0.657 |
-| Share of the predicted rostered pool that finishes in it | 0.717 | 0.722 |
-| Rank correlation among players who finish in the pool | 0.711 | 0.710 |
-
-The gain is at the top of the board and in who is worth rostering at all; ordering inside the pool is unchanged. Recency weights from 0.15 to 0.5 for last season and priors from 0 to 20 games were tried. A heavier prior helped the WNBA at every checkpoint. For the NBA, priors above 3 games lost rostered-pool hits early in the season.
-
-Consequences: values are on a new scale (zero is replacement, not the pool average), the projected line is published with the board and shown in the app, and the settings live in the `fantasy` and `fantasy_recency` vars.
-
-**Minutes and games played (2026-10-29).** The projection now separates how much a player plays from what they do while playing. Minutes per game are counted by games played times a minutes recency weight. That weight is the production weight for the NBA, and 1.0, 0.06 and 0.02 for the WNBA, whose roles move more between seasons, so a change of role there shows within a few games. Production is per minute, counted by minutes played, so 60 games at 8 minutes count for far less than 60 at 34. The per-game line is the rate times projected minutes. A games share, the share of team regular-season games played in the seasons the player appeared, regressed toward 0.8 by 10 NBA or 60 WNBA games, turns value per game (`value_per_game`) into `value_total`; the app can switch it off. Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out. Backtest against the previous projection, same checkpoints, with a second target of value per game above replacement times the share of games played:
-
-| League | Measure | Previous | Minutes and games |
-| --- | --- | --- | --- |
-| NBA | Per game: top 50 / rostered pool | 0.650 / 0.747 | 0.650 / 0.747 |
-| NBA | Season total: top 50 / rostered pool | 0.580 / 0.759 | 0.590 / 0.762 |
-| WNBA | Per game: top 30 / rostered pool | 0.665 / 0.710 | 0.697 / 0.712 |
-| WNBA | Season total: top 30 / rostered pool | 0.665 / 0.762 | 0.699 / 0.767 |
-
-Past games played predict future games played only weakly: durability helped the NBA season-total ranking, while for the WNBA every regression strength from 5 to 120 games scored within a tenth of a point, hence the heavy 60.
-
-**Context: team changes, matchups, early samples, short games (2026-10-29).** Asked how the board accounts for players on new teams, how players are used now, injured games, upcoming opponents and a small current-season sample, the same seasons were replayed at a twentieth, a tenth, a quarter and half of the way in. Rank correlation is among players who changed teams:
-
-| Idea | NBA: pool / top / changed teams | WNBA: pool / top / changed teams | Decision |
-| --- | --- | --- | --- |
-| As before | 0.746 / 0.645 / 0.730 | 0.719 / 0.714 / 0.727 | |
-| A past season's minutes × 0.25 when on another team | 0.747 / 0.652 / 0.747 | 0.719 / 0.708 / 0.735 | Built (`fantasy_team_change`) |
-| The same for per-minute production too | 0.740 / 0.652 / 0.730 | 0.715 / 0.704 / 0.689 | No: production carries over between teams |
-| The current season counted × 1.5 | 0.746 / 0.628 / 0.737 | 0.721 / 0.718 / 0.726 | No: fewer of the top tier |
-| Games under half a player's usual minutes dropped (often injury exits, 9% of games) | 0.769 vs 0.774 | 0.752 vs 0.748 | No |
-
-A player's game-to-game swing is about 2.5 in value per game. The opponent's defensive rating and the expected pace explain 0.2% to 1.4% of it. One standard deviation of opponent defence is worth about 0.21 per game in the NBA and 0.14 in the WNBA, and pace about 0.08 and 0.06. That is small, but it tells a streamer two otherwise equal players apart, so `mart_schedule_upcoming` carries a matchup value per side (`fantasy_matchup`). Early in a season, last season's team defence predicted a game better than the first games did, so team ratings blend this season to date with last season counting as 10 games. A reworked roster takes over as its games accumulate. A player's past results against a given opponent correlated 0.00 to 0.04 with the next meeting, which is noise, so they are not used. Board and streamers show a new-team badge with the previous team.
 
 ## Addendum (2026-10-29): the league, rosters and tiers
 
@@ -132,145 +96,11 @@ Venues are placed by the arena city the league schedule gives, through a seed of
 
 The schedule mart and Streamers show back-to-backs and travel beside the matchup value; they do not change it. Whether a back-to-back or a long trip moves a player's production enough to count is the next backtest, over the played games this table already covers.
 
-## Addendum (2026-10-30): in-season minutes follow the last five games
-
-Issue #124 asked whether recent role signals predict a player's minutes better than the season-weighted figure the projection used. The test was a replay of every season at a checkpoint every 14 days. For every player with 5+ games so far, it predicted his mean minutes over his next 10 games played. Signals were fitted on the earlier seasons and tested on the latest: NBA 2025-26, WNBA 2025 and 2026.
-
-| Minutes per game | NBA error | WNBA error | Players whose role just moved (5+ minutes), NBA / WNBA |
-| --- | --- | --- | --- |
-| Season-weighted (as was) | 3.98 | 3.92 | 5.70 / 5.02 |
-| Half season-weighted, half the last five games | **3.44** | **3.30** | **4.25 / 3.73** |
-| A fitted blend with recent starts | 3.45 | 3.22 | 4.21 / 3.72 |
-| The fitted blend plus teammates' vacated minutes | 3.44 | 3.22 | 4.18 / 3.72 |
-
-The last five games carry nearly all of the gain, and a plain half-and-half blend does as well as a fitted one. Recent starts add little beyond it. The minutes of teammates who sat out the latest game add nothing; their absence shows up in the last five games anyway.
-
-So, in season, with five or more games for his current team, a player's projected minutes are half the season-weighted figure and half his last five games (var `fantasy_recent_minutes`, 0.5). Per-minute production is unchanged. Out of season the projection is as before, because the replay tested in-season horizons only. The play-by-play that motivated the question stays a daily fetch for the lineups and the shot data; its lineup model can feed a later on/off study.
-
-## Addendum (2026-10-30): defence by position does not earn a place in the matchup
-
-Issue #142 asked whether an opponent's defence against a player's position explains his game beyond the opponent's overall defence, which the matchup score already uses. The test was every player-game with 10+ minutes after a player's first five games. The measure was his fantasy points per minute (ESPN's default points) against his season average to date. Two signals were taken from what the opponent had allowed before that day: per minute to all players, and per minute to players of his primary position (G, F or C), less the overall figure. Both were standardised over the league's teams. The signals were fitted on earlier seasons (NBA 2023-24 and 2024-25, WNBA 2021 to 2024) and tested on the latest (NBA 2025-26, WNBA 2025 and 2026).
-
-| Signal | NBA, out-of-sample share of the game-to-game swing explained | WNBA |
-| --- | --- | --- |
-| Overall defence | 2.25% | 1.77% |
-| Overall plus defence by position | 2.26% | 1.81% |
-| Defence by position alone | −0.04% | 0.02% |
-
-One standard deviation of overall defence is worth about 1.8 fantasy points over 30 minutes in the NBA and 1.5 in the WNBA. Positional defence is worth 0.15 and 0.31, an order of magnitude less and inside the noise. Positional defence tables are mostly a sample of who happened to play against whom. So the matchup score keeps overall defence and pace, and nothing is built for positions. The stats API's defender tracking (leaguedashptdefend, boxscorematchupsv3) measures defenders rather than opponents' positions. Each needs per-game calls on the home runner, and with this result it is not worth that cost now.
-
 ## Addendum (2026-10-30): a ledger for the signals that have no history yet
 
 The newer inputs (official injury reports, lineups, the ESPN market, Sleeper, headline flags) have only days of history, and the published builds that carry them roll off after seven builds. None of them can be backtested unless the board's view is kept. `gold.fct_board_history` keeps it: one row per Eastern date, league and player with the projection, the value, availability, lineup role, market rank and ownership bucket, stakes, and the streamer signals. Every build merges the day's rows and a later build the same day replaces them. The model sets `full_refresh=false`, so a full refresh never rebuilds it and the history only grows (about 1,100 rows a day). `gold.fct_game_line` publishes the closing line for every played game, which the context analyses need.
 
 `ops.feed_freshness` gives each feed's newest landing day and its age against the age the feed may reach while the league is playing. A feed that stops keeps its last snapshot in silver and gold, where it would otherwise look current. `warn_stale_feeds` flags a stale feed, or a feed that has never landed in season, and Data Health lists every feed.
-
-## Addendum (2026-10-30): Streamers sort by what a player adds to the week
-
-The streamer signals notebook replays Streamers every Monday of each regular season. It ranks the players outside the rostered pool by each signal and scores them on what they add to the next seven days' category totals; a game not played adds nothing. On the latest season it compared each sort's top ten with the week's ten best pickups. The default sort, the minutes trend, found 1.9 of them in the WNBA and 0.9 in the NBA. Last-ten production times the team's games found 3.3 and 1.4. The page's Window value multiplied the last-ten z-score by games, and a z-score is measured from the pool's average: more games make a below-average player look worse. It ranked near zero in the WNBA.
-
-`mart_streamers.last_10_production` is what an average game of the last ten adds to the category totals, in units of each category's spread over the season's pool. Counting stats add, turnovers subtract, and shooting adds its makes above the pool's percentage. It is the last-ten z-score plus a constant, so it ranks players the same way, but it stays positive for about 95% of them and so scales with games. Window value is now production times games in the window, plus each game's matchup. It is the default sort while games are scheduled. An 8-category league leaves the turnovers term out.
-
-## Addendum (2026-10-30): availability calibrated on past official injury listings
-
-The board's rest-of-season value scales by an availability multiplier: the share of the remaining regular-season games the player is expected to play. It charged fixed amounts per ESPN status:
-- out with a return date: the games before it;
-- out without a date: every game left;
-- doubtful: 0.75 of a game;
-- questionable: 0.5;
-- day-to-day: 0.25.
-
-The game context notebook found that players who miss a game go on to miss 3 to 5 more on average, so these charges were never checked against outcomes.
-
-The leagues keep every official injury report on their host, the NBA's back to 2023-24, and `fs-ingest land reports --history` lands the 5 pm Eastern report for each past day. `gold.fct_official_listing` links each listing before a regular-season game to the game and the player, and counts the team's games until the player next played. NBA 2024-25, injury listings only:
-
-| Status | Listings | Missed the game | Games missed, mean | Median | Old charge |
-|---|---|---|---|---|---|
-| Out | 5,635 | 100% | 12.6 | 7 | every game left, if no return date |
-| Doubtful | 169 | 98% | 4.7 | 2 | 0.75 |
-| Questionable | 1,512 | 50% | 1.6 | 1 | 0.5 (day-to-day 0.25) |
-| Probable | 548 | 6% | 0.2 | 0 | 0 |
-
-The fixed charges were off in both directions. Doubtful and questionable listings were undercharged several times over. An out listing without a date erased the whole season, where the typical absence is about two weeks.
-
-The multiplier now charges a listed player the average, over past injury listings with the same status, of the games then missed, capped at the games the team has left. Rules:
-- **Status:** the official report's status for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable).
-- **Return date:** ESPN's expected return date, when given for a player ruled out, still counts the games before it.
-- **Out for the season:** an ESPN note that the player is out for the season counts every game.
-- **Which league's history:** a league uses its own listings once it has 300 for the status. Until then the NBA's apply; the WNBA archive only starts in 2026.
-- **No history:** without any listing history the old charges apply.
-
-The averages update with every build as the daily reports add listings. The game context notebook publishes the table per league.
-
-The calibration matches the reason as well as the status. An official Out for rest is averaged over past rest listings (NBA 2024-25: 1.2 games), not injury listings (12.6). The same holds for a G League assignment, personal reasons or a suspension. ESPN's listings are injuries.
-
-## Addendum (2026-10-30): the board's value spread
-
-Issue #193: the board backtest notebook regressed realised season value on the board's predicted season value. The slope was 0.55 in the NBA and 0.82 in the WNBA, which read as NBA values spread too wide. The replay (`notebooks/replay.py`) was taken apart and candidate fixes were replayed at the notebook's checkpoints. Out of sample means NBA 2023-24, a tenth, a quarter and half way in; the data holds no earlier NBA season. For the WNBA it means 2018 to 2020. In sample means the seasons the settings were chosen on. Intervals are 95% player-bootstrap intervals, 200 replicates, as in the notebook.
-
-**Most of the gap is in the measure.** The board leaves a value below replacement unscaled by games, since a missed game from a player not worth rostering costs nothing. The target counted a missed game as zero for everyone. A below-replacement player who played half the remaining games therefore had the realised value halved. About 450 NBA players are listed at a checkpoint for a 156-player pool (about 145 WNBA players for 100), so 64% of NBA listings are below replacement, against 27% in the WNBA. Those players went on to play 58% (NBA) and 60% (WNBA) of their team's remaining games. Slopes of realised on predicted, over all seasons:
-
-| Slope | NBA | WNBA |
-| --- | --- | --- |
-| Season value, every listed player (the notebook's figure) | 0.55 | 0.82 |
-| Season value, target scored as the board scores (below replacement not scaled by games) | 0.81 | 0.87 |
-| The same, without players who played under 30% of the rest of the season | 0.79 | 0.90 |
-| Season value, players the board values above replacement | 0.79 | 0.88 |
-| Value per game, players with enough games | 0.82 | 0.82 |
-| Value per game, realised lines scored on the projection's pool and scale | 0.93 | 1.17 |
-| Minutes per game | 0.88 | 1.00 |
-| Games share | 0.75 | 1.92 |
-
-Injured stars are not the cause: without the players who missed most of the season the NBA slope stays put. Per game, both leagues sit at 0.82. Most of that remainder is noise in the target. Realised lines over part of a season spread wider than projections, and scoring them over their own spread (the realised pool's means, spreads and replacement level) pulls every realised value in. Scored on the projection's pool and scale instead, the NBA lines are close to calibrated at 0.93 (0.965 out of sample). By category: points 1.00, rebounds 0.97, assists 1.02, threes 0.98, turnovers 0.95 and blocks 0.92. Steals (0.83) and the two percentages (0.86) run a little wide. The WNBA's lines are narrower than what follows (1.17). The WNBA's games-share slope is high because its predicted shares barely vary, being regressed by 60 games. NBA players on few projected minutes or short samples spread widest per game: 0.60 under 15 projected minutes against 0.83 over 28. Nearly all of them are below replacement.
-
-**Fixes replayed, out of sample.** Top-N hits, Spearman and capture are against season value, missed games as zero:
-
-| NBA 2023-24 | Slope above replacement | Slope per game | MAE per game | Top-50 hits | Spearman | Capture |
-| --- | --- | --- | --- | --- | --- | --- |
-| As built | 0.83 (0.72 to 0.91) | 0.83 (0.78 to 0.87) | 1.81 (1.72 to 1.89) | 0.680 (0.613 to 0.767) | 0.683 (0.637 to 0.735) | 0.855 (0.818 to 0.904) |
-| Prior of 10 games, minutes and production | 0.77 (0.67 to 0.84) | 0.77 (0.72 to 0.81) | 1.95 (1.86 to 2.04) | 0.660 (0.580 to 0.740) | 0.686 (0.642 to 0.740) | 0.835 (0.778 to 0.878) |
-| Per-minute prior, 300 minutes of the replacement line | 0.73 (0.65 to 0.80) | 0.68 (0.65 to 0.72) | 2.05 (1.96 to 2.16) | 0.667 (0.593 to 0.740) | 0.691 (0.646 to 0.747) | 0.841 (0.790 to 0.883) |
-| Per-minute prior, 600 minutes of the pool average | 0.62 (0.54 to 0.69) | 0.53 (0.50 to 0.57) | 2.80 (2.62 to 2.97) | 0.667 (0.600 to 0.740) | 0.690 (0.644 to 0.745) | 0.848 (0.812 to 0.899) |
-| Minutes prior of 10 games | 0.86 (0.76 to 0.96) | 0.86 (0.81 to 0.91) | 1.89 (1.81 to 1.98) | 0.660 (0.593 to 0.747) | 0.669 (0.624 to 0.721) | 0.840 (0.800 to 0.888) |
-| Durability 40 games | 0.85 (0.74 to 0.94) | 0.83 (0.78 to 0.87) | 1.81 (1.72 to 1.89) | 0.680 (0.600 to 0.767) | 0.683 (0.638 to 0.736) | 0.857 (0.813 to 0.907) |
-| Recency 1, 0.5, 0.25 | 0.83 (0.72 to 0.91) | 0.83 (0.78 to 0.87) | 1.81 (1.72 to 1.89) | 0.680 (0.613 to 0.767) | 0.683 (0.637 to 0.735) | 0.855 (0.818 to 0.904) |
-| Value per game x 0.82 | 1.01 (0.88 to 1.11) | 1.01 (0.95 to 1.07) | 1.76 (1.67 to 1.84) | 0.680 (0.613 to 0.767) | 0.683 (0.637 to 0.735) | 0.855 (0.818 to 0.904) |
-| Each category x its own slope | 0.98 (0.85 to 1.07) | 1.00 (0.94 to 1.05) | 1.75 (1.66 to 1.83) | 0.680 (0.620 to 0.773) | 0.685 (0.639 to 0.735) | 0.853 (0.814 to 0.901) |
-
-| WNBA 2018 to 2020 | Slope above replacement | Slope per game | MAE per game | Top-30 hits | Spearman | Capture |
-| --- | --- | --- | --- | --- | --- | --- |
-| As built | 0.83 (0.75 to 0.91) | 0.79 (0.73 to 0.86) | 2.18 (2.06 to 2.32) | 0.624 (0.554 to 0.703) | 0.679 (0.645 to 0.735) | 0.814 (0.773 to 0.865) |
-| Prior of 10 games, minutes and production | 0.81 (0.74 to 0.89) | 0.77 (0.71 to 0.84) | 2.20 (2.06 to 2.34) | 0.630 (0.567 to 0.703) | 0.682 (0.647 to 0.738) | 0.819 (0.783 to 0.867) |
-| Per-minute prior, 300 minutes of the replacement line | 0.73 (0.66 to 0.80) | 0.68 (0.62 to 0.74) | 2.34 (2.18 to 2.51) | 0.627 (0.567 to 0.703) | 0.689 (0.658 to 0.739) | 0.815 (0.779 to 0.865) |
-| Per-minute prior, 600 minutes of the pool average | 0.68 (0.61 to 0.76) | 0.61 (0.56 to 0.67) | 2.64 (2.44 to 2.82) | 0.603 (0.527 to 0.676) | 0.684 (0.649 to 0.732) | 0.798 (0.749 to 0.845) |
-| Minutes prior of 10 games | 0.85 (0.76 to 0.93) | 0.80 (0.74 to 0.87) | 2.21 (2.08 to 2.34) | 0.633 (0.570 to 0.718) | 0.674 (0.638 to 0.732) | 0.819 (0.782 to 0.869) |
-| Durability 120 games | 0.84 (0.76 to 0.93) | 0.79 (0.73 to 0.86) | 2.18 (2.06 to 2.32) | 0.633 (0.573 to 0.715) | 0.679 (0.645 to 0.736) | 0.819 (0.783 to 0.871) |
-| Value per game x 0.83 | 1.00 (0.90 to 1.09) | 0.95 (0.87 to 1.03) | 2.16 (2.01 to 2.28) | 0.624 (0.554 to 0.703) | 0.679 (0.645 to 0.735) | 0.814 (0.773 to 0.865) |
-| Each category x its own slope | 1.04 (0.94 to 1.13) | 0.98 (0.90 to 1.07) | 2.14 (1.99 to 2.26) | 0.627 (0.557 to 0.703) | 0.684 (0.653 to 0.743) | 0.816 (0.779 to 0.867) |
-
-In sample, slope above replacement / MAE per game / top-N hits / capture:
-
-| Change | NBA 2024-25 and 2025-26 | WNBA 2021 to 2026 |
-| --- | --- | --- |
-| As built | 0.78 / 1.66 / 0.620 / 0.802 | 0.90 / 2.00 / 0.710 / 0.867 |
-| Prior of 10 games | 0.77 / 1.74 / 0.628 / 0.810 | 0.88 / 2.02 / 0.711 / 0.872 |
-| Per-minute prior, 300 minutes of the replacement line | 0.73 / 1.77 / 0.625 / 0.810 | 0.82 / 2.12 / 0.711 / 0.871 |
-| Per-minute prior, 600 minutes of the pool average | 0.68 / 2.06 / 0.635 / 0.817 | 0.80 / 2.38 / 0.706 / 0.864 |
-| Minutes prior of 10 games | 0.81 / 1.69 / 0.620 / 0.801 | 0.91 / 2.01 / 0.708 / 0.868 |
-| Durability 40 NBA, 120 WNBA | 0.79 / 1.66 / 0.630 / 0.811 | 0.92 / 2.00 / 0.710 / 0.867 |
-| Recency 1, 0.5, 0.25 (NBA) | 0.78 / 1.65 / 0.637 / 0.816 | |
-| Value per game x 0.82 NBA, x 0.83 WNBA | 0.95 / 1.60 / 0.620 / 0.802 | 1.08 / 1.93 / 0.710 / 0.867 |
-| Each category x its own slope | 0.93 / 1.60 / 0.625 / 0.804 | 1.11 / 1.93 / 0.715 / 0.872 |
-
-**Nothing changes in the model.**
-
-- Shrinking per-minute production, toward the replacement line or the pool average, or a larger prior, widens the spread instead of narrowing it. The board standardises over the projected pool, so pulling every line in also pulls in the pool's spread. Pulling short samples in harder than long ones then leaves the established players further apart in z. Every such prior lowered the slope and raised the error in both leagues, with hit rates flat or lower.
-- A minutes prior raised the slope a little but cost rank correlation (NBA out of sample −0.013, 95% interval −0.022 to −0.005).
-- Durability and NBA recency moved nothing outside the noise out of sample. NBA recency cannot act on 2023-24, which has no earlier season, and it helped only in sample, on the seasons it would be chosen on.
-- A common factor, ×0.82 NBA and ×0.83 WNBA (fitted in sample), brings both slopes to 1 and lowers the error per game (NBA out of sample −0.055, −0.106 to −0.008). It changes no rank, tier or hit: tiers are natural breaks, which a common factor does not move. That makes it a change of unit, not of the board. The factor is the same in both leagues, so it does not describe an NBA problem. It is the pull any projection shows against a noisy part-season scored over its own spread. And the board publishes its projected z columns beside the season, last-20 and last-10 z columns, all z-scores over a pool, which a factor on one set would put in different units.
-- Weighting each category by its own slope (steals 0.68 to points 0.90 in the NBA) moved ranks only within the noise.
-
-Values stay z-scores of the projected lines over the projected pool. The notebook now reports the slope like for like: over the players the board values above replacement, and per game over players with enough games. On the current data that is 0.79 and 0.82 for the NBA, and 0.88 and 0.82 for the WNBA.
 
 ## Addendum (2026-10-30): altitude is the visitor's, and time zones follow daylight saving
 
@@ -288,204 +118,6 @@ Values stay z-scores of the projected lines over the projected pool. The noteboo
 Neither effect is distinguishable from zero, so altitude stays out of the matchup value and is shown, for the visitor only, as context. No WNBA venue is at altitude.
 
 `time_zones_crossed` used each city's standard UTC offset all year. Arizona, Mexico City, Honolulu and a few overseas venues keep standard time, so in summer Phoenix shares Los Angeles's clock, and the WNBA season is in summer. The venues seed now records `observes_dst`, and offsets follow US daylight saving on the game's date (second Sunday of March to first Sunday of November). European venues change on other Sundays, a week or two apart.
-
-
-## Addendum (2026-10-30): referee crews, and whether their tendencies carry over
-
-Two sources name the officials. ESPN's game summaries, already landed for every played game, list each crew (three names in an order, every one called "Referee"); `bronze.espn_summary_officials` reads them, so the history needs no new requests. The leagues post the day's assignments at about 9 am Eastern on official.nba.com, one page with an NBA and a WNBA table: each game's crew chief, referee, umpire and sometimes an alternate, with uniform numbers. The reports run lands that page parsed into one JSON row per game, once per Eastern day and league, keyed by the date the page is for (`ingest/referee_assignments.py`; robots.txt allows the path). An off day's empty table, or a page with no table, records nothing. The 7 pm Eastern reports run, and the build after it, put that night's crews on the site.
-
-`silver.game_officials` gives one row per game and official. A played game takes ESPN's crew through `game_xwalk`, with the role from the page where it named the same official. A game ESPN has no crew for yet takes the page's crew, linked by date and the two team names the page uses ("L.A. Lakers", "LA Clippers", "Golden State") through the teams seed and the schedule's tricodes. Officials match across the sources by name reduced to lowercase letters, so "J.B. DeRosa" and "JB DeRosa" agree. `gold.fct_referee_tendency` compares each official's regular-season games in a league-season with the league-season's average game: total fouls, free-throw attempts, points and pace. In `mart_schedule_upcoming`, a crew's tendency averages its three officials over this season and last, each shrunk toward zero as if they had also worked 20 average games. Streamers' week grid (in the tooltip) and the player page's next games show the crew chief and that tendency. dbt unit tests pin the linking, the tendency arithmetic and the crew average.
-
-Does a crew's record say anything about the next game? Notebook 03 tests this point in time. Each official's tendency comes only from the games they worked before, and the effects framework above is fitted on the earlier seasons and checked on the latest finished one, with player-bootstrap intervals. The run used 4,803 regular-season games (NBA 2023-24 to 2025-26, WNBA 2023 to 2026) rebuilt from ESPN's summaries into the three tables the section reads. Box scores and pace there are ESPN's, not the league's. The notebook runs the same code on the lakehouse's gold tables on every export. Crews with 30 or more prior games between them:
-
-| Latest season, per unit of crew tendency | NBA 2025-26 | WNBA 2026 |
-| --- | --- | --- |
-| Crew tendency, SD (free-throw attempts a game) | 0.67 | 0.54 |
-| The game's free-throw attempts: slope, correlation | +0.72, 0.04 | +0.87, 0.04 |
-| The game's fouls: slope, correlation | +1.06, 0.07 | +1.29, 0.07 |
-| Player free-throw attempts / 30 min, per attempt of tendency | +0.02 (-0.02 to +0.09) | +0.05 (-0.10 to +0.19) |
-| Player fouls / 30 min, per attempt of tendency | +0.01 (-0.03 to +0.05) | -0.04 (-0.13 to +0.08) |
-| Fantasy pts / 30 min, per attempt of tendency | -0.09 (-0.37 to +0.18) | +0.44 (-0.19 to +1.35) |
-| Fantasy pts / 30 min, per possession of pace tendency | +0.20 (-0.33 to +0.80) | -0.13 (-1.98 to +1.31) |
-| Share of fantasy pts / 30 min explained out of sample | +0.002% | +0.002% |
-
-Crews differ, and some of the difference carries over: a crew whose games have run one free-throw attempt above average sees about 0.7 to 0.9 more in its next game. But crews differ little against a game-to-game spread of about 11 attempts. Their tendency explains under half a percent of a game's free throws, and nothing measurable of a player's free throws, fouls or fantasy production. The one interval clear of zero for NBA player free throws, in 2024-25 (+0.11, +0.06 to +0.18), did not hold in 2025-26. The WNBA's fouls-on-pace estimate (+0.27, +0.04 to +0.55) did not replicate in earlier seasons (+0.09). **The crew stays out of the value.** It is shown as context, like rest and altitude, and the notebook re-tests it as seasons accumulate.
-
-## Addendum (2026-10-30): expected games, the board's line and opportunity do not beat the Streamers sort
-
-The streamer signals notebook tested three more signals against the Streamers default, last-ten production times the team's games in the week. The setup matches the Streamers sort addendum: every Monday of each regular season, the candidates outside the rostered pool, scored on what they add to the next seven days' category totals. The fits used earlier seasons (NBA 2023-24 and 2024-25, WNBA 2018 to 2025) and the tests the latest (NBA 2025-26, WNBA 2026). The signals were:
-
-1. **Expected games.** Each of the team's games in the week is weighted by the chance the player plays it. The player's status is the official injury report listing on or before the Monday, unless the player has played since. The chance of missing each game comes from the spells of earlier listings with the same status and reason, point in time: a Kaplan-Meier curve over the listings before the Monday, given the games already missed. Spells still running on the Monday are censored. The WNBA uses the NBA's listings until it has 300 for the status. The second night of a back-to-back adds the extra chance of sitting out measured on the games before the Monday (over every season in the build, 2.7 points for an NBA rotation player and 1.4 for a WNBA one). Production times expected games replaces production times games.
-2. **The board's projected line.** `replay.project` as of the Monday, scored on the same contribution scale, times games and times expected games.
-3. **Opportunity trend.** Minutes times usage percentage over the last five games against the minutes trend's baseline, alone and in a fitted blend of every signal.
-
-Out of sample, over all candidates, then over those whose Monday listing was not Out. Streamers hides players listed Out by default (the Health filter), so the second view is the page as a manager sees it. Top-10 hits are the week's ten best pickups found in the sort's top ten; the rank correlation is the weekly mean, with its t-statistic.
-
-| NBA 2025-26 (23 Mondays) | Top-10 hits, all | Rank corr, all | Top-10 hits, listed Out left out | Rank corr, listed Out left out |
-|---|---|---|---|---|
-| Last-ten production x games (default) | 1.39 | 0.471 (t 32.5) | **1.74** | 0.539 (t 39.1) |
-| Last-ten production x expected games | **1.70** (+0.30, t 2.3) | 0.578 (t 49.4) | **1.74** (+0.00) | 0.543 (t 38.1) |
-| Board's line x games | 1.43 | 0.491 (t 36.8) | 1.65 | 0.546 (t 44.6) |
-| Board's line x expected games | 1.52 | 0.574 (t 49.3) | 1.57 | 0.550 (t 41.9) |
-| Opportunity trend | 1.17 | 0.197 (t 16.0) | 1.26 | 0.216 (t 16.0) |
-| Fitted blend of every signal | 1.78 (+0.39, t 2.2) | 0.607 (t 53.0) | 1.83 (+0.09, t 0.4) | 0.589 (t 45.3) |
-
-| WNBA 2026 (18 Mondays) | Top-10 hits, all | Rank corr, all | Top-10 hits, listed Out left out | Rank corr, listed Out left out |
-|---|---|---|---|---|
-| Last-ten production x games (default) | 3.28 | 0.297 (t 9.3) | 3.50 | 0.309 (t 9.8) |
-| Last-ten production x expected games | 3.39 (+0.11, t 0.6) | 0.321 (t 9.9) | 3.44 (-0.06) | 0.307 (t 9.5) |
-| Board's line x games | **3.89** (+0.61, t 1.9) | 0.322 (t 11.0) | 3.83 (+0.33, t 1.0) | 0.334 (t 12.1) |
-| Board's line x expected games | 3.83 | 0.343 (t 11.3) | **3.89** (+0.39, t 1.1) | 0.331 (t 11.3) |
-| Opportunity trend | 1.78 | 0.083 (t 2.3) | 1.83 | 0.078 (t 2.2) |
-| Fitted blend of every signal | 1.89 | 0.257 (t 9.8) | 2.44 | 0.292 (t 11.9) |
-
-The top decile of NBA expected-games production adds 13.6 to the week above the average candidate, against 10.3 for the default. In the WNBA the figures are 4.0 against 3.9.
-
-**Expected games carries only what the Health filter already does.** About 17% of NBA candidate-weeks belong to a player listed Out on the Monday. Their last ten games still rank them high, and they then add about 4 to the week against 14 for an unlisted candidate. Weighting by expected games pushes them down, which is all of its gain. With them left out, it finds the same 1.74 pickups as the default, and Doubtful, Questionable and back-to-back weights change nothing measurable. The page's default filter has the same effect at no cost, so the filter is worth keeping as the default.
-
-**The board's line helps the WNBA and not the NBA.** It found 0.3 to 0.6 more pickups a week in the WNBA (t about 1 to 2) but fewer in the NBA, where the last ten games follow a role change faster than the season-weighted line does. **Opportunity** trends the right way (rank correlation 0.2 NBA, 0.08 WNBA), but less than minutes alone, and the blend gives it almost no weight. **The fitted blend** gains in the NBA because the 2023-24 and 2024-25 seasons it was fitted on carry the listings. It falls far behind in the WNBA, whose fitted seasons have no listings, and its weights on the near-copies of production cancel each other out.
-
-No signal clearly beats the default for the NBA without costing the WNBA, so **the Streamers sort and `mart_streamers` stay as they are.** The notebook keeps the three signals and reports both views each build. As the WNBA's own listings and the NBA's 2026-27 season accumulate, a gain that holds with players listed Out left out would reopen the question. The board's line for the WNBA alone is the candidate to watch.
-
-## Addendum (2026-10-30): the betting-line backtest
-
-The betting lines addendum promised a backtest before the line moves any score. Notebook 03 now runs it, in three parts.
-
-- **Coverage.** The share of each league-season's played games with a closing line in `fct_game_line`.
-- **Does the line add to defence and pace?** The team's implied points (standardised over the league-season's team-games with a line) and the absolute spread per 5 points (blowout risk) join the opponent's defence and pace in the effects framework. The outcomes are fantasy points per 30 minutes and minutes, each against the player's own figure so far, with the minutes tier as a control, for all regulars and split by whether they started. Reported: effects with player-bootstrap intervals, and the share of the outcome the line explains out of sample beyond defence, pace and the tier.
-- **Which matchup predicts better?** The current matchup (`fantasy_matchup`, computed as `mart_schedule_upcoming` does) against a line matchup (implied team points less the league-season average). Each gets one slope on the fit part, and both are scored out of sample on the same test games, for fantasy points in the game and per 30 minutes.
-
-ESPN's summaries keep the line only for recent games. Probed on 2026-10-30, every NBA summary from 2025-11-25 on carried DraftKings' closing line, and none before it did. Every WNBA 2026 summary carried one, and no WNBA 2025 summary did. So each league has one finished season with lines, unless the build landed older summaries while they still had them. With one season, the notebook fits on its first half by date and tests on the second. Earlier seasons fit once they have lines too. With fewer than 500 player-games with a line on either side, the league is reported as accumulating.
-
-The run here used a sample, not the published build. Box scores for every regular-season game of NBA 2023-24 to 2025-26 and WNBA 2023 to 2026 came from ESPN's summaries, the set the referee addendum used, so box scores and pace are ESPN's. Closing lines came for a random 260 NBA 2025-26 games (198 with a line) and 200 WNBA 2026 games (199). The NBA test is 2025-26 games from 2026-01-27 on (about 1,860 player-games); the WNBA test is 2026 games from 2026-07-17 on (about 1,480).
-
-| Test part, 95% intervals from resampling players | NBA 2025-26 | WNBA 2026 |
-| --- | --- | --- |
-| Implied team points, per SD: fantasy pts / 30 min | +0.62 (-0.03 to +1.46) | -0.30 (-1.06 to +0.79) |
-| Absolute spread, per 5 points: starters' minutes | -0.54 (-0.98 to -0.21); fit part -0.77 | -0.45 (-0.69 to -0.14); fit part -0.09 |
-| Absolute spread, per 5 points: bench minutes | +0.69 (+0.17 to +1.30); fit part +0.56 | +0.27 (-0.52 to +0.94) |
-| Share explained beyond defence, pace and tier: fantasy pts / 30 min | +0.35% (-0.06 to +0.78) | +0.11% (-0.34 to +0.63) |
-| Share explained beyond defence, pace and tier: minutes | +1.56% (+0.64 to +2.25) | +0.19% (-0.41 to +0.72) |
-| Fantasy pts in the game, explained beyond tier: defence + pace matchup | +1.26% (+0.53 to +1.78) | +2.22% (+1.24 to +3.07) |
-| Fantasy pts in the game, explained beyond tier: line matchup | +0.01% (-0.61 to +0.57) | +0.35% (+0.01 to +0.61) |
-| Line matchup minus defence + pace (percentage points) | -1.25 (-1.88 to -0.64) | -1.87 (-2.58 to -1.13) |
-
-The line does carry the blowout. A wider spread takes about half a minute per 5 points from a starter. That holds in both halves of the NBA season and in the WNBA's second half, though not its first (-0.09). NBA bench players gain about as much. Implied points add little to production per minute once defence and pace are in, and the gain in explained variance is under half a percent with an interval that reaches zero. As a matchup on its own, implied team points are clearly worse than defence and pace, in both leagues and per game or per 30 minutes. A likely reason: implied points mostly restate a team's own offence, which the player's own rate already carries. Adding the line to the current matchup adds about nothing (NBA +1.12% together against +1.26% alone; WNBA +2.38% against +2.22%).
-
-**The matchup value is unchanged.** On this sample the line does not beat defence and pace, and its one clear effect, minutes in a lopsided game, is about half a minute per 5 points. That is too small to move a value per game, and it splits starters from bench, which the matchup value does not do. Streamers keeps showing the line as context. On the published build, the notebook's findings will show whether the minutes effect holds over full seasons and whether the line still trails the current matchup. If both hold, the decision stands and the 'to confirm' mark comes off. If the line's minutes effect proves larger, a role-aware minutes adjustment is the place for it, not the matchup.
-
-**Published build (run 41164519437).**
-- **Coverage:** ESPN keeps closing lines only on recent summaries, so lines cover NBA 2025-26 from late November (80% of games) and 2026-27, and WNBA 2026 (99%).
-- **The line as a matchup:** it explains less than defence and pace. Out of sample it is 1.41 fantasy points a game worse in the NBA (-1.68 to -1.21) and 1.17 worse in the WNBA (-1.61 to -0.59).
-- **The line added to defence and pace:** it explains 0.33% more of fantasy points per 30 minutes in the NBA and 0.20% in the WNBA.
-- **Minutes:** it explains 3.0% more of NBA minutes and 0.3% of WNBA minutes. The source is blowout risk: each 5 points of spread costs NBA starters 0.73 minutes (-0.93 to -0.51) and WNBA starters 0.37.
-
-The matchup stays defence and pace. The spread's cost to starters is real but small: a 10-point favourite's starter loses about a minute and a half. It is a candidate for a minutes adjustment on game days, not a change to weekly value.
-
-## Addendum (2026-10-30): a teammate's known absence is real, but the last ten games already price who gains
-
-The in-season minutes addendum found that the minutes of teammates who sat out the latest game add nothing beyond the last five games. Notebook 07 (`07_teammate_absence`) asks a wider question. It uses absences known in advance and targets production and usage over the following week, not only minutes.
-
-**Known in advance.** Where the official injury report covers the game (`fct_official_listing`: NBA 2023-24 on, WNBA 2026), a teammate listed Out who then did not play. Elsewhere, an approximation: a teammate who missed the team's previous game and this one. About three in four absences are part of such a spell. The run below used the approximation throughout, because the local copy of history carries no listings. The published build has them for the NBA, and `notebooks.yml` runs the branch's notebook on it.
-
-**The measure.** A teammate's share is minutes per game so far over the team's minutes, or usage share: usage rate times minutes per game over the game's length. Last season stands in before a teammate's fifth game. Usage shares add to 1 over a team's game. The absence is the known-out share the player's own baseline does not already hold. Each known-out teammate's share counts in proportion to how many of the player's baseline games that teammate played. It is split into teammates at the player's position (G, F or C) and the rest.
-
-**(a) Game by game.** Every regular-season game a player played, with five or more games and 10+ minutes a game so far. Each outcome is measured against the player's season to date. The model is fitted on the earlier seasons and estimated again on the latest finished season, NBA 2025-26 and WNBA 2026, with 95% player-bootstrap intervals. Effects are per 10 points of share newly out. A top teammate is about 20 points of usage share.
-
-| Per 10 points newly out, latest season | NBA, same position | NBA, other | WNBA, same position | WNBA, other |
-| --- | --- | --- | --- | --- |
-| Minutes | +1.98 (+1.64 to +2.25) | +1.38 (+1.13 to +1.60) | +1.33 (+0.81 to +1.98) | +1.14 (+0.72 to +1.44) |
-| Usage, percentage points | +0.71 (+0.53 to +0.85) | +0.74 (+0.62 to +0.87) | +0.49 (+0.11 to +0.88) | +0.59 (+0.34 to +0.82) |
-| Fantasy points per 36 minutes | +0.61 (+0.18 to +1.05) | +0.68 (+0.45 to +0.95) | -0.05 (-0.96 to +1.13) | -0.68 (-1.47 to -0.14) |
-| Fantasy points per game | +2.08 (+1.69 to +2.46) | +1.63 (+1.27 to +1.95) | +1.18 (+0.56 to +1.92) | +0.49 (-0.05 to +1.07) |
-| Production per game (Streamers unit) | +0.64 (+0.46 to +0.84) | +0.50 (+0.34 to +0.65) | +0.35 (+0.04 to +0.78) | -0.03 (-0.34 to +0.30) |
-
-The earlier seasons' estimates agree in size. Bench players gain about twice the minutes starters do: in the NBA, +2.36 and +1.83 minutes against +1.13 and +0.79. The gain is mostly minutes and a little usage. Production per minute barely moves, and in the WNBA not at all. Out of sample, the absence explains 4.3% of the game-to-game swing in NBA minutes, 1.8% of fantasy points per game and 0.6% of production; in the WNBA, 1.7%, 0.3% and nothing.
-
-**(b) Monday replays.** On every regular-season Monday, each team's top teammate is the one with the largest usage share so far. The study takes the teams whose top teammate was known out for the whole week. That was 256 of 2,070 NBA team-weeks and 71 of 1,360 WNBA team-weeks. The affected players are the team's other players with five or more games who played that week: 2,941 NBA and 681 WNBA player-weeks, of which 1,166 and 187 fall in the test seasons. Four predictors of their production per game that week:
-- the last ten games;
-- the last ten plus a flat uplift, the earlier seasons' average change;
-- the last ten plus the redistribution: the slopes from (a), fitted on the earlier seasons, times the share newly out against the last ten games;
-- the last ten plus the player's own split this season without the teammate against with them, shrunk by five games.
-
-| Fantasy points per game, test season | NBA 2025-26: mean abs. error | Gain on the last ten | Bias | WNBA 2026: mean abs. error | Gain on the last ten | Bias |
-| --- | --- | --- | --- | --- | --- | --- |
-| Last ten | 7.74 | | -2.19 | 6.95 | | -0.48 |
-| Plus a flat uplift | 7.65 | +0.09 (+0.02 to +0.18) | -0.59 | 7.09 | -0.14 (-0.33 to +0.04) | +0.99 |
-| Plus the redistribution | 7.71 | +0.03 (-0.14 to +0.17) | +0.10 | 7.02 | -0.07 (-0.34 to +0.21) | +1.41 |
-| Plus the player's own split | 7.73 | +0.02 (-0.07 to +0.13) | -1.49 | 7.17 | -0.22 (-0.45 to +0.01) | +0.01 |
-
-In the Streamers unit, production per game, the redistribution changed the error by -0.015 (-0.058 to +0.029) in the NBA and -0.10 (-0.22 to +0.01) in the WNBA. For minutes alone, the player's own split was a small gain in both leagues: +0.11 (+0.03 to +0.17) and +0.13 (+0.01 to +0.30) minutes, against errors of 4.6 and 4.3.
-
-**The uplift is real, and the last ten games cannot see it.** Over every player-week, the last ten games are close to unbiased (NBA -0.13 fantasy points a game, WNBA -0.04). For players whose top teammate is out all week they fall short by 2.2 in the NBA, 1.6 in the earlier NBA seasons, and 0.5 to 1.5 in the WNBA. The redistribution sizes the NBA uplift almost exactly (+2.3 against +2.2) but not who receives it. Its move correlates 0.07 with the change that followed in fantasy points and 0.01 in production; in the WNBA it is 0.24 and 0.15, and it overshoots. A week of three or four games swings by about 10 fantasy points a game, so an average 2-point shift spread unevenly over eight players does not lower the absolute error. The flat uplift's gain in the NBA, about 1%, does not hold in the WNBA.
-
-**Nothing is built.** There is no `fct_usage_redistribution` model and no Streamers column. On the measure that ranks streamers and feeds window value, neither the redistribution nor the player's own split beats the last ten games. That is true in either league, out of sample. The one consistent gain, under a minute a game, is too small to be worth a model. Per-minute production barely moves when a teammate is out, so lineup on/off splits from `fct_event`, which measure per-minute effects, are not worth building on this evidence. The notebook re-runs on every build. On the published build, the games the official report covers (NBA 2023-24 on, WNBA 2026) use the listings in place of the approximation.
-
-## Addendum (2026-10-30): minutes after a return from absence
-
-The in-season blend follows a player's last five games. For a player who is still out, or has just come back, those five are the games before the absence, so the projection expects their old minutes at once. The replay of the in-season minutes addendum was run again with each player's absences. An absence is a run of three or more consecutive games of the player's current team that the player did not play (a did-not-play row in `fct_player_game`, or no row). The team's games count from the player's first game for it this season, or from its first game when it was the player's main team last season, so an injury carried over from last season counts. The protocol is the addendum's: a checkpoint every 14 days, every player with five or more games so far, and as target the mean minutes of the next 5 and the next 10 games played (at least 5). The rule was chosen on NBA 2023-24 and 2024-25 and WNBA 2018 to 2024, and tested on NBA 2025-26 and WNBA 2025 and 2026. Bias is actual minus projected minutes, as built:
-
-| Status at the checkpoint, next 5 / next 10 games | NBA, chosen on | NBA 2025-26 | WNBA, chosen on | WNBA 2025 and 2026 |
-| --- | --- | --- | --- | --- |
-| Still out after 3+ games missed | −1.71 / −0.87 | −2.22 / −1.61 | −1.86 / −1.32 | −1.85 / −1.07 |
-| One game back | −0.57 / +0.20 | −0.36 / +0.30 | +0.58 / +0.54 | −0.95 / −0.21 |
-| Two to five games back | +0.01 / +0.44 | +0.04 / +0.54 | +0.43 / +0.57 | +0.41 / +0.82 |
-| No absence, or six or more games back | −0.05 / +0.07 | −0.10 / −0.06 | +0.90 / +0.96 | +0.33 / +0.39 |
-
-The shortfall is in the first games back, and it grows with the absence. Up to five games back in NBA 2025-26, the next five games fell short by 0.53 minutes after 3 to 5 games missed, 1.41 after 6 to 10 and 2.00 after 11 to 20. Two games back the last five already hold the shorter games, and the bias is gone.
-
-**The rule.** One rule for both leagues was searched on the seasons it was chosen on, by the mean of the next-5 and next-10 errors. The grid covered:
-- the shortest absence: 1, 2, 3, 5 or 8 games;
-- how many games back the cut lasts: 1, 2, 3 or 5;
-- the cut per game missed: 0.5% to 2%;
-- the most it can cut: 15%, 25%, 50% or no limit.
-
-The best was 1% per game missed, fading over two games back. A cap of 50% and no cap tied, since only an absence of more than 50 games reaches it. Shortest absences of one to three games scored within 0.002 minutes of each other. Three games leaves a rest day or two alone, so the rule takes three.
-
-So in season, for a player with five or more games this season, projected minutes are cut by 1% for each game of the latest absence of three or more games (at most 50%) while the player is still out. After the first game back half the cut applies, and from the second none (var `fantasy_return_ramp`). Per-minute production is unchanged, so the whole projected line scales with the minutes. Error for the players cut, with 95% player-bootstrap intervals on the change:
-
-| Players cut | Checkpoints | Players | Next 5 games | Next 10 games | Everyone, next 5 / next 10 |
-| --- | --- | --- | --- | --- | --- |
-| NBA 2025-26 (out of sample) | 11 | 703 | 4.57 to 4.13 (−0.45, −0.61 to −0.24) | 4.24 to 3.94 (−0.30, −0.50 to −0.06) | 3.55 to 3.48 / 3.34 to 3.29 |
-| NBA 2023-24 and 2024-25 (chosen on) | 22 | 1,527 | 4.38 to 4.03 (−0.35, −0.50 to −0.17) | 4.25 to 4.05 (−0.21, −0.36 to −0.02) | 3.56 to 3.50 / 3.37 to 3.34 |
-| WNBA 2025 and 2026 (out of sample) | 16 | 178 | 4.16 to 3.94 (−0.22, −0.53 to +0.06) | 4.06 to 4.04 (−0.02, −0.30 to +0.30) | 3.43 to 3.41 / 3.26 to 3.25 |
-| WNBA 2018 to 2024 (chosen on) | 42 | 247 | 4.48 to 4.36 (−0.12, −0.38 to +0.14) | 4.27 to 4.20 (−0.07, −0.33 to +0.17) | 3.68 to 3.68 / 3.55 to 3.55 |
-
-Nobody else's projection moves. Out of sample the cut takes the bias of the players still out from −2.22 to −0.57 (next 5) and from −1.61 to +0.04 (next 10) in the NBA, and from −1.85 to −0.75 and −1.07 to +0.03 in the WNBA. The half cut one game back helps the next five games but overshoots the next ten a little (NBA +0.30 to +0.86). So does the cut after the longest absences: the 61 NBA 2025-26 players back within five games of 21 or more missed went from −1.88 to +1.44 over the next five, against −3.27 to +0.42 on the seasons the rule was chosen on. The WNBA has far fewer long absences, 178 players cut over two seasons, so its intervals include zero; the direction agrees and nothing gets worse, so it takes the same rule rather than one fitted to its own noise.
-
-The rest-of-season board barely moves. At the in-season checkpoints, with and without the cut, top-N hits, rank correlation, error per game and capture changed by at most 0.006, in and out of sample. About 56 NBA and 6 WNBA players are cut at a checkpoint. The cut is a short-horizon correction for the next few games, which is what Streamers and a weekly lineup read.
-
-`mart_player_projection` publishes `absence_games`, `games_since_return` and `return_minutes_factor`. The replay applies the same rule, a dbt unit test pins it on a ten-game team (the cap, the fade, an absence too short to count, one carried over from last season, a player who joined mid-season and one with under five games), and `assert_projected_minutes_blend` now takes the cut out before checking the blend. The board backtest notebook re-tests the rule on every build.
-
-## Addendum (2026-10-30): no aging curve before the season
-
-Before a season the projection rests on the last three seasons and says nothing of age. A player's minutes and per-minute production change from one season to the next with age. The question was whether a curve of that change makes the preseason board better.
-
-The curve is the year-over-year change in minutes per game and in per-minute production, by age at the next season's first game. Production is an equal mix of points, rebounds, assists, steals, blocks and threes, each against the league's rate. The pairs are players with 200 minutes (NBA) or 100 (WNBA) in both seasons, weighted by the harmonic mean of the two seasons' minutes. The fit is a quadratic in age, clipped to 20 to 36. Age comes from the roster birth date in `dim_player` ('MAR 03, 1996', parsed as `stats_birth_date` does), and every player with minutes has one but for about 1% of minutes. Weighted changes over every pair:
-
-| Age at the next season | NBA pairs | NBA minutes / production | WNBA pairs | WNBA minutes / production |
-| --- | --- | --- | --- | --- |
-| Under 23 | 119 | +7.2% / +5.5% | 32 | +2.1% / +1.9% |
-| 23 to 26 | 216 | +2.6% / +2.6% | 238 | +8.5% / +3.6% |
-| 26 to 29 | 175 | −0.1% / +0.4% | 230 | +0.4% / +0.3% |
-| 29 to 32 | 115 | −4.8% / −0.0% | 173 | −1.3% / +0.3% |
-| 32 and over | 101 | −8.1% / −0.7% | 151 | −5.3% / −0.8% |
-
-Age moves minutes far more than per-minute production. The preseason projection's minutes and production were multiplied by the fitted curve, scored again and compared with the rest of the season at the board backtest's preseason checkpoint. *Forward* fits the curve on the transitions before the season tested. The NBA history holds two transitions, so it has one forward season: 2025-26, from a curve fitted on 2023-24 to 2024-25. *Cross-fitted* also uses later transitions, which adds NBA 2024-25 but is not a forward test. Both curves together, with 95% player-bootstrap intervals on the change:
-
-| Preseason | Top-N hits, season value | Top-N hits, per game | Rank correlation, season value | Error per game | Capture | Slope above replacement |
-| --- | --- | --- | --- | --- | --- | --- |
-| NBA 2025-26, forward | 0.560 to 0.640 (+0.080, +0.019 to +0.180) | 0.640 to 0.740 (+0.100, +0.040 to +0.200) | 0.598 to 0.608 (+0.011, −0.007 to +0.025) | 2.095 to 2.016 (−0.079, −0.140 to −0.031) | 0.791 to 0.833 (+0.042, −0.021 to +0.099) | 0.87 to 0.96 |
-| NBA 2024-25 and 2025-26, cross-fitted | 0.610 to 0.640 (+0.030, −0.010 to +0.080) | 0.680 to 0.730 (+0.050, +0.010 to +0.120) | 0.658 to 0.668 (+0.010, −0.001 to +0.019) | 1.930 to 1.869 (−0.062, −0.093 to −0.018) | 0.808 to 0.825 (+0.016, −0.042 to +0.052) | 0.81 to 0.86 |
-| WNBA 2025 and 2026, forward | 0.633 to 0.633 (+0.000, −0.034 to +0.067) | 0.650 to 0.650 (+0.000, −0.050 to +0.050) | 0.637 to 0.634 (−0.003, −0.017 to +0.011) | 2.460 to 2.422 (−0.038, −0.084 to +0.002) | 0.805 to 0.798 (−0.007, −0.030 to +0.030) | 0.80 to 0.80 |
-| WNBA 2020 to 2026, forward | 0.652 to 0.648 (−0.005, −0.033 to +0.024) | 0.690 to 0.676 (−0.014, −0.052 to +0.010) | 0.638 to 0.632 (−0.006, −0.013 to +0.001) | 2.395 to 2.389 (−0.007, −0.038 to +0.030) | 0.814 to 0.804 (−0.010, −0.030 to +0.009) | 0.77 to 0.79 |
-
-The minutes curve alone and the production curve alone show the same pattern. The slope of realised on predicted value above replacement moved toward 1 in the NBA and barely moved in the WNBA. **The board does not age players.**
-- The WNBA has the power: eight transitions of about 100 pairs and seven forward seasons. There the curve raised no hit rate or rank correlation, and the only intervals clear of zero were small losses (the production curve, per-game top 30, −0.010).
-- The NBA gain rests on one forward season. Four more of the top 50 is four players at one checkpoint. Cross-fitted 2024-25 lost one, and a player bootstrap of a single season resamples players, not seasons.
-- Rank correlation rose by about 0.01 and the error per game fell in both NBA seasons. A change of scale also lowers that error (the value spread addendum), so it is not evidence of a better ranking on its own.
-
-The board backtest notebook keeps the test. It is worth another look once NBA 2026-27 is complete, which gives a second forward NBA season. The curve would be adopted only if its top-N and rank-correlation gains then hold in both forward seasons.
 
 ## Addendum (2026-11-01): the evening run lands the 5 pm report too
 
@@ -529,17 +161,6 @@ Consequences:
 ## Addendum (2026-11-01): the ledger's holes are reported
 
 `fct_board_history` is merged by every build and never rebuilt, so a nightly build that fails leaves a day with no rows, and the only other copies of that day are the seven kept builds, which roll off in a week. Nothing reported the hole. `warn_board_history_gaps` now lists every Eastern date of the last 45 days, from the league's first snapshot on and while the league was playing, that has no snapshot; the runbook's "Fill a hole in the board ledger" puts a day back from a kept build's Parquet by naming the columns and inserting only that day. The check warns rather than fails, since the build that notices the hole is not the one that caused it.
-
-## Addendum (2026-11-01): the availability calibration is its own table
-
-The board computed the games a listed player is expected to miss by joining every board player who has a status against every past `fct_official_listing` row with the same status and reason, with the 300-listing league switch written into the join condition, where no test could reach it; the game context notebook recomputed the same averages from the listings on its own.
-
-Decisions:
-
-- `gold.fct_status_calibration` is the histogram: one row per league served, status, reason group and number of games missed, with the past listings that missed exactly that many, `source_league` saying whose listings they are and `own_listings` the count the switch is made on. The threshold is a project variable, `calibration_min_listings` (300), rather than a literal in the board.
-- The board joins a listed player to the rows for their league, status and reason, caps each `games_missed` at the games the team has left and takes the listings-weighted mean. Every board value is unchanged (the weighted mean of a histogram is the mean of the listings; the CI sample is byte-identical), and the join is players × histogram rows rather than players × listings.
-- The notebook reads the histogram and shows what the board uses: for the WNBA, the NBA's rows and the fact that they are borrowed, rather than the WNBA's own handful, which the board does not read yet.
-- Unit tests: `status_calibration_falls_back_to_the_nba_until_a_league_has_enough` pins the switch (a league under 300 reads the NBA's rows with its own count beside them; a league at 300 reads its own; the NBA, its own fallback, gets no row for a reason it has never listed), and the board's availability test gains a listing whose games missed exceed the games left, to pin the cap.
 
 ## Addendum (2026-11-01): games per team per fantasy week
 
