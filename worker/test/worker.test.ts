@@ -133,6 +133,19 @@ describe('data', () => {
     expect(await res.json()).toEqual([{ build_id: 'test' }]);
   });
 
+  it("serves a build's index files and key list with the pointers' short cache, since the export rewrites them", async () => {
+    for (const key of ['builds/b1/notebooks/index.json', 'builds/b1/tableau/index.json', 'builds/b1/keys.txt']) {
+      await env.DATA.put(key, key.endsWith('.json') ? '{"files":[]}' : 'builds/b1/health.json');
+      const res = await SELF.fetch(`${ORIGIN}/data/${key}`);
+      expect(res.status, key).toBe(200);
+      expect(res.headers.get('cache-control'), key).toBe('public, max-age=60');
+    }
+    // A notebook itself, or anything else under the build, stays immutable.
+    await env.DATA.put('builds/b1/notebooks/01_board_backtest.html', '<html></html>');
+    const page = await SELF.fetch(`${ORIGIN}/data/builds/b1/notebooks/01_board_backtest.html`);
+    expect(page.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+  });
+
   it('serves build files as immutable with a parquet content type', async () => {
     const res = await SELF.fetch(`${ORIGIN}/data/build-1/fct_shot.parquet`, { headers: OWNER });
     expect(res.status).toBe(200);

@@ -21,8 +21,19 @@ export interface Env extends YahooEnv, OwnerEnv {
 }
 
 const DATA_PREFIX = '/data/';
-/** The two pointers the export rewrites; everything under builds/ is immutable. */
+/** The two pointers the export rewrites. */
 const POINTER_KEYS = new Set(['latest.json', 'builds.json']);
+/**
+ * A build's files never change once written, except the lists of them: the export adds the
+ * rendered notebooks and the Tableau extract to a staged build after the fact, rewriting the
+ * folder's index.json and the build's keys.txt. Those are served like the pointers, for a minute,
+ * so a visitor who opened /notebooks/ while the index listed four notebooks is not held to that
+ * list for a year.
+ */
+const MUTABLE_UNDER_BUILDS = /^builds\/[^/]+\/(?:keys\.txt|(?:[^/]+\/)*index\.json)$/;
+function isMutable(key: string): boolean {
+  return POINTER_KEYS.has(key) || MUTABLE_UNDER_BUILDS.test(key);
+}
 /** Player pages are addressed by league and id but rendered by one page. */
 export const PLAYER_PATH = /^\/p\/(wnba|nba)\/[^/]+\/?$/;
 
@@ -180,7 +191,7 @@ async function serveData(request: Request, env: Env, rawKey: string, isPrivate =
   headers.set('accept-ranges', 'bytes');
   headers.set(
     'cache-control',
-    POINTER_KEYS.has(key) ? 'public, max-age=60' : `${isPrivate ? 'private' : 'public'}, max-age=31536000, immutable`,
+    isMutable(key) ? 'public, max-age=60' : `${isPrivate ? 'private' : 'public'}, max-age=31536000, immutable`,
   );
   if (!headers.has('content-type')) headers.set('content-type', contentTypeFor(key));
 
