@@ -1,0 +1,21 @@
+---
+import TradeAnalyzer from '../../components/TradeAnalyzer';
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="Trade"
+  description="Evaluate a trade: what each side is worth for the rest of the season under your league's scoring, how your team changes category by category, and a verdict."
+>
+  <section>
+    <h1 class="text-2xl font-semibold tracking-tight">Trade</h1>
+    <p class="mt-1 max-w-3xl text-sm text-muted">
+      Pick the players each side gives. Each is valued above a replacement-level player under your league's scoring,
+      over the games they are expected to play from today, so an injured star and a two-for-one are judged on the same
+      scale. With your league's rosters set up, you also see your team's categories and ranks before and after.
+    </p>
+    <div class="mt-6">
+      <TradeAnalyzer client:only="react" />
+    </div>
+  </section>
+</Base>
