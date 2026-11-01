@@ -50,12 +50,12 @@ docs/        adr/, runbook.md, architecture.md (the data dictionary is the site'
 ## Run it locally
 
 ```bash
-uv sync --group dbt && uv run pytest         # Python
-cd dbt && DBT_PROFILES_DIR=. uv run dbt build --target duckdb   # lakehouse models on the fixture sample
-cd ..
-cd web && npm ci && npm run build && npm test  # Astro app and Playwright
-cd ../worker && npm ci && npm test             # Worker against the real build
+uv sync --group dbt --group notebooks   # once: the Python groups CI installs (pytest reads the notebooks' pandas)
+uv run fs-dev check                      # what CI's Python job runs: ruff, mypy, the dbt sample on DuckDB, pytest
+uv run fs-dev check --all                # plus the web suite (astro check, eslint, vitest, build, Playwright) and the Worker's
 ```
+
+`fs-dev check --list` prints the steps. The web and Worker suites need Node 24 (`npm ci` runs inside them); the Worker's tests need workerd, which on Windows needs the Visual C++ Redistributable (CONTRIBUTING.md).
 
 Full details, including the Windows note about workerd, are in [CONTRIBUTING.md](CONTRIBUTING.md).
 

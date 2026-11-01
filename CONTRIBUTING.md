@@ -27,7 +27,8 @@ No number shown on the site comes from a language model. See "AI usage" in `SPEC
 Python (needs [uv](https://docs.astral.sh/uv/)):
 
 ```bash
-uv sync --group dbt
+uv sync --group dbt --group notebooks   # the groups CI installs; pytest reads the notebooks' pandas and numpy
+uv run fs-dev check                      # ruff, mypy, the dbt sample on DuckDB, pytest: what CI's Python job runs
 uv run ruff check . && uv run ruff format --check .
 uv run mypy
 uv run pytest
@@ -72,6 +73,6 @@ On Windows, Cloudflare's local runtime (workerd) needs the Microsoft Visual C++ 
 ## Standards
 
 - Python 3.12, `ruff` for lint and format, `mypy --strict` on `ingest/` and `export/`, `pytest`.
-- SQL models are dbt models with descriptions and tests; `sqlfluff` with the dbt templater (from phase 2).
+- SQL models are dbt models with descriptions, tests and unit tests; there is no SQL linter (the one-SQL-body-per-engine macros read oddly to one), and `ruff format --check` covers the Python.
 - Web is TypeScript strict, ESLint, Playwright smoke tests and an axe accessibility check on every page.
 - Secrets come only from environment variables or GitHub Actions secrets. Never print, log or commit them.

@@ -15,6 +15,7 @@ dependencies = [
 [project.scripts]
 fs-ingest = "ingest.cli:main"
 fs-export = "export.cli:main"
+fs-dev = "ops.dev:main"
 
 [dependency-groups]
 dbt = [
