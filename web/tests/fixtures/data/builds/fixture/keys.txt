@@ -1,6 +1,5 @@
 builds/fixture/board/nba.json
 builds/fixture/board/wnba.json
-builds/fixture/build_log.parquet
 builds/fixture/category_config.json
 builds/fixture/category_config.parquet
 builds/fixture/dim_date.parquet
@@ -34,6 +33,7 @@ builds/fixture/fct_transaction.parquet
 builds/fixture/fct_waiver_trend.parquet
 builds/fixture/feed_freshness.json
 builds/fixture/feed_freshness.parquet
+builds/fixture/fetch_failures.parquet
 builds/fixture/health.json
 builds/fixture/ingest_log.json
 builds/fixture/ingest_log.parquet
@@ -134,7 +134,6 @@ builds/fixture/players/wnba/204324.json
 builds/fixture/players/wnba/204329.json
 builds/fixture/players/wnba/204333.json
 builds/fixture/publish_gate.json
-builds/fixture/publish_gate.parquet
 builds/fixture/reconciliation.parquet
 builds/fixture/reconciliation_summary.json
 builds/fixture/reconciliation_summary.parquet
@@ -143,7 +142,6 @@ builds/fixture/schedule/wnba.json
 builds/fixture/streamers/nba.json
 builds/fixture/streamers/wnba.json
 builds/fixture/tableau/index.json
-builds/fixture/test_results.parquet
 builds/fixture/transactions/nba.json
 builds/fixture/transactions/wnba.json
 builds/fixture/manifest.json
