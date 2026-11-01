@@ -54,6 +54,8 @@ FS_LANDING_ROOT=/path/to/landing DBT_DUCKDB_PATH=/tmp/real.duckdb DBT_PROFILES_D
 
 After changing a fixture, re-run `uv run python dbt/sample/build_sample.py` and commit the output; CI fails if the sample is stale.
 
+The web app's Playwright tests read a real export of that sample, committed under `web/tests/fixtures/data` (build id `fixture`). After changing `export/layout.py`, `export/players.py` or a gold model the pages read, rebuild the DuckDB sample and refresh the fixture with `uv run python -m export.fixture`; `tests/test_fixture_contract.py` fails when the committed fixture's files or keys differ from what the export produces.
+
 Worker (build the web app first; the tests serve the real `web/dist`):
 
 ```bash

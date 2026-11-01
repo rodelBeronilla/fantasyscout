@@ -17,8 +17,16 @@
      "value": "84 (about 11 games at 7.7 a game)"
     },
     {
+     "label": "FG over expectation: attempts for half skill",
+     "value": "171"
+    },
+    {
      "label": "Three-point volume (3PA per 36), split-half reliability",
      "value": "0.98, against 0.25 for 3P%"
+    },
+    {
+     "label": "Most valuable zone, 2026",
+     "value": "Restricted Area: 128 pts / 100"
     }
    ],
    "table": {
@@ -50,6 +58,20 @@
       0.7,
       0.54,
       656
+     ],
+     [
+      "FG over expectation",
+      "171",
+      0.58,
+      0.46,
+      857
+     ],
+     [
+      "3P over expectation",
+      "288",
+      0.26,
+      0.2,
+      607
      ]
     ]
    },
@@ -57,7 +79,7 @@
    "n_label": "player-seasons with 100 field-goal attempts"
   },
   "nba": {
-   "headline": "Half of the spread in NBA free-throw percentage is skill after about 31 attempts, against 326 three-point attempts and 77 field-goal attempts; a first-half three-point edge keeps 27% of itself after the break.",
+   "headline": "Half of the spread in NBA free-throw percentage is skill after about 31 attempts, against 331 three-point attempts and 77 field-goal attempts; a first-half three-point edge keeps 27% of itself after the break.",
    "facts": [
     {
      "label": "FT%: attempts for half skill",
@@ -65,15 +87,23 @@
     },
     {
      "label": "3P%: attempts for half skill",
-     "value": "326 (about 90 games at 3.6 a game)"
+     "value": "331 (about 91 games at 3.6 a game)"
     },
     {
      "label": "FG%: attempts for half skill",
      "value": "77 (about 10 games at 7.6 a game)"
     },
     {
+     "label": "FG over expectation: attempts for half skill",
+     "value": "273"
+    },
+    {
      "label": "Three-point volume (3PA per 36), split-half reliability",
      "value": "0.98, against 0.39 for 3P%"
+    },
+    {
+     "label": "Most valuable zone, 2025-26",
+     "value": "Restricted Area: 134 pts / 100"
     }
    ],
    "table": {
@@ -89,26 +119,40 @@
       "FG%",
       "77",
       0.85,
-      0.73,
-      1238
+      0.72,
+      1251
      ],
      [
       "3P%",
-      "326",
+      "331",
       0.39,
       0.27,
-      1081
+      1086
      ],
      [
       "FT%",
       "31",
-      0.78,
+      0.79,
       0.65,
-      1000
+      1009
+     ],
+     [
+      "FG over expectation",
+      "273",
+      0.61,
+      0.42,
+      856
+     ],
+     [
+      "3P over expectation",
+      "342",
+      0.38,
+      0.25,
+      745
      ]
     ]
    },
-   "n": 1238,
+   "n": 1251,
    "n_label": "player-seasons with 100 field-goal attempts"
   }
  }

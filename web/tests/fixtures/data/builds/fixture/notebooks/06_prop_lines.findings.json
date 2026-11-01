@@ -1,0 +1,235 @@
+{
+ "title": "Prop lines: the board against the sportsbooks",
+ "leagues": {
+  "wnba": {
+   "headline": "Across 70 WNBA player-game lines, the board's projection sits 1.31 from the books' line on average; on points it is +0.19 a game from the line.",
+   "facts": [
+    {
+     "label": "Games with lines",
+     "value": "1 games on 1 dates"
+    },
+    {
+     "label": "Players with a line",
+     "value": "11"
+    },
+    {
+     "label": "Share of the board's rostered pool with a line",
+     "value": "11%"
+    },
+    {
+     "label": "Bookmakers per line, mean",
+     "value": "1.0"
+    },
+    {
+     "label": "Against the outcome",
+     "value": "accumulating: 0 of 200 player-game-markets"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Market",
+     "Player-games",
+     "Board vs line, mean absolute gap",
+     "Board minus line, mean",
+     "Line error vs outcome",
+     "Board error vs outcome"
+    ],
+    "rows": [
+     [
+      "points",
+      11,
+      1.45,
+      0.19,
+      null,
+      null
+     ],
+     [
+      "points_rebounds",
+      10,
+      2.04,
+      -0.45,
+      null,
+      null
+     ],
+     [
+      "rebounds",
+      10,
+      0.61,
+      -0.36,
+      null,
+      null
+     ],
+     [
+      "points_assists",
+      8,
+      1.82,
+      0.13,
+      null,
+      null
+     ],
+     [
+      "rebounds_assists",
+      8,
+      1.11,
+      -0.55,
+      null,
+      null
+     ],
+     [
+      "points_rebounds_assists",
+      8,
+      2.5,
+      -0.52,
+      null,
+      null
+     ],
+     [
+      "threes",
+      8,
+      0.41,
+      -0.15,
+      null,
+      null
+     ],
+     [
+      "assists",
+      7,
+      0.34,
+      0.29,
+      null,
+      null
+     ]
+    ]
+   },
+   "n": 70,
+   "n_label": "player-game-market lines compared"
+  },
+  "nba": {
+   "headline": "Across 1,507 NBA player-game lines, the board's projection sits 1.24 from the books' line on average; on points it is -0.28 a game from the line.",
+   "facts": [
+    {
+     "label": "Games with lines",
+     "value": "17 games on 2 dates"
+    },
+    {
+     "label": "Players with a line",
+     "value": "198"
+    },
+    {
+     "label": "Share of the board's rostered pool with a line",
+     "value": "81%"
+    },
+    {
+     "label": "Bookmakers per line, mean",
+     "value": "1.0"
+    },
+    {
+     "label": "Against the outcome",
+     "value": "accumulating: 878 of 200 player-game-markets"
+    }
+   ],
+   "table": {
+    "columns": [
+     "Market",
+     "Player-games",
+     "Board vs line, mean absolute gap",
+     "Board minus line, mean",
+     "Line error vs outcome",
+     "Board error vs outcome"
+    ],
+    "rows": [
+     [
+      "points",
+      212,
+      1.58,
+      -0.28,
+      null,
+      null
+     ],
+     [
+      "rebounds",
+      200,
+      0.53,
+      -0.08,
+      null,
+      null
+     ],
+     [
+      "points_rebounds",
+      200,
+      1.98,
+      -0.67,
+      null,
+      null
+     ],
+     [
+      "threes",
+      176,
+      0.32,
+      0.03,
+      null,
+      null
+     ],
+     [
+      "points_rebounds_assists",
+      174,
+      2.39,
+      -1.12,
+      null,
+      null
+     ],
+     [
+      "points_assists",
+      163,
+      2.04,
+      -0.9,
+      null,
+      null
+     ],
+     [
+      "rebounds_assists",
+      158,
+      0.79,
+      -0.35,
+      null,
+      null
+     ],
+     [
+      "assists",
+      156,
+      0.48,
+      -0.11,
+      null,
+      null
+     ],
+     [
+      "steals",
+      49,
+      0.31,
+      -0.09,
+      null,
+      null
+     ],
+     [
+      "blocks",
+      13,
+      0.31,
+      -0.08,
+      null,
+      null
+     ],
+     [
+      "steals_blocks",
+      6,
+      0.22,
+      0.16,
+      null,
+      null
+     ]
+    ]
+   },
+   "n": 1507,
+   "n_label": "player-game-market lines compared"
+  }
+ }
+}

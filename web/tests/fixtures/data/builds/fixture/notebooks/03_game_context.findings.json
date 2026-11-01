@@ -2,15 +2,133 @@
  "title": "Game context",
  "leagues": {
   "wnba": {
-   "headline": "Not enough history in this build: the WNBA context study needs a finished regular season of player-games, and this build has none yet.",
-   "facts": [],
+   "headline": "In 2026, the second night of a back-to-back changed a regular's chance of sitting out by +3.2 points and production by +0.50 fantasy points per 30 minutes, while a standard deviation of opponent defence moved production by +1.14; after missing one game, 58% missed the next.",
+   "facts": [
+    {
+     "label": "Back-to-back: chance of sitting out",
+     "value": "+3.2 pts (-2.2 to +8.7); earlier -0.4"
+    },
+    {
+     "label": "Back-to-back: minutes and fantasy pts / 30 min",
+     "value": "+1.52 min; +0.50 (-1.76 to +3.07)"
+    },
+    {
+     "label": "Opponent defence, per SD: fantasy pts / 30 min",
+     "value": "+1.14 (+0.64 to +1.63)"
+    },
+    {
+     "label": "Travel, per 1,000 miles: fantasy pts / 30 min",
+     "value": "-0.21 (-1.53 to +1.36)"
+    },
+    {
+     "label": "Missed the next game after missing 1 / 3 in a row",
+     "value": "58% / 80%; 4.9 more games expected after a first miss"
+    },
+    {
+     "label": "Official listings: missed the game; games missed on average",
+     "value": "Out 100%, 8.6 (n 756); Doubtful 100%, 2.6 (n 14); Questionable 52%, 1.9 (n 172); Probable 9%, 0.2 (n 92)"
+    },
+    {
+     "label": "Referee crew, per free throw a game of tendency (per 30 min)",
+     "value": "the game's attempts moved +1.16 per attempt of tendency; player FTA -0.03 (-0.17 to +0.13); fouls -0.05 (-0.15 to +0.10); fantasy pts +0.33 (-0.60 to +0.96)"
+    },
+    {
+     "label": "Played games with a closing line, by season",
+     "value": "2018 0%, 2019 0%, 2020 0%, 2021 0%, 2022 0%, 2023 0%, 2024 0%, 2025 0%, 2026 99%"
+    },
+    {
+     "label": "The line beyond defence and pace, out of sample",
+     "value": "share explained per 30 min +0.20% (-0.11 to +0.51); minutes +0.26% (+0.00 to +0.50); implied pts per SD, fantasy pts / 30 min +0.09 (-0.55 to +0.81); 5 pts of spread, starters' minutes -0.37 (-0.67 to -0.17); bench minutes +0.34 (-0.12 to +0.85) (2026 only: fit on games before 2026-07-18, tested on games from then on)"
+    },
+    {
+     "label": "Matchup from the line against defence and pace: fantasy pts in the game explained out of sample",
+     "value": "line +0.20%, current +1.37%; difference -1.17 points (-1.61 to -0.59)"
+    }
+   ],
    "table": {
-    "columns": [],
-    "rows": []
+    "columns": [
+     "Context (2026)",
+     "Fantasy pts / 30 min",
+     "Minutes",
+     "Sat out (pts)"
+    ],
+    "rows": [
+     [
+      "Second night of a back-to-back",
+      "+0.50 (-1.76 to +3.07)",
+      "+1.52 (+0.50 to +2.74)",
+      "+3.2 (-2.2 to +8.7)"
+     ],
+     [
+      "Third game in four nights",
+      "-2.36 (-4.91 to +0.07)",
+      "-0.86 (-2.09 to +0.49)",
+      "+5.4 (-0.0 to +11.5)"
+     ],
+     [
+      "Opponent on a back-to-back",
+      "+1.89 (-0.21 to +3.57)",
+      "-0.65 (-1.34 to +0.32)",
+      "+3.1 (-3.5 to +7.9)"
+     ],
+     [
+      "At home",
+      "+0.88 (+0.05 to +1.67)",
+      "+0.05 (-0.24 to +0.36)",
+      "-0.0 (-1.2 to +1.4)"
+     ],
+     [
+      "Opponent defence, per SD (higher rating = leakier)",
+      "+1.14 (+0.64 to +1.63)",
+      "+0.04 (-0.18 to +0.22)",
+      "+0.3 (-0.5 to +1.4)"
+     ],
+     [
+      "Opponent pace, per SD",
+      "+1.00 (+0.51 to +1.58)",
+      "+0.03 (-0.18 to +0.26)",
+      "+0.3 (-0.6 to +1.2)"
+     ],
+     [
+      "Travel, per 1,000 miles",
+      "-0.21 (-1.53 to +1.36)",
+      "-0.20 (-0.79 to +0.34)",
+      "+0.3 (-3.1 to +3.2)"
+     ],
+     [
+      "Time zones crossed, each",
+      "+0.23 (-0.69 to +1.01)",
+      "+0.14 (-0.18 to +0.49)",
+      "-0.1 (-1.9 to +2.1)"
+     ],
+     [
+      "Crew free-throw tendency, per attempt a game",
+      "+0.33 (-0.60 to +0.96)",
+      null,
+      null
+     ],
+     [
+      "Crew pace tendency, per possession",
+      "-0.12 (-1.88 to +1.72)",
+      null,
+      null
+     ],
+     [
+      "Team implied points, per SD",
+      "+0.09 (-0.55 to +0.81)",
+      "-0.88 (-1.43 to -0.29)",
+      null
+     ],
+     [
+      "Absolute spread, per 5 points",
+      "+0.45 (-0.16 to +1.05)",
+      "-0.02 (-0.35 to +0.34)",
+      null
+     ]
+    ]
    },
-   "n": 0,
-   "n_label": "player-team-games",
-   "insufficient_history": true
+   "n": 33370,
+   "n_label": "player-team-games"
   },
   "nba": {
    "headline": "In 2025-26, the second night of a back-to-back changed a regular's chance of sitting out by +2.3 points and production by -0.26 fantasy points per 30 minutes, while a standard deviation of opponent defence moved production by +1.54; after missing one game, 47% missed the next.",
@@ -29,15 +147,31 @@
     },
     {
      "label": "Travel, per 1,000 miles: fantasy pts / 30 min",
-     "value": "-0.44 (-1.16 to +0.08)"
+     "value": "-0.66 (-1.43 to -0.15)"
     },
     {
      "label": "Missed the next game after missing 1 / 3 in a row",
      "value": "47% / 74%; 3.2 more games expected after a first miss"
     },
     {
-     "label": "Injury listings matched to a next game",
-     "value": "7 so far: accumulating"
+     "label": "Official listings: missed the game; games missed on average",
+     "value": "Out 100%, 13.9 (n 18,259); Doubtful 99%, 4.7 (n 626); Questionable 46%, 1.4 (n 4,316); Probable 7%, 0.2 (n 1,761)"
+    },
+    {
+     "label": "Referee crew, per free throw a game of tendency (per 30 min)",
+     "value": "the game's attempts moved +0.74 per attempt of tendency; player FTA +0.03 (-0.02 to +0.10); fouls +0.01 (-0.03 to +0.05); fantasy pts -0.04 (-0.27 to +0.31)"
+    },
+    {
+     "label": "Played games with a closing line, by season",
+     "value": "2023-24 0%, 2024-25 0%, 2025-26 80%, 2026-27 100%"
+    },
+    {
+     "label": "The line beyond defence and pace, out of sample",
+     "value": "share explained per 30 min +0.33% (+0.22 to +0.43); minutes +3.04% (+2.27 to +3.83); implied pts per SD, fantasy pts / 30 min +0.16 (-0.20 to +0.51); 5 pts of spread, starters' minutes -0.73 (-0.93 to -0.51); bench minutes +0.43 (+0.17 to +0.72) (2025-26 only: fit on games before 2026-02-02, tested on games from then on)"
+    },
+    {
+     "label": "Matchup from the line against defence and pace: fantasy pts in the game explained out of sample",
+     "value": "line -0.00%, current +1.41%; difference -1.41 points (-1.68 to -1.21)"
     }
    ],
    "table": {
@@ -86,25 +220,55 @@
      ],
      [
       "Travel, per 1,000 miles",
-      "-0.44 (-1.16 to +0.08)",
-      "+0.16 (-0.12 to +0.37)",
-      "-0.6 (-2.1 to +0.7)"
+      "-0.66 (-1.43 to -0.15)",
+      "+0.10 (-0.16 to +0.34)",
+      "-0.5 (-1.9 to +0.9)"
      ],
      [
       "Time zones crossed, each",
-      "+0.02 (-0.35 to +0.51)",
-      "-0.11 (-0.30 to +0.09)",
-      "+0.4 (-0.7 to +1.8)"
+      "+0.22 (-0.20 to +0.65)",
+      "-0.05 (-0.22 to +0.14)",
+      "+0.3 (-0.8 to +1.5)"
      ],
      [
-      "At altitude (4,000 ft+)",
-      "+0.98 (+0.36 to +1.74)",
-      "+0.68 (+0.13 to +1.27)",
-      "+4.1 (-0.3 to +8.5)"
+      "Visiting at altitude (4,000 ft+)",
+      "+0.74 (-0.32 to +1.81)",
+      "+0.35 (-0.22 to +0.96)",
+      "+2.2 (-0.5 to +5.2)"
+     ],
+     [
+      "Visiting at altitude on a back-to-back (extra)",
+      "-1.04 (-4.00 to +2.23)",
+      "-0.72 (-2.02 to +0.41)",
+      "-8.6 (-15.8 to +2.0)"
+     ],
+     [
+      "Crew free-throw tendency, per attempt a game",
+      "-0.04 (-0.27 to +0.31)",
+      null,
+      null
+     ],
+     [
+      "Crew pace tendency, per possession",
+      "+0.41 (-0.52 to +1.27)",
+      null,
+      null
+     ],
+     [
+      "Team implied points, per SD",
+      "+0.16 (-0.20 to +0.51)",
+      "-1.84 (-2.25 to -1.46)",
+      null
+     ],
+     [
+      "Absolute spread, per 5 points",
+      "+0.72 (+0.43 to +0.99)",
+      "-0.04 (-0.23 to +0.17)",
+      null
      ]
     ]
    },
-   "n": 86450,
+   "n": 86549,
    "n_label": "player-team-games"
   }
  }

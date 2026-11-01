@@ -68,6 +68,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_build.add_argument("--engine", choices=("duckdb", "databricks"), required=True)
     p_build.add_argument("--duckdb", type=Path, default=Path("dbt/fantasyscout.duckdb"))
     p_build.add_argument("--build-id", default=None, help="override the generated build id")
+    p_build.add_argument(
+        "--created-at", default=None, help="override the build's timestamp (ISO 8601; fixtures)"
+    )
+    p_build.add_argument("--git-sha", default=None, help="override the recorded commit (fixtures)")
     p_build.add_argument("--keep", type=int, default=7, help="builds kept for rollback")
     p_build.add_argument(
         "--skip",
@@ -118,8 +122,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 build = build_mod.assemble(
                     source,
                     engine=args.engine,
-                    git_sha=_git_sha(),
+                    git_sha=args.git_sha or _git_sha(),
                     build_id=args.build_id,
+                    created_at=args.created_at,
                     skip_tables=frozenset(s for s in args.skip.split(",") if s),
                 )
             finally:
