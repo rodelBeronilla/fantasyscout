@@ -207,3 +207,49 @@ def test_pages_are_read_off_the_code_and_sources_off_the_landing_folders() -> No
     assert sources[2]["folders"] == ["stats/boxscoretraditionalv3", "stats/leaguegamelog"]
     assert sources[2]["host"].startswith("stats.nba.com")
     assert sources[1]["name"] == "nowhere" and sources[1]["host"] == ""
+
+
+def test_a_timestamp_without_a_time_zone_is_undocumented() -> None:
+    fake = {
+        "layers": [
+            {
+                "name": "gold",
+                "models": [
+                    {
+                        "name": "dim_date",
+                        "exported_as": ["dim_date.parquet"],
+                        "columns": [
+                            {
+                                "name": "seen_at",
+                                "type": "timestamp",
+                                "description": "when",
+                                "meta": {},
+                                "tests": [],
+                            },
+                            {
+                                "name": "made_at",
+                                "type": "timestamp with time zone",
+                                "description": "when",
+                                "meta": {"tz": "UTC"},
+                                "tests": [],
+                            },
+                            {
+                                "name": "game_date",
+                                "type": "date",
+                                "description": "the day",
+                                "meta": {},
+                                "tests": [],
+                            },
+                        ],
+                    }
+                ],
+            }
+        ],
+        "pages": [],
+    }
+    problems = schema.undocumented(fake)
+    assert "dim_date.seen_at: a timestamp without meta.tz" in problems
+    own = [p for p in problems if p.startswith("dim_date.")]
+    assert own == ["dim_date.seen_at: a timestamp without meta.tz"], own
+    assert schema.column_meta({"meta": {"tz": "UTC", "unit": "", "other": 1}}) == {"tz": "UTC"}
+    assert {c["name"] for c in schema.CONVENTIONS} == {"dates", "instants", "units", "nulls"}

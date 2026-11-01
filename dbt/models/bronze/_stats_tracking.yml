@@ -49,6 +49,7 @@ models:
       - name: ast_adj
         description: "Source column `AST_ADJ`"
       - name: ast_to_pass_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `AST_TO_PASS_PCT`"
       - name: ast_to_pass_pct_adj
         description: "Source column `AST_TO_PASS_PCT_ADJ`"
@@ -91,10 +92,12 @@ models:
       - name: oreb_uncontest
         description: "Source column `OREB_UNCONTEST`"
       - name: oreb_contest_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `OREB_CONTEST_PCT`"
       - name: oreb_chances
         description: "Source column `OREB_CHANCES`"
       - name: oreb_chance_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `OREB_CHANCE_PCT`"
       - name: oreb_chance_defer
         description: "Source column `OREB_CHANCE_DEFER`"
@@ -109,10 +112,12 @@ models:
       - name: dreb_uncontest
         description: "Source column `DREB_UNCONTEST`"
       - name: dreb_contest_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `DREB_CONTEST_PCT`"
       - name: dreb_chances
         description: "Source column `DREB_CHANCES`"
       - name: dreb_chance_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `DREB_CHANCE_PCT`"
       - name: dreb_chance_defer
         description: "Source column `DREB_CHANCE_DEFER`"
@@ -127,10 +132,12 @@ models:
       - name: reb_uncontest
         description: "Source column `REB_UNCONTEST`"
       - name: reb_contest_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `REB_CONTEST_PCT`"
       - name: reb_chances
         description: "Source column `REB_CHANCES`"
       - name: reb_chance_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `REB_CHANCE_PCT`"
       - name: reb_chance_defer
         description: "Source column `REB_CHANCE_DEFER`"
@@ -235,32 +242,39 @@ models:
       - name: drive_fga
         description: "Source column `DRIVE_FGA`"
       - name: drive_fg_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `DRIVE_FG_PCT`"
       - name: drive_ftm
         description: "Source column `DRIVE_FTM`"
       - name: drive_fta
         description: "Source column `DRIVE_FTA`"
       - name: drive_ft_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `DRIVE_FT_PCT`"
       - name: drive_pts
         description: "Source column `DRIVE_PTS`"
       - name: drive_pts_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `DRIVE_PTS_PCT`"
       - name: drive_passes
         description: "Source column `DRIVE_PASSES`"
       - name: drive_passes_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `DRIVE_PASSES_PCT`"
       - name: drive_ast
         description: "Source column `DRIVE_AST`"
       - name: drive_ast_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `DRIVE_AST_PCT`"
       - name: drive_tov
         description: "Source column `DRIVE_TOV`"
       - name: drive_tov_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `DRIVE_TOV_PCT`"
       - name: drive_pf
         description: "Source column `DRIVE_PF`"
       - name: drive_pf_pct
+        meta: {unit: ratio 0 to 1}
         description: "Source column `DRIVE_PF_PCT`"
 
   - name: stats_leaguedashptstats_speeddistance

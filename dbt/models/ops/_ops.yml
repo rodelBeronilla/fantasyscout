@@ -16,8 +16,10 @@ models:
       - name: season
         description: "Season label of the run"
       - name: started_at
+        meta: {tz: UTC}
         description: "When the run started (UTC)"
       - name: finished_at
+        meta: {tz: UTC}
         description: "When the run finished (UTC)"
       - name: window_since
         description: "First date of the run's window"
@@ -56,6 +58,7 @@ models:
       - name: season
         description: "Season label the run landed under"
       - name: started_at
+        meta: {tz: UTC}
         description: "When the run started (UTC)"
       - name: kind
         description: "failed (an error of ours or the host's) or missing (the source has no payload for the key, HTTP 404)"
@@ -103,6 +106,7 @@ models:
       - name: resolved_value
         description: "The value that stands: the league's, else ESPN's"
       - name: reconciled_at
+        meta: {tz: UTC}
         description: "Build time of the comparison"
 
   - name: reconciliation_summary
@@ -139,4 +143,5 @@ models:
       - name: conflict_rate
         description: "Conflicts over matched lines; null when none matched"
       - name: summarised_at
+        meta: {tz: UTC}
         description: "Build time of the summary"

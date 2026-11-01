@@ -35,6 +35,7 @@ models:
       - name: win_loss
         description: "W or L for the team"
       - name: minutes
+        meta: {unit: minutes}
         description: "Team minutes, the five-player total (200 for a regulation WNBA game, 240 in the NBA, more with overtime)"
       - name: field_goals_made
         description: "Field goals made by the team in the game"
@@ -143,6 +144,7 @@ models:
       - name: game_date_est
         description: "Game date in US Eastern time"
       - name: game_datetime_utc
+        meta: {tz: UTC}
         description: "Tip-off as an instant in UTC (a timestamp; the schedule's ISO 8601 text typed)"
       - name: week_number
         description: "The league's schedule week; 0 outside the weeks it numbers"
@@ -223,6 +225,7 @@ models:
       - name: minutes_text
         description: "Minutes as the box score writes them, mm:ss"
       - name: minutes
+        meta: {unit: minutes}
         description: "Minutes played as a decimal (28:30 is 28.5); null when the box score leaves them blank"
       - name: field_goals_made
         description: "Field goals made (league box score)"
@@ -281,6 +284,7 @@ models:
       - name: side
         description: "home or away (from the matchup text for rows from the season game log)"
       - name: minutes
+        meta: {unit: minutes}
         description: "Minutes played as a decimal"
       - name: estimated_offensive_rating
         description: "Offensive rating from the league's estimated possessions"
@@ -567,8 +571,10 @@ models:
       - name: height
         description: "Height as the roster writes it, feet-inches text (6-1)"
       - name: height_inches
+        meta: {unit: inches}
         description: "Height in inches, from the feet-inches text; null when the roster writes it any other way"
       - name: weight_lbs
+        meta: {unit: lb}
         description: "Weight in pounds"
       - name: birth_date
         description: "Birth date, a date: the roster's MAR 16, 2000 parsed; null when it does not parse"
@@ -603,6 +609,7 @@ models:
         description: "The UTC date of tip-off (an evening game in the US can fall on the next day)"
         data_tests: [not_null]
       - name: event_datetime_utc
+        meta: {tz: UTC}
         description: "Tip-off as an instant in UTC (a timestamp; ESPN's ISO 8601 text typed)"
       - name: name
         description: "Long event name (Away Team at Home Team)"
@@ -672,6 +679,7 @@ models:
       - name: reason
         description: "ESPN's reason for a player who did not play"
       - name: minutes
+        meta: {unit: minutes}
         description: "Minutes played; ESPN gives whole minutes"
       - name: points
         description: "Points scored (ESPN box score)"
@@ -950,6 +958,7 @@ models:
       - name: headline
         description: "The headline as ESPN writes it"
       - name: published_at
+        meta: {tz: UTC}
         description: "When ESPN published the article (UTC)"
       - name: published_date
         description: "The Eastern date ESPN published it"
@@ -1074,6 +1083,7 @@ models:
       - name: report
         description: "The report's file name, Injury-Report_<date>_<time>.pdf"
       - name: published_at_et
+        meta: {tz: America/New_York}
         description: "When the league published the report, Eastern time"
         data_tests: [not_null]
       - name: game_date
@@ -1137,6 +1147,7 @@ models:
       - name: losses
         description: "Regular-season losses"
       - name: win_pct
+        meta: {unit: ratio 0 to 1}
         description: "Wins over games played, decimal 0-1"
       - name: last_10
         description: "Record over the last ten games, W-L"
