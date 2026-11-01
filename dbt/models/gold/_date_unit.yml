@@ -1,0 +1,33 @@
+unit_tests:
+  - name: date_fantasy_week_counts_whole_weeks_since_new_year
+    description: >
+      The fantasy week is whole Monday-to-Sunday weeks since the first of January of the Monday's
+      year. The days-since-January divided by seven is a fraction; cast straight to an integer it
+      rounds on DuckDB and truncates on Databricks, so the two engines disagreed on four days of
+      every seven. Floored first, both give the same week. The spine is overridden to the days
+      under test.
+    model: dim_date
+    overrides:
+      macros:
+        date_spine: >
+          select cast('2026-01-04' as date) as date_day
+          union all select cast('2026-01-05' as date)
+          union all select cast('2026-01-11' as date)
+          union all select cast('2026-10-29' as date)
+          union all select cast('2026-12-31' as date)
+    given:
+      - input: ref('games')
+        rows:
+          - {league: nba, game_date: 2026-10-29}
+    expect:
+      rows:
+        # Sunday of the week starting Monday 2025-12-29: 362 days into 2025, week 52 (rounding gave 53).
+        - {date_day: 2026-01-04, week_start: 2025-12-29, fantasy_week: '2025-W52', is_game_day_nba: false}
+        # The first Monday of the year starts week 1.
+        - {date_day: 2026-01-05, week_start: 2026-01-05, fantasy_week: '2026-W01', is_game_day_nba: false}
+        # A Sunday six days later is still week 1 (rounding gave week 2).
+        - {date_day: 2026-01-11, week_start: 2026-01-05, fantasy_week: '2026-W01', is_game_day_nba: false}
+        # Thursday 2026-10-29: Monday the 26th is 298 days in, 42 whole weeks, week 43 (rounding gave 44).
+        - {date_day: 2026-10-29, week_start: 2026-10-26, fantasy_week: '2026-W43', is_game_day_nba: true}
+        # New Year's Eve, a Thursday, sits in the week of Monday the 28th: week 52.
+        - {date_day: 2026-12-31, week_start: 2026-12-28, fantasy_week: '2026-W52', is_game_day_nba: false}
