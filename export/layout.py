@@ -60,6 +60,7 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.fct_referee_tendency", "league, season, official_key"),
     TableSpec("gold.fct_board_history", "league, snapshot_date, rank_total, player_id"),
     TableSpec("gold.fct_team_stakes", "league, season, conference, playoff_rank", json=True),
+    TableSpec("gold.fct_team_week_games", "league, season, week_start, team_id"),
     TableSpec("gold.mart_board", "league, rank_total, player_id"),
     TableSpec("gold.mart_player_projection", "league, player_id"),
     TableSpec("gold.mart_category_zscores", "league, window_name, season, player_id"),
@@ -440,11 +441,21 @@ qualify row_number() over (
 order by league, transaction_date desc, team_abbreviation
 """
 
+# Games per team per fantasy week for the rest of the season (fct_team_week_games): the Streamers
+# page's planning grid.
+TEAM_WEEKS_SQL = """
+select league, season, team_id, team_abbreviation, fantasy_week, week_start, week_end, is_current_week,
+    games, games_left, games_if_necessary, game_dates
+from gold.fct_team_week_games
+order by league, week_start, team_abbreviation, team_id
+"""
+
 PER_LEAGUE_JSON = (
     ("board", BOARD_SQL),
     ("streamers", STREAMERS_SQL),
     ("schedule", SCHEDULE_SQL),
     ("transactions", TRANSACTIONS_SQL),
+    ("team_weeks", TEAM_WEEKS_SQL),
 )
 JSON_DIGITS = 4
 

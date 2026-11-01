@@ -69,6 +69,7 @@ TABLES = (
     "fct_game_line",
     "fct_player_prop",
     "fct_team_stakes",
+    "fct_team_week_games",
     "mart_board",
     "mart_player_projection",
     "mart_category_zscores",

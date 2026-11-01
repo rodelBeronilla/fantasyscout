@@ -540,3 +540,12 @@ Decisions:
 - The board joins a listed player to the rows for their league, status and reason, caps each `games_missed` at the games the team has left and takes the listings-weighted mean. Every board value is unchanged (the weighted mean of a histogram is the mean of the listings; the CI sample is byte-identical), and the join is players × histogram rows rather than players × listings.
 - The notebook reads the histogram and shows what the board uses: for the WNBA, the NBA's rows and the fact that they are borrowed, rather than the WNBA's own handful, which the board does not read yet.
 - Unit tests: `status_calibration_falls_back_to_the_nba_until_a_league_has_enough` pins the switch (a league under 300 reads the NBA's rows with its own count beside them; a league at 300 reads its own; the NBA, its own fallback, gets no row for a reason it has never listed), and the board's availability test gains a listing whose games missed exceed the games left, to pin the cap.
+
+## Addendum (2026-11-01): games per team per fantasy week
+
+`mart_schedule_upcoming` is a hard fourteen-day window and the board carries only `games_next_7` and `games_this_week`; `dim_date.fantasy_week` was read by no model. The one schedule surface a fantasy manager plans on and the platform did not have is which teams play four times, and which twice, in each week to the end of the season, the fantasy playoff weeks above all.
+
+Decisions:
+
+- `gold.fct_team_week_games`: one row per league, season, team and fantasy week from the current week to the last scheduled game, from each team's side of the schedule (`silver.schedule_team_games`) joined to `dim_date` for the week. `games` counts the week's regular-season and playoff games played or not, `games_left` the ones still to play from today, `games_if_necessary` the playoff games that may not happen, and `game_dates` every date. A unit test pins the week boundary (the current week counts from its Monday, last week is not a week ahead) and the if-necessary split.
+- The table is exported as Parquet with the others and as a per-league JSON (`team_weeks/<league>.json`); the Streamers page shows it as a grid under the week grid, teams ordered by games left to play, four-game weeks marked, when the season has a week ahead. Older builds without the file show nothing.

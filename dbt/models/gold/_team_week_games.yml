@@ -1,0 +1,84 @@
+version: 2
+
+models:
+  - name: fct_team_week_games
+    description: "Games per team per fantasy week (Monday to Sunday), from the current week to the last scheduled game: regular-season and playoff games from each team's side of the schedule, with an if-necessary playoff game counted apart. The Streamers page shows it as a grid, so the four-game weeks of the fantasy playoffs can be planned on."
+    columns:
+      - name: team_week_sk
+        description: "Surrogate key: one row per league, season, team and fantasy week"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+        data_tests: [not_null]
+      - name: season
+        description: "Season label"
+      - name: team_id
+        description: "League team id"
+        data_tests: [not_null]
+      - name: team_abbreviation
+        description: "The team's current tricode (silver.team_current)"
+      - name: fantasy_week
+        description: "Monday-to-Sunday week label, YYYY-Www (dim_date)"
+        data_tests: [not_null]
+      - name: week_start
+        description: "The week's Monday"
+        data_tests: [not_null]
+      - name: week_end
+        description: "The week's Sunday"
+      - name: is_current_week
+        description: "True for the week the build ran in"
+      - name: games
+        description: "Scheduled games in the week, played or not, if-necessary games left out"
+        data_tests: [not_null]
+      - name: games_left
+        description: "Of those, the games not yet final from the run date on"
+        data_tests: [not_null]
+      - name: games_if_necessary
+        description: "Playoff games in the week that may not be played"
+        data_tests: [not_null]
+      - name: game_dates
+        description: "Every game date in the week, sorted and comma-separated, if-necessary games included"
+
+unit_tests:
+  - name: team_week_games_count_the_week_from_its_monday
+    description: >
+      Wednesday the 14th. Team A played Monday, plays today, Friday and Sunday: four games this
+      week, three left. Next week it has one playoff game and one if-necessary game, counted
+      apart. Its game last week is not a week ahead and is left out. Team B played Tuesday and the
+      schedule has not marked it final yet: a game this week, not a game left.
+    model: fct_team_week_games
+    overrides:
+      vars:
+        as_of: '2026-01-14'
+    given:
+      - input: ref('schedule_team_games')
+        rows:
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 3, game_date_est: 2026-01-08}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 3, game_date_est: 2026-01-12}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-14}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-16}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-18}
+          - {league: nba, season: '2025-26', team_id: A, game_type: playoffs, game_status: 1, game_date_est: 2026-01-20, if_necessary: true}
+          - {league: nba, season: '2025-26', team_id: A, game_type: playoffs, game_status: 1, game_date_est: 2026-01-21}
+          - {league: nba, season: '2025-26', team_id: B, game_type: regular, game_status: 1, game_date_est: 2026-01-13}
+          - {league: nba, season: '2025-26', team_id: B, game_type: preseason, game_status: 1, game_date_est: 2026-01-15}
+      - input: ref('dim_date')
+        rows:
+          - {date_day: 2026-01-08, week_start: 2026-01-05, fantasy_week: '2026-W02'}
+          - {date_day: 2026-01-12, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-13, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-14, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-15, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-16, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-18, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-20, week_start: 2026-01-19, fantasy_week: '2026-W04'}
+          - {date_day: 2026-01-21, week_start: 2026-01-19, fantasy_week: '2026-W04'}
+      - input: ref('team_current')
+        rows:
+          - {league: nba, team_id: A, abbreviation: AAA}
+          - {league: nba, team_id: B, abbreviation: BBB}
+    expect:
+      rows:
+        - {team_id: A, team_abbreviation: AAA, fantasy_week: '2026-W03', week_start: 2026-01-12, week_end: 2026-01-18, is_current_week: true, games: 4, games_left: 3, games_if_necessary: 0, game_dates: '2026-01-12,2026-01-14,2026-01-16,2026-01-18'}
+        - {team_id: A, team_abbreviation: AAA, fantasy_week: '2026-W04', week_start: 2026-01-19, week_end: 2026-01-25, is_current_week: false, games: 1, games_left: 1, games_if_necessary: 1, game_dates: '2026-01-20,2026-01-21'}
+        - {team_id: B, team_abbreviation: BBB, fantasy_week: '2026-W03', week_start: 2026-01-12, week_end: 2026-01-18, is_current_week: true, games: 1, games_left: 0, games_if_necessary: 0, game_dates: '2026-01-13'}
