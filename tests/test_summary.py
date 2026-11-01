@@ -98,3 +98,70 @@ def test_where_and_limit_shape_the_statement(
     out = capsys.readouterr().out
     assert "silver.t (1 rows):" in out
     assert "c | 3" in out and "b | 2" not in out
+
+
+def test_a_waking_warehouse_is_given_time(capsys: pytest.CaptureFixture[str]) -> None:
+    """The first submissions after auto-stop answer 400; the statement is retried, then runs."""
+    from ops import results
+
+    calls: list[str] = []
+    refusals = iter([400, 503, 429])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.method)
+        code = next(refusals, 200)
+        if code == 400:
+            return httpx.Response(
+                400,
+                json={
+                    "error_code": "BAD_REQUEST",
+                    "message": "The request could not be processed by the warehouse.",
+                },
+            )
+        if code != 200:
+            return httpx.Response(code, text="busy")
+        return httpx.Response(
+            200, json={"statement_id": "s1", "status": {"state": "SUCCEEDED"}, "result": {}}
+        )
+
+    pauses: list[float] = []
+    client = httpx.Client(base_url="https://x", transport=httpx.MockTransport(handler))
+    body = results._run_statement(
+        client, warehouse_id="w", catalog="c", statement="select 1", sleep=pauses.append
+    )
+    assert body["statement_id"] == "s1"
+    assert calls == ["POST"] * 4
+    assert pauses == [5.0, 10.0, 20.0]
+    assert "retrying in 5s" in capsys.readouterr().out
+
+
+def test_a_plain_bad_request_is_not_retried() -> None:
+    from ops import results
+
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.method)
+        return httpx.Response(400, json={"error_code": "BAD_REQUEST", "message": "no such catalog"})
+
+    client = httpx.Client(base_url="https://x", transport=httpx.MockTransport(handler))
+    with pytest.raises(RuntimeError, match="HTTP 400"):
+        results._run_statement(
+            client, warehouse_id="w", catalog="c", statement="select 1", sleep=lambda _: None
+        )
+    assert calls == ["POST"]
+
+
+def test_retries_give_up_after_the_last_pause() -> None:
+    from ops import results
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, text="busy")
+
+    client = httpx.Client(base_url="https://x", transport=httpx.MockTransport(handler))
+    pauses: list[float] = []
+    with pytest.raises(RuntimeError, match="HTTP 503"):
+        results._run_statement(
+            client, warehouse_id="w", catalog="c", statement="select 1", sleep=pauses.append
+        )
+    assert pauses == list(results.SUBMISSION_PAUSES)

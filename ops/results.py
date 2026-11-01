@@ -18,6 +18,7 @@ import os
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -209,21 +210,46 @@ def write_duckdb(path: Path, statements: list[str]) -> None:
         con.close()
 
 
+# A serverless warehouse waking from auto-stop refuses the first statements with HTTP 400 "The
+# request could not be processed by the warehouse."; 429 and 5xx are the API's own transient
+# answers. Submission is retried on those with a growing pause (about a minute in all).
+TRANSIENT_SUBMISSION = "could not be processed by the warehouse"
+SUBMISSION_PAUSES: tuple[float, ...] = (5.0, 10.0, 20.0, 30.0)
+
+
+def _transient(response: httpx.Response) -> bool:
+    if response.status_code in (429,) or response.status_code >= 500:
+        return True
+    return response.status_code == 400 and TRANSIENT_SUBMISSION in response.text
+
+
 def _run_statement(
-    client: httpx.Client, *, warehouse_id: str, catalog: str, statement: str
+    client: httpx.Client,
+    *,
+    warehouse_id: str,
+    catalog: str,
+    statement: str,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> dict[str, object]:
     """Submit one statement to the SQL Statement Execution API and wait until it finishes."""
-    response = client.post(
-        "/api/2.0/sql/statements",
-        json={
-            "warehouse_id": warehouse_id,
-            "catalog": catalog,
-            "statement": statement,
-            "wait_timeout": "30s",
-            "format": "JSON_ARRAY",
-            "disposition": "INLINE",
-        },
-    )
+    payload = {
+        "warehouse_id": warehouse_id,
+        "catalog": catalog,
+        "statement": statement,
+        "wait_timeout": "30s",
+        "format": "JSON_ARRAY",
+        "disposition": "INLINE",
+    }
+    response = client.post("/api/2.0/sql/statements", json=payload)
+    for pause in SUBMISSION_PAUSES:
+        if response.status_code == 200 or not _transient(response):
+            break
+        print(
+            f"  statement submission answered HTTP {response.status_code}; "
+            f"the warehouse may be starting, retrying in {pause:g}s"
+        )
+        sleep(pause)
+        response = client.post("/api/2.0/sql/statements", json=payload)
     if response.status_code != 200:
         msg = f"statement submission failed: HTTP {response.status_code} {response.text[:500]}"
         raise RuntimeError(msg)
