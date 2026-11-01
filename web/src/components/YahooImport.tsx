@@ -3,11 +3,12 @@
  * cookie) and calls Yahoo; this card only sees league data. Until the Worker reports the import
  * live (Yahoo has approved the app), the card says it is coming soon.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import type { League } from '../lib/data';
 import { DEFAULT_SETTINGS, type LeagueSetup, matchNames, normalize, type PointWeights } from '../lib/fantasy-league';
 import { href } from '../lib/site';
+import { yahooBookmarklet } from '../lib/yahoo-bookmarklet';
 import { Card } from './ui';
 
 interface Status {
@@ -105,6 +106,12 @@ export default function YahooImport({
       .catch((e: unknown) => setNote(e instanceof Error ? e.message : String(e)));
   }, [status, league]);
 
+  const bookmarklet = yahooBookmarklet(typeof window === 'undefined' ? '' : `${window.location.origin}${href('/league/')}?league=nba`);
+  // React refuses a javascript: href, so the bookmarklet link gets its address on the element itself.
+  const bookmarkRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    bookmarkRef.current?.setAttribute('href', bookmarklet);
+  }, [bookmarklet, status]);
   if (!status) return null;
   if (!status.live) {
     // Parked until Yahoo approves the app for its Fantasy API; Yahoo runs NBA leagues only.
@@ -117,8 +124,39 @@ export default function YahooImport({
             Bring in a Yahoo league&apos;s settings, team names and every roster in one step.
           </p>
           <p className="text-muted">
-            Yahoo is reviewing FantasyScout&apos;s access to its Fantasy API. Until then, open <strong className="text-fg">Paste a roster</strong> on each
-            team below and paste the player names from your league&apos;s team pages, one per line.
+            Yahoo is reviewing FantasyScout&apos;s access to its Fantasy API. Until then there are two ways in.
+          </p>
+          <div className="rounded border border-line p-3" data-testid="yahoo-bookmarklet">
+            <p>
+              <strong>Import with a bookmark, today.</strong> Drag this to your bookmarks bar:{' '}
+              <a
+                ref={bookmarkRef}
+                draggable
+                onClick={(e) => e.preventDefault()}
+                title="Drag this link to your bookmarks bar; clicking it here does nothing"
+                className="rounded border border-accent px-2 py-0.5 font-medium text-accent"
+                data-testid="yahoo-bookmarklet-link"
+              >
+                Import Yahoo league
+              </a>
+            </p>
+            <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-muted">
+              <li>Open your league on Yahoo in this browser, signed in (the My Team or League page).</li>
+              <li>Click the bookmark. It reads each team&apos;s roster page the way your browser does and brings you back here.</li>
+              <li>Check the rosters below: a name Yahoo spells differently is listed as not found, and you can add it by hand.</li>
+            </ol>
+            <details className="mt-2 text-xs text-muted">
+              <summary className="cursor-pointer">No bookmarks bar? Copy the code into a new bookmark&apos;s address.</summary>
+              <textarea readOnly value={bookmarklet} rows={3} className="mt-1 w-full rounded border border-line bg-bg p-1 font-mono text-[10px]" aria-label="Bookmarklet code" />
+            </details>
+            <p className="mt-2 text-xs text-muted">
+              Nothing leaves your browser except the team and player names, which go to this page in the address after the #, a part the
+              browser never sends to a server. Private leagues work, since it runs as you.
+            </p>
+          </div>
+          <p className="text-muted">
+            Or open <strong className="text-fg">Paste a roster</strong> on each team below and paste the player names from your league&apos;s
+            team pages, one per line.
           </p>
         </div>
       </Card>
