@@ -184,6 +184,16 @@ The gate step also prints up to ten failing rows of every failed check (`--sampl
 
 Prove the gate and the incident path on demand, without touching data: run the Build lakehouse workflow with the `chaos` input ticked. The `chaos_deliberate_failure` check fails at error severity, the gate blocks, the run fails and an incident issue opens. Run the workflow again without the input; the gate passes and the issue closes itself. Do this after any change to `ops/results.py`, `incident.py` or the build workflow.
 
+## Publish SLA and the watchdog
+
+While a league is playing, the site is expected to serve a build no older than **30 hours**: builds run after the morning and the evening ingest, so one missed build still fits. Out of season the limit is 72 hours. The "Publish watchdog" workflow checks this every six hours from a GitHub-hosted runner, outside the pipeline: it reads the site's `/data/latest.json` and the build's `health.json` (whose feeds say which leagues are in season) and judges the build's age. A stale build opens the "Publish stale" incident issue; the next fresh check closes it. Run it by hand from the Actions tab, or locally:
+
+```bash
+uv run python -m ops.watchdog --site https://fantasyscout.beronilla.rodeo
+```
+
+A stale incident means no Build lakehouse run promoted a build in time, which the pipeline's own incidents may not say: a home runner that is offline leaves the stats job queued (nothing runs, nothing reports), a schedule GitHub stopped firing produces no run at all, and a cancelled build never reaches its report step. Check, in order: the latest Ingest and Build runs and their conclusions; the home runners (`infra/runner`, "runner shows offline"); whether the schedules fired at all (GitHub disables them after 60 days without a push, and runs them late on busy hours). Then run Ingest and Build by hand.
+
 ## Backfill status
 
 `select source, league, season, count(*) runs, sum(landed) landed, sum(failures) failures from fantasyscout.ops.ingest_log group by 1,2,3 order by 1,2,3` shows what has landed. `assert_completeness` lists every final scheduled game still missing a box score or play-by-play; it stays red until the backfill finishes, which is the point.
