@@ -200,13 +200,9 @@ def conform(files: dict[str, bytes], shape: build_mod.Build, duckdb: Path) -> di
         per_league = {
             name: list(source.query(sql).schema.names) for name, sql in layout.PER_LEAGUE_JSON
         }
-        board_keys = [
-            c
-            for c in source.query("select * from gold.mart_board limit 0").schema.names
-            if c not in ("league", "player_id", "board_sk")
-        ]
     finally:
         source.close()
+    board_keys = list(layout.PLAYER_BOARD_COLUMNS)
     sample_player = next((p for p in sorted(shape.files) if p.startswith("players/")), None)
     player_shape = json.loads(shape.files[sample_player]) if sample_player else {}
     out: dict[str, bytes] = {}

@@ -15,6 +15,7 @@ from typing import Any
 import duckdb
 import pyarrow as pa
 
+from export import layout
 from export.encode import rows_of
 
 BOX = (
@@ -116,9 +117,10 @@ class PlayerFiles:
             order by g.league, g.player_id, g.game_date, g.game_id
             """
         )
+        rolling_cols = ", ".join(f"r.{c}" for c in layout.PLAYER_ROLLING_COLUMNS)
         rolling = self._grouped(
-            """
-            select r.*
+            f"""
+            select r.league, r.player_id, {rolling_cols}
             from mart_player_rolling as r
             join (select league, max(season) as season from fct_player_game group by league) as cs
                 on cs.league = r.league and cs.season = r.season
@@ -126,9 +128,17 @@ class PlayerFiles:
             """
         )
         zscores = self._grouped(
-            "select * from mart_category_zscores order by league, player_id, season, window_name"
+            f"""
+            select league, player_id, {", ".join(layout.PLAYER_ZSCORE_COLUMNS)}
+            from mart_category_zscores order by league, player_id, season, window_name
+            """
         )
-        board = self._grouped("select * from mart_board order by league, player_id")
+        board = self._grouped(
+            f"""
+            select league, player_id, {", ".join(layout.PLAYER_BOARD_COLUMNS)}
+            from mart_board order by league, player_id
+            """
+        )
         injuries = (
             self._grouped(
                 """
@@ -249,21 +259,16 @@ class PlayerFiles:
                     for g in game_log.get(key, [])
                 ],
                 "rolling": [
-                    {
-                        k: v
-                        for k, v in r.items()
-                        if k
-                        not in ("league", "player_id", "player_game_sk", "player_sk", "team_id")
-                    }
+                    {k: v for k, v in r.items() if k not in ("league", "player_id")}
                     for r in rolling.get(key, [])
                 ],
                 "zscores": [
-                    {k: v for k, v in z.items() if k not in ("league", "player_id", "zscore_sk")}
+                    {k: v for k, v in z.items() if k not in ("league", "player_id")}
                     for z in zscores.get(key, [])
                 ],
                 "board": next(
                     (
-                        {k: v for k, v in b.items() if k not in ("league", "player_id", "board_sk")}
+                        {k: v for k, v in b.items() if k not in ("league", "player_id")}
                         for b in board.get(key, [])
                     ),
                     None,
