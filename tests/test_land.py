@@ -164,3 +164,30 @@ def test_a_run_that_dies_still_writes_its_indexes(
     assert indexes, "the indexes must be written when the run is cut short"
     landed = {k for p in indexes for k in json.loads(p.read_text(encoding="utf-8"))}
     assert landed, landed
+
+
+def test_a_late_evening_run_lands_under_the_eastern_date(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 02:00 UTC on 2026-09-25 is 22:00 Eastern on the 24th: the ingest date, the window's end
+    # and the run log's folder all say the 24th.
+    monkeypatch.setattr(land_mod, "eastern_today", lambda: date(2026, 9, 24))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        name = request.url.path.rsplit("/", 1)[-1]
+        return httpx.Response(200, content=(FIXTURES / "espn" / f"{name}.json").read_bytes())
+
+    monkeypatch.setattr(
+        land_mod,
+        "ThrottledClient",
+        lambda *_, **__: ThrottledClient(
+            Throttle(max_retries=0),
+            transport=httpx.MockTransport(handler),
+            sleep=lambda _: None,
+            clock=lambda: 0.0,
+        ),
+    )
+    summary = land(LandOptions("espn", "wnba", window_days=1, root=tmp_path), env={})
+    assert summary is not None and summary.ok
+    assert (tmp_path / "landing/espn/scoreboard/wnba/2026/2026-09-24").is_dir()
+    assert next(iter((tmp_path / "landing/_ops/ingest_log").iterdir())).name == "2026-09-24"

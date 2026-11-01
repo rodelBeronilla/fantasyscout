@@ -14,16 +14,14 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from zoneinfo import ZoneInfo
 
 from ingest.http import CircuitOpenError, ThrottledClient, stats_headers
-from ingest.landing import League
+from ingest.landing import EASTERN, League
 from ingest.run import RunSummary
 from ingest.store import Landing, Scope
 
 SOURCE = "league"
 ENDPOINT = "daily_lineups"
-EASTERN = ZoneInfo("America/New_York")
 URL = "https://stats.nba.com/js/data/leaders/00_daily_lineups_{day}.json"
 
 

@@ -21,18 +21,16 @@ import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import pdfplumber
 
 from ingest.http import CircuitOpenError, ThrottledClient
-from ingest.landing import League, payload_hash
+from ingest.landing import EASTERN, League, payload_hash
 from ingest.run import RunSummary
 from ingest.store import Landing, Scope
 
 SOURCE = "league"
 ENDPOINT = "injury_report"
-EASTERN = ZoneInfo("America/New_York")
 PDF_BASE = {
     "nba": "https://ak-static.cms.nba.com/referee/injury/",
     "wnba": "https://ak-static.cms.nba.com/referee/wnba_injury/",

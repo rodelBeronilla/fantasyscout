@@ -22,7 +22,7 @@ from ingest.espn_fantasy import EspnFantasyIngestor
 from ingest.espn_news import EspnNewsIngestor
 from ingest.http import Throttle, ThrottledClient
 from ingest.injury_report import InjuryReportIngestor, ReportHistoryIngestor
-from ingest.landing import League
+from ingest.landing import League, eastern_date, eastern_today
 from ingest.lineups import LineupsIngestor
 from ingest.props import EspnPropsIngestor, OddsApiIngestor
 from ingest.referee_assignments import RefereeAssignmentsIngestor
@@ -196,7 +196,7 @@ def _announce_pace(host: str, gap: float, reason: str) -> None:
 
 def run_log_path(summary: RunSummary, run_id: str, day: date | None = None) -> PurePosixPath:
     """The run log sits under the ingest date, like the payloads, not the wall-clock date."""
-    folder = (day or summary.started_at.date()).isoformat()
+    folder = (day or eastern_date(summary.started_at)).isoformat()
     name = f"{summary.source}-{summary.league}-{summary.season}-{run_id}.json"
     return RUN_LOG_DIR / folder / name
 
@@ -291,8 +291,12 @@ def _run_source(
 def land(
     opts: LandOptions, *, today: date | None = None, env: Mapping[str, str] = os.environ
 ) -> RunSummary | None:
-    """Run the ingest. Returns the summary, or None for a dry run."""
-    today = today or datetime.now(UTC).date()
+    """Run the ingest. Returns the summary, or None for a dry run.
+
+    ``today`` is the leagues' date (Eastern), the date the payloads land under and the end of
+    the default window; the ingestors key by the same date.
+    """
+    today = today or eastern_today()
     season = opts.season or default_season(opts.league, today)
     until = opts.until or today
     since = opts.since or until - timedelta(days=opts.window_days - 1)

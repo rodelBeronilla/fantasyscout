@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from ingest.http import CircuitOpenError, ThrottledClient
-from ingest.landing import League
+from ingest.landing import League, eastern_date
 from ingest.run import RunSummary
 from ingest.store import Landing, Scope
 
@@ -71,7 +71,7 @@ class EspnFantasyIngestor:
 
     def land_into(self, summary: RunSummary) -> None:
         now = self.now or datetime.now(UTC)
-        key = now.date().isoformat()
+        key = eastern_date(now).isoformat()
         game, year = GAME[self.league], espn_year(self.league, self.season)
         url = URL.format(game=game, year=year)
         scope = Scope("espn", "fantasy_players", self.league, self.season)

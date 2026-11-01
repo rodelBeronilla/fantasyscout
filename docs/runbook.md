@@ -146,6 +146,8 @@ A failed job opens (or updates) a `data-incident` issue and the next passing run
 
 ## Rerun a day
 
+A run's date is the leagues' date, Eastern time: the payloads land under it, the default window ends on it, and every key that names a day uses it. A run after 8 pm Eastern, when the UTC date has already turned, still belongs to the evening (`ingest.landing.eastern_today`).
+
 When an incident issue names a failed run:
 
 1. Open the run link in the issue and read the `failed <endpoint>/<key>` lines.

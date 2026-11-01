@@ -11,13 +11,33 @@ from __future__ import annotations
 
 import hashlib
 import re
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import PurePosixPath
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field
 
 League = Literal["wnba", "nba"]
+
+# The leagues' day. Both leagues schedule and report in Eastern time, and the lakehouse cuts every
+# day there (ADR 0003), so a run's ingest date, its window and every key that names a day use the
+# Eastern date of the moment the run started: a run after 8 pm Eastern, when the UTC date has
+# turned, still lands under the evening's date and asks for the evening's games.
+EASTERN = ZoneInfo("America/New_York")
+
+
+def eastern_date(moment: datetime) -> date:
+    """The Eastern calendar date of a moment (naive moments are read as UTC)."""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    return moment.astimezone(EASTERN).date()
+
+
+def eastern_today(now: datetime | None = None) -> date:
+    """Today's date in the leagues' time zone."""
+    return eastern_date(now or datetime.now(UTC))
+
 
 _SAFE = re.compile(r"[^A-Za-z0-9._-]+")
 
