@@ -146,3 +146,29 @@ def test_require_docs_lists_exported_gold_columns_without_a_description() -> Non
     assert "mart_streamers: not in the dbt project" in problems
     assert any(p.startswith("mart_streamers.") and "not a column" in p for p in problems)
     assert not any(p.startswith("mart_board.") and "not a column" in p for p in problems)
+
+
+def test_require_docs_checks_the_player_files_columns_too() -> None:
+    # The player file names its columns (layout.PLAYER_*_COLUMNS); a renamed one is reported.
+    board = [
+        {"name": c, "description": "d"}
+        for c in (*layout.BOARD_COLUMNS, *layout.PLAYER_BOARD_COLUMNS)
+    ]
+    rolling = [
+        {"name": c, "description": "d"}
+        for c in layout.PLAYER_ROLLING_COLUMNS
+        if c != "points_avg_10"
+    ]
+    zscores = [{"name": c, "description": "d"} for c in layout.PLAYER_ZSCORE_COLUMNS]
+    models = [
+        {"name": "mart_board", "columns": board},
+        {
+            "name": "mart_streamers",
+            "columns": [{"name": c, "description": "d"} for c in layout.STREAMER_COLUMNS],
+        },
+        {"name": "mart_player_rolling", "columns": rolling},
+        {"name": "mart_category_zscores", "columns": zscores},
+    ]
+    problems = schema.undocumented({"layers": [{"name": "gold", "models": models}]})
+    assert "mart_player_rolling.points_avg_10: exported but not a column" in problems
+    assert not any(p.startswith(("mart_board.", "mart_category_zscores.")) for p in problems)

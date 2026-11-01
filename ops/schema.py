@@ -181,6 +181,9 @@ def undocumented(schema: dict[str, Any]) -> list[str]:
     for model, wanted in (
         ("mart_board", layout.BOARD_COLUMNS),
         ("mart_streamers", layout.STREAMER_COLUMNS),
+        ("mart_board", layout.PLAYER_BOARD_COLUMNS),
+        ("mart_player_rolling", layout.PLAYER_ROLLING_COLUMNS),
+        ("mart_category_zscores", layout.PLAYER_ZSCORE_COLUMNS),
     ):
         have = {c["name"] for c in exported.get(model, [])}
         problems.extend(f"{model}.{c}: exported but not a column" for c in wanted if c not in have)
