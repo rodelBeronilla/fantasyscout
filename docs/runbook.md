@@ -174,6 +174,8 @@ from fantasyscout.ops.test_results where run_id = '<run_id>' and status <> 'pass
 
 Severities follow the spec: keys, arithmetic, box-score closure (except turnovers, see ADR 0003), in-season freshness and completeness are errors; minutes closure, event-to-box agreement, shot location sanity, team turnovers and ingest volume anomalies are warnings.
 
+A build run by hand with a `select` input builds only those nodes, so dbt runs only their tests. The workflow then runs every `tag:quality` check as well (into `dbt/target/quality`), and the gate reads both result sets, so a selected build is judged against the whole lakehouse before anything is published; its `publish_gate.reason` starts with `selected build (<selector>)`.
+
 The gate step also prints up to ten failing rows of every failed check (`--sample-failures N`, 0 disables), re-running the check's compiled query with a limit, and the incident comment carries that tail, so an incident names the rows, not only the count.
 
 ## Reconciliation review

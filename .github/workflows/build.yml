@@ -101,6 +101,12 @@ jobs:
           [ "$CHAOS" = "true" ] && args+=(--vars '{chaos: true}') && echo "::warning::chaos drill: one error-severity check will fail on purpose"
           # dbt exits non-zero on test failures; the gate step decides what that means.
           uv run dbt "${args[@]}" 2>&1 | tee land.log || true
+          # A selected build ran only its own nodes' tests. The gate must still judge the whole
+          # lakehouse before anything is published, so every quality check runs too, into its own
+          # target directory; the gate step reads both.
+          if [ -n "$SELECT" ]; then
+            uv run dbt test --target databricks --select tag:quality --target-path target/quality 2>&1 | tee -a land.log || true
+          fi
 
       - uses: actions/upload-artifact@v7
         if: always()
@@ -109,6 +115,8 @@ jobs:
           path: |
             dbt/target/run_results.json
             dbt/target/manifest.json
+            dbt/target/quality/run_results.json
+            dbt/target/quality/manifest.json
           retention-days: 14
 
       - name: Record results and decide the publish gate
@@ -118,9 +126,10 @@ jobs:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_ORIGIN: https://${{ env.DBT_DATABRICKS_HOST }}
           DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
+          SELECT: ${{ inputs.select }}
         run: |
           set -o pipefail
-          uv run python -m ops.results --engine databricks 2>&1 | tee -a land.log
+          uv run python -m ops.results --engine databricks --target-dir dbt/target --target-dir dbt/target/quality --selected "$SELECT" 2>&1 | tee -a land.log
 
       - name: Reconciliation summary (match and conflict rates per league and season)
         if: always() && steps.build.outcome != 'skipped'

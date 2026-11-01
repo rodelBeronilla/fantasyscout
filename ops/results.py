@@ -112,7 +112,21 @@ def load_rows(target_dir: Path, *, engine: str, git_sha: str, run_at: datetime) 
     return rows
 
 
-def decide(rows: list[ResultRow]) -> Gate:
+def merge_rows(*groups: list[ResultRow]) -> list[ResultRow]:
+    """Rows from several dbt runs as one gate: the later run's result wins for a node seen twice.
+
+    A selected build (``dbt build --select ...``) runs only the chosen nodes, so its results alone
+    would pass a gate that never looked at the rest of the lakehouse. The workflow follows it with
+    ``dbt test --select tag:quality`` into a second target directory, and the gate reads both.
+    """
+    merged: dict[str, ResultRow] = {}
+    for group in groups:
+        for row in group:
+            merged[row.node_id] = row
+    return list(merged.values())
+
+
+def decide(rows: list[ResultRow], selected: str | None = None) -> Gate:
     error_failures = sum(
         1 for r in rows if r.is_test and r.status == "fail" and r.severity == "error"
     )
@@ -132,6 +146,9 @@ def decide(rows: list[ResultRow]) -> Gate:
             or (not r.is_test and r.status == "error")
         ]
         reason = "blocked by: " + ", ".join(blocking[:10]) + (" ..." if len(blocking) > 10 else "")
+    if selected:
+        # Recorded so a later reader knows this gate judged a partial build plus the quality checks.
+        reason = f"selected build ({selected}); {reason}"
     return Gate(passed, error_failures, warn_failures, model_errors + test_errors, reason)
 
 
@@ -248,10 +265,12 @@ def write_databricks(
 Sample = tuple[ResultRow, str]
 
 
-def failure_samples(target_dir: Path, rows: list[ResultRow]) -> list[Sample]:
+def failure_samples(target_dirs: list[Path], rows: list[ResultRow]) -> list[Sample]:
     """(row, compiled SQL) for every failed or warned test whose compiled query dbt kept."""
-    run_results = json.loads((target_dir / "run_results.json").read_text(encoding="utf-8"))
-    code = {r["unique_id"]: r.get("compiled_code") for r in run_results["results"]}
+    code: dict[str, object] = {}
+    for target_dir in target_dirs:
+        run_results = json.loads((target_dir / "run_results.json").read_text(encoding="utf-8"))
+        code.update({r["unique_id"]: r.get("compiled_code") for r in run_results["results"]})
     return [
         (r, str(code[r.node_id]))
         for r in rows
@@ -300,7 +319,7 @@ def print_failure_samples(args: argparse.Namespace, rows: list[ResultRow]) -> No
     if not args.sample_failures:
         return
     try:
-        samples = failure_samples(args.target_dir, rows)
+        samples = failure_samples(args.target_dirs, rows)
         if not samples:
             return
         if args.engine == "duckdb":
@@ -335,7 +354,17 @@ def _git_sha() -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Record dbt results and decide the publish gate.")
     parser.add_argument("--engine", choices=("duckdb", "databricks"), required=True)
-    parser.add_argument("--target-dir", type=Path, default=Path("dbt/target"))
+    parser.add_argument(
+        "--target-dir",
+        type=Path,
+        action="append",
+        help="a dbt target directory; repeat to merge several runs (default dbt/target)",
+    )
+    parser.add_argument(
+        "--selected",
+        default="",
+        help="the dbt selector the build ran with, recorded in the gate's reason",
+    )
     parser.add_argument("--duckdb", type=Path, default=Path("dbt/fantasyscout.duckdb"))
     parser.add_argument("--schema", default="ops")
     parser.add_argument("--catalog", default="fantasyscout")
@@ -353,8 +382,12 @@ def main(argv: list[str] | None = None) -> int:
 
     run_at = datetime.now(UTC).replace(tzinfo=None)
     git_sha = _git_sha()[:12]
-    rows = load_rows(args.target_dir, engine=args.engine, git_sha=git_sha, run_at=run_at)
-    gate = decide(rows)
+    target_dirs = [d for d in (args.target_dir or [Path("dbt/target")]) if d.exists()]
+    args.target_dirs = target_dirs
+    rows = merge_rows(
+        *(load_rows(d, engine=args.engine, git_sha=git_sha, run_at=run_at) for d in target_dirs)
+    )
+    gate = decide(rows, selected=args.selected.strip() or None)
     run_id = rows[0].run_id if rows else "no-results"
     verdict = "PASSED" if gate.passed else "BLOCKED"
     print(f"results: {len(rows)} rows; gate {verdict}: {gate.reason}")
