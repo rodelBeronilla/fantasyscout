@@ -3,6 +3,7 @@
         materialized='incremental',
         incremental_strategy='merge',
         unique_key='shot_key',
+        on_schema_change='append_new_columns',
         partition_by=(['league', 'season'] if target.type == 'databricks' else none),
         zorder=(['player_id'] if target.type == 'databricks' else none),
     )

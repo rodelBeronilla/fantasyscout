@@ -1,0 +1,44 @@
+unit_tests:
+  - name: event_late_box_score_fills_in_the_lineups_on_the_next_run
+    description: >
+      Game G1's play-by-play landed on the 20th and was merged without lineups because its box
+      score had not landed; on the 21st other games landed, moving the table's newest landing
+      past G1's. On the 22nd G1's box score and G2's play-by-play land. The next run re-merges G1
+      (its box score landed on or after the table's newest landing) with its lineups, merges G2
+      as new, and re-merges G3 unchanged (the newest landing day always is). Keyed on the event's own landing date, G1 would have stayed without lineups
+      until a full refresh.
+    model: fct_event
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      # The table as it stands (SQL, so the test runs before the model has ever been built).
+      - input: this
+        format: sql
+        rows: |
+          select 'nba:G1:1' as event_key, 'nba' as league, 'G1' as game_id, cast('2026-10-20' as date) as _ingest_date
+          union all
+          select 'nba:G3:1' as event_key, 'nba' as league, 'G3' as game_id, cast('2026-10-21' as date) as _ingest_date
+      - input: ref('events')
+        rows:
+          - {event_key: 'nba:G1:1', league: nba, season: '2025-26', game_id: G1, action_number: 1, period: 1, clock: 'PT11M23.00S', _ingest_date: 2026-10-20}
+          - {event_key: 'nba:G3:1', league: nba, season: '2025-26', game_id: G3, action_number: 1, period: 1, clock: 'PT12M00.00S', _ingest_date: 2026-10-21}
+          - {event_key: 'nba:G2:1', league: nba, season: '2025-26', game_id: G2, action_number: 1, period: 1, clock: 'PT10M00.00S', _ingest_date: 2026-10-22}
+      - input: ref('player_game_box')
+        rows:
+          - {league: nba, game_id: G1, _ingest_date: 2026-10-22}
+          - {league: nba, game_id: G3, _ingest_date: 2026-10-21}
+      - input: ref('games')
+        rows:
+          - {league: nba, game_id: G1, game_date: 2026-10-19, _ingest_date: 2026-10-19}
+          - {league: nba, game_id: G2, game_date: 2026-10-21, _ingest_date: 2026-10-21}
+          - {league: nba, game_id: G3, game_date: 2026-10-20, _ingest_date: 2026-10-20}
+      - input: ref('event_lineups')
+        rows:
+          - {event_key: 'nba:G1:1', lineup_home: '1,2,3,4,5', lineup_away: '6,7,8,9,10', lineup_complete: true}
+    expect:
+      rows:
+        - {event_key: 'nba:G1:1', game_id: G1, game_date: 2026-10-19, lineup_home: '1,2,3,4,5', lineup_complete: true, seconds_remaining: 683.0}
+        - {event_key: 'nba:G2:1', game_id: G2, game_date: 2026-10-21, lineup_home: null, lineup_complete: false, seconds_remaining: 600.0}
+        # The newest landing day is always re-merged (>=), so G3 comes through unchanged.
+        - {event_key: 'nba:G3:1', game_id: G3, game_date: 2026-10-20, lineup_home: null, lineup_complete: false, seconds_remaining: 720.0}
