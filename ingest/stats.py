@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from typing import Literal
 
+from ingest import complete
 from ingest.http import CircuitOpenError, ThrottledClient, stats_headers
 from ingest.landing import League
 from ingest.run import Only, RunSummary
@@ -422,6 +423,9 @@ class StatsIngestor:
             params=dict(request.params),
             status=response.status_code,
             fetched_at=self._clock(),
+            # A half-written game payload is fetched again until a whole one lands.
+            complete=played is None
+            or complete.is_complete(complete.STATS, request.endpoint, response.content),
         )
         return result, response.content
 

@@ -36,6 +36,10 @@ on:
         description: "Stats and ESPN: land only these, space-separated endpoint or endpoint:key (a replay)"
         type: string
         default: ""
+      resettle_days:
+        description: "Stats and ESPN: fetch the game payloads of the last N days again, settled or not (the leagues' late corrections)"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -127,6 +131,7 @@ jobs:
           UNTIL: ${{ inputs.until }}
           FULL_REFRESH: ${{ inputs.full_refresh }}
           ONLY: ${{ inputs.only }}
+          RESETTLE: ${{ inputs.resettle_days }}
         run: |
           set -o pipefail
           args=(land espn --league "${{ matrix.league }}" --backend volume)
@@ -134,6 +139,7 @@ jobs:
           [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
           [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
           for spec in $ONLY; do args+=(--only "$spec"); done
+          [ -n "$RESETTLE" ] && args+=(--resettle-days "$RESETTLE")
           uv run fs-ingest "${args[@]}" 2>&1 | tee land.log
       - name: Report
         if: always()
@@ -207,6 +213,7 @@ jobs:
           UNTIL: ${{ inputs.until }}
           FULL_REFRESH: ${{ inputs.full_refresh }}
           ONLY: ${{ inputs.only }}
+          RESETTLE: ${{ inputs.resettle_days }}
         # Regular season, then playoffs: outside the playoffs the second pass finds no games and
         # costs a few requests (what the first pass landed today is not requested again).
         run: |
@@ -218,6 +225,7 @@ jobs:
             [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
             [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
             for spec in $ONLY; do args+=(--only "$spec"); done
+            [ -n "$RESETTLE" ] && args+=(--resettle-days "$RESETTLE")
             uv run fs-ingest "${args[@]}" 2>&1 | tee -a land.log || status=1
           done
           exit $status

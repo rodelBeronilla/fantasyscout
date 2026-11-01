@@ -253,6 +253,9 @@ class IndexEntry:
     # The last ingest date the payload was fetched and found the same (or landed). Indexes
     # written before this field existed fall back to ingest_date.
     checked_date: str = ""
+    # False when the ingestor found the payload half-written (ingest/complete.py): it is fetched
+    # again on every run, settled or not, until a whole one lands. Older indexes read as complete.
+    complete: bool = True
 
     @property
     def last_checked(self) -> date:
@@ -311,11 +314,14 @@ class Landing:
         full_refresh: bool = False,
         workers: int = 1,
         flush_every: int = FLUSH_EVERY,
+        resettle_since: date | None = None,
     ) -> None:
         self.backend = backend
         self.ingest_date = ingest_date
         self.full_refresh = full_refresh
         self.flush_every = flush_every
+        # A sweep: games played on or after this date are fetched again even when settled.
+        self.resettle_since = resettle_since
         self._indexes: dict[Scope, dict[str, IndexEntry]] = {}
         self._dirty: set[Scope] = set()
         self._pool = ThreadPoolExecutor(max_workers=workers) if workers > 1 else None
@@ -342,14 +348,19 @@ class Landing:
         return entry is not None and entry.last_checked == self.ingest_date
 
     def settled(self, scope: Scope, key: str, played: date, days: int = SETTLE_DAYS) -> bool:
-        """True when a game's payload was landed at least ``days`` after the game was played.
+        """True when a game's payload was landed, whole, at least ``days`` after the game.
 
-        A full refresh treats nothing as settled.
+        A full refresh treats nothing as settled; a resettle sweep treats nothing played on or
+        after its date as settled; a payload landed half-written is never settled.
         """
         if self.full_refresh:
             return False
+        if self.resettle_since is not None and played >= self.resettle_since:
+            return False
         entry = self._index(scope).get(key)
-        return entry is not None and entry.last_checked >= played + timedelta(days=days)
+        if entry is None or not entry.complete:
+            return False
+        return entry.last_checked >= played + timedelta(days=days)
 
     def read_latest(self, scope: Scope, key: str) -> bytes | None:
         """The most recently landed payload for a key, so planners can work without refetching."""
@@ -368,6 +379,7 @@ class Landing:
         params: dict[str, str],
         status: int,
         fetched_at: datetime,
+        complete: bool = True,
     ) -> LandResult:
         sha = payload_hash(body)
         path = landing_key(
@@ -377,7 +389,9 @@ class Landing:
         previous = index.get(key)
         if previous is not None and previous.sha256 == sha and not self.full_refresh:
             # Same bytes: nothing to write, but the payload was confirmed today.
-            index[key] = replace(previous, checked_date=self.ingest_date.isoformat())
+            index[key] = replace(
+                previous, checked_date=self.ingest_date.isoformat(), complete=complete
+            )
             self._dirty.add(scope)
             return LandResult("unchanged", PurePosixPath(previous.path), sha)
 
@@ -401,6 +415,7 @@ class Landing:
             ingest_date=self.ingest_date.isoformat(),
             size_bytes=len(body),
             checked_date=self.ingest_date.isoformat(),
+            complete=complete,
         )
         self._dirty.add(scope)
         self._since_flush += 1

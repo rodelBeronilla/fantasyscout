@@ -158,6 +158,10 @@ When an incident issue names a failed run:
 
 A run that is cut short (a job timeout, a cancelled job, a runner restart) keeps what it landed: the per-scope indexes (`_index.json`) are written every 25 landings and once more when the run ends, however it ends, so the next run re-fetches at most the last few requests rather than the whole window.
 
+## Late corrections: settling and the resettle sweep
+
+A game's payloads (box scores, play-by-play, shot chart; ESPN's summary) are **settled** once landed two days after the game, and left alone after that. Two things keep that honest. A payload the ingestor found half-written (`ingest/complete.py`: a box score missing a team's players, a play-by-play without its closing action, an ESPN summary whose box score has no statistics yet) is flagged `complete: false` in the landing index and fetched again on every run until a whole one lands. And the leagues post stat corrections later than two days: run Ingest with `resettle_days` (or `fs-ingest land stats --resettle-days 14 ...`) to fetch the game payloads of the last N days again, settled or not; unchanged payloads land no new file, so the sweep costs requests, not storage.
+
 ## Replay failed fetches
 
 `ops.fetch_failures` names every request a run could not land (Data Health, "Failed fetches"; `select * from fantasyscout.ops.fetch_failures order by started_at desc`). Redo exactly those keys, not the whole window:
