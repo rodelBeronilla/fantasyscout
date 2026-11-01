@@ -35,6 +35,9 @@ permissions:
   issues: write
   actions: read
 
+# The build holds the lakehouse group, so a hung warehouse statement would block the next
+# day's build for six hours without the job timeout; at the limit the job is cancelled, the
+# Report step still runs (if: always()) and opens the incident with the step that hung.
 concurrency:
   group: build-lakehouse
   cancel-in-progress: false
@@ -47,6 +50,7 @@ jobs:
       github.event.workflow_run.conclusion == 'success' ||
       github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     environment: lakehouse
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -259,6 +263,7 @@ jobs:
     name: Deploy the Asset Bundle
     needs: dbt
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: lakehouse
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
