@@ -12,7 +12,7 @@ on:
       action:
         description: What to do
         type: choice
-        options: [build, rollback, unpin, list]
+        options: [build, rollback, unpin, list, orphans, delete-orphans]
         default: build
       to_build:
         description: Rollback target (blank = the previous build), or unpin target (blank = the newest)
@@ -106,6 +106,8 @@ jobs:
               if [ -n "$TO_BUILD" ]; then uv run fs-export unpin --store r2 --to "$TO_BUILD";
               else uv run fs-export unpin --store r2; fi ;;
             list) uv run fs-export list --store r2 ;;
+            orphans) uv run fs-export orphans --store r2 ;;
+            delete-orphans) uv run fs-export orphans --store r2 --delete ;;
           esac
       - name: What the site now serves
         if: always()

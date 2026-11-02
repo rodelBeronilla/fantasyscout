@@ -39,6 +39,8 @@ class Store(Protocol):
 
     def delete(self, key: str) -> None: ...
 
+    def list(self, prefix: str) -> list[str]: ...
+
 
 class LocalStore:
     """A directory laid out exactly like the bucket; `web/public/data` for local development."""
@@ -61,6 +63,15 @@ class LocalStore:
     def delete(self, key: str) -> None:
         with contextlib.suppress(FileNotFoundError):
             self._path(key).unlink()
+
+    def list(self, prefix: str) -> list[str]:
+        """Every key that starts with ``prefix``, sorted."""
+        root = self._path("")
+        return sorted(
+            k
+            for p in root.rglob("*")
+            if p.is_file() and (k := p.relative_to(root).as_posix()).startswith(prefix)
+        )
 
 
 class R2Store:
@@ -131,6 +142,25 @@ class R2Store:
         if response.status_code not in (200, 204, 404):
             msg = f"could not delete {key}: HTTP {response.status_code} {response.text[:200]}"
             raise RuntimeError(msg)
+
+    def list(self, prefix: str) -> list[str]:
+        """Every key that starts with ``prefix``, sorted, through the API's paged object listing."""
+        keys: list[str] = []
+        cursor = ""
+        while True:
+            params = {"prefix": prefix, "per_page": "1000"} | ({"cursor": cursor} if cursor else {})
+            response = self._client.get(self._base.rstrip("/"), params=params)
+            with self._lock:
+                self.requests += 1
+            if response.status_code != 200:
+                msg = f"could not list {prefix}: HTTP {response.status_code} {response.text[:200]}"
+                raise RuntimeError(msg)
+            body = response.json()
+            keys += [str(o["key"]) for o in body.get("result") or [] if isinstance(o, dict)]
+            info = body.get("result_info") or {}
+            cursor = str(info.get("cursor") or "")
+            if not info.get("is_truncated") or not cursor:
+                return sorted(keys)
 
 
 def put_many(store: Store, items: Iterable[tuple[str, bytes]], *, workers: int = 8) -> int:
