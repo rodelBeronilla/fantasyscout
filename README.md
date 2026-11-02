@@ -40,7 +40,7 @@ notebooks/   01_board_backtest .. 07_teammate_absence as nb_*.py cell sources an
 tableau/     the League Pulse extract (three CSVs) and the Google Sheet push behind the Tableau Public workbook
 web/         Astro app (React islands), Playwright and vitest tests, the committed data fixture
 worker/      Cloudflare Worker + wrangler.toml: the site, the data route, the owner's sign-in
-infra/       self-hosted runner for the jobs that need a residential address
+infra/       self-hosted runner for the jobs that need a residential address, and the host's daily ingest dispatch
 bundles/     Databricks Asset Bundle: jobs, schedules, targets
 tests/       Python tests (ingest, export, ops, the fixture contract)
 docs/        adr/, runbook.md, architecture.md (the data dictionary is the site's Schema page, from web/src/generated/schema.json)
