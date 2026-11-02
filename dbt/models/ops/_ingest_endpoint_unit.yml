@@ -1,0 +1,44 @@
+unit_tests:
+  - name: ingest_endpoint_log_rows
+    description: >
+      The run log's per-endpoint object becomes one row per endpoint (#398), a count the object
+      leaves out is zero, and a run logged before the counts existed has no rows.
+    model: ingest_endpoint_log
+    given:
+      - input: ref('ingest_log')
+        rows:
+          - {run_id: r1, source: stats, league: nba, endpoints: '{"boxscoretraditionalv3": {"landed": 3, "unchanged": 1, "failed": 0, "missing": 0}, "playbyplayv3": {"landed": 2, "failed": 1}}'}
+          - {run_id: r0, source: stats, league: nba, endpoints: null}
+    expect:
+      rows:
+        - {run_id: r1, endpoint: boxscoretraditionalv3, landed: 3, unchanged: 1, failed: 0, missing: 0}
+        - {run_id: r1, endpoint: playbyplayv3, landed: 2, unchanged: 0, failed: 1, missing: 0}
+
+  - name: ingest_endpoint_volume_flags_one_endpoint
+    description: >
+      Seven one-day runs: one endpoint lands 100 payloads every run, the other 50 until the latest
+      run lands none. The run's total falls by a third, but only the endpoint that stopped is an
+      anomaly (#398). A backfill window over 10 days is left out of the comparison.
+    model: ingest_endpoint_volume
+    given:
+      - input: ref('ingest_endpoint_log')
+        rows:
+          - {run_id: r1, source: stats, league: nba, endpoint: boxscoretraditionalv3, started_at: '2026-10-21 10:00:00', window_since: 2026-10-21, window_until: 2026-10-21, full_refresh: false, landed: 100, unchanged: 0}
+          - {run_id: r1, source: stats, league: nba, endpoint: playbyplayv3, started_at: '2026-10-21 10:00:00', window_since: 2026-10-21, window_until: 2026-10-21, full_refresh: false, landed: 50, unchanged: 0}
+          - {run_id: r2, source: stats, league: nba, endpoint: boxscoretraditionalv3, started_at: '2026-10-22 10:00:00', window_since: 2026-10-22, window_until: 2026-10-22, full_refresh: false, landed: 100, unchanged: 0}
+          - {run_id: r2, source: stats, league: nba, endpoint: playbyplayv3, started_at: '2026-10-22 10:00:00', window_since: 2026-10-22, window_until: 2026-10-22, full_refresh: false, landed: 50, unchanged: 0}
+          - {run_id: r3, source: stats, league: nba, endpoint: boxscoretraditionalv3, started_at: '2026-10-23 10:00:00', window_since: 2026-10-23, window_until: 2026-10-23, full_refresh: false, landed: 100, unchanged: 0}
+          - {run_id: r3, source: stats, league: nba, endpoint: playbyplayv3, started_at: '2026-10-23 10:00:00', window_since: 2026-10-23, window_until: 2026-10-23, full_refresh: false, landed: 50, unchanged: 0}
+          - {run_id: r4, source: stats, league: nba, endpoint: boxscoretraditionalv3, started_at: '2026-10-24 10:00:00', window_since: 2026-10-24, window_until: 2026-10-24, full_refresh: false, landed: 100, unchanged: 0}
+          - {run_id: r4, source: stats, league: nba, endpoint: playbyplayv3, started_at: '2026-10-24 10:00:00', window_since: 2026-10-24, window_until: 2026-10-24, full_refresh: false, landed: 50, unchanged: 0}
+          - {run_id: r5, source: stats, league: nba, endpoint: boxscoretraditionalv3, started_at: '2026-10-25 10:00:00', window_since: 2026-10-25, window_until: 2026-10-25, full_refresh: false, landed: 100, unchanged: 0}
+          - {run_id: r5, source: stats, league: nba, endpoint: playbyplayv3, started_at: '2026-10-25 10:00:00', window_since: 2026-10-25, window_until: 2026-10-25, full_refresh: false, landed: 50, unchanged: 0}
+          - {run_id: r6, source: stats, league: nba, endpoint: boxscoretraditionalv3, started_at: '2026-10-26 10:00:00', window_since: 2026-10-26, window_until: 2026-10-26, full_refresh: false, landed: 100, unchanged: 0}
+          - {run_id: r6, source: stats, league: nba, endpoint: playbyplayv3, started_at: '2026-10-26 10:00:00', window_since: 2026-10-26, window_until: 2026-10-26, full_refresh: false, landed: 50, unchanged: 0}
+          - {run_id: r7, source: stats, league: nba, endpoint: boxscoretraditionalv3, started_at: '2026-10-27 10:00:00', window_since: 2026-10-27, window_until: 2026-10-27, full_refresh: false, landed: 100, unchanged: 0}
+          - {run_id: r7, source: stats, league: nba, endpoint: playbyplayv3, started_at: '2026-10-27 10:00:00', window_since: 2026-10-27, window_until: 2026-10-27, full_refresh: false, landed: 0, unchanged: 0}
+          - {run_id: r_backfill, source: stats, league: nba, endpoint: playbyplayv3, started_at: '2026-10-20 10:00:00', window_since: 2026-09-01, window_until: 2026-10-19, full_refresh: false, landed: 0, unchanged: 0}
+    expect:
+      rows:
+        - {endpoint: boxscoretraditionalv3, run_id: r7, payloads: 100, prior_runs: 6, is_anomaly: false}
+        - {endpoint: playbyplayv3, run_id: r7, payloads: 0, prior_runs: 6, is_anomaly: true}
