@@ -1922,3 +1922,18 @@ test("Trade's no-roster sentence names the manager's settings, the same summary 
   await expect(page.getByTestId('trade-no-league')).toContainText(`Values are for your settings (${summary}).`);
   await expect(page.getByTestId('trade-no-league')).not.toContainText('9 categories');
 });
+
+test('every Streamers column says what it holds, and the box-score columns are the last five games (#456)', async ({ page }) => {
+  await page.goto('/streamers/?league=nba');
+  const table = page.getByTestId('trending');
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  const untitled = await table.locator('thead th').evaluateAll((ths) =>
+    ths.filter((th) => !th.hasAttribute('title') && !th.querySelector('[title]')).map((th) => th.textContent?.trim()),
+  );
+  expect(untitled).toEqual([]);
+  await expect(table.locator('thead')).toContainText('PTS (5)');
+  await expect(table.getByRole('button', { name: 'PTS (5)' })).toHaveAttribute('title', 'Points per game, last five games');
+  // the intro describes the same baseline the columns use
+  await expect(page.locator('main > section > p').first()).toContainText('the games before them blended with last season');
+  await expect(page.locator('main')).not.toContainText('twenty-game');
+});
