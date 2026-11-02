@@ -22968,6 +22968,83 @@
        "type": "double"
       },
       {
+       "description": "Points per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_points_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Rebounds per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_rebounds_total_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Assists per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_assists_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Steals per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_steals_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Blocks per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_blocks_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Three-pointers made per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_three_pointers_made_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Turnovers per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_turnovers_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Field-goal attempts per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_fga_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Free-throw attempts per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_fta_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Field goals made (the last-ten percentage on the attempts) per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_fgm_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Free throws made (the last-ten percentage on the attempts) per game over the last ten games played; a points league scores the line with its own weights",
+       "meta": {},
+       "name": "last_10_ftm_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
        "description": "Season z_total blended with the latest earlier season's, that season counting for up to 10 games and this one for its games before the last ten",
        "meta": {},
        "name": "value_baseline",

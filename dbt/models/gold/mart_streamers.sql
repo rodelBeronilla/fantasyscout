@@ -76,8 +76,21 @@ recent_value as (
 
     select z.league, z.player_id, z.z_total as last_10_z_total,
         {%- for c in cats %}
-        z.z_{{ c }} as last_10_z_{{ c }}{{ "," if not loop.last }}
+        z.z_{{ c }} as last_10_z_{{ c }},
         {%- endfor %}
+        -- the per-game line of the same ten games, so a points league can score it with its
+        -- own weights in the browser (#467): makes come from the percentage on the attempts
+        z.points_pg as last_10_points_pg,
+        z.rebounds_total_pg as last_10_rebounds_total_pg,
+        z.assists_pg as last_10_assists_pg,
+        z.steals_pg as last_10_steals_pg,
+        z.blocks_pg as last_10_blocks_pg,
+        z.three_pointers_made_pg as last_10_three_pointers_made_pg,
+        z.turnovers_pg as last_10_turnovers_pg,
+        z.fga_pg as last_10_fga_pg,
+        z.fta_pg as last_10_fta_pg,
+        z.field_goal_pct * z.fga_pg as last_10_fgm_pg,
+        z.free_throw_pct * z.fta_pg as last_10_ftm_pg
     from {{ ref('mart_category_zscores') }} as z
     join current_season as cs on cs.league = z.league and cs.season = z.season
     where z.window_name = 'last_10'
@@ -267,6 +280,17 @@ select
     lr.minutes_avg_5 - b.minutes_baseline as minutes_trend,
     sl.season_z_total,
     rv.last_10_z_total,
+    rv.last_10_points_pg,
+    rv.last_10_rebounds_total_pg,
+    rv.last_10_assists_pg,
+    rv.last_10_steals_pg,
+    rv.last_10_blocks_pg,
+    rv.last_10_three_pointers_made_pg,
+    rv.last_10_turnovers_pg,
+    rv.last_10_fga_pg,
+    rv.last_10_fta_pg,
+    rv.last_10_fgm_pg,
+    rv.last_10_ftm_pg,
     b.value_baseline,
     rv.last_10_z_total - b.value_baseline as value_trend,
     rp.last_10_production,
