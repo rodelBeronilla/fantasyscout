@@ -662,13 +662,17 @@ export default function Board() {
           </Td>
         )}
         <Td>
-          <input
-            type="checkbox"
-            aria-label={`Compare ${row.full_name ?? row.player_id}`}
-            checked={compare.includes(row.player_id)}
-            disabled={!compare.includes(row.player_id) && compare.length >= COMPARE_MAX}
-            onChange={() => toggleCompare(row.player_id)}
-          />
+          {/* The label pads the box to a 24 by 24 target (#457). */}
+          <label className="-m-1 inline-flex cursor-pointer p-1">
+            <input
+              type="checkbox"
+              className="size-4"
+              aria-label={`Compare ${row.full_name ?? row.player_id}`}
+              checked={compare.includes(row.player_id)}
+              disabled={!compare.includes(row.player_id) && compare.length >= COMPARE_MAX}
+              onChange={() => toggleCompare(row.player_id)}
+            />
+          </label>
         </Td>
       </tr>,
     );

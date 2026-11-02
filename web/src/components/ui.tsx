@@ -147,7 +147,8 @@ export function SortTh({
         type="button"
         onClick={onClick}
         title={title}
-        className={`underline-offset-4 hover:underline ${active ? 'text-fg' : 'text-muted'}`}
+        // At least 24 by 24 to tap (#457); the negative margin keeps the header row's height.
+        className={`-my-1 inline-block min-w-6 py-1 underline-offset-4 hover:underline ${active ? 'text-fg' : 'text-muted'}`}
       >
         {children}
         {active ? (dir === 'asc' ? ' ▲' : ' ▼') : ''}
@@ -214,7 +215,8 @@ export function Star({ on, label, onToggle }: { on: boolean; label: string; onTo
       aria-label={on ? `Remove ${label} from the watchlist` : `Add ${label} to the watchlist`}
       title={on ? 'On your watchlist' : 'Add to your watchlist'}
       onClick={onToggle}
-      className={`leading-none ${on ? 'text-warn' : 'text-muted hover:text-fg'}`}
+      // The glyph is 12 by 14; the padding makes the tap target 28 by 30 without moving the name (#457).
+      className={`-m-2 p-2 leading-none ${on ? 'text-warn' : 'text-muted hover:text-fg'}`}
       data-testid="watch"
     >
       {on ? '★' : '☆'}
@@ -284,7 +286,7 @@ export function LineupTag({
 export function TagLegend() {
   return (
     <details className="text-xs text-muted" data-testid="tag-legend">
-      <summary className="cursor-pointer select-none">What the tags mean</summary>
+      <summary className="cursor-pointer py-1 select-none">What the tags mean</summary>
       <dl className="mt-1 grid gap-x-3 gap-y-0.5 sm:grid-cols-[auto_1fr]">
         <dt className="font-semibold">START / START?</dt>
         <dd>Starting the next game day: confirmed by the team, or expected (NBA lineups).</dd>

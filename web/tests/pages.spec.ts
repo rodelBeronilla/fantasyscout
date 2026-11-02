@@ -1937,3 +1937,22 @@ test('every Streamers column says what it holds, and the box-score columns are t
   await expect(page.locator('main > section > p').first()).toContainText('the games before them blended with last season');
   await expect(page.locator('main')).not.toContainText('twenty-game');
 });
+
+// WCAG 2.5.8: a pointer target is at least 24 by 24 CSS pixels (#457). A checkbox counts with the
+// label that wraps it, which is what a tap lands on; links inside sentences are exempt.
+test('every control on the Board is at least 24 by 24', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
+  const small = await page.locator('main').evaluate((main) => {
+    const out: string[] = [];
+    for (const el of main.querySelectorAll<HTMLElement>('button, select, summary, input:not([type="hidden"])')) {
+      const target = (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio') && el.closest('label')) || el;
+      const box = target.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      if (box.width === 0 || style.visibility === 'hidden' || el.classList.contains('sr-only') && !el.closest('label')) continue;
+      if (box.width < 24 || box.height < 24) out.push(`${el.tagName.toLowerCase()} "${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 40)}" ${Math.round(box.width)}x${Math.round(box.height)}`);
+    }
+    return [...new Set(out)];
+  });
+  expect(small).toEqual([]);
+});
