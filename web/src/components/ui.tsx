@@ -167,7 +167,7 @@ export function Chip({
 }) {
   return (
     <label
-      className={`flex cursor-pointer items-center rounded-full border px-2.5 py-1 text-sm select-none ${
+      className={`flex cursor-pointer items-center rounded-full border px-2.5 py-1 text-sm select-none has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
         checked ? 'border-accent bg-accent text-accent-fg' : 'border-line'
       } ${checked && strike ? 'line-through decoration-2' : ''}`}
     >
