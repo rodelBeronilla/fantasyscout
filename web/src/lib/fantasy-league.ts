@@ -75,6 +75,17 @@ export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
   wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto' },
 };
 
+/** Whether the settings are the league's defaults, the ones the published values assume. */
+export function isDefaultSettings(s: LeagueSettings, d: LeagueSettings): boolean {
+  return (
+    s.teams === d.teams &&
+    s.rosterSpots === d.rosterSpots &&
+    s.scoring === d.scoring &&
+    s.format === d.format &&
+    JSON.stringify(s.weights) === JSON.stringify(d.weights)
+  );
+}
+
 export const MIN_TEAMS = 4;
 export const MAX_TEAMS = 20;
 

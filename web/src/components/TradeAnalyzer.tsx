@@ -8,11 +8,12 @@ import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague } from '../lib/league';
-import { owners, useLeague } from '../lib/fantasy-league';
+import { DEFAULT_SETTINGS, isDefaultSettings, owners, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues } from '../lib/league-value';
 import { href } from '../lib/site';
 import { nearestInValue, openSide, suggestTrades } from '../lib/trade-suggest';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
+import { describeSettings } from './LeagueParts';
 import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th } from './ui';
 
 interface PlayerRow {
@@ -371,7 +372,9 @@ export default function TradeAnalyzer() {
 
       {!hasRosters && (
         <p className="text-sm text-muted" data-testid="trade-no-league">
-          Values are for the default league ({setup.teams} teams of {setup.rosterSpots}, 9 categories). Set up your league&apos;s size, scoring and
+          {/* The same summary as the League bar, so it follows the settings (#453). */}
+          Values are for {isDefaultSettings(setup, DEFAULT_SETTINGS[league]) ? 'the default league' : 'your settings'} (
+          <span data-testid="trade-settings">{describeSettings(setup)}</span>). Set up your league&apos;s size, scoring and
           rosters on the <a href={href('/league/')} className="underline underline-offset-4">League page</a> to value a trade for your league and
           see your team before and after.
         </p>

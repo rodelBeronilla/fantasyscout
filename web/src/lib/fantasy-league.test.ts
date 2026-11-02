@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assign, DEFAULT_SETTINGS, draftPick, matchNames, migrate, nameKey, normalize, onTheClock, owners, toggleIl, undoPick } from './fantasy-league';
+import { assign, DEFAULT_SETTINGS, draftPick, isDefaultSettings, matchNames, migrate, nameKey, normalize, onTheClock, owners, toggleIl, undoPick } from './fantasy-league';
 
 const base = normalize({ teams: 4, rosters: [['p1', 'p2'], ['p3'], [], []] }, DEFAULT_SETTINGS.nba);
 
@@ -83,5 +83,16 @@ describe('name matching', () => {
       matched: ['1', '4'],
       unmatched: ['J. Williams', 'X. Ogwumike'],
     });
+  });
+});
+
+describe('isDefaultSettings', () => {
+  const d = DEFAULT_SETTINGS.wnba;
+  it('holds for the defaults and breaks on any one change', () => {
+    expect(isDefaultSettings({ ...d }, d)).toBe(true);
+    expect(isDefaultSettings({ ...d, teams: 6 }, d)).toBe(false);
+    expect(isDefaultSettings({ ...d, scoring: 'points' }, d)).toBe(false);
+    expect(isDefaultSettings({ ...d, format: 'h2h' }, d)).toBe(false);
+    expect(isDefaultSettings({ ...d, weights: { ...d.weights, points: d.weights.points + 1 } }, d)).toBe(false);
   });
 });

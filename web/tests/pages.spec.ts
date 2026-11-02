@@ -960,6 +960,7 @@ test('the Trade page values both sides for the rest of the season and gives a ve
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   await page.goto('/trade/');
   await expect(page.getByTestId('trade-no-league')).toBeVisible();
+  await expect(page.getByTestId('trade-no-league')).toContainText('Values are for the default league (10 teams × 10, 9-cat).');
   // Give the second-best player, get the two best: the trade favours the manager.
   await page.getByLabel('Add a player you give').fill(label(board[1]!));
   await page.getByLabel('Add a player you get').fill(label(board[0]!));
@@ -1839,3 +1840,18 @@ test('data health names the requests the ingest could not land', async ({ page }
   await expect(rows.nth(1)).toContainText('missing');
 });
 
+
+test("Trade's no-roster sentence names the manager's settings, the same summary as the League bar (#453)", async ({ page }) => {
+  await page.goto('/league/');
+  await page.getByLabel('Teams in the league').fill('6');
+  await page.getByLabel('Scoring').selectOption('points');
+  await expect(page.getByTestId('team-card')).toHaveCount(6);
+  // The League bar sits on the Board.
+  await page.goto('/');
+  await expect(page.getByTestId('league-summary')).toHaveText('6 teams × 10, Points');
+  const summary = await page.getByTestId('league-summary').textContent();
+  await page.goto('/trade/');
+  await expect(page.getByTestId('trade-settings')).toHaveText(summary!);
+  await expect(page.getByTestId('trade-no-league')).toContainText(`Values are for your settings (${summary}).`);
+  await expect(page.getByTestId('trade-no-league')).not.toContainText('9 categories');
+});
