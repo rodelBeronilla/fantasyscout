@@ -273,7 +273,7 @@ export default function LeagueSetup() {
                 onClick={() => update((s) => ({ ...s, drafting: true }))}
                 className="rounded border border-accent bg-accent px-3 py-1 text-sm text-accent-fg"
               >
-                {setup.picks.length ? `Resume the draft at pick ${onTheClock(setup).overall}` : 'Start a draft'}
+                {setup.picks.length ? `Continue the draft at pick ${onTheClock(setup).overall}` : 'Start a draft'}
               </button>
               {rostered > 0 && (
                 <button
