@@ -8,8 +8,13 @@ name: Ingest
 
 on:
   schedule:
-    - cron: "15 9 * * *" # daily, after the previous night's games are final
-    - cron: "0 23 * * *" # evening: the injury reports only, after teams file (5 pm ET) and before tip-off
+    # GitHub starts scheduled runs late on busy minutes and hours (observed 2026-10-27 to 11-02:
+    # 09:15 fired at 15:21-16:09 UTC, 23:00 at 01:54-02:08 UTC). The minutes below avoid :00 and
+    # :15; ops.build_log records each run's delay against its cron (schedule_delay_seconds), and
+    # the runbook ("Publish SLA and the watchdog") says how to dispatch the evening run from the
+    # home runner host when the lag keeps the reports past tip-off.
+    - cron: "27 9 * * *" # daily, after the previous night's games are final
+    - cron: "41 22 * * *" # evening: the injury reports only, after teams file (5 pm ET) and before tip-off
   workflow_dispatch:
     inputs:
       source:

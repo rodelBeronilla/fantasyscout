@@ -279,6 +279,14 @@ While a league is playing, the site is expected to serve a build no older than *
 uv run python -m ops.watchdog --site https://fantasyscout.beronilla.rodeo
 ```
 
+Every build's row in `ops.build_log` carries `schedule_delay_seconds`: how long after its cron the scheduled ingest that triggered it actually started (null for a dispatched run), and the run's step summary says the same in minutes. In the first week of November 2026 the morning cron fired three to seven hours late and the evening one about three, which puts the evening injury reports after tip-off. When that holds, dispatch the evening run from the home runner host instead, with the GitHub cron as the fallback: on the host, with `gh` signed in,
+
+```cron
+15 22 * * *  gh workflow run ingest.yml --repo rodelBeronilla/fantasyscout -f source=reports >> /var/log/fantasyscout-ingest.log 2>&1
+```
+
+The landing is idempotent per day, so the cron's own run later lands nothing new.
+
 A stale incident means no Build lakehouse run promoted a build in time, which the pipeline's own incidents may not say: a home runner that is offline leaves the stats job queued (nothing runs, nothing reports), a schedule GitHub stopped firing produces no run at all, and a cancelled build never reaches its report step. Check, in order: the latest Ingest and Build runs and their conclusions; the home runners (`infra/runner`, "runner shows offline"); whether the schedules fired at all (GitHub disables them after 60 days without a push, and runs them late on busy hours). Then run Ingest and Build by hand.
 
 ## Home runner offline

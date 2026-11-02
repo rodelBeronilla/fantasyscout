@@ -152,3 +152,41 @@ def test_main_writes_duckdb_and_prints_the_summary(tmp_path: Path, monkeypatch, 
         assert con.execute("select count(*) from ops.build_log").fetchone() == (1,)
     finally:
         con.close()
+
+
+def test_schedule_delay_measures_against_the_latest_cron_slot() -> None:
+    crons = ((9, 27), (22, 41))
+    assert build_log.schedule_delay(datetime(2026, 11, 2, 16, 4, tzinfo=UTC), crons) == 23820.0
+    assert build_log.schedule_delay(datetime(2026, 11, 2, 1, 54, tzinfo=UTC), crons) == 11580.0
+    assert build_log.schedule_delay(datetime(2026, 11, 2, 9, 27, tzinfo=UTC), crons) == 0.0
+    assert build_log.schedule_delay(None, crons) is None
+    assert build_log.schedule_delay(datetime(2026, 11, 2, 16, 4, tzinfo=UTC), ()) is None
+
+
+def test_ingest_crons_are_read_from_the_workflow(tmp_path: Path) -> None:
+    wf = tmp_path / "ingest.yml"
+    wf.write_text(
+        'on:\n  schedule:\n    - cron: "27 9 * * *"\n    - cron: "41 22 * * *" # evening\n',
+        encoding="utf-8",
+    )
+    assert build_log.ingest_crons(wf) == ((9, 27), (22, 41))
+    assert build_log.ingest_crons(tmp_path / "missing.yml") == build_log.INGEST_CRONS_FALLBACK
+
+
+def test_collect_records_how_late_a_scheduled_trigger_fired(tmp_path: Path) -> None:
+    target = artifacts(tmp_path)
+
+    def api(path: str):  # type: ignore[no-untyped-def]
+        if path.endswith("/runs/40"):
+            return {"event": "schedule", "created_at": "2026-11-02T16:04:06Z"}
+        return _api(path)
+
+    record = build_log.collect(
+        ENV, api=api, fetch_json=lambda _: MANIFEST, target_dirs=[target], now=NOW
+    )
+    assert record.schedule_delay_seconds is not None and record.schedule_delay_seconds > 0
+    assert "after its cron" in build_log.summary_markdown(record)
+    dispatched = build_log.collect(
+        ENV, api=_api, fetch_json=lambda _: MANIFEST, target_dirs=[target], now=NOW
+    )
+    assert dispatched.schedule_delay_seconds is None
