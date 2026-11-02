@@ -38,7 +38,7 @@ FantasyScout is three loosely coupled systems: ingestion in GitHub Actions, tran
 | Layer | Choice | Where |
 | --- | --- | --- |
 | Ingestion | Python 3.12, `httpx`, `pydantic`; one module per source; CLI `fs-ingest` | `ingest/` |
-| Orchestration | GitHub Actions cron for ingest; Databricks Jobs via Asset Bundles for transforms | `.github/workflows/`, `bundles/` |
+| Orchestration | GitHub Actions: cron for the ingest, and the build (dbt, gate, export, promotion) after every completed ingest; the Asset Bundle's Databricks job is the paused fallback, deployed on dispatch only (ADR 0013) | `.github/workflows/`, `bundles/` |
 | Landing (bronze) | Raw JSON as received, pushed to a Unity Catalog volume through the Files API | `ingest/landing.py` defines the layout |
 | Warehouse | Databricks Free Edition: Delta, Unity Catalog, one 2X-Small SQL warehouse | `dbt/` |
 | Transform | dbt Core, `dbt-databricks` target plus a `dbt-duckdb` target for CI; one SQL body per model, adapter-dispatched macros hide the engine differences | `dbt/` |

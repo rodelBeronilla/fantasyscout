@@ -51,6 +51,8 @@ A failed check stops the export, so the site keeps serving the last good build w
 | --- | --- | --- |
 | Ingestion | Python 3.12, `httpx`, `nba_api` (league\_id `10` WNBA, `00` NBA), `pydantic` | One ingestor class per source |
 | Orchestration | GitHub Actions cron for ingest; Databricks Jobs (Asset Bundles) for transforms | Version-controlled schedules; bundles are how Databricks deployments are meant to be done |
+
+> **Superseded.** The transforms run in GitHub Actions after every completed ingest, in the same job as the gate, the export and the promotion; the Asset Bundle's job is deployed paused as a fallback, on dispatch only (ADR 0013).
 | Landing (bronze) | Unity Catalog volume `fantasyscout.raw.landing`, raw JSON as received | Databricks Free Edition cannot use custom storage locations, so files are pushed in via the Files API |
 | Warehouse | Databricks Free Edition: Delta tables, Unity Catalog, 2X-Small SQL warehouse | Free, and the platform the models target |
 | Transform | dbt Core with `dbt-databricks`; a second `dbt-duckdb` target for local dev and CI | SQL-first models, tests and docs; DuckDB lets CI run without the cloud |

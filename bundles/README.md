@@ -14,3 +14,7 @@ databricks bundle run      -t prod fantasyscout_build --var="warehouse_id=$WAREH
 ```
 
 The schedule is deployed paused. Unpause it in the Jobs UI (or set `pause_status: UNPAUSED`) once a manual `bundle run` has succeeded; until then GitHub Actions is the only scheduled builder, so there is exactly one writer.
+
+## When it is deployed
+
+The bundle job is the fallback, not the pipeline (ADR 0013): the nightly build runs dbt in GitHub Actions, and this job is deployed, paused, only when the Build workflow is dispatched with `deploy_bundle` ticked. During an Actions outage, run the job from the workspace (Workflows → the job → Run now) to refresh the lakehouse tables; it builds the dbt models only, so the gate, the export and the promotion still wait for Actions.

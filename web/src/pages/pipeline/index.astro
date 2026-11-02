@@ -574,7 +574,7 @@ const deployLegend =
         <li><strong>Export data:</strong> build (after checking the latest gate), roll back (pinning), unpin, or list builds.</li>
         <li><strong>Run the notebooks:</strong> a branch's notebooks against the published build; findings in the log, pages as a three-day artefact.</li>
         <li><strong>Query the lakehouse:</strong> read-only; prints any table, filtered and ordered, into the job log.</li>
-        <li><strong>Databricks job:</strong> after each successful dbt job, the bundle job deploys a scheduled Databricks job of the same dbt project, kept paused.</li>
+        <li><strong>Databricks job:</strong> the Asset Bundle declares a scheduled Databricks job of the same dbt project, deployed paused as the fallback for an Actions outage, on a dispatch of the Build workflow only (ADR 0013).</li>
       </ul>
     </section>
   </section>
