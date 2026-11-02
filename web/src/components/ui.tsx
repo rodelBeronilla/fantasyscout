@@ -298,6 +298,8 @@ export function TagLegend() {
         <dd>The team has nothing left to play for late in the season: minutes are less certain.</dd>
         <dt className="font-semibold">BLOWOUT?</dt>
         <dd>A starter whose next game has a spread of 10 points or more: starters sit more of a lopsided game (hover for the minutes).</dd>
+        <dt className="font-semibold">TOP OUT</dt>
+        <dd>The team&apos;s largest-usage player is out for the next game on the official report: teammates usually get more minutes (hover for who).</dd>
         <dt className="font-semibold">NEW</dt>
         <dd>On a new team this season.</dd>
         <dt className="font-semibold">BACK, NEWS, SURG, MIN LIM, ROLE, G LG, SEASON</dt>
@@ -406,6 +408,25 @@ export function BlowoutTag({ risk }: { risk: { spread: number; minutes: number }
   return (
     <span className="rounded border border-warn px-1 text-[10px] font-semibold text-warn" title={title} data-testid="blowout">
       BLOWOUT?
+    </span>
+  );
+}
+
+/**
+ * The team's largest-usage player is out for the next game (#485): their teammates' minutes and
+ * production go up (notebook 07: about +2.2 minutes and +2.3 fantasy points a game per 10 points of
+ * usage share out, for players at the same position). A flag; the value is unchanged (ADR 0012).
+ */
+export function TopOutTag({ name, usage }: { name: string | null | undefined; usage: number | null | undefined }) {
+  if (!name) return null;
+  const share = typeof usage === 'number' ? ` (${Math.round(usage * 100)}% of the team's possessions)` : '';
+  return (
+    <span
+      className="rounded border border-good px-1 text-[10px] font-semibold text-good"
+      title={`${name}${share} is out for the next game on the official report: teammates usually play and produce more (teammate absence notebook)`}
+      data-testid="top-out"
+    >
+      TOP OUT
     </span>
   );
 }

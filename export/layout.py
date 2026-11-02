@@ -287,6 +287,8 @@ STREAMER_COLUMNS = (
     "sleeper_adds",
     "sleeper_drops",
     "waiver_trend",
+    "top_teammate_out",
+    "top_teammate_out_usage",
 )
 STREAMERS_SQL = f"""
 select {", ".join(STREAMER_COLUMNS)}
