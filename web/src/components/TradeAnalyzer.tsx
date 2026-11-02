@@ -3,7 +3,7 @@
  * manager's team changes category by category, and a verdict. Players come from the league's
  * rosters when the League page has them, or from a search over the whole board.
  */
-import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
@@ -14,6 +14,7 @@ import { href } from '../lib/site';
 import { nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { describeSettings } from './LeagueParts';
+import { PlayerPicker } from './PlayerPicker';
 import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th } from './ui';
 
 interface PlayerRow {
@@ -57,18 +58,6 @@ const button = 'rounded border border-line px-2 py-1 text-xs hover:bg-bg disable
 
 const optionLabel = (p: PlayerRow) => `${p.full_name ?? p.player_id} · ${p.team_abbreviation ?? 'FA'} · ${p.position ?? '–'}`;
 
-/** Type a name and pick it from the list to add the player to a side. */
-function AddPlayer({ label, options, onAdd }: { label: string; options: Map<string, string>; onAdd: (id: string) => void }) {
-  const [text, setText] = useState('');
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const id = options.get(e.target.value);
-    if (id) {
-      onAdd(id);
-      setText('');
-    } else setText(e.target.value);
-  };
-  return <input type="search" list="trade-players" value={text} onChange={onChange} placeholder="Add a player" aria-label={label} className={`${input} w-full`} />;
-}
 
 /** The figure a trade is judged on, as a short label: the rest of the season, or this fantasy week (#466). */
 const UNIT_TEXT: Record<ValueUnit, string> = { rest: 'rest of season', week: 'rest of this fantasy week' };
@@ -296,7 +285,7 @@ export default function TradeAnalyzer() {
             {rosterPicker(side, team, picked)}
           </div>
         )}
-        <AddPlayer label={side === 'give' ? 'Add a player you give' : 'Add a player you get'} options={options} onAdd={(id) => add(side, id)} />
+        <PlayerPicker label={side === 'give' ? 'Add a player you give' : 'Add a player you get'} options={options} onAdd={(id) => add(side, id)} />
         {picked.length > 0 && (
           <ul className="flex flex-wrap gap-1" data-testid={`picked-${side}`}>
             {picked.map((id) => {
@@ -385,11 +374,6 @@ export default function TradeAnalyzer() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
-      <datalist id="trade-players">
-        {[...options.keys()].map((label) => (
-          <option key={label} value={label} />
-        ))}
-      </datalist>
 
       {!hasRosters && (
         <p className="text-sm text-muted" data-testid="trade-no-league">

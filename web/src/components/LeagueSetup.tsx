@@ -2,7 +2,7 @@
  * The League page: the manager's league (settings, teams in draft order, rosters), a snake draft,
  * and how the teams stand. Kept in this browser; the board and Streamers read it.
  */
-import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
@@ -14,6 +14,7 @@ import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
 import { href } from '../lib/site';
 import { CategoryProfile, DraftBar, LeagueSettingsForm, Today, type TodayRow } from './LeagueParts';
 import { easternDate, type TodayGame } from '../lib/today';
+import { PlayerPicker } from './PlayerPicker';
 import { Card, Loading, Problem, Td, Th } from './ui';
 import YahooImport from './YahooImport';
 
@@ -35,28 +36,6 @@ const button = 'rounded border border-line px-2 py-1 text-xs hover:bg-bg disable
 
 const optionLabel = (p: PlayerRow) => `${p.full_name ?? p.player_id} · ${p.team_abbreviation ?? 'FA'} · ${p.position ?? '–'}`;
 
-/** Type a name and pick it from the list to add the player. */
-function AddPlayer({ label, options, onAdd }: { label: string; options: Map<string, string>; onAdd: (id: string) => void }) {
-  const [text, setText] = useState('');
-  const onChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const id = options.get(e.target.value);
-    if (id) {
-      onAdd(id);
-      setText('');
-    } else setText(e.target.value);
-  };
-  return (
-    <input
-      type="search"
-      list="league-players"
-      value={text}
-      onChange={onChange}
-      placeholder="Add a player"
-      aria-label={label}
-      className={`${input} w-full`}
-    />
-  );
-}
 
 function PasteNames({ teamName, players, onAdd }: { teamName: string; players: PlayerRow[]; onAdd: (ids: string[]) => void }) {
   const [text, setText] = useState('');
@@ -217,7 +196,7 @@ export default function LeagueSetup() {
             />
             <div className="grid gap-3 md:grid-cols-2">
               <div className="grid content-start gap-2">
-                <AddPlayer label="Draft a player" options={options} onAdd={(id) => update((s) => draftPick(s, id))} />
+                <PlayerPicker label="Draft a player" options={options} onAdd={(id) => update((s) => draftPick(s, id))} />
                 <p className="text-xs text-muted">
                   Best available by value.{' '}
                   <a href={href('/')} className="text-accent underline underline-offset-4">
@@ -376,11 +355,6 @@ export default function LeagueSetup() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-      <datalist id="league-players">
-        {[...options.keys()].map((label) => (
-          <option key={label} value={label} />
-        ))}
-      </datalist>
 
       <YahooImport league={league} players={rows} hasRosters={rostered > 0} onImport={(next) => update(() => next)} />
 
@@ -479,7 +453,7 @@ export default function LeagueSetup() {
                     })}
                   </ul>
                 )}
-                <AddPlayer label={`Add a player to ${name}`} options={options} onAdd={(id) => update((s) => assign(s, id, t))} />
+                <PlayerPicker label={`Add a player to ${name}`} options={options} onAdd={(id) => update((s) => assign(s, id, t))} />
                 <PasteNames teamName={name} players={rows} onAdd={(ids) => update((s) => ids.reduce((acc, id) => assign(acc, id, t), s))} />
               </div>
             );
