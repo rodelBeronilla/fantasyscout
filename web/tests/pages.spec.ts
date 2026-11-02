@@ -749,6 +749,7 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   await expect(page).toHaveURL(/\/league\/\?league=nba$/);
   await expect(page.getByTestId('team-card')).toHaveCount(4);
   await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 12 players matched, 4 on the IL.');
+  await expect(page.getByTestId('roster').filter({ hasText: 'Napheesa Collier' })).toHaveCount(0);
   // IL players are owned but take no roster spot, and the IL can be toggled by hand.
   await expect(page.getByRole('button', { name: /^Injured list:/, pressed: true })).toHaveCount(4);
   await expect(page.getByText(/8 of \d+ roster spots filled \(4 more on the IL\)/)).toBeVisible();
@@ -758,6 +759,33 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   await expect(page.getByTestId('team-card').nth(1).getByLabel('Name of team 2')).toHaveValue('Rim Reapers');
   await expect(page.getByTestId('team-card').nth(1).getByRole('radio')).toBeChecked();
   await expect(page.getByTestId('team-card').nth(0).getByTestId('roster').locator('li')).toHaveCount(3);
+});
+
+test('the Yahoo bookmarklet reads every roster from the Starting Rosters page itself, counting only rows with a slot', async ({ page }) => {
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  // No team page may be fetched: the rosters are on the page the bookmark runs on.
+  let fetched = 0;
+  await page.route(/\/nba\/12345\/\d+$/, (route) => {
+    fetched += 1;
+    return route.abort();
+  });
+  await page.goto('/data/yahoo/startingrosters.html');
+  await page.evaluate(code.slice('javascript:'.length));
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/);
+  await expect(page.getByTestId('team-card')).toHaveCount(4);
+  await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 14 players matched, 2 on the IL.');
+  expect(fetched).toBe(0);
+  const cards = page.getByTestId('team-card');
+  await expect(cards.nth(0).getByLabel('Name of team 1')).toHaveValue('Dunk Dynasty');
+  await expect(cards.nth(0).getByTestId('roster').locator('li')).toHaveCount(4);
+  await expect(cards.nth(0).getByTestId('roster')).toContainText('Rhyne Howard');
+  await expect(cards.nth(1).getByTestId('roster').locator('li')).toHaveCount(3);
+  await expect(cards.nth(1).getByRole('radio')).toBeChecked();
+  // the sidebar's players belong to nobody
+  await expect(page.getByTestId('roster').filter({ hasText: 'Napheesa Collier' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Injured list:/, pressed: true })).toHaveCount(2);
 });
 
 test('the Trade page values both sides for the rest of the season and gives a verdict', async ({ page }) => {
