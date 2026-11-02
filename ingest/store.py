@@ -139,6 +139,8 @@ class Backend(Protocol):
 
     def read_bytes(self, path: PurePosixPath) -> bytes | None: ...
 
+    def list_files(self, directory: PurePosixPath) -> list[PurePosixPath]: ...
+
     def write_bytes(self, path: PurePosixPath, body: bytes) -> None: ...
 
     def ensure_directory(self, path: PurePosixPath) -> None: ...
@@ -156,6 +158,17 @@ class LocalBackend:
     def read_bytes(self, path: PurePosixPath) -> bytes | None:
         target = self._resolve(path)
         return target.read_bytes() if target.exists() else None
+
+    def list_files(self, directory: PurePosixPath) -> list[PurePosixPath]:
+        """Every file under the directory, recursively, as paths relative to the root."""
+        base = self._resolve(directory)
+        if not base.is_dir():
+            return []
+        return sorted(
+            PurePosixPath(p.relative_to(self.root).as_posix())
+            for p in base.rglob("*")
+            if p.is_file()
+        )
 
     def ensure_directory(self, path: PurePosixPath) -> None:
         self._resolve(path).mkdir(parents=True, exist_ok=True)
@@ -268,6 +281,46 @@ class VolumeBackend:
 
     def _files_url(self, path: PurePosixPath) -> str:
         return f"{self.host}/api/2.0/fs/files{self._volume_path(path)}"
+
+    def list_files(self, directory: PurePosixPath) -> list[PurePosixPath]:
+        """Every file under the directory, recursively (the Files API directory listing)."""
+        out: list[PurePosixPath] = []
+        pending = [directory]
+        prefix = self.root + "/"
+        while pending:
+            current = pending.pop()
+            token: str | None = None
+            while True:
+                params = {"page_size": "1000"}
+                if token:
+                    params["page_token"] = token
+                response = self._send(
+                    "GET",
+                    f"{self.host}/api/2.0/fs/directories{self._volume_path(current)}",
+                    params=params,
+                )
+                if response.status_code == 404:
+                    break
+                if response.status_code != 200:
+                    msg = (
+                        f"could not list {current}: HTTP {response.status_code} "
+                        f"{response.text[:200]}"
+                    )
+                    raise RuntimeError(msg)
+                body = response.json()
+                for item in body.get("contents", []):
+                    full = str(item.get("path", ""))
+                    relative = PurePosixPath(
+                        full[len(prefix) :] if full.startswith(prefix) else full
+                    )
+                    if item.get("is_directory"):
+                        pending.append(relative)
+                    else:
+                        out.append(relative)
+                token = body.get("next_page_token") or None
+                if not token:
+                    break
+        return sorted(out)
 
     def _send(self, method: str, url: str, **kwargs: object) -> httpx.Response:
         """One Files API call, retried with backoff on rate limiting and server errors.
@@ -384,6 +437,77 @@ class WriteFailure:
     error: BaseException
 
 
+def load_index(backend: Backend, scope: Scope) -> dict[str, IndexEntry]:
+    """The scope's index, or an empty one with a warning when the file cannot be read as an index.
+
+    A write cut off midway (the index is rewritten in place) or a hand edit used to crash every
+    run of the scope with a traceback; an empty index only costs the re-fetch of what the window
+    covers, and the run's flush rewrites the file whole (#415). ``reindex`` rebuilds it from the
+    sidecars without a fetch.
+    """
+    text = backend.read_bytes(scope.index_path())
+    if not text:
+        return {}
+    try:
+        raw = json.loads(text)
+        if not isinstance(raw, dict):
+            raise TypeError("the index is not an object")
+        out: dict[str, IndexEntry] = {}
+        bad = 0
+        for key, value in raw.items():
+            try:
+                out[key] = IndexEntry(**value)
+            except TypeError:
+                bad += 1
+        if bad:
+            print(f"  warning: {scope.index_path()} has {bad} unreadable entries; they re-land")
+        return out
+    except (ValueError, TypeError) as exc:
+        print(f"  warning: {scope.index_path()} is not readable ({exc}); treating it as empty")
+        return {}
+
+
+def reindex(backend: Backend, scope: Scope) -> dict[str, IndexEntry]:
+    """Rebuild a scope's index from the sidecars next to its payloads, and write it.
+
+    Every ``*.meta.json`` under the scope's folder names a landed payload: its hash and size are
+    the sidecar's, its ingest date is the folder it sits in, and its key is the one the sidecar
+    carries (older sidecars: the file's stem). The newest landing of each key wins, as the
+    live index would have it.
+    """
+    folder = scope.index_path().parent
+    entries: dict[str, IndexEntry] = {}
+    for path in backend.list_files(folder):
+        name = path.name
+        if not name.endswith(".meta.json"):
+            continue
+        text = backend.read_bytes(path)
+        if not text:
+            continue
+        try:
+            meta = json.loads(text)
+        except ValueError:
+            continue
+        payload = path.with_name(name[: -len(".meta.json")] + ".json")
+        key = str(meta.get("key") or payload.stem)
+        ingest_date = path.parent.name
+        entry = IndexEntry(
+            sha256=str(meta.get("sha256", "")),
+            path=payload.as_posix(),
+            ingest_date=ingest_date,
+            size_bytes=int(meta.get("size_bytes", 0)),
+            checked_date=ingest_date,
+        )
+        previous = entries.get(key)
+        if previous is None or entry.ingest_date >= previous.ingest_date:
+            entries[key] = entry
+    payload_json = {k: asdict(v) for k, v in sorted(entries.items())}
+    backend.write_bytes(
+        scope.index_path(), (json.dumps(payload_json, indent=2) + "\n").encode("utf-8")
+    )
+    return entries
+
+
 class Landing:
     """Writes payloads and sidecars through a backend and keeps the per-scope indexes.
 
@@ -424,9 +548,7 @@ class Landing:
 
     def _index(self, scope: Scope) -> dict[str, IndexEntry]:
         if scope not in self._indexes:
-            text = self.backend.read_bytes(scope.index_path())
-            raw = json.loads(text) if text else {}
-            self._indexes[scope] = {k: IndexEntry(**v) for k, v in raw.items()}
+            self._indexes[scope] = load_index(self.backend, scope)
         return self._indexes[scope]
 
     def has_landed(self, scope: Scope, key: str) -> bool:
@@ -498,6 +620,7 @@ class Landing:
             latency_ms=getattr(stats, "latency_ms", None),
             attempts=getattr(stats, "attempts", None),
             run_id=self.run_id,
+            key=key,
         )
         sidecar_bytes = sidecar.model_dump_json(indent=2).encode("utf-8")
         sidecar_path = sidecar.sidecar_path(path)

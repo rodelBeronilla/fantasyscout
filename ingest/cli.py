@@ -14,7 +14,7 @@ from pathlib import Path
 
 from ingest import land as land_mod
 from ingest import probe as probe_mod
-from ingest.store import VolumeBackend
+from ingest.store import Scope, VolumeBackend, reindex
 
 SOURCES = ("stats", "espn", "reports")
 FAILURE_EXIT = 2
@@ -36,6 +36,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_dirs.add_argument("--backend", choices=("local", "volume"), default="local")
     p_dirs.add_argument("--root", type=Path, default=Path("."), help="root for the local backend")
 
+    p_reindex = sub.add_parser(
+        "reindex", help="rebuild one scope's _index.json from the sidecars next to its payloads"
+    )
+    p_reindex.add_argument("--source", required=True, help="stats, espn, league, odds_api, ...")
+    p_reindex.add_argument(
+        "--endpoint", required=True, help="the endpoint folder, e.g. leaguegamelog"
+    )
+    p_reindex.add_argument("--league", choices=("wnba", "nba"), required=True)
+    p_reindex.add_argument(
+        "--season", required=True, help="the season folder, e.g. 2026 or 2026-27"
+    )
+    p_reindex.add_argument("--backend", choices=("local", "volume"), default="local")
+    p_reindex.add_argument(
+        "--root", type=Path, default=Path("."), help="root for the local backend"
+    )
     p_land = sub.add_parser("land", help="fetch and land raw payloads")
     p_land.add_argument("source", choices=SOURCES, help="which provider to pull from")
     p_land.add_argument("--league", choices=("wnba", "nba"), default="wnba")
@@ -150,6 +165,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "probe":
         return _run_probe(args.out, args.markdown)
+    if args.command == "reindex":
+        backend = land_mod.make_backend(args.backend, args.root)
+        scope = Scope(args.source, args.endpoint, args.league, args.season)
+        entries = reindex(backend, scope)
+        print(f"{scope.index_path()}: {len(entries)} keys from the sidecars")
+        return 0
     if args.command == "ensure-dirs":
         backend = land_mod.make_backend(args.backend, args.root)
         if isinstance(backend, VolumeBackend):
