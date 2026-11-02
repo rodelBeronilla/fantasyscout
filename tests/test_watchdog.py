@@ -40,8 +40,76 @@ def test_a_missed_day_is_stale_in_season_but_tolerated_off_season() -> None:
 def test_a_missing_or_malformed_pointer_is_stale() -> None:
     assert watchdog.decide(None, None, NOW).stale
     assert watchdog.decide({"build_id": "x"}, None, NOW).stale
-    # Without a health file nothing says a league is in season, so the longer limit applies.
-    assert not watchdog.decide(_latest("2026-11-01T00:00:00+00:00"), None, NOW).stale
+
+
+def test_without_a_health_file_the_season_is_unknown_and_the_in_season_limit_applies() -> None:
+    """#400: an unreadable health file no longer buys the lenient 72 h."""
+    verdict = watchdog.decide(_latest("2026-11-01T00:00:00+00:00"), None, NOW)  # 36 h old
+    assert verdict.stale and "season unknown" in verdict.line and "limit 30 h" in verdict.line
+    assert not watchdog.decide(_latest("2026-11-02T00:00:00+00:00"), None, NOW).stale
+
+
+def test_a_new_build_over_old_stats_is_stale_in_season() -> None:
+    """#400: the evening light build is new, but the stats feed stopped landing three days ago."""
+    health = {
+        "feeds": [
+            {
+                "league": "nba",
+                "feed": "Game logs",
+                "is_core": True,
+                "in_season": True,
+                "last_landed": "2026-10-30",
+                "max_age_days": 2,
+            },
+            {
+                "league": "nba",
+                "feed": "Injury reports",
+                "is_core": True,
+                "in_season": True,
+                "last_landed": "2026-11-02",
+                "max_age_days": 1,
+            },
+            {
+                "league": "wnba",
+                "feed": "Game logs",
+                "is_core": True,
+                "in_season": False,
+                "last_landed": "2026-10-01",
+                "max_age_days": 2,
+            },
+            {
+                "league": "nba",
+                "feed": "Headlines",
+                "is_core": False,
+                "in_season": True,
+                "last_landed": "2026-10-20",
+                "max_age_days": 2,
+            },
+        ]
+    }
+    verdict = watchdog.decide(_latest("2026-11-02T03:00:00+00:00"), health, NOW)
+    assert verdict.stale
+    assert "nba Game logs last landed 2026-10-30 (3 days, allowed 2)" in verdict.line
+    # the off-season league and the optional feed do not count
+    assert "wnba" not in verdict.line.split("old:")[1] and "Headlines" not in verdict.line
+    # the same feed landed yesterday: fresh
+    health["feeds"][0]["last_landed"] = "2026-11-01"  # type: ignore[index]
+    assert not watchdog.decide(_latest("2026-11-02T03:00:00+00:00"), health, NOW).stale
+
+
+def test_a_pinned_rollback_is_reported_as_pinned_not_stale() -> None:
+    """#400: a rollback holds the site on purpose; the verdict names the pin, not the pipeline."""
+    latest = {
+        "build_id": "20261028T020000Z-abc1234",
+        "created_at": "2026-10-28T02:00:00+00:00",  # five days old
+        "pinned": True,
+        "rolled_back_at": "2026-11-01T09:00:00+00:00",
+        "rolled_back_from": "20261101T020658Z-def5678",
+    }
+    verdict = watchdog.decide(latest, _health("nba"), NOW)
+    assert not verdict.stale
+    assert verdict.line.startswith("pinned:") and "since 2026-11-01T09:00:00+00:00" in verdict.line
+    assert "fs-export unpin" in verdict.line
 
 
 def test_a_naive_timestamp_is_read_as_utc() -> None:
