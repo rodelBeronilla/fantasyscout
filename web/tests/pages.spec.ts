@@ -2197,3 +2197,25 @@ test('the injury card, the starters filter and the punt chips say only what hold
   await expect(chip.locator('input')).toBeDisabled();
   await expect(chip).toHaveAttribute('title', /does not count turnovers/);
 });
+
+test('the board keeps its punts and filters in the URL, through a reload and a copied link', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
+  await page.getByTestId('board-options-toggle').click();
+  await page.locator('fieldset label', { hasText: /^PTS$/ }).click();
+  await expect(page).toHaveURL(/[?&]punt=pts(&|$)/);
+  await page.reload();
+  await expect(page.getByTestId('active-filters')).toContainText('Punt PTS');
+  await expect(board.locator('thead s')).toHaveText('PTS');
+
+  // a link someone copied: punt FT%, 20+ MPG, healthy only
+  await page.goto('/?punt=ft&mpg=20&avail=healthy');
+  const chips = page.getByTestId('active-filters');
+  await expect(chips).toContainText('Punt FT%');
+  await expect(chips).toContainText('20+ MPG');
+  await expect(chips).toContainText('Healthy only');
+  await page.getByRole('button', { name: 'Remove 20+ MPG' }).click();
+  await expect(page).not.toHaveURL(/mpg=/);
+  await expect(page).toHaveURL(/punt=ft/);
+});
