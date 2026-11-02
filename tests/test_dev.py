@@ -37,7 +37,8 @@ def test_the_documented_dbt_commands_match_the_dev_check_and_find_the_profile() 
     assert "cd dbt && DBT_PROFILES_DIR=. uv run dbt build --target databricks" in runbook
     assert "DBT_PROFILES_DIR=dbt" not in runbook
     dbt_step = next(s for s in dev.steps_for({"python"}) if s.name.startswith("dbt build"))
-    assert dbt_step.cwd == "dbt" and "--exclude" in dbt_step.command and "tag:quality" in dbt_step.command
+    assert dbt_step.cwd == "dbt"
+    assert "--exclude" in dbt_step.command and "tag:quality" in dbt_step.command
 
 
 def test_the_default_steps_are_the_python_job_in_order() -> None:
