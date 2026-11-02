@@ -365,7 +365,9 @@ function WeeksGrid({ weeks }: { weeks: TeamWeek[] }) {
   const label = (w: TeamWeek) => w.team_abbreviation ?? w.team_id;
   const teams = [...new Set(weeks.map(label))];
   const cell = new Map(weeks.map((w) => [`${label(w)}|${w.fantasy_week}`, w]));
-  const total = new Map(teams.map((t) => [t, columns.reduce((n, c) => n + (cell.get(`${t}|${c.fantasy_week}`)?.games ?? 0), 0)]));
+  // In the current week only the games still to come count: a manager picking up today reads what is left.
+  const remaining = (w: TeamWeek | undefined) => (w ? (w.is_current_week ? w.games_left : w.games) : 0);
+  const total = new Map(teams.map((t) => [t, columns.reduce((n, c) => n + remaining(cell.get(`${t}|${c.fantasy_week}`)), 0)]));
   const ordered = [...teams].sort((a, b) => (total.get(b) ?? 0) - (total.get(a) ?? 0) || a.localeCompare(b));
   return (
     <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
@@ -394,11 +396,21 @@ function WeeksGrid({ weeks }: { weeks: TeamWeek[] }) {
               <Td right>{total.get(t) ?? 0}</Td>
               {columns.map((c) => {
                 const w = cell.get(`${t}|${c.fantasy_week}`);
-                const n = w?.games ?? 0;
+                const n = remaining(w);
                 const tone = n >= 4 ? 'font-semibold text-good' : n <= 2 ? 'text-muted' : '';
+                const title =
+                  w && c.is_current_week
+                    ? `${w.games_left} of ${w.games} left this week${w.game_dates ? ` (${w.game_dates})` : ''}`
+                    : (w?.game_dates ?? undefined);
                 return (
-                  <td key={c.fantasy_week} className={`px-2 py-1.5 text-center tabular-nums ${tone}`} title={w?.game_dates ?? undefined}>
+                  <td
+                    key={c.fantasy_week}
+                    className={`px-2 py-1.5 text-center tabular-nums ${tone}`}
+                    title={title}
+                    data-testid={c.is_current_week ? 'week-left' : undefined}
+                  >
                     {n}
+                    {w && c.is_current_week ? <span className="text-xs text-muted"> of {w.games}</span> : null}
                     {w && w.games_if_necessary > 0 ? <span className="text-xs text-muted"> +{w.games_if_necessary}</span> : null}
                   </td>
                 );

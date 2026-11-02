@@ -180,6 +180,8 @@ test('streamers shows games per fantasy week for the rest of the season when wee
     team_id: string;
     fantasy_week: string;
     games: number;
+    games_left: number;
+    is_current_week: boolean;
   }[];
   await page.goto('/streamers/');
   await expect(page.getByTestId('season-note')).toBeVisible();
@@ -193,7 +195,15 @@ test('streamers shows games per fantasy week for the rest of the season when wee
   const first = weeks[0];
   const team = first.team_abbreviation ?? first.team_id;
   const row = grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: new RegExp(`^${team}$`) }) });
-  await expect(row).toContainText(String(first.games));
+  // The current week shows what is left of it ("1 of 4"); a later week shows its whole count.
+  await expect(row).toContainText(first.is_current_week ? `${first.games_left} of ${first.games}` : String(first.games));
+  const current = weeks.find((w) => w.is_current_week);
+  if (current) {
+    const currentRow = grid.locator('tbody tr').filter({
+      has: page.locator('td:first-child', { hasText: new RegExp(`^${current.team_abbreviation ?? current.team_id}$`) }),
+    });
+    await expect(currentRow.getByTestId('week-left')).toContainText(`${current.games_left} of ${current.games}`);
+  }
   await expect(grid.locator('thead th').filter({ hasText: `W${first.fantasy_week.slice(-2)}` })).toBeVisible();
 });
 
