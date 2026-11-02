@@ -921,6 +921,8 @@ test('streamers rank by the categories you need and leave out likely rostered pl
   await page.goto('/streamers/');
   const table = page.getByTestId('trending');
   await expect(table.locator('tbody tr').first()).toBeVisible();
+  // the first ten rows paint first and the rest of the page when the browser is idle (#562)
+  await expect.poll(() => table.locator('tbody tr').count()).toBeGreaterThan(10);
   const all = await table.locator('tbody tr').count();
   await page.getByLabel('Need BLK').check({ force: true });
   await page.getByLabel('Need REB').check({ force: true });
