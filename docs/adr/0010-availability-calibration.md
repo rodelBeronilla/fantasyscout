@@ -31,7 +31,7 @@ The leagues keep every official injury report on their host, the NBA's back to 2
 The fixed charges were off in both directions. Doubtful and questionable listings were undercharged several times over. An out listing without a date erased the whole season, where the typical absence is about two weeks.
 
 The multiplier now charges a listed player the average, over past injury listings with the same status, of the games then missed, capped at the games the team has left. Rules:
-- **Status:** the official report's status for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable).
+- **Status:** the official report's status for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable). An official Available reads as Probable, the mildest status listed, rather than falling through to ESPN's day-to-day (#388).
 - **Return date:** ESPN's expected return date, when given for a player ruled out, still counts the games before it.
 - **Out for the season:** an ESPN note that the player is out for the season counts every game.
 - **Which league's history:** a league uses its own listings once it has 300 for the status. Until then the NBA's apply; the WNBA archive only starts in 2026.

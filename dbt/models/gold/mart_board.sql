@@ -255,19 +255,23 @@ games_before_return as (
 
 -- The status the calibration reads: the official report's for the next game with its reason
 -- (injury, rest, g_league, personal...), else ESPN's listing in the report's words (day-to-day
--- reads as questionable), which is always an injury.
+-- reads as questionable), which is always an injury. An official Available reads as Probable,
+-- the mildest status listed, rather than falling through to ESPN's listing (#388).
 calibration_status as (
 
     select
         league,
         stats_player_id,
         case
-            when official_status in ('Out', 'Doubtful', 'Questionable', 'Probable')
+            when official_status in ('Out', 'Doubtful', 'Questionable', 'Probable', 'Available')
                 then coalesce(official_reason_group, 'injury')
             else 'injury'
         end as reason_group,
         coalesce(
-            case when official_status in ('Out', 'Doubtful', 'Questionable', 'Probable') then official_status end,
+            case
+                when official_status in ('Out', 'Doubtful', 'Questionable', 'Probable') then official_status
+                when official_status = 'Available' then 'Probable'
+            end,
             case espn_status_group
                 when 'out' then 'Out'
                 when 'doubtful' then 'Doubtful'
@@ -329,7 +333,8 @@ assembled as (
         cast(coalesce(r.games_this_week, 0) as integer) as games_this_week,
         cast(r.games_scheduled as integer) as games_scheduled,
         coalesce(ls.season_complete, true) as season_complete,
-        i.status as injury_status,
+        -- a status with a group, as Streamers shows it: an official Available clears the listing
+        case when i.status_group is not null then i.status end as injury_status,
         i.status_group as injury_group,
         i.injury_type,
         i.expected_return,

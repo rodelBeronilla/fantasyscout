@@ -1382,7 +1382,7 @@ models:
         meta: {unit: ratio 0 to 1}
         description: "Projected free throw percentage, decimal 0-1"
       - name: injury_status
-        description: "The status shown: the official report's for the next game, else ESPN's (fct_player_status)"
+        description: "The status shown: the official report's for the next game, else ESPN's (fct_player_status); null when the status has no group, as on Streamers (an official Available clears the listing for that game)"
       - name: injury_group
         description: "Status group of injury_status (fct_player_status.status_group); null without a status or when the official report says Available"
         data_tests:
