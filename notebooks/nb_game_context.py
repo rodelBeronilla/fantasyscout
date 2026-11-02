@@ -849,7 +849,9 @@ for lg in LEAGUES:
     if lg in calibration and calibration[lg]['listings'].sum() >= 100:
         t = calibration[lg]
         facts.append({'label': 'Official listings: missed the game; games missed on average',
-                      'value': '; '.join(f"{k} {v['missed_game']:.0%}, {v['games_missed_mean']:.1f} (n {int(v['listings']):,})"
+                      # a status read from the NBA's history until this league has its own 300 says so (#492)
+                      'value': '; '.join(f"{k} {v['missed_game']:.0%}, {v['games_missed_mean']:.1f} (n {int(v['listings']):,}"
+                                         + (f", {v['source']}'s)" if v['source'] != LABEL[lg] else ')')
                                          for k, v in t.iterrows() if k in ('Out', 'Doubtful', 'Questionable', 'Probable'))})
     elif lg in listing and listing[lg]['size'].sum() >= 30:
         t = listing[lg]

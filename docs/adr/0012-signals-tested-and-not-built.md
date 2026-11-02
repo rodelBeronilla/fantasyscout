@@ -150,3 +150,7 @@ Does a crew's record say anything about the next game? Notebook 03 tests this po
 | Share of fantasy pts / 30 min explained out of sample | +0.002% | +0.002% |
 
 Crews differ, and some of the difference carries over: a crew whose games have run one free-throw attempt above average sees about 0.7 to 0.9 more in its next game. But crews differ little against a game-to-game spread of about 11 attempts. Their tendency explains under half a percent of a game's free throws, and nothing measurable of a player's free throws, fouls or fantasy production. The one interval clear of zero for NBA player free throws, in 2024-25 (+0.11, +0.06 to +0.18), did not hold in 2025-26. The WNBA's fouls-on-pace estimate (+0.27, +0.04 to +0.55) did not replicate in earlier seasons (+0.09). **The crew stays out of the value.** It is shown as context, like rest and altitude, and the notebook re-tests it as seasons accumulate.
+
+## Addendum (2026-11-02): when the betting line's minutes effect is confirmed
+
+The matchup decision carries a "to confirm" mark until the line's minutes effect has full seasons behind it. The closing lines start in October 2026, so the first full season with them is NBA 2026-27, complete in April 2027; the game context notebook's findings after it confirm the decision or reopen it (#492). The prop lines' own comparison against outcomes waits for 200 player-game markets over 7 game dates per league, and its notebook fact now names both counts.
