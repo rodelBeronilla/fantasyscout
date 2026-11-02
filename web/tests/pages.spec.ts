@@ -2133,3 +2133,18 @@ test('streamers flags a starter whose next game is lopsided on the line', async 
   await expect(table.locator('tbody tr').first()).toBeVisible();
   await expect(table.getByTestId('blowout')).toHaveCount(0);
 });
+
+// A streamer whose team's largest-usage player is out for the next game carries a tag naming them (#485).
+test("streamers tags a candidate whose team's top-usage teammate is out", async ({ page }) => {
+  await page.route('**/streamers/nba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r) => ({ ...r, top_teammate_out: 'Star Player', top_teammate_out_usage: 0.31 })) });
+  });
+  await page.goto('/streamers/?league=nba');
+  const table = page.getByTestId('trending');
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  const tag = table.getByTestId('top-out').first();
+  await expect(tag).toHaveText('TOP OUT');
+  await expect(tag).toHaveAttribute('title', /^Star Player \(31% of the team's possessions\) is out for the next game/);
+  await expect(page.getByTestId('tag-legend')).toContainText('TOP OUT');
+});

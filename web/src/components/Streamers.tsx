@@ -12,7 +12,7 @@ import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
-import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
+import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag } from './ui';
 
 interface StreamerRow {
   player_id: string;
@@ -28,6 +28,9 @@ interface StreamerRow {
   sleeper_drops?: number | null;
   /** adding or dropping across Sleeper leagues over the last day. */
   waiver_trend?: string | null;
+  /** The team's largest-usage player, when the official report has them out for the next game (#485). */
+  top_teammate_out?: string | null;
+  top_teammate_out_usage?: number | null;
   /** rising or falling ESPN ownership (both leagues). */
   ownership_trend?: string | null;
   /** What the team still plays for (fct_team_stakes), behind the rest-risk tag. */
@@ -1018,6 +1021,7 @@ export default function Streamers() {
                       <LineupTag role={r.lineup_role} confirmed={r.lineup_confirmed} date={r.lineup_date} injuryGroup={r.injury_group} />
                       <RestRiskTag risk={r.rest_risk} stakes={r.team_stakes} />
                       <BlowoutTag risk={blowout(league, r.lineup_role, r.team_id ? nextByTeam.get(r.team_id) : undefined)} />
+                      <TopOutTag name={r.top_teammate_out} usage={r.top_teammate_out_usage} />
                       <NewsTag flag={r.news_flag} headline={r.news_headline} date={r.news_date} />
                       <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />
                     </span>

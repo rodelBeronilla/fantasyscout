@@ -23426,6 +23426,20 @@
        "name": "waiver_trend",
        "tests": [],
        "type": "varchar"
+      },
+      {
+       "description": "Name of the team's largest-usage player this season (usage rate times minutes per game over the game's length, five games or more) when the league's official report for the next game lists them Out; null otherwise and for that player",
+       "meta": {},
+       "name": "top_teammate_out",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "That player's usage share, decimal 0-1: the share of the team's possessions they use in an average game",
+       "meta": {},
+       "name": "top_teammate_out_usage",
+       "tests": [],
+       "type": "double"
       }
      ],
      "description": "Players with three or more games in the league's current season and a game within 30 days of the league's latest game, with the team's games in the next seven days, the minutes and value trend, recent production and injury status.",

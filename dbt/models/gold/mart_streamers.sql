@@ -247,6 +247,46 @@ baselines as (
 
 ),
 
+-- The player each team leans on most this season (#485): the largest usage share, usage rate
+-- times minutes per game over the game's length (48 minutes, 40 in the WNBA), among players with
+-- five games played or more. Notebook 07 measured what that player's absence gives teammates.
+team_usage as (
+
+    select
+        g.league,
+        g.team_id,
+        g.player_id,
+        sum(g.usage_percentage * g.minutes) / count(*)
+            / case when g.league = 'wnba' then 40.0 else 48.0 end as usage_share
+    from {{ ref('fct_player_game') }} as g
+    join current_season as cs on cs.league = g.league and cs.season = g.season
+    where g.played and g.usage_percentage is not null and g.minutes is not null
+    group by g.league, g.team_id, g.player_id
+    having count(*) >= 5
+
+),
+
+-- ranked in its own step: an alias inside the window's order is not portable to Databricks
+team_top_usage as (
+
+    select league, team_id, player_id, usage_share
+    from team_usage
+    qualify row_number() over (partition by league, team_id order by usage_share desc, player_id) = 1
+
+),
+
+-- That player, when the league's official report for the next game lists them Out.
+top_teammate_out as (
+
+    select tu.league, tu.team_id, tu.player_id, p.full_name, tu.usage_share
+    from team_top_usage as tu
+    join injury as i on i.league = tu.league and i.stats_player_id = tu.player_id
+    join current_stint as p on p.league = tu.league and p.stats_player_id = tu.player_id
+        and p.team_id = tu.team_id
+    where i.status_source = 'official' and i.status_group = 'out'
+
+),
+
 -- Sleeper's waiver heat (NBA), one row per league player.
 waiver as (
 
@@ -333,7 +373,9 @@ select
     coalesce(ts.rest_risk, false) as rest_risk,
     wt.adds as sleeper_adds,
     wt.drops as sleeper_drops,
-    wt.waiver_trend
+    wt.waiver_trend,
+    tto.full_name as top_teammate_out,
+    tto.usage_share as top_teammate_out_usage
 from latest_rolling as lr
 join league_last_game as llg on llg.league = lr.league
 join baselines as b on b.league = lr.league and b.player_id = lr.player_id
@@ -351,5 +393,7 @@ left join {{ ref('fct_market_value') }} as mk on mk.league = lr.league and mk.st
 left join {{ ref('fct_team_stakes') }} as ts on ts.league = lr.league and ts.team_id = cs.team_id
 left join {{ ref('mart_board') }} as bd on bd.league = lr.league and bd.player_id = lr.player_id
 left join waiver as wt on wt.league = lr.league and wt.stats_player_id = lr.player_id
+left join top_teammate_out as tto on tto.league = lr.league and tto.team_id = cs.team_id
+    and tto.player_id <> lr.player_id
 where sl.games >= 3
     and lr.game_date >= {{ add_days('llg.last_game_date', -30) }}

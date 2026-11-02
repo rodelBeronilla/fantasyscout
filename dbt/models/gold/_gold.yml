@@ -1728,3 +1728,7 @@ models:
         description: "Sleeper leagues that dropped the player over the last day; null when not trending"
       - name: waiver_trend
         description: "adding or dropping across Sleeper leagues over the last day; null when not trending"
+      - name: top_teammate_out
+        description: "Name of the team's largest-usage player this season (usage rate times minutes per game over the game's length, five games or more) when the league's official report for the next game lists them Out; null otherwise and for that player"
+      - name: top_teammate_out_usage
+        description: "That player's usage share, decimal 0-1: the share of the team's possessions they use in an average game"
