@@ -1,68 +1,32 @@
 ---
 import Diagram from '../../components/Diagram.astro';
 import Base from '../../layouts/Base.astro';
-import schema from '../../generated/schema.json';
-import { erAreas, erCaption, erDiagram, lineage } from '../../lib/schema-diagrams';
+import { erAreas, erCaption, schemaDiagrams } from '../../lib/schema-diagrams';
+import {
+  checks,
+  conventions,
+  count,
+  coverage,
+  described,
+  genericTests,
+  landing,
+  layers,
+  list,
+  models,
+  pageHref,
+  rowId,
+  seeds,
+  sources,
+  summary,
+  unitTests,
+  type Entry,
+} from '../../lib/schema-page';
 import { href } from '../../lib/site';
 
-interface Column {
-  name: string;
-  type: string;
-  description: string;
-  tests: string[];
-  meta?: { tz?: string; unit?: string; null_when?: string };
-}
-interface UnitTest {
-  name: string;
-  description: string;
-}
-interface Model {
-  name: string;
-  materialized: string;
-  description: string;
-  notes: string[];
-  grain: { key: string; columns: string[] } | null;
-  landing: string[];
-  reads: string[];
-  read_by: string[];
-  exported_as: string[];
-  read_by_pages: string[];
-  checks: string[];
-  unit_tests: UnitTest[];
-  columns: Column[];
-}
-interface Seed {
-  name: string;
-  description: string;
-  read_by: string[];
-  exported_as: string[];
-  columns: Column[];
-}
-
-const layers = schema.layers as { name: string; models: Model[] }[];
-const all = layers.flatMap((l) => l.models.map((m) => ({ ...m, layer: l.name })));
-const layerOf = new Map(all.map((m) => [m.name, m.layer]));
-const columnCount = all.reduce((n, m) => n + m.columns.length, 0);
-const checks = schema.checks as { name: string; severity: string; tags: string[]; about: string; reads: string[] }[];
-const unitTests = schema.unit_tests as { name: string; model: string; description: string }[];
-const seeds = schema.seeds as Seed[];
-const landing = schema.landing as { path: string; read_by: string[] }[];
-const sources = schema.sources as { key: string; name: string; host: string; module: string; runner: string; cadence: string; folders: string[] }[];
-const conventions = schema.conventions as { name: string; rule: string }[];
-const badges = (c: Column) =>
-  Object.entries(c.meta ?? {}).map(([k, v]) => ({ key: k, text: k === 'tz' ? `tz ${v}` : k === 'unit' ? `${v}` : `null when ${v}` }));
-const seedNames = new Set(seeds.map((s) => s.name));
-const anchor = (name: string) => `m-${name}`;
-const refAnchor = (name: string) => (seedNames.has(name) ? `seed-${name}` : anchor(name));
-const docsLink = (name: string) => href(`/docs/#!/model/model.fantasyscout.${name}`);
-const described = (cols: Column[]) => cols.filter((c) => c.description.trim()).length;
-const describedCount = all.reduce((n, m) => n + described(m.columns), 0);
-
-// "a, b and c"
-const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
-const numberWords = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
-const count = (n: number) => numberWords[n] ?? String(n);
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const layerOf = new Map(models.map((m) => [m.name, m.layer]));
+const columnCount = models.reduce((n, m) => n + m.columns.length, 0);
+const describedCount = models.reduce((n, m) => n + described(m.columns), 0);
+const seedEntries: Entry[] = seeds.map((s) => ({ ...s, kind: 'seed' as const }));
 
 const bronze = layers.find((l) => l.name === 'bronze')?.models ?? [];
 const sharedEndpoints = landing.filter((f) => f.read_by.length > 1 && f.read_by.every((m) => layerOf.get(m) === 'bronze'));
@@ -77,7 +41,7 @@ const LAYER_ABOUT: Record<string, string> = {
     'Typed, deduplicated and keyed (the latest landing wins), with the cross-source work: team, game and player crosswalks, the reconciliation of the two box scores, and lineups from substitutions.',
   gold: `The star schema the app, the notebooks and the dashboards read: dimensions, facts, and the fantasy marts (z-scores, the projection, the board, streamers). Every gold model goes out whole in each published build${
     unpublished.length ? ` except ${list(unpublished)}, which reaches the site through the marts that read it` : ''
-  }; "Published as" names the files of a build that carry it.`,
+  }; "Published as" on a model's page names the files of a build that carry it.`,
   ops: 'How the pipeline is doing: the ingest run log and the reconciliation of the two sources. The build adds test_results and publish_gate after every run.',
 };
 
@@ -94,15 +58,18 @@ const WHY: Record<string, string> = {
   ubigint: 'a JSON array length',
   'timestamp with time zone': 'both hold an instant',
 };
-const typesUsed = [...new Set([...all.flatMap((m) => m.columns), ...seeds.flatMap((s) => s.columns)].map((c) => c.type).filter(Boolean))].sort();
+const typesUsed = [...new Set([...models.flatMap((m) => m.columns), ...seeds.flatMap((s) => s.columns)].map((c) => c.type).filter(Boolean))].sort();
 const typeRows = typesUsed.filter((t) => DATABRICKS[t]).map((t) => ({ duck: t, databricks: DATABRICKS[t]!, why: WHY[t] ?? '' }));
 const sameTypes = typesUsed.filter((t) => !DATABRICKS[t]);
 
-const grainText = (g: { key: string; columns: string[] }) => `One row per ${list(g.columns)}`;
+// The diagrams are files the page loads as they near the viewport; the page keeps only their size (#449).
 const areas = erAreas();
-const [ers, flow] = await Promise.all([Promise.all(areas.map((a) => erDiagram(a))), lineage()]);
+const svgs = await schemaDiagrams();
+const diagramSrc = (id: string) => href(`/schema/diagrams/${id}.svg`);
 const link = 'underline underline-offset-4';
 const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
+// The rows' look is set once on their list ("*:" styles each child), not repeated on every row (#449).
+const rows = 'mt-3 grid grid-cols-[minmax(0,1fr)] gap-2 *:min-w-0 *:rounded-lg *:border *:border-line *:bg-card *:px-4 *:py-2 *:target:border-accent';
 ---
 
 <Base
@@ -112,13 +79,13 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">Schema</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">
-      Every model in the lakehouse, generated from the dbt project: {all.length} models in {count(layers.length)} layers ({
+      Every model in the lakehouse, generated from the dbt project: {models.length} models in {count(layers.length)} layers ({
         list(layers.map((l) => l.name))
-      }) over {landing.length} landing folders, {columnCount} columns ({describedCount} described), {schema.generic_tests} column
-      tests, {unitTests.length} unit tests and {checks.length} data-quality checks. Each model's notes are the comment at the top
-      of its SQL, where the method is written down. CI fails when this page falls behind the project. The gold layer is drawn
-      by subject area below, every model's <a href="#lineage" class={link}>lineage</a> follows, and how the layers fit together
-      is on the <a href={href('/pipeline/')} class={link}>Pipeline</a> page.
+      }) over {landing.length} landing folders, {columnCount} columns ({describedCount} described), {genericTests} column
+      tests, {unitTests.length} unit tests and {checks.length} data-quality checks. Each model has its own page with its
+      columns and its notes, the comment at the top of its SQL where the method is written down. CI fails when this page falls
+      behind the project. The gold layer is drawn by subject area below, every model's <a href="#lineage" class={link}>lineage</a>
+      follows, and how the layers fit together is on the <a href={href('/pipeline/')} class={link}>Pipeline</a> page.
     </p>
     <dl class="mt-3 grid max-w-3xl gap-1 text-sm" data-testid="conventions">
       <dt class="text-xs font-medium tracking-wide text-muted uppercase">Column conventions</dt>
@@ -178,16 +145,22 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
       <h2 class="text-lg font-semibold tracking-tight">Gold entity-relationship diagrams</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">
         What the app, the notebooks and the dashboards read, by subject area: facts, dimensions and marts (each header names its
-        kind and has its own colour), with primary keys, foreign keys and natural keys. Every entity links to its columns below.
+        kind and has its own colour), with primary keys, foreign keys and natural keys. Every entity links to its row below.
       </p>
       {
-        areas.map((a, i) => (
+        areas.map((a) => (
           <section id={a.id} class="mt-6" aria-labelledby={`${a.id}-heading`}>
             <h3 id={`${a.id}-heading`} class="font-semibold">
               {a.title}
             </h3>
             <p class="mt-1 max-w-3xl text-sm text-muted">{a.about}</p>
-            <Diagram id={a.id} svg={ers[i] ?? ''} title={`${a.title}: entity-relationship diagram`} caption={erCaption(a)} />
+            <Diagram
+              id={a.id}
+              svg={svgs.get(a.id) ?? ''}
+              src={diagramSrc(a.id)}
+              title={`${a.title}: entity-relationship diagram`}
+              caption={erCaption(a)}
+            />
           </section>
         ))
       }
@@ -198,18 +171,25 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
       <p class="mt-1 max-w-3xl text-sm text-muted">
         Every model and what it is built from, left to right: the landing folders the ingestors write (each bronze model reads
         one through <code class="font-mono">landing_files(source, endpoint)</code>), the seeds, then bronze, silver, gold and ops.
-        Each box links to the model's notes and columns below.
+        Each box links to the model's row below.
       </p>
       <Diagram
         id="lineage"
-        svg={flow}
+        svg={svgs.get('lineage') ?? ''}
+        src={diagramSrc('lineage')}
         title="Model lineage by layer"
         caption="Arrows point from a folder or model to the models built from it. Generated from the dbt project on every change."
       />
     </section>
 
-    <div id="models" class="mt-8 flex flex-wrap items-end gap-2 rounded-lg border border-line bg-card px-4 py-3" data-schema-tools hidden>
-      <label class="grid min-w-0 flex-1 basis-56 gap-1 text-sm">
+    <div
+      id="models"
+      class="mt-8 grid gap-1 rounded-lg border border-line bg-card px-4 py-3"
+      data-schema-tools
+      data-schema-columns={href('/schema/columns.json')}
+      hidden
+    >
+      <label class="grid min-w-0 gap-1 text-sm">
         <span class="text-muted">Filter models and columns</span>
         <input
           type="search"
@@ -220,9 +200,7 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
           data-schema-filter
         />
       </label>
-      <button type="button" class="rounded border border-line px-3 py-1 text-sm hover:bg-bg" data-schema-expand>Expand all</button>
-      <button type="button" class="rounded border border-line px-3 py-1 text-sm hover:bg-bg" data-schema-collapse>Collapse all</button>
-      <p class="w-full text-xs text-muted" role="status" aria-live="polite" data-schema-status></p>
+      <p class="text-xs text-muted" role="status" aria-live="polite" data-schema-status></p>
     </div>
 
     {
@@ -230,199 +208,56 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
         <section id={l.name} class="mt-8" data-testid={`layer-${l.name}`} data-schema-group>
           <h2 class="text-lg font-semibold tracking-tight">{l.name}</h2>
           <p class="mt-1 max-w-3xl text-sm text-muted">{LAYER_ABOUT[l.name]}</p>
-              {l.name === 'bronze' && (
-                <div class="table-scroll mt-3 max-h-[60vh] overflow-auto" tabindex="0" role="region" aria-label="Bronze sources" data-testid="sources">
-                  <table class="w-full text-xs">
-                    <thead>
-                      <tr class="text-left text-muted">
-                        <th class="py-1 pr-3 font-medium">Source</th>
-                        <th class="py-1 pr-3 font-medium">Host</th>
-                        <th class="py-1 pr-3 font-medium">Ingest module</th>
-                        <th class="py-1 pr-3 font-medium">Runner</th>
-                        <th class="py-1 pr-3 font-medium">Cadence</th>
-                        <th class="py-1 font-medium">Landing folders</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sources.map((src) => (
-                        <tr class="border-t border-line align-top">
-                          <td class="py-1 pr-3 font-medium">{src.name}</td>
-                          <td class="py-1 pr-3">{src.host}</td>
-                          <td class="py-1 pr-3 font-mono">{src.module}</td>
-                          <td class="py-1 pr-3">{src.runner}</td>
-                          <td class="py-1 pr-3">{src.cadence}</td>
-                          <td class="py-1 font-mono">{src.folders.join(', ')}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-          <div class="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
-            {l.models.map((m) => {
-              const doc = described(m.columns);
-              const full = doc === m.columns.length;
-              return (
-                <details id={anchor(m.name)} class="min-w-0 rounded-lg border border-line bg-card" data-testid="model" data-model={m.name}>
-                  <summary class="cursor-pointer px-4 py-2">
-                    <span class="font-mono text-sm font-medium">{m.name}</span>
-                    <span class="ml-2 text-xs text-muted">
-                      {m.materialized} · {plural(m.columns.length, 'column')}{m.checks.length ? ` · ${plural(m.checks.length, 'check')}` : ''}
-                      {m.unit_tests.length ? ` · ${plural(m.unit_tests.length, 'unit test')}` : ''}
-                    </span>
+          {l.name === 'bronze' && (
+            <div class="table-scroll mt-3 max-h-[60vh] overflow-auto" tabindex="0" role="region" aria-label="Bronze sources" data-testid="sources">
+              <table class="w-full text-xs">
+                <thead>
+                  <tr class="text-left text-muted">
+                    <th class="py-1 pr-3 font-medium">Source</th>
+                    <th class="py-1 pr-3 font-medium">Host</th>
+                    <th class="py-1 pr-3 font-medium">Ingest module</th>
+                    <th class="py-1 pr-3 font-medium">Runner</th>
+                    <th class="py-1 pr-3 font-medium">Cadence</th>
+                    <th class="py-1 font-medium">Landing folders</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sources.map((src) => (
+                    <tr class="border-t border-line align-top">
+                      <td class="py-1 pr-3 font-medium">{src.name}</td>
+                      <td class="py-1 pr-3">{src.host}</td>
+                      <td class="py-1 pr-3 font-mono">{src.module}</td>
+                      <td class="py-1 pr-3">{src.runner}</td>
+                      <td class="py-1 pr-3">{src.cadence}</td>
+                      <td class="py-1 font-mono">{src.folders.join(', ')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <ul class={rows}>
+            {models
+              .filter((m) => m.layer === l.name)
+              .map((m) => {
+                const cover = coverage(m);
+                return (
+                  <li id={rowId(m.name)} data-testid="model" data-model={m.name}>
+                    <a href={pageHref(m.name)} class={`font-mono text-sm font-medium wrap-anywhere ${link}`}>
+                      {m.name}
+                    </a>
+                    <span class="ml-2 text-xs text-muted">{summary(m)}</span>
                     <span
-                      class:list={['ml-2 inline-block rounded-full border px-2 text-xs', full ? 'border-good text-good' : 'border-line text-muted']}
+                      class:list={['ml-2 inline-block rounded-full border px-2 text-xs', cover.full ? 'border-good text-good' : 'border-line text-muted']}
                       data-testid="coverage"
                     >
-                      {doc}/{m.columns.length} described
+                      {cover.text}
                     </span>
                     {m.description && <span class="block text-sm text-muted">{m.description}</span>}
-                  </summary>
-                  <div class="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line px-4 py-3 text-sm">
-                    {m.notes.length > 0 && (
-                      <div class="grid max-w-3xl gap-2">
-                        {m.notes.map((p) => (p.startsWith('- ') ? <p class="pl-4">• {p.slice(2)}</p> : <p>{p}</p>))}
-                      </div>
-                    )}
-                    <dl class="grid min-w-0 gap-1 text-xs wrap-anywhere">
-                      {m.grain && (
-                        <div data-testid="grain">
-                          <dt class="inline text-muted">Grain </dt>
-                          <dd class="inline">
-                            {grainText(m.grain)} (key <span class="font-mono">{m.grain.key}</span>)
-                          </dd>
-                        </div>
-                      )}
-                      {m.landing.length > 0 && (
-                        <div data-testid="landing">
-                          <dt class="inline text-muted">Reads </dt>
-                          <dd class="inline font-mono">{m.landing.map((p) => `landing/${p}`).join(', ')}</dd>
-                        </div>
-                      )}
-                      {m.reads.length > 0 && (
-                        <div>
-                          <dt class="inline text-muted">{m.landing.length ? 'Also reads ' : 'Reads '}</dt>
-                          <dd class="inline">
-                            {m.reads.map((r, i) => (
-                              <>
-                                {i > 0 && ', '}
-                                <a href={`#${refAnchor(r)}`} class={`font-mono ${link}`}>
-                                  {r}
-                                </a>
-                              </>
-                            ))}
-                          </dd>
-                        </div>
-                      )}
-                      {m.read_by.length > 0 && (
-                        <div>
-                          <dt class="inline text-muted">Read by </dt>
-                          <dd class="inline">
-                            {m.read_by.map((r, i) => (
-                              <>
-                                {i > 0 && ', '}
-                                <a href={`#${anchor(r)}`} class={`font-mono ${link}`}>
-                                  {r}
-                                </a>
-                              </>
-                            ))}
-                          </dd>
-                        </div>
-                      )}
-                      {(m.exported_as.length > 0 || l.name === 'gold') && (
-                        <div data-testid="exported">
-                          <dt class="inline text-muted">Published as </dt>
-                          <dd class="inline">
-                            {m.exported_as.length ? (
-                              <span class="font-mono">{m.exported_as.join(', ')}</span>
-                            ) : (
-                              'not published on its own; it reaches the site through the marts that read it'
-                            )}
-                          </dd>
-                        </div>
-                      )}
-                      {m.read_by_pages.length > 0 && (
-                        <div data-testid="read-by-pages">
-                          <dt class="inline text-muted">Read by pages </dt>
-                          <dd class="inline">
-                            {m.read_by_pages.map((r, i) => (
-                              <>
-                                {i > 0 && ', '}
-                                <a href={href(r)} class="font-mono underline-offset-4 hover:underline">
-                                  {r}
-                                </a>
-                              </>
-                            ))}
-                          </dd>
-                        </div>
-                      )}
-                      {m.checks.length > 0 && (
-                        <div>
-                          <dt class="inline text-muted">Checked by </dt>
-                          <dd class="inline">
-                            {m.checks.map((c, i) => (
-                              <>
-                                {i > 0 && ', '}
-                                <a href={`#check-${c}`} class={`font-mono ${link}`}>
-                                  {c}
-                                </a>
-                              </>
-                            ))}
-                          </dd>
-                        </div>
-                      )}
-                    </dl>
-                    {m.unit_tests.length > 0 && (
-                      <div class="grid min-w-0 max-w-3xl gap-1 text-xs wrap-anywhere" data-testid="unit-tests">
-                        <p class="text-muted">Unit tests (fixed inputs, expected rows; run on every pull request)</p>
-                        <ul class="grid gap-1">
-                          {m.unit_tests.map((u) => (
-                            <li>
-                              <span class="font-mono">{u.name}</span>: {u.description}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    <p class="text-xs">
-                      <a href={docsLink(m.name)} class={link}>
-                        SQL and column lineage in the dbt docs
-                      </a>
-                    </p>
-                    <div class="table-scroll max-h-[70vh] overflow-auto rounded border border-line" tabindex="0" role="region" aria-label={`Columns of ${m.name}`}>
-                      <table class="w-full text-xs">
-                        <thead class="bg-bg text-left text-muted">
-                          <tr>
-                            <th class="px-2 py-1 font-medium">Column</th>
-                            <th class="px-2 py-1 font-medium">Type (DuckDB)</th>
-                            <th class="px-2 py-1 font-medium">Tests</th>
-                            <th class="px-2 py-1 font-medium">Description</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {m.columns.map((c) => (
-                            <tr class="border-t border-line align-top" data-column={c.name}>
-                              <td class="px-2 py-1 font-mono whitespace-nowrap">{c.name}</td>
-                              <td class="px-2 py-1 font-mono whitespace-nowrap text-muted">{c.type || '–'}</td>
-                              <td class="px-2 py-1 whitespace-nowrap">{c.tests.join(', ') || '–'}</td>
-                              <td class="min-w-56 px-2 py-1">
-                                {c.description || ''}
-                                {badges(c).map((b) => (
-                                  <span class="ml-1 rounded border border-line px-1 font-mono text-[10px] text-muted" data-meta={b.key}>
-                                    {b.text}
-                                  </span>
-                                ))}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </details>
-              );
-            })}
-          </div>
+                  </li>
+                );
+              })}
+          </ul>
         </section>
       ))
     }
@@ -430,63 +265,19 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
     <section id="seeds" class="mt-8" data-schema-group>
       <h2 class="text-lg font-semibold tracking-tight">Seeds</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">Small reference tables kept in the repository and loaded by dbt.</p>
-      <div class="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2">
+      <ul class={rows}>
         {
-          seeds.map((s) => (
-            <details id={`seed-${s.name}`} class="min-w-0 rounded-lg border border-line bg-card" data-testid="seed" data-model={s.name}>
-              <summary class="cursor-pointer px-4 py-2">
-                <span class="font-mono text-sm font-medium">{s.name}</span>
-                <span class="ml-2 text-xs text-muted">seed · {s.columns.length} columns</span>
-                {s.description && <span class="block text-sm text-muted">{s.description}</span>}
-              </summary>
-              <div class="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-line px-4 py-3 text-sm">
-                <dl class="grid min-w-0 gap-1 text-xs wrap-anywhere">
-                  <div>
-                    <dt class="inline text-muted">Read by </dt>
-                    <dd class="inline">
-                      {s.read_by.map((r, i) => (
-                        <>
-                          {i > 0 && ', '}
-                          <a href={`#${anchor(r)}`} class={`font-mono ${link}`}>
-                            {r}
-                          </a>
-                        </>
-                      ))}
-                      {s.read_by.length === 0 && 'no model; only the export reads it (export/layout.py)'}
-                    </dd>
-                  </div>
-                  {s.exported_as.length > 0 && (
-                    <div>
-                      <dt class="inline text-muted">Published as </dt>
-                      <dd class="inline font-mono">{s.exported_as.join(', ')}</dd>
-                    </div>
-                  )}
-                </dl>
-                <div class="table-scroll max-h-[70vh] overflow-auto rounded border border-line" tabindex="0" role="region" aria-label={`Columns of ${s.name}`}>
-                  <table class="w-full text-xs">
-                    <thead class="bg-bg text-left text-muted">
-                      <tr>
-                        <th class="px-2 py-1 font-medium">Column</th>
-                        <th class="px-2 py-1 font-medium">Type (DuckDB)</th>
-                        <th class="px-2 py-1 font-medium">Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {s.columns.map((c) => (
-                        <tr class="border-t border-line align-top" data-column={c.name}>
-                          <td class="px-2 py-1 font-mono whitespace-nowrap">{c.name}</td>
-                          <td class="px-2 py-1 font-mono whitespace-nowrap text-muted">{c.type || '–'}</td>
-                          <td class="min-w-56 px-2 py-1">{c.description || ''}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </details>
+          seedEntries.map((s) => (
+            <li id={rowId(s.name)} data-testid="seed" data-model={s.name}>
+              <a href={pageHref(s.name)} class={`font-mono text-sm font-medium wrap-anywhere ${link}`}>
+                {s.name}
+              </a>
+              <span class="ml-2 text-xs text-muted">{summary(s)}</span>
+              {s.description && <span class="block text-sm text-muted">{s.description}</span>}
+            </li>
           ))
         }
-      </div>
+      </ul>
     </section>
 
     <section id="checks" class="mt-8" data-testid="checks-list">
@@ -543,7 +334,7 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
                 <tr class="border-t border-line align-top">
                   <td class="px-3 py-2 font-mono text-xs">{u.name}</td>
                   <td class="px-3 py-2 font-mono text-xs">
-                    <a href={`#${anchor(u.model)}`} class={link}>
+                    <a href={pageHref(u.model)} class={link}>
                       {u.model}
                     </a>
                   </td>
@@ -559,53 +350,84 @@ const pill = 'rounded-full border border-line px-3 py-1 hover:bg-card';
 </Base>
 
 <script>
-  // Filter the models and seeds by name or column, and open or close them all. The list works
-  // without this script; the controls appear only once it runs.
+  import { loadDiagramsNearView } from '../../lib/lazy-diagrams';
+
+  loadDiagramsNearView();
+
+  // Filter the models and seeds by name or column. The rows carry only the names; the columns of
+  // every model come from columns.json, fetched on the first search (#449). The list works
+  // without this script; the filter appears only once it runs.
   const tools = document.querySelector<HTMLElement>('[data-schema-tools]');
   const input = document.querySelector<HTMLInputElement>('[data-schema-filter]');
   const status = document.querySelector<HTMLElement>('[data-schema-status]');
-  const items = [...document.querySelectorAll<HTMLDetailsElement>('details[data-model]')];
+  const items = [...document.querySelectorAll<HTMLElement>('li[data-model]')];
   const groups = [...document.querySelectorAll<HTMLElement>('[data-schema-group]')];
-  const openedByFilter = new Set<HTMLDetailsElement>();
+  const SHOWN_HITS = 8;
+  let columns: Record<string, string[]> | null = null;
+  let columnsState: 'idle' | 'loading' | 'failed' = 'idle';
+
+  async function loadColumns(): Promise<void> {
+    const src = tools?.dataset.schemaColumns;
+    if (columnsState !== 'idle' || !src) return;
+    columnsState = 'loading';
+    try {
+      const res = await fetch(src);
+      if (!res.ok) throw new Error(`${res.status}`);
+      columns = (await res.json()) as Record<string, string[]>;
+      columnsState = 'idle';
+    } catch {
+      columnsState = 'failed';
+    }
+    apply();
+  }
+
+  /** The line under a row that names the columns it matched by. */
+  function showHits(item: HTMLElement, hits: string[]): void {
+    let line = item.querySelector<HTMLElement>('[data-testid="column-hits"]');
+    if (!hits.length) {
+      line?.remove();
+      return;
+    }
+    if (!line) {
+      line = document.createElement('span');
+      line.className = 'mt-1 block font-mono text-xs';
+      line.dataset.testid = 'column-hits';
+      item.append(line);
+    }
+    const more = hits.length > SHOWN_HITS ? ` and ${hits.length - SHOWN_HITS} more` : '';
+    line.textContent = `${hits.length === 1 ? 'column' : 'columns'}: ${hits.slice(0, SHOWN_HITS).join(', ')}${more}`;
+  }
 
   function apply(): void {
     const q = (input?.value ?? '').trim().toLowerCase();
-    let models = 0;
+    if (q && !columns) void loadColumns();
+    let shownCount = 0;
     let byColumn = 0;
     for (const item of items) {
-      const rows = [...item.querySelectorAll<HTMLTableRowElement>('tr[data-column]')];
-      const nameHit = !q || (item.dataset.model ?? '').toLowerCase().includes(q);
-      const hits = q && !nameHit ? rows.filter((r) => (r.dataset.column ?? '').toLowerCase().includes(q)) : [];
+      const name = item.dataset.model ?? '';
+      const nameHit = !q || name.toLowerCase().includes(q);
+      const hits = q && !nameHit ? (columns?.[name] ?? []).filter((c) => c.toLowerCase().includes(q)) : [];
       const shown = nameHit || hits.length > 0;
       item.hidden = !shown;
-      for (const r of rows) r.hidden = !nameHit && !hits.includes(r);
-      if (hits.length && !item.open) {
-        item.open = true;
-        openedByFilter.add(item);
-      } else if (!hits.length && openedByFilter.has(item)) {
-        item.open = false;
-        openedByFilter.delete(item);
-      }
-      if (shown) models += 1;
+      showHits(item, hits);
+      if (shown) shownCount += 1;
       if (hits.length) byColumn += 1;
     }
-    for (const g of groups) g.hidden = !g.querySelector('details[data-model]:not([hidden])');
-    if (status) {
-      status.textContent = q
-        ? `${models} of ${items.length} match${byColumn ? `, ${byColumn} by a column (opened, other columns hidden)` : ''}.`
-        : '';
+    for (const g of groups) g.hidden = !g.querySelector('li[data-model]:not([hidden])');
+    if (!status) return;
+    if (!q) {
+      status.textContent = '';
+      return;
     }
-  }
-
-  function setAll(open: boolean): void {
-    for (const item of items) if (!item.hidden) item.open = open;
-    openedByFilter.clear();
+    const note =
+      columnsState === 'loading' ? '; looking through the columns' : columnsState === 'failed' ? '; the columns did not load, so only names are matched' : '';
+    status.textContent = `${shownCount} of ${items.length} match${byColumn ? `, ${byColumn} by a column` : ''}${note}.`;
   }
 
   if (tools && input) {
     tools.hidden = false;
     input.addEventListener('input', apply);
-    tools.querySelector('[data-schema-expand]')?.addEventListener('click', () => setAll(true));
-    tools.querySelector('[data-schema-collapse]')?.addEventListener('click', () => setAll(false));
+    // A search typed before the script ran, or kept by the browser on going back.
+    if (input.value) apply();
   }
 </script>

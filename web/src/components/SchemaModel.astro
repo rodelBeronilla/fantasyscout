@@ -1,0 +1,182 @@
+---
+/**
+ * The body of a model's or seed's page on the Schema (/schema/<name>/): its notes, grain, what it
+ * reads and what reads it, where it is published, its checks and unit tests, and its columns with
+ * their types, tests and descriptions (#449).
+ */
+import { badges, checkHref, docsHref, grainText, pageHref, type Entry } from '../lib/schema-page';
+import { href } from '../lib/site';
+
+interface Props {
+  entry: Entry;
+}
+const { entry: e } = Astro.props;
+const link = 'underline underline-offset-4';
+---
+
+<div class="grid grid-cols-[minmax(0,1fr)] gap-3 text-sm">
+  {
+    e.kind === 'model' && e.notes.length > 0 && (
+      <div class="grid max-w-3xl gap-2" data-testid="notes">
+        {e.notes.map((p) => (p.startsWith('- ') ? <p class="pl-4">• {p.slice(2)}</p> : <p>{p}</p>))}
+      </div>
+    )
+  }
+  <dl class="grid min-w-0 gap-1 text-xs wrap-anywhere">
+    {
+      e.kind === 'model' && e.grain && (
+        <div data-testid="grain">
+          <dt class="inline text-muted">Grain </dt>
+          <dd class="inline">
+            {grainText(e.grain)} (key <span class="font-mono">{e.grain.key}</span>)
+          </dd>
+        </div>
+      )
+    }
+    {
+      e.kind === 'model' && e.landing.length > 0 && (
+        <div data-testid="landing">
+          <dt class="inline text-muted">Reads </dt>
+          <dd class="inline font-mono">{e.landing.map((p) => `landing/${p}`).join(', ')}</dd>
+        </div>
+      )
+    }
+    {
+      e.kind === 'model' && e.reads.length > 0 && (
+        <div data-testid="reads">
+          <dt class="inline text-muted">{e.landing.length ? 'Also reads ' : 'Reads '}</dt>
+          <dd class="inline">
+            {e.reads.map((r, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={pageHref(r)} class={`font-mono ${link}`}>
+                  {r}
+                </a>
+              </>
+            ))}
+          </dd>
+        </div>
+      )
+    }
+    {
+      (e.read_by.length > 0 || e.kind === 'seed') && (
+        <div data-testid="read-by">
+          <dt class="inline text-muted">Read by </dt>
+          <dd class="inline">
+            {e.read_by.map((r, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={pageHref(r)} class={`font-mono ${link}`}>
+                  {r}
+                </a>
+              </>
+            ))}
+            {e.read_by.length === 0 && 'no model; only the export reads it (export/layout.py)'}
+          </dd>
+        </div>
+      )
+    }
+    {
+      (e.exported_as.length > 0 || (e.kind === 'model' && e.layer === 'gold')) && (
+        <div data-testid="exported">
+          <dt class="inline text-muted">Published as </dt>
+          <dd class="inline">
+            {e.exported_as.length ? (
+              <span class="font-mono">{e.exported_as.join(', ')}</span>
+            ) : (
+              'not published on its own; it reaches the site through the marts that read it'
+            )}
+          </dd>
+        </div>
+      )
+    }
+    {
+      e.kind === 'model' && e.read_by_pages.length > 0 && (
+        <div data-testid="read-by-pages">
+          <dt class="inline text-muted">Read by pages </dt>
+          <dd class="inline">
+            {e.read_by_pages.map((r, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={href(r)} class="font-mono underline-offset-4 hover:underline">
+                  {r}
+                </a>
+              </>
+            ))}
+          </dd>
+        </div>
+      )
+    }
+    {
+      e.kind === 'model' && e.checks.length > 0 && (
+        <div data-testid="checked-by">
+          <dt class="inline text-muted">Checked by </dt>
+          <dd class="inline">
+            {e.checks.map((c, i) => (
+              <>
+                {i > 0 && ', '}
+                <a href={checkHref(c)} class={`font-mono ${link}`}>
+                  {c}
+                </a>
+              </>
+            ))}
+          </dd>
+        </div>
+      )
+    }
+  </dl>
+  {
+    e.kind === 'model' && e.unit_tests.length > 0 && (
+      <div class="grid min-w-0 max-w-3xl gap-1 text-xs wrap-anywhere" data-testid="unit-tests">
+        <p class="text-muted">Unit tests (fixed inputs, expected rows; run on every pull request)</p>
+        <ul class="grid gap-1">
+          {e.unit_tests.map((u) => (
+            <li>
+              <span class="font-mono">{u.name}</span>: {u.description}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+  {
+    e.kind === 'model' && (
+      <p class="text-xs">
+        <a href={docsHref(e.name)} class={link}>
+          SQL and column lineage in the dbt docs
+        </a>
+      </p>
+    )
+  }
+  <div class="table-scroll max-h-[70vh] overflow-auto rounded border border-line" tabindex="0" role="region" aria-label={`Columns of ${e.name}`}>
+    <table class="w-full text-xs" data-testid="columns">
+      <thead class="bg-bg text-left text-muted">
+        <tr>
+          <th class="px-2 py-1 font-medium">Column</th>
+          <th class="px-2 py-1 font-medium">Type (DuckDB)</th>
+          {e.kind === 'model' && <th class="px-2 py-1 font-medium">Tests</th>}
+          <th class="px-2 py-1 font-medium">Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          e.columns.map((c) => (
+            <tr class="border-t border-line align-top" data-column={c.name}>
+              <td class="px-2 py-1 font-mono whitespace-nowrap">{c.name}</td>
+              <td class="px-2 py-1 font-mono whitespace-nowrap text-muted">{c.type || '–'}</td>
+              {e.kind === 'model' && <td class="px-2 py-1 whitespace-nowrap">{c.tests.join(', ') || '–'}</td>}
+              <td class="min-w-56 px-2 py-1">
+                {c.description || ''}
+                {badges(c).map((b) => (
+                  <span class="ml-1 rounded border border-line px-1 font-mono text-[10px] text-muted" data-meta={b.key}>
+                    {b.text}
+                  </span>
+                ))}
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

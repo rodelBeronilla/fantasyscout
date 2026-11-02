@@ -306,3 +306,19 @@ export function erCaption(area: ErArea): string {
 
 const erLegend =
   'Solid lines are foreign keys a dbt relationships test enforces; dashed lines are joins no test enforces, on a surrogate key or on natural keys: a team on league, season and team id (dim_team has a row per season), a day on game_date (a fact keyed to dim_game reaches it through dim_game), a player on league and player id to the current stint (is_current) or, for a row of one game, to the stint that covers its date (dim_player keeps a row per team stint). Crow’s feet mark the many side; two bars at both ends mark one-to-one. Only the joins between models in the same drawing are shown.';
+
+/** The ids of the Schema page's diagrams: the subject areas, then the lineage. */
+export const diagramIds = (): string[] => [...erAreas().map((a) => a.id), 'lineage'];
+
+let rendered: Promise<Map<string, string>> | null = null;
+
+/**
+ * Every Schema diagram by id, rendered once per build: the overview reads their sizes and the
+ * files under /schema/diagrams/ carry the drawings themselves (#449).
+ */
+export function schemaDiagrams(): Promise<Map<string, string>> {
+  rendered ??= Promise.all([...erAreas().map((a) => erDiagram(a)), lineage()]).then(
+    (svgs) => new Map(diagramIds().map((id, i) => [id, svgs[i] ?? ''])),
+  );
+  return rendered;
+}

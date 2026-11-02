@@ -2,20 +2,41 @@
 /**
  * A diagram rendered at build time (src/lib/diagram.ts) in a scrollable, labelled region, with a
  * caption that says how to read it.
+ *
+ * With `src`, the page carries only an empty SVG of the drawing's size and a link to the file;
+ * src/lib/lazy-diagrams.ts puts the drawing inline as it nears the viewport, so a page of large
+ * diagrams stays small and its links still work (#449). Without a script the link opens the file.
  */
+import { svgBox } from '../lib/diagram';
+
 interface Props {
   svg: string;
   id: string;
   title: string;
   caption: string;
+  /** The URL of the same SVG as a file, to load it when it is about to be seen. */
+  src?: string;
 }
-const { svg, id, title, caption } = Astro.props;
+const { svg, id, title, caption, src } = Astro.props;
+const box = src ? svgBox(svg) : null;
+const region = 'overflow-auto rounded-lg border border-line bg-card p-3';
 ---
 
 <figure class="mt-4 min-w-0" aria-labelledby={`${id}-title`} data-testid={`diagram-${id}`}>
-  <div class="overflow-auto rounded-lg border border-line bg-card p-3" tabindex="0" role="region" aria-label={title}>
-    <Fragment set:html={svg} />
-  </div>
+  {
+    src && box ? (
+      <div class={`relative ${region}`} tabindex="0" role="region" aria-label={title} data-diagram-src={src}>
+        <a href={src} class="absolute top-3 left-3 text-sm underline underline-offset-4">
+          Open the diagram (SVG)
+        </a>
+        <svg class="dg" width={box.width} height={box.height} viewBox={box.viewBox} aria-hidden="true" focusable="false" />
+      </div>
+    ) : (
+      <div class={region} tabindex="0" role="region" aria-label={title}>
+        <Fragment set:html={svg} />
+      </div>
+    )
+  }
   <figcaption class="mt-2 text-xs text-muted">
     <span id={`${id}-title`} class="font-medium text-fg">{title}.</span>{' '}{caption}
   </figcaption>
