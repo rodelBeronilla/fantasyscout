@@ -23,6 +23,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from export import build as build_mod
+from export import layout
 from export.source import DatabricksSource, DuckDBSource, GoldSource
 from export.store import LocalStore, R2Store, Store
 
@@ -121,6 +122,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="folder to carry (repeatable; default: notebooks and tableau)",
     )
 
+    p_pr = sub.add_parser(
+        "prune", help="delete every build beyond the newest --keep (never latest's or a pinned one)"
+    )
+    add_store(p_pr)
+    p_pr.add_argument("--keep", type=int, default=layout.KEEP_BUILDS)
+
     p_or = sub.add_parser(
         "orphans", help="list build folders nothing names (a staged build that never went live)"
     )
@@ -185,6 +192,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             carried = build_mod.carry_forward(store, args.build_id, subdirs)
             for sub, origin in carried.items():
                 print(f"{sub}: {'from ' + origin if origin else 'nothing to carry'}")
+        elif args.command == "prune":
+            dropped = build_mod.prune(store, keep=args.keep)
+            print(f"pruned {len(dropped)} build(s){': ' + ', '.join(dropped) if dropped else ''}")
         elif args.command == "orphans":
             found = build_mod.orphans(store)
             print(f"{len(found)} orphaned build(s){': ' + ', '.join(found) if found else ''}")

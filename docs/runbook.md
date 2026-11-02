@@ -80,7 +80,7 @@ The ingest and backfill jobs only ever write landed files (and read the landing 
 1. Create a service principal (Settings → Identity and access → Service principals), for example `fantasyscout-ingest`, and copy its **Application ID** (a UUID, on the principal's Configurations tab). Unity Catalog names a service principal by that id, never by its display name: a grant to the name fails with `PRINCIPAL_DOES_NOT_EXIST`.
 2. Grant it what the landing needs and nothing more, as the owner in the SQL editor, with the id inside backticks: `GRANT USE CATALOG ON CATALOG fantasyscout TO `<application-id>``, `GRANT USE SCHEMA ON SCHEMA fantasyscout.raw TO `<application-id>``, `GRANT READ VOLUME, WRITE VOLUME ON VOLUME fantasyscout.raw.landing TO `<application-id>``. Check with `SHOW GRANTS `<application-id>` ON VOLUME fantasyscout.raw.landing`. No warehouse access, no other schema.
 3. On the principal's **Secrets** tab, Generate secret. The dialog shows the **Client ID** (the same UUID) and the **Secret**, the secret once only.
-4. GitHub → Settings → Environments → `lakehouse` → add the environment secrets `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` with those two values. Run Ingest by hand and check the Land step is green; the probe step's `databricks` target proves the exchange on its own.
+4. GitHub → Settings → Environments → `lakehouse` → add the environment secrets `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` with those two values. Run Ingest by hand and check the Land step is green: the job exchanges the two for an access token before it lands anything, so a green Land step is the proof (a wrong pair fails there with the token endpoint's 401).
 5. To rotate: generate a new secret on the same tab, update the GitHub secret, delete the old secret in the workspace. Nothing expires on a schedule.
 
 The token path is still there for a workspace where OAuth secrets cannot be made: `bash infra/databricks/ingest-token.sh` applies the grants above, mints a 90-day token on behalf of the principal (`POST /api/2.0/token-management/on-behalf-of/tokens`, as a workspace admin) and puts it straight into the `lakehouse` environment secret `DATABRICKS_INGEST_TOKEN` with `gh`, never printing it; rotating it is the same script again.
@@ -262,7 +262,7 @@ The league stats API's `resultSets` are read by header name (`dbt/macros/stats.s
 Landed payloads are raw, so a shape change breaks bronze parsing (phase 2), not landing.
 
 1. Compare a fresh payload with the fixture in `tests/fixtures/<source>/<endpoint>.json`.
-2. Re-record the fixture from a residential address, trim it to a few rows, and update the parser and its tests.
+2. Re-record the fixture from a residential address: land the one request locally, for example `uv run fs-ingest land stats --league nba --only leaguegamelog --backend local --root landing-local`, copy the payload it wrote under `landing-local/` over `tests/fixtures/<source>/<endpoint>.json`, trim it to a few rows, and update the parser and its tests.
 3. If an endpoint disappeared, mark it in the planner and open an ADR if a replacement endpoint changes the data model.
 
 ## Build the lakehouse by hand
@@ -411,7 +411,7 @@ ADR 0008 commits the site to complying when a source objects to its use here, an
    ```bash
    databricks fs rm -r dbfs:/Volumes/fantasyscout/raw/landing/<source>
    ```
-4. **Republish without it.** The next full build publishes a build without the source's data; the kept builds still hold it for up to seven days, so `fs-export prune` with `--keep 1` (or deleting the older builds' folders in R2 by their key lists) removes those copies at once; roll back is then not possible past that build, which the issue should say.
+4. **Republish without it.** The next full build publishes a build without the source's data; the kept builds still hold it for up to seven days, so `uv run fs-export prune --store r2 --keep 1` removes those copies at once (it never deletes the live build or a pinned one); roll back is then not possible past that build, which the issue should say.
 5. **Record it.** An ADR 0008 addendum naming the source, the date of the request and what was removed; the `/sources/` entry goes, and the footer's credit with it.
 
 A request about a person's rows (a public athlete, coach or official) follows the same path for the rows that name them, with the ADR addendum describing the filter applied in silver.

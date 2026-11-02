@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The narrower Databricks token for the ingest (docs/runbook.md, "A narrower token for the ingest"),
+# The narrower Databricks token for the ingest (docs/runbook.md, "The ingest's own credential"),
 # done end to end from the owner's machine: find the service principal, grant it the landing volume
 # and nothing else, mint it a 90-day token, and put that token straight into the GitHub Actions
 # environment secret DATABRICKS_INGEST_TOKEN. The token is never printed or written to disk.
