@@ -24,7 +24,9 @@ with player_sums as (
         sum(steals) as steals,
         sum(blocks) as blocks,
         sum(turnovers) as turnovers,
-        sum(fouls_personal) as fouls_personal
+        sum(fouls_personal) as fouls_personal,
+        -- sum() skips nulls, so a nulled column would shrink a side silently; count them instead
+        sum(case when played and (points is null or field_goals_made is null or field_goals_attempted is null or three_pointers_made is null or three_pointers_attempted is null or free_throws_made is null or free_throws_attempted is null or rebounds_offensive is null or rebounds_defensive is null or rebounds_total is null or assists is null or steals is null or blocks is null or turnovers is null or fouls_personal is null) then 1 else 0 end) as null_stats
     from {{ ref('fct_player_game') }}
     group by league, game_id, team_id
 
@@ -39,7 +41,9 @@ select
 from {{ ref('fct_team_game') }} as t
 join player_sums as p
     on p.league = t.league and p.game_id = t.game_id and p.team_id = t.team_id
-where t.points <> p.points
+where p.null_stats > 0
+    or t.points is null or t.rebounds_total is null or t.assists is null or t.turnovers is null
+    or t.points <> p.points
     or t.field_goals_made <> p.field_goals_made
     or t.field_goals_attempted <> p.field_goals_attempted
     or t.three_pointers_made <> p.three_pointers_made
