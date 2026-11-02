@@ -1988,3 +1988,32 @@ test('the off-season WNBA pages drop in-season wording', async ({ page }) => {
   await expect(page.getByTestId('trade-players').locator('thead')).not.toContainText('Available');
   absent(await page.locator('main').innerText());
 });
+
+// Part of a name is enough: the list under the box filters as you type, Enter takes the first
+// (best on the board), and text that matches nobody says so (#454). League uses the same picker.
+test('the player picker finds a player from part of a name and Enter adds the best match', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string }[];
+  const first = board[0]!;
+  const part = first.full_name.split(' ').at(-1)!.slice(0, 4).toLowerCase();
+  await page.goto('/trade/');
+  const box = page.getByLabel('Add a player you give');
+  await box.fill(part);
+  const options = page.getByTestId('player-options').first();
+  await expect(options.getByRole('option').first()).toBeVisible();
+  await expect(box).toHaveAttribute('aria-expanded', 'true');
+  await box.press('Enter');
+  await expect(page.getByTestId('picked-give')).toContainText(first.full_name);
+  await expect(box).toHaveValue('');
+  await box.fill('zzqx');
+  await expect(page.getByTestId('player-no-match')).toHaveText('No player matches “zzqx”.');
+  // the arrow keys move the choice
+  await box.fill(part);
+  await box.press('ArrowDown');
+  await expect(page.getByTestId('player-options').first().getByRole('option', { selected: true })).toHaveCount(1);
+  // the League page has the same picker
+  await page.goto('/league/');
+  const team = page.getByLabel('Add a player to Team 1', { exact: true });
+  await team.fill(part);
+  await team.press('Enter');
+  await expect(page.getByTestId('team-card').first()).toContainText(first.full_name);
+});
