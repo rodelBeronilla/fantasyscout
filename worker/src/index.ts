@@ -362,13 +362,22 @@ export default {
     if (yahoo) return withSecurityHeaders(yahoo, url.pathname);
 
     if (url.pathname.startsWith(DATA_PREFIX)) {
+      // The path is decoded once, here: a path that does not decode is a bad request, not a
+      // private table (#411), and the policy is chosen on the decoded path, so a notebook asked
+      // for as `01_board_backtest%2Ehtml` still gets the no-script policy (#408).
+      let path: string;
+      try {
+        path = decodeURIComponent(url.pathname);
+      } catch {
+        return withSecurityHeaders(text(400, 'Bad Request'), url.pathname);
+      }
       const current = CURRENT_PATH.exec(url.pathname.slice(DATA_PREFIX.length));
-      if (current?.[1]) return withSecurityHeaders(await serveCurrent(request, env, ctx, current[1]), url.pathname);
+      if (current?.[1]) return withSecurityHeaders(await serveCurrent(request, env, ctx, current[1]), path);
       const isPrivate = isPrivateData(url.pathname);
       if (isPrivate && !(await isOwner(request, env))) {
         const res = text(401, 'The raw tables are private: sign in on the SQL page.');
         res.headers.set('cache-control', 'private, no-store');
-        return withSecurityHeaders(res, url.pathname);
+        return withSecurityHeaders(res, path);
       }
       // Public files are kept in the edge cache for as long as their cache-control says (the
       // pointers a minute, a build's files a year), so a page view is answered at the edge rather
@@ -394,12 +403,12 @@ export default {
             // an undecodable path never reached the cache; keep the raw key
           }
           out.headers.set('cache-control', clientCache(key, isPrivate));
-          return withSecurityHeaders(out, url.pathname);
+          return withSecurityHeaders(out, path);
         }
       }
       const served = withSecurityHeaders(
         await serveData(request, env, url.pathname.slice(DATA_PREFIX.length), isPrivate),
-        url.pathname,
+        path,
       );
       if (cacheable && served.status === 200) ctx.waitUntil(caches.default.put(request, served.clone()));
       return served;
