@@ -11,6 +11,7 @@ unit_tests:
     overrides:
       macros:
         is_incremental: true
+        has_watermark: true
     given:
       # The table as it stands (SQL, so the test runs before the model has ever been built).
       - input: this

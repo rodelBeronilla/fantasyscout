@@ -11,6 +11,7 @@ unit_tests:
     overrides:
       macros:
         is_incremental: true
+        has_watermark: true
     given:
       - input: this
         format: sql

@@ -24,7 +24,7 @@
 #}
 
 -- depends_on: {{ ref('player_game_box') }}
-{% if is_incremental() %}
+{% if has_watermark() %}
 with changed as (
 
     {{ changed_games([ref('events'), ref('player_game_box'), ref('games')]) }}
@@ -72,7 +72,7 @@ left join {{ ref('games') }} as g
     on g.league = e.league and g.game_id = e.game_id
 left join {{ ref('event_lineups') }} as l
     on l.event_key = e.event_key
-{% if is_incremental() %}
+{% if has_watermark() %}
 inner join changed as c
     on c.league = e.league and c.game_id = e.game_id
 {% endif %}
