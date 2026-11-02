@@ -9,9 +9,9 @@ string aggregation, the landing volume); a model never branches on the engine it
 
 | Layer | Materialisation | What it holds |
 | --- | --- | --- |
-| `bronze` | incremental, append-only on the landing date | Every landed payload parsed to rows, values still text, one row per payload row, hashed once per file (`landing_files()`, ADR 0004). Files from a landing date older than the table's newest are never re-read. |
+| `bronze` | incremental, append-only on the landing date | Every landed payload parsed to rows, values still text, one row per payload row, hashed once per file (`landing_files()`; the note at the top of `dbt/macros/landing.sql` says why). Files from a landing date older than the table's newest are never re-read. |
 | `silver` | table (the play-by-play chain incremental by game) | Typed rows, the latest landing per natural key (`latest_landing()`); a feed the ingest re-lands whole every day is read through `latest_snapshot()`. `events`, `shots`, `event_lineups` recompute only the games with a new landing (`macros/incremental.sql`). |
-| `gold` | table; `fct_event`, `fct_shot` incremental by game; `fct_board_history` incremental and never rebuilt | Dimensions (`dim_*`), facts (`fct_*`) and the marts the site reads (`mart_board`, `mart_streamers`, `mart_schedule_upcoming`, `mart_player_projection`, `mart_category_zscores`, `mart_player_rolling`). ADR 0003 records every modelling decision and its addenda. |
+| `gold` | table; `fct_event`, `fct_shot` incremental by game; `fct_board_history` incremental and never rebuilt | Dimensions (`dim_*`), facts (`fct_*`) and the marts the site reads (`mart_board`, `mart_streamers`, `mart_schedule_upcoming`, `mart_player_projection`, `mart_category_zscores`, `mart_player_rolling`). ADR 0003 records the modelling choices; ADRs 0009 to 0012 hold board value, availability, the Streamers sort and the signals tested. |
 | `ops` | table | What the platform says about itself: `test_results` and `publish_gate` (written by `ops.results` after every build), `feed_freshness`, `build_log`, `ingest_log`, `fetch_failures`, the reconciliation tables and `category_config`. |
 
 `models/exposures.yml` names the consumers (the site export, the Tableau workbook, each notebook)
