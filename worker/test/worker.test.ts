@@ -185,6 +185,25 @@ describe('data', () => {
     expect(page.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
   });
 
+  it('serves a pointer from the edge cache with a minute of cache-control, whatever the cache stored', async () => {
+    // The zone's browser cache TTL can rewrite a cached response's max-age; the Worker's rule wins.
+    const doctored = new Response(JSON.stringify({ build_id: 'test' }), {
+      headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=14400' },
+    });
+    await caches.default.put(new Request(`${ORIGIN}/data/latest.json`), doctored);
+    const res = await SELF.fetch(`${ORIGIN}/data/latest.json`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=60');
+    expect(await res.json()).toEqual({ build_id: 'test' });
+    // an immutable build file keeps the year-long rule on a hit too
+    const stale = new Response('[]', {
+      headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=14400' },
+    });
+    await caches.default.put(new Request(`${ORIGIN}/data/builds/c0/board/nba.json`), stale);
+    const file = await SELF.fetch(`${ORIGIN}/data/builds/c0/board/nba.json`);
+    expect(file.headers.get('cache-control')).toBe('public, max-age=31536000, immutable');
+  });
+
   it('answers a public build file from the edge cache the second time', async () => {
     await env.DATA.put('builds/c1/board/nba.json', '[{"player_id":"1"}]', {
       httpMetadata: { contentType: 'application/json' },
