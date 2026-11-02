@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -65,7 +66,7 @@ def test_local_store_round_trip(tmp_path: Path) -> None:
     assert store.get("builds/b1/x.json") is None
 
 
-def test_r2_store_uses_the_object_endpoint_and_retries() -> None:
+def test_r2_store_uses_the_object_endpoint_and_retries(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, str, str | None]] = []
     attempts = 0
 
@@ -85,10 +86,8 @@ def test_r2_store_uses_the_object_endpoint_and_retries() -> None:
             )
         return httpx.Response(204)
 
-    import export.store as store_mod
-
     store = R2Store("acct", "tok", transport=httpx.MockTransport(handler), sleep=0.0)
-    store_mod.time.sleep = lambda _: None  # type: ignore[assignment]
+    monkeypatch.setattr(time, "sleep", lambda _: None)
     store.put("builds/b1/health.json", b"{}")
     assert store.get("latest.json") == b"body"
     assert store.get("missing.json") is None
@@ -104,9 +103,8 @@ def test_r2_store_uses_the_object_endpoint_and_retries() -> None:
 
 
 def test_r2_store_retries_a_dropped_connection(monkeypatch: pytest.MonkeyPatch) -> None:
-    import export.store as store_mod
 
-    monkeypatch.setattr(store_mod.time, "sleep", lambda _: None)
+    monkeypatch.setattr(time, "sleep", lambda _: None)
     attempts = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -127,7 +125,7 @@ def test_r2_store_raises_when_the_connection_keeps_dropping(
 ) -> None:
     import export.store as store_mod
 
-    monkeypatch.setattr(store_mod.time, "sleep", lambda _: None)
+    monkeypatch.setattr(time, "sleep", lambda _: None)
 
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("unreachable")

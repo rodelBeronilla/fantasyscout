@@ -83,7 +83,8 @@ def iso_utc(value: object) -> str | None:
     return parsed.astimezone(UTC).isoformat(timespec="seconds")
 
 
-def eastern_date(value: str) -> str:
+def eastern_date_text(value: str) -> str:
+    """The Eastern date of an ISO timestamp as `YYYY-MM-DD` text (landing.eastern_date: a date)."""
     return datetime.fromisoformat(value).astimezone(EASTERN).date().isoformat()
 
 
@@ -283,7 +284,7 @@ class EspnPropsIngestor:
                     "snapshot_key": snapshot,
                     "fetched_at": now.astimezone(UTC).isoformat(timespec="seconds"),
                     "commence_at": event.commence_at,
-                    "game_date_et": eastern_date(event.commence_at),
+                    "game_date_et": eastern_date_text(event.commence_at),
                     "home_team_id": event.home_team_id,
                     "away_team_id": event.away_team_id,
                     "items_at_source": len(items),
@@ -406,7 +407,7 @@ class OddsApiIngestor:
                     "snapshot_key": snapshot,
                     "fetched_at": now.astimezone(UTC).isoformat(timespec="seconds"),
                     "commence_at": commence,
-                    "game_date_et": eastern_date(commence) if commence else None,
+                    "game_date_et": eastern_date_text(commence) if commence else None,
                     "home_team": doc.get("home_team") or event.get("home_team"),
                     "away_team": doc.get("away_team") or event.get("away_team"),
                     "props": pair_outcomes(doc),
