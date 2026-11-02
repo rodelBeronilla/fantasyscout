@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
-import { fetchBuildJson, fetchPageRows, getLatest, type League, markFirstRow } from '../lib/data';
+import { fetchCurrentJson, fetchPageRows, getLatest, type League } from '../lib/data';
+import { useWarmUp } from '../lib/warm';
 import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
@@ -250,6 +251,8 @@ function WaiverHeat({ row }: { row: Candidate }) {
 type Health = 'all' | 'no_out' | 'healthy';
 
 const PAGE = 50;
+/** Rows in the first paint, before the browser is idle (#562). */
+const FIRST_ROWS = 10;
 const HORIZONS = [3, 7, 14];
 // A league-sized pool on the board (teams x roster spots); players inside it are most likely rostered.
 const ROSTERED = { nba: [0, 100, 156, 200], wnba: [0, 60, 100, 140] } as const;
@@ -517,6 +520,8 @@ export default function Streamers() {
   const [sortChoice, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
+  // The note and the first rows paint first; the rest of the page of rows when the browser is idle (#562).
+  const warm = useWarmUp(!!rows);
   const { watched, toggleWatched } = useWatchlist(league);
   // With the league's rosters in, leave out exactly the players on them (-1); otherwise a board-rank cut.
   const [setup] = useLeague(league);
@@ -527,20 +532,19 @@ export default function Streamers() {
     let live = true;
     Promise.all([
       fetchPageRows<StreamerRow>(`streamers/${league}`),
-      fetchBuildJson<Game[]>(`schedule/${league}.json`).catch((e: unknown) => {
+      fetchCurrentJson<Game[]>(`schedule/${league}.json`).catch((e: unknown) => {
         if (live) setScheduleError(e);
         return [] as Game[];
       }),
-      fetchBuildJson<Team[]>('dim_team.json'),
+      fetchCurrentJson<Team[]>('dim_team.json'),
       getLatest(),
       // Older builds have no transactions or team-weeks file.
-      fetchBuildJson<Move[]>(`transactions/${league}.json`).catch(() => [] as Move[]),
-      fetchBuildJson<TeamWeek[]>(`team_weeks/${league}.json`).catch(() => [] as TeamWeek[]),
+      fetchCurrentJson<Move[]>(`transactions/${league}.json`).catch(() => [] as Move[]),
+      fetchCurrentJson<TeamWeek[]>(`team_weeks/${league}.json`).catch(() => [] as TeamWeek[]),
     ])
       .then(([s, g, t, latest, mv, tw]) => {
         if (!live) return;
         setRows(s);
-        markFirstRow();
         setGames(g);
         setMoves(mv);
         setWeeks(tw);
@@ -993,7 +997,7 @@ export default function Streamers() {
               </tr>
             </thead>
             <tbody>
-              {list.slice(0, shown).map((r) => (
+              {list.slice(0, warm ? shown : Math.min(shown, FIRST_ROWS)).map((r) => (
                 <tr key={r.player_id} className="border-t border-line">
                   <td className="pin max-w-[11rem] px-2 py-1.5 sm:max-w-none">
                     <span className="flex flex-wrap items-center gap-1 sm:flex-nowrap">

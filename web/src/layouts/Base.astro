@@ -5,8 +5,12 @@ import { BUILD_ID, LEAGUES, REPO_URL, href } from '../lib/site';
 interface Props {
   title: string;
   description: string;
-  /** The current-build file this page reads first, preloaded from the head for the visitor's league (#436). */
-  preload?: 'board' | 'streamers';
+  /**
+   * The current-build files this page reads, preloaded from the head for the visitor's league (#436),
+   * so they download beside the pointer instead of after the island runs (#562). Paths under
+   * data/current/, with {league} for the league.
+   */
+  preload?: readonly string[];
 }
 
 const { title, description, preload } = Astro.props;
@@ -69,12 +73,14 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
               // storage blocked: the page falls back the same way
             }
             const league = asked === 'nba' || asked === 'wnba' ? asked : kept === 'nba' || kept === 'wnba' ? kept : 'wnba';
-            const link = document.createElement('link');
-            link.rel = 'preload';
-            link.as = 'fetch';
-            link.crossOrigin = 'anonymous';
-            link.href = currentBase + preload + '/' + league + '.columns.json';
-            document.head.appendChild(link);
+            for (const file of preload) {
+              const link = document.createElement('link');
+              link.rel = 'preload';
+              link.as = 'fetch';
+              link.crossOrigin = 'anonymous';
+              link.href = currentBase + file.replace('{league}', league);
+              document.head.appendChild(link);
+            }
           } catch {
             // a preload is only a head start
           }

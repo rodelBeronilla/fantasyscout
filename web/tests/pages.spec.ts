@@ -58,8 +58,19 @@ test('the board and streamers read their column-wise files from the stable addre
   const ids = new Set(rows.map((r) => r.player_id));
   expect(shown.length).toBeGreaterThan(10);
   expect(shown.every((id) => id && ids.has(id))).toBe(true);
+  const builds: string[] = [];
+  page.on('request', (r) => {
+    if (/\/data\/builds\//.test(r.url())) builds.push(r.url());
+  });
   await page.goto('/streamers/?league=nba');
   await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
+  // Streamers preloads every file it reads from the head and reads them all at the stable address (#562).
+  for (const file of ['streamers/nba.columns.json', 'schedule/nba.json', 'dim_team.json', 'transactions/nba.json', 'team_weeks/nba.json']) {
+    await expect(page.locator(`head link[rel="preload"][href$="/data/current/${file}"]`), file).toHaveCount(1);
+  }
+  expect(builds).toEqual([]);
+  // the first rows paint first, then the rest of the page of rows
+  await expect(page.getByTestId('trending').locator('tbody tr')).not.toHaveCount(10);
   expect(columnFiles.some((u) => u.includes('/board/'))).toBe(true);
   expect(columnFiles.some((u) => u.includes('/streamers/'))).toBe(true);
   expect(rowFiles).toEqual([]);

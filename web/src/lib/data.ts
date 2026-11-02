@@ -128,6 +128,21 @@ export async function fetchPageRows<T>(path: string): Promise<T[]> {
   return fetchBuildJson<T[]>(`${path}.json`);
 }
 
+/**
+ * A JSON file of the current build at its stable address (CURRENT_PATH in the Worker), which the
+ * page head preloads before the island runs (#562); the pointer and the build file where no Worker
+ * answers it.
+ */
+export async function fetchCurrentJson<T>(path: string): Promise<T> {
+  try {
+    const r = await fetch(dataHref(`current/${path}`));
+    if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) return (await r.json()) as T;
+  } catch {
+    // fall through to the pointer
+  }
+  return fetchBuildJson<T>(path);
+}
+
 /** The first rows of a page are on screen: the mark the deploy's slow-phone budget reads (#436). */
 export function markFirstRow(): void {
   try {

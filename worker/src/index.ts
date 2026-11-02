@@ -35,12 +35,13 @@ function isMutable(key: string): boolean {
   return POINTER_KEYS.has(key) || MUTABLE_UNDER_BUILDS.test(key);
 }
 /**
- * The files a page head preloads before it knows the build id (#436): the board, the streamers
- * and the schedule of the current build, at an address that does not change. The Worker resolves
- * the pointer, so the page fetches the file beside latest.json instead of after it. Served like a
- * pointer, for a minute; nothing else (no private table, no player file) is reachable this way.
+ * The files a page head preloads before it knows the build id (#436): the board, the streamers,
+ * the schedule, the moves and the team-weeks of the current build, and its team list (#562), at an
+ * address that does not change. The Worker resolves the pointer, so the page fetches the file
+ * beside latest.json instead of after it. Served like a pointer, for a minute; nothing else (no
+ * private table, no player file) is reachable this way.
  */
-const CURRENT_PATH = /^current\/((?:board|streamers|schedule)\/(?:wnba|nba)(?:\.columns)?\.json)$/;
+const CURRENT_PATH = /^current\/((?:(?:board|streamers|schedule|transactions|team_weeks)\/(?:wnba|nba)(?:\.columns)?|dim_team)\.json)$/;
 
 /** The cache-control a data file is served with: a minute for the mutable keys, a year for the rest. */
 function clientCache(key: string, isPrivate = false): string {
