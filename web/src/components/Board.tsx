@@ -12,7 +12,8 @@ import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, 
 import { reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { matchup, matchupWeights, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
-import { DraftBar, LeagueBar, Matchup, Upgrades } from './LeagueParts';
+import { DraftBar, LeagueBar, Matchup, Today, Upgrades } from './LeagueParts';
+import { easternDate, type TodayGame } from '../lib/today';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 
 interface BoardRow {
@@ -212,6 +213,19 @@ export default function Board() {
       live = false;
     };
   }, [league]);
+
+  // The schedule, for the Today card (#464): fetched after the board, so it never holds up the first rows.
+  const [games, setGames] = useState<TodayGame[] | null>(null);
+  useEffect(() => {
+    if (!rows) return;
+    let live = true;
+    fetchBuildJson<TodayGame[]>(`schedule/${league}.json`)
+      .then((g) => live && setGames(g))
+      .catch(() => live && setGames(null));
+    return () => {
+      live = false;
+    };
+  }, [rows, league]);
 
   const meta = useMemo(() => {
     const list = rows ?? [];
@@ -677,6 +691,7 @@ export default function Board() {
       {h2h && owner.size > 0 && !setup.drafting && weekAvailable && (
         <Matchup setup={setup} match={match} points={points} onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))} />
       )}
+      {games && myTeam.length > 0 && !setup.drafting && <Today league={league} players={myTeam} games={games} date={easternDate()} />}
       {review && (
         <Upgrades
           league={league}

@@ -15,8 +15,9 @@ import type { League } from '../lib/data';
 import type { RosterReview, Upgrade } from '../lib/roster-upgrades';
 import { href } from '../lib/site';
 import { isRatio, type WeekMatchup } from '../lib/matchup';
+import { type TodayGame, todayGroups, type TodaySlot } from '../lib/today';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
-import { Segmented, Signed, Td, Th } from './ui';
+import { InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Td, Th } from './ui';
 
 export const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
 
@@ -419,6 +420,85 @@ export function Matchup({
             </table>
           </div>
         </>
+      )}
+    </section>
+  );
+}
+
+/** A player on the Today card: the board row's identity, team, report and lineup fields. */
+export interface TodayRow extends InjuryFields {
+  player_id: string;
+  full_name: string | null;
+  team_id?: string | null;
+  injury_group?: string | null;
+  injury_status?: string | null;
+  lineup_role?: string | null;
+  lineup_confirmed?: boolean | null;
+  lineup_date?: string | null;
+}
+
+/** The manager's game day (#464): who plays today, who is listed, who has no game. */
+export function Today({ league, players, games, date }: { league: League; players: TodayRow[]; games: TodayGame[]; date: string }) {
+  const { plays, listed, idle, leagueGames } = todayGroups(players, games, date);
+  const day = new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  const time = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  const line = (s: TodaySlot<TodayRow>) => (
+    <li key={s.player.player_id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5" data-player={s.player.player_id}>
+      <a href={href(`/p/${league}/${s.player.player_id}/`)} className="font-medium underline-offset-4 hover:underline">
+        {s.player.full_name ?? s.player.player_id}
+      </a>
+      {s.opponent && (
+        <span className="text-muted">
+          {s.home ? 'v' : '@'} {s.opponent}
+          {s.tipoff ? `, ${time(s.tipoff)}` : ''}
+        </span>
+      )}
+      {s.player.lineup_date === date && (
+        <LineupTag role={s.player.lineup_role} confirmed={s.player.lineup_confirmed} date={s.player.lineup_date} injuryGroup={s.player.injury_group} />
+      )}
+      <InjuryTag group={s.player.injury_group} status={s.player.injury_status} detail={injuryDetail(s.player)} />
+    </li>
+  );
+  return (
+    <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="today-h" data-testid="today">
+      <h2 id="today-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+        Today, {day}
+      </h2>
+      <p className="mt-1 text-sm" data-testid="today-summary">
+        {leagueGames === 0 ? (
+          <>No games on the schedule today.</>
+        ) : (
+          <>
+            <strong>
+              {plays.length} of your {players.length} active players play today
+            </strong>
+            {listed.length ? `, and ${listed.length} more ${listed.length === 1 ? 'is' : 'are'} on the injury report` : ''}.
+            {idle.length ? ` ${idle.length} ${idle.length === 1 ? 'has' : 'have'} no game.` : ''}
+          </>
+        )}
+      </p>
+      {leagueGames > 0 && (
+        <div className="mt-2 grid gap-3 text-sm sm:grid-cols-3">
+          <div>
+            <h3 className="text-xs font-semibold text-good uppercase">Plays ({plays.length})</h3>
+            <ul className="mt-1 grid gap-1" data-testid="today-plays">
+              {plays.map(line)}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-xs font-semibold text-warn uppercase">Listed ({listed.length})</h3>
+            <ul className="mt-1 grid gap-1" data-testid="today-listed">
+              {listed.map(line)}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-xs font-semibold text-muted uppercase">No game ({idle.length})</h3>
+            <ul className="mt-1 grid gap-1" data-testid="today-idle">
+              {idle.map(line)}
+            </ul>
+          </div>
+        </div>
       )}
     </section>
   );

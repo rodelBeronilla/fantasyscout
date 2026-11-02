@@ -1155,6 +1155,39 @@ test('a head-to-head league picks this week\'s opponent on the board and sees th
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText('Pick the team you face');
 });
 
+test('the Today card groups the active roster by plays, listed and no game, on the Board and the League page', async ({ page }) => {
+  type Row = { player_id: string; full_name: string | null; team_id: string | null; injury_group: string | null };
+  type Game = { game_date: string; home_team_id: string; away_team_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const games = (await (await page.request.get('/data/builds/fixture/schedule/nba.json')).json()) as Game[];
+  // the day with the most games in the fixture, as Eastern "today"
+  const counts = new Map<string, number>();
+  for (const g of games) counts.set(g.game_date, (counts.get(g.game_date) ?? 0) + 1);
+  const day = [...counts].sort((a, b) => b[1] - a[1])[0]![0];
+  await page.clock.setFixedTime(new Date(`${day}T16:00:00Z`));
+  const playing = new Set(games.filter((g) => g.game_date === day).flatMap((g) => [g.home_team_id, g.away_team_id]));
+  const listedGroups = new Set(['out', 'doubtful', 'questionable', 'day_to_day']);
+  const named = board.filter((r) => r.full_name && r.team_id);
+  const plays = named.find((r) => playing.has(r.team_id!) && !r.injury_group)!;
+  const listed = named.find((r) => playing.has(r.team_id!) && listedGroups.has(r.injury_group ?? ''))!;
+  const idle = named.find((r) => !playing.has(r.team_id!))!;
+  const roster = [plays, listed, idle].filter(Boolean);
+  await page.goto('/league/?league=nba');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(roster.map((r) => r.full_name).join('\n'));
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText(`Added ${roster.length}`);
+  for (const path of ['/league/?league=nba', '/?league=nba']) {
+    await page.goto(path);
+    const today = page.getByTestId('today');
+    await expect(today.getByTestId('today-summary')).toContainText(`${plays ? 1 : 0} of your ${roster.length} active players play today`);
+    if (plays) await expect(today.getByTestId('today-plays').locator(`[data-player="${plays.player_id}"]`)).toBeVisible();
+    if (listed) await expect(today.getByTestId('today-listed').locator(`[data-player="${listed.player_id}"]`)).toBeVisible();
+    if (idle) await expect(today.getByTestId('today-idle').locator(`[data-player="${idle.player_id}"]`)).toBeVisible();
+  }
+});
+
 test('a roster of the two best players is told it is optimized as is', async ({ page }) => {
   await page.goto('/');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');
