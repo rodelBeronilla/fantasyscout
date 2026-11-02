@@ -17,11 +17,20 @@ const currentBase = href('data/current/');
 // small script keeps one dropdown open at a time and closes it on a click elsewhere.
 const nav: { label: string; path?: string; items?: readonly (readonly [string, string])[] }[] = [
   { label: 'Board', path: '/' },
-  { label: 'Tools', items: [['Streamers', '/streamers/'], ['Trade', '/trade/']] },
+  // League leads Tools: the Board, Streamers and Trade all send a manager there to set up their league (#452).
+  { label: 'Tools', items: [['League', '/league/'], ['Streamers', '/streamers/'], ['Trade', '/trade/']] },
   { label: 'Analysis', items: [['Notebooks', '/notebooks/'], ['Dashboards', '/dashboards/']] },
-  { label: 'Platform', items: [['Data Health', '/health/'], ['Pipeline', '/pipeline/'], ['Schema', '/schema/'], ['Docs', '/docs/']] },
-  // Not ready for everyone yet: the League page waits on the Yahoo import, the SQL console is for the owner.
-  { label: 'Coming soon', items: [['League', '/league/'], ['SQL console', '/sql/']] },
+  {
+    label: 'Platform',
+    items: [
+      ['Data Health', '/health/'],
+      ['Pipeline', '/pipeline/'],
+      ['Schema', '/schema/'],
+      ['Docs', '/docs/'],
+      // The console loads the full tables, which only the site's owner may read (ADR 0008).
+      ['SQL console (owner only)', '/sql/'],
+    ],
+  },
 ];
 const current = Astro.url.pathname;
 // The canonical address drops the query (?league= is a view of the same page) and names the site.
