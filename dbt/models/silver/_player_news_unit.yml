@@ -17,6 +17,8 @@ unit_tests:
           - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '7', espn_player_id: e1, headline: "Giannis Antetokounmpo, Bam Adebayo lead Heat into win column", published_at: '2026-10-29T11:12:00Z', url: 'https://espn.invalid/7'}
           - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '7', espn_player_id: e9, headline: "Giannis Antetokounmpo, Bam Adebayo lead Heat into win column", published_at: '2026-10-29T11:12:00Z', url: 'https://espn.invalid/7'}
           - {league: nba, season: '2026-27', _ingest_date: '2026-10-28', _source_file: b, article_id: '2', espn_player_id: e2, headline: "Edwards to have knee looked at", published_at: '2026-10-29T19:21:00Z', url: 'https://espn.invalid/2'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '8', espn_player_id: e8, headline: "Victor Wembanyama's Halloween costume trend returns with 'The Witcher' look", published_at: '2026-10-31T15:00:00Z', url: 'https://espn.invalid/8'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-10-29', _source_file: a, article_id: '9', espn_player_id: e9, headline: "Guard returns to the lineup after missing six games", published_at: '2026-10-31T16:00:00Z', url: 'https://espn.invalid/9'}
       - input: ref('player_xwalk')
         rows:
           - {league: nba, espn_player_id: e1, stats_player_id: '1'}
@@ -35,3 +37,5 @@ unit_tests:
         - {article_id: '6', espn_player_id: e6, stats_player_id: '6', athletes_tagged: 1, news_flag: out_for_season, published_date: '2026-10-28'}
         - {article_id: '7', espn_player_id: e1, stats_player_id: '1', athletes_tagged: 2, news_flag: null, published_date: '2026-10-29'}
         - {article_id: '7', espn_player_id: e9, stats_player_id: null, athletes_tagged: 2, news_flag: null, published_date: '2026-10-29'}
+        - {article_id: '8', espn_player_id: e8, stats_player_id: null, athletes_tagged: 1, news_flag: null, published_date: '2026-10-31'}
+        - {article_id: '9', espn_player_id: e9, stats_player_id: null, athletes_tagged: 1, news_flag: return, published_date: '2026-10-31'}
