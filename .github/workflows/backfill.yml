@@ -1,4 +1,7 @@
 name: Backfill
+# The build reads this title to leave the seasons still landing out of the completeness check
+# (ops.backfilling, #420): keep the league, the seasons JSON and the source in it.
+run-name: Backfill ${{ inputs.league }} ${{ inputs.seasons }} (${{ inputs.source }})
 
 # Lands whole seasons. The stats API jobs run on the home runners (ADR 0002), one season per
 # job so each stays well under the job time limit; ESPN runs on GitHub-hosted runners. The

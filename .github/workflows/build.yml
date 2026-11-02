@@ -130,19 +130,28 @@ jobs:
           FULL_REFRESH: ${{ inputs.full_refresh }}
           SELECT: ${{ inputs.select || env.PLAN_SELECT }}
           CHAOS: ${{ inputs.chaos }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -o pipefail
           args=(build --target databricks)
           [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
           [ -n "$SELECT" ] && args+=(--select "$SELECT")
-          [ "$CHAOS" = "true" ] && args+=(--vars '{chaos: true}') && echo "::warning::chaos drill: one error-severity check will fail on purpose"
+          # A season a Backfill run is still landing is left out of assert_completeness until it
+          # finishes (#420); the step names each one in a notice.
+          runs=$(gh run list -R "$GITHUB_REPOSITORY" -w backfill.yml -L 20 --json status,displayTitle) || runs='[]'
+          vars=$(echo "$runs" | (cd .. && uv run python -m ops.backfilling)) || vars='{"backfilling": []}'
+          if [ "$CHAOS" = "true" ]; then
+            vars=$(echo "$vars" | jq -c '. + {chaos: true}')
+            echo "::warning::chaos drill: one error-severity check will fail on purpose"
+          fi
+          args+=(--vars "$vars")
           # dbt exits non-zero on test failures; the gate step decides what that means.
           uv run dbt "${args[@]}" 2>&1 | tee land.log || true
           # A selected build ran only its own nodes' tests. The gate must still judge the whole
           # lakehouse before anything is published, so every quality check runs too, into its own
           # target directory; the gate step reads both.
           if [ -n "$SELECT" ]; then
-            uv run dbt test --target databricks --select tag:quality --target-path target/quality 2>&1 | tee -a land.log || true
+            uv run dbt test --target databricks --select tag:quality --vars "$vars" --target-path target/quality 2>&1 | tee -a land.log || true
           fi
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
