@@ -12,7 +12,7 @@ import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
-import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag } from './ui';
+import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, lineupDay, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag } from './ui';
 
 interface StreamerRow {
   player_id: string;
@@ -936,9 +936,9 @@ export default function Streamers() {
               Watchlist only ({watched.size})
             </label>
             {rows.some((r) => r.lineup_role) && (
-              <label className="flex items-center gap-2 text-sm" title="From the league's starting lineups for today's games (NBA)">
+              <label className="flex items-center gap-2 text-sm" title="From the league's starting lineups for the next game day (NBA)">
                 <input type="checkbox" checked={startersOnly} onChange={(e) => setStartersOnly(e.target.checked)} />
-                Starting today
+                <span data-testid="starters-label">Starting {lineupDay(rows.find((r) => r.lineup_date)?.lineup_date)}</span>
               </label>
             )}
             {(hasHeat || hasTrend) && (

@@ -24,7 +24,12 @@ toggle?.addEventListener('click', () => {
 });
 
 void getLatest()
-  .catch(() => null) // the islands report a failing pointer; the chrome just stays quiet
+  .catch(() => {
+    // The islands explain a failing pointer; the footer only stops claiming there is no build (#460).
+    const asOf = document.querySelector('[data-data-as-of]');
+    if (asOf) asOf.textContent = 'unavailable';
+    return null;
+  })
   .then((latest) => {
     if (!latest) return;
     const asOf = document.querySelector('[data-data-as-of]');

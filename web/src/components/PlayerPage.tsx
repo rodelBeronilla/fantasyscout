@@ -371,6 +371,9 @@ function InjuryCard({
   history: NonNullable<PlayerFile['injury_history']>;
 }) {
   const tone = board.injury_group === 'out' ? 'bad' : 'warn';
+  // ESPN's note is sometimes the status again ("out"); a line that says nothing new is left out (#460).
+  const raw = (board.injury_news || board.injury_note || '').trim();
+  const note = raw && raw.toLowerCase() !== (board.injury_status ?? '').trim().toLowerCase() ? raw : null;
   return (
     <Card title="Injury" id="injury">
       <div className="grid gap-2 text-sm" data-testid="injury-card">
@@ -378,9 +381,13 @@ function InjuryCard({
           <Badge tone={tone}>{board.injury_status ?? 'Injured'}</Badge>
           {board.injury_type && <span>{board.injury_type}</span>}
           {board.injury_since && <span className="text-muted">since {day(board.injury_since)}</span>}
-          {board.expected_return && <span className="text-muted">· expected back {day(board.expected_return)}</span>}
+          {board.expected_return && (
+            <span className="text-muted" data-testid="expected-return">
+              · expected back {board.season_complete ? `next season (${day(board.expected_return)})` : day(board.expected_return)}
+            </span>
+          )}
         </p>
-        {(board.injury_news || board.injury_note) && <p data-testid="injury-news">{board.injury_news || board.injury_note}</p>}
+        {note && <p data-testid="injury-news">{note}</p>}
         {history.length > 1 && (
           <ol className="grid gap-0.5 text-xs text-muted" data-testid="injury-history">
             {history.map((h) => (
