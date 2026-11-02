@@ -80,5 +80,5 @@ jobs:
           git push -u origin "$branch"
           gh pr create --base main --head "$branch" --title "chore(release): v$VERSION" \
             --label release:skip \
-            --body "Bumps \`pyproject.toml\` to $VERSION after the release [v$VERSION](https://github.com/${{ github.repository }}/releases/tag/v$VERSION) (data build \`$BUILD_ID\`). Merge when the release reads right." \
+            --body "Bumps \`pyproject.toml\` to $VERSION after the release [v$VERSION](https://github.com/$GITHUB_REPOSITORY/releases/tag/v$VERSION) (data build \`$BUILD_ID\`). Merge when the release reads right." \
             || echo "::warning::could not open the PR (Actions may not be allowed to create pull requests): branch $branch is pushed; open it by hand"
