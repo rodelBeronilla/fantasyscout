@@ -273,7 +273,9 @@ async function namePlayer(shell: Response, env: Env, url: URL, ctx: ExecutionCon
   const build = m ? await currentBuild(env, url.origin, ctx) : null;
   if (!m || !build) return shell;
   const file = await env.DATA.get(`builds/${build}/players/${m[1]}/${m[2]}.json`);
-  if (!file) return shell;
+  // A build that has no file for the id has no such player: the same shell, which says so once
+  // its script runs, but answered 404, so made-up ids are not an endless set of pages (#410).
+  if (!file) return new Response(shell.body, { status: 404, headers: shell.headers });
   let player: PlayerFile;
   try {
     player = (await file.json()) as PlayerFile;
