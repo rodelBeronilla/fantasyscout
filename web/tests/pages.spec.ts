@@ -1811,6 +1811,28 @@ test("the board sets the fantasy market's rank beside its own, and streamers can
   await expect(table.locator('tbody tr')).toHaveCount(3);
 });
 
+test('a board whose market ranks no one has no market columns, and the ownership trend sits with the name (#451)', async ({ page }) => {
+  // The WNBA's ESPN data has ownership but no draft position.
+  await page.route('**/board/wnba*.json', async (route) => {
+    const body = (await (await route.fetch()).json()) as Record<string, unknown> | Record<string, unknown>[];
+    if (Array.isArray(body)) {
+      await route.fulfill({ json: body.map((r) => ({ ...r, market_rank: null, ownership_bucket: 'most', ownership_trend: 'rising' })) });
+    } else {
+      const n = (Object.values(body)[0] as unknown[]).length;
+      await route.fulfill({
+        json: { ...body, market_rank: Array(n).fill(null), ownership_bucket: Array(n).fill('most'), ownership_trend: Array(n).fill('rising') },
+      });
+    }
+  });
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
+  await expect(board.locator('thead')).not.toContainText('Mkt');
+  await expect(board.getByTestId('market-rank')).toHaveCount(0);
+  // the arrow is in the player's own cell, with the other name tags
+  await expect(board.locator('tbody tr[data-player]').first().getByTestId('trend-tag')).toHaveCount(1);
+});
+
 test('players on teams with nothing left to play for late in the season carry a rest-risk tag', async ({ page }) => {
   await page.route('**/board/wnba.json', async (route) => {
     const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];

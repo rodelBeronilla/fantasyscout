@@ -473,7 +473,9 @@ export default function Board() {
   const compared = compare.map((id) => byId.get(id)).filter((r): r is BoardRow => !!r);
   const valueOf = new Map(scored.map((s) => [s.row.player_id, s.value]));
   // The market's columns: in the value view, once the build carries ESPN's market.
-  const showMarket = view === 'value' && rows.some((r) => r.market_rank != null || r.ownership_bucket);
+  // The market columns only when the market ranks someone: the WNBA has ownership but no draft
+  // position, which left a column of dashes (#451). Its trend arrow then sits with the name tags.
+  const showMarket = view === 'value' && rows.some((r) => r.market_rank != null);
   const columns =
     6 + (view === 'value' ? 1 : 0) + (showNext7 ? 2 : 0) + categoryColumns.length + (showFit ? 1 : 0) + (showMarket ? 2 : 0) + (isLine(view) ? 0 : 1) + 1;
   const lastPick = setup.picks.at(-1);
@@ -579,6 +581,7 @@ export default function Board() {
             <LineupTag role={row.lineup_role} confirmed={row.lineup_confirmed} date={row.lineup_date} injuryGroup={row.injury_group} />
             <RestRiskTag risk={row.rest_risk} stakes={row.team_stakes} />
             <NewsTag flag={row.news_flag} headline={row.news_headline} date={row.news_date} />
+            {!showMarket && <TrendTag trend={row.ownership_trend} />}
             <InjuryTag
               group={row.injury_group}
               status={row.injury_status}
