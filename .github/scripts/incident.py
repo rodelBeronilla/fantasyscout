@@ -60,6 +60,26 @@ def assignees(env: Mapping[str, str]) -> list[str]:
     return [owner] if owner else []
 
 
+ERROR_MARKS = ("ERROR", "Error", "Traceback", "failed ", "FAIL ", "blocked by")
+
+
+def first_errors(lines: list[str], limit: int = 10) -> list[str]:
+    """The first lines that name an error, so the cause sits above the log's tail (#406).
+
+    The tail alone showed warn samples and progress lines while the cause (a model's Database
+    Error, a fetch's HTTP 429) had scrolled off; the lines matching the error marks, in order,
+    are what an operator reads first.
+    """
+    out: list[str] = []
+    for line in lines:
+        text = line.strip()
+        if any(mark in text for mark in ERROR_MARKS) and text not in out:
+            out.append(text[:300])
+            if len(out) >= limit:
+                break
+    return out
+
+
 def main() -> int:
     title = os.environ["TITLE"]
     outcome = os.environ.get("OUTCOME", "failure")
@@ -72,11 +92,15 @@ def main() -> int:
     api = os.environ.get("GITHUB_API_URL", "https://api.github.com")
 
     log_path = Path("land.log")
-    tail = (
-        "\n".join(log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-80:])
+    lines = (
+        log_path.read_text(encoding="utf-8", errors="replace").splitlines()
         if log_path.exists()
-        else "(no log)"
+        else []
     )
+    tail = "\n".join(lines[-80:]) if lines else "(no log)"
+    firsts = first_errors(lines)
+    if firsts:
+        lead += "First errors:\n```\n" + "\n".join(firsts) + "\n```\n\n"
 
     client = httpx.Client(
         base_url=f"{api}/repos/{repo}",

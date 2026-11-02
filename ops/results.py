@@ -420,6 +420,12 @@ def main(argv: list[str] | None = None) -> int:
     for r in rows:
         if r.is_test and r.status in ("fail", "warn", "error"):
             print(f"  {r.severity:5} {r.status:5} {r.check_name} ({r.model}) rows={r.failures}")
+    # an errored model or test says why, so the incident carries the cause, not only the verdict
+    for r in rows:
+        if r.status == "error":
+            what = f"{r.check_name} ({r.model})" if r.is_test else r.model
+            message = " ".join((r.message or "").split())[:300] or "(no message)"
+            print(f"  ERROR {what}: {message}")
     print_failure_samples(args, rows)
     if not args.dry_run:
         statements = insert_statements(
