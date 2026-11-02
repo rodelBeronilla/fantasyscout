@@ -51,3 +51,14 @@ describe('the build pointer', () => {
     expect(calls).toHaveLength(3);
   });
 });
+
+describe('the column-wise page files (#535)', () => {
+  it('inflates {column: [values]} back to the rows, in order, nulls kept', async () => {
+    const { inflate } = await import('./data');
+    expect(inflate<{ id: string; v: number | null }>({ id: ['a', 'b'], v: [1, null] })).toEqual([
+      { id: 'a', v: 1 },
+      { id: 'b', v: null },
+    ]);
+    expect(inflate({})).toEqual([]);
+  });
+});

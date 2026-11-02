@@ -19,6 +19,7 @@ import pytest
 
 from export import build as build_mod
 from export import fixture, layout
+from export.encode import columns_of
 from export.source import DuckDBSource
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -101,6 +102,18 @@ def test_per_league_files_have_the_columns_their_export_query_returns(
             rows = _load(f"{name}/{league}.json")
             if rows:
                 assert _keys(rows) == expected, (f"{name}/{league}.json", REFRESH)
+
+
+def test_the_column_wise_copies_are_the_row_files_column_by_column() -> None:
+    """#535: the pages read these first; they must say exactly what the row files say."""
+    for name in layout.COLUMNAR_JSON:
+        for league in layout.LEAGUES:
+            rows = _load(f"{name}/{league}.json")
+            assert _load(f"{name}/{league}.columns.json") == columns_of(rows), (
+                name,
+                league,
+                REFRESH,
+            )
 
 
 def test_fixture_has_the_json_files_a_fresh_export_produces(fresh: build_mod.Build) -> None:

@@ -64,7 +64,7 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
             link.rel = 'preload';
             link.as = 'fetch';
             link.crossOrigin = 'anonymous';
-            link.href = currentBase + preload + '/' + league + '.json';
+            link.href = currentBase + preload + '/' + league + '.columns.json';
             document.head.appendChild(link);
           } catch {
             // a preload is only a head start

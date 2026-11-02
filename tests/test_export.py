@@ -377,6 +377,15 @@ def test_assemble_from_the_dbt_sample(tmp_path: Path) -> None:
     assert "gold.fct_player_game" in manifest["tables"]
     assert any(p.startswith("fct_player_game/wnba-") for p in manifest["files"])
     assert "board/wnba.json" in build.files and "health.json" in build.files
+    # the column-wise copy is the row file column by column (#535)
+    rows = json.loads(build.files["board/wnba.json"])
+    columns = json.loads(build.files["board/wnba.columns.json"])
+    assert list(columns) == list(rows[0]) if rows else columns == {}
+    assert all(len(v) == len(rows) for v in columns.values())
+    assert (
+        "streamers/nba.columns.json" in build.files
+        and "schedule/nba.columns.json" not in build.files
+    )
     players = [p for p in build.files if p.startswith("players/")]
     assert players and manifest["players"]["count"] == len(players)
     one = json.loads(build.files[players[0]])

@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
-import { fetchBuildJson, fetchCurrentJson, type League, markFirstRow } from '../lib/data';
+import { fetchBuildJson, fetchPageRows, type League, markFirstRow } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
@@ -223,7 +223,7 @@ export default function Board() {
 
   useEffect(() => {
     let live = true;
-    fetchCurrentJson<BoardRow[]>(`board/${league}.json`)
+    fetchPageRows<BoardRow>(`board/${league}`)
       .then((data) => live && setRows(data))
       .catch((e: unknown) => live && setError(e));
     return () => {

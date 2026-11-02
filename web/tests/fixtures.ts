@@ -12,6 +12,10 @@ export const test = base.extend({
       if (route.request().resourceType() !== 'document') return route.continue();
       return route.continue({ url: `${url.origin}/p/` });
     });
+    // The pages read the column-wise board and streamers first and fall back to the row files
+    // (#535). Many tests rewrite a page's rows by mocking the row file, so the column files are
+    // hidden here; the test that covers them calls page.unroute('**/*.columns.json').
+    await page.route('**/*.columns.json', (route) => route.fulfill({ status: 404, body: 'hidden in tests' }));
     await use(page);
   },
 });

@@ -18,7 +18,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 
 from export import layout
-from export.encode import rows_of, sha256, to_json, to_parquet
+from export.encode import columns_of, rows_of, sha256, to_json, to_parquet
 from export.players import PlayerFiles
 from export.source import GoldSource
 from export.store import Store, delete_many, put_many
@@ -132,6 +132,8 @@ def assemble(
             part = table.filter(pc.equal(table.column("league"), league))
             rows = rows_of(part, digits=layout.JSON_DIGITS)
             add(f"{name}/{league}.json", to_json(rows), part.num_rows)
+            if name in layout.COLUMNAR_JSON:
+                add(f"{name}/{league}.columns.json", to_json(columns_of(rows)), part.num_rows)
 
     # Data Health in one file.
     data_as_of = {

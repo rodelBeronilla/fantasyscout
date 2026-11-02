@@ -54,6 +54,16 @@ def rows_of(table: pa.Table, digits: int | None = None) -> list[dict[str, Any]]:
     return [{k: cell(v) for k, v in row.items()} for row in table.to_pylist()]
 
 
+def columns_of(rows: list[dict[str, Any]]) -> dict[str, list[Any]]:
+    """The rows column by column, ``{column: [value, ...]}``, in the first row's key order.
+
+    The board's row file repeats 110 key names on each of 500 rows: 70% of its 1.3 MB. The same
+    data column-wise is a third of the size and of the parsing (#535).
+    """
+    keys = list(rows[0]) if rows else []
+    return {k: [r.get(k) for r in rows] for k in keys}
+
+
 def to_json(value: Any) -> bytes:
     return json.dumps(
         _plain(value), separators=(",", ":"), ensure_ascii=False, allow_nan=False
