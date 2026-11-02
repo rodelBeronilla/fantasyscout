@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
-import { fetchBuildJson, type League } from '../lib/data';
+import { fetchBuildJson, fetchCurrentJson, type League, markFirstRow } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
@@ -122,6 +122,8 @@ type Availability = 'all' | 'no_out' | 'healthy';
 type Show = 'available' | 'mine' | 'all';
 
 const PAGE = 100;
+/** Rows in the first paint, before the rest of the page renders in idle time (#436). */
+const FIRST_ROWS = 25;
 
 /** How widely ESPN leagues roster a player, in words (fct_market_value buckets). */
 const OWNED_LABEL: Record<string, string> = { most: 'most', many: 'many', some: 'some', few: 'few', rare: 'almost no' };
@@ -185,6 +187,21 @@ export default function Board() {
   const [sortKey, setSortKey] = useState('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
+  // The first rows paint before the rest (#436): a slow phone shows the top of the board, and the
+  // rest of the first page renders when the browser is idle.
+  const [warm, setWarm] = useState(false);
+  useEffect(() => {
+    if (!rows) return;
+    markFirstRow();
+    if (warm) return;
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(() => setWarm(true), { timeout: 1500 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(() => setWarm(true), 200);
+    return () => window.clearTimeout(id);
+  }, [rows, warm]);
   const [compare, setCompare] = useState<string[]>([]);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [showChoice, setShowChoice] = useState<Show | null>(null);
@@ -206,7 +223,7 @@ export default function Board() {
 
   useEffect(() => {
     let live = true;
-    fetchBuildJson<BoardRow[]>(`board/${league}.json`)
+    fetchCurrentJson<BoardRow[]>(`board/${league}.json`)
       .then((data) => live && setRows(data))
       .catch((e: unknown) => live && setError(e));
     return () => {
@@ -519,7 +536,7 @@ export default function Board() {
 
   const body: ReactNode[] = [];
   let currentTier: number | undefined;
-  ranked.slice(0, shown).forEach(({ row, value }, i) => {
+  ranked.slice(0, warm ? shown : Math.min(shown, FIRST_ROWS)).forEach(({ row, value }, i) => {
     if (showTiers) {
       const t = tiers.of.get(row.player_id) ?? 0;
       if (t !== currentTier) {

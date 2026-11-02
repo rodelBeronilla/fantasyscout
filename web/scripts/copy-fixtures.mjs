@@ -2,7 +2,7 @@
 // pages read /data/latest.json exactly as they do behind the Worker. The fixture is a real
 // export of the dbt sample (fs-export build --engine duckdb --store local --build-id fixture).
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,5 +23,14 @@ if (!existsSync(join(root, 'dist'))) {
 }
 rmSync(to, { recursive: true, force: true });
 cpSync(from, to, { recursive: true });
+// The Worker answers /data/current/<page file> from the build latest.json names (#436); the preview
+// has no Worker, so the copy puts those files there too and the pages read them the same way.
+const build = JSON.parse(readFileSync(join(to, 'latest.json'), 'utf8')).build_id;
+for (const kind of ['board', 'streamers', 'schedule']) {
+  const source = join(to, 'builds', build, kind);
+  if (!existsSync(source)) continue;
+  mkdirSync(join(to, 'current'), { recursive: true });
+  cpSync(source, join(to, 'current', kind), { recursive: true });
+}
 console.log(`fixture data copied to ${to}`);
 execFileSync(process.execPath, [join(root, 'scripts', 'vendor-duckdb.mjs'), join('dist', 'data')], { stdio: 'inherit' });

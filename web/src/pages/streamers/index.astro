@@ -4,6 +4,7 @@ import Base from '../../layouts/Base.astro';
 ---
 
 <Base
+  preload="streamers"
   title="Streamers"
   description="Games per team over the next seven days and the players trending up in minutes."
 >
@@ -13,7 +14,8 @@ import Base from '../../layouts/Base.astro';
       Who plays the most this week, and whose minutes are climbing: the five-game average against the
       twenty-game one.
     </p>
-    <div class="mt-6">
+    <!-- a screen tall while the island loads, so the footer starts below the fold and nothing shifts (#436) -->
+    <div class="mt-6 min-h-screen">
       <Streamers client:only="react" />
     </div>
   </section>

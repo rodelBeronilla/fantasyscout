@@ -5,9 +5,12 @@ import { BUILD_ID, LEAGUES, REPO_URL, href } from '../lib/site';
 interface Props {
   title: string;
   description: string;
+  /** The current-build file this page reads first, preloaded from the head for the visitor's league (#436). */
+  preload?: 'board' | 'streamers';
 }
 
-const { title, description } = Astro.props;
+const { title, description, preload } = Astro.props;
+const currentBase = href('data/current/');
 
 // The nav: the Board on its own, every other page under a header. A header opens as a dropdown
 // (a details element, so it works without script); the header of the current page is bold, and a
@@ -43,6 +46,32 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
     <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
     {/* Every island starts from the build pointer: fetch it with the HTML, not after React hydrates. */}
     <link rel="preload" as="fetch" href={href('data/latest.json')} crossorigin="anonymous" />
+    {
+      preload && (
+        <script is:inline define:vars={{ currentBase, preload }}>
+          // The league the page will pick (the URL, then the remembered one, then the WNBA), so the
+          // file it reads first downloads beside the pointer (#436). Same rule as lib/league.ts.
+          try {
+            const asked = new URLSearchParams(location.search).get('league');
+            let kept = null;
+            try {
+              kept = localStorage.getItem('fantasyscout:current-league') || localStorage.getItem('fantasyscout.league');
+            } catch {
+              // storage blocked: the page falls back the same way
+            }
+            const league = asked === 'nba' || asked === 'wnba' ? asked : kept === 'nba' || kept === 'wnba' ? kept : 'wnba';
+            const link = document.createElement('link');
+            link.rel = 'preload';
+            link.as = 'fetch';
+            link.crossOrigin = 'anonymous';
+            link.href = currentBase + preload + '/' + league + '.json';
+            document.head.appendChild(link);
+          } catch {
+            // a preload is only a head start
+          }
+        </script>
+      )
+    }
     <script src="../scripts/theme.ts"></script>
     <script src="../scripts/nav.ts"></script>
   </head>
