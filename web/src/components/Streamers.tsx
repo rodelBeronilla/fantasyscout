@@ -4,7 +4,7 @@ import { downloadCsv, toCsv } from '../lib/csv';
 import { fetchCurrentJson, fetchPageRows, getLatest, type League } from '../lib/data';
 import { useWarmUp } from '../lib/warm';
 import { blowout, nextGames } from '../lib/blowout';
-import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
+import { CATEGORIES, CATEGORY_LABELS, day, fmt, lineSource, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { type CrewFields, crewText } from '../lib/referees';
@@ -105,6 +105,9 @@ interface Game extends CrewFields {
   away_matchup: number | null;
   /** The betting line, where the sportsbooks have posted one (silver game_lines). */
   home_spread?: number | null;
+  /** Who posted the line and the day it was taken (#462). */
+  line_provider?: string | null;
+  line_as_of?: string | null;
   over_under?: number | null;
   home_implied_points?: number | null;
   away_implied_points?: number | null;
@@ -133,7 +136,8 @@ function lineText(g: Game): string | null {
   if (typeof g.over_under !== 'number' || typeof g.home_spread !== 'number') return null;
   const favourite = g.home_spread <= 0 ? g.home_team_tricode : g.away_team_tricode;
   const spread = g.home_spread === 0 ? 'even' : `${favourite} -${Math.abs(g.home_spread)}`;
-  return `Over/under ${g.over_under}, ${spread}`;
+  const source = lineSource(g.line_provider, g.line_as_of);
+  return `Over/under ${g.over_under}, ${spread}${source ? ` (${source})` : ''}`;
 }
 
 /** A signing, waiver, trade or G League move (gold fct_transaction). */

@@ -72,3 +72,10 @@ export function nextSeason(season: string | null | undefined): string | null {
   if (span) return `${Number(span[1]) + 1}-${String((Number(span[2]) + 1) % 100).padStart(2, '0')}`;
   return null;
 }
+
+/** Who posted a betting line and when (#462): "DraftKings, as of Nov 1, 2026"; null without a provider. */
+export function lineSource(provider: string | null | undefined, asOf: string | null | undefined): string | null {
+  if (!provider) return null;
+  return asOf ? `${provider}, as of ${day(asOf)}` : provider;
+}
+

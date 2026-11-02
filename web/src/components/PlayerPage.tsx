@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, type League } from '../lib/data';
-import { CATEGORIES, CATEGORY_LABELS, day, fmt, nextSeason, pct } from '../lib/format';
+import { CATEGORIES, CATEGORY_LABELS, day, fmt, lineSource, nextSeason, pct } from '../lib/format';
 import { isLeague } from '../lib/league';
 import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
@@ -145,6 +145,8 @@ interface Upcoming extends CrewFields {
   over_under?: number | null;
   home_implied_points?: number | null;
   away_implied_points?: number | null;
+  line_provider?: string | null;
+  line_as_of?: string | null;
   home_back_to_back?: boolean | null;
   away_back_to_back?: boolean | null;
 }
@@ -302,7 +304,15 @@ function NextGames({ games, teamId }: { games: Upcoming[]; teamId: string }) {
                 <tr key={g.game_id} className="border-t border-line">
                   <Td>{day(g.game_date)}</Td>
                   <Td>{home ? `vs ${g.away_team_tricode}` : `at ${g.home_team_tricode}`}</Td>
-                  <Td right>{typeof implied === 'number' ? fmt(implied) : '–'}</Td>
+                  <Td right>
+                    {typeof implied === 'number' ? (
+                      <span title={`Points the betting line implies${lineSource(g.line_provider, g.line_as_of) ? ` (${lineSource(g.line_provider, g.line_as_of)})` : ''}`} data-testid="implied">
+                        {fmt(implied)}
+                      </span>
+                    ) : (
+                      '–'
+                    )}
+                  </Td>
                   <Td>{note}</Td>
                 </tr>
               );

@@ -970,7 +970,7 @@ test('every page but the Board sits under a nav header, and the header opens on 
   for (const [header, items] of [
     ['tools', ['League', 'Streamers', 'Trade']],
     ['analysis', ['Notebooks', 'Dashboards']],
-    ['platform', ['Data Health', 'Pipeline', 'Schema', 'Docs', 'SQL console (owner only)']],
+    ['platform', ['Data Health', 'Pipeline', 'Schema', 'Docs (opens in a new tab)', 'SQL console (owner only)']],
   ] as const) {
     const group = page.getByTestId(`nav-${header}`);
     await expect(group).not.toHaveAttribute('open', '');
@@ -1547,7 +1547,7 @@ test('streamers show the points the betting lines imply, in the grid and per pla
   await expect(grid.getByTestId('implied-points').first()).toHaveText(/^(82|78) pts$/);
   const team = season!.games[0].home_team_tricode;
   const row = grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: new RegExp(`^${team}$`) }) });
-  await expect(row.locator('td[title]').first()).toHaveAttribute('title', new RegExp(`^Over/under 160, \\w+ -4\\.5: ${team} implied (82\\.25|77\\.75) points`));
+  await expect(row.locator('td[title]').first()).toHaveAttribute('title', new RegExp(`^Over/under 160, \\w+ -4\\.5 \\(DraftKings, as of [^)]+\\): ${team} implied (82\\.25|77\\.75) points`));
   const table = page.getByTestId('trending');
   await expect(table.locator('thead')).toContainText('Team pts');
   // A player with games in the window shows the average of their team's implied points.
@@ -2147,4 +2147,17 @@ test("streamers tags a candidate whose team's top-usage teammate is out", async 
   await expect(tag).toHaveText('TOP OUT');
   await expect(tag).toHaveAttribute('title', /^Star Player \(31% of the team's possessions\) is out for the next game/);
   await expect(page.getByTestId('tag-legend')).toContainText('TOP OUT');
+});
+
+// The dbt docs have their own chrome and no way back, so the nav opens them in a new tab; a betting
+// line says who posted it and when (#462).
+test('the docs open in a new tab and the line cells name their provider and date', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('nav-platform').locator('summary').click();
+  const docs = page.getByRole('link', { name: /^Docs/ });
+  await expect(docs).toHaveAttribute('target', '_blank');
+  await expect(docs).toHaveAttribute('rel', 'noopener');
+  await page.goto('/streamers/?league=nba');
+  const cell = page.locator('[data-testid="week-grid"] td[title*="Over/under"]').first();
+  await expect(cell).toHaveAttribute('title', /\(DraftKings, as of [A-Z][a-z]{2} \d{1,2}, \d{4}\)/);
 });

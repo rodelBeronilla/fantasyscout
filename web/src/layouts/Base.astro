@@ -141,8 +141,11 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
                                 current === path ? 'font-semibold' : 'text-muted',
                               ]}
                               aria-current={current === path ? 'page' : undefined}
+                              target={path === '/docs/' ? '_blank' : undefined}
+                              rel={path === '/docs/' ? 'noopener' : undefined}
                             >
                               {label}
+                              {path === '/docs/' && <span class="sr-only"> (opens in a new tab)</span>}
                             </a>
                           </li>
                         ))
