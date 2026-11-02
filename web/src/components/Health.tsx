@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { fetchBuildJson, getLatest, type Latest } from '../lib/data';
 import { day, int, pct, when } from '../lib/format';
 import { Badge, Card, Loading, Problem, Td, Th } from './ui';
+import { freshness, type Incident, openIncidents, runbookHref } from '../lib/health-status';
 
 const minutes = (seconds: number | null) => (seconds === null ? '–' : `${(seconds / 60).toFixed(1)} min`);
 
@@ -120,6 +121,7 @@ interface Feed {
   age_days: number | null;
   max_age_days: number;
   status: 'fresh' | 'stale' | 'off_season' | 'never' | 'unconfigured';
+  in_season?: boolean;
 }
 
 const FEED_STATUS: Record<Feed['status'], { label: string; tone: 'good' | 'warn' | 'bad' | 'muted' }> = {
@@ -142,6 +144,15 @@ export default function Health() {
   const [latest, setLatest] = useState<Latest | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [showAllChecks, setShowAllChecks] = useState(false);
+  // The open data incidents, read live from GitHub (null: not read; [] none open).
+  const [incidents, setIncidents] = useState<Incident[] | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    openIncidents().then((list) => live && setIncidents(list));
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -168,8 +179,76 @@ export default function Health() {
     if (!lastRunBySource.has(key)) lastRunBySource.set(key, r);
   }
 
+  // The morning's answers first (#418): on time, how the last build ended, what is open.
+  const fresh = freshness(latest?.created_at ?? health.created_at, health.feeds);
+  const lastBuild = health.builds?.[0];
+  const lastFailed = !!lastBuild && lastBuild.outcome !== 'success';
+  const tone = fresh.late || lastFailed || (incidents?.length ?? 0) > 0 ? 'border-bad' : 'border-good';
+  const ago = fresh.hours < 1 ? `${Math.round(fresh.hours * 60)} minutes` : `${fresh.hours.toFixed(1)} hours`;
+
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+      <section className={`rounded-lg border-2 ${tone} bg-card p-4`} aria-labelledby="status-h" data-testid="health-status">
+        <h2 id="status-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+          Status
+        </h2>
+        <ul className="mt-2 grid gap-1 text-sm">
+          <li data-testid="status-age">
+            <span className={fresh.late ? 'font-semibold text-bad' : 'text-good'}>{fresh.late ? 'Late: ' : 'On time: '}</span>
+            the live build was published {ago} ago; the limit is {fresh.limit} hours, {fresh.season}.{' '}
+            <a href={runbookHref('Publish SLA and the watchdog')} className="underline underline-offset-4">
+              Runbook
+            </a>
+          </li>
+          {lastBuild && (
+            <li data-testid="status-last-build">
+              <span className={lastFailed ? 'font-semibold text-bad' : 'text-good'}>{lastFailed ? 'Last build failed: ' : 'Last build passed: '}</span>
+              {lastBuild.light ? 'a light build' : 'a full build'}
+              {lastBuild.finished_at ? ` that finished ${lastBuild.finished_at.slice(0, 16).replace('T', ' ')} UTC` : ''}
+              {lastBuild.gate_reason ? `; ${lastBuild.gate_reason}` : ''}.{' '}
+              {lastBuild.run_url && (
+                <a href={lastBuild.run_url} className="underline underline-offset-4">
+                  The run
+                </a>
+              )}
+            </li>
+          )}
+          <li data-testid="status-incidents">
+            {incidents === undefined ? (
+              <span className="text-muted">Reading the open incidents…</span>
+            ) : incidents === null ? (
+              <span className="text-muted">
+                The open incidents could not be read from GitHub just now;{' '}
+                <a href="https://github.com/rodelBeronilla/fantasyscout/issues?q=is%3Aopen+label%3Adata-incident" className="underline underline-offset-4">
+                  see them there
+                </a>
+                .
+              </span>
+            ) : incidents.length === 0 ? (
+              <span className="text-good">No open data incidents.</span>
+            ) : (
+              <>
+                <span className="font-semibold text-bad">
+                  {incidents.length} open data incident{incidents.length === 1 ? '' : 's'}:
+                </span>
+                <ul className="mt-1 grid gap-0.5 pl-4">
+                  {incidents.map((i) => (
+                    <li key={i.number}>
+                      <a href={i.html_url} className="underline underline-offset-4">
+                        #{i.number} {i.title}
+                      </a>{' '}
+                      <span className="text-muted">since {i.created_at.slice(0, 10)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}{' '}
+            <a href={runbookHref('Incident issues')} className="underline underline-offset-4">
+              Runbook
+            </a>
+          </li>
+        </ul>
+      </section>
       <Card title="This build" id={`build-${health.build_id}`}>
         <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -259,6 +338,7 @@ export default function Health() {
 
       {(health.feeds ?? []).length > 0 && (
         <Card title="Source feeds" id="feeds">
+          <p className="mb-2 text-xs"><a href={runbookHref('Run an ingest by hand')} className="underline underline-offset-4">Runbook: Run an ingest by hand</a></p>
           <p className="mb-2 text-sm text-muted">
             The newest day each feed landed, against how old it may get while the league is playing. A feed that stops keeps
             showing its last snapshot on the site, so a stale one is flagged here and in the checks.
@@ -298,6 +378,7 @@ export default function Health() {
 
       {health.fetch_failures && health.fetch_failures.length > 0 && (
         <Card title="Failed fetches" id="fetch-failures">
+          <p className="mb-2 text-xs"><a href={runbookHref('Replay failed fetches')} className="underline underline-offset-4">Runbook: Replay failed fetches</a></p>
           <p className="mb-3 text-sm text-muted">
             Requests the recent ingest runs could not land, newest first: the endpoint and key to replay (runbook, &ldquo;Replay failed
             fetches&rdquo;) and why. A payload missing at the source is the source&apos;s gap, not ours.
@@ -378,6 +459,7 @@ export default function Health() {
 
       {health.builds && health.builds.length > 0 && (
         <Card title="Build runs" id="builds">
+          <p className="mb-2 text-xs"><a href={runbookHref('Build the lakehouse by hand')} className="underline underline-offset-4">Runbook: Build the lakehouse by hand</a></p>
           <p className="mb-3 text-sm text-muted">
             Each run of the Build lakehouse workflow: how long it queued for a runner and ran, what its gate decided, and the build it
             published. A light build follows the evening ingest and covers the feeds it landed.

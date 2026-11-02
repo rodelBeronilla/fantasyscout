@@ -58,8 +58,9 @@ const CSP = [
   `style-src 'self' ${quoted(cspHashes.styles)}`.trim(),
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  // DuckDB-WASM fetches its Parquet reader as an extension from the DuckDB extension repository.
-  "connect-src 'self' blob: https://cloudflareinsights.com https://extensions.duckdb.org",
+  // DuckDB-WASM fetches its Parquet reader as an extension from the DuckDB extension repository;
+  // Data Health reads the open data-incident issues from GitHub's public API (#418).
+  "connect-src 'self' blob: https://cloudflareinsights.com https://extensions.duckdb.org https://api.github.com",
   "worker-src 'self' blob:",
   'frame-src https://public.tableau.com',
   "frame-ancestors 'none'",

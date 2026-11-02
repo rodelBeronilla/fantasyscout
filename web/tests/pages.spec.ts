@@ -447,6 +447,31 @@ test('the board filters by position and shows injury tags', async ({ page }) => 
   expect(positions.every((p) => p.includes('G'))).toBe(true);
 });
 
+test('data health opens with the build\'s age, the last build and the open incidents (#418)', async ({ page }) => {
+  await page.route('https://api.github.com/**', (route) =>
+    route.fulfill({
+      json: [{ number: 901, title: 'Build failure: dbt on Databricks', html_url: 'https://github.com/x/901', created_at: '2026-11-02T03:10:00Z' }],
+    }),
+  );
+  await page.route('**/health.json', async (route) => {
+    const body = (await (await route.fetch()).json()) as Record<string, unknown>;
+    body['builds'] = [
+      { run_id: '1', run_url: 'https://github.com/x/actions/runs/1', outcome: 'failure', light: false, finished_at: '2026-11-02T03:05:00Z', gate_reason: 'blocked by: assert_box_closure' },
+    ];
+    await route.fulfill({ json: body });
+  });
+  await page.goto('/health/');
+  const status = page.getByTestId('health-status');
+  await expect(status.getByTestId('status-age')).toContainText(/the limit is (30|72) hours/);
+  await expect(status.getByTestId('status-last-build')).toContainText('Last build failed');
+  await expect(status.getByTestId('status-last-build')).toContainText('blocked by: assert_box_closure');
+  await expect(status.getByTestId('status-incidents')).toContainText('1 open data incident');
+  await expect(status.getByRole('link', { name: '#901 Build failure: dbt on Databricks' })).toHaveAttribute('href', 'https://github.com/x/901');
+  // above the fold on a phone
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(status).toBeInViewport();
+});
+
 test('data health shows the build, its checks and the reconciliation table', async ({ page }) => {
   await page.goto('/health/');
   await expect(page.getByTestId('health-build-id')).toHaveText('fixture');
