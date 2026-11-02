@@ -1,7 +1,8 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
-import { fetchBuildJson, fetchPageRows, type League, markFirstRow } from '../lib/data';
+import { fetchBuildJson, fetchPageRows, type League } from '../lib/data';
+import { useWarmUp } from '../lib/warm';
 import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
@@ -189,19 +190,7 @@ export default function Board() {
   const [shown, setShown] = useState(PAGE);
   // The first rows paint before the rest (#436): a slow phone shows the top of the board, and the
   // rest of the first page renders when the browser is idle.
-  const [warm, setWarm] = useState(false);
-  useEffect(() => {
-    if (!rows) return;
-    markFirstRow();
-    if (warm) return;
-    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
-    if (w.requestIdleCallback) {
-      const id = w.requestIdleCallback(() => setWarm(true), { timeout: 1500 });
-      return () => w.cancelIdleCallback?.(id);
-    }
-    const id = window.setTimeout(() => setWarm(true), 200);
-    return () => window.clearTimeout(id);
-  }, [rows, warm]);
+  const warm = useWarmUp(!!rows);
   const [compare, setCompare] = useState<string[]>([]);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [showChoice, setShowChoice] = useState<Show | null>(null);

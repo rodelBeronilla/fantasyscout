@@ -235,7 +235,16 @@ describe('data', () => {
       await caches.default.delete(new Request(`${ORIGIN}/data/current/board/nba.columns.json`));
       // a file the build does not have, and anything but the page files, is not found here
       expect((await SELF.fetch(`${ORIGIN}/data/current/streamers/wnba.json`)).status).toBe(404);
-      for (const path of ['current/board/xyz.json', 'current/players/wnba/1.json', 'current/fct_shot.parquet']) {
+      // the other files Streamers reads (#562)
+      await env.DATA.put('builds/test/dim_team.json', '[]', { httpMetadata: { contentType: 'application/json' } });
+      await env.DATA.put('builds/test/team_weeks/wnba.json', '[]', { httpMetadata: { contentType: 'application/json' } });
+      for (const path of ['current/dim_team.json', 'current/team_weeks/wnba.json']) {
+        const res = await SELF.fetch(`${ORIGIN}/data/${path}`);
+        expect(res.status, path).toBe(200);
+        expect(res.headers.get('x-build-id')).toBe('test');
+        await caches.default.delete(new Request(`${ORIGIN}/data/${path}`));
+      }
+      for (const path of ['current/board/xyz.json', 'current/players/wnba/1.json', 'current/fct_shot.parquet', 'current/dim_player.json', 'current/transactions/wnba.columns.json.x']) {
         expect((await SELF.fetch(`${ORIGIN}/data/${path}`)).status).not.toBe(200);
       }
     } finally {

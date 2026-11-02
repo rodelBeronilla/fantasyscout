@@ -4,7 +4,7 @@ import Base from '../../layouts/Base.astro';
 ---
 
 <Base
-  preload="streamers"
+  preload={['streamers/{league}.columns.json', 'schedule/{league}.json', 'dim_team.json', 'transactions/{league}.json', 'team_weeks/{league}.json']}
   title="Streamers"
   description="Games per team over the next seven days and the players trending up in minutes."
 >
