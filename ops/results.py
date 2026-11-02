@@ -18,7 +18,7 @@ import os
 import sys
 import time
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -121,11 +121,16 @@ def merge_rows(*groups: list[ResultRow]) -> list[ResultRow]:
     A selected build (``dbt build --select ...``) runs only the chosen nodes, so its results alone
     would pass a gate that never looked at the rest of the lakehouse. The workflow follows it with
     ``dbt test --select tag:quality`` into a second target directory, and the gate reads both.
+
+    Every merged row carries the first run's id (#399): the gate is recorded under that id, and
+    Data Health reads the checks of the latest gate's run, so a quality row left under the second
+    run's id would drop out of it. Each row keeps its own invocation_id.
     """
+    run_id = next((row.run_id for group in groups for row in group), None)
     merged: dict[str, ResultRow] = {}
     for group in groups:
         for row in group:
-            merged[row.node_id] = row
+            merged[row.node_id] = replace(row, run_id=run_id) if run_id else row
     return list(merged.values())
 
 
@@ -399,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
         *(load_rows(d, engine=args.engine, git_sha=sha, run_at=run_at) for d in target_dirs)
     )
     gate = decide(rows, selected=args.selected.strip() or None)
-    run_id = rows[0].run_id if rows else "no-results"
+    run_id = rows[0].run_id if rows else "no-results"  # one id for every row (merge_rows)
     verdict = "PASSED" if gate.passed else "BLOCKED"
     print(f"results: {len(rows)} rows; gate {verdict}: {gate.reason}")
     for r in rows:
