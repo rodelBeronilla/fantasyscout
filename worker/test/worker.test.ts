@@ -82,6 +82,37 @@ describe('routing', () => {
     expect(await other.text()).toContain('<title>Player · FantasyScout</title>');
   });
 
+  it('keeps a named player page at the edge for a minute, with none of the shell\'s validators (#443, #409)', async () => {
+    await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), { httpMetadata: { contentType: 'application/json' } });
+    await env.DATA.put('builds/test/players/nba/77.json', JSON.stringify({ name: 'Edge Player', team: { abbreviation: 'BOS' }, position: 'G' }));
+    const url = `${ORIGIN}/p/nba/77/`;
+    try {
+      const first = await SELF.fetch(url);
+      expect(await first.text()).toContain('<title>Edge Player · BOS, G · NBA · FantasyScout</title>');
+      expect(first.headers.get('etag')).toBeNull();
+      expect(first.headers.get('last-modified')).toBeNull();
+      expect(first.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+      expect(first.headers.get('content-security-policy')).toContain("default-src 'self'");
+      // the edge copy lands once the response is out
+      for (let i = 0; i < 50 && !(await caches.default.match(new Request(url))); i++) await new Promise((r) => setTimeout(r, 20));
+      expect(await caches.default.match(new Request(url))).toBeTruthy();
+      expect(await caches.default.match(new Request(`${ORIGIN}/__edge/current-build`))).toBeTruthy();
+      // with the file gone from R2, the repeat view still comes from the edge
+      await env.DATA.delete('builds/test/players/nba/77.json');
+      const second = await SELF.fetch(url);
+      expect(await second.text()).toContain('Edge Player');
+      expect(second.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
+      // the shell's validator no longer answers 304 for a named page
+      const shellTag = (await SELF.fetch(`${ORIGIN}/p/`)).headers.get('etag') ?? '"shell"';
+      const conditional = await SELF.fetch(`${ORIGIN}/p/nba/78/`, { headers: { 'if-none-match': shellTag } });
+      expect(conditional.status).toBe(200);
+    } finally {
+      await caches.default.delete(new Request(url));
+      await caches.default.delete(new Request(`${ORIGIN}/p/nba/78/`));
+      await caches.default.delete(new Request(`${ORIGIN}/__edge/current-build`));
+    }
+  });
+
   it('serves a sitemap of the current build\'s players', async () => {
     await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), { httpMetadata: { contentType: 'application/json' } });
     await env.DATA.put('builds/test/players/wnba/1.json', '{}');
