@@ -81,6 +81,15 @@ jobs:
         env:
           DBT_PROFILES_DIR: .
         run: uv run dbt build --target duckdb --exclude tag:quality
+      # The quality checks do not run on the sample, but a SQL mistake in one must not first show
+      # up as a blocked nightly gate (#395): each compiled check is planned (EXPLAIN) against the
+      # built sample, which parses it and binds its tables and columns without running it.
+      - name: Plan the data-quality checks against the sample
+        env:
+          DBT_PROFILES_DIR: .
+        run: |
+          (cd dbt && uv run dbt compile --target duckdb --select tag:quality >/dev/null)
+          uv run python -m ops.plan_checks --duckdb dbt/fantasyscout.duckdb
       - name: Record results and decide the publish gate (DuckDB)
         run: uv run python -m ops.results --engine duckdb --duckdb dbt/fantasyscout.duckdb
       - name: Record the build log row (DuckDB) and print the step summary
