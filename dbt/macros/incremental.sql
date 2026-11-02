@@ -16,10 +16,24 @@
   Delta's DELETE rejects a multi-column IN (DELTA_UNSUPPORTED_MULTI_COL_IN_PREDICATE). A run that fails between the two statements
   leaves the next run a wider set, nothing else.
 
+  A table built before the chain carried _ingest_date has no watermark to read. Both macros
+  notice (has_watermark) and treat that run as a rebuild: the hook empties the table, the where
+  clause selects every game, and the merge adds the column (on_schema_change: append_new_columns)
+  and writes every game once. The next run is incremental again.
+
+  has_watermark(): an incremental run on a table that carries _ingest_date.
   changed_games(sources): the games with a landing on or after this table's newest, as a query.
   only_changed_games(sources): a predicate for a model's where clause; `true` on a full build.
   replace_changed_games(sources): the pre-hook.
 #}
+
+{% macro has_watermark() -%}
+    {%- if is_incremental() -%}
+        {%- set names = adapter.get_columns_in_relation(this) | map(attribute='name') | map('lower') | list -%}
+        {{- return('_ingest_date' in names) -}}
+    {%- endif -%}
+    {{- return(false) -}}
+{%- endmacro %}
 
 {% macro landed_games(sources) -%}
     (
@@ -39,7 +53,7 @@
 {%- endmacro %}
 
 {% macro only_changed_games(sources) -%}
-    {%- if is_incremental() -%}
+    {%- if has_watermark() -%}
     (league, game_id) in (select league, game_id from ({{ changed_games(sources) }}) as changed)
     {%- else -%}
     true
@@ -47,7 +61,10 @@
 {%- endmacro %}
 
 {% macro replace_changed_games(sources) -%}
-    {%- if is_incremental() -%}
+    {%- if is_incremental() and not has_watermark() -%}
+    -- the table predates the watermark column: one rebuild, every game written once by the merge
+    delete from {{ this }} where true
+    {%- elif is_incremental() -%}
     {%- set rows = run_query("select cast(coalesce(max(_ingest_date), cast('1900-01-01' as date)) as string) from " ~ this) -%}
     {%- set newest = rows.columns[0].values()[0] -%}
     {#- one key, not (league, game_id): Delta's DELETE does not take a multi-column IN -#}
