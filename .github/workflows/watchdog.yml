@@ -25,6 +25,8 @@ jobs:
     name: Live build age
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # the warehouse probe reads the lakehouse secrets, which live in this environment
+    environment: lakehouse
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-uv
@@ -35,6 +37,38 @@ jobs:
         run: |
           set -o pipefail
           uv run python -m ops.watchdog --site "$SITE" 2>&1 | tee land.log | tee -a "$GITHUB_STEP_SUMMARY"
+      # One statement against the warehouse, every six hours, outside the pipeline: a warehouse
+      # that refuses statements (as on 2026-11-01, #366) opens its own incident within the cadence
+      # instead of waiting for the next build or a hand export to fail (#414). The summary query's
+      # strict mode exits 1 only when the statement could not run; a blocked gate is not a failure
+      # here.
+      - name: Resolve the workspace host and SQL warehouse
+        id: context
+        continue-on-error: true
+        uses: ./.github/actions/databricks-context
+        with:
+          host: ${{ secrets.DATABRICKS_HOST }}
+          token: ${{ secrets.DATABRICKS_TOKEN }}
+          warehouse-id: ${{ vars.DATABRICKS_WAREHOUSE_ID }}
+      - name: Probe the warehouse
+        id: warehouse
+        if: steps.context.outcome == 'success'
+        continue-on-error: true
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
+          uv run python -m ops.summary --engine databricks --strict --table ops.publish_gate \
+            --columns "run_id, run_at, passed" --order-by "run_at desc" --limit 1 2>&1 | tee warehouse.log
+      - name: Report the warehouse
+        if: always() && steps.context.outcome != 'skipped'
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Warehouse refuses statements: the lakehouse did not answer the watchdog"
+          log: warehouse.log
+          outcome: ${{ (steps.context.outcome == 'failure' || steps.warehouse.outcome == 'failure') && 'failure' || 'success' }}
+          detail: "The watchdog ran one statement against the SQL warehouse (ops.publish_gate, latest row) and it did not run. Builds, hand exports and queries will fail the same way until the warehouse answers: open the workspace's SQL Warehouses page, start or recreate the warehouse, and set the repository variable DATABRICKS_WAREHOUSE_ID. The next passing probe closes this."
       - name: Report
         if: always()
         uses: ./.github/actions/incident

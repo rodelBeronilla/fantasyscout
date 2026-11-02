@@ -27,7 +27,8 @@ ROUTES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("Ingest", "area:ingest", ("Rerun a day", "Replay failed fetches")),
     ("Backfill", "area:ingest", ("Backfill", "Replay failed fetches")),
     ("Build", "area:lakehouse", ("Quality checks, results table and the publish gate",)),
-    ("Export", "area:ops", ("Export and rollback",)),
+    ("Export", "area:ops", ("Export and rollback", "Warehouse refuses statements")),
+    ("Warehouse", "area:lakehouse", ("Warehouse refuses statements",)),
     ("Publish", "area:ops", ("Publish SLA and the watchdog",)),
     ("Notebook", "area:docs", ("Build the lakehouse by hand",)),
 )
@@ -91,7 +92,7 @@ def main() -> int:
     run_url = f"{server}/{repo}/actions/runs/{run_id}"
     api = os.environ.get("GITHUB_API_URL", "https://api.github.com")
 
-    log_path = Path("land.log")
+    log_path = Path(os.environ.get("LOG_PATH", "land.log"))
     lines = (
         log_path.read_text(encoding="utf-8", errors="replace").splitlines()
         if log_path.exists()
