@@ -27,7 +27,7 @@ JOBS = {
                     "completed_at": "2026-11-01T16:20:00Z",
                 },
                 {
-                    "name": "Export gold to R2 (staged)",
+                    "name": "Publish the build (stage, notebooks, extract, promote)",
                     "conclusion": "success",
                     "started_at": "2026-11-01T16:21:00Z",
                     "completed_at": "2026-11-01T16:25:00Z",
@@ -53,6 +53,10 @@ ENV = {
     "LIGHT": "true",
     "OUTCOME": "success",
     "SITE": "https://example.org",
+    "S_EXPORT": "success",
+    "S_NOTEBOOKS": "carried",
+    "S_EXTRACT": "skipped",
+    "S_PROMOTE": "success",
 }
 
 
@@ -76,8 +80,12 @@ def test_collect_ties_the_run_the_gate_the_build_and_the_timings_together(tmp_pa
     assert record.run_url == "https://github.com/o/r/actions/runs/41"
     assert record.queue_seconds == 300.0 and record.build_seconds == 840.0
     assert record.total_seconds == 1500.0
-    assert record.steps["export"] == {"outcome": "success", "seconds": 240.0}
-    assert "notebooks" not in record.steps  # a skipped step is simply absent
+    # the composite publish step is timed; its parts carry their outcomes, without a duration (#407)
+    assert record.steps["publish"] == {"outcome": "success", "seconds": 240.0}
+    assert record.steps["export"] == {"outcome": "success", "seconds": None}
+    assert record.steps["notebooks"] == {"outcome": "carried", "seconds": None}
+    assert "extract" not in record.steps  # a skipped part is simply absent
+    assert "sheets" not in record.steps  # and so is a step the run did not reach
     assert record.gate_passed is True and record.gate_reason is not None
     assert record.gate_reason.startswith("selected build (tag:feed_reports+")
     assert record.invocation_id == "abcdef123456-7890"

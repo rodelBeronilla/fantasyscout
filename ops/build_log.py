@@ -36,14 +36,21 @@ from ops.results import (
 )
 
 JOB_NAME = "dbt build on Databricks"
-# The steps the row times, by the name the workflow gives them, in the order they run.
+# The steps the row times, by the name the workflow gives them, in the order they run. The
+# export, notebooks, extract and promotion run inside one composite step (publish-build), whose
+# inner steps the Actions API does not list: the row times the composite and takes each part's
+# outcome from the step's environment (PUBLISH_PARTS), without a duration (#407).
 STEPS = {
     "dbt build": "build",
     "Record results and decide the publish gate": "gate",
-    "Export gold to R2 (staged)": "export",
-    "Execute the analysis notebooks against the staged build and add them to it": "notebooks",
-    "Refresh the Tableau extract and add it to the staged build": "extract",
-    "Promote the build (latest.json points at it)": "promote",
+    "Publish the build (stage, notebooks, extract, promote)": "publish",
+    "Push the extract to the League Pulse Google Sheet": "sheets",
+}
+PUBLISH_PARTS = {
+    "export": "S_EXPORT",
+    "notebooks": "S_NOTEBOOKS",
+    "extract": "S_EXTRACT",
+    "promote": "S_PROMOTE",
 }
 
 BUILD_LOG_DDL = """
@@ -189,6 +196,10 @@ def collect(
     jobs_body = api(f"/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100") if run else None
     jobs = list(jobs_body.get("jobs", [])) if isinstance(jobs_body, Mapping) else None
     started, queue, steps = job_timings(run, jobs)
+    for part, var in PUBLISH_PARTS.items():
+        outcome = env.get(var, "").strip()
+        if outcome and outcome != "skipped":
+            steps.setdefault(part, {"outcome": outcome, "seconds": None})
     selected = env.get("SELECTED", "").strip() or None
     gate, invocation = gate_of(target_dirs, selected)
     build_id = env.get("BUILD_ID", "").strip() or None
