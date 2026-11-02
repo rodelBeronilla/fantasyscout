@@ -18,4 +18,5 @@ fantasyscout:
       token: "{{ env_var('DATABRICKS_TOKEN', '') }}"
       catalog: fantasyscout
       schema: bronze
-      threads: 4
+      # Free Edition runs up to five statements at once; the DAG keeps five busy (#447)
+      threads: 5
