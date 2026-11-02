@@ -170,7 +170,7 @@
    "tags": []
   },
   {
-   "about": "The latest run per source and league landed a payload count within 3 MAD of the median of the trailing 14 runs (only once there are at least 5 earlier runs to compare with). Full-refresh and backfill runs (explicit windows longer than 10 days) are left out.",
+   "about": "The latest run per source and league landed a payload count per window day within 3 MAD of the median of the trailing 14 runs (only once there are at least 5 earlier runs to compare with). Full-refresh and backfill runs (explicit windows longer than 10 days) are left out.  A run is judged whole (#393): the stats job logs one record per pass (the regular season, then the playoffs), so its last record was a playoffs pass that found no games, 37 payloads against a median of 185. The passes of a run are summed, the count is taken per day of the run's window (a one-day run and a seven-day run are not compared alike), and the spread is floored at a tenth of the median or two payloads a day, so a source that lands nearly the same count every day does not warn on a difference of a few payloads.",
    "name": "warn_ingest_volume_anomaly",
    "reads": [
     "ingest_log"
