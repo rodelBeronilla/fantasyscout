@@ -961,6 +961,39 @@ test('a roster of the two best players is told it is optimized as is', async ({ 
   await expect(page.getByTestId('replace-tag')).toHaveCount(0);
 });
 
+test('the League page suggests IL moves from the board availability and applies them', async ({ page }) => {
+  const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
+    full_name: string | null;
+    expected_games_missed: number | null;
+    injury_group: string | null;
+  }[];
+  const hurt = rows.find((r) => (r.expected_games_missed ?? 0) >= 3 && r.full_name);
+  const healthy = rows.find((r) => !r.injury_group && r.full_name && r.full_name !== hurt?.full_name);
+  if (!hurt || !healthy) {
+    test.skip(true, 'the fixture has no listed-out player');
+    return;
+  }
+  await page.goto('/league/?league=nba');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${hurt.full_name}\n${healthy.full_name}`);
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  const candidates = page.getByTestId('il-candidates');
+  await expect(candidates).toContainText(hurt.full_name ?? '');
+  await expect(candidates).not.toContainText(healthy.full_name ?? '');
+  await candidates.getByTestId('il-move').first().click();
+  await expect(page.getByText(/1 of \d+ roster spots filled \(1 more on the IL\)/)).toBeVisible();
+  await expect(page.getByTestId('il-candidates')).toHaveCount(0);
+  // a healthy player parked on the IL by hand is offered back
+  const row = cards.nth(0).getByTestId('roster').locator('li').filter({ hasText: healthy.full_name ?? '' });
+  await row.getByRole('button', { name: /^Injured list:/ }).click();
+  const back = page.getByTestId('il-back');
+  await expect(back).toContainText(healthy.full_name ?? '');
+  await back.getByTestId('il-move').first().click();
+  await expect(page.getByTestId('il-back')).toHaveCount(0);
+});
+
 test('a draft on the League page snakes pick by pick, here and on the board, with undo', async ({ page }) => {
   await page.goto('/league/');
   await page.getByLabel('Teams in the league').fill('4');

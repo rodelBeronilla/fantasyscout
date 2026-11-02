@@ -1,0 +1,40 @@
+/**
+ * Injured-list moves for the manager's team: who should go on the IL (listed out for long enough
+ * that the roster spot is worth more than the player) and who should come off it (no longer
+ * listed). The threshold is in games the board expects the player to miss, from the calibrated
+ * availability (ADR 0010), so it follows the league's own listings rather than the status word.
+ */
+
+export interface IlCandidate {
+  player_id: string;
+  injury_group: string | null;
+  injury_status: string | null;
+  expected_games_missed: number | null;
+}
+
+export interface IlMoves {
+  /** Active players the board expects to miss at least `minGames` more games. */
+  toIl: string[];
+  /** Players on the IL who are no longer listed as out or doubtful. */
+  back: string[];
+}
+
+export const IL_MIN_GAMES = 3;
+
+const LISTED_OUT = new Set(['out', 'doubtful']);
+
+export function ilMoves(rows: IlCandidate[], mine: string[], il: string[], minGames = IL_MIN_GAMES): IlMoves {
+  const byId = new Map(rows.map((r) => [r.player_id, r]));
+  const onIl = new Set(il);
+  const toIl = mine
+    .filter((id) => !onIl.has(id))
+    .filter((id) => (byId.get(id)?.expected_games_missed ?? 0) >= minGames)
+    .sort((a, b) => (byId.get(b)?.expected_games_missed ?? 0) - (byId.get(a)?.expected_games_missed ?? 0));
+  const back = mine
+    .filter((id) => onIl.has(id))
+    .filter((id) => {
+      const row = byId.get(id);
+      return !!row && !LISTED_OUT.has(row.injury_group ?? '') && (row.expected_games_missed ?? 0) < minGames;
+    });
+  return { toIl, back };
+}
