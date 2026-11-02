@@ -3,6 +3,7 @@ import { CATEGORY_LABELS, fmt } from '../lib/format';
 import {
   DEFAULT_SETTINGS,
   type Format,
+  isDefaultSettings,
   type LeagueSetup,
   MAX_TEAMS,
   MIN_TEAMS,
@@ -40,12 +41,7 @@ export function LeagueSettingsForm({
   onChange: (change: (s: LeagueSetup) => LeagueSetup) => void;
 }) {
   const d = DEFAULT_SETTINGS[league];
-  const isDefault =
-    setup.teams === d.teams &&
-    setup.rosterSpots === d.rosterSpots &&
-    setup.scoring === d.scoring &&
-    setup.format === d.format &&
-    JSON.stringify(setup.weights) === JSON.stringify(d.weights);
+  const isDefault = isDefaultSettings(setup, d);
   return (
     <div className="grid gap-3 text-sm" data-testid="league-settings">
       <div className="flex flex-wrap items-end gap-3">
