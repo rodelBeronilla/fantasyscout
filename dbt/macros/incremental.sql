@@ -16,6 +16,9 @@
   Delta's DELETE rejects a multi-column IN (DELTA_UNSUPPORTED_MULTI_COL_IN_PREDICATE). A run that fails between the two statements
   leaves the next run a wider set, nothing else.
 
+  DuckDB, which CI builds the sample on, accepts the multi-column IN, so CI cannot catch it there:
+  tests/test_incremental_macro.py renders this hook in each of its states and fails on it (#480).
+
   A table built before the chain carried _ingest_date has no watermark to read. Both macros
   notice (has_watermark) and treat that run as a rebuild: the hook empties the table, the where
   clause selects every game, and the merge adds the column (on_schema_change: append_new_columns)
