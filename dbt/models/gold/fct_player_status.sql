@@ -43,7 +43,7 @@ official as (
         o.injury_detail as official_detail,
         o.game_date as official_game_date,
         o.matchup as official_matchup,
-        o.published_at_et as official_report_at
+        o.published_at as official_report_at
     from official_rows as o
     join team_names as t on t.league = o.league and t.team_key = lower(replace(o.team, ' ', ''))
     join players as p on p.league = o.league and p.team_id = t.team_id and p.name_key = {{ norm_name('o.player_name') }}

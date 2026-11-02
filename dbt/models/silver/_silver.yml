@@ -1084,7 +1084,11 @@ models:
         description: "The report's file name, Injury-Report_<date>_<time>.pdf"
       - name: published_at_et
         meta: {tz: America/New_York}
-        description: "When the league published the report, Eastern time"
+        description: "When the league published the report, Eastern wall clock: the 5 pm cut-off and the game date are Eastern rules, so they read this"
+        data_tests: [not_null]
+      - name: published_at
+        meta: {tz: UTC}
+        description: "When the league published the report, as an instant (UTC); what gold publishes"
         data_tests: [not_null]
       - name: game_date
         description: "The game the listing is for"

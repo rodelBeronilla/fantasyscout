@@ -1415,7 +1415,7 @@ test("the board shows the league's official injury report status for the next ga
       injury_group: 'probable',
       injury_source: 'official',
       official_game_date: '2026-10-30',
-      official_report_at: '2026-10-29T18:45:00',
+      official_report_at: '2026-10-29T22:45:00+00:00', // 18:45 Eastern (EDT): the export publishes the instant (#387)
     };
     await route.fulfill({ json: rows });
   });
