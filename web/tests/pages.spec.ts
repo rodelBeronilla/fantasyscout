@@ -232,6 +232,8 @@ test('a failing data pointer says the data is temporarily unavailable, and a rel
   const alert = page.getByTestId('data-unavailable');
   await expect(alert).toContainText('temporarily unavailable (HTTP 503)');
   await expect(page.getByText('No data build has been published yet')).toHaveCount(0);
+  // the footer does not claim there is no build (#460)
+  await expect(page.locator('[data-data-as-of]')).toHaveText('unavailable');
   failing = false;
   await alert.getByRole('button', { name: 'Reload' }).click();
   await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
@@ -2162,4 +2164,36 @@ test('the docs open in a new tab and the line cells name their provider and date
   await page.goto('/streamers/?league=nba');
   const cell = page.locator('[data-testid="week-grid"] td[title*="Over/under"]').first();
   await expect(cell).toHaveAttribute('title', /\(DraftKings, as of [A-Z][a-z]{2} \d{1,2}, \d{4}\)/);
+});
+
+// Copy and control polish (#460): a note that repeats the status is left out, a return beyond a
+// finished season says next season, the starters filter names its game day, and an 8-category
+// league cannot punt turnovers.
+test('the injury card, the starters filter and the punt chips say only what holds', async ({ page }) => {
+  await page.route('**/players/wnba/*.json', async (route) => {
+    const file = (await (await route.fetch()).json()) as { board: Record<string, unknown> | null };
+    if (file.board) Object.assign(file.board, { injury_group: 'out', injury_status: 'Out', injury_note: 'out', injury_news: null, expected_return: '2027-05-01', season_complete: true });
+    await route.fulfill({ json: file });
+  });
+  await page.goto('/p/wnba/1628932/');
+  const card = page.getByTestId('injury-card');
+  await expect(card).toBeVisible();
+  await expect(card.getByTestId('injury-news')).toHaveCount(0);
+  await expect(card.getByTestId('expected-return')).toHaveText('· expected back next season (May 1, 2027)');
+
+  await page.route('**/streamers/nba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r) => ({ ...r, lineup_role: 'starter', lineup_date: '2099-01-02' })) });
+  });
+  await page.goto('/streamers/?league=nba');
+  await expect(page.getByTestId('starters-label')).toHaveText('Starting Fri, Jan 2');
+
+  await page.goto('/league/');
+  await page.getByLabel('Scoring').selectOption('cats8');
+  await page.goto('/');
+  await page.getByTestId('board').locator('tbody tr').first().waitFor();
+  await page.getByTestId('board-options-toggle').click();
+  const chip = page.locator('fieldset label', { hasText: /^TO$/ });
+  await expect(chip.locator('input')).toBeDisabled();
+  await expect(chip).toHaveAttribute('title', /does not count turnovers/);
 });

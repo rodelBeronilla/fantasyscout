@@ -828,7 +828,14 @@ export default function Board() {
               {!points && (
                 <div className="flex flex-wrap gap-1">
                   {CATEGORIES.map((c) => (
-                    <Chip key={c} checked={punted.has(c)} strike onChange={() => setPunts(toggle(punts, c))}>
+                    <Chip
+                      key={c}
+                      checked={punted.has(c)}
+                      strike
+                      onChange={() => setPunts(toggle(punts, c))}
+                      disabled={setup.scoring === 'cats8' && c === 'z_turnovers'}
+                      title={setup.scoring === 'cats8' && c === 'z_turnovers' ? 'An 8-category league does not count turnovers: there is nothing to punt' : undefined}
+                    >
                       {CATEGORY_LABELS[c]}
                     </Chip>
                   ))}

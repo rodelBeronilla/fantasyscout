@@ -164,6 +164,8 @@ export function Chip({
   children,
   label,
   strike = false,
+  disabled = false,
+  title,
 }: {
   checked: boolean;
   onChange: () => void;
@@ -171,14 +173,18 @@ export function Chip({
   label?: string;
   /** Strike the label through while checked: the chip removes something (a punted category). */
   strike?: boolean;
+  /** A chip that cannot change in this context, with the reason as its title (#460). */
+  disabled?: boolean;
+  title?: string;
 }) {
   return (
     <label
-      className={`flex cursor-pointer items-center rounded-full border px-2.5 py-1 text-sm select-none has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
-        checked ? 'border-accent bg-accent text-accent-fg' : 'border-line'
-      } ${checked && strike ? 'line-through decoration-2' : ''}`}
+      title={title}
+      className={`flex items-center rounded-full border px-2.5 py-1 text-sm select-none has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
+        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+      } ${checked ? 'border-accent bg-accent text-accent-fg' : 'border-line'} ${checked && strike ? 'line-through decoration-2' : ''}`}
     >
-      <input type="checkbox" className="sr-only" checked={checked} onChange={onChange} aria-label={label} />
+      <input type="checkbox" className="sr-only" checked={checked} onChange={onChange} aria-label={label} disabled={disabled} />
       {children}
     </label>
   );
@@ -225,7 +231,7 @@ export function Star({ on, label, onToggle }: { on: boolean; label: string; onTo
 }
 
 /** The day a lineup role is for: "today", or the weekday and date of the next game day. */
-function lineupDay(date: string | null | undefined): string {
+export function lineupDay(date: string | null | undefined): string {
   if (!date) return 'today';
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
   if (date === today) return 'today';
