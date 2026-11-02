@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
-import { assign, DEFAULT_SETTINGS, draftPick, matchNames, nameKey, normalize, onTheClock, owners, toggleIl, undoPick } from './fantasy-league';
+import { assign, DEFAULT_SETTINGS, draftPick, matchNames, migrate, nameKey, normalize, onTheClock, owners, toggleIl, undoPick } from './fantasy-league';
 
 const base = normalize({ teams: 4, rosters: [['p1', 'p2'], ['p3'], [], []] }, DEFAULT_SETTINGS.nba);
 
 describe('the stored league setup', () => {
+  it('keeps the format and this week\'s opponent, who is another team in the league', () => {
+    expect(normalize({ teams: 4, format: 'h2h', opponent: 2 }, DEFAULT_SETTINGS.nba)).toMatchObject({ format: 'h2h', opponent: 2 });
+    expect(normalize({ teams: 4, format: 'h2h', opponent: 0, mine: 0 }, DEFAULT_SETTINGS.nba).opponent).toBeNull(); // not the manager
+    expect(normalize({ teams: 4, opponent: 9 }, DEFAULT_SETTINGS.nba).opponent).toBeNull(); // not in the league
+    expect(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba)).toMatchObject({ format: 'roto', opponent: null });
+    // a version 2 league from an earlier build is rotisserie with no opponent
+    const stored = { version: 2, teams: 4, rosters: [['p1'], [], [], []], il: [], mine: 1, names: [], picks: [], drafting: false };
+    expect(migrate(stored, DEFAULT_SETTINGS.nba)).toMatchObject({ format: 'roto', opponent: null, mine: 1, rosters: [['p1'], [], [], []] });
+  });
+
   it('normalises sizes, names, rosters, the injured list, the manager and the picks', () => {
     const setup = normalize(
       { teams: 3, rosters: [['p1', 'p2'], ['p2', 'p3']], il: ['p3', 'zz', 'p3'], mine: 9, picks: [{ team: 0, player: 'p1' }, { team: 7, player: 'p9' }] },

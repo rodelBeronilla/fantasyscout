@@ -1,7 +1,8 @@
 /** League pieces shared by the League page and the board: settings, the summary bar, the draft bar, a team's profile. */
-import { CATEGORY_LABELS } from '../lib/format';
+import { CATEGORY_LABELS, fmt } from '../lib/format';
 import {
   DEFAULT_SETTINGS,
+  type Format,
   type LeagueSetup,
   MAX_TEAMS,
   MIN_TEAMS,
@@ -13,13 +14,16 @@ import {
 import type { League } from '../lib/data';
 import type { RosterReview, Upgrade } from '../lib/roster-upgrades';
 import { href } from '../lib/site';
+import { isRatio, type WeekMatchup } from '../lib/matchup';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
-import { Segmented, Signed } from './ui';
+import { Segmented, Signed, Td, Th } from './ui';
 
 export const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
 
+export const FORMAT_LABEL: Record<Format, string> = { roto: 'rotisserie', h2h: 'head-to-head' };
+
 export function describeSettings(s: LeagueSetup): string {
-  return `${s.teams} teams × ${s.rosterSpots}, ${SCORING_LABEL[s.scoring]}`;
+  return `${s.teams} teams × ${s.rosterSpots}, ${SCORING_LABEL[s.scoring]}${s.format === 'h2h' ? `, ${FORMAT_LABEL[s.format]}` : ''}`;
 }
 
 const field = 'rounded border border-line bg-bg px-2 py-1';
@@ -39,6 +43,7 @@ export function LeagueSettingsForm({
     setup.teams === d.teams &&
     setup.rosterSpots === d.rosterSpots &&
     setup.scoring === d.scoring &&
+    setup.format === d.format &&
     JSON.stringify(setup.weights) === JSON.stringify(d.weights);
   return (
     <div className="grid gap-3 text-sm" data-testid="league-settings">
@@ -84,15 +89,31 @@ export function LeagueSettingsForm({
             className={field}
             aria-label="Scoring"
           >
-            <option value="cats9">9-cat (head-to-head or roto)</option>
+            <option value="cats9">9-cat</option>
             <option value="cats8">8-cat, no turnovers</option>
             <option value="points">Points</option>
+          </select>
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs text-muted">Format</span>
+          <select
+            value={setup.format}
+            onChange={(e) => {
+              const format = e.target.value as Format;
+              onChange((s) => ({ ...s, format }));
+            }}
+            className={field}
+            aria-label="Format"
+            title="Head-to-head leagues get a weekly matchup against one opponent on the board"
+          >
+            <option value="roto">Rotisserie: season totals</option>
+            <option value="h2h">Head-to-head: weekly matchups</option>
           </select>
         </label>
         {!isDefault && (
           <button
             type="button"
-            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights }))}
+            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format }))}
             className="rounded border border-line px-2 py-1 text-xs hover:bg-bg"
           >
             Reset settings
@@ -139,7 +160,20 @@ export function LeagueSettingsForm({
 }
 
 /** One line on the board: the league it values for, the manager's team, and the way to the League page. */
-export function LeagueBar({ setup, rostered, myCount, weakest }: { setup: LeagueSetup; rostered: number; myCount: number; weakest: string[] }) {
+export function LeagueBar({
+  setup,
+  rostered,
+  myCount,
+  weakest,
+  weakLabel = 'Weakest',
+}: {
+  setup: LeagueSetup;
+  rostered: number;
+  myCount: number;
+  weakest: string[];
+  /** What the listed categories are: the manager's weakest, or the ones behind this week. */
+  weakLabel?: string;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-line bg-card px-3 py-2 text-sm" data-testid="league-bar">
       <span>
@@ -159,7 +193,7 @@ export function LeagueBar({ setup, rostered, myCount, weakest }: { setup: League
       )}
       {weakest.length > 0 && (
         <span>
-          <span className="text-muted">Weakest </span>
+          <span className="text-muted">{weakLabel} </span>
           <strong>{weakest.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</strong>
         </span>
       )}
@@ -291,6 +325,101 @@ export function Upgrades({
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+/** The week against one opponent (#490): the categories the manager projects to win, lose or split, from the games left. */
+export function Matchup({
+  setup,
+  match,
+  points,
+  onOpponent,
+}: {
+  setup: LeagueSetup;
+  match: WeekMatchup | null;
+  points: boolean;
+  onOpponent: (team: number | null) => void;
+}) {
+  const them = setup.opponent === null ? null : (setup.names[setup.opponent] ?? `Team ${setup.opponent + 1}`);
+  const show = (cat: string, v: number) => (isRatio(cat) ? `${fmt(v * 100, 1)}%` : fmt(v, 0));
+  const tone = (r: WeekMatchup['cats'][number]['result']) => (r === 'win' ? 'text-good' : r === 'loss' ? 'text-bad' : 'text-muted');
+  return (
+    <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="matchup-h" data-testid="matchup">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="matchup-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+          This week&apos;s matchup
+        </h2>
+        <label className="flex items-center gap-2 text-sm">
+          <span className="text-muted">Opponent</span>
+          <select
+            value={setup.opponent ?? ''}
+            onChange={(e) => onOpponent(e.target.value === '' ? null : Number(e.target.value))}
+            className="rounded border border-line bg-bg px-2 py-1 text-sm"
+            aria-label="This week's opponent"
+          >
+            <option value="">Choose a team</option>
+            {setup.names.map((name, t) =>
+              t === setup.mine ? null : (
+                <option key={t} value={t}>
+                  {name}
+                </option>
+              ),
+            )}
+          </select>
+        </label>
+      </div>
+      {!match || them === null ? (
+        <p className="mt-1 text-sm text-muted" data-testid="matchup-summary">
+          Pick the team you face this week to see the categories you project to win and lose: each roster&apos;s projected line over the games
+          left this fantasy week (Monday to Sunday).
+        </p>
+      ) : points ? (
+        <p className="mt-1 text-sm" data-testid="matchup-summary">
+          You project <strong>{fmt(match.mine.fpts, 0)} fantasy points</strong> to {them}&apos;s {fmt(match.theirs.fpts, 0)} this week, over{' '}
+          {match.mine.games} games to their {match.theirs.games}.
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm" data-testid="matchup-summary">
+            You project to{' '}
+            <strong>
+              win {match.wins} of {match.cats.length} categories
+            </strong>{' '}
+            against {them}, lose {match.losses}
+            {match.close ? `, with ${match.close} too close to call (within 5%)` : ''}. Games left this week: you {match.mine.games}, {them}{' '}
+            {match.theirs.games}. Fit now favours the categories within reach.
+          </p>
+          <div className="table-scroll mt-2 overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+            <table className="w-full text-sm" data-testid="matchup-table">
+              <thead>
+                <tr>
+                  <Th>Category</Th>
+                  <Th right>You</Th>
+                  <Th right>{them}</Th>
+                  <Th right>Edge</Th>
+                  <Th>{''}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {match.cats.map((r) => (
+                  <tr key={r.cat} className="border-t border-line" data-testid="matchup-row">
+                    <Td>{CATEGORY_LABELS[r.cat] ?? r.cat}</Td>
+                    <Td right>{show(r.cat, r.mine)}</Td>
+                    <Td right>{show(r.cat, r.theirs)}</Td>
+                    <Td right>
+                      <Signed value={isRatio(r.cat) ? r.edge * 100 : r.edge} digits={isRatio(r.cat) ? 1 : 0} />
+                    </Td>
+                    <Td>
+                      <span className={`text-xs font-semibold uppercase ${tone(r.result)}`}>{r.result}</span>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </section>
   );
 }

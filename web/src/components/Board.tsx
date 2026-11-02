@@ -10,8 +10,9 @@ import { useWatchlist } from '../lib/watchlist';
 import { assign, draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
 import { reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
+import { matchup, matchupWeights, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
-import { DraftBar, LeagueBar, Upgrades } from './LeagueParts';
+import { DraftBar, LeagueBar, Matchup, Upgrades } from './LeagueParts';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 
 interface BoardRow {
@@ -243,8 +244,8 @@ export default function Board() {
     if (!leagueCats || myTeam.length === 0) return null;
     return Object.fromEntries(activeCats.map((c) => [c, myTeam.reduce((s, r) => s + (leagueCats.get(r.player_id)?.[c] ?? 0), 0)]));
   }, [leagueCats, myTeam, activeCats]);
-  const weights = useMemo(() => (teamTotals ? fitWeights(teamTotals) : null), [teamTotals]);
-  const weakest = useMemo(
+  const rotoWeights = useMemo(() => (teamTotals ? fitWeights(teamTotals) : null), [teamTotals]);
+  const rotoWeakest = useMemo(
     () => (teamTotals ? Object.entries(teamTotals).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([c]) => c) : []),
     [teamTotals],
   );
@@ -264,7 +265,7 @@ export default function Board() {
     return out;
   }, [rows, points, leaguePoints, leagueCats, activeCats]);
   // The fantasy-week unit (#466): recent form over the games left this week, offered while the week has games.
-  const [unit, setUnit] = useState<ValueUnit>('rest');
+  const [unit, setUnit] = useState<ValueUnit>(setup.format === 'h2h' ? 'week' : 'rest');
   const weekAvailable = useMemo(() => !!rows && hasWeekGames(rows), [rows]);
   const week = unit === 'week' && weekAvailable;
   const weekCats = useMemo(
@@ -282,6 +283,25 @@ export default function Board() {
     }
     return out;
   }, [rows, week, points, leaguePoints, weekCats, activeCats]);
+  // Head-to-head (#490): the week's projected totals against the chosen opponent set Fit and the categories the bar names.
+  const h2h = setup.format === 'h2h';
+  const opponentRows = useMemo(
+    () =>
+      h2h && setup.opponent !== null
+        ? (rows ?? []).filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id))
+        : [],
+    [h2h, rows, owner, setup.opponent, setup.il],
+  );
+  const match = useMemo<WeekMatchup | null>(() => {
+    if (!h2h || setup.opponent === null || !weekAvailable || myTeam.length === 0) return null;
+    const scoring = points ? setup.weights : undefined;
+    return matchup(points ? [] : activeCats, weekTotals(myTeam, activeCats, scoring), weekTotals(opponentRows, activeCats, scoring));
+  }, [h2h, setup.opponent, setup.weights, weekAvailable, myTeam, opponentRows, activeCats, points]);
+  const weights = useMemo(() => (match && !points ? matchupWeights(match.cats) : rotoWeights), [match, points, rotoWeights]);
+  const weakest = useMemo(
+    () => (match ? match.cats.filter((r) => r.result !== 'win').sort((a, b) => a.share - b.share).slice(0, 3).map((r) => r.cat) : rotoWeakest),
+    [match, rotoWeakest],
+  );
   // Available players worth more than one of the manager's, in the unit chosen: the swaps the manager can make.
   const review = useMemo<RosterReview | null>(() => {
     if (!rows || myTeam.length === 0 || setup.drafting) return null;
@@ -647,7 +667,16 @@ export default function Board() {
         </Note>
       )}
 
-      <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={view === 'value' ? weakest : []} />
+      <LeagueBar
+        setup={setup}
+        rostered={owner.size}
+        myCount={myTeam.length}
+        weakest={view === 'value' ? weakest : []}
+        weakLabel={match ? 'Behind this week' : 'Weakest'}
+      />
+      {h2h && owner.size > 0 && !setup.drafting && weekAvailable && (
+        <Matchup setup={setup} match={match} points={points} onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))} />
+      )}
       {review && (
         <Upgrades
           league={league}
@@ -930,7 +959,11 @@ export default function Board() {
                   active={sortKey === 'fit'}
                   dir={sortDir}
                   onClick={() => sortBy('fit')}
-                  title="Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)"
+                  title={
+                    match
+                      ? `Value with each category weighted by how close it is against ${setup.names[setup.opponent ?? 0]} this week (1.5 for the closest third, 1 the middle, 0.5 the blowouts either way)`
+                      : 'Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)'
+                  }
                 >
                   Fit
                 </SortTh>
