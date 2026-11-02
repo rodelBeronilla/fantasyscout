@@ -20,7 +20,9 @@ LEAGUES = ("wnba", "nba")
 class TableSpec:
     table: str  # schema.table in the warehouse
     order_by: str
-    json: bool = False  # also write <name>.json (small tables only)
+    # also write <name>.json: only for a table a page fetches as JSON (dim_team, Streamers'
+    # team list). The rest went unread, 5.9 MB a build (#448); Parquet carries every table.
+    json: bool = False
     partition: bool = False  # one Parquet per league-season instead of one file
     where: str | None = None  # ops tables: keep the export small
     extra_columns: tuple[str, ...] = field(default_factory=tuple)
@@ -38,11 +40,11 @@ class TableSpec:
 GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.dim_date", "date_day"),
     TableSpec("gold.dim_team", "league, season, team_id", json=True),
-    TableSpec("gold.dim_game", "league, season, game_date, game_id", json=True),
-    TableSpec("gold.dim_player", "league, stats_player_id, valid_from", json=True),
-    TableSpec("gold.fct_availability", "league, report_date, injury_id", json=True),
+    TableSpec("gold.dim_game", "league, season, game_date, game_id"),
+    TableSpec("gold.dim_player", "league, stats_player_id, valid_from"),
+    TableSpec("gold.fct_availability", "league, report_date, injury_id"),
     TableSpec("gold.fct_injury_status", "league, stats_player_id, injury_id, status_from"),
-    TableSpec("gold.fct_player_status", "league, stats_player_id", json=True),
+    TableSpec("gold.fct_player_status", "league, stats_player_id"),
     TableSpec("gold.fct_transaction", "league, transaction_date desc, team_id, player_id"),
     TableSpec("gold.fct_player_news", "league, stats_player_id, published_at desc, article_id"),
     TableSpec("gold.fct_team_game_context", "league, season, game_date, game_id, team_id"),
@@ -59,7 +61,7 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.fct_game_official", "league, season, game_date, game_id, official_key"),
     TableSpec("gold.fct_referee_tendency", "league, season, official_key"),
     TableSpec("gold.fct_board_history", "league, snapshot_date, rank_total, player_id"),
-    TableSpec("gold.fct_team_stakes", "league, season, conference, playoff_rank", json=True),
+    TableSpec("gold.fct_team_stakes", "league, season, conference, playoff_rank"),
     TableSpec("gold.fct_team_week_games", "league, season, week_start, team_id"),
     TableSpec("gold.mart_board", "league, rank_total, player_id"),
     TableSpec("gold.mart_player_projection", "league, player_id"),
@@ -79,17 +81,15 @@ GOLD: tuple[TableSpec, ...] = (
 )
 
 OPS: tuple[TableSpec, ...] = (
-    TableSpec("ops.reconciliation_summary", "league, season", json=True),
+    TableSpec("ops.reconciliation_summary", "league, season"),
     TableSpec("ops.reconciliation", "league, season, game_id, stats_player_id, stat"),
-    TableSpec("ops.ingest_log", "started_at desc, run_id", json=True),
-    TableSpec(
-        "ops.fetch_failures", "started_at desc, run_id, kind, endpoint, request_key", json=True
-    ),
-    TableSpec("ops.feed_freshness", "league, feed", json=True),
-    TableSpec("ops.publish_gate", "run_at desc, run_id", json=True),
-    TableSpec("ops.build_log", "finished_at desc, run_id", json=True),
+    TableSpec("ops.ingest_log", "started_at desc, run_id"),
+    TableSpec("ops.fetch_failures", "started_at desc, run_id, kind, endpoint, request_key"),
+    TableSpec("ops.feed_freshness", "league, feed"),
+    TableSpec("ops.publish_gate", "run_at desc, run_id"),
+    TableSpec("ops.build_log", "finished_at desc, run_id"),
     TableSpec("ops.test_results", "run_at desc, run_id, node_id"),
-    TableSpec("ops.category_config", "league, sort_order", json=True),
+    TableSpec("ops.category_config", "league, sort_order"),
 )
 
 TABLES: tuple[TableSpec, ...] = GOLD + OPS
