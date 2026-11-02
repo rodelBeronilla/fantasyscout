@@ -196,6 +196,21 @@ A run that is cut short (a job timeout, a cancelled job, a runner restart) keeps
 
 A game's payloads (box scores, play-by-play, shot chart; ESPN's summary) are **settled** once landed two days after the game, and left alone after that. Two things keep that honest. A payload the ingestor found half-written (`ingest/complete.py`: a box score missing a team's players, a play-by-play without its closing action, an ESPN summary whose box score has no statistics yet) is flagged `complete: false` in the landing index and fetched again on every run until a whole one lands. And the leagues post stat corrections later than two days: run Ingest with `resettle_days` (or `fs-ingest land stats --resettle-days 14 ...`) to fetch the game payloads of the last N days again, settled or not; unchanged payloads land no new file, so the sweep costs requests, not storage.
 
+## Landing index corrupted or stale
+
+Each endpoint's landing folder for a league-season carries `_index.json`: key → the payload's path, hash, size, the date it landed and the date it was last checked. The index is what makes a rerun idempotent (`has_landed`, `already_landed_today`). Two things can go wrong with it:
+
+- **Unreadable** (a write cut off midway, a hand edit): the run prints `warning: ... is not readable; treating it as empty`, fetches the window as if nothing had landed, and rewrites the index whole at the end. Nothing to do unless the re-fetch is too expensive; then rebuild first.
+- **Stale** (a key present whose payload is gone, or a payload present that the index does not know): the first is skipped forever, the second re-fetched forever. Rebuild.
+
+To rebuild, from the sidecars next to the payloads (no fetch):
+
+```
+uv run fs-ingest reindex --source stats --endpoint leaguegamelog --league nba --season 2026-27 --backend volume
+```
+
+It lists the scope's folder, reads every `*.meta.json`, keeps the newest landing of each key, and writes `_index.json`. Locally, `--backend local --root <landing root>` does the same on disk. Sidecars written before the `key` field existed are indexed under the file's name, which equals the key except for the rare key with path-unsafe characters.
+
 ## Replay failed fetches
 
 `ops.fetch_failures` names every request a run could not land (Data Health, "Failed fetches"; `select * from fantasyscout.ops.fetch_failures order by started_at desc`). Redo exactly those keys, not the whole window:

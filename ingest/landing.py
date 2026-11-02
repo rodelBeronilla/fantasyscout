@@ -90,6 +90,9 @@ class Sidecar(BaseModel):
     latency_ms: int | None = Field(default=None, ge=0)
     attempts: int | None = Field(default=None, ge=1)
     run_id: str | None = None
+    # The index key the payload was landed under (absent in sidecars written before #415; the
+    # file's stem stands in, which equals the key unless the key carried path-unsafe characters).
+    key: str | None = None
 
     @classmethod
     def for_response(
@@ -103,6 +106,7 @@ class Sidecar(BaseModel):
         latency_ms: int | None = None,
         attempts: int | None = None,
         run_id: str | None = None,
+        key: str | None = None,
     ) -> Sidecar:
         return cls(
             url=url,
@@ -114,6 +118,7 @@ class Sidecar(BaseModel):
             latency_ms=latency_ms,
             attempts=attempts,
             run_id=run_id,
+            key=key,
         )
 
     def sidecar_path(self, landing_path: PurePosixPath) -> PurePosixPath:

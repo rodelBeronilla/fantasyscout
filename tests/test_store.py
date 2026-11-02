@@ -7,7 +7,15 @@ from pathlib import Path, PurePosixPath
 import httpx
 import pytest
 
-from ingest.store import INDEX_NAME, Landing, LocalBackend, Scope, VolumeBackend
+from ingest.store import (
+    INDEX_NAME,
+    Landing,
+    LocalBackend,
+    Scope,
+    VolumeBackend,
+    load_index,
+    reindex,
+)
 
 SCOPE = Scope(source="stats", endpoint="leaguegamelog", league="wnba", season="2026")
 FETCHED = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
@@ -320,3 +328,115 @@ def test_failures_an_interim_write_finds_are_reported_by_the_next_flush(tmp_path
     landing.close()
     assert [(f.endpoint, f.key) for f in failures] == [("leaguegamelog", "bad")]
     assert landing.flush() == [], "a failure is reported once"
+
+
+def test_an_unreadable_index_is_treated_as_empty_and_the_run_rewrites_it(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#415: a truncated _index.json no longer crashes every run of the scope."""
+    first = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 10, 27))
+    _land(first, "0012600001", b'{"a": 1}')
+    first.flush()
+    index_file = tmp_path.joinpath(*SCOPE.index_path().parts)
+    index_file.write_text(
+        '{"0012600001": {"sha256": "abc", "pa', encoding="utf-8"
+    )  # cut off mid-write
+    again = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 10, 28))
+    assert again.has_landed(SCOPE, "0012600001") is False
+    assert "not readable" in capsys.readouterr().out
+    _land(again, "0012600001", b'{"a": 1}')
+    again.flush()
+    assert (
+        json.loads(index_file.read_text(encoding="utf-8"))["0012600001"]["ingest_date"]
+        == "2026-10-28"
+    )
+    # an entry that is not an index entry is skipped, the rest are kept
+    index_file.write_text(
+        json.dumps(
+            {"x": {"nonsense": 1}, "0012600001": json.loads(index_file.read_text())["0012600001"]}
+        )
+    )
+    loaded = load_index(LocalBackend(tmp_path), SCOPE)
+    assert list(loaded) == ["0012600001"]
+
+
+def test_reindex_rebuilds_the_index_from_the_sidecars(tmp_path: Path) -> None:
+    """#415: the sidecars next to the payloads are enough to rebuild a lost index exactly."""
+    one = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 10, 27))
+    _land(one, "0012600001", b'{"a": 1}')
+    _land(one, "0012600002", b'{"b": 2}')
+    one.flush()
+    two = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 10, 28))
+    _land(two, "0012600001", b'{"a": 1, "late": true}')  # the same key, re-landed later
+    two.flush()
+    index_file = tmp_path.joinpath(*SCOPE.index_path().parts)
+    live = json.loads(index_file.read_text(encoding="utf-8"))
+    index_file.unlink()
+    rebuilt = reindex(LocalBackend(tmp_path), SCOPE)
+    assert set(rebuilt) == {"0012600001", "0012600002"}
+    for key, entry in rebuilt.items():
+        assert entry.sha256 == live[key]["sha256"]
+        assert entry.path == live[key]["path"]
+        assert entry.ingest_date == live[key]["ingest_date"]
+    assert rebuilt["0012600001"].ingest_date == "2026-10-28", "the newest landing of a key wins"
+    assert json.loads(index_file.read_text(encoding="utf-8")).keys() == rebuilt.keys()
+    # an older sidecar without the key field falls back to the file's stem
+    meta = tmp_path / "landing/stats/leaguegamelog/wnba/2026/2026-10-27/0012600002.meta.json"
+    doc = json.loads(meta.read_text(encoding="utf-8"))
+    doc.pop("key")
+    meta.write_text(json.dumps(doc), encoding="utf-8")
+    assert "0012600002" in reindex(LocalBackend(tmp_path), SCOPE)
+
+
+def test_the_volume_backend_lists_a_folder_through_the_files_api() -> None:
+    v = "/Volumes/fantasyscout/raw/landing/stats/leaguegamelog/wnba/2026"
+    pages = {
+        v: [
+            {
+                "path": f"{v}/2026-10-27",
+                "is_directory": True,
+            },
+            {
+                "path": f"{v}/_index.json",
+                "is_directory": False,
+            },
+        ],
+        f"{v}/2026-10-27": [
+            {
+                "path": f"{v}/2026-10-27/1.json",
+                "is_directory": False,
+            },
+            {
+                "path": f"{v}/2026-10-27/1.meta.json",
+                "is_directory": False,
+            },
+        ],
+    }
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(
+            request.url.path + ("?" + request.url.query.decode() if request.url.query else "")
+        )
+        folder = request.url.path.removeprefix("/api/2.0/fs/directories")
+        items = pages.get(folder)
+        if items is None:
+            return httpx.Response(404, json={"error_code": "NOT_FOUND"})
+        # the first folder answers in two pages
+        if folder.endswith("/2026") and "page_token" not in request.url.query.decode():
+            return httpx.Response(200, json={"contents": items[:1], "next_page_token": "p2"})
+        if folder.endswith("/2026"):
+            return httpx.Response(200, json={"contents": items[1:]})
+        return httpx.Response(200, json={"contents": items})
+
+    backend = VolumeBackend(
+        "https://dbc-1.cloud.databricks.com", "t", transport=httpx.MockTransport(handler)
+    )
+    files = backend.list_files(PurePosixPath("landing/stats/leaguegamelog/wnba/2026"))
+    assert [f.as_posix() for f in files] == [
+        "landing/stats/leaguegamelog/wnba/2026/2026-10-27/1.json",
+        "landing/stats/leaguegamelog/wnba/2026/2026-10-27/1.meta.json",
+        "landing/stats/leaguegamelog/wnba/2026/_index.json",
+    ]
+    assert any("page_token=p2" in c for c in calls)
+    assert backend.list_files(PurePosixPath("landing/nowhere")) == []
