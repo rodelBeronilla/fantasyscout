@@ -7,6 +7,7 @@ import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
+import { type BoardAvailability, type BoardView, readBoardFilters, writeBoardFilters } from '../lib/board-url';
 import { useWatchlist } from '../lib/watchlist';
 import { assign, draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, scaleValue, type Tier } from '../lib/league-value';
@@ -74,7 +75,7 @@ interface BoardRow {
   [key: string]: unknown;
 }
 
-type View = 'value' | 'season' | 'last20' | 'recent' | 'projected' | 'pergame';
+type View = BoardView;
 
 const VIEWS: { id: View; label: string; help: string }[] = [
   {
@@ -119,7 +120,7 @@ function zKey(view: View, category: string): string {
   return `${Z_PREFIX[view] ?? ''}${category}`;
 }
 
-type Availability = 'all' | 'no_out' | 'healthy';
+type Availability = BoardAvailability;
 type Show = 'available' | 'mine' | 'all';
 
 const PAGE = 100;
@@ -172,18 +173,26 @@ export default function Board() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<BoardRow[] | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [view, setView] = useState<View>('value');
-  const [punts, setPunts] = useState<Set<string>>(new Set());
-  const [restOfSeason, setRestOfSeason] = useState(false);
-  const [countGames, setCountGames] = useState(true);
-  const [team, setTeam] = useState('');
-  const [positions, setPositions] = useState<Set<PositionLetter>>(new Set());
-  const [minGames, setMinGames] = useState(0);
-  const [minMinutes, setMinMinutes] = useState(0);
-  const [availability, setAvailability] = useState<Availability>('all');
-  const [rookiesOnly, setRookiesOnly] = useState(false);
-  const [movedOnly, setMovedOnly] = useState(false);
-  const [watchOnly, setWatchOnly] = useState(false);
+  // The view, punts and filters start from the URL and are written back to it, so a reload keeps
+  // them and a copied link reproduces them (#461).
+  const [fromUrl] = useState(() => readBoardFilters(window.location.search));
+  const [view, setView] = useState<View>(fromUrl.view);
+  const [punts, setPunts] = useState<Set<string>>(fromUrl.punts);
+  const [restOfSeason, setRestOfSeason] = useState(fromUrl.restOfSeason);
+  const [countGames, setCountGames] = useState(fromUrl.countGames);
+  const [team, setTeam] = useState(fromUrl.team);
+  const [positions, setPositions] = useState<Set<PositionLetter>>(fromUrl.positions);
+  const [minGames, setMinGames] = useState(fromUrl.minGames);
+  const [minMinutes, setMinMinutes] = useState(fromUrl.minMinutes);
+  const [availability, setAvailability] = useState<Availability>(fromUrl.availability);
+  const [rookiesOnly, setRookiesOnly] = useState(fromUrl.rookiesOnly);
+  const [movedOnly, setMovedOnly] = useState(fromUrl.movedOnly);
+  const [watchOnly, setWatchOnly] = useState(fromUrl.watchOnly);
+  useEffect(() => {
+    const filters = { view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly };
+    const qs = writeBoardFilters(window.location.search, filters);
+    if (qs !== window.location.search) window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs}${window.location.hash}`);
+  }, [view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly]);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
