@@ -860,10 +860,9 @@ test('every page but the Board sits under a nav header, and the header opens on 
   const nav = page.getByRole('navigation', { name: 'Primary' });
   await expect(nav.getByRole('link', { name: 'Board' })).toHaveAttribute('href', '/');
   for (const [header, items] of [
-    ['tools', ['Streamers', 'Trade']],
+    ['tools', ['League', 'Streamers', 'Trade']],
     ['analysis', ['Notebooks', 'Dashboards']],
-    ['platform', ['Data Health', 'Pipeline', 'Schema', 'Docs']],
-    ['coming-soon', ['League', 'SQL console']],
+    ['platform', ['Data Health', 'Pipeline', 'Schema', 'Docs', 'SQL console (owner only)']],
   ] as const) {
     const group = page.getByTestId(`nav-${header}`);
     await expect(group).not.toHaveAttribute('open', '');
@@ -872,9 +871,11 @@ test('every page but the Board sits under a nav header, and the header opens on 
   }
   // Opening one header closes the others, and a click elsewhere closes them all.
   await expect(page.getByTestId('nav-tools')).not.toHaveAttribute('open', '');
-  await expect(page.getByTestId('nav-coming-soon')).toHaveAttribute('open', '');
+  await expect(page.getByTestId('nav-platform')).toHaveAttribute('open', '');
   await page.locator('main h1').click();
-  await expect(page.getByTestId('nav-coming-soon')).not.toHaveAttribute('open', '');
+  await expect(page.getByTestId('nav-platform')).not.toHaveAttribute('open', '');
+  // Nothing in the nav is "coming soon": League works today and every page sends managers to it (#452).
+  await expect(nav).not.toContainText('Coming soon');
   // The header of the current page is marked, not opened over the page.
   await page.goto('/trade/');
   const tools = page.getByTestId('nav-tools');
@@ -883,7 +884,7 @@ test('every page but the Board sits under a nav header, and the header opens on 
   await tools.locator('summary').click();
   await expect(tools.getByRole('link', { name: 'Trade' })).toHaveAttribute('aria-current', 'page');
   await page.goto('/league/');
-  await expect(page.getByTestId('nav-coming-soon')).toHaveAttribute('data-current', 'true');
+  await expect(page.getByTestId('nav-tools')).toHaveAttribute('data-current', 'true');
 });
 
 test('on a phone, tapping the Yahoo bookmark link copies its code and shows the steps', async ({ page, context, browserName }) => {
