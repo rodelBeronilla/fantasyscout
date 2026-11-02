@@ -561,6 +561,8 @@ for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/']) {
 // The week grid tints the days a team plays; a back-to-back tag on that tint must still read, in
 // both themes, and each scrollable table is a region with its own name (#458).
 test('streamers with back-to-backs passes axe, best practices included, in both themes', async ({ page }) => {
+  // Two full axe passes over a large table: about 20 s alone, longer beside other tests.
+  test.setTimeout(60_000);
   await page.route('**/schedule/nba*.json', async (route) => {
     const games = (await (await route.fetch()).json()) as Record<string, unknown>[];
     await route.fulfill({ json: games.map((g) => ({ ...g, home_back_to_back: true, away_back_to_back: true })) });
@@ -2016,4 +2018,19 @@ test('the player picker finds a player from part of a name and Enter adds the be
   await team.fill(part);
   await team.press('Enter');
   await expect(page.getByTestId('team-card').first()).toContainText(first.full_name);
+});
+
+// Columns the export ships are shown (#463): games played beside Min (5) on Streamers, and the
+// season's z-scores beside the last twenty and last ten games' on the player page.
+test('streamers shows games played, and the player page sets recent z-scores beside the season', async ({ page }) => {
+  await page.goto('/streamers/?league=nba');
+  const table = page.getByTestId('trending');
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  await expect(table.getByRole('button', { name: 'GP', exact: true })).toHaveAttribute('title', /Games played this season/);
+  await page.goto('/p/wnba/1628932/');
+  const windows = page.getByTestId('category-windows');
+  await expect(windows.locator('tbody tr').first()).toContainText('Season');
+  await expect(windows.locator('tbody tr')).toHaveCount(3);
+  await expect(windows.locator('tbody')).toContainText('Last 20');
+  await expect(windows.locator('tbody')).toContainText('Last 10');
 });
