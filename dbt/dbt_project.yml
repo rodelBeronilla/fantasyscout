@@ -44,7 +44,8 @@ vars:
   regular_season_games:
     nba: 82
   # The data-quality thresholds the warn checks and the data-quality notebook share: [good, ok];
-  # below ok is a failure. warn_crosswalk_coverage reads played_match_rate; the notebook reads all.
+  # below ok is a failure. warn_crosswalk_coverage reads played_match_rate, warn_reconciliation_conflicts
+  # conflict_rate; the notebook reads all.
   quality_thresholds:
     played_match_rate: [0.99, 0.95]
     conflict_rate: [0.005, 0.02]
