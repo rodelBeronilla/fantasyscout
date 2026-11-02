@@ -427,6 +427,8 @@ export default function Streamers() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<StreamerRow[] | null>(null);
   const [games, setGames] = useState<Game[]>([]);
+  // The schedule file failed to load: the page must not read that as "no games ahead" (#440).
+  const [scheduleError, setScheduleError] = useState<unknown>(null);
   const [moves, setMoves] = useState<Move[]>([]);
   const [teams, setTeams] = useState<string[]>([]);
   const [weeks, setWeeks] = useState<TeamWeek[]>([]);
@@ -465,7 +467,10 @@ export default function Streamers() {
     let live = true;
     Promise.all([
       fetchBuildJson<StreamerRow[]>(`streamers/${league}.json`),
-      fetchBuildJson<Game[]>(`schedule/${league}.json`).catch(() => [] as Game[]),
+      fetchBuildJson<Game[]>(`schedule/${league}.json`).catch((e: unknown) => {
+        if (live) setScheduleError(e);
+        return [] as Game[];
+      }),
       fetchBuildJson<Team[]>('dim_team.json'),
       getLatest(),
       // Older builds have no transactions or team-weeks file.
@@ -624,7 +629,18 @@ export default function Streamers() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
-      {complete || !inWeek ? (
+      {scheduleError ? (
+        <div className="rounded-lg border border-line bg-card p-4" role="alert" data-testid="schedule-unavailable">
+          <p className="font-medium">The {LEAGUE_LABEL[league]} schedule could not be loaded.</p>
+          <p className="mt-1 text-sm text-muted">
+            Games ahead, matchups and the window value need it; the list below is sorted by minutes trend until it loads.
+            Reload in a moment.
+          </p>
+          <button type="button" className="mt-2 rounded border border-line px-3 py-1 text-sm" onClick={() => window.location.reload()}>
+            Reload
+          </button>
+        </div>
+      ) : complete || !inWeek ? (
         <Note testid="season-note">
           No {LEAGUE_LABEL[league]} regular-season games in the next seven days. The list below is who finished the {season} season strongly: their last five
           games against their baseline, the rest of the season blended with the one before.
@@ -682,7 +698,7 @@ export default function Streamers() {
         </Card>
       )}
 
-      <Card title={complete || !inWeek ? 'Finished strong' : 'Trending up'} id="trending">
+      <Card title={scheduleError ? 'Trending up' : complete || !inWeek ? 'Finished strong' : 'Trending up'} id="trending">
         <div className="mb-3 grid gap-3">
           <fieldset className="flex flex-wrap items-center gap-1" data-testid="needs">
             <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Categories you need (rank by last-ten value in them)</legend>

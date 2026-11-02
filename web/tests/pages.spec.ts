@@ -233,6 +233,18 @@ test('streamers shows games per fantasy week for the rest of the season when wee
   await expect(grid.locator('thead th').filter({ hasText: `W${first.fantasy_week.slice(-2)}` })).toBeVisible();
 });
 
+test('a schedule that fails to load is said to have failed, not to be empty', async ({ page }) => {
+  await page.route('**/schedule/*.json', (route) => route.fulfill({ status: 500, body: 'down' }));
+  await page.goto('/streamers/');
+  const alert = page.getByTestId('schedule-unavailable');
+  await expect(alert).toBeVisible();
+  await expect(alert).toContainText('could not be loaded');
+  await expect(alert.getByRole('button', { name: 'Reload' })).toBeVisible();
+  await expect(page.getByTestId('season-note')).toHaveCount(0);
+  await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('regular-season games in the next seven days');
+});
+
 test('streamers can be filtered by position and re-sorted', async ({ page }) => {
   await page.goto('/streamers/');
   const rows = page.getByTestId('trending').locator('tbody tr');
