@@ -19,11 +19,18 @@ Then set the repository variable `STATS_RUNNER_LABEL` to `home` (Settings → Se
 - The runner is registered to this repository only, not to the account.
 - `ingest.yml` triggers on schedule and manual dispatch only. No workflow that runs on a pull request targets this runner, and the repository requires approval before workflows from outside collaborators run.
 - The container holds no secrets at rest. Job secrets are injected by GitHub per job and the only ones used are the Databricks host and the ingest service principal's client id and secret (runbook, "The ingest's own credential"), which can write the landing volume and nothing else.
-- Jobs run as the unprivileged `runner` user inside the container; nothing from the host is mounted.
+- Jobs run as the unprivileged `runner` user inside the container; nothing from the host is mounted; `no-new-privileges` is set, so nothing in a job can gain privileges it did not start with.
+- The runner is registered with `--disableupdate`: it stays at the digest `compose.yml` pins instead of updating itself, so the image is the one update channel and it is reviewed by hand ("Update the runner image").
+- The two containers share a bridge network of their own with inter-container communication off; they reach the internet and nothing on the host's other networks is reachable from them by name. Docker itself cannot restrict which internet hosts a container may reach; a host-side egress allow-list (the stats hosts, GitHub, the workspace) is an iptables rule on the host, listed under "What is still open".
+- The runners are persistent, not ephemeral: the work folder and the tool caches live in the `runner-state` volumes between jobs. An ephemeral runner (a fresh registration per job) needs a host-side loop that mints a registration token for every start; that is the next hardening step and it runs on the host, not in this repository.
+
+## What is still open
+
+Two measures need the host, not the repository: an egress allow-list (iptables rules on the Docker bridge limiting the containers to the stats hosts, github.com and the Databricks workspace) and ephemeral registration (a loop on the host that runs `config.sh --ephemeral` with a fresh token before each job). Until then the protections are: the fork approval policy on the repository, no workflow on a pull request targeting the `home` label, the unprivileged user, no mounts, no privilege escalation, the pinned image with self-update off, and the isolated network.
 
 ## Monitor
 
-GitHub cannot tell the workflows that a self-hosted runner is gone: a stats job just queues, for up to a day, and nothing reports. Two things watch for that. On the host, `check.sh` asks GitHub for the runners' status and Docker for the containers' health, and opens, updates or closes the "Home runner offline" incident issue the same way a failed job does; run it from cron every half hour with `gh` signed in to a token that has the `repo` scope:
+GitHub cannot tell the workflows that a self-hosted runner is gone: a stats job just queues, for up to a day, and nothing reports. Two things watch for that. On the host, `check.sh` asks GitHub for the runners' status and Docker for the containers' health, and opens, updates or closes the "Home runner offline" incident issue the same way a failed job does; run it from cron every half hour with `gh` signed in to a fine-grained token for this repository with Administration: read (the runners' status) and Issues: write (the incident), not a classic `repo` token:
 
 ```cron
 */30 * * * *  /path/to/fantasyscout/infra/runner/check.sh >> /var/log/fantasyscout-runner.log 2>&1
@@ -40,7 +47,8 @@ Independently, the Publish watchdog (`docs/runbook.md`, "Publish SLA and the wat
 
 ## Maintain
 
-- Update: `docker compose -f infra/runner/compose.yml pull && docker compose -f infra/runner/compose.yml up -d`. The runner also self-updates.
+- Update: `docker compose -f infra/runner/compose.yml pull && docker compose -f infra/runner/compose.yml up -d`. The runner does not self-update (`--disableupdate`); the image pin is the update.
+- Apply this file's changes to running containers with `docker compose -f infra/runner/compose.yml up -d` (the network is created on the way; a registration made before `--disableupdate` keeps working, and the flag takes effect at the next `config.sh`, i.e. after a `down -v` and re-registration).
 - Re-register after a token rotation or a wiped volume: `docker compose ... down -v`, then the Start steps.
 - Remove: deregister with `./config.sh remove --token <remove-token>` (see `compose.yml`), then `down -v`.
 

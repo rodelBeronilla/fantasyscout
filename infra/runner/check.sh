@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Is each home runner registered, online and healthy? Run from the host by cron (see README.md,
 # "Monitor"); exit 0 when both are, 1 otherwise, and open or update a data-incident issue so the
-# gap is seen before a stats job queues for a day. Needs gh signed in to a token with repo scope.
+# gap is seen before a stats job queues for a day. Needs gh signed in to a fine-grained token with
+# Administration: read and Issues: write on this repository.
 #
 #   */30 * * * *  /path/to/fantasyscout/infra/runner/check.sh >> /var/log/fantasyscout-runner.log 2>&1
 set -uo pipefail

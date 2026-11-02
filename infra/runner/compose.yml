@@ -26,7 +26,7 @@ x-runner: &runner
       cd /home/runner
       if [ ! -f .runner ]; then
         [ -n "$$RUNNER_TOKEN" ] || { echo "RUNNER_TOKEN is required for the first start"; exit 1; }
-        ./config.sh --unattended --replace \
+        ./config.sh --unattended --replace --disableupdate \
           --url "$$RUNNER_URL" --token "$$RUNNER_TOKEN" \
           --name "$$RUNNER_NAME" --labels "$$RUNNER_LABELS" \
           --work _work
@@ -46,6 +46,13 @@ x-runner: &runner
       limits:
         cpus: "1.0"
         memory: 1g
+  # No privilege escalation inside the container, and the two runners on a network of their own
+  # that cannot talk to each other (#427). --disableupdate above keeps the runner at the pinned
+  # digest instead of updating itself past it.
+  security_opt:
+    - no-new-privileges:true
+  networks:
+    - runners
 
 services:
   runner-1:
@@ -73,3 +80,9 @@ services:
 volumes:
   runner-state:
   runner-state-2:
+
+networks:
+  runners:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
