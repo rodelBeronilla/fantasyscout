@@ -206,6 +206,31 @@ def test_rollback_points_at_the_previous_build_and_prune_keeps_it(tmp_path: Path
         build_mod.rollback(store, to="nope", log=lambda _: None)
 
 
+def test_rollback_and_unpin_refuse_a_build_whose_files_are_gone(tmp_path: Path) -> None:
+    """#405: a prune cancelled midway can leave builds.json naming a build with no files."""
+    store = LocalStore(tmp_path)
+    for i in range(3):
+        build_mod.publish(store, fake_build(f"b{i}"), keep=3, log=lambda _: None)
+    store.delete("builds/b1/manifest.json")
+    with pytest.raises(RuntimeError, match="b1 is recorded but its manifest or key list is gone"):
+        build_mod.rollback(store, log=lambda _: None)  # the previous build is b1
+    assert json.loads(store.get("latest.json") or b"{}")["build_id"] == "b2", (
+        "the pointer did not move"
+    )
+    pointer = build_mod.rollback(store, to="b0", log=lambda _: None)
+    assert pointer["build_id"] == "b0"
+    store.delete("builds/b2/keys.txt")
+    with pytest.raises(RuntimeError, match="b2 is recorded but"):
+        build_mod.unpin(store, log=lambda _: None)  # the newest build is b2
+    latest, builds = build_mod.list_builds(store)
+    assert latest["build_id"] == "b0" and latest["pinned"] is True
+    assert {b["build_id"]: b.get("incomplete", False) for b in builds} == {
+        "b2": True,
+        "b1": True,
+        "b0": False,
+    }
+
+
 def test_prune_keeps_a_pinned_build_whatever_latest_says(tmp_path: Path) -> None:
     """#277: the pin in builds.json protects the build on its own."""
     store = LocalStore(tmp_path)

@@ -94,8 +94,11 @@ jobs:
           set -euo pipefail
           case "$ACTION" in
             rollback)
+              # fs-export refuses a build whose manifest or key list is gone; the pointer is read
+              # back afterwards so the log shows what the site now serves.
               if [ -n "$TO_BUILD" ]; then uv run fs-export rollback --store r2 --to "$TO_BUILD";
-              else uv run fs-export rollback --store r2; fi ;;
+              else uv run fs-export rollback --store r2; fi
+              uv run fs-export list --store r2 ;;
             unpin)
               if [ -n "$TO_BUILD" ]; then uv run fs-export unpin --store r2 --to "$TO_BUILD";
               else uv run fs-export unpin --store r2; fi ;;
