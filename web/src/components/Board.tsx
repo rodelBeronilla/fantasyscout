@@ -9,7 +9,7 @@ import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortD
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { assign, draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
-import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
+import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, scaleValue, type Tier } from '../lib/league-value';
 import { reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { matchup, matchupWeights, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
@@ -274,13 +274,10 @@ export default function Board() {
   const restValue = useMemo(() => {
     const out = new Map<string, number>();
     for (const r of rows ?? []) {
-      let v = points
+      const v = points
         ? (leaguePoints?.get(r.player_id)?.value ?? 0)
         : activeCats.reduce((s, c) => s + (leagueCats?.get(r.player_id)?.[c] ?? 0), 0);
-      // Only value above replacement counts games: a missed game from a player not worth rostering costs nothing.
-      if (v > 0) v *= r.games_share ?? 1;
-      if (v > 0 && !r.season_complete) v *= r.ros_factor ?? 1;
-      out.set(r.player_id, v);
+      out.set(r.player_id, scaleValue(v, r));
     }
     return out;
   }, [rows, points, leaguePoints, leagueCats, activeCats]);
@@ -348,13 +345,7 @@ export default function Board() {
 
   const scored = useMemo(() => {
     if (!rows) return [];
-    const scale = (r: BoardRow, v: number) => {
-      // Only value above replacement scales: a game missed by a player not worth rostering costs nothing.
-      let out = v;
-      if (out > 0 && countGames) out *= r.games_share ?? 1;
-      if (out > 0 && restOfSeason && !r.season_complete) out *= r.ros_factor ?? 1;
-      return out;
-    };
+    const scale = (r: BoardRow, v: number) => scaleValue(v, r, { countGames, restOfSeason });
     return rows.map((r) => {
       let value: number | null;
       let fit: number | null = null;

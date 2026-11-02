@@ -9,7 +9,7 @@ import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague } from '../lib/league';
 import { DEFAULT_SETTINGS, isDefaultSettings, owners, useLeague } from '../lib/fantasy-league';
-import { categoryValues, pointValues } from '../lib/league-value';
+import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { href } from '../lib/site';
 import { nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
@@ -111,9 +111,8 @@ export default function TradeAnalyzer() {
       if (catValues) for (const k of cats) c[k] = catValues.get(r.player_id)?.[k] ?? 0;
       const pv = pointVals?.get(r.player_id);
       const perGame = points ? (pv?.value ?? 0) : cats.reduce((s, k) => s + (c[k] ?? 0), 0);
-      // Only value above replacement counts games: a missed game from a player not worth rostering costs nothing.
-      const season = perGame > 0 ? perGame * (r.games_share ?? 1) : perGame;
-      const rest = season > 0 && !r.season_complete ? season * (r.ros_factor ?? 1) : season;
+      const season = scaleValue(perGame, r, { restOfSeason: false });
+      const rest = scaleValue(perGame, r);
       const recent = points ? perGame : cats.reduce((s, k) => s + (recentCats?.get(r.player_id)?.[k] ?? 0), 0);
       out.set(r.player_id, { perGame, season, rest, week: weekValue(recent, r.games_this_week), cats: c, fpts: pv ? pv.fpts : null });
     }
