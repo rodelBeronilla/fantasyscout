@@ -953,15 +953,19 @@ export default function Streamers() {
           <table className="w-full text-sm" data-testid="trending">
             <thead>
               <tr>
-                <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')} pin="first">
+                <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')} pin="first" title="The player, with injury, lineup and news tags">
                   Player
                 </SortTh>
                 {inWeek && col('window_value', 'Window value', 'What the player adds to the window: last-ten production per game (counting stats and shooting above the pool, turnovers subtracted) times games in the window, plus each game’s matchup. The default sort: it finds the week’s best pickups most often (streamer signals notebook)')}
                 {inWeek && col('games_window', period ? 'Period' : `Next ${horizon}`, period ? `Team games from ${dayLabel(period.from)} to ${dayLabel(period.to)}` : `Team games in the next ${horizon} days`)}
                 {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
                 {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
-                <Th>Team</Th>
-                <Th>Pos</Th>
+                <Th>
+                  <span title="The player's team, with the team the player left when the move is recent">Team</span>
+                </Th>
+                <Th>
+                  <span title="The positions the player is listed at">Pos</span>
+                </Th>
                 {col('minutes_avg_5', 'Min (5)', 'Minutes per game, last five games')}
                 {col('minutes_baseline', 'Min (base)', 'Minutes per game before the last five games, blended with last season')}
                 {col('minutes_trend', 'Min trend', 'Last five games minus the baseline')}
@@ -975,15 +979,16 @@ export default function Streamers() {
                       : 'Total category z-score over the last ten games',
                 )}
                 {col('value_trend', 'Value trend', 'Last-ten value minus the baseline (this season blended with last)')}
-                {col('points_avg_5', 'PTS')}
-                {col('rebounds_total_avg_5', 'REB')}
-                {col('assists_avg_5', 'AST')}
-                {col('steals_avg_5', 'STL')}
-                {col('blocks_avg_5', 'BLK')}
-                {col('three_pointers_made_avg_5', '3PM')}
-                {col('field_goal_pct_5', 'FG%')}
-                {col('free_throw_pct_5', 'FT%')}
-                {col('turnovers_avg_5', 'TO')}
+                {/* The box-score columns are the last five games, like Min (5) (#456). */}
+                {col('points_avg_5', 'PTS (5)', 'Points per game, last five games')}
+                {col('rebounds_total_avg_5', 'REB (5)', 'Rebounds per game, last five games')}
+                {col('assists_avg_5', 'AST (5)', 'Assists per game, last five games')}
+                {col('steals_avg_5', 'STL (5)', 'Steals per game, last five games')}
+                {col('blocks_avg_5', 'BLK (5)', 'Blocks per game, last five games')}
+                {col('three_pointers_made_avg_5', '3PM (5)', 'Three-pointers made per game, last five games')}
+                {col('field_goal_pct_5', 'FG% (5)', 'Field-goal percentage over the last five games')}
+                {col('free_throw_pct_5', 'FT% (5)', 'Free-throw percentage over the last five games')}
+                {col('turnovers_avg_5', 'TO (5)', 'Turnovers per game, last five games')}
                 {needs.size > 0 && col('fit', 'Need fit', 'Last-ten z-score summed over the categories you need')}
                 {pickedDays.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
                 {hasTrend && (
@@ -993,7 +998,9 @@ export default function Streamers() {
                 )}
                 {hasHeat && col('sleeper_net', 'Sleeper', 'Sleeper leagues that added the player minus those that dropped the player, last 24 hours (from Sleeper)')}
                 {col('board_rank', 'Board #', 'Rank on the board with the default league settings (12 teams of 13 in the NBA, 10 of 10 in the WNBA); inside a league-sized pool usually means rostered')}
-                <Th>Last game</Th>
+                <Th>
+                  <span title="The date of the player's most recent game">Last game</span>
+                </Th>
               </tr>
             </thead>
             <tbody>
