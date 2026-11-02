@@ -9,7 +9,7 @@ import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { assign, draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
-import { suggestUpgrades, type Upgrade } from '../lib/roster-upgrades';
+import { reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { DraftBar, LeagueBar, Upgrades } from './LeagueParts';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 
@@ -293,14 +293,14 @@ export default function Board() {
     return out;
   }, [rows, points, leaguePoints, leagueCats, activeCats]);
   // Available players worth more than one of the manager's: the swaps the manager can make.
-  const upgrades = useMemo<Upgrade[]>(() => {
-    if (!rows || myTeam.length === 0 || setup.drafting) return [];
+  const review = useMemo<RosterReview | null>(() => {
+    if (!rows || myTeam.length === 0 || setup.drafting) return null;
     const totals = setup.rosters.map((roster) =>
       Object.fromEntries(
         activeCats.map((c) => [c, roster.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + (leagueCats?.get(id)?.[c] ?? 0), 0)]),
       ),
     );
-    return suggestUpgrades({
+    return reviewRoster({
       mine: myTeam.map((r) => r.player_id),
       available: rows.filter((r) => !owner.has(r.player_id)).map((r) => r.player_id),
       rest: restValue,
@@ -557,6 +557,15 @@ export default function Board() {
                 {held}
               </span>
             )}
+            {held === 'Mine' && review?.replace.includes(row.player_id) && (
+              <span
+                className="rounded border border-warn px-1 text-[10px] text-warn"
+                title="A player nobody owns is worth more for the rest of the season: see Roster review"
+                data-testid="replace-tag"
+              >
+                Replace
+              </span>
+            )}
           </span>
         </Td>
         <Td>{row.team_abbreviation ?? '–'}</Td>
@@ -641,10 +650,10 @@ export default function Board() {
       )}
 
       <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={view === 'value' ? weakest : []} />
-      {upgrades.length > 0 && (
+      {review && (
         <Upgrades
           league={league}
-          list={upgrades}
+          review={review}
           nameOf={(id) => byId.get(id)?.full_name ?? id}
           detailOf={(id) => [byId.get(id)?.position, byId.get(id)?.team_abbreviation].filter(Boolean).join(', ')}
           onApply={applyUpgrade}

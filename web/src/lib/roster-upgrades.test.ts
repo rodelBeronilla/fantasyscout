@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { suggestUpgrades } from './roster-upgrades';
+import { reviewRoster, suggestUpgrades } from './roster-upgrades';
 
 const rest = new Map([
   ['star', 12],
@@ -87,3 +87,29 @@ describe('roster upgrades', () => {
     expect(suggestUpgrades({ mine: ['weak'], available: [], rest, cats: [], catValue, totals, myTeam: 0 })).toEqual([]);
   });
 });
+
+describe('roster review', () => {
+  const base = { rest, cats: [] as string[], catValue, totals: [], myTeam: 0 };
+
+  it('names the players to replace when the wire beats them', () => {
+    const review = reviewRoster({ ...base, mine: ['star', 'weak'], available: ['free-good', 'free-ok'] });
+    expect(review.optimized).toBe(false);
+    expect(review.replace).toEqual(['weak']);
+    expect(review.rostered).toBe(2);
+    expect(review.weakest).toEqual({ drop: 'weak', add: 'free-good', gap: 7 });
+  });
+
+  it('says the roster is optimized when nothing available beats a rostered player, and how close it was', () => {
+    const review = reviewRoster({ ...base, mine: ['star', 'solid'], available: ['free-ok', 'free-dud'] });
+    expect(review.optimized).toBe(true);
+    expect(review.upgrades).toEqual([]);
+    expect(review.replace).toEqual([]);
+    expect(review.weakest).toEqual({ drop: 'solid', add: 'free-ok', gap: -3 });
+  });
+
+  it('holds with nobody available and is not a verdict without a roster', () => {
+    expect(reviewRoster({ ...base, mine: ['weak'], available: [] }).weakest).toEqual({ drop: 'weak', add: null, gap: -1 });
+    expect(reviewRoster({ ...base, mine: [], available: ['free-good'] })).toMatchObject({ optimized: false, weakest: null, rostered: 0 });
+  });
+});
+

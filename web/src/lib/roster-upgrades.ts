@@ -38,6 +38,36 @@ export interface Upgrade {
   downs: string[];
 }
 
+/** The verdict on the manager's roster: the swaps, who to replace, or that it holds as is. */
+export interface RosterReview {
+  upgrades: Upgrade[];
+  /** The manager's players an available player beats: the weak spots, in swap order. */
+  replace: string[];
+  /** True when the manager has players and no available player beats one of them by the minimum gain. */
+  optimized: boolean;
+  /** The manager's lowest-valued player and the best available alternative; the gap is negative when the roster holds. */
+  weakest: { drop: string; add: string | null; gap: number } | null;
+  /** How many of the manager's players were judged. */
+  rostered: number;
+}
+
+export function reviewRoster(input: UpgradeInput): RosterReview {
+  const upgrades = suggestUpgrades(input);
+  const value = (id: string) => input.rest.get(id) ?? 0;
+  const mine = [...input.mine].sort((a, b) => value(a) - value(b));
+  const bestAdd = [...input.available].filter((id) => value(id) > 0).sort((a, b) => value(b) - value(a))[0] ?? null;
+  const lowest = mine[0];
+  const weakest =
+    lowest === undefined ? null : { drop: lowest, add: bestAdd, gap: bestAdd ? value(bestAdd) - value(lowest) : -value(lowest) };
+  return {
+    upgrades,
+    replace: upgrades.map((u) => u.drop),
+    optimized: mine.length > 0 && upgrades.length === 0,
+    weakest,
+    rostered: mine.length,
+  };
+}
+
 /** 1 + the number of teams whose total beats this one. */
 const rankOf = (totals: number[], team: number) => 1 + totals.filter((v, t) => t !== team && v > (totals[team] ?? 0)).length;
 
