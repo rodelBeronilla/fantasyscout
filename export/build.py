@@ -318,6 +318,26 @@ def prune(store: Store, *, keep: int = layout.KEEP_BUILDS, log: Log = print) -> 
     return dropped
 
 
+def build_is_complete(store: Store, entry: dict[str, Any]) -> bool:
+    """Whether a recorded build still has its manifest and key list in the store.
+
+    A prune cancelled midway deletes files first and rewrites builds.json last, so an entry can
+    outlive its files; pointing latest.json at such a build would break every page (#405).
+    """
+    build_id = entry["build_id"]
+    manifest = entry.get("manifest") or f"builds/{build_id}/manifest.json"
+    return store.get(manifest) is not None and store.get(f"builds/{build_id}/keys.txt") is not None
+
+
+def _require_complete(store: Store, entry: dict[str, Any]) -> None:
+    if not build_is_complete(store, entry):
+        msg = (
+            f"build {entry['build_id']} is recorded but its manifest or key list is gone "
+            "(a prune cancelled midway?); pick another build from `fs-export list`"
+        )
+        raise RuntimeError(msg)
+
+
 def rollback(store: Store, *, to: str | None = None, log: Log = print) -> dict[str, Any]:
     """Point latest.json at an earlier build (the previous one by default) and pin it there.
 
@@ -341,6 +361,7 @@ def rollback(store: Store, *, to: str | None = None, log: Log = print) -> dict[s
     if target is None:
         msg = f"build {to} is not in builds.json"
         raise RuntimeError(msg)
+    _require_complete(store, target)
     pointer = {
         "build_id": target["build_id"],
         "manifest": target["manifest"],
@@ -370,6 +391,7 @@ def unpin(store: Store, *, to: str | None = None, log: Log = print) -> dict[str,
     if target is None:
         msg = f"build {to} is not in builds.json"
         raise RuntimeError(msg)
+    _require_complete(store, target)
     latest = _read_json(store, LATEST_KEY) or {}
     pointer = {
         "build_id": target["build_id"],
@@ -386,7 +408,12 @@ def unpin(store: Store, *, to: str | None = None, log: Log = print) -> dict[str,
 
 
 def list_builds(store: Store) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    return _read_json(store, LATEST_KEY) or {}, _read_json(store, BUILDS_KEY) or []
+    """latest.json and builds.json; an entry whose files are gone carries ``incomplete: True``."""
+    builds: list[dict[str, Any]] = _read_json(store, BUILDS_KEY) or []
+    for entry in builds:
+        if not build_is_complete(store, entry):
+            entry["incomplete"] = True
+    return _read_json(store, LATEST_KEY) or {}, builds
 
 
 FINDINGS_HISTORY_KEY = "notebooks/findings-history.json"

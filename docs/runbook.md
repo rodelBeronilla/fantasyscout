@@ -277,6 +277,11 @@ Run the "Export data" workflow with `rollback`. Leave the build id blank to go b
 or give one from `list`. The site serves it within a minute, because the Worker caches
 `latest.json` for 60 s.
 
+Before the pointer moves, `fs-export` checks the target still has its manifest and key list and
+refuses when either is gone (a prune cancelled midway deletes files before it rewrites
+`builds.json`); `list` marks such an entry `incomplete`, so pick another. After the run, open
+`/data/latest.json` and the Board: the build id and the data-as-of dates are the target's.
+
 A rollback **pins** the site. `latest.json` and that build's entry in `builds.json` say so, and
 `list` shows it. While the pin holds, nightly builds still run, publish their files and are
 recorded in `builds.json`, but they do not go live. Pruning never removes the pinned build.

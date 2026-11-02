@@ -170,6 +170,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"latest: {latest.get('build_id', 'none')}{pin}")
             for entry in builds:
                 mark = "  pinned" if entry.get("pinned") else ""
+                if entry.get("incomplete"):
+                    mark += "  INCOMPLETE (manifest or key list gone; not a rollback target)"
                 print(
                     f"  {entry['build_id']}  {entry['created_at']}  {entry.get('engine', '')}{mark}"
                 )
