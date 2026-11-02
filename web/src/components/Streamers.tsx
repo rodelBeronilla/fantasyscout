@@ -348,7 +348,7 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
   const ordered = [...teams].sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || a.localeCompare(b));
   const busiest = Math.max(0, ...days.map((d) => perDay.get(d) ?? 0));
   return (
-    <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+    <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Games by day">
       <table className="w-full text-sm" data-testid="week-grid">
         <thead>
           <tr>
@@ -401,7 +401,7 @@ function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string
                   >
                     {cell?.label ?? '·'}
                     {cell?.backToBack && (
-                      <span className="ml-1 rounded border border-warn px-0.5 text-[9px] font-semibold text-warn" data-testid="back-to-back">
+                      <span className="ml-1 rounded border border-bad bg-card px-0.5 text-[11px] font-semibold text-bad" data-testid="back-to-back">
                         B2B
                       </span>
                     )}
@@ -432,7 +432,7 @@ function WeeksGrid({ weeks }: { weeks: TeamWeek[] }) {
   const total = new Map(teams.map((t) => [t, columns.reduce((n, c) => n + remaining(cell.get(`${t}|${c.fantasy_week}`)), 0)]));
   const ordered = [...teams].sort((a, b) => (total.get(b) ?? 0) - (total.get(a) ?? 0) || a.localeCompare(b));
   return (
-    <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+    <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Games per fantasy week">
       <table className="w-full text-sm" data-testid="weeks-grid">
         <thead>
           <tr>
@@ -949,7 +949,7 @@ export default function Streamers() {
           </div>
         </div>
         <TagLegend />
-        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Streamer candidates">
           <table className="w-full text-sm" data-testid="trending">
             <thead>
               <tr>

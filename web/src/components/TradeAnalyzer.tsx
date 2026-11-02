@@ -562,7 +562,7 @@ export default function TradeAnalyzer() {
 
       {ready && (
         <Card title="The players" id="players">
-          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="The players">
             <table className="w-full text-sm" data-testid="trade-players">
               <thead>
                 <tr>
@@ -596,7 +596,7 @@ export default function TradeAnalyzer() {
 
       {ready && !points && (
         <Card title={change ? 'Your team, category by category' : 'Category by category'} id="categories">
-          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Category by category">
             <table className="w-full text-sm" data-testid="trade-categories">
               <thead>
                 <tr>

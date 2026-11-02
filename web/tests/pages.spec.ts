@@ -553,6 +553,24 @@ for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/']) {
   });
 }
 
+// The week grid tints the days a team plays; a back-to-back tag on that tint must still read, in
+// both themes, and each scrollable table is a region with its own name (#458).
+test('streamers with back-to-backs passes axe, best practices included, in both themes', async ({ page }) => {
+  await page.route('**/schedule/nba*.json', async (route) => {
+    const games = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: games.map((g) => ({ ...g, home_back_to_back: true, away_back_to_back: true })) });
+  });
+  await page.goto('/streamers/?league=nba');
+  await expect(page.getByTestId('back-to-back').first()).toBeVisible();
+  for (let i = 0; i < 2; i++) {
+    const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'best-practice']).analyze();
+    expect(results.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
+    await page.getByRole('button', { name: /toggle dark or light theme/i }).click();
+  }
+  const names = await page.locator('main [role="region"]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  expect(new Set(names).size).toBe(names.length);
+});
+
 // Static pages: nothing loads after the first paint. The schema page is checked with every model open.
 for (const path of ['/pipeline/', '/schema/', '/sources/']) {
   test(`${path} has no accessibility violations`, async ({ page }) => {
