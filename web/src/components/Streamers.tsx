@@ -739,7 +739,7 @@ export default function Streamers() {
         </Card>
       )}
 
-      <Card title={scheduleError ? 'Trending up' : complete || !inWeek ? 'Finished strong' : 'Trending up'} id="trending">
+      <Card title={scheduleError ? 'Trending up' : complete || !inWeek ? 'Finished strong' : 'Best pickups this window'} id="trending">
         <div className="mb-3 grid gap-3">
           <fieldset className="flex flex-wrap items-center gap-1" data-testid="needs">
             <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Categories you need (rank by last-ten value in them)</legend>
@@ -843,9 +843,12 @@ export default function Streamers() {
                 <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')} pin="first">
                   Player
                 </SortTh>
+                {inWeek && col('window_value', 'Window value', 'What the player adds to the window: last-ten production per game (counting stats and shooting above the pool, turnovers subtracted) times games in the window, plus each game’s matchup. The default sort: it finds the week’s best pickups most often (streamer signals notebook)')}
+                {inWeek && col('games_window', `Next ${horizon}`, `Team games in the next ${horizon} days`)}
+                {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
+                {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
                 <Th>Team</Th>
                 <Th>Pos</Th>
-                {inWeek && col('games_window', `Next ${horizon}`, `Team games in the next ${horizon} days`)}
                 {col('minutes_avg_5', 'Min (5)', 'Minutes per game, last five games')}
                 {col('minutes_baseline', 'Min (base)', 'Minutes per game before the last five games, blended with last season')}
                 {col('minutes_trend', 'Min trend', 'Last five games minus the baseline')}
@@ -870,9 +873,6 @@ export default function Streamers() {
                 {col('turnovers_avg_5', 'TO')}
                 {needs.size > 0 && col('fit', 'Need fit', 'Last-ten z-score summed over the categories you need')}
                 {pickedDays.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
-                {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
-                {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
-                {inWeek && col('window_value', 'Window value', 'What the player adds to the window: last-ten production per game (counting stats and shooting above the pool, turnovers subtracted) times games in the window, plus each game’s matchup. The default sort: it finds the week’s best pickups most often (streamer signals notebook)')}
                 {hasTrend && (
                   <Th right>
                     <span title="Rising or falling across ESPN leagues (ownership up or down a point or more)">ESPN</span>
@@ -886,10 +886,10 @@ export default function Streamers() {
             <tbody>
               {list.slice(0, shown).map((r) => (
                 <tr key={r.player_id} className="border-t border-line">
-                  <Td pin="first">
-                    <span className="flex items-center gap-1 whitespace-nowrap">
+                  <td className="pin max-w-[11rem] px-2 py-1.5 sm:max-w-none">
+                    <span className="flex flex-wrap items-center gap-1 sm:flex-nowrap">
                       <Star on={watched.has(r.player_id)} label={r.full_name ?? r.player_id} onToggle={() => toggleWatched(r.player_id)} />
-                      <a href={href(`/p/${league}/${r.player_id}/`)} className="underline-offset-4 hover:underline">
+                      <a href={href(`/p/${league}/${r.player_id}/`)} className="whitespace-nowrap underline-offset-4 hover:underline">
                         {r.full_name ?? r.player_id}
                       </a>
                       {r.is_new_team && <NewTeam from={r.prev_team_abbreviation} />}
@@ -898,10 +898,17 @@ export default function Streamers() {
                       <NewsTag flag={r.news_flag} headline={r.news_headline} date={r.news_date} />
                       <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />
                     </span>
-                  </Td>
+                  </td>
+                  {inWeek && <Td right>{fmt(r.window_value, 2)}</Td>}
+                  {inWeek && <Td right>{r.games_window}</Td>}
+                  {inWeek && (
+                    <Td right>
+                      <Signed value={r.matchup} />
+                    </Td>
+                  )}
+                  {inWeek && <Td right>{fmt(r.implied_points, 1)}</Td>}
                   <Td>{r.team_abbreviation ?? '–'}</Td>
                   <Td>{r.position ?? '–'}</Td>
-                  {inWeek && <Td right>{r.games_window}</Td>}
                   <Td right>{fmt(r.minutes_avg_5)}</Td>
                   <Td right>{fmt(r.minutes_baseline)}</Td>
                   <Td right>
@@ -930,13 +937,6 @@ export default function Streamers() {
                       {r.games_picked}/{pickedDays.size}
                     </Td>
                   )}
-                  {inWeek && (
-                    <Td right>
-                      <Signed value={r.matchup} />
-                    </Td>
-                  )}
-                  {inWeek && <Td right>{fmt(r.implied_points, 1)}</Td>}
-                  {inWeek && <Td right>{fmt(r.window_value, 2)}</Td>}
                   {hasTrend && (
                     <Td right>
                       <TrendTag trend={r.ownership_trend} />
