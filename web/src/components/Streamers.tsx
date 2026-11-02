@@ -9,6 +9,7 @@ import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
+import { fantasyPoints } from '../lib/league-value';
 import { Card, Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 
 interface StreamerRow {
@@ -59,6 +60,17 @@ interface StreamerRow {
   value_baseline: number | null;
   season_z_total: number | null;
   last_10_z_total: number | null;
+  last_10_points_pg: number | null;
+  last_10_rebounds_total_pg: number | null;
+  last_10_assists_pg: number | null;
+  last_10_steals_pg: number | null;
+  last_10_blocks_pg: number | null;
+  last_10_three_pointers_made_pg: number | null;
+  last_10_turnovers_pg: number | null;
+  last_10_fga_pg: number | null;
+  last_10_fta_pg: number | null;
+  last_10_fgm_pg: number | null;
+  last_10_ftm_pg: number | null;
   value_trend: number | null;
   board_rank: number | null;
   board_value: number | null;
@@ -520,20 +532,48 @@ export default function Streamers() {
     return { teamDates: dates, teamMatchups: matchups, teamImplied: implied };
   }, [games, days]);
 
-  // The league's categories: an 8-category league leaves out turnovers.
+  // The league's categories: an 8-category league leaves out turnovers. A points league scores
+  // the last-ten per-game line with its own weights instead (#467).
   const cats8 = setup.scoring === 'cats8';
+  const points = setup.scoring === 'points';
+  const weights = setup.weights;
+  const last10Points = useCallback(
+    (r: StreamerRow): number | null => {
+      if (r.last_10_points_pg === null || r.last_10_points_pg === undefined) return null;
+      return fantasyPoints(
+        {
+          proj_points_pg: r.last_10_points_pg,
+          proj_rebounds_total_pg: r.last_10_rebounds_total_pg,
+          proj_assists_pg: r.last_10_assists_pg,
+          proj_steals_pg: r.last_10_steals_pg,
+          proj_blocks_pg: r.last_10_blocks_pg,
+          proj_three_pointers_made_pg: r.last_10_three_pointers_made_pg,
+          proj_turnovers_pg: r.last_10_turnovers_pg,
+          proj_fgm_pg: r.last_10_fgm_pg,
+          proj_fga_pg: r.last_10_fga_pg,
+          proj_ftm_pg: r.last_10_ftm_pg,
+          proj_fta_pg: r.last_10_fta_pg,
+        },
+        weights,
+      );
+    },
+    [weights],
+  );
   const value10 = useCallback(
-    (r: StreamerRow): number | null =>
-      r.last_10_z_total === null ? null : cats8 ? r.last_10_z_total - ((r.last_10_z_turnovers as number | null) ?? 0) : r.last_10_z_total,
-    [cats8],
+    (r: StreamerRow): number | null => {
+      if (points) return last10Points(r);
+      return r.last_10_z_total === null ? null : cats8 ? r.last_10_z_total - ((r.last_10_z_turnovers as number | null) ?? 0) : r.last_10_z_total;
+    },
+    [cats8, points, last10Points],
   );
   const production10 = useCallback(
     (r: StreamerRow): number | null => {
+      if (points) return last10Points(r);
       const p = r.last_10_production as number | null | undefined;
       if (typeof p !== 'number') return null;
       return cats8 ? p - ((r.last_10_production_turnovers as number | null) ?? 0) : p;
     },
-    [cats8],
+    [cats8, points, last10Points],
   );
   // The manager's league pool (teams x roster spots), as a likely-available cut.
   const leaguePool = setup.teams * setup.rosterSpots;
@@ -559,11 +599,12 @@ export default function Streamers() {
           implied_points: pts.length ? pts.reduce((s, v) => s + v, 0) / pts.length : null,
           value_10: value10(r),
           production_10: production10(r),
-          window_value: production10(r) === null || !dates.size ? null : (production10(r) ?? 0) * dates.size + muSum,
+          // a points league's window is fantasy points times games; the matchup is in category units and stays out
+          window_value: production10(r) === null || !dates.size ? null : (production10(r) ?? 0) * dates.size + (points ? 0 : muSum),
           sleeper_net: r.waiver_trend ? (r.sleeper_adds ?? 0) - (r.sleeper_drops ?? 0) : null,
         };
       }),
-    [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs, value10, production10],
+    [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs, value10, production10, points],
   );
 
   const hasHeat = (rows ?? []).some((r) => r.waiver_trend);
@@ -808,7 +849,15 @@ export default function Streamers() {
                 {col('minutes_avg_5', 'Min (5)', 'Minutes per game, last five games')}
                 {col('minutes_baseline', 'Min (base)', 'Minutes per game before the last five games, blended with last season')}
                 {col('minutes_trend', 'Min trend', 'Last five games minus the baseline')}
-                {col('value_10', 'Value (10)', cats8 ? 'Total category z-score over the last ten games, turnovers left out (8 categories)' : 'Total category z-score over the last ten games')}
+                {col(
+                  'value_10',
+                  points ? 'FPts (10)' : 'Value (10)',
+                  points
+                    ? "Fantasy points per game over the last ten games, scored with your league's weights"
+                    : cats8
+                      ? 'Total category z-score over the last ten games, turnovers left out (8 categories)'
+                      : 'Total category z-score over the last ten games',
+                )}
                 {col('value_trend', 'Value trend', 'Last-ten value minus the baseline (this season blended with last)')}
                 {col('points_avg_5', 'PTS')}
                 {col('rebounds_total_avg_5', 'REB')}
@@ -910,10 +959,10 @@ export default function Streamers() {
             Show {Math.min(PAGE, list.length - shown)} more
           </button>
         )}
-        {setup.scoring === 'points' && (
+        {points && (
           <p className="mt-2 text-xs text-muted" data-testid="points-note">
-            Your league scores points: the values here are category z-scores. Sort by the per-game columns, or use the
-            Board&apos;s fantasy points, to compare by points.
+            Your league scores points: FPts (10) and the window value are fantasy points per game over the last ten games under your
+            league&apos;s weights (the matchup adjustment is in category units and is left out).
           </p>
         )}
         {hasHeat && (

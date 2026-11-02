@@ -264,6 +264,47 @@ test('a schedule that fails to load is said to have failed, not to be empty', as
   await expect(page.locator('body')).not.toContainText('regular-season games in the next seven days');
 });
 
+test('a points league sees fantasy points per game on Streamers, not category z-scores', async ({ page }) => {
+  await page.goto('/league/');
+  await page.getByLabel('Scoring').selectOption('points');
+  await expect(page.getByTestId('point-weights')).toBeVisible();
+  await page.goto('/streamers/');
+  const table = page.getByTestId('trending');
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  await expect(table.locator('thead')).toContainText('FPts (10)');
+  await expect(table.locator('thead')).not.toContainText('Value (10)');
+  await expect(page.getByTestId('points-note')).toContainText('fantasy points per game');
+  const rows = (await (await page.request.get('/data/builds/fixture/streamers/wnba.json')).json()) as {
+    full_name: string | null;
+    last_10_points_pg: number | null;
+    last_10_rebounds_total_pg: number | null;
+    last_10_assists_pg: number | null;
+    last_10_steals_pg: number | null;
+    last_10_blocks_pg: number | null;
+    last_10_three_pointers_made_pg: number | null;
+    last_10_turnovers_pg: number | null;
+    last_10_fgm_pg: number | null;
+    last_10_fga_pg: number | null;
+    last_10_ftm_pg: number | null;
+    last_10_fta_pg: number | null;
+  }[];
+  const sample = rows.find((r) => r.full_name && r.last_10_points_pg !== null);
+  if (sample) {
+    // ESPN default weights: 1 pt, 1 reb, 2 ast, 4 stl, 4 blk, 1 3pm, -2 to, 2 fgm, -1 fga, 1 ftm, -1 fta
+    const expected =
+      (sample.last_10_points_pg ?? 0) + (sample.last_10_rebounds_total_pg ?? 0) + 2 * (sample.last_10_assists_pg ?? 0) +
+      4 * (sample.last_10_steals_pg ?? 0) + 4 * (sample.last_10_blocks_pg ?? 0) + (sample.last_10_three_pointers_made_pg ?? 0) -
+      2 * (sample.last_10_turnovers_pg ?? 0) + 2 * (sample.last_10_fgm_pg ?? 0) - (sample.last_10_fga_pg ?? 0) +
+      (sample.last_10_ftm_pg ?? 0) - (sample.last_10_fta_pg ?? 0);
+    await page.getByLabel('Search players').fill(sample.full_name ?? '');
+    const row = table.locator('tbody tr').filter({ hasText: sample.full_name ?? '' }).first();
+    const headers = await table.locator('thead th').allInnerTexts();
+    const index = headers.findIndex((h) => h.includes('FPts (10)'));
+    const shown = Number((await row.locator('td').nth(index).innerText()).replace(/[^\d.-]/g, ''));
+    expect(Math.abs(shown - expected)).toBeLessThan(0.06);
+  }
+});
+
 test('streamers can be filtered by position and re-sorted', async ({ page }) => {
   await page.goto('/streamers/');
   const rows = page.getByTestId('trending').locator('tbody tr');
