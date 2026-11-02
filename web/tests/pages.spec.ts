@@ -1074,6 +1074,46 @@ test('the Trade page can judge a trade for this fantasy week and counts the game
   await expect(verdict).toContainText('rest of season');
 });
 
+test('a head-to-head league picks this week\'s opponent on the board and sees the categories it projects to win', async ({ page }) => {
+  // Everyone has three games left this week.
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { games_this_week: number | null }[];
+  await page.route('**/board/nba.json', (route) => route.fulfill({ json: board.map((r) => ({ ...r, games_this_week: 3 })) }));
+  await page.goto('/?league=nba');
+  const rows = page.getByTestId('board').locator('tbody tr[data-player]');
+  await expect(rows.first()).toBeVisible();
+  const names = await Promise.all([0, 1, 2, 60].map((i) => rows.nth(i).locator('a').first().innerText()));
+  await page.goto('/league/?league=nba');
+  await page.getByLabel('Format').selectOption('h2h');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(names.slice(0, 3).join('\n'));
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 3');
+  await cards.nth(1).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 2', { exact: true }).fill(names[3] ?? '');
+  await cards.nth(1).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(1).getByTestId('paste-result')).toContainText('Added 1');
+  await page.goto('/?league=nba');
+  await expect(page.getByTestId('league-summary')).toContainText('head-to-head');
+  const matchupCard = page.getByTestId('matchup');
+  await expect(matchupCard.getByTestId('matchup-summary')).toContainText('Pick the team you face');
+  await matchupCard.getByLabel("This week's opponent").selectOption({ label: 'Team 2' });
+  // three of the best against one player far down the board: most categories are won; turnovers go the other way
+  await expect(matchupCard.getByTestId('matchup-summary')).toContainText(/win [5-9] of 9 categories against Team 2/);
+  await expect(matchupCard.getByTestId('matchup-summary')).toContainText('Games left this week: you 9, Team 2 3');
+  await expect(matchupCard.getByTestId('matchup-row')).toHaveCount(9);
+  await expect(matchupCard.getByTestId('matchup-row').filter({ hasText: 'TO' })).toContainText('loss');
+  // Fit is now judged against the opponent, the bar names the categories behind, and the review defaults to this week
+  await expect(page.getByTestId('board').locator('[title*="against Team 2 this week"]')).toHaveCount(1);
+  await expect(page.getByTestId('league-bar')).toContainText('Behind this week');
+  await expect(page.getByTestId('upgrades').getByRole('radio', { name: 'This week' })).toHaveAttribute('aria-checked', 'true');
+  // the opponent survives a reload and can be cleared
+  await page.reload();
+  await expect(matchupCard.getByTestId('matchup-row')).toHaveCount(9);
+  await matchupCard.getByLabel("This week's opponent").selectOption('');
+  await expect(matchupCard.getByTestId('matchup-summary')).toContainText('Pick the team you face');
+});
+
 test('a roster of the two best players is told it is optimized as is', async ({ page }) => {
   await page.goto('/');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');

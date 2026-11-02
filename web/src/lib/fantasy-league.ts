@@ -9,6 +9,8 @@ import type { League } from './data';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
 
 export type Scoring = 'cats9' | 'cats8' | 'points';
+/** Rotisserie ranks season totals against every team; head-to-head plays one opponent a week. */
+export type Format = 'roto' | 'h2h';
 
 /** Stats a points league scores, read from the projected per-game line. */
 export const POINT_STATS = [
@@ -45,6 +47,7 @@ export interface LeagueSettings {
   rosterSpots: number;
   scoring: Scoring;
   weights: PointWeights;
+  format: Format;
 }
 
 export interface Pick {
@@ -62,12 +65,14 @@ export interface LeagueSetup extends LeagueSettings {
   il: string[];
   drafting: boolean;
   picks: Pick[];
+  /** The team the manager faces this week in a head-to-head league, by index; null until chosen. */
+  opponent: number | null;
 }
 
 /** The league the published values assume (dbt var `fantasy`). */
 export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
-  nba: { teams: 12, rosterSpots: 13, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights },
-  wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights },
+  nba: { teams: 12, rosterSpots: 13, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto' },
+  wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto' },
 };
 
 export const MIN_TEAMS = 4;
@@ -86,17 +91,21 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
   const il = (raw.il ?? []).filter((id, i, all) => typeof id === 'string' && seen.has(id) && all.indexOf(id) === i);
   const mine = Math.min(teams - 1, Math.max(0, raw.mine ?? 0));
   const picks = (raw.picks ?? []).filter((p) => p.team < teams && rosters[p.team]?.includes(p.player));
+  // The opponent is another team in the league, or not chosen.
+  const opponent = typeof raw.opponent === 'number' && Number.isInteger(raw.opponent) && raw.opponent >= 0 && raw.opponent < teams && raw.opponent !== mine ? raw.opponent : null;
   return {
     teams,
     rosterSpots: Math.min(20, Math.max(6, Math.round(raw.rosterSpots ?? fallback.rosterSpots))),
     scoring: raw.scoring ?? fallback.scoring,
     weights: { ...fallback.weights, ...raw.weights },
+    format: raw.format === 'h2h' || raw.format === 'roto' ? raw.format : fallback.format,
     names,
     rosters,
     mine,
     il,
     drafting: raw.drafting ?? false,
     picks,
+    opponent,
   };
 }
 
@@ -148,8 +157,9 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
  * 1: the first League page (teams, names, rosters, mine, picks); the board's Mine marks lived
  *    under their own key and joined the manager's team on first read.
  * 2: the injured list (`il`) and the point-scoring weights.
+ * 3: the league format (`format`: roto or head-to-head) and this week's opponent (`opponent`).
  */
-export const SETUP_VERSION = 2;
+export const SETUP_VERSION = 3;
 
 export interface StoredSetup extends LeagueSetup {
   version: number;
@@ -174,6 +184,10 @@ export function migrate(raw: unknown, fallback: LeagueSettings, legacy: LegacySt
     // 1 -> 2: the injured list arrives empty; the weights take the league's preset. (The next step,
     // when there is one, follows here and reads the object as version 2.)
     value = { ...value, il: Array.isArray(value.il) ? value.il : [], weights: { ...fallback.weights, ...value.weights } };
+  }
+  if (version <= 2) {
+    // 2 -> 3: every league so far was rotisserie, with no opponent to face.
+    value = { ...value, format: fallback.format, opponent: null };
   }
   const setup = normalize(value, fallback);
   if (legacy.marks?.length) {

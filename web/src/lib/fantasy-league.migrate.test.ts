@@ -20,10 +20,16 @@ describe('the stored league setup migrates by version', () => {
       { teams: 4, il: [], mine: 1, rosters: [['p1'], [], [], []] },
     ],
     [
-      'version 2: as stored',
+      'version 2 (no format, no opponent): rotisserie, nobody to face',
       { version: 2, teams: 4, rosters: [['p1', 'p2'], [], [], []], il: ['p2'], mine: 0, scoring: 'points' },
       {},
-      { teams: 4, il: ['p2'], mine: 0, rosters: [['p1', 'p2'], [], [], []] },
+      { teams: 4, il: ['p2'], mine: 0, rosters: [['p1', 'p2'], [], [], []], format: 'roto', opponent: null },
+    ],
+    [
+      'version 3: as stored',
+      { version: 3, teams: 4, rosters: [['p1'], ['p2'], [], []], il: [], mine: 0, format: 'h2h', opponent: 1 },
+      {},
+      { teams: 4, il: [], mine: 0, rosters: [['p1'], ['p2'], [], []], format: 'h2h', opponent: 1 },
     ],
     [
       'a newer build\'s object keeps what this build understands',
@@ -39,7 +45,7 @@ describe('the stored league setup migrates by version', () => {
     expect('version' in setup).toBe(false);
   });
 
-  it('is at version 2', () => {
-    expect(SETUP_VERSION).toBe(2);
+  it('is at version 3', () => {
+    expect(SETUP_VERSION).toBe(3);
   });
 });
