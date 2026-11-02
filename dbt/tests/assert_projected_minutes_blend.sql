@@ -1,4 +1,4 @@
-{{ config(severity='error', tags=['board']) }}
+{{ config(severity='error', tags=['board', 'quality']) }}
 
 -- Projected minutes are the season-weighted figure, or in season a blend of it with the last
 -- five games (var fantasy_recent_minutes): never outside the two once the return ramp's cut

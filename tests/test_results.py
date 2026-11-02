@@ -22,11 +22,15 @@ RUN_AT = datetime(2026, 10, 27, 9, 30)
 
 
 def write_artifacts(
-    target: Path, results: list[dict[str, object]], nodes: dict[str, dict[str, object]]
+    target: Path,
+    results: list[dict[str, object]],
+    nodes: dict[str, dict[str, object]],
+    *,
+    invocation_id: str = "abcdef123456-7890",
 ) -> None:
     target.mkdir(parents=True, exist_ok=True)
     (target / "run_results.json").write_text(
-        json.dumps({"metadata": {"invocation_id": "abcdef123456-7890"}, "results": results}),
+        json.dumps({"metadata": {"invocation_id": invocation_id}, "results": results}),
         encoding="utf-8",
     )
     (target / "manifest.json").write_text(json.dumps({"nodes": nodes}), encoding="utf-8")
@@ -181,11 +185,17 @@ def test_a_selected_build_is_judged_with_the_quality_checks_and_says_so(tmp_path
                 "depends_on": {"nodes": ["model.fantasyscout.fct_player_game"]},
             },
         },
+        invocation_id="0123456789ab-cdef",
     )
     load = lambda d: load_rows(d, engine="duckdb", git_sha="abc", run_at=RUN_AT)  # noqa: E731
     rows = merge_rows(load(selected), load(quality))
     # One row per node: the closure check appears once even though both runs reported it.
     assert [r.node_id for r in rows].count("test.fantasyscout.assert_box_closure.1") == 1
+    # Every row is filed under the selected build's run id, which the gate is recorded under and
+    # Data Health reads the checks by (#399); the quality rows keep their own invocation id.
+    assert {r.run_id for r in rows} == {"abcdef123456"}
+    completeness = next(r for r in rows if r.check_name == "assert_completeness")
+    assert completeness.invocation_id == "0123456789ab-cdef"
     gate = decide(rows, selected="+mart_board")
     assert not gate.passed
     assert gate.reason.startswith("selected build (+mart_board); blocked by: assert_completeness")
