@@ -158,7 +158,7 @@ Every passing nightly build publishes a data build to the `fantasyscout-data` bu
 
 ## Warehouse refuses statements
 
-The lakehouse answers every SQL Statement API call with HTTP 400 "The request could not be processed by the warehouse." It happened on 2026-11-01 (issue #366): the afternoon build had used the warehouse, then a hand export failed three times and two queries the same way, and the warehouse answered again by itself after a few hours. The code retries a refused submission four times over about a minute (`ops/results.py`), so a warehouse that is only waking up is covered; one that refuses for longer is not.
+The lakehouse answers every SQL Statement API call with HTTP 400 "The request could not be processed by the warehouse." It happened on 2026-11-01 (issue #366): the afternoon build had used the warehouse, then a hand export failed three times and two queries the same way, and the warehouse answered again by itself after a few hours. Every statement the pipeline submits (the gate, the summary queries and the export's reads) retries a refused submission eight times over about five minutes (5, 10, 20, 30 seconds, then four times a minute; `export/source.py`), so a warehouse that is waking up, or refuses for a few minutes, is covered; one that refuses for longer is not.
 
 Who notices: the watchdog runs one statement every six hours and opens "Warehouse refuses statements" when it does not run; a hand export opens "Export failure"; the nightly build fails at dbt. A Query run goes red (`--strict`) but opens nothing, since a typo looks the same from outside.
 

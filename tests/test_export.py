@@ -10,6 +10,7 @@ import pyarrow as pa
 import pytest
 
 from export import build as build_mod
+from export import source as source_mod
 from export.encode import rows_of, sha256, to_json, to_parquet
 from export.source import DatabricksSource, DuckDBSource
 from export.store import LocalStore, R2Store, content_type_for
@@ -442,6 +443,59 @@ def test_databricks_source_follows_external_links() -> None:
     source.close()
     assert out.num_rows == 2 and out.column_names == ["league", "n"]
     assert seen_auth == [False, False], "pre-signed links are fetched without the token"
+
+
+def test_databricks_source_retries_a_warehouse_that_is_waking_up() -> None:
+    """#402: the export's own queries retry a transient refusal, as the gate's do."""
+    table = pa.table({"n": [7]})
+    sink = pa.BufferOutputStream()
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    ipc = sink.getvalue().to_pybytes()
+    answers = [
+        httpx.Response(
+            400, json={"message": "The request could not be processed by the warehouse."}
+        ),
+        httpx.Response(503, text="unavailable"),
+        httpx.Response(
+            200,
+            json={
+                "statement_id": "s1",
+                "status": {"state": "SUCCEEDED"},
+                "manifest": {"schema": {"columns": [{"name": "n"}]}},
+                "result": {
+                    "external_links": [{"chunk_index": 0, "external_link": "https://links/0"}]
+                },
+            },
+        ),
+    ]
+    pauses: list[float] = []
+    source = DatabricksSource(
+        "https://x",
+        "t",
+        "w",
+        transport=httpx.MockTransport(lambda request: answers.pop(0)),
+        link_transport=httpx.MockTransport(lambda request: httpx.Response(200, content=ipc)),
+        sleep=0.0,
+        pause=pauses.append,
+    )
+    out = source.query("select 7 as n")
+    assert out.to_pylist() == [{"n": 7}]
+    assert pauses == [5.0, 10.0]
+    # a refusal that is not transient fails at once, without waiting
+    bad = DatabricksSource(
+        "https://x",
+        "t",
+        "w",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(400, json={"message": "Invalid warehouse id"})
+        ),
+        pause=pauses.append,
+    )
+    with pytest.raises(RuntimeError, match="Invalid warehouse id"):
+        bad.query("select 1")
+    assert pauses == [5.0, 10.0]
+    assert sum(source_mod.SUBMISSION_PAUSES) >= 300, "about five minutes of retries in all"
 
 
 def test_databricks_source_refuses_an_empty_warehouse() -> None:
