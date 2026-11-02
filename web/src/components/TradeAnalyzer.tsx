@@ -11,7 +11,7 @@ import { currentLeague } from '../lib/league';
 import { DEFAULT_SETTINGS, isDefaultSettings, owners, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues } from '../lib/league-value';
 import { href } from '../lib/site';
-import { nearestInValue, openSide, suggestTrades } from '../lib/trade-suggest';
+import { nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { describeSettings } from './LeagueParts';
 import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th } from './ui';
@@ -221,6 +221,21 @@ export default function TradeAnalyzer() {
   const nearest = ready && !hasRosters ? nearestInValue(targetSide === 'get' ? get : give, restOf, [...give, ...get]) : [];
   const nameOf = (id: string) => byId.get(id)?.full_name ?? id;
   const nameList = (ids: string[]) => ids.map(nameOf).join(' + ');
+  const applySuggestion = (s: Suggestion) => {
+    setGive(s.give);
+    setGet(s.get);
+  };
+  /** The categories a suggestion moves your rank in, up and down. */
+  const rankChanges = (s: Suggestion) =>
+    s.ups.length || s.downs.length ? (
+      <span className="whitespace-nowrap">
+        {s.ups.length > 0 && <span className="text-good">↑ {s.ups.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</span>}
+        {s.ups.length > 0 && s.downs.length > 0 && ' '}
+        {s.downs.length > 0 && <span className="text-bad">↓ {s.downs.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</span>}
+      </span>
+    ) : (
+      <span className="text-muted">no rank changes</span>
+    );
 
   const add = (side: Side, id: string) => (side === 'give' ? setGive : setGet)((s) => (s.includes(id) ? s : [...s, id]));
   const remove = (side: Side, id: string) => (side === 'give' ? setGive : setGet)((s) => s.filter((x) => x !== id));
@@ -451,55 +466,63 @@ export default function TradeAnalyzer() {
       {ready && hasRosters && (
         <Card title="Suggested trades" id="suggestions">
           {suggestions.length ? (
-            <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
-              <table className="w-full text-sm" data-testid="trade-suggestions">
-                <thead>
-                  <tr>
-                    <Th>You give</Th>
-                    <Th>You get</Th>
-                    <Th right>Net</Th>
-                    {!points && <Th>Your ranks</Th>}
-                    <Th>{''}</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {suggestions.map((s) => (
-                    <tr key={`${s.give.join()}>${s.get.join()}`} className="border-t border-line">
-                      <Td>{nameList(s.give)}</Td>
-                      <Td>{nameList(s.get)}</Td>
-                      <Td right>
+            <>
+              {/* A phone gets a stacked list, so each suggestion's button is on screen (#455); wider screens the table. */}
+              <ul className="grid gap-2 text-sm md:hidden" data-testid="trade-suggestions-list">
+                {suggestions.map((s) => (
+                  <li key={`${s.give.join()}>${s.get.join()}`} className="grid gap-1 rounded border border-line p-2">
+                    <p>
+                      <span className="text-xs text-muted">You give </span>
+                      {nameList(s.give)}
+                    </p>
+                    <p>
+                      <span className="text-xs text-muted">You get </span>
+                      {nameList(s.get)}
+                    </p>
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span>
+                        <span className="text-xs text-muted">Net </span>
                         <Signed value={s.net} digits={1} />
-                      </Td>
-                      {!points && (
-                        <Td>
-                          {s.ups.length || s.downs.length ? (
-                            <span className="whitespace-nowrap">
-                              {s.ups.length > 0 && <span className="text-good">↑ {s.ups.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</span>}
-                              {s.ups.length > 0 && s.downs.length > 0 && ' '}
-                              {s.downs.length > 0 && <span className="text-bad">↓ {s.downs.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</span>}
-                            </span>
-                          ) : (
-                            <span className="text-muted">no rank changes</span>
-                          )}
-                        </Td>
-                      )}
-                      <Td>
-                        <button
-                          type="button"
-                          className={button}
-                          onClick={() => {
-                            setGive(s.give);
-                            setGet(s.get);
-                          }}
-                        >
-                          Use this trade
-                        </button>
-                      </Td>
+                      </span>
+                      {!points && rankChanges(s)}
+                    </p>
+                    <button type="button" className={`${button} justify-self-start`} onClick={() => applySuggestion(s)}>
+                      Use this trade
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="table-scroll hidden overflow-auto md:block" tabIndex={0} role="region" aria-label="Suggested trades">
+                <table className="w-full text-sm" data-testid="trade-suggestions">
+                  <thead>
+                    <tr>
+                      <Th>You give</Th>
+                      <Th>You get</Th>
+                      <Th right>Net</Th>
+                      {!points && <Th>Your ranks</Th>}
+                      <Th>{''}</Th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {suggestions.map((s) => (
+                      <tr key={`${s.give.join()}>${s.get.join()}`} className="border-t border-line">
+                        <Td>{nameList(s.give)}</Td>
+                        <Td>{nameList(s.get)}</Td>
+                        <Td right>
+                          <Signed value={s.net} digits={1} />
+                        </Td>
+                        {!points && <Td>{rankChanges(s)}</Td>}
+                        <Td>
+                          <button type="button" className={button} onClick={() => applySuggestion(s)}>
+                            Use this trade
+                          </button>
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           ) : (
             <p className="text-sm text-muted" data-testid="trade-no-suggestions">
               {open === 'give' && !active(setup.mine).length

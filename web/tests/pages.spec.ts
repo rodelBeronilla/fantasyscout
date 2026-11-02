@@ -1008,10 +1008,26 @@ test("with league rosters set up, the Trade page picks from them and shows the m
   await expect(page.getByTestId('roster-get').locator('li')).toHaveCount(1);
   // Asking for a partner's player suggests packages from the manager's roster that make it about even.
   await page.getByTestId('roster-get').getByRole('checkbox').first().check();
-  const suggestions = page.getByTestId('trade-suggestions');
-  await expect(suggestions.locator('tbody tr').first()).toBeVisible();
-  await expect(suggestions.locator('thead')).toContainText('Your ranks');
-  await suggestions.getByRole('button', { name: 'Use this trade' }).first().click();
+  // A wide screen gets the table; a phone a stacked list whose buttons are on screen (#455).
+  const width = page.viewportSize()!.width;
+  if (width >= 768) {
+    const suggestions = page.getByTestId('trade-suggestions');
+    await expect(suggestions.locator('tbody tr').first()).toBeVisible();
+    await expect(suggestions.locator('thead')).toContainText('Your ranks');
+    await expect(page.getByTestId('trade-suggestions-list')).toBeHidden();
+  } else {
+    const list = page.getByTestId('trade-suggestions-list');
+    await expect(list.locator('li').first()).toContainText('You give');
+    await expect(list.locator('li').first()).toContainText('Net');
+    await expect(page.getByTestId('trade-suggestions')).toBeHidden();
+    const use = list.getByRole('button', { name: 'Use this trade' }).first();
+    await use.scrollIntoViewIfNeeded();
+    const box = (await use.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  }
+  await page.getByRole('button', { name: 'Use this trade' }).first().click();
   await expect(page.getByTestId('picked-give').locator('li').first()).toBeVisible();
   await expect(page.getByTestId('trade-verdict')).toBeVisible();
   const cats = page.getByTestId('trade-categories');
