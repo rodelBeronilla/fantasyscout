@@ -10,6 +10,8 @@
     "typecheck": "npm run types && tsc --noEmit",
     "test": "npm run types && vitest run",
     "csp": "node scripts/csp-hashes.mjs",
+    "pretypecheck": "npm run csp",
+    "predev": "npm run csp",
     "pretest": "npm run csp",
     "precheck": "npm run csp",
     "predeploy": "npm run csp"
