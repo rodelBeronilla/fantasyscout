@@ -34,6 +34,11 @@ const MUTABLE_UNDER_BUILDS = /^builds\/[^/]+\/(?:keys\.txt|(?:[^/]+\/)*index\.js
 function isMutable(key: string): boolean {
   return POINTER_KEYS.has(key) || MUTABLE_UNDER_BUILDS.test(key);
 }
+
+/** The cache-control a data file is served with: a minute for the mutable keys, a year for the rest. */
+function clientCache(key: string, isPrivate = false): string {
+  return isMutable(key) ? 'public, max-age=60' : `${isPrivate ? 'private' : 'public'}, max-age=31536000, immutable`;
+}
 /** Player pages are addressed by league and id but rendered by one page. */
 export const PLAYER_PATH = /^\/p\/(wnba|nba)\/[^/]+\/?$/;
 
@@ -193,10 +198,7 @@ async function serveData(request: Request, env: Env, rawKey: string, isPrivate =
   object.writeHttpMetadata(headers);
   headers.set('etag', object.httpEtag);
   headers.set('accept-ranges', 'bytes');
-  headers.set(
-    'cache-control',
-    isMutable(key) ? 'public, max-age=60' : `${isPrivate ? 'private' : 'public'}, max-age=31536000, immutable`,
-  );
+  headers.set('cache-control', clientCache(key, isPrivate));
   if (!headers.has('content-type')) headers.set('content-type', contentTypeFor(key));
 
   // A conditional request that was not satisfied comes back without a body.
@@ -339,7 +341,20 @@ export default {
         !request.headers.has('if-modified-since');
       if (cacheable) {
         const hit = await caches.default.match(request);
-        if (hit) return withSecurityHeaders(hit, url.pathname);
+        if (hit) {
+          // The header the client sees is the Worker's rule, never what the cache stored: the zone's
+          // browser cache TTL can rewrite a lower max-age on cached responses, which would hold a
+          // pointer in browsers for hours (#382).
+          const out = new Response(hit.body, hit);
+          let key = url.pathname.slice(DATA_PREFIX.length);
+          try {
+            key = decodeURIComponent(key);
+          } catch {
+            // an undecodable path never reached the cache; keep the raw key
+          }
+          out.headers.set('cache-control', clientCache(key, isPrivate));
+          return withSecurityHeaders(out, url.pathname);
+        }
       }
       const served = withSecurityHeaders(
         await serveData(request, env, url.pathname.slice(DATA_PREFIX.length), isPrivate),
