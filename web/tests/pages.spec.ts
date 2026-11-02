@@ -108,6 +108,9 @@ test('every page carries a canonical address without the query, Open Graph tags,
   expect(xml).toContain('<loc>https://fantasyscout.beronilla.rodeo/</loc>');
   expect(xml).not.toContain('/sql/');
   expect(xml).not.toContain('/p/');
+  // A page per Schema model, never its route pattern (#449).
+  expect(xml).toContain('<loc>https://fantasyscout.beronilla.rodeo/schema/mart_board/</loc>');
+  expect(xml).not.toContain('[');
 });
 
 test('a chip shows where keyboard focus is', async ({ page }) => {
@@ -578,14 +581,25 @@ test('streamers with back-to-backs passes axe, best practices included, in both 
   expect(new Set(names).size).toBe(names.length);
 });
 
-// Static pages: nothing loads after the first paint. The schema page is checked with every model open.
-for (const path of ['/pipeline/', '/schema/', '/sources/']) {
+/** Scroll each of the Schema overview's diagrams into view and wait for the drawing to load into it (#449). */
+async function loadSchemaDiagrams(page: Page): Promise<void> {
+  const figures = page.locator('figure[data-testid^="diagram-"]');
+  const n = await figures.count();
+  expect(n).toBeGreaterThanOrEqual(5);
+  for (let i = 0; i < n; i += 1) {
+    await figures.nth(i).scrollIntoViewIfNeeded();
+    await expect(figures.nth(i).locator('[data-diagram-loaded] > svg')).toBeVisible();
+  }
+}
+
+// Static pages. The schema overview is checked with its diagrams loaded, and a model's own page too.
+for (const path of ['/pipeline/', '/schema/', '/schema/mart_board/', '/schema/category_config/', '/sources/']) {
   test(`${path} has no accessibility violations`, async ({ page }) => {
-    // With every model open the schema page is large: axe needs longer than the default.
+    // The lineage drawing is large: axe needs longer than the default.
     test.setTimeout(90_000);
     await page.goto(path);
     await expect(page.locator('main h1')).toBeVisible();
-    await page.evaluate(() => document.querySelectorAll('details').forEach((d) => d.setAttribute('open', '')));
+    if (path === '/schema/') await loadSchemaDiagrams(page);
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(results.violations).toEqual([]);
   });
@@ -646,7 +660,7 @@ test('the dashboards page explains the workbook and lists the extract', async ({
   await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
 });
 
-for (const path of ['/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/']) {
+for (const path of ['/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/', '/schema/mart_board/']) {
   test(`${path} has no horizontal scroll on a phone`, async ({ page, isMobile }) => {
     test.skip(!isMobile, 'mobile project only');
     await page.goto(path);
@@ -688,7 +702,7 @@ test('the pipeline page has its diagrams and seven stages numbered as the data-f
   await expect(page).toHaveURL(/#gate$/);
 });
 
-test('the schema page draws the gold layer by subject area and the lineage, and a model opens to its notes and columns', async ({ page }) => {
+test('the schema page draws the gold layer by subject area and the lineage as each comes into view, and their boxes link to the rows', async ({ page }) => {
   await page.goto('/schema/');
   const areas: Record<string, string[]> = {
     'er-games': ['dim_game', 'fct_player_game', 'mart_player_rolling', 'dim_date'],
@@ -696,9 +710,10 @@ test('the schema page draws the gold layer by subject area and the lineage, and 
     'er-schedule': ['mart_schedule_upcoming', 'dim_team'],
     'er-fantasy': ['mart_board', 'mart_streamers', 'fct_market_value'],
   };
+  // The page holds a place for each drawing and loads it as it nears the screen (#449).
+  await loadSchemaDiagrams(page);
   for (const [id, names] of Object.entries(areas)) {
     const er = page.getByTestId(`diagram-${id}`);
-    await expect(er.locator('svg')).toBeVisible();
     for (const name of names) await expect(er).toContainText(name);
   }
   // Unplayed games are not in dim_game, and dim_player is joined to its current stint.
@@ -714,50 +729,107 @@ test('the schema page draws the gold layer by subject area and the lineage, and 
     }
   }
   const lineage = page.getByTestId('diagram-lineage');
-  await expect(lineage.locator('a[href="#m-mart_board"]')).toHaveCount(1);
   await expect(lineage).toContainText('espn/summary');
+  await expect(page.getByTestId('diagram-er-fantasy').locator('a[href="#m-mart_board"]')).toHaveCount(1);
+  // A box in a drawing lands on the model's row, which links to the model's own page.
+  await lineage.locator('a[href="#m-mart_board"]').click();
+  await expect(page).toHaveURL(/\/schema\/#m-mart_board$/);
+  const row = page.locator('#m-mart_board');
+  await expect(row).toBeInViewport();
+  await expect(row.getByRole('link', { name: 'mart_board', exact: true })).toHaveAttribute('href', /\/schema\/mart_board\/$/);
 
-  const bronze = page.locator('#m-espn_summary_players');
-  await bronze.locator('summary').click();
-  await expect(bronze.getByTestId('landing')).toContainText('landing/espn/summary');
-  await expect(bronze).toContainText('values stay text until silver');
-  const fact = page.locator('#m-fct_player_game');
-  await fact.locator('summary').click();
-  await expect(fact.getByTestId('grain')).toContainText('One row per league, game_id and player_id');
-  await expect(fact.getByTestId('exported')).toContainText('players/<league>/<player_id>.json');
-  await expect(fact.getByTestId('coverage')).toContainText(/\d+\/\d+ described/);
-  await expect(page.locator('#m-fct_market_value').getByTestId('unit-tests')).toContainText('market_value_ranks');
-  await expect(page.getByTestId('unit-tests-list').locator('tbody tr')).not.toHaveCount(0);
-  await expect(page.locator('#seed-category_config')).toContainText('only the export reads it');
+  // Without a script, each drawing is a link to its file.
+  const file = await page.request.get('/schema/diagrams/lineage.svg');
+  expect(file.status()).toBe(200);
+  expect(file.headers()['content-type']).toContain('image/svg+xml');
+  const svg = await file.text();
+  expect(svg.startsWith('<svg')).toBe(true);
+  expect(svg).toContain('espn/summary');
+});
+
+test('the schema overview lists every model and seed as a row, small enough to load at once', async ({ page }) => {
+  await page.goto('/schema/');
   for (const layer of ['bronze', 'silver', 'gold', 'ops']) {
     await expect(page.getByTestId(`layer-${layer}`).getByTestId('model').first()).toBeVisible();
   }
-  const board = page.locator('#m-mart_board');
-  await board.locator('summary').click();
-  await expect(board).toContainText('value above replacement');
-  await expect(board.locator('table')).toContainText('value_total');
+  const fact = page.locator('#m-fct_player_game');
+  await expect(fact).toHaveAttribute('data-testid', 'model');
+  await expect(fact).toContainText('7 checks');
+  await expect(fact.getByTestId('coverage')).toContainText(/\d+\/\d+ described/);
+  await expect(page.locator('#seed-category_config')).toHaveAttribute('data-testid', 'seed');
   await expect(page.getByTestId('checks-list').locator('tbody tr').first()).toBeVisible();
+  await expect(page.locator('#check-assert_box_closure')).toBeAttached();
+  await expect(page.getByTestId('unit-tests-list').locator('tbody tr')).not.toHaveCount(0);
+  // The columns live on each model's page, not here: the page's own markup stays small (#449).
+  await expect(page.locator('tr[data-column], details[data-model]')).toHaveCount(0);
+  const own = await page.evaluate(() => document.querySelectorAll('body *').length - document.querySelectorAll('svg *').length);
+  expect(own).toBeLessThan(3000);
 });
 
-test('the schema page filters models by name or column, and opens or closes them all', async ({ page }) => {
+test('each schema model and seed has its own page with its notes, grain, links and columns', async ({ page }) => {
   await page.goto('/schema/');
+  await page.locator('#m-mart_board').getByRole('link', { name: 'mart_board', exact: true }).click();
+  await expect(page).toHaveURL(/\/schema\/mart_board\/$/);
+  const board = page.getByTestId('schema-model');
+  await expect(board.locator('h1')).toHaveText('mart_board');
+  await expect(board.getByTestId('summary')).toContainText('gold model');
+  await expect(board.getByTestId('coverage')).toContainText(/\d+\/\d+ described/);
+  await expect(board.getByTestId('notes')).toContainText('value above replacement');
+  await expect(board.locator('tr[data-column="value_total"]')).toBeVisible();
+  // Back to its row on the overview.
+  await expect(board.getByRole('link', { name: 'Schema', exact: true })).toHaveAttribute('href', /\/schema\/#m-mart_board$/);
+
+  await page.goto('/schema/fct_player_game/');
+  const fact = page.getByTestId('schema-model');
+  await expect(fact.getByTestId('grain')).toContainText('One row per league, game_id and player_id');
+  await expect(fact.getByTestId('exported')).toContainText('players/<league>/<player_id>.json');
+  await expect(fact.getByTestId('read-by-pages')).not.toBeEmpty();
+  // What it reads and its checks link to their own page and to the overview's checks.
+  await expect(fact.getByTestId('reads').getByRole('link', { name: 'dim_player', exact: true })).toHaveAttribute('href', /\/schema\/dim_player\/$/);
+  await expect(fact.getByTestId('checked-by').getByRole('link', { name: 'assert_box_closure' })).toHaveAttribute(
+    'href',
+    /\/schema\/#check-assert_box_closure$/,
+  );
+  await expect(fact.locator('tr[data-column="player_game_sk"]')).toContainText('unique');
+  await fact.getByTestId('reads').getByRole('link', { name: 'dim_player', exact: true }).click();
+  await expect(page.getByTestId('schema-model').locator('h1')).toHaveText('dim_player');
+
+  await page.goto('/schema/espn_summary_players/');
+  const bronze = page.getByTestId('schema-model');
+  await expect(bronze.getByTestId('landing')).toContainText('landing/espn/summary');
+  await expect(bronze).toContainText('values stay text until silver');
+  await page.goto('/schema/fct_market_value/');
+  await expect(page.getByTestId('unit-tests')).toContainText('market_value_ranks');
+  await page.goto('/schema/category_config/');
+  const seed = page.getByTestId('schema-model');
+  await expect(seed.getByTestId('read-by')).toContainText('only the export reads it');
+  await expect(seed.getByRole('link', { name: 'Schema', exact: true })).toHaveAttribute('href', /\/schema\/#seed-category_config$/);
+  await expect(seed.locator('tr[data-column]')).not.toHaveCount(0);
+});
+
+test('the schema page filters models by name, or by column from the column list it fetches once', async ({ page }) => {
+  let fetched = 0;
+  page.on('request', (r) => {
+    if (r.url().endsWith('/schema/columns.json')) fetched += 1;
+  });
+  await page.goto('/schema/');
+  const all = await page.locator('li[data-model]').count();
   const filter = page.getByLabel('Filter models and columns');
   await filter.fill('mart_board');
-  await expect(page.locator('details[data-model]:visible')).toHaveCount(1);
+  await expect(page.locator('li[data-model]:visible')).toHaveCount(1);
   await expect(page.getByTestId('layer-bronze')).toBeHidden();
   await filter.fill('opponent_team_sk');
-  const match = page.locator('details[data-model]:visible');
+  const match = page.locator('li[data-model]:visible');
   await expect(match).toHaveCount(1);
-  await expect(match).toHaveAttribute('open', '');
-  await expect(match.locator('tbody tr:visible')).toHaveCount(1);
-  await expect(page.getByRole('status')).toContainText('1 of');
+  await expect(match).toHaveAttribute('data-model', 'fct_team_game');
+  await expect(match.getByTestId('column-hits')).toHaveText('column: opponent_team_sk');
+  await expect(page.getByRole('status')).toContainText(`1 of ${all} match, 1 by a column.`);
+  await filter.fill('player_sk');
+  await expect(page.getByTestId('column-hits').first()).toContainText('player_sk');
   await filter.fill('');
-  await expect(page.locator('details[data-model][open]')).toHaveCount(0);
-  const all = await page.locator('details[data-model]').count();
-  await page.getByRole('button', { name: 'Expand all' }).click();
-  await expect(page.locator('details[data-model][open]')).toHaveCount(all);
-  await page.getByRole('button', { name: 'Collapse all' }).click();
-  await expect(page.locator('details[data-model][open]')).toHaveCount(0);
+  await expect(page.locator('li[data-model]:visible')).toHaveCount(all);
+  await expect(page.getByTestId('column-hits')).toHaveCount(0);
+  expect(fetched).toBe(1);
 });
 
 test('the board header stays in view while its rows scroll', async ({ page }) => {
@@ -771,7 +843,7 @@ test('the board header stays in view while its rows scroll', async ({ page }) =>
   expect(Math.abs((headBox?.y ?? 0) - (regionBox?.y ?? -100))).toBeLessThan(2);
 });
 
-for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/notebooks/', '/schema/']) {
+for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/notebooks/', '/schema/', '/schema/mart_board/']) {
   test(`every table on ${path} keeps its header in view`, async ({ page }) => {
     await page.goto(path);
     await expect(page.locator('main table').first()).toBeAttached();

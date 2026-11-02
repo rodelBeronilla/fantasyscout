@@ -1,0 +1,51 @@
+---
+/**
+ * One page per model and seed (#449): what the overview at /schema/ once held in a collapsed
+ * section, so the overview stays small and each model's columns load only when asked for.
+ */
+import SchemaModel from '../../components/SchemaModel.astro';
+import Base from '../../layouts/Base.astro';
+import { coverage, entries, rowHref, summary, type Entry } from '../../lib/schema-page';
+
+export function getStaticPaths() {
+  return entries.map((entry) => ({ params: { name: entry.name }, props: { entry } }));
+}
+
+interface Props {
+  entry: Entry;
+}
+const { entry } = Astro.props;
+const kind = entry.kind === 'seed' ? 'seed' : `${entry.layer} model`;
+const cover = coverage(entry);
+const link = 'underline underline-offset-4';
+---
+
+<Base
+  title={`${entry.name} · Schema`}
+  description={entry.description || `The ${kind} ${entry.name}: its columns with types and descriptions, what it reads and what reads it.`}
+>
+  <section data-testid="schema-model" data-model={entry.name}>
+    <p class="text-sm text-muted">
+      <a href={rowHref(entry.name)} class={link}>Schema</a>
+      <span aria-hidden="true"> / </span>{entry.kind === 'seed' ? 'seeds' : entry.layer}
+    </p>
+    <h1 class="mt-1 font-mono text-2xl font-semibold tracking-tight wrap-anywhere">{entry.name}</h1>
+    <p class="mt-1 text-sm text-muted" data-testid="summary">
+      {entry.kind === 'model' && `${kind} · `}{summary(entry)}
+      {
+        entry.kind === 'model' && (
+          <span
+            class:list={['ml-2 inline-block rounded-full border px-2 text-xs', cover.full ? 'border-good text-good' : 'border-line text-muted']}
+            data-testid="coverage"
+          >
+            {cover.text}
+          </span>
+        )
+      }
+    </p>
+    {entry.description && <p class="mt-2 max-w-3xl">{entry.description}</p>}
+    <div class="mt-4">
+      <SchemaModel entry={entry} />
+    </div>
+  </section>
+</Base>

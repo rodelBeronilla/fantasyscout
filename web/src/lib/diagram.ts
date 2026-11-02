@@ -54,6 +54,16 @@ export async function renderDot(dot: string): Promise<string> {
     .replace(/ xlink:href=/g, ' href=');
 }
 
+/**
+ * The size of a rendered SVG (its width, height and viewBox), so an empty SVG with the same three
+ * attributes can hold the drawing's place on the page until the file loads (#449).
+ */
+export function svgBox(svg: string): { width: string; height: string; viewBox: string } {
+  const open = /<svg\b[^>]*>/.exec(svg)?.[0] ?? '';
+  const attr = (name: string) => new RegExp(`\\s${name}="([^"]*)"`).exec(open)?.[1] ?? '';
+  return { width: attr('width'), height: attr('height'), viewBox: attr('viewBox') };
+}
+
 /** Escape text for a DOT string or an HTML-like label. */
 export function esc(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
