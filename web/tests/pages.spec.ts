@@ -2219,3 +2219,16 @@ test('the board keeps its punts and filters in the URL, through a reload and a c
   await expect(page).not.toHaveURL(/mpg=/);
   await expect(page).toHaveURL(/punt=ft/);
 });
+
+test('"Clear all" on the board clears every punt, not only the last', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
+  await page.getByTestId('board-options-toggle').click();
+  await page.locator('fieldset label', { hasText: /^PTS$/ }).click();
+  await page.locator('fieldset label', { hasText: /^AST$/ }).click();
+  await expect(board.locator('thead s')).toHaveCount(2);
+  await page.getByTestId('active-filters').getByRole('button', { name: 'Clear all' }).click();
+  await expect(page.getByTestId('active-filters')).toHaveCount(0);
+  await expect(board.locator('thead s')).toHaveCount(0);
+});
