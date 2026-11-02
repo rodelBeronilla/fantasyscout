@@ -486,7 +486,7 @@ export default function Board() {
 
   // Filters and options behind the Filters button, each shown as a chip while it applies.
   const active: { label: string; clear: () => void }[] = [
-    ...(!isLine(view) && !points ? [...punts].map((c) => ({ label: `Punt ${CATEGORY_LABELS[c] ?? c}`, clear: () => setPunts(toggle(punts, c)) })) : []),
+    ...(!isLine(view) && !points ? [...punts].map((c) => ({ label: `Punt ${CATEGORY_LABELS[c] ?? c}`, clear: () => setPunts((p) => toggle(p, c)) })) : []),
     ...(view === 'value' && !countGames ? [{ label: 'Games played not counted', clear: () => setCountGames(true) }] : []),
     ...(view === 'value' && restOfSeason && !meta.complete ? [{ label: 'Rest of season', clear: () => setRestOfSeason(false) }] : []),
     ...(team ? [{ label: `Team ${team}`, clear: () => setTeam('') }] : []),
