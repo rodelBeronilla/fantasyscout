@@ -264,6 +264,53 @@ function weekday(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
 }
 
+/** "Mon, Nov 9". */
+function dayLabel(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+/** A period of the manager's own (#523): any start and end day, kept in the URL (?from=&to=) so it can be shared. */
+interface Period {
+  from: string;
+  to: string;
+}
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const PERIOD_MAX_DAYS = 31;
+
+function periodFromUrl(): Period | null {
+  if (typeof window === 'undefined') return null;
+  const q = new URL(window.location.href).searchParams;
+  const from = q.get('from');
+  const to = q.get('to');
+  return from && to && ISO_DAY.test(from) && ISO_DAY.test(to) && from <= to ? { from, to } : null;
+}
+
+function writePeriod(p: Period | null): void {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  if (p) {
+    url.searchParams.set('from', p.from);
+    url.searchParams.set('to', p.to);
+  } else {
+    url.searchParams.delete('from');
+    url.searchParams.delete('to');
+  }
+  window.history.replaceState(null, '', url);
+}
+
+/** The days from one day to another, both included, at most PERIOD_MAX_DAYS. */
+function daysBetween(from: string, to: string): string[] {
+  const out: string[] = [];
+  for (let d = from; d <= to && out.length < PERIOD_MAX_DAYS; d = addDays(d, 1)) out.push(d);
+  return out;
+}
+
+/** Next week's Monday: the Monday after the fantasy week the day falls in. */
+function nextMonday(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  return addDays(iso, d === 0 ? 1 : 8 - d);
+}
+
 function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string[]; days: string[]; picked: Set<string> }) {
   const inRange = new Set(days);
   const byTeamDay = new Map<string, GridCell>();
@@ -447,6 +494,7 @@ export default function Streamers() {
   const [start, setStart] = useState<string>(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<unknown>(null);
   const [horizonChoice, setHorizonChoice] = useState<number | 'week'>(7);
+  const [period, setPeriod] = useState<Period | null>(() => periodFromUrl());
   // Days from the grid's first day to the end of the fantasy week (Sunday).
   const weekDays = useMemo(() => {
     const d = new Date(`${start}T12:00:00Z`).getUTCDay();
@@ -508,7 +556,18 @@ export default function Streamers() {
   }, [league]);
 
   const sortKey = sortChoice ?? (games.some((g) => g.days_ahead <= 6) ? 'window_value' : 'minutes_trend');
-  const days = useMemo(() => Array.from({ length: horizon }, (_, i) => addDays(start, i)), [start, horizon]);
+  const days = useMemo(
+    () => (period ? daysBetween(period.from, period.to) : Array.from({ length: horizon }, (_, i) => addDays(start, i))),
+    [start, horizon, period],
+  );
+  const lastScheduled = useMemo(() => games.reduce((m, g) => (g.game_date > m ? g.game_date : m), ''), [games]);
+  const pickPeriod = (p: Period | null) => {
+    const next = p && ISO_DAY.test(p.from) && ISO_DAY.test(p.to) ? { from: p.from, to: p.to < p.from ? p.from : p.to } : null;
+    setPeriod(next);
+    writePeriod(next);
+    setPickedDays(new Set());
+  };
+  const periodTitle = period ? `Games from ${dayLabel(period.from)} to ${dayLabel(period.to)}` : null;
   const inWeek = games.some((g) => g.days_ahead <= 6);
 
   // Each team's game dates inside the window, and the matchup of each of those games.
@@ -662,7 +721,7 @@ export default function Streamers() {
   };
   const hasTrend = (rows ?? []).some((r) => r.ownership_trend);
   const exportCsv = () => {
-    const header = ['player', 'team', 'new_team_from', 'position', `games_next_${horizon}`, 'matchup', 'implied_team_points', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'sleeper_net_adds', 'espn_trend', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'ft_pct', 'turnovers', 'injury', 'lineup', 'news', 'last_game'];
+    const header = ['player', 'team', 'new_team_from', 'position', period ? `games_${period.from}_to_${period.to}` : `games_next_${horizon}`, 'matchup', 'implied_team_points', 'window_value', 'games_on_picked_days', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'sleeper_net_adds', 'espn_trend', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'ft_pct', 'turnovers', 'injury', 'lineup', 'news', 'last_game'];
     const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.value_10, r.value_trend, r.fit, r.sleeper_net, r.ownership_trend, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.free_throw_pct_5, r.turnovers_avg_5, r.injury_status, r.lineup_role, r.news_flag, r.last_game_date]);
     downloadCsv(`fantasyscout-${league}-streamers.csv`, toCsv(header, body));
   };
@@ -695,26 +754,75 @@ export default function Streamers() {
       )}
 
       {inWeek && (
-        <Card title={horizonChoice === 'week' ? 'Games left this fantasy week' : `Games in the next ${horizon} days`} id="schedule">
+        <Card title={periodTitle ?? (horizonChoice === 'week' ? 'Games left this fantasy week' : `Games in the next ${horizon} days`)} id="schedule">
           <div className="mb-3 flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1" role="radiogroup" aria-label="Window">
+            <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Window">
               {[...HORIZONS, 'week' as const].map((h) => (
                 <button
                   key={h}
                   type="button"
                   role="radio"
-                  aria-checked={horizonChoice === h}
+                  aria-checked={!period && horizonChoice === h}
                   onClick={() => {
                     setHorizonChoice(h);
-                    setPickedDays(new Set());
+                    pickPeriod(null);
                   }}
                   title={h === 'week' ? 'The rest of the fantasy week, to Sunday' : undefined}
-                  className={`rounded-full border px-3 py-1 text-sm ${horizonChoice === h ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
+                  className={`rounded-full border px-3 py-1 text-sm ${!period && horizonChoice === h ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
                 >
                   {h === 'week' ? `This week (${weekDays} ${weekDays === 1 ? 'day' : 'days'})` : `${h} days`}
                 </button>
               ))}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!!period}
+                onClick={() => pickPeriod(period ?? { from: nextMonday(start), to: addDays(nextMonday(start), 6) })}
+                title="Any start and end day: next week, say, or Monday to Friday"
+                className={`rounded-full border px-3 py-1 text-sm ${period ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
+              >
+                Custom
+              </button>
             </div>
+            {period && (
+              <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="period">
+                <label className="flex items-center gap-1">
+                  <span className="text-muted">From</span>
+                  <input
+                    type="date"
+                    value={period.from}
+                    min={start || undefined}
+                    max={lastScheduled || undefined}
+                    onChange={(e) => pickPeriod({ from: e.target.value, to: period.to })}
+                    aria-label="Period start"
+                    className="rounded border border-line bg-bg px-2 py-1"
+                  />
+                </label>
+                <label className="flex items-center gap-1">
+                  <span className="text-muted">To</span>
+                  <input
+                    type="date"
+                    value={period.to}
+                    min={period.from}
+                    max={lastScheduled || undefined}
+                    onChange={(e) => pickPeriod({ from: period.from, to: e.target.value })}
+                    aria-label="Period end"
+                    className="rounded border border-line bg-bg px-2 py-1"
+                  />
+                </label>
+                <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 6) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
+                  Next week
+                </button>
+                <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 4) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
+                  Next week, Mon to Fri
+                </button>
+                {lastScheduled && period.to > lastScheduled && (
+                  <span className="text-xs text-muted" data-testid="period-note">
+                    The schedule is published through {dayLabel(lastScheduled)}; later days show no games yet.
+                  </span>
+                )}
+              </div>
+            )}
             <fieldset className="flex flex-wrap items-center gap-1" data-testid="open-days">
               <legend className="sr-only">Open lineup days</legend>
               <span className="mr-1 text-xs text-muted">Open days:</span>
@@ -844,7 +952,7 @@ export default function Streamers() {
                   Player
                 </SortTh>
                 {inWeek && col('window_value', 'Window value', 'What the player adds to the window: last-ten production per game (counting stats and shooting above the pool, turnovers subtracted) times games in the window, plus each game’s matchup. The default sort: it finds the week’s best pickups most often (streamer signals notebook)')}
-                {inWeek && col('games_window', `Next ${horizon}`, `Team games in the next ${horizon} days`)}
+                {inWeek && col('games_window', period ? 'Period' : `Next ${horizon}`, period ? `Team games from ${dayLabel(period.from)} to ${dayLabel(period.to)}` : `Team games in the next ${horizon} days`)}
                 {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
                 {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
                 <Th>Team</Th>

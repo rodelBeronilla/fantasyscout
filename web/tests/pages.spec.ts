@@ -219,6 +219,47 @@ test('streamers shows the week grid and the candidates', async ({ page }) => {
   expect(await rows.count()).toBeGreaterThan(10);
 });
 
+test('streamers can show any period: next week Monday to Friday, from the URL or the shortcut', async ({ page }) => {
+  const season = await leagueInSeason(page);
+  test.skip(!season, NO_SEASON);
+  const games = season!.games;
+  const shift = (iso: string, n: number) => {
+    const d = new Date(`${iso}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  };
+  // the grid's first day, as the page works it out; then next week's Monday
+  const first = games.find((g) => g.days_ahead === 0)?.game_date ?? shift(games[0]!.game_date, -games[0]!.days_ahead);
+  const dow = new Date(`${first}T00:00:00Z`).getUTCDay();
+  const monday = shift(first, dow === 0 ? 1 : 8 - dow);
+  const friday = shift(monday, 4);
+  await page.goto(`/streamers/?league=${season!.league}&from=${monday}&to=${friday}`);
+  const grid = page.getByTestId('week-grid');
+  await expect(grid).toBeVisible();
+  await expect(page.locator('#schedule-h')).toContainText(/^Games from Mon, .* to Fri, /);
+  await expect(page.getByRole('radio', { name: 'Custom' })).toHaveAttribute('aria-checked', 'true');
+  await expect(grid.locator('thead th')).toHaveCount(7); // Team, Games, five days
+  await expect(page.getByTestId('open-days').getByRole('checkbox')).toHaveCount(5);
+  // a team's count is its games on those days
+  const inPeriod = games.filter((g) => g.game_date >= monday && g.game_date <= friday);
+  const team = inPeriod[0]?.home_team_tricode;
+  if (team) {
+    const expected = inPeriod.filter((g) => g.home_team_tricode === team || g.away_team_tricode === team).length;
+    const row = grid.locator('tbody tr').filter({ has: page.locator('td:first-child', { hasText: new RegExp(`^${team}$`) }) });
+    await expect(row.locator('td').nth(1)).toHaveText(String(expected));
+  }
+  await expect(page.getByTestId('trending').locator('thead')).toContainText('Period');
+  // a preset window clears the period, and the shortcut brings it back
+  await page.getByRole('radio', { name: '7 days' }).click();
+  await expect(page.locator('#schedule-h')).toHaveText('Games in the next 7 days');
+  await expect(page).not.toHaveURL(/from=/);
+  await page.getByRole('radio', { name: 'Custom' }).click();
+  await page.getByRole('button', { name: 'Next week, Mon to Fri' }).click();
+  await expect(page.locator('#schedule-h')).toContainText(/^Games from Mon, .* to Fri, /);
+  await expect(page).toHaveURL(new RegExp(`from=${monday}&to=${friday}`));
+  await expect(page.getByLabel('Period start')).toHaveValue(monday);
+});
+
 test('streamers shows games per fantasy week for the rest of the season when weeks are left', async ({ page }) => {
   const weeks = (await (await page.request.get('/data/builds/fixture/team_weeks/wnba.json')).json()) as {
     team_abbreviation: string | null;
@@ -288,7 +329,8 @@ test('a points league sees fantasy points per game on Streamers, not category z-
     last_10_ftm_pg: number | null;
     last_10_fta_pg: number | null;
   }[];
-  const sample = rows.find((r) => r.full_name && r.last_10_points_pg !== null);
+  const firstName = (await table.locator('tbody tr').first().locator('a').first().innerText()).trim();
+  const sample = rows.find((r) => r.full_name === firstName && typeof r.last_10_points_pg === 'number');
   if (sample) {
     // ESPN default weights: 1 pt, 1 reb, 2 ast, 4 stl, 4 blk, 1 3pm, -2 to, 2 fgm, -1 fga, 1 ftm, -1 fta
     const expected =
@@ -296,7 +338,6 @@ test('a points league sees fantasy points per game on Streamers, not category z-
       4 * (sample.last_10_steals_pg ?? 0) + 4 * (sample.last_10_blocks_pg ?? 0) + (sample.last_10_three_pointers_made_pg ?? 0) -
       2 * (sample.last_10_turnovers_pg ?? 0) + 2 * (sample.last_10_fgm_pg ?? 0) - (sample.last_10_fga_pg ?? 0) +
       (sample.last_10_ftm_pg ?? 0) - (sample.last_10_fta_pg ?? 0);
-    await page.getByLabel('Search players').fill(sample.full_name ?? '');
     const row = table.locator('tbody tr').filter({ hasText: sample.full_name ?? '' }).first();
     const headers = await table.locator('thead th').allInnerTexts();
     const index = headers.findIndex((h) => h.includes('FPts (10)'));
