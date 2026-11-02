@@ -74,6 +74,32 @@ test('every page carries a canonical address without the query, Open Graph tags,
   expect(xml).not.toContain('/p/');
 });
 
+test('a chip shows where keyboard focus is', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
+  const chip = page.getByTestId('board-filters').locator('label').filter({ has: page.locator('input.sr-only') }).first();
+  await expect(chip).toBeVisible();
+  // Reach the chip's hidden checkbox with the keyboard: focus-visible only applies to keyboard focus.
+  await page.getByTestId('board-filters').locator('input, button, select, a').first().focus();
+  let focused = false;
+  for (let i = 0; i < 30 && !focused; i += 1) {
+    await page.keyboard.press('Tab');
+    focused = await page.evaluate(() => {
+      const el = document.activeElement;
+      return !!el && el.tagName === 'INPUT' && el.classList.contains('sr-only');
+    });
+  }
+  expect(focused).toBe(true);
+  const ring = await page.evaluate(() => {
+    const el = document.activeElement as HTMLElement;
+    const label = el.closest('label') as HTMLElement;
+    const style = getComputedStyle(label);
+    return { style: style.outlineStyle, width: style.outlineWidth };
+  });
+  expect(ring.style).not.toBe('none');
+  expect(ring.width).not.toBe('0px');
+});
+
 test('the board ranks players and links to player pages', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
