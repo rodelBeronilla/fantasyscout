@@ -2,6 +2,24 @@
 
 > **The original brief (October 2026), kept as written.** It says what was asked for; it is not kept current. The living description of what was built is [docs/architecture.md](docs/architecture.md), and every decision that departed from this brief is an ADR under [docs/adr/](docs/adr/README.md). Where an accepted ADR changed something written here, a callout like this one says which.
 
+> **Departures.** Where the build went another way than the brief below, without a callout in the section itself:
+>
+> | The brief says | What was built | Where it is recorded |
+> | --- | --- | --- |
+> | `nba_api` for ingestion | One `httpx` client per source with `pydantic` models and its own pacing; `nba_api` was never a dependency | [ADR 0004](docs/adr/0004-stats-api-request-economy.md), `ingest/` |
+> | Databricks Jobs (Asset Bundles) for the transforms | dbt runs in GitHub Actions after each ingest; the bundle's job is a paused fallback | [ADR 0013](docs/adr/0013-where-the-dbt-build-runs.md) (and the callout under Architecture) |
+> | `dbt-expectations` | Not used: dbt's built-in column tests, dbt unit tests, and the basketball and quality checks written as singular tests in `dbt/tests/` | The checks on the site's Schema page |
+> | Observable Plot for charts | Not used: the shot chart and the trend lines are SVG drawn by the site's own components; the diagrams are Graphviz, drawn at build time | `web/src/components/`, `web/src/lib/diagram.ts` |
+> | `sqlfluff` | Not used: model and column descriptions are enforced by `python -m ops.schema --check --require-docs` in CI; Python by ruff and mypy | [CONTRIBUTING.md](CONTRIBUTING.md) |
+> | Jaro-Winkler at 0.92 for player names | Jaro-Winkler on DuckDB; Databricks SQL has none, so a normalised Levenshtein ratio with its own thresholds | [ADR 0005](docs/adr/0005-reconciliation.md) |
+> | The scoring blend (last season 0.55, the season before 0.15, current 0.30 rising to 0.8) | Board value as ADR 0009 defines it | [ADR 0009](docs/adr/0009-board-value.md) |
+> | `fct_player_tracking_season`, player × season × measure | `fct_player_tracking`, player × game, NBA only | [ADR 0004](docs/adr/0004-stats-api-request-economy.md) addenda |
+> | `fct_availability`, player × day | One row per injury listing, at the report it was last seen in; `is_current` marks the latest | [ADR 0003](docs/adr/0003-gold-modelling.md), availability addendum |
+> | `/notes`, the weekly scouting notes | Not built: phase 7 waits for the go-ahead | [The phase table](docs/architecture.md#phase-status) |
+> | `/about`, how it's built | `/pipeline/` (the stages and diagrams), `/schema/` (every model) and `/sources/` (every source and its terms) | [docs/architecture.md](docs/architecture.md) |
+> | The product table's pages | Also `/trade/` (trade values and suggestions) and `/league/` (a manager's league, settings and the Yahoo import) | [ADR 0007](docs/adr/0007-yahoo-league-import.md) for the import |
+> | `make local` (phase 8) | `uv run fs-dev check`, and `--all` for the web and Worker suites | [README](README.md#run-it-locally), [CONTRIBUTING.md](CONTRIBUTING.md) |
+
 ## Purpose
 
 FantasyScout is a WNBA-first basketball data platform with a fantasy front end. The fantasy app is what a visitor uses; the pipelines, models, tests and docs behind it are the platform, and all of it is built in public.
