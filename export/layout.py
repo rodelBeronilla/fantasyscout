@@ -451,6 +451,10 @@ from gold.fct_team_week_games
 order by league, week_start, team_abbreviation, team_id
 """
 
+# The per-league files the pages read first also go out column-wise, `<name>/<league>.columns.json`
+# ({column: [values]}), a third of the size; the row files stay for every other reader (#535).
+COLUMNAR_JSON = ("board", "streamers")
+
 PER_LEAGUE_JSON = (
     ("board", BOARD_SQL),
     ("streamers", STREAMERS_SQL),

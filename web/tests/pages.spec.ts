@@ -40,6 +40,31 @@ test('the page preloads the build pointer and the board is populated within budg
   expect(elapsed).toBeLessThan(10_000);
 });
 
+test('the board and streamers read their column-wise files from the stable address, not the row files (#535)', async ({ page }) => {
+  await page.unroute('**/*.columns.json');
+  const rowFiles: string[] = [];
+  const columnFiles: string[] = [];
+  page.on('request', (r) => {
+    if (/\/(board|streamers)\/(nba|wnba)\.json$/.test(r.url())) rowFiles.push(r.url());
+    if (/\/current\/(board|streamers)\/(nba|wnba)\.columns\.json$/.test(r.url())) columnFiles.push(r.url());
+  });
+  const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];
+  await page.goto('/?league=nba');
+  await expect(page.locator('head link[rel="preload"][href$="/data/current/board/nba.columns.json"]')).toHaveCount(1);
+  const board = page.getByTestId('board').locator('tbody tr[data-player]');
+  await expect(board.first()).toBeVisible();
+  // every player the page shows is a player of the row file
+  const shown = await board.evaluateAll((trs) => trs.map((tr) => tr.getAttribute('data-player')));
+  const ids = new Set(rows.map((r) => r.player_id));
+  expect(shown.length).toBeGreaterThan(10);
+  expect(shown.every((id) => id && ids.has(id))).toBe(true);
+  await page.goto('/streamers/?league=nba');
+  await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
+  expect(columnFiles.some((u) => u.includes('/board/'))).toBe(true);
+  expect(columnFiles.some((u) => u.includes('/streamers/'))).toBe(true);
+  expect(rowFiles).toEqual([]);
+});
+
 test('the sources page names every source with what is published from it, and the footer links it', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('sources-link').click();

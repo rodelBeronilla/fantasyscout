@@ -225,6 +225,14 @@ describe('data', () => {
       expect(res.headers.get('cache-control')).toBe('public, max-age=60');
       expect(res.headers.get('x-build-id')).toBe('test');
       expect(await res.json()).toEqual([{ player_id: '7' }]);
+      // the column-wise copy (#535) by the same rule
+      await env.DATA.put('builds/test/board/nba.columns.json', '{"player_id":["7"]}', {
+        httpMetadata: { contentType: 'application/json' },
+      });
+      const columns = await SELF.fetch(`${ORIGIN}/data/current/board/nba.columns.json`);
+      expect(columns.status).toBe(200);
+      expect(await columns.json()).toEqual({ player_id: ['7'] });
+      await caches.default.delete(new Request(`${ORIGIN}/data/current/board/nba.columns.json`));
       // a file the build does not have, and anything but the page files, is not found here
       expect((await SELF.fetch(`${ORIGIN}/data/current/streamers/wnba.json`)).status).toBe(404);
       for (const path of ['current/board/xyz.json', 'current/players/wnba/1.json', 'current/fct_shot.parquet']) {

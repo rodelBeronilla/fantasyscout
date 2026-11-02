@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
-import { fetchBuildJson, fetchCurrentJson, getLatest, type League, markFirstRow } from '../lib/data';
+import { fetchBuildJson, fetchPageRows, getLatest, type League, markFirstRow } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
@@ -526,7 +526,7 @@ export default function Streamers() {
   useEffect(() => {
     let live = true;
     Promise.all([
-      fetchCurrentJson<StreamerRow[]>(`streamers/${league}.json`),
+      fetchPageRows<StreamerRow>(`streamers/${league}`),
       fetchBuildJson<Game[]>(`schedule/${league}.json`).catch((e: unknown) => {
         if (live) setScheduleError(e);
         return [] as Game[];

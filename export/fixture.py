@@ -30,7 +30,7 @@ import pyarrow.parquet as pq
 
 from export import build as build_mod
 from export import layout
-from export.encode import sha256, to_json
+from export.encode import columns_of, sha256, to_json
 from export.source import DuckDBSource
 from export.store import LocalStore
 
@@ -252,6 +252,11 @@ def conform(files: dict[str, bytes], shape: build_mod.Build, duckdb: Path) -> di
             out[path] = to_json([_align(r, keys) for r in data])
         else:
             out[path] = body
+    # The column-wise copies are the conformed row files, column by column (#535).
+    for path in [p for p in out if p.endswith(".columns.json")]:
+        rows_path = path.removesuffix(".columns.json") + ".json"
+        if rows_path in out:
+            out[path] = to_json(columns_of(json.loads(out[rows_path])))
     return out
 
 

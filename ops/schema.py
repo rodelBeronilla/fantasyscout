@@ -202,7 +202,7 @@ def sources_of(landing_paths: list[str]) -> list[dict[str, Any]]:
 
 
 # fetchCurrentJson reads the same files at their stable address (#436)
-_FETCH = re.compile(r"fetch(?:Build|Current)Json<[^>]*>\(\s*[`'\"]([a-z_]+)")
+_FETCH = re.compile(r"(?:fetchBuildJson|fetchCurrentJson|fetchPageRows)<[^>]*>\(\s*[`'\"]([a-z_]+)")
 _COMPONENT_IMPORT = re.compile(
     r"import\s+([A-Z][A-Za-z]+)\s+from\s+'\.\.?/(?:\.\./)?components/([A-Za-z]+)'"
 )
@@ -212,7 +212,7 @@ def page_reads(web_src: Path) -> dict[str, list[str]]:
     """Which site routes read each published file name: ``board`` -> ``['/']`` and so on.
 
     A page is a ``.astro`` file under ``pages/``; the files it reads are the ``fetchBuildJson`` and
-    ``fetchCurrentJson`` calls
+    ``fetchPageRows`` calls
     of the
     components it imports (the per-player file reads ``players/<league>/<id>.json``, named here as
     ``players``). The right end of the lineage, read off the code rather than kept by hand.

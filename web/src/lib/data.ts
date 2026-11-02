@@ -99,19 +99,33 @@ export async function fetchBuildJson<T>(path: string): Promise<T> {
   return (await r.json()) as T;
 }
 
+/** Rows from a column-wise file, `{column: [values]}` (#535). */
+export function inflate<T>(columns: Record<string, unknown[]>): T[] {
+  const keys = Object.keys(columns);
+  const n = keys.length ? (columns[keys[0]!]?.length ?? 0) : 0;
+  const out = new Array<T>(n);
+  for (let i = 0; i < n; i++) {
+    const row: Record<string, unknown> = {};
+    for (const k of keys) row[k] = columns[k]![i];
+    out[i] = row as T;
+  }
+  return out;
+}
+
 /**
- * A page file of the current build by its stable address (`/data/current/<path>`, #436), which the
- * page head preloads before the pointer is read. Where no Worker answers that address (the dev
- * server, the test preview) it falls back to the pointer and the build's own file.
+ * A page's rows from the current build (`board/nba`, `streamers/wnba`): the column-wise copy at the
+ * stable address the page head preloads (`/data/current/<path>.columns.json`, #436 and #535), a
+ * third of the row file's size. A build from before the column files, or a server with no Worker
+ * (the dev server), falls back to the pointer and the build's row file.
  */
-export async function fetchCurrentJson<T>(path: string): Promise<T> {
+export async function fetchPageRows<T>(path: string): Promise<T[]> {
   try {
-    const r = await fetch(dataHref(`current/${path}`));
-    if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) return (await r.json()) as T;
+    const r = await fetch(dataHref(`current/${path}.columns.json`));
+    if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) return inflate<T>((await r.json()) as Record<string, unknown[]>);
   } catch {
     // fall through to the pointer
   }
-  return fetchBuildJson<T>(path);
+  return fetchBuildJson<T[]>(`${path}.json`);
 }
 
 /** The first rows of a page are on screen: the mark the deploy's slow-phone budget reads (#436). */
