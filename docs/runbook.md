@@ -239,10 +239,10 @@ Landed payloads are raw, so a shape change breaks bronze parsing (phase 2), not 
 The "Build lakehouse" workflow runs `dbt build` on Databricks after every successful ingest and by hand (Actions → Build lakehouse → Run workflow; tick "full refresh" to rebuild incremental models). Locally, against the SQL warehouse:
 
 ```bash
-export DBT_PROFILES_DIR=dbt DBT_TARGET=databricks DATABRICKS_TOKEN=...
+export DBT_TARGET=databricks DATABRICKS_TOKEN=...
 export DBT_DATABRICKS_HOST=<workspace-host without https://>
 export DBT_DATABRICKS_HTTP_PATH=/sql/1.0/warehouses/<id>     # GET /api/2.0/sql/warehouses
-cd dbt && uv run dbt build --target databricks
+cd dbt && DBT_PROFILES_DIR=. uv run dbt build --target databricks   # the profile sits in dbt/, so the path is relative to it
 ```
 
 Bronze models are append-only and incremental on `_ingest_date`; a full refresh re-reads every landed file. Silver models rebuild from bronze each run and keep the latest landing per natural key. A feed the ingest re-lands whole every day (game logs, standings, schedule, directory, rosters) is read through `latest_snapshot()`, the newest landing per request key, before that (ADR 0004, 2026-11-01 addendum). The play-by-play chain (`events`, `shots`, `event_lineups`, and gold's `fct_event` and `fct_shot`) is the exception: it is incremental by game. A run recomputes the games with a landing on or after the table's newest landing and replaces their rows (`dbt/macros/incremental.sql`); the games nothing landed for are not read. A game a landing was pruned or corrected for is only re-read when it lands again, or on a full refresh, which rebuilds the chain from every landed file.

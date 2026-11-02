@@ -26,6 +26,21 @@ def test_the_readme_and_contributing_quote_the_same_command() -> None:
         assert "uv run fs-dev check" in text, name
 
 
+def test_the_documented_dbt_commands_match_the_dev_check_and_find_the_profile() -> None:
+    """#468: the sample build in CONTRIBUTING excludes the data checks like fs-dev does, and the
+    runbook's hand build sets the profile directory from inside dbt/."""
+    contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    assert (
+        "DBT_PROFILES_DIR=. uv run dbt build --target duckdb --exclude tag:quality" in contributing
+    )
+    runbook = (ROOT / "docs" / "runbook.md").read_text(encoding="utf-8")
+    assert "cd dbt && DBT_PROFILES_DIR=. uv run dbt build --target databricks" in runbook
+    assert "DBT_PROFILES_DIR=dbt" not in runbook
+    dbt_step = next(s for s in dev.steps_for({"python"}) if s.name.startswith("dbt build"))
+    assert dbt_step.cwd == "dbt"
+    assert "--exclude" in dbt_step.command and "tag:quality" in dbt_step.command
+
+
 def test_the_default_steps_are_the_python_job_in_order() -> None:
     names = [s.name for s in dev.steps_for({"python"})]
     assert names == [
