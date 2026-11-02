@@ -18,7 +18,7 @@ Then set the repository variable `STATS_RUNNER_LABEL` to `home` (Settings → Se
 
 - The runner is registered to this repository only, not to the account.
 - `ingest.yml` triggers on schedule and manual dispatch only. No workflow that runs on a pull request targets this runner, and the repository requires approval before workflows from outside collaborators run.
-- The container holds no secrets at rest. Job secrets are injected by GitHub per job and the only ones used are the Databricks host and token.
+- The container holds no secrets at rest. Job secrets are injected by GitHub per job and the only ones used are the Databricks host and the ingest service principal's client id and secret (runbook, "The ingest's own credential"), which can write the landing volume and nothing else.
 - Jobs run as the unprivileged `runner` user inside the container; nothing from the host is mounted.
 
 ## Monitor
