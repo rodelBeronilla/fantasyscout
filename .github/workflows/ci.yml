@@ -24,7 +24,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: No secrets committed
         run: |
-          pattern='(AKIA[0-9A-Z]{16}|-----BEGIN (RSA|EC|OPENSSH|PGP) PRIVATE KEY-----|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|dapi[0-9a-f]{32})'
+          # PKCS#8 keys (a Google service account's JSON carries one) as well as the older PEM kinds (#435)
+          pattern='(AKIA[0-9A-Z]{16}|-----BEGIN ((RSA|EC|OPENSSH|PGP|ENCRYPTED) )?PRIVATE KEY-----|"private_key" *: *"-----BEGIN|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|dapi[0-9a-f]{32})'
           if git grep -nIE "$pattern" -- . ':!.github/workflows/ci.yml'; then
             echo "::error::possible secret committed"
             exit 1

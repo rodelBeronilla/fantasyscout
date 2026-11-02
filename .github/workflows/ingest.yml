@@ -49,7 +49,6 @@ on:
 permissions:
   contents: read
   issues: write
-  actions: write
 
 env:
   LEAGUES: ${{ (inputs.league == 'wnba' && '["wnba"]') || (inputs.league == 'nba' && '["nba"]') || '["wnba","nba"]' }}

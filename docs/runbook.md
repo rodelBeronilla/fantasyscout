@@ -92,7 +92,7 @@ Workload identity federation (no secret at all) would be better still; whether F
 The Parquet tables, and so the SQL console, are private to the site's owner (ADR 0008). The owner signs in with their Yahoo account through the Yahoo app (`YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`), using OpenID, which names the account (ADR 0008 addendum).
 
 1. Open `/sql/` and choose **Sign in with Yahoo**. Until the owner is named, the page shows the account's id.
-2. Save that id as the Actions secret `OWNER_YAHOO_GUID`. A repository variable of the same name also works, but use one or the other, not both.
+2. Save that id as the Actions secret `OWNER_YAHOO_GUID`. (A repository variable of that name is no longer read: the deploy passed it with `--var`, which prints it in the log.)
 3. Re-run Deploy web, then sign in again.
 
 The nightly notebooks and the Tableau extract read the tables with a key derived from `YAHOO_CLIENT_SECRET`. Rotating the client secret in the Yahoo app (update the Actions secret, then re-run Deploy web) rotates that key and signs every browser out.
