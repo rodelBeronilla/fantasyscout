@@ -170,13 +170,14 @@ export default function YahooImport({
                 place of its address (iPhone: Bookmarks, Edit; Android Chrome: the star, then the pencil).
               </li>
               <li>
-                Open your league on Yahoo in this browser, signed in: the My Team or League page, on the website rather than in the Yahoo
-                app.
+                Open your league on Yahoo in this browser, signed in, on the website rather than in the Yahoo app: best is the league&apos;s{' '}
+                <strong className="text-fg">Starting Rosters</strong> page (League, then Starting Rosters), which lists every team&apos;s roster.
+                The My Team or League page works too; the bookmark then reads each team&apos;s page the way your browser does.
               </li>
               <li>
                 Run the bookmark <strong className="text-fg">on that page</strong>. On a phone, tap the address bar, type the bookmark&apos;s
-                name and tap it in the list: opening it from the Bookmarks menu would run it in a new tab instead. It reads each team&apos;s
-                roster page the way your browser does and brings you back here.
+                name and tap it in the list: opening it from the Bookmarks menu would run it in a new tab instead. It brings you back here with
+                the rosters. A bookmark saved before this note appeared read the pages differently: save it again from the link above.
               </li>
               <li>Check the rosters below: a name Yahoo spells differently is listed as not found, and you can add it by hand.</li>
             </ol>

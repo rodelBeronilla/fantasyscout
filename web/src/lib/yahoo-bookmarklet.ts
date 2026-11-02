@@ -30,11 +30,18 @@ export interface YahooPayload {
 /**
  * Runs on a page inside a Yahoo fantasy basketball league. Self-contained: it is serialised into
  * the bookmarklet, so it must not use anything from this module.
+ *
+ * A page that lists every roster (the league's Starting Rosters page) is read where it is: each
+ * team's players sit under a heading that links the team. Otherwise each team's page is fetched.
+ * Either way a player counts only when the row has a roster slot label (PG, SG, G, SF, PF, F, C,
+ * Util, BN, IL...): player links elsewhere on a page (news, research, suggested pickups) are not
+ * the roster (#515).
  */
 export function collectYahooLeague(target: string): void {
   const doc = document;
   const anchors = Array.from(doc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
-  const hrefOf = (a: HTMLAnchorElement) => a.getAttribute('href') || '';
+  const hrefOf = (a: Element) => a.getAttribute('href') || '';
+  const textOf = (el: Element | null) => ((el && el.textContent) || '').replace(/\s+/g, ' ').trim();
   const fromPath = location.pathname.match(/\/nba\/(\d+)(?:\/|$)/);
   let leagueId = fromPath ? fromPath[1] : null;
   if (!leagueId) {
@@ -54,13 +61,16 @@ export function collectYahooLeague(target: string): void {
     return;
   }
   const base = '/nba/' + leagueId + '/';
+  const teamLink = (a: Element) => {
+    const m = hrefOf(a).match(/\/nba\/(\d+)\/(\d+)\/?$/);
+    return m && m[1] === leagueId ? Number(m[2]) : null;
+  };
   const names = new Map<number, string>();
   let mine: number | null = null;
   for (const a of anchors) {
-    const m = hrefOf(a).match(/\/nba\/(\d+)\/(\d+)\/?$/);
-    if (!m || m[1] !== leagueId) continue;
-    const t = Number(m[2]);
-    const text = (a.textContent || '').replace(/\s+/g, ' ').trim();
+    const t = teamLink(a);
+    if (t === null) continue;
+    const text = textOf(a);
     if (/my team/i.test(text)) {
       mine = t;
       continue;
@@ -69,40 +79,75 @@ export function collectYahooLeague(target: string): void {
   }
   const ids = names.size ? Array.from(names.keys()).sort((x, y) => x - y) : Array.from({ length: 20 }, (_, i) => i + 1);
   const blocked = /note|news|compare|stats|watch|add|drop|trade/i;
-  // The roster slot sits in the player's row as a short label; IL and IL+ are the injured list.
-  const slot = /^(IL\+?|IR\+?|NA)$/i;
-  const onIl = (a: Element) => {
-    const row = a.closest('tr') || a.closest('li') || a.parentElement;
-    if (!row) return false;
-    return Array.from(row.querySelectorAll('td, th, span, div, abbr, button')).some((el) => {
-      const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
-      return t.length <= 4 && slot.test(t);
-    });
-  };
-  const rosterOf = (page: Document) => {
-    const out: { name: string; il: boolean }[] = [];
-    for (const a of Array.from(page.querySelectorAll('a[href*="/nba/players/"]'))) {
-      const n = (a.textContent || '').replace(/\s+/g, ' ').trim();
-      if (n.length > 2 && n.length < 40 && /\s/.test(n) && !blocked.test(n) && !out.some((p) => p.name === n)) out.push({ name: n, il: onIl(a) });
+  // A roster row carries its slot as a short label; IL, IL+, IR and NA are the injured list.
+  const slotText = /^(PG|SG|G|SF|PF|F|C|UTIL|BN|IL\+?|IR\+?|NA)$/i;
+  const ilSlot = /^(IL|IR|NA)/i;
+  const slotOf = (a: Element) => {
+    const row = a.closest('tr') || a.closest('li');
+    if (!row) return null;
+    for (const el of Array.from(row.querySelectorAll('td, th, span, div, abbr, button'))) {
+      const t = textOf(el);
+      if (t.length <= 4 && slotText.test(t)) return t.toUpperCase();
     }
-    return out;
+    return null;
   };
+  const playerName = (a: Element) => {
+    if (!/\/nba\/players\/\d+\/?$/.test(hrefOf(a))) return null;
+    const n = textOf(a);
+    return n.length > 2 && n.length < 40 && /\s/.test(n) && !blocked.test(n) ? n : null;
+  };
+  /** The players under `root`: rows with a slot label; every player link only when the page has no slots at all. */
+  const rosterOf = (root: ParentNode) => {
+    const links = Array.from(root.querySelectorAll('a[href*="/nba/players/"]'));
+    const strict: { name: string; il: boolean }[] = [];
+    const loose: { name: string; il: boolean }[] = [];
+    for (const a of links) {
+      const n = playerName(a);
+      if (!n) continue;
+      const slot = slotOf(a);
+      if (!loose.some((p) => p.name === n)) loose.push({ name: n, il: !!slot && ilSlot.test(slot) });
+      if (slot && !strict.some((p) => p.name === n)) strict.push({ name: n, il: ilSlot.test(slot) });
+    }
+    return strict.length ? strict : loose;
+  };
+  // Rosters on this page: climb from each team's heading to the smallest block that holds roster rows and no other team.
+  const inPage = new Map<number, { name: string; il: boolean }[]>();
+  for (const a of anchors) {
+    const t = teamLink(a);
+    if (t === null || inPage.has(t) || !names.has(t) || /my team/i.test(textOf(a))) continue;
+    let el: Element | null = a.parentElement;
+    while (el && el !== doc.body) {
+      const others = Array.from(el.querySelectorAll('a[href]')).some((x) => {
+        const o = teamLink(x);
+        return o !== null && o !== t && !!textOf(x) && !/my team/i.test(textOf(x));
+      });
+      if (others) break;
+      const roster = rosterOf(el);
+      if (roster.length >= 3) {
+        inPage.set(t, roster);
+        break;
+      }
+      el = el.parentElement;
+    }
+  }
   (async () => {
     const teams: YahooTeam[] = [];
     let misses = 0;
     for (const t of ids) {
-      let players: { name: string; il: boolean }[] = [];
+      let players: { name: string; il: boolean }[] = inPage.get(t) || [];
       let name = names.get(t) || '';
-      try {
-        const res = await fetch(base + t, { credentials: 'include' });
-        if (res.ok) {
-          const page = new DOMParser().parseFromString(await res.text(), 'text/html');
-          players = rosterOf(page);
-          if (!name) name = ((page.querySelector('h1') || {}).textContent || page.title || 'Team ' + t).replace(/\s+/g, ' ').trim().slice(0, 60);
-          if (mine === null && Array.from(page.querySelectorAll('a[href]')).some((a) => /my team/i.test(a.textContent || '') && new RegExp('/nba/' + leagueId + '/' + t + '/?$').test(a.getAttribute('href') || ''))) mine = t;
+      if (!players.length) {
+        try {
+          const res = await fetch(base + t, { credentials: 'include' });
+          if (res.ok) {
+            const page = new DOMParser().parseFromString(await res.text(), 'text/html');
+            players = rosterOf(page);
+            if (!name) name = ((page.querySelector('h1') || {}).textContent || page.title || 'Team ' + t).replace(/\s+/g, ' ').trim().slice(0, 60);
+            if (mine === null && Array.from(page.querySelectorAll('a[href]')).some((x) => /my team/i.test(x.textContent || '') && teamLink(x) === t)) mine = t;
+          }
+        } catch {
+          players = [];
         }
-      } catch {
-        players = [];
       }
       if (!players.length) {
         misses += 1;
@@ -112,7 +157,7 @@ export function collectYahooLeague(target: string): void {
       teams.push({ id: t, name: name || 'Team ' + t, players });
     }
     if (!teams.length) {
-      alert('No rosters were found on this league’s team pages. Open your league on Yahoo (the My Team or League tab) and run the bookmark again.');
+      alert('No rosters were found. Open your league’s Starting Rosters page on Yahoo (League, then Starting Rosters) and run the bookmark there.');
       return;
     }
     const payload: YahooPayload = { v: 2, leagueId, mine, teams };
