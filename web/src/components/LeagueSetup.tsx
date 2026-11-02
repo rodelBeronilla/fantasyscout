@@ -12,7 +12,8 @@ import { categoryValues, pointValues } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
 import { href } from '../lib/site';
-import { CategoryProfile, DraftBar, LeagueSettingsForm } from './LeagueParts';
+import { CategoryProfile, DraftBar, LeagueSettingsForm, Today, type TodayRow } from './LeagueParts';
+import { easternDate, type TodayGame } from '../lib/today';
 import { Card, Loading, Problem, Td, Th } from './ui';
 import YahooImport from './YahooImport';
 
@@ -109,6 +110,18 @@ export default function LeagueSetup() {
     fetchBuildJson<PlayerRow[]>(`board/${league}.json`)
       .then((data) => live && setRows(data))
       .catch((e: unknown) => live && setError(e));
+    return () => {
+      live = false;
+    };
+  }, [league]);
+
+  // The schedule, for the Today card (#464); the page works without it.
+  const [games, setGames] = useState<TodayGame[] | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetchBuildJson<TodayGame[]>(`schedule/${league}.json`)
+      .then((g) => live && setGames(g))
+      .catch(() => live && setGames(null));
     return () => {
       live = false;
     };
@@ -381,6 +394,13 @@ export default function LeagueSetup() {
 
       {setup.drafting && draftCard}
 
+      {games && !setup.drafting && (() => {
+        const active = (setup.rosters[setup.mine] ?? [])
+          .filter((id) => !setup.il.includes(id))
+          .map((id) => byIdForIl.get(id))
+          .filter((r): r is PlayerRow => !!r) as unknown as TodayRow[];
+        return active.length > 0 ? <Today league={league} players={active} games={games} date={easternDate()} /> : null;
+      })()}
       {ilCard}
 
       <section className="grid gap-3" aria-labelledby="teams-h">

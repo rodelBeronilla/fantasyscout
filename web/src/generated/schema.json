@@ -22780,6 +22780,8 @@
       "mart_streamers"
      ],
      "read_by_pages": [
+      "/",
+      "/league/",
       "/p/",
       "/streamers/"
      ],
@@ -24128,7 +24130,8 @@
  "pages": [
   {
    "reads": [
-    "board"
+    "board",
+    "schedule"
    ],
    "route": "/"
   },
@@ -24140,7 +24143,8 @@
   },
   {
    "reads": [
-    "board"
+    "board",
+    "schedule"
    ],
    "route": "/league/"
   },
