@@ -13639,7 +13639,8 @@
      "materialized": "table",
      "name": "schedule_team_games",
      "notes": [
-      "The schedule from each team's side: one row per team per scheduled game, home and away, with the opponent and the game's date, type, status and venue flags. Every model that counts a team's games (remaining, this week, back-to-backs, stakes, travel) reads this instead of unioning the schedule's two sides itself; each keeps its own filters on game type, status and venue."
+      "The schedule from each team's side: one row per team per scheduled game, home and away, with the opponent and the game's date, type, status and venue flags. Every model that counts a team's games (remaining, this week, back-to-backs, stakes, travel) reads this instead of unioning the schedule's two sides itself; each keeps its own filters on game type, status and venue.",
+      "A side without a real team is left out: the NBA schedules the Cup's knockout-week games with a placeholder team (id 0) until the group stage decides who plays, and counting those put a team \"0\" in the weekly games and a game in every team's week that it may not play (#386)."
      ],
      "read_by": [
       "fct_team_game_context",
@@ -21553,6 +21554,10 @@
        "name": "board_availability_follows_the_status"
       },
       {
+       "description": "The NBA lists two games per team as placeholders until the Cup's group stage ends, so its schedule says 80 games; with regular_season_games set (10 here, for a short schedule) the NBA team that has played three of its ten has seven left whatever is scheduled, and its rest-of-season factor is 7/10. The WNBA, not listed, counts its schedule: two played, six scheduled, 6/8 (#386).",
+       "name": "board_counts_a_fixed_season_length_where_the_schedule_cannot"
+      },
+      {
        "description": "Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level the next two). Only points vary, so value is the points z-score. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out. rank_total follows value, equal points broken by player id. The numbers themselves (a z-score is a square root) are pinned by board_availability_follows_the_status, where they are exact.",
        "name": "board_pool_is_chosen_in_two_passes"
       }
@@ -24697,6 +24702,11 @@
    "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0. Every projected line is zero, so value is zero and the factors are exact.",
    "model": "mart_board",
    "name": "board_availability_follows_the_status"
+  },
+  {
+   "description": "The NBA lists two games per team as placeholders until the Cup's group stage ends, so its schedule says 80 games; with regular_season_games set (10 here, for a short schedule) the NBA team that has played three of its ten has seven left whatever is scheduled, and its rest-of-season factor is 7/10. The WNBA, not listed, counts its schedule: two played, six scheduled, 6/8 (#386).",
+   "model": "mart_board",
+   "name": "board_counts_a_fixed_season_length_where_the_schedule_cannot"
   },
   {
    "description": "Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level the next two). Only points vary, so value is the points z-score. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out. rank_total follows value, equal points broken by player id. The numbers themselves (a z-score is a square root) are pinned by board_availability_follows_the_status, where they are exact.",

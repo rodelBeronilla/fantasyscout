@@ -153,7 +153,7 @@ schedule_sides as (
 
 ),
 
-remaining as (
+remaining_scheduled as (
 
     select
         s.league,
@@ -165,11 +165,48 @@ remaining as (
         -- the fantasy week runs Monday to Sunday
         sum(case when s.game_date_est >= {{ as_of_date() }} and s.game_date_est < {{ add_days(week_start(as_of_date()), 7) }}
                   and s.game_status <> 3 and not coalesce(s.if_necessary, false) then 1 else 0 end) as games_this_week,
-        sum(case when s.game_type = 'regular' then 1 else 0 end) as games_scheduled
+        sum(case when s.game_type = 'regular' then 1 else 0 end) as games_scheduled,
+        sum(case when s.game_type = 'regular' and s.game_status = 3 then 1 else 0 end) as games_final
     from schedule_sides as s
     join (select distinct league, season from base) as cs on cs.league = s.league and cs.season = s.season
     where s.game_type in ('regular', 'playoffs')
     group by s.league, s.season, s.team_id
+
+),
+
+{#- Where a league's season length is fixed (var regular_season_games), remaining is that length
+    minus the games played and the season's length is the denominator: the NBA's schedule lists two
+    games per team as placeholders until December, so counting it says 80 (#386). #}
+{%- set season_games = var('regular_season_games', {}) %}
+remaining as (
+
+    select
+        league,
+        season,
+        team_id,
+        {%- if season_games %}
+        case league
+            {%- for lg, n in season_games.items() %}
+            when '{{ lg }}' then greatest({{ n }} - games_final, 0)
+            {%- endfor %}
+            else games_remaining
+        end as games_remaining,
+        {%- else %}
+        games_remaining,
+        {%- endif %}
+        games_next_7,
+        games_this_week,
+        {%- if season_games %}
+        case league
+            {%- for lg, n in season_games.items() %}
+            when '{{ lg }}' then {{ n }}
+            {%- endfor %}
+            else games_scheduled
+        end as games_scheduled
+        {%- else %}
+        games_scheduled
+        {%- endif %}
+    from remaining_scheduled
 
 ),
 
