@@ -13,20 +13,20 @@ sources ─► GitHub Actions ingest ─► Databricks lakehouse (dbt: bronze/si
 
 | Capability | How FantasyScout does it | Where to see it |
 | --- | --- | --- |
-| Cloud lakehouse and shared data models | Databricks Free Edition (Unity Catalog, Delta), bronze/silver/gold, star schema | Architecture page, dbt docs |
-| Pipelines from third-party APIs | Python ingestors for stats.wnba.com, stats.nba.com and ESPN, landing raw JSON in a volume | `ingest/`, run history page |
-| Large datasets | Play-by-play and shot data for every game since 2018, incremental models, partitioning, Z-ordering | Performance notes, run timings |
-| Validation, quality checks, alerts | dbt tests, basketball-logic checks, freshness, anomaly checks, alerts on failure | Public Data Health page |
-| Reconciliation across sources | Stats API vs ESPN box scores per player-game, ID crosswalk, mismatch log | Reconciliation table on Data Health |
-| Notebooks and dashboards on the same data | Databricks notebooks, Jupyter via SQL connector, Tableau Public, in-browser SQL console | Notebooks and Dashboards pages |
-| Products for non-technical readers | Fantasy board, player scouting pages, weekly notes written for a coach or GM | The app itself |
+| Cloud lakehouse and shared data models | Databricks Free Edition (Unity Catalog, Delta), bronze/silver/gold, star schema | [/schema/](https://fantasyscout.beronilla.rodeo/schema/), [/docs/](https://fantasyscout.beronilla.rodeo/docs/), `docs/architecture.md` |
+| Pipelines from third-party APIs | Python ingestors for stats.wnba.com, stats.nba.com and ESPN, landing raw JSON in a volume | `ingest/`, [/pipeline/](https://fantasyscout.beronilla.rodeo/pipeline/), the ingest runs on [/health/](https://fantasyscout.beronilla.rodeo/health/) |
+| Large datasets | Play-by-play and shot data for every game since 2018, incremental models, partitioning, Z-ordering | Build runs and their step timings on [/health/](https://fantasyscout.beronilla.rodeo/health/), `docs/adr/0004-stats-api-request-economy.md` |
+| Validation, quality checks, alerts | dbt tests, basketball-logic checks, freshness, anomaly checks, alerts on failure | [/health/](https://fantasyscout.beronilla.rodeo/health/), the checks on [/schema/](https://fantasyscout.beronilla.rodeo/schema/#checks) |
+| Reconciliation across sources | Stats API vs ESPN box scores per player-game, ID crosswalk, mismatch log | The reconciliation card on [/health/](https://fantasyscout.beronilla.rodeo/health/), `docs/adr/0005-reconciliation.md` |
+| Notebooks and dashboards on the same data | Jupyter notebooks over the published build, Tableau Public, in-browser SQL console | [/notebooks/](https://fantasyscout.beronilla.rodeo/notebooks/), [/dashboards/](https://fantasyscout.beronilla.rodeo/dashboards/), [/sql/](https://fantasyscout.beronilla.rodeo/sql/) (the owner's) |
+| Products for non-technical readers | Fantasy board, streamers, trade and league tools, player scouting pages | [The Board](https://fantasyscout.beronilla.rodeo/), [/streamers/](https://fantasyscout.beronilla.rodeo/streamers/), [/trade/](https://fantasyscout.beronilla.rodeo/trade/), [/league/](https://fantasyscout.beronilla.rodeo/league/) |
 | Documentation of pipelines and definitions | dbt docs site, data dictionary, runbook, ADRs | `docs/` |
-| Generative AI, kept honest | Deterministic numbers; an LLM only drafts notes from gold tables, schema-validated and cited | AI page, eval results |
-| Tracking and event data | Play-by-play events, shot locations, tracking-derived stats where exposed | Shot charts, event models |
+| Generative AI, kept honest | Deterministic numbers; a language model only drafts notes from gold tables, schema-validated and cited | Planned (phase 7): `ai/` |
+| Tracking and event data | Play-by-play events, shot locations, tracking-derived stats where exposed | The shot chart on each player page, `fct_event` and `fct_shot` on [/schema/](https://fantasyscout.beronilla.rodeo/schema/) |
 
 ## Status
 
-Built phase by phase; each phase ends with something live and a PR that passes CI. Phases 0 to 6 are live (ingest, lakehouse, gold and quality, reconciliation, the site, the analysis surfaces); the AI notes of phase 7 wait for the go-ahead. The current state, sprint and blockers are in [.sdlc/state.md](.sdlc/state.md); the phase table in [docs/architecture.md](docs/architecture.md#phase-status).
+Built phase by phase; each phase ends with something live and a PR that passes CI. Which phases are done and what is in progress is kept in one place, the [phase table in docs/architecture.md](docs/architecture.md#phase-status); the current sprint and blockers are in [.sdlc/state.md](.sdlc/state.md).
 
 ## Repo layout
 
@@ -44,7 +44,7 @@ infra/       self-hosted runner for the jobs that need a residential address, an
 bundles/     Databricks Asset Bundle: jobs, schedules, targets
 tests/       Python tests (ingest, export, ops, the fixture contract)
 docs/        adr/, runbook.md, architecture.md (the data dictionary is the site's Schema page, from web/src/generated/schema.json)
-.github/     workflows: ci, deploy-web, ingest, backfill, build, export, notebooks, probe, query, watchdog; composite actions
+.github/     workflows: ci, deploy-web, ingest, backfill, build, export, notebooks, probe, query, release, secrets-review, watchdog; composite actions
 ```
 
 ## Run it locally
