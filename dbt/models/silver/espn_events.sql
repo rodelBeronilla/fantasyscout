@@ -14,7 +14,7 @@ select
     season,
     event_id,
     league || ':' || event_id as event_key,
-    cast(substr(event_date, 1, 10) as date) as event_date,
+    cast(substr(event_date, 1, 10) as date) as event_date_utc,
     {{ utc_timestamp('event_date') }} as event_datetime_utc,
     name,
     short_name,

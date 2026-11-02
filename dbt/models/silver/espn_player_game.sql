@@ -6,7 +6,7 @@ select
     event_id,
     athlete_id,
     league || ':' || event_id || ':' || athlete_id as player_game_key,
-    cast(substr(event_date, 1, 10) as date) as event_date,
+    cast(substr(event_date, 1, 10) as date) as event_date_utc,
     team_id,
     athlete_name,
     jersey,
