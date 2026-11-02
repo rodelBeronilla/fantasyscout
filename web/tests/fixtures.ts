@@ -16,6 +16,8 @@ export const test = base.extend({
     // (#535). Many tests rewrite a page's rows by mocking the row file, so the column files are
     // hidden here; the test that covers them calls page.unroute('**/*.columns.json').
     await page.route('**/*.columns.json', (route) => route.fulfill({ status: 404, body: 'hidden in tests' }));
+    // Data Health reads the open incidents from GitHub (#418): none, unless a test says otherwise.
+    await page.route('https://api.github.com/**', (route) => route.fulfill({ json: [] }));
     await use(page);
   },
 });
