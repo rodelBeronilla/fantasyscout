@@ -221,7 +221,7 @@ FantasyScout is its own Cloudflare Worker, `fantasyscout`, bound to the custom d
 - Secrets live only in GitHub Actions secrets: `CLOUDFLARE_API_TOKEN` (scoped to this account: Workers Scripts edit, R2 edit, and on the `beronilla.rodeo` zone Workers Routes edit and DNS edit so the custom domain can be created), `CLOUDFLARE_ACCOUNT_ID`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `ANTHROPIC_API_KEY`. Never in the repo, never in chat.
 - The deploy workflow creates the R2 bucket if it is missing. The custom domain is created by the first production deploy.
 
-> **Superseded in part.** The secrets grew with the sources and the sign-in: `YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET` and `OWNER_YAHOO_GUID` (ADR 0007, ADR 0008), `ODDS_API_KEY` (ADR 0008 addendum), the Google service account behind the Tableau extract's sheet, `DATABRICKS_INGEST_TOKEN` for the ingest's narrower token, and the home runner's registration. They live only in GitHub Actions secrets and the `lakehouse` environment; the runbook names each.
+> **Superseded in part.** The secrets grew with the sources and the sign-in: `YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET` and `OWNER_YAHOO_GUID` (ADR 0007, ADR 0008), `ODDS_API_KEY` (ADR 0008 addendum), the Google service account behind the Tableau extract's sheet, `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` for the ingest's service principal (ADR 0002 addendum; `DATABRICKS_INGEST_TOKEN` is the token fallback), and the home runner's registration. They live only in GitHub Actions secrets and the `lakehouse` environment; the runbook names each.
 - Smoke test after every deploy: `/` returns 200 with the app, `/data/latest.json` parses (404 until the first export), one player page renders once players exist.
 
 ## Repo layout and engineering standards
