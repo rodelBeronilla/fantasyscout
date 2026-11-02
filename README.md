@@ -64,3 +64,7 @@ Full details, including the Windows note about workerd, are in [CONTRIBUTING.md]
 The site's [Sources page](https://fantasyscout.beronilla.rodeo/sources/) says, per source, what is taken, how often, what is published and how long it is kept, and how a source can object (`web/src/lib/sources.json`).
 
 The league stats API and ESPN's public JSON are unofficial. Requests are throttled hard, raw payloads are never redistributed, and only derived tables are published. Non-commercial use.
+
+## License
+
+The code and documentation are under the [MIT License](LICENSE). The data the site serves is not: it is derived from the leagues' and the other sources' feeds named on the Sources page and stays theirs, under their terms.

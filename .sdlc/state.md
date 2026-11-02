@@ -119,11 +119,10 @@ N/A, first sprint.
 - Local Windows machine lacks the Universal C Runtime that workerd needs; Worker tests run in a container or CI until the VC++ Redistributable is installed.
 - The Schema page's Lighthouse score is reported, not enforced, in the deploy (its tables are large by design); home and Streamers are enforced.
 - The Worker test suite shares one R2 state across tests; a test that moves `latest.json` must seed the same pointer the data tests use.
-- The repository has no LICENSE file yet; the choice is the owner's.
 
 ## Next Actions
 
-0. Owner: choose a LICENSE; add the ingest principal's `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` and the `lakehouse` environment secrets, the home runner's cron and `ODDS_API_KEY` in the repository settings; say when phase 7 (AI notes) may start and add `ANTHROPIC_API_KEY` then.
+0. Owner: add the ingest principal's `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` and the `lakehouse` environment secrets, the home runner's cron and `ODDS_API_KEY` in the repository settings; say when phase 7 (AI notes) may start and add `ANTHROPIC_API_KEY` then.
 1. Owner: the Google Sheets bridge setup in tableau/README.md (service account secret `GOOGLE_SERVICE_ACCOUNT_JSON`, sheet shared with it, variable `TABLEAU_SHEET_ID`), then publish the League Pulse workbook from that sheet and set `TABLEAU_VIZ_URL`; then go-ahead for phase 7 (AI scouting notes with verified claims).
 2. Watch the nightly build log's reconciliation summary; any season under 99% matched warns, and `silver.player_xwalk_review` names the players to add to the overrides seed.
 3. Owner, optional: the Yahoo app exists and its secrets are deployed (2026-10-29), but Yahoo answers 403 until it approves Fantasy Sports API access. Apply at https://sports.yahoo.com/developer/access/, sign the DocuSign agreement, then submit the Client ID at https://sports.yahoo.com/developer/application-confirmation/ (runbook). Earlier note: register a Yahoo developer app (redirect URI https://fantasyscout.beronilla.rodeo/auth/yahoo/callback, Fantasy Sports read) and add the `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET` Actions secrets to turn on the Yahoo league import; then sign in on the League page (NBA) to verify it end to end.
