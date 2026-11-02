@@ -5,7 +5,7 @@
 // pages and bundles with the same headers the Worker sets on what it serves (#442). Node strips
 // policy.ts's types on load. Run from worker/: `node scripts/csp-hashes.mjs [path/to/web/dist]`.
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +14,15 @@ import { headersFile } from '../src/policy.ts';
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = process.argv[2] ?? join(here, '..', '..', 'web', 'dist');
 const out = join(here, '..', 'src', 'csp-hashes.json');
+
+// The file is generated, not committed (#412): a committed copy went stale whenever the site's
+// inline scripts changed. Without a site build there is nothing to hash, so it is written empty
+// (the policy then allows no inline script) and the typecheck still finds it.
+if (!existsSync(dist)) {
+  writeFileSync(out, JSON.stringify({ scripts: [], styles: [] }, null, 2) + '\n');
+  console.warn(`${dist} is missing: wrote empty hashes to ${out}; build the site first for a deployable policy`);
+  process.exit(0);
+}
 
 // The generated dbt docs under dist/docs have their own policy (worker/src/index.ts); skip them.
 function* htmlFiles(dir, top = true) {

@@ -25,6 +25,8 @@ web/playwright-report/
 web/test-results/
 worker/.wrangler/
 worker/worker-configuration.d.ts
+# Generated from the site build before every typecheck, test, dry run and deploy (#412).
+worker/src/csp-hashes.json
 
 # dbt
 dbt/target/
