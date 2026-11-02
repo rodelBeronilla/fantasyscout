@@ -201,6 +201,8 @@ jobs:
           S_EXTRACT: ${{ steps.publish.outputs.extract || 'skipped' }}
           S_PROMOTE: ${{ steps.publish.outputs.promote || steps.publish.outcome }}
           S_SHEETS: ${{ steps.sheets.outcome }}
+          # ops.build_log reads the run's step timings from the Actions API (#407)
+          GH_TOKEN: ${{ github.token }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_ORIGIN: https://${{ env.DBT_DATABRICKS_HOST }}
           DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
