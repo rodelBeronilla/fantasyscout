@@ -782,6 +782,7 @@ test('the Yahoo bookmarklet reads every roster from the Starting Rosters page it
   await expect(cards.nth(0).getByTestId('roster').locator('li')).toHaveCount(4);
   await expect(cards.nth(0).getByTestId('roster')).toContainText('Rhyne Howard');
   await expect(cards.nth(1).getByTestId('roster').locator('li')).toHaveCount(3);
+  await expect(cards.nth(1).getByTestId('roster')).toContainText('Nneka Ogwumike'); // listed as "N. Ogwumike" on Yahoo
   await expect(cards.nth(1).getByRole('radio')).toBeChecked();
   // the sidebar's players belong to nobody
   await expect(page.getByTestId('roster').filter({ hasText: 'Napheesa Collier' })).toHaveCount(0);

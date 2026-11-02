@@ -257,7 +257,9 @@ export function nameKey(name: string): string {
 
 /**
  * Matches pasted lines (one player each, as any fantasy host lists them) to players. A line may
- * carry extra text such as a team or position; the longest player name it contains wins.
+ * carry extra text such as a team or position; the longest player name it contains wins. A long
+ * name a host shortens to an initial ("N. Alexander-Walker") matches the one player whose surname
+ * fits and whose first name starts with that initial (#519).
  */
 export function matchNames(text: string, players: { player_id: string; full_name: string | null }[]): { matched: string[]; unmatched: string[] } {
   const byKey = new Map<string, string>();
@@ -268,7 +270,17 @@ export function matchNames(text: string, players: { player_id: string; full_name
   for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
     const k = nameKey(line);
     const key = byKey.has(k) ? k : keys.find((candidate) => ` ${k} `.includes(` ${candidate} `));
-    const id = key ? byKey.get(key) : undefined;
+    let id = key ? byKey.get(key) : undefined;
+    if (!id) {
+      const [initial, ...rest] = k.split(' ');
+      if (initial && initial.length === 1 && rest.length) {
+        const fits = keys.filter((c) => {
+          const parts = c.split(' ');
+          return !!parts[0]?.startsWith(initial) && parts.slice(1).join(' ') === rest.join(' ');
+        });
+        if (fits.length === 1) id = byKey.get(fits[0]!);
+      }
+    }
     if (id && !matched.includes(id)) matched.push(id);
     else if (!id) unmatched.push(line);
   }
