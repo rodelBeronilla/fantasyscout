@@ -51,7 +51,8 @@ select
         when {{ matches('c.h', 'out for (the )?season|season-ending') }} then 'out_for_season'
         when {{ matches('c.h', 'surgery|scope|procedure') }} then 'surgery'
         when {{ matches('c.h', 'minutes (restriction|limit)') }} then 'minutes_limit'
-        when {{ matches('c.h', 'return|cleared|activated|debut') }} then 'return'
+        -- "returns" in its comeback sense only: a trend, a jersey or a rivalry also returns (#521)
+        when {{ matches('c.h', 'return(s|ed|ing)? (from|to|after|against|vs|on|in|for|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|cleared (to|for)|activated|debut|back in (the )?(lineup|rotation)|expected back') }} then 'return'
         when {{ matches('c.h', '[(][a-z -]+[)]|injur|sprain|strain|fracture|torn|to miss|ruled out|day-to-day') }} then 'injury'
         when {{ matches('c.h', 'g league') }} then 'g_league'
         when {{ matches('c.h', 'bench|to start|starting lineup|rotation') }} then 'role'
