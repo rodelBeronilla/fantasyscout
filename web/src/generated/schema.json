@@ -17344,112 +17344,144 @@
       },
       {
        "description": "Field goals made (league value, ESPN's where the league's is null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "field_goals_made",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Field goals attempted (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "field_goals_attempted",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Three-pointers made (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "three_pointers_made",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Three-pointers attempted (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "three_pointers_attempted",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Free throws made (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "free_throws_made",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Free throws attempted (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "free_throws_attempted",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Offensive rebounds (league box score only)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "rebounds_offensive",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Defensive rebounds (league box score only)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "rebounds_defensive",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Total rebounds (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "rebounds_total",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Assists (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "assists",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Steals (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "steals",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Blocked shots (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "blocks",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Turnovers (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "turnovers",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Personal fouls (league box score only)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "fouls_personal",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Points scored (league value, ESPN's where null)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "points",
        "tests": [],
        "type": "integer"
       },
       {
        "description": "Point margin while the player was on the floor (league box score)",
-       "meta": {},
+       "meta": {
+        "null_when": "the player did not play (no minutes)"
+       },
        "name": "plus_minus",
        "tests": [],
        "type": "integer"
@@ -17665,7 +17697,12 @@
       "player_game_reconciliation",
       "player_game_usage"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "A player who did not play has no box score (#389): the league writes zeros with no minutes, kept as null. A played line keeps its zeros, and a row whose minutes are missing keeps any number it does carry (here five points); only its zeros are nulled.",
+       "name": "player_game_dnp_box_is_null"
+      }
+     ]
     },
     {
      "checks": [],
@@ -24926,6 +24963,11 @@
    "description": "A player listed Out who returns two games later missed 2; a player listed Questionable who played missed 0; a player listed Out who does not play again missed every game the team had left. A report published after 5 pm Eastern is left out.",
    "model": "fct_official_listing",
    "name": "official_listing_counts_the_games_missed_after_each_listing"
+  },
+  {
+   "description": "A player who did not play has no box score (#389): the league writes zeros with no minutes, kept as null. A played line keeps its zeros, and a row whose minutes are missing keeps any number it does carry (here five points); only its zeros are nulled.",
+   "model": "fct_player_game",
+   "name": "player_game_dnp_box_is_null"
   },
   {
    "description": "Each source and bookmaker keeps its last line before the start; a snapshot after the start and a quote without a league player are left out. The consensus averages the bookmakers' lines and vig-free over probabilities, counting DraftKings once although both sources carry it (The Odds API's quote on a tie).",

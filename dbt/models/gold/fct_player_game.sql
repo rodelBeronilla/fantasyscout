@@ -45,6 +45,8 @@ recon as (
 
 )
 
+{% set minutes = 'coalesce(b.minutes, r.espn_minutes)' %}
+
 select
     {{ sk(['b.league', 'b.game_id', 'b.player_id']) }} as player_game_sk,
     s.player_sk,
@@ -61,24 +63,32 @@ select
     b.side = 'home' as is_home,
     b.position,
     b.comment,
-    coalesce(b.minutes, r.espn_minutes) as minutes,
-    coalesce(b.minutes, r.espn_minutes) > 0 as played,
-    coalesce(b.field_goals_made, r.espn_field_goals_made) as field_goals_made,
-    coalesce(b.field_goals_attempted, r.espn_field_goals_attempted) as field_goals_attempted,
-    coalesce(b.three_pointers_made, r.espn_three_pointers_made) as three_pointers_made,
-    coalesce(b.three_pointers_attempted, r.espn_three_pointers_attempted) as three_pointers_attempted,
-    coalesce(b.free_throws_made, r.espn_free_throws_made) as free_throws_made,
-    coalesce(b.free_throws_attempted, r.espn_free_throws_attempted) as free_throws_attempted,
-    b.rebounds_offensive,
-    b.rebounds_defensive,
-    coalesce(b.rebounds_total, r.espn_rebounds_total) as rebounds_total,
-    coalesce(b.assists, r.espn_assists) as assists,
-    coalesce(b.steals, r.espn_steals) as steals,
-    coalesce(b.blocks, r.espn_blocks) as blocks,
-    coalesce(b.turnovers, r.espn_turnovers) as turnovers,
-    b.fouls_personal,
-    coalesce(b.points, r.espn_points) as points,
-    b.plus_minus,
+    {{ minutes }} as minutes,
+    {{ minutes }} > 0 as played,
+    {#- A player who did not play (no minutes) has no box score: the league writes zeros, kept here
+        as null, since null means not applicable (#389). Only a zero is nulled, so a number on a row
+        whose minutes are missing is never lost. #}
+    {%- for name, expr in [
+        ('field_goals_made', 'coalesce(b.field_goals_made, r.espn_field_goals_made)'),
+        ('field_goals_attempted', 'coalesce(b.field_goals_attempted, r.espn_field_goals_attempted)'),
+        ('three_pointers_made', 'coalesce(b.three_pointers_made, r.espn_three_pointers_made)'),
+        ('three_pointers_attempted', 'coalesce(b.three_pointers_attempted, r.espn_three_pointers_attempted)'),
+        ('free_throws_made', 'coalesce(b.free_throws_made, r.espn_free_throws_made)'),
+        ('free_throws_attempted', 'coalesce(b.free_throws_attempted, r.espn_free_throws_attempted)'),
+        ('rebounds_offensive', none),
+        ('rebounds_defensive', none),
+        ('rebounds_total', 'coalesce(b.rebounds_total, r.espn_rebounds_total)'),
+        ('assists', 'coalesce(b.assists, r.espn_assists)'),
+        ('steals', 'coalesce(b.steals, r.espn_steals)'),
+        ('blocks', 'coalesce(b.blocks, r.espn_blocks)'),
+        ('turnovers', 'coalesce(b.turnovers, r.espn_turnovers)'),
+        ('fouls_personal', none),
+        ('points', 'coalesce(b.points, r.espn_points)'),
+        ('plus_minus', none)
+    ] %}
+    {%- set value = expr or 'b.' ~ name %}
+    case when coalesce({{ minutes }}, 0) > 0 or {{ value }} <> 0 then {{ value }} end as {{ name }},
+    {%- endfor %}
     a.usage_percentage,
     a.true_shooting_percentage,
     a.effective_field_goal_percentage,

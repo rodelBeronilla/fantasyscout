@@ -216,36 +216,52 @@ models:
       - name: played
         description: "True when minutes are above zero"
       - name: field_goals_made
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Field goals made (league value, ESPN's where the league's is null)"
       - name: field_goals_attempted
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Field goals attempted (league value, ESPN's where null)"
       - name: three_pointers_made
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Three-pointers made (league value, ESPN's where null)"
       - name: three_pointers_attempted
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Three-pointers attempted (league value, ESPN's where null)"
       - name: free_throws_made
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Free throws made (league value, ESPN's where null)"
       - name: free_throws_attempted
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Free throws attempted (league value, ESPN's where null)"
       - name: rebounds_offensive
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Offensive rebounds (league box score only)"
       - name: rebounds_defensive
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Defensive rebounds (league box score only)"
       - name: rebounds_total
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Total rebounds (league value, ESPN's where null)"
       - name: assists
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Assists (league value, ESPN's where null)"
       - name: steals
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Steals (league value, ESPN's where null)"
       - name: blocks
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Blocked shots (league value, ESPN's where null)"
       - name: turnovers
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Turnovers (league value, ESPN's where null)"
       - name: fouls_personal
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Personal fouls (league box score only)"
       - name: points
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Points scored (league value, ESPN's where null)"
       - name: plus_minus
+        meta: {null_when: "the player did not play (no minutes)"}
         description: "Point margin while the player was on the floor (league box score)"
       - name: usage_percentage
         description: "Share of team possessions the player used while on the floor, decimal 0-1 (advanced line)"
