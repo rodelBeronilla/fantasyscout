@@ -225,6 +225,17 @@
    "tags": []
   },
   {
+   "about": "Of the player-games the league and ESPN both report, at most 0.5% may disagree beyond rounding (vars.quality_thresholds.conflict_rate, the good bound; the data-quality notebook grades against the same pair). A season with fewer than 100 matched player-games is too small to judge (#392).",
+   "name": "warn_reconciliation_conflicts",
+   "reads": [
+    "reconciliation_summary"
+   ],
+   "severity": "warn",
+   "tags": [
+    "reconciliation"
+   ]
+  },
+  {
    "about": "Court coordinates inside the half court (tenths of a foot from the basket) and the three-point flag consistent with distance: a three is at least 21 feet out, a two at most 24.",
    "name": "warn_shot_location_sanity",
    "reads": [
@@ -24002,7 +24013,8 @@
     },
     {
      "checks": [
-      "warn_crosswalk_coverage"
+      "warn_crosswalk_coverage",
+      "warn_reconciliation_conflicts"
      ],
      "columns": [
       {
