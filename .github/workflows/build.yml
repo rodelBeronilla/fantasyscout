@@ -25,6 +25,10 @@ on:
         description: dbt selector (default everything)
         type: string
         default: ""
+      deploy_bundle:
+        description: Also deploy the paused Asset Bundle job (ADR 0013; the fallback for an Actions outage)
+        type: boolean
+        default: false
       chaos:
         description: Chaos drill, fail one error-severity check on purpose to prove the gate and the incident path
         type: boolean
@@ -278,9 +282,12 @@ jobs:
           area: area:ops
           detail: "${{ github.event.workflow_run.name }} ended ${{ github.event.workflow_run.conclusion }} (${{ github.event.workflow_run.html_url }}), so no build ran. A self-hosted job that found no runner is cancelled after a day in the queue: check the home runners (infra/runner). Run Ingest by hand with source espn (then reports) so a build runs without the runner, and source stats with since set to the first missed day once the runner is back (runbook, Home runner offline); the next passing build closes this."
 
+  # The bundle is the paused fallback (ADR 0013): deployed on a dispatch that asks for it, never
+  # after a nightly build, so a slow deploy can no longer hold a run open after the data went live.
   bundle:
     name: Deploy the Asset Bundle
     needs: dbt
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_bundle
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: lakehouse

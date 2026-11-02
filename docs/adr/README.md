@@ -16,6 +16,7 @@ One record per real decision, written when the decision is made. Numbered; a lat
 | [0010](0010-availability-calibration.md) | Availability calibration | 2026-10-30 | Accepted | the matching addenda of ADR 0003 (moved here on 2026-11-01, text unchanged) |  |
 | [0011](0011-streamers-sort.md) | Streamers sort | 2026-10-30 | Accepted | the matching addenda of ADR 0003 (moved here on 2026-11-01, text unchanged) |  |
 | [0012](0012-signals-tested-and-not-built.md) | Signals tested and not built | 2026-10-30 | Accepted | the matching addenda of ADR 0003 (moved here on 2026-11-01, text unchanged) |  |
+| [0013](0013-where-the-dbt-build-runs.md) | Where the dbt build runs | 2026-11-02 | Accepted | the orchestration row of SPEC.md and docs/architecture.md |  |
 
 ## Addenda
 
