@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -26,14 +25,7 @@ from export import build as build_mod
 from export import layout
 from export.source import DatabricksSource, DuckDBSource, GoldSource
 from export.store import LocalStore, R2Store, Store
-
-
-def _git_sha() -> str:
-    env_sha = os.environ.get("GITHUB_SHA")
-    if env_sha:
-        return env_sha
-    proc = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
-    return proc.stdout.strip() or "local"
+from ops.git import git_sha
 
 
 def make_store(kind: str, out: Path) -> Store:
@@ -157,7 +149,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 build = build_mod.assemble(
                     source,
                     engine=args.engine,
-                    git_sha=args.git_sha or _git_sha(),
+                    git_sha=args.git_sha or git_sha("local"),
                     build_id=args.build_id,
                     created_at=args.created_at,
                     skip_tables=frozenset(s for s in args.skip.split(",") if s),

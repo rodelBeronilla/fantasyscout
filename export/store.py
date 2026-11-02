@@ -10,13 +10,14 @@ from __future__ import annotations
 
 import contextlib
 import threading
-import time
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 import httpx
+
+from ingest.http import retrying_send
 
 CONTENT_TYPES = {
     "json": "application/json",
@@ -24,7 +25,6 @@ CONTENT_TYPES = {
     "txt": "text/plain; charset=utf-8",
     "html": "text/html; charset=utf-8",
 }
-_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 _RETRIES = 5
 
 
@@ -101,28 +101,21 @@ class R2Store:
         self._client.close()
 
     def _send(
-        self, method: str, key: str, *, url: str | None = None, **kwargs: object
+        self, method: str, key: str, *, url: str | None = None, **kwargs: Any
     ) -> httpx.Response:
-        url = url or self._base + key
-        for attempt in range(_RETRIES + 1):
-            with self._lock:
-                self.requests += 1
-            delay = min(30.0, self._sleep * 2**attempt)
-            try:
-                response = self._client.request(method, url, **kwargs)  # type: ignore[arg-type]
-            except httpx.TransportError:
-                # A dropped connection, a connect or read timeout: the API is reachable again
-                # moments later, so it is retried like a 429 or a 5xx, and raised at the end.
-                if attempt == _RETRIES:
-                    raise
-                time.sleep(delay)
-                continue
-            if response.status_code not in _RETRY_STATUSES or attempt == _RETRIES:
-                return response
-            with contextlib.suppress(ValueError):
-                delay = max(delay, float(response.headers.get("retry-after", "0")))
-            time.sleep(delay)
-        return response  # pragma: no cover
+        return retrying_send(
+            self._client,
+            method,
+            url or self._base + key,
+            retries=_RETRIES,
+            base_delay=self._sleep,
+            on_attempt=self._count,
+            **kwargs,
+        )
+
+    def _count(self) -> None:
+        with self._lock:
+            self.requests += 1
 
     def get(self, key: str) -> bytes | None:
         response = self._send("GET", key)

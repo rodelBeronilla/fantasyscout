@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 import time
 from collections.abc import Callable
@@ -27,6 +26,7 @@ from typing import Literal
 import httpx
 
 from export import source as source_mod
+from ops.git import git_sha
 
 Engine = Literal["duckdb", "databricks"]
 
@@ -362,14 +362,6 @@ def print_failure_samples(args: argparse.Namespace, rows: list[ResultRow]) -> No
         print(f"  (failing-row samples unavailable: {type(exc).__name__}: {str(exc)[:200]})")
 
 
-def _git_sha() -> str:
-    env_sha = os.environ.get("GITHUB_SHA")
-    if env_sha:
-        return env_sha
-    proc = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
-    return proc.stdout.strip() or "unknown"
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Record dbt results and decide the publish gate.")
     parser.add_argument("--engine", choices=("duckdb", "databricks"), required=True)
@@ -400,11 +392,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     run_at = datetime.now(UTC).replace(tzinfo=None)
-    git_sha = _git_sha()[:12]
+    sha = git_sha()[:12]
     target_dirs = [d for d in (args.target_dir or [Path("dbt/target")]) if d.exists()]
     args.target_dirs = target_dirs
     rows = merge_rows(
-        *(load_rows(d, engine=args.engine, git_sha=git_sha, run_at=run_at) for d in target_dirs)
+        *(load_rows(d, engine=args.engine, git_sha=sha, run_at=run_at) for d in target_dirs)
     )
     gate = decide(rows, selected=args.selected.strip() or None)
     run_id = rows[0].run_id if rows else "no-results"
@@ -428,7 +420,7 @@ def main(argv: list[str] | None = None) -> int:
             run_id=run_id,
             run_at=run_at,
             engine=args.engine,
-            git_sha=git_sha,
+            git_sha=sha,
         )
         if args.engine == "duckdb":
             write_duckdb(args.duckdb, statements)

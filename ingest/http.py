@@ -313,3 +313,46 @@ class ThrottledClient:
                 self.last_request = RequestStats(attempt + 1, int(latency * 1000))
                 return response
         raise IngestHTTPError(url, attempts, last)
+
+
+# Statuses a storage API answers when it is busy or briefly down: retried, never reported at once.
+STORE_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+
+
+def retrying_send(
+    client: httpx.Client,
+    method: str,
+    url: str,
+    *,
+    retries: int,
+    base_delay: float = 1.0,
+    on_attempt: Callable[[], None] | None = None,
+    **kwargs: object,
+) -> httpx.Response:
+    """One storage API call, retried with exponential backoff on a busy or dropped answer (#481).
+
+    The Databricks Files API (the landing volume) and the Cloudflare R2 objects API both rate
+    limit under a burst of writes (429) and drop the odd connection, and a payload or a build
+    file must never be lost to that. The call is retried up to ``retries`` times, waiting
+    ``base_delay`` doubled each time (at most 30 s) or the answer's ``Retry-After`` when longer; a
+    transport error is retried the same way and raised after the last attempt. The last answer is
+    returned whatever its status, for the caller to report. ``on_attempt`` runs before each try
+    (the R2 store counts its requests with it).
+    """
+    for attempt in range(retries + 1):
+        if on_attempt is not None:
+            on_attempt()
+        delay = min(30.0, base_delay * 2**attempt)
+        try:
+            response = client.request(method, url, **kwargs)  # type: ignore[arg-type]
+        except httpx.TransportError:
+            if attempt == retries:
+                raise
+            time.sleep(delay)
+            continue
+        if response.status_code not in STORE_RETRY_STATUSES or attempt == retries:
+            return response
+        with contextlib.suppress(ValueError):
+            delay = max(delay, float(response.headers.get("retry-after", "0")))
+        time.sleep(delay)
+    raise AssertionError("unreachable: the last attempt returns or raises")  # pragma: no cover

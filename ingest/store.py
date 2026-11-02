@@ -13,7 +13,6 @@ SHA-256 of the last landing for every request key, so:
 
 from __future__ import annotations
 
-import contextlib
 import json
 import threading
 import time
@@ -22,10 +21,11 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timedelta
 from pathlib import Path, PurePosixPath
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 import httpx
 
+from ingest.http import retrying_send
 from ingest.landing import League, Sidecar, landing_key, payload_hash
 
 INDEX_NAME = "_index.json"
@@ -36,7 +36,6 @@ FLUSH_EVERY = 25
 # Days after a game by which the leagues' stat corrections are in: a game's payload landed this
 # long after it was played is final, and fetching it again returns the same bytes.
 SETTLE_DAYS = 2
-_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 _WRITE_RETRIES = 4
 
 
@@ -322,24 +321,14 @@ class VolumeBackend:
                     break
         return sorted(out)
 
-    def _send(self, method: str, url: str, **kwargs: object) -> httpx.Response:
+    def _send(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         """One Files API call, retried with backoff on rate limiting and server errors.
 
         The workspace rate-limits the Files API under a backfill's write bursts (HTTP 429
         RESOURCE_EXHAUSTED); a payload must never be lost to that, so the call is retried a
         few times, honouring Retry-After, before the failure is reported.
         """
-        response: httpx.Response | None = None
-        for attempt in range(_WRITE_RETRIES + 1):
-            response = self._client.request(method, url, **kwargs)  # type: ignore[arg-type]
-            if response.status_code not in _RETRY_STATUSES or attempt == _WRITE_RETRIES:
-                break
-            delay = min(30.0, 2.0**attempt)
-            with contextlib.suppress(ValueError):
-                delay = max(delay, float(response.headers.get("retry-after", "0")))
-            time.sleep(delay)
-        assert response is not None
-        return response
+        return retrying_send(self._client, method, url, retries=_WRITE_RETRIES, **kwargs)
 
     def _ensure_directory(self, directory: str) -> None:
         with self._dir_lock:  # writes run on several threads; create each directory once
