@@ -799,7 +799,7 @@ export default function Streamers() {
           <table className="w-full text-sm" data-testid="trending">
             <thead>
               <tr>
-                <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')}>
+                <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')} pin="first">
                   Player
                 </SortTh>
                 <Th>Team</Th>
@@ -837,7 +837,7 @@ export default function Streamers() {
             <tbody>
               {list.slice(0, shown).map((r) => (
                 <tr key={r.player_id} className="border-t border-line">
-                  <Td>
+                  <Td pin="first">
                     <span className="flex items-center gap-1 whitespace-nowrap">
                       <Star on={watched.has(r.player_id)} label={r.full_name ?? r.player_id} onToggle={() => toggleWatched(r.player_id)} />
                       <a href={href(`/p/${league}/${r.player_id}/`)} className="underline-offset-4 hover:underline">
