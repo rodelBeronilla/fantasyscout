@@ -104,7 +104,9 @@ export default function TradeAnalyzer() {
   // The week unit is offered while the week has games left; it re-measures the categories on last-ten form.
   const weekAvailable = useMemo(() => !!rows && hasWeekGames(rows), [rows]);
   const week = unit === 'week' && weekAvailable;
-  const REST = UNIT_TEXT[week ? 'week' : 'rest'];
+  // After the last game the season's value is the projection for the next one (#450).
+  const complete = !!rows?.length && rows.every((r) => r.season_complete);
+  const REST = week ? UNIT_TEXT.week : complete ? 'next season' : UNIT_TEXT.rest;
   const recentCats = useMemo(
     () => (rows && !points && week ? categoryValues(recentForm(rows, cats), cats, pool, setup.teams) : null),
     [rows, points, week, cats, pool, setup.teams],
@@ -335,10 +337,12 @@ export default function TradeAnalyzer() {
         <Td right>
           <Signed value={w?.season ?? 0} />
         </Td>
-        <Td right>{p.season_complete ? '–' : pct(p.ros_factor)}</Td>
-        <Td right>
-          <Signed value={w?.rest ?? 0} />
-        </Td>
+        {!complete && <Td right>{pct(p.ros_factor)}</Td>}
+        {!complete && (
+          <Td right>
+            <Signed value={w?.rest ?? 0} />
+          </Td>
+        )}
         {weekAvailable && <Td right>{p.games_this_week ?? 0}</Td>}
         {weekAvailable && (
           <Td right>
@@ -362,10 +366,12 @@ export default function TradeAnalyzer() {
       <Td right>
         <Signed value={s.season} />
       </Td>
-      <Td right>{''}</Td>
-      <Td right>
-        <Signed value={s.rest} />
-      </Td>
+      {!complete && <Td right>{''}</Td>}
+      {!complete && (
+        <Td right>
+          <Signed value={s.rest} />
+        </Td>
+      )}
       {weekAvailable && <Td right>{s.games}</Td>}
       {weekAvailable && (
         <Td right>
@@ -572,9 +578,9 @@ export default function TradeAnalyzer() {
                   {points && <Th right>FPts/G</Th>}
                   <Th right>Value/G</Th>
                   <Th right>Games share</Th>
-                  <Th right>Season</Th>
-                  <Th right>Available</Th>
-                  <Th right>Rest of season</Th>
+                  <Th right>{complete ? 'Next season' : 'Season'}</Th>
+                  {!complete && <Th right>Available</Th>}
+                  {!complete && <Th right>Rest of season</Th>}
                   {weekAvailable && <Th right>Games left</Th>}
                   {weekAvailable && <Th right>This week</Th>}
                 </tr>
@@ -589,7 +595,10 @@ export default function TradeAnalyzer() {
           </div>
           <p className="mt-2 text-xs text-muted">
             Value/G: value per game above your league&apos;s replacement level. Games share: the share of the season&apos;s games the player is projected to
-            play. Available: the share of the remaining games the player is expected to play. Season and rest of season count those games.
+            play.{' '}
+            {complete
+              ? 'The season is over: Next season counts those games under the projection.'
+              : 'Available: the share of the remaining games the player is expected to play. Season and rest of season count those games.'}
           </p>
         </Card>
       )}

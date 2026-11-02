@@ -308,6 +308,11 @@ test('streamers shows games per fantasy week for the rest of the season when wee
     games_left: number;
     is_current_week: boolean;
   }[];
+  // The fixture's WNBA season is over, which hides the grid (#450); mark it still running here.
+  await page.route('**/streamers/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r) => ({ ...r, season_complete: false })) });
+  });
   await page.goto('/streamers/');
   await expect(page.getByTestId('season-note')).toBeVisible();
   if (weeks.length === 0) {
@@ -1601,7 +1606,7 @@ test("a player's page shows the board's outlook and the team's next games", asyn
     const file = (await (await route.fetch()).json()) as { team: { team_id: string }; board: Record<string, unknown> | null };
     named(file.team.team_id);
     await route.fulfill({
-      json: { ...file, board: { ...(file.board ?? { rank_total: 3 }), market_rank: 7, ownership_bucket: 'most', lineup_role: 'starter', lineup_confirmed: true } },
+      json: { ...file, board: { ...(file.board ?? { rank_total: 3 }), market_rank: 7, ownership_bucket: 'most', lineup_role: 'starter', lineup_confirmed: true, season_complete: false } },
     });
   });
   await page.route('**/schedule/wnba.json', async (route) => {
@@ -1955,4 +1960,31 @@ test('every control on the Board is at least 24 by 24', async ({ page }) => {
     return [...new Set(out)];
   });
   expect(small).toEqual([]);
+});
+
+// After the WNBA's last game nothing on its pages speaks of the rest of the season, the next seven
+// days or a clinched place (#450). The fixture's WNBA season is complete.
+test('the off-season WNBA pages drop in-season wording', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string; season_complete: boolean }[];
+  expect(board.every((r) => r.season_complete)).toBe(true);
+  const absent = (text: string) => {
+    expect(text).not.toMatch(/rest of season/i);
+    expect(text).not.toMatch(/next 7 days/i);
+    expect(text).not.toContain('Clinched');
+  };
+  await page.goto('/p/wnba/1628932/');
+  await expect(page.getByTestId('season-over')).toHaveText('2026 season over · 2027 projection');
+  absent(await page.locator('main').innerText());
+  await page.goto('/streamers/');
+  await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
+  await expect(page.getByTestId('weeks-grid')).toHaveCount(0);
+  absent(await page.locator('main').innerText());
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/trade/');
+  await page.getByLabel('Add a player you give').fill(label(board[1]!));
+  await page.getByLabel('Add a player you get').fill(label(board[0]!));
+  await expect(page.getByTestId('trade-verdict')).toContainText('for the next season');
+  await expect(page.getByTestId('trade-players').locator('thead')).toContainText('Next season');
+  await expect(page.getByTestId('trade-players').locator('thead')).not.toContainText('Available');
+  absent(await page.locator('main').innerText());
 });

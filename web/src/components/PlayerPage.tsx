@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, type League } from '../lib/data';
-import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
+import { CATEGORIES, CATEGORY_LABELS, day, fmt, nextSeason, pct } from '../lib/format';
 import { isLeague } from '../lib/league';
 import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
@@ -170,7 +170,7 @@ function Fact({ label, value, hint }: { label: string; value: ReactNode; hint?: 
 }
 
 /** What the board projects for the player and the context it shows beside the value. */
-function OutlookCard({ board, league }: { board: NonNullable<PlayerFile['board']>; league: League }) {
+function OutlookCard({ board, league, season }: { board: NonNullable<PlayerFile['board']>; league: League; season: string | null }) {
   const line: [string, string][] = [
     ['MIN', fmt(board.proj_minutes_pg)],
     ['PTS', fmt(board.proj_points_pg)],
@@ -187,6 +187,12 @@ function OutlookCard({ board, league }: { board: NonNullable<PlayerFile['board']
     board.lineup_role === 'starter' ? 'Starting' : board.lineup_role === 'inactive' ? 'Inactive' : 'Bench';
   return (
     <Card title="Fantasy outlook" id="outlook">
+      {/* After the last game the week, the stakes and the ownership no longer apply (#450). */}
+      {board.season_complete && season && (
+        <p className="mb-3 text-sm text-muted" data-testid="season-over">
+          {season} season over · {nextSeason(season) ? `${nextSeason(season)} projection` : 'the projection for next season'}
+        </p>
+      )}
       <div className="grid gap-x-8 gap-y-4 md:grid-cols-2" data-testid="player-outlook">
         <dl className="text-sm">
           <Fact label="Board rank (default league)" value={`#${board.rank_total}`} />
@@ -222,7 +228,7 @@ function OutlookCard({ board, league }: { board: NonNullable<PlayerFile['board']
               hint="Players listed with this status went on to miss this many games on average (official injury reports since 2023-24)"
             />
           )}
-          <Fact label="Games next 7 days" value={board.games_next_7 ?? '–'} />
+          {!board.season_complete && <Fact label="Games next 7 days" value={board.games_next_7 ?? '–'} />}
           {!board.season_complete && <Fact label="Games left" value={board.games_remaining ?? '–'} />}
         </dl>
         <dl className="text-sm">
@@ -236,11 +242,11 @@ function OutlookCard({ board, league }: { board: NonNullable<PlayerFile['board']
           {board.market_rank != null && (
             <Fact label="ESPN market rank" value={`#${board.market_rank}`} hint="Where ESPN fantasy drafters take the player, by average draft position" />
           )}
-          {board.ownership_bucket && (
+          {!board.season_complete && board.ownership_bucket && (
             <Fact label="Rostered in" value={`${OWNED[board.ownership_bucket] ?? board.ownership_bucket} of ESPN leagues`} />
           )}
-          {board.team_stakes && <Fact label="Team" value={STAKES[board.team_stakes] ?? board.team_stakes} />}
-          {board.rest_risk && (
+          {!board.season_complete && board.team_stakes && <Fact label="Team" value={STAKES[board.team_stakes] ?? board.team_stakes} />}
+          {!board.season_complete && board.rest_risk && (
             <Fact label="Rest risk" value="Nothing left to play for" hint="Few games left and nothing to play for: minutes are less certain" />
           )}
         </dl>
@@ -464,7 +470,7 @@ export default function PlayerPage() {
 
       {player.board?.injury_group && <InjuryCard board={player.board} history={player.injury_history ?? []} />}
 
-      {player.board && <OutlookCard board={player.board} league={target.league} />}
+      {player.board && <OutlookCard board={player.board} league={target.league} season={player.current_season} />}
 
       {player.team.team_id && <NextGames games={schedule} teamId={player.team.team_id} />}
 
