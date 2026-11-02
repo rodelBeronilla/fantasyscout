@@ -67,6 +67,11 @@ jobs:
       - name: Land
         id: land
         env:
+          LEAGUE: ${{ inputs.league }}
+          SEASON: ${{ matrix.season }}
+          SEASON_TYPE: ${{ matrix.season_type }}
+          SINCE: ${{ steps.window.outputs.since }}
+          UNTIL: ${{ steps.window.outputs.until }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           # The ingest's service principal (runbook, "The ingest's own credential"); the token
           # is the fallback while the two are unset.
@@ -75,9 +80,9 @@ jobs:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
         run: |
           set -o pipefail
-          uv run fs-ingest land stats --league "${{ inputs.league }}" --season "${{ matrix.season }}" \
-            --season-type "${{ matrix.season_type }}" --shots team-season --pace adaptive \
-            --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}" \
+          uv run fs-ingest land stats --league "$LEAGUE" --season "$SEASON" \
+            --season-type "$SEASON_TYPE" --shots team-season --pace adaptive \
+            --since "$SINCE" --until "$UNTIL" \
             --backend volume 2>&1 | tee land.log
       - name: Report
         if: always()
@@ -119,6 +124,10 @@ jobs:
       - name: Land
         id: land
         env:
+          LEAGUE: ${{ inputs.league }}
+          SEASON: ${{ matrix.season }}
+          SINCE: ${{ steps.window.outputs.since }}
+          UNTIL: ${{ steps.window.outputs.until }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           # The ingest's service principal (runbook, "The ingest's own credential"); the token
           # is the fallback while the two are unset.
@@ -127,8 +136,8 @@ jobs:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
         run: |
           set -o pipefail
-          uv run fs-ingest land espn --league "${{ inputs.league }}" --season "${{ matrix.season }}" \
-            --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}" \
+          uv run fs-ingest land espn --league "$LEAGUE" --season "$SEASON" \
+            --since "$SINCE" --until "$UNTIL" \
             --pace adaptive --backend volume 2>&1 | tee land.log
       - name: Report
         if: always()
@@ -171,6 +180,10 @@ jobs:
       - name: Land
         id: land
         env:
+          LEAGUE: ${{ inputs.league }}
+          SEASON: ${{ matrix.season }}
+          SINCE: ${{ steps.window.outputs.since }}
+          UNTIL: ${{ steps.window.outputs.until }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           # The ingest's service principal (runbook, "The ingest's own credential"); the token
           # is the fallback while the two are unset.
@@ -179,7 +192,7 @@ jobs:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
         run: |
           set -o pipefail
-          uv run fs-ingest land reports --history --league "${{ inputs.league }}" --season "${{ matrix.season }}"             --since "${{ steps.window.outputs.since }}" --until "${{ steps.window.outputs.until }}"             --backend volume 2>&1 | tee land.log
+          uv run fs-ingest land reports --history --league "$LEAGUE" --season "$SEASON"             --since "$SINCE" --until "$UNTIL"             --backend volume 2>&1 | tee land.log
       - name: Report
         if: always()
         uses: ./.github/actions/incident

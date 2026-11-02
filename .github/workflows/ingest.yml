@@ -134,6 +134,7 @@ jobs:
       - name: Land
         id: land
         env:
+          LEAGUE: ${{ matrix.league }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           # The ingest's service principal (runbook, "The ingest's own credential"); the token
           # is the fallback while the two are unset.
@@ -147,7 +148,7 @@ jobs:
           RESETTLE: ${{ inputs.resettle_days }}
         run: |
           set -o pipefail
-          args=(land espn --league "${{ matrix.league }}" --backend volume)
+          args=(land espn --league "$LEAGUE" --backend volume)
           [ -n "$SINCE" ] && args+=(--since "$SINCE")
           [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
           [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
@@ -185,6 +186,7 @@ jobs:
       - name: Land
         id: land
         env:
+          LEAGUE: ${{ matrix.league }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           # The ingest's service principal (runbook, "The ingest's own credential"); the token
           # is the fallback while the two are unset.
@@ -195,7 +197,7 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
           set -o pipefail
-          uv run fs-ingest land reports --league "${{ matrix.league }}" --backend volume 2>&1 | tee land.log
+          uv run fs-ingest land reports --league "$LEAGUE" --backend volume 2>&1 | tee land.log
       - name: Report
         if: always()
         uses: ./.github/actions/incident
@@ -227,6 +229,7 @@ jobs:
       - name: Land
         id: land
         env:
+          LEAGUE: ${{ matrix.league }}
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           # The ingest's service principal (runbook, "The ingest's own credential"); the token
           # is the fallback while the two are unset.
@@ -244,7 +247,7 @@ jobs:
           set -o pipefail
           status=0
           for season_type in "Regular Season" "Playoffs"; do
-            args=(land stats --league "${{ matrix.league }}" --backend volume --season-type "$season_type")
+            args=(land stats --league "$LEAGUE" --backend volume --season-type "$season_type")
             [ -n "$SINCE" ] && args+=(--since "$SINCE")
             [ -n "$UNTIL" ] && args+=(--until "$UNTIL")
             [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
