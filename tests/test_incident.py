@@ -43,3 +43,22 @@ def test_the_owner_is_assigned_unless_told_otherwise() -> None:
     ) == ["else"]
     assert incident.assignees({"GITHUB_REPOSITORY_OWNER": "someone", "INCIDENT_ASSIGNEE": ""}) == []
     assert incident.assignees({}) == []
+
+
+def test_the_first_errors_are_pulled_from_anywhere_in_the_log() -> None:
+    lines = [
+        "progress stats nba: 25 requests",
+        "  Database Error in model events (models/silver/events.sql)",
+        "  [DELTA_UNSUPPORTED_MULTI_COL_IN_PREDICATE] Multi-column In predicates are not supported",
+        *(f"  warn sample {i}" for i in range(100)),
+        "results: 555 rows; gate BLOCKED: blocked by: events, shots",
+        "  Database Error in model events (models/silver/events.sql)",
+    ]
+    firsts = incident.first_errors(lines)
+    assert firsts[0].startswith("Database Error in model events")
+    assert any("blocked by" in f for f in firsts)
+    assert len([f for f in firsts if f.startswith("Database Error in model events")]) == 1, (
+        "no duplicates"
+    )
+    assert incident.first_errors(["all fine", "landed 3"]) == []
+    assert len(incident.first_errors([f"ERROR {i}" for i in range(30)])) == 10
