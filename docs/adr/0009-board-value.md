@@ -2,7 +2,7 @@
 
 Date: 2026-10-29
 Status: Accepted
-Supersedes: the matching addenda of ADR 0003 (moved here on 2026-11-01, text unchanged)
+Moved from: ADR 0003, its matching addenda (moved here on 2026-11-01, text unchanged)
 
 ## Context
 

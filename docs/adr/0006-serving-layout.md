@@ -46,3 +46,14 @@ Build lakehouse and Export data each had their own concurrency group, so a sched
 ## Addendum (2026-11-02): the current build's page files at a stable address
 
 A page read the pointer, then its file: on a slow phone the board's 172 KB file only started after the scripts had run, about 1.9 s in, and the first rows came at 3.8 s (#436). The Worker now also answers `/data/current/{board,streamers,schedule}/{wnba,nba}.json` by resolving `latest.json` itself and serving that build's file for a minute (`x-build-id` names the build). The Board and Streamers pages preload theirs from the head, for the league the page will pick, so the file downloads beside the pointer. Only those page files are reachable this way, never a private table. Where no Worker answers (the dev server, the test preview), the client falls back to the pointer and the build's own file. The build files themselves stay immutable for a year; the stable address costs one more cached object per file and a minute of staleness, the same as the pointer.
+
+## Addendum (2026-11-02): what is not immutable
+
+The decision said two pointers are served for a minute and everything under `builds/` is immutable for a year. Three kinds of key have changed since, and the Worker names them in `POINTER_KEYS` and `MUTABLE_UNDER_BUILDS` (`worker/src/index.ts`). Each is served `public, max-age=60`:
+
+- **The pointers**: `latest.json`, `builds.json`, and `notebooks/findings-history.json`, which every full build rewrites.
+- **A build's lists of itself**: `builds/<id>/keys.txt` and every `index.json` under a build. The export adds the rendered notebooks and the Tableau extract to a staged build after the fact and rewrites these, so a visitor who opened Notebooks while the index listed four notebooks is not held to that list for a year.
+- **The stable addresses** of the addendum above (`/data/current/...`): the file of whichever build the pointer names, for a minute.
+
+Everything else under `builds/` is still written once and served `immutable` for a year. Two Worker caches added on the same day keep to the same minute: the current build's id, which the player pages and the players sitemap read, and each named player page are kept at the edge for 60 s (#443). The content-hashed page bundles under `/_astro/` are served by the asset layer as `immutable` for a year (#442).
+

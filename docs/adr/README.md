@@ -12,15 +12,15 @@ One record per real decision, written when the decision is made. Numbered; a lat
 | [0006](0006-serving-layout.md) | How gold reaches the site | 2026-10-27 | Accepted |  |  |
 | [0007](0007-yahoo-league-import.md) | Importing a Yahoo Fantasy league | 2026-10-29 | Accepted |  |  |
 | [0008](0008-stats-terms-and-private-tables.md) | The statistics' terms, source credit and the private tables | 2026-10-29 | Accepted |  |  |
-| [0009](0009-board-value.md) | Board value | 2026-10-29 | Accepted | the matching addenda of ADR 0003 (moved here on 2026-11-01, text unchanged) |  |
-| [0010](0010-availability-calibration.md) | Availability calibration | 2026-10-30 | Accepted | the matching addenda of ADR 0003 (moved here on 2026-11-01, text unchanged) |  |
-| [0011](0011-streamers-sort.md) | Streamers sort | 2026-10-30 | Accepted | the matching addenda of ADR 0003 (moved here on 2026-11-01, text unchanged) |  |
-| [0012](0012-signals-tested-and-not-built.md) | Signals tested and not built | 2026-10-30 | Accepted | the matching addenda of ADR 0003 (moved here on 2026-11-01, text unchanged) |  |
+| [0009](0009-board-value.md) | Board value | 2026-10-29 | Accepted | none: moved from ADR 0003 on 2026-11-01, text unchanged |  |
+| [0010](0010-availability-calibration.md) | Availability calibration | 2026-10-30 | Accepted | none: moved from ADR 0003 on 2026-11-01, text unchanged |  |
+| [0011](0011-streamers-sort.md) | Streamers sort | 2026-10-30 | Accepted | none: moved from ADR 0003 on 2026-11-01, text unchanged |  |
+| [0012](0012-signals-tested-and-not-built.md) | Signals tested and not built | 2026-10-30 | Accepted | none: moved from ADR 0003 on 2026-11-01, text unchanged |  |
 | [0013](0013-where-the-dbt-build-runs.md) | Where the dbt build runs | 2026-11-02 | Accepted | the orchestration row of SPEC.md and docs/architecture.md |  |
 
 ## Addenda
 
-A record is not edited after acceptance, but it may grow **addenda**: dated sections that add evidence, record a measurement, or note what happened when the decision met real data. An addendum may not change the decision; a changed decision is a new record that says what it supersedes, and the old record gets a one-line pointer where the superseded text stands (in italics, so the original reads as written). When a record's addenda become a subject of their own, they move to a new record with the text unchanged and a pointer left behind; ADR 0003 did this on 2026-11-01 (0009 to 0012).
+A record is not edited after acceptance, but it may grow **addenda**: dated sections that add evidence, record a measurement, or note what happened when the decision met real data. An addendum may not change the decision; a changed decision is a new record that says what it supersedes, and the old record gets a one-line pointer where the superseded text stands (in italics, so the original reads as written). When a record's addenda become a subject of their own, they move to a new record with the text unchanged and a pointer left behind; the new record's header says `Moved from:` instead of `Supersedes:`, because a move changes no decision. ADR 0003 did this on 2026-11-01 (0009 to 0012).
 
 Template:
 

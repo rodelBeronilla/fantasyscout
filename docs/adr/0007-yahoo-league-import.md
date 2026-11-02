@@ -46,3 +46,14 @@ Nothing is fetched by FantasyScout's servers and nothing is stored beyond the br
 ## Addendum (2026-10-31): the injured list
 
 Yahoo's IL and IL+ slots hold a player without taking a roster spot, so a league with 13 spots can carry 15 owned players. The first bookmark sent names only, and the League page counted every owned player against the roster, reporting more spots filled than the league has. The bookmark now reads the slot label in each player's row (`IL`, `IL+`, also `IR`/`NA`) and sends it with the name (payload version 2; version 1 payloads still import, with nobody on the IL). The league setup gained an injured list: a player on it stays owned, is left out of the roster-spot count, and is left out of team strength on the League page, the Board's Fit totals and the Trade page's before/after, since they are not playing. An IL button on each roster row toggles it by hand, for leagues entered by paste or draft. A saved bookmark is a copy of the old code, so managers save it again to get the slot reading.
+
+## Addendum (2026-11-02): the import is off until a flag turns it on
+
+The decision said that without the Yahoo secrets every route answers "not configured". The secrets are now set, because the owner's sign-in for the private tables (ADR 0008) uses the same Yahoo app, so the secrets alone can no longer mean "the import is open". The Worker opens the import only when the `YAHOO_IMPORT` variable is `on` as well (the deploy passes the repository variable of that name; the runbook says when to set it). Until then:
+
+- `/api/yahoo/status` answers `{ "configured": <whether the secrets are set>, "live": false, "connected": false }`;
+- every other `/auth/yahoo/` and `/api/yahoo/` route answers 404 with "The Yahoo import is not available yet";
+- the League page shows the import as coming soon, with the bookmarklet of the addendum above as the way in, and only for the NBA.
+
+With the flag on, the status answers `live: true` and `connected` says whether this browser holds a Yahoo session.
+

@@ -15,7 +15,7 @@ Phase 3 turns the typed silver layer into the star schema and fantasy marts the 
 
 **Pool for z-scores is by total minutes.** The spec fixes the pool size (top 180 NBA, top 90 WNBA) but not the ranking; total minutes in the window is the least surprising proxy for "fantasy-relevant player" and does not depend on the categories being scored. Percentages use a volume-weighted impact ((player pct - pool pct) x attempts per game) standardised over the pool, never a plain average.
 
-**Blend weights hand missing seasons to the others.** Current 0.30 rising linearly to 0.80 at 20 games; last season 0.55 and the season before 0.15 share what remains in that ratio; a missing season gives its weight to the rest so a rookie is scored on current-season data alone. *Superseded by the board value addendum below.*
+**Blend weights hand missing seasons to the others.** Current 0.30 rising linearly to 0.80 at 20 games; last season 0.55 and the season before 0.15 share what remains in that ratio; a missing season gives its weight to the rest so a rookie is scored on current-season data alone. *Superseded by the board value addendum, which moved to [ADR 0009](0009-board-value.md) on 2026-11-01.*
 
 **Fixture sample is a shape fixture.** The sample built from recorded fixtures has a few rows per payload and is not a coherent season, so the data-quality checks (`tag:quality`) run only against real data in the nightly build; CI runs the structural tests (keys, relationships, accepted values) and the gate on the sample.
 
@@ -38,7 +38,7 @@ These began as addenda here and were moved to their own records on 2026-11-01, t
 
 ## Addendum (2026-10-29): availability, rest of season and lineups
 
-**Availability.** ESPN's injury feed names the athlete but carries no athlete id, so `fct_availability` links each listing by name within the team: through the ESPN roster to the athlete id and the player crosswalk, or straight to the league player currently on that team. `is_current` marks the latest report. The board turns the report into an availability multiplier: the share of the team's remaining regular-season games the player is expected to play (out: the games before the expected return, or all of them without a date; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25).
+**Availability.** ESPN's injury feed names the athlete but carries no athlete id, so `fct_availability` links each listing by name within the team: through the ESPN roster to the athlete id and the player crosswalk, or straight to the league player currently on that team. `is_current` marks the latest report. The board turns the report into an availability multiplier: the share of the team's remaining regular-season games the player is expected to play (out: the games before the expected return, or all of them without a date; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). *The fixed charges for doubtful, questionable and day-to-day were replaced by ones calibrated on past official listings: [ADR 0010](0010-availability-calibration.md).*
 
 **Rest of season** counts regular-season games only, the ones fantasy leagues score. Once a league's regular season is over (playoffs or the off-season) the board marks `season_complete` and the rest-of-season value equals the blend, instead of scaling everyone to zero.
 
