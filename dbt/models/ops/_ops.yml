@@ -145,3 +145,63 @@ models:
       - name: summarised_at
         meta: {tz: UTC}
         description: "Build time of the summary"
+
+  - name: ingest_endpoint_log
+    description: "One row per ingest run and endpoint: the landed, unchanged, failed and missing counts the run log records for each endpoint (ingest_log.endpoints, one JSON object, turned into rows). Runs logged before 2026-11 carry no per-endpoint counts and have no rows."
+    columns:
+      - name: run_id
+        description: "Run id of the ingest run (ingest_log.run_id)"
+        data_tests: [not_null]
+      - name: source
+        description: "Source the run pulled from: stats, espn or reports"
+      - name: league
+        description: "League the run covered: wnba or nba"
+      - name: started_at
+        meta: {tz: UTC}
+        description: "When the run started (UTC)"
+      - name: window_since
+        description: "First date of the run's window"
+      - name: window_until
+        description: "Last date of the run's window"
+      - name: full_refresh
+        description: "True when the run re-landed payloads even when unchanged"
+      - name: endpoint
+        description: "Endpoint, as the landing folders name it"
+        data_tests: [not_null]
+      - name: landed
+        description: "Payloads of the endpoint written this run"
+      - name: unchanged
+        description: "Payloads of the endpoint refetched with the same bytes as the last landing"
+      - name: failed
+        description: "Requests to the endpoint that failed this run"
+      - name: missing
+        description: "Keys the endpoint has no payload for at the source (HTTP 404)"
+
+  - name: ingest_endpoint_volume
+    description: "Each endpoint's latest run against its trailing runs: payloads landed or unchanged per day of the run's window, the median and median absolute deviation of the 14 runs before, and whether the latest is more than three spreads from the median (the source-level volume check's rules, applied per endpoint). Full-refresh and backfill windows are left out; warn_ingest_endpoint_volume_anomaly warns on is_anomaly."
+    columns:
+      - name: source
+        description: "Source the endpoint belongs to: stats, espn or reports"
+      - name: league
+        description: "League: wnba or nba"
+      - name: endpoint
+        description: "Endpoint, as the landing folders name it"
+      - name: run_id
+        description: "The endpoint's latest run (ingest_log.run_id)"
+      - name: started_at
+        meta: {tz: UTC}
+        description: "When that run started (UTC)"
+      - name: payloads
+        description: "Payloads of the endpoint the latest run landed or found unchanged, summed over its passes"
+      - name: per_day
+        description: "Payloads per day of the run's window"
+      - name: med_per_day
+        description: "Median payloads per window day over the 14 runs before the latest"
+      - name: mad_per_day
+        description: "Median absolute deviation of those runs from the median"
+      - name: spread
+        description: "The deviation floored at a tenth of the median or two payloads a day"
+      - name: prior_runs
+        description: "Earlier runs the median is taken over (up to 14)"
+      - name: is_anomaly
+        description: "True when there are at least five earlier runs and the latest is more than three spreads from the median"

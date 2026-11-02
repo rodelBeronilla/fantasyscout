@@ -170,6 +170,17 @@
    "tags": []
   },
   {
+   "about": "An endpoint whose latest run landed a payload count per window day more than three spreads from the median of its trailing 14 runs (ops.ingest_endpoint_volume, #398). The source-level check (warn_ingest_volume_anomaly) sums a source's endpoints, so one endpoint that stops landing moves the total by a few percent and never warns there.",
+   "name": "warn_ingest_endpoint_volume_anomaly",
+   "reads": [
+    "ingest_endpoint_volume"
+   ],
+   "severity": "warn",
+   "tags": [
+    "volume"
+   ]
+  },
+  {
    "about": "The latest run per source and league landed a payload count per window day within 3 MAD of the median of the trailing 14 runs (only once there are at least 5 earlier runs to compare with). Full-refresh and backfill runs (explicit windows longer than 10 days) are left out.  A run is judged whole (#393): the stats job logs one record per pass (the regular season, then the playoffs), so its last record was a playoffs pass that found no games, 37 payloads against a median of 185. The passes of a run are summed, the count is taken per day of the run's window (a one-day run and a seven-day run are not compared alike), and the spread is floored at a tenth of the median or two payloads a day, so a source that lands nearly the same count every day does not warn on a difference of a few payloads.",
    "name": "warn_ingest_volume_anomaly",
    "reads": [
@@ -359,7 +370,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 376,
+ "generic_tests": 378,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -23738,6 +23749,236 @@
      "unit_tests": []
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Run id of the ingest run (ingest_log.run_id)",
+       "meta": {},
+       "name": "run_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Source the run pulled from: stats, espn or reports",
+       "meta": {},
+       "name": "source",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League the run covered: wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the run started (UTC)",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "started_at",
+       "tests": [],
+       "type": "timestamp"
+      },
+      {
+       "description": "First date of the run's window",
+       "meta": {},
+       "name": "window_since",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Last date of the run's window",
+       "meta": {},
+       "name": "window_until",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "True when the run re-landed payloads even when unchanged",
+       "meta": {},
+       "name": "full_refresh",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "Endpoint, as the landing folders name it",
+       "meta": {},
+       "name": "endpoint",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Payloads of the endpoint written this run",
+       "meta": {},
+       "name": "landed",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Payloads of the endpoint refetched with the same bytes as the last landing",
+       "meta": {},
+       "name": "unchanged",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Requests to the endpoint that failed this run",
+       "meta": {},
+       "name": "failed",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Keys the endpoint has no payload for at the source (HTTP 404)",
+       "meta": {},
+       "name": "missing",
+       "tests": [],
+       "type": "integer"
+      }
+     ],
+     "description": "One row per ingest run and endpoint: the landed, unchanged, failed and missing counts the run log records for each endpoint (ingest_log.endpoints, one JSON object, turned into rows). Runs logged before 2026-11 carry no per-endpoint counts and have no rows.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "ingest_endpoint_log",
+     "notes": [
+      "One row per ingest run and endpoint (#398): the landed, unchanged, failed and missing counts the run log records for each endpoint, which ingest_log keeps as one JSON object. The source-level volume check sums a source's endpoints, so one endpoint that stops shifts the total by a few percent; ingest_endpoint_volume and warn_ingest_endpoint_volume_anomaly read this per endpoint."
+     ],
+     "read_by": [
+      "ingest_endpoint_volume"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "ingest_log"
+     ],
+     "unit_tests": [
+      {
+       "description": "The run log's per-endpoint object becomes one row per endpoint (#398), a count the object leaves out is zero, and a run logged before the counts existed has no rows.",
+       "name": "ingest_endpoint_log_rows"
+      }
+     ]
+    },
+    {
+     "checks": [
+      "warn_ingest_endpoint_volume_anomaly"
+     ],
+     "columns": [
+      {
+       "description": "Source the endpoint belongs to: stats, espn or reports",
+       "meta": {},
+       "name": "source",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League: wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Endpoint, as the landing folders name it",
+       "meta": {},
+       "name": "endpoint",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The endpoint's latest run (ingest_log.run_id)",
+       "meta": {},
+       "name": "run_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When that run started (UTC)",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "started_at",
+       "tests": [],
+       "type": "timestamp"
+      },
+      {
+       "description": "Payloads of the endpoint the latest run landed or found unchanged, summed over its passes",
+       "meta": {},
+       "name": "payloads",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Payloads per day of the run's window",
+       "meta": {},
+       "name": "per_day",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Median payloads per window day over the 14 runs before the latest",
+       "meta": {},
+       "name": "med_per_day",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Median absolute deviation of those runs from the median",
+       "meta": {},
+       "name": "mad_per_day",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The deviation floored at a tenth of the median or two payloads a day",
+       "meta": {},
+       "name": "spread",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Earlier runs the median is taken over (up to 14)",
+       "meta": {},
+       "name": "prior_runs",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "True when there are at least five earlier runs and the latest is more than three spreads from the median",
+       "meta": {},
+       "name": "is_anomaly",
+       "tests": [],
+       "type": "boolean"
+      }
+     ],
+     "description": "Each endpoint's latest run against its trailing runs: payloads landed or unchanged per day of the run's window, the median and median absolute deviation of the 14 runs before, and whether the latest is more than three spreads from the median (the source-level volume check's rules, applied per endpoint). Full-refresh and backfill windows are left out; warn_ingest_endpoint_volume_anomaly warns on is_anomaly.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "ingest_endpoint_volume",
+     "notes": [
+      "Each endpoint's latest run against its trailing runs (#398): the payloads it landed or found unchanged per day of the run's window, the median and the median absolute deviation of the 14 runs before, and whether the latest is more than three spreads away. The rules are the source-level check's (warn_ingest_volume_anomaly, #393): a run's passes are summed, the count is per window day, full-refresh and backfill windows (over 10 days) are left out, at least five earlier runs are needed, and the spread is floored at a tenth of the median or two payloads a day."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "ingest_endpoint_log"
+     ],
+     "unit_tests": [
+      {
+       "description": "Seven one-day runs: one endpoint lands 100 payloads every run, the other 50 until the latest run lands none. The run's total falls by a third, but only the endpoint that stopped is an anomaly (#398). A backfill window over 10 days is left out of the comparison.",
+       "name": "ingest_endpoint_volume_flags_one_endpoint"
+      }
+     ]
+    },
+    {
      "checks": [
       "warn_ingest_volume_anomaly"
      ],
@@ -23893,7 +24134,9 @@
      "notes": [
       "One row per ingest run, from the run logs the ingestors write under landing/_ops/ingest_log."
      ],
-     "read_by": [],
+     "read_by": [
+      "ingest_endpoint_log"
+     ],
      "read_by_pages": [],
      "reads": [],
      "unit_tests": []
@@ -24738,6 +24981,16 @@
    "description": "Last night's game has ESPN's crew (the newest landed summary wins over an older one) and the page's: the crew chief and the referee keep their roles (\"JB DeRosa\" on the page is \"J.B. DeRosa\" on ESPN), the official only ESPN lists has none, and the page's umpire who did not work the game is left out. Tonight's games have only the page's crew, alternate included, linked by the date and the teams the page names: \"L.A. Lakers\" and \"LA Clippers\" are told apart although both play in Los Angeles. A page row for a game the schedule does not have is left out.",
    "model": "game_officials",
    "name": "game_officials_link_both_sources"
+  },
+  {
+   "description": "The run log's per-endpoint object becomes one row per endpoint (#398), a count the object leaves out is zero, and a run logged before the counts existed has no rows.",
+   "model": "ingest_endpoint_log",
+   "name": "ingest_endpoint_log_rows"
+  },
+  {
+   "description": "Seven one-day runs: one endpoint lands 100 payloads every run, the other 50 until the latest run lands none. The run's total falls by a third, but only the endpoint that stopped is an anomaly (#398). A backfill window over 10 days is left out of the comparison.",
+   "model": "ingest_endpoint_volume",
+   "name": "ingest_endpoint_volume_flags_one_endpoint"
   },
   {
    "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0. Every projected line is zero, so value is zero and the factors are exact.",
