@@ -19,8 +19,12 @@ inputs:
     description: Area label, overriding the title's route (for example area:ops)
     required: false
     default: ""
+  close-prefix:
+    description: On success, also close every open incident whose title starts with this (a build's titles name the failed step)
+    required: false
+    default: ""
   priority:
-    description: Priority label, overriding P1-high
+    description: Priority label, overriding the title's route (P1-high unless the route says otherwise)
     required: false
     default: ""
   log:
@@ -42,5 +46,6 @@ runs:
         DETAIL: ${{ inputs.detail }}
         AREA: ${{ inputs.area }}
         PRIORITY: ${{ inputs.priority }}
+        CLOSE_PREFIX: ${{ inputs.close-prefix }}
         LOG_PATH: ${{ inputs.log }}
       run: uv run python .github/scripts/incident.py

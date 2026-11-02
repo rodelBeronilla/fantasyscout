@@ -251,6 +251,10 @@ jobs:
             [ "${step##*:}" = "failure" ] && failed="$failed, ${step%%:*} (failure)"
           done
           if [ -n "$failed" ]; then OUTCOME=failure; else OUTCOME=success; fi
+          # The incident names the first step that failed; its area and priority follow from the
+          # name (.github/scripts/incident.py): a failure after the promotion is P2, the data is live (#422).
+          first="${failed#, }"; first="${first%%,*}"; first="${first% (*}"
+          TITLE="Build failure: ${first:-dbt build}"
           DETAIL="Steps: dbt build $S_BUILD, gate $S_GATE, export $S_EXPORT, notebooks $S_NOTEBOOKS, extract $S_EXTRACT, promote $S_PROMOTE, sheet push $S_SHEETS."
           [ "${PLAN_LIGHT:-}" = "true" ] && DETAIL="Light build (the ingest landed the reports only; selector: $PLAN_SELECT). $DETAIL"
           [ -n "$failed" ] && DETAIL="Failed: ${failed#, }. $DETAIL"
@@ -262,12 +266,14 @@ jobs:
           {
             echo "BUILD_OUTCOME=$OUTCOME"
             echo "BUILD_DETAIL=$DETAIL"
+            echo "BUILD_TITLE=$TITLE"
           } >> "$GITHUB_ENV"
       - name: Report
         if: always()
         uses: ./.github/actions/incident
         with:
-          title: "Build failure: dbt on Databricks"
+          title: "${{ env.BUILD_TITLE || 'Build failure: dbt build' }}"
+          close-prefix: "Build failure"
           outcome: ${{ env.BUILD_OUTCOME || 'failure' }}
           detail: ${{ env.BUILD_DETAIL }}
           token: ${{ github.token }}

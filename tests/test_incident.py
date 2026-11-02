@@ -67,3 +67,45 @@ def test_the_first_errors_are_pulled_from_anywhere_in_the_log() -> None:
     )
     assert incident.first_errors(["all fine", "landed 3"]) == []
     assert len(incident.first_errors([f"ERROR {i}" for i in range(30)])) == 10
+
+
+def test_a_build_incident_is_routed_by_its_first_failed_step() -> None:
+    """The title names the step; a step after the promotion is P2, the data is live (#422)."""
+    assert incident.labels("Build failure: dbt build") == [
+        "data-incident",
+        "P1-high",
+        "area:lakehouse",
+    ]
+    assert incident.labels("Build failure: publish gate") == [
+        "data-incident",
+        "P1-high",
+        "area:lakehouse",
+    ]
+    assert incident.labels("Build failure: export") == ["data-incident", "P1-high", "area:ops"]
+    assert incident.labels("Build failure: sheet push") == [
+        "data-incident",
+        "P2-medium",
+        "area:ops",
+    ]
+    assert incident.labels("Build failure: Tableau extract") == [
+        "data-incident",
+        "P2-medium",
+        "area:ops",
+    ]
+    assert incident.labels("Build failure: notebooks") == [
+        "data-incident",
+        "P2-medium",
+        "area:docs",
+    ]
+    assert "publish gate" in incident.runbook_hint("Build failure: dbt build")
+    assert "Export and rollback" in incident.runbook_hint("Build failure: promote")
+
+
+def test_a_passing_build_closes_every_build_failure_and_nothing_else() -> None:
+    issues = [
+        {"number": 1, "title": "Build failure: dbt on Databricks"},
+        {"number": 2, "title": "Build failure: sheet push"},
+        {"number": 3, "title": "Ingest failure: espn nba"},
+    ]
+    assert incident.to_close(issues, "Build failure: dbt build", "Build failure") == [1, 2]
+    assert incident.to_close(issues, "Ingest failure: espn nba") == [3]
