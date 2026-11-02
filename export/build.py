@@ -215,19 +215,41 @@ def _read_json(store: Store, key: str) -> Any:
     return json.loads(body) if body else None
 
 
+STAGING_KEY = "staging.json"
+# A staged build that has not gone live after this long never will (the job that staged it failed
+# or was cancelled): the next promotion's prune removes it (#404).
+STALE_STAGE_DAYS = 2
+
+
+def _record_stage(store: Store, build_id: str, *, done: bool) -> None:
+    """Add a build to the root staging.json while it is staged, or take it off once it is live."""
+    staging: list[dict[str, Any]] = _read_json(store, STAGING_KEY) or []
+    staging = [s for s in staging if s.get("build_id") != build_id]
+    if not done:
+        staging.append(
+            {"build_id": build_id, "staged_at": datetime.now(UTC).isoformat(timespec="seconds")}
+        )
+    store.put(STAGING_KEY, to_json(staging))
+
+
 def stage(store: Store, build: Build, *, log: Log = print) -> None:
     """Upload a build's files, manifest and key list, without pointing anything at it.
 
     Readers find a build only through latest.json, so a staged build can be read by its id (the
     notebooks and the Tableau extract do) and completed before it goes live with ``promote``.
+
+    The build is recorded in staging.json and its key list is written before its files, so a job
+    cut short during the upload still leaves a record and the list of what to delete; the manifest
+    comes last, so a cut-short build is never complete enough to roll back to (#404).
     """
+    _record_stage(store, build.build_id, done=False)
+    manifest_key = build.key("manifest.json")
+    keys = [*sorted(build.key(p) for p in build.files), manifest_key]
+    store.put(build.key("keys.txt"), "\n".join(keys).encode("utf-8"))
     items = [(build.key(path), body) for path, body in build.files.items()]
     count = put_many(store, items)
     log(f"  uploaded {count} files")
-    manifest_key = build.key("manifest.json")
     store.put(manifest_key, to_json(build.manifest))
-    keys = [*sorted(build.key(p) for p in build.files), manifest_key]
-    store.put(build.key("keys.txt"), "\n".join(keys).encode("utf-8"))
     log(f"  staged {build.build_id}")
 
 
@@ -259,6 +281,7 @@ def promote(
         },
     )
     store.put(BUILDS_KEY, to_json(builds))
+    _record_stage(store, build_id, done=True)
 
     current = _read_json(store, LATEST_KEY) or {}
     if current.get("pinned"):
@@ -310,14 +333,73 @@ def prune(store: Store, *, keep: int = layout.KEEP_BUILDS, log: Log = print) -> 
         else:
             dropped.append(entry["build_id"])
     for build_id in dropped:
-        listing = store.get(f"builds/{build_id}/keys.txt")
-        keys = listing.decode("utf-8").splitlines() if listing else []
-        keys.append(f"builds/{build_id}/keys.txt")
-        delete_many(store, keys)
-        log(f"  pruned {build_id} ({len(keys)} files)")
+        _delete_build(store, build_id, log=log)
     if dropped:
         store.put(BUILDS_KEY, to_json(kept))
-    return dropped
+    return dropped + prune_stale_stages(store, log=log)
+
+
+def _delete_build(store: Store, build_id: str, *, log: Log = print) -> int:
+    listing = store.get(f"builds/{build_id}/keys.txt")
+    keys = listing.decode("utf-8").splitlines() if listing else []
+    keys.append(f"builds/{build_id}/keys.txt")
+    delete_many(store, keys)
+    log(f"  pruned {build_id} ({len(keys)} files)")
+    return len(keys)
+
+
+def prune_stale_stages(
+    store: Store,
+    *,
+    older_than_days: float = STALE_STAGE_DAYS,
+    now: datetime | None = None,
+    log: Log = print,
+) -> list[str]:
+    """Delete the staged builds that never went live and are older than ``older_than_days``."""
+    staging: list[dict[str, Any]] = _read_json(store, STAGING_KEY) or []
+    if not staging:
+        return []
+    live = {b["build_id"] for b in (_read_json(store, BUILDS_KEY) or [])}
+    now = now or datetime.now(UTC)
+    kept: list[dict[str, Any]] = []
+    removed: list[str] = []
+    for entry in staging:
+        build_id = str(entry.get("build_id"))
+        try:
+            staged_at = datetime.fromisoformat(str(entry.get("staged_at")))
+        except ValueError:
+            staged_at = now
+        if build_id in live:
+            continue  # promoted after all: the record is done with
+        if (now - staged_at).total_seconds() > older_than_days * 86400:
+            _delete_build(store, build_id, log=log)
+            removed.append(build_id)
+        else:
+            kept.append(entry)
+    store.put(STAGING_KEY, to_json(kept))
+    return removed
+
+
+def orphans(store: Store) -> list[str]:
+    """Build folders in the store that neither builds.json, latest.json nor staging.json names.
+
+    A job cut short before #404's records existed left these behind; each costs storage forever.
+    """
+    named = {b["build_id"] for b in (_read_json(store, BUILDS_KEY) or [])}
+    named |= {str(s.get("build_id")) for s in (_read_json(store, STAGING_KEY) or [])}
+    latest = (_read_json(store, LATEST_KEY) or {}).get("build_id")
+    if latest:
+        named.add(str(latest))
+    found = {key.split("/")[1] for key in store.list("builds/") if key.count("/") >= 2}
+    return sorted(found - named)
+
+
+def delete_orphan(store: Store, build_id: str, *, log: Log = print) -> int:
+    """Delete every object under an orphaned build's folder (its key list may be missing)."""
+    keys = store.list(f"builds/{build_id}/")
+    delete_many(store, keys)
+    log(f"  deleted orphan {build_id} ({len(keys)} files)")
+    return len(keys)
 
 
 def build_is_complete(store: Store, entry: dict[str, Any]) -> bool:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -188,6 +188,60 @@ def test_a_staged_build_goes_live_only_when_promoted(tmp_path: Path) -> None:
     assert store.get("builds/b1/notebooks/findings.json") == b"{}"
     with pytest.raises(RuntimeError, match="not staged"):
         build_mod.promote(store, "nope", log=lambda _: None)
+
+
+def test_a_stage_that_never_goes_live_is_recorded_pruned_and_orphans_are_found(
+    tmp_path: Path,
+) -> None:
+    """#404: a cut-short stage leaves a record, prune removes it after two days, orphans list."""
+    store = LocalStore(tmp_path / "bucket")
+    quiet = lambda _: None  # noqa: E731
+    build_mod.publish(store, fake_build("b1"), log=quiet)
+    assert json.loads(store.get("staging.json") or b"[]") == []  # promoted: off the record
+    build_mod.stage(store, fake_build("b2"), log=quiet)  # the job dies before promote
+    staging = json.loads(store.get("staging.json") or b"[]")
+    assert [s["build_id"] for s in staging] == ["b2"]
+    assert store.get("builds/b2/keys.txt"), "the key list is written first"
+    # young: kept
+    assert build_mod.prune_stale_stages(store, log=quiet) == []
+    assert store.get("builds/b2/t0.json") is not None
+    # three days later: removed, with every file its key list names
+    later = datetime.now(UTC) + timedelta(days=3)
+    assert build_mod.prune_stale_stages(store, now=later, log=quiet) == ["b2"]
+    assert store.list("builds/b2/") == []
+    assert json.loads(store.get("staging.json") or b"[]") == []
+    # an orphan from before the records: a folder nothing names
+    store.put("builds/b0/t0.json", b"[]")
+    store.put("builds/b0/manifest.json", b"{}")
+    assert build_mod.orphans(store) == ["b0"]
+    build_mod.delete_orphan(store, "b0", log=quiet)
+    assert build_mod.orphans(store) == [] and store.list("builds/b0/") == []
+    assert store.get("builds/b1/manifest.json") is not None, "the live build is untouched"
+
+
+def test_r2_store_lists_keys_across_pages() -> None:
+    pages = {
+        "": {
+            "result": [{"key": "builds/b1/a.json"}],
+            "result_info": {"cursor": "c2", "is_truncated": True},
+        },
+        "c2": {
+            "result": [{"key": "builds/b2/b.json"}],
+            "result_info": {"cursor": "", "is_truncated": False},
+        },
+    }
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/r2/buckets/fantasyscout-data/objects")
+        assert request.url.params["prefix"] == "builds/"
+        cursor = request.url.params.get("cursor", "")
+        seen.append(cursor)
+        return httpx.Response(200, json=pages[cursor])
+
+    store = R2Store("acct", "token", transport=httpx.MockTransport(handler))
+    assert store.list("builds/") == ["builds/b1/a.json", "builds/b2/b.json"]
+    assert seen == ["", "c2"]
 
 
 def test_rollback_points_at_the_previous_build_and_prune_keeps_it(tmp_path: Path) -> None:

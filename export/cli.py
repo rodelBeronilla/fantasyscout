@@ -121,6 +121,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="folder to carry (repeatable; default: notebooks and tableau)",
     )
 
+    p_or = sub.add_parser(
+        "orphans", help="list build folders nothing names (a staged build that never went live)"
+    )
+    add_store(p_or)
+    p_or.add_argument("--delete", action="store_true", help="delete them")
+
     p_fh = sub.add_parser(
         "findings-history",
         help="append a build's notebook findings to the history the Notebooks page shows",
@@ -179,6 +185,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             carried = build_mod.carry_forward(store, args.build_id, subdirs)
             for sub, origin in carried.items():
                 print(f"{sub}: {'from ' + origin if origin else 'nothing to carry'}")
+        elif args.command == "orphans":
+            found = build_mod.orphans(store)
+            print(f"{len(found)} orphaned build(s){': ' + ', '.join(found) if found else ''}")
+            if args.delete:
+                for build_id in found:
+                    build_mod.delete_orphan(store, build_id)
         elif args.command == "findings-history":
             history = build_mod.findings_history(store, args.build_id)
             print(f"findings history holds {len(history.get('notebooks', {}))} notebook(s)")
