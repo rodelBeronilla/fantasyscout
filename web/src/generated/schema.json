@@ -192,7 +192,7 @@
    ]
   },
   {
-   "about": "At least 80% of the players on the latest injury report are linked to a league player id; the rest are usually players on two-way or developmental deals missing from both rosters.",
+   "about": "The players on the latest injury report linked to a league player id reach the good bound of vars.quality_thresholds.listing_links, the one the data-quality notebook grades against; the rest are usually players on two-way or developmental deals missing from both rosters.",
    "name": "warn_injury_links",
    "reads": [
     "fct_availability"
@@ -203,7 +203,7 @@
    ]
   },
   {
-   "about": "At least 90% of a season's actions have five players a side on the floor. Period starters after the first period are inferred, so a player who plays a whole period without an action or a substitution is missed; a drop below 90% means the substitution format changed.",
+   "about": "A season's actions with five players a side on the floor reach the good bound of vars.quality_thresholds.lineup_complete (90%). Period starters after the first period are inferred, so a player who plays a whole period without an action or a substitution is missed; a drop below it means the substitution format changed.",
    "name": "warn_lineup_completeness",
    "reads": [
     "fct_event"
@@ -277,7 +277,7 @@
    "tags": []
   },
   {
-   "about": "Team turnovers are the players' turnovers plus team turnovers (no player charged), so the team figure must be at least the players' sum and rarely more than a handful above it.",
+   "about": "Team turnovers are the players' turnovers plus team turnovers (no player charged), so the team figure must be at least the players' sum and at most vars.quality_thresholds .team_turnovers_max above it (ADR 0003).",
    "name": "warn_team_turnovers",
    "reads": [
     "fct_player_game",

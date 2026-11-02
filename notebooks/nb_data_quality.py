@@ -31,10 +31,10 @@ build does not carry, or a season the source does not cover, is `n/a`, not a fai
 | Played player-games matched across sources | 99% or more | 95% or more |
 | Conflicts among matched player-games | 0.5% or less | 2% or less |
 | Team-games whose player rows add up to the team row (every counting stat but turnovers) | all | 99.5% or more |
-| Team turnovers at least the players' and at most eight more | 99% or more | 95% or more |
+| Team turnovers at least the players' and at most `team_turnovers_max` (eight) more | 99% or more | 95% or more |
 | Team-games with a shot chart, for seasons with any | 98% or more | 90% or more |
 | Shot chart attempts, makes and threes equal to the box score | 99% or more | 95% or more |
-| Play-by-play actions with five a side on the floor | 90% or more (ADR 0003) | below 90% |
+| Play-by-play actions with five a side on the floor | 90% or more (ADR 0003) | 80% or more |
 | Current injury listings, trending waiver players and statuses linked to a player | 95% / 95% / 98% or more | 90% / 90% / 95% or more |
 | Hours since a source last finished | 36 or fewer | a week or fewer |
 | Ingest failures in the last seven days | none | any |
@@ -161,18 +161,19 @@ if has_table(con, 'reconciliation'):
              'three_pointers_made', 'three_pointers_attempted', 'free_throws_made', 'free_throws_attempted']
     sums = ', '.join(f'coalesce(sum({s}), 0) as {s}' for s in [*stats, 'turnovers'])
     closes = ' and '.join(f'p.{s} = coalesce(t.{s}, 0)' for s in stats)
+    tmax = T['team_turnovers_max']
     df = con.sql(f'''
         with p as (select league, season, game_id, team_id, {sums} from fct_player_game group by all)
         select t.league, t.season, count(*) as team_games,
                avg(case when {closes} then 1.0 else 0.0 end) as closes,
-               avg(case when t.turnovers - p.turnovers between 0 and 8 then 1.0 else 0.0 end) as turnovers_ok
+               avg(case when t.turnovers - p.turnovers between 0 and {tmax} then 1.0 else 0.0 end) as turnovers_ok
         from fct_team_game as t join p using (league, season, game_id, team_id)
         group by all order by 1, 2
     ''').df()
     for _, r in df.iterrows():
         add('Team-games whose player rows add up', r['league'], r['season'], pct(r['closes'], 2), label('box_closure'),
             grade(r['closes'], *T['box_closure']), f"{int(r['team_games']):,} team-games")
-        add('Team turnovers between the players\\' sum and eight more', r['league'], r['season'], pct(r['turnovers_ok']), label('turnovers_ok'),
+        add(f'Team turnovers between the players\\' sum and {tmax} more', r['league'], r['season'], pct(r['turnovers_ok']), label('turnovers_ok'),
             grade(r['turnovers_ok'], *T['turnovers_ok']))
 
 
@@ -223,8 +224,8 @@ def lineups():
         from fct_event group by all order by 1, 2
     ''').df()
     for _, r in df.iterrows():
-        add('Actions with five a side on the floor', r['league'], r['season'], pct(r['complete']), '90%',
-            'pass' if r['complete'] >= 0.9 else 'warn', f"{int(r['actions']):,} actions")
+        add('Actions with five a side on the floor', r['league'], r['season'], pct(r['complete']), label('lineup_complete'),
+            grade(r['complete'], *T['lineup_complete']), f"{int(r['actions']):,} actions")
 
 
 for name, fn in [('Box closure', box_closure), ('Shots vs box', shots_vs_box), ('Lineups', lineups)]:

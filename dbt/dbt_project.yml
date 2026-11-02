@@ -44,8 +44,11 @@ vars:
   regular_season_games:
     nba: 82
   # The data-quality thresholds the warn checks and the data-quality notebook share: [good, ok];
-  # below ok is a failure. warn_crosswalk_coverage reads played_match_rate, warn_reconciliation_conflicts
-  # conflict_rate; the notebook reads all.
+  # below ok is a failure. A warn check warns past the good bound: warn_crosswalk_coverage reads
+  # played_match_rate, warn_reconciliation_conflicts conflict_rate, warn_injury_links listing_links,
+  # warn_lineup_completeness lineup_complete. team_turnovers_max is a count, not a pair: the most
+  # team-only turnovers (no player charged) a team-game may have, read by warn_team_turnovers and
+  # the notebook's turnovers_ok (ADR 0003). The notebook reads all.
   quality_thresholds:
     played_match_rate: [0.99, 0.95]
     conflict_rate: [0.005, 0.02]
@@ -54,6 +57,8 @@ vars:
     shot_chart_coverage: [0.98, 0.90]
     shot_match: [0.99, 0.95]
     listing_links: [0.95, 0.90]
+    lineup_complete: [0.9, 0.8]
+    team_turnovers_max: 8
     status_known: [0.98, 0.95]
     landing_age_hours: [36, 168]
   # A league's own injury-listing history calibrates the board's availability multiplier once it
