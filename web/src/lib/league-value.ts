@@ -131,3 +131,26 @@ export function fitWeights(teamTotals: Record<string, number>): Record<string, n
 
 /** The first letter of a player's listed position ("G-F" is a G). */
 export const primaryPosition = (position: string | null | undefined): string => (position ?? '').trim().charAt(0).toUpperCase();
+
+/** The row fields that turn value per game into value over a season. */
+export interface ScaleRow {
+  games_share?: number | null;
+  ros_factor?: number | null;
+  season_complete?: boolean | null;
+}
+
+/**
+ * Value per game above replacement, scaled to the season the way mart_board does (#478): only a
+ * positive value counts games (times the projected share of team games played), because a game
+ * missed by a player not worth rostering costs nothing; and only a positive value is scaled to the
+ * rest of the season (times ros_factor, the team's remaining share of its regular season times
+ * the player's availability), except once the season is over. The SQL's value_total is
+ * `scaleValue(v, row, { restOfSeason: false })` and its value_rest_of_season `scaleValue(v, row)`.
+ */
+export function scaleValue(perGame: number, row: ScaleRow, { countGames = true, restOfSeason = true } = {}): number {
+  let value = perGame;
+  if (value > 0 && countGames) value *= row.games_share ?? 1;
+  if (value > 0 && restOfSeason && !row.season_complete) value *= row.ros_factor ?? 1;
+  return value;
+}
+

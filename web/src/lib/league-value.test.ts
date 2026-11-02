@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SETTINGS } from './fantasy-league';
-import { categoryValues, fantasyPoints, fitWeights, leagueTiers, naturalBreaks, pointValues, primaryPosition, replacementLevel } from './league-value';
+import { categoryValues, fantasyPoints, fitWeights, leagueTiers, naturalBreaks, pointValues, primaryPosition, replacementLevel, scaleValue } from './league-value';
 
 const rows = [10, 8, 6, 4, 2].map((v, i) => ({ player_id: `p${i + 1}`, v, w: v / 2 }));
 
@@ -66,5 +66,23 @@ describe('tiers', () => {
     expect(primaryPosition('G-F')).toBe('G');
     expect(primaryPosition(' c ')).toBe('C');
     expect(primaryPosition(null)).toBe('');
+  });
+});
+
+describe('scaleValue', () => {
+  const row = { games_share: 0.5, ros_factor: 0.4, season_complete: false };
+  it('scales only a positive value by the games share and the rest of the season, as mart_board does', () => {
+    expect(scaleValue(10, row)).toBeCloseTo(2); // 10 × 0.5 × 0.4: value_rest_of_season
+    expect(scaleValue(10, row, { restOfSeason: false })).toBeCloseTo(5); // value_total
+    expect(scaleValue(10, row, { countGames: false })).toBeCloseTo(4);
+    expect(scaleValue(10, row, { countGames: false, restOfSeason: false })).toBe(10);
+  });
+  it('leaves a value at or below replacement as it is: a missed game by such a player costs nothing', () => {
+    expect(scaleValue(-3, row)).toBe(-3);
+    expect(scaleValue(0, row)).toBe(0);
+  });
+  it('ignores the rest-of-season factor once the season is over, and treats missing fields as 1', () => {
+    expect(scaleValue(10, { ...row, season_complete: true })).toBeCloseTo(5);
+    expect(scaleValue(10, {})).toBe(10);
   });
 });

@@ -8,7 +8,7 @@ import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { assign, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague } from '../lib/fantasy-league';
-import { categoryValues, pointValues } from '../lib/league-value';
+import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
 import { href } from '../lib/site';
@@ -136,7 +136,7 @@ export default function LeagueSetup() {
     const out = new Map<string, number>();
     for (const r of rows ?? []) {
       const perGame = points ? (pointVals?.get(r.player_id)?.value ?? 0) : cats.reduce((s, c) => s + (catValues?.get(r.player_id)?.[c] ?? 0), 0);
-      out.set(r.player_id, perGame > 0 ? perGame * (r.games_share ?? 1) : perGame);
+      out.set(r.player_id, scaleValue(perGame, r, { restOfSeason: false }));
     }
     return out;
   }, [rows, points, pointVals, catValues, cats]);
