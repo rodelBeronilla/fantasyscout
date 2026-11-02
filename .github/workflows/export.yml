@@ -29,6 +29,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 # One group with Build lakehouse: both promote (a read-modify-write of builds.json) and prune
 # (deletes by a build's key list), so they never run at the same time.
@@ -53,6 +54,7 @@ jobs:
           token: ${{ secrets.DATABRICKS_TOKEN }}
           warehouse-id: ${{ vars.DATABRICKS_WAREHOUSE_ID }}
       - name: Check the latest publish gate
+        id: gate
         if: inputs.action == 'build'
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
@@ -84,6 +86,7 @@ jobs:
           BUILD_ID: ${{ steps.publish.outputs.build_id }}
         run: echo "build $BUILD_ID promoted; notebooks $NOTEBOOKS, Tableau extract $EXTRACT"
       - name: Roll back, unpin or list
+        id: manage
         if: inputs.action != 'build'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -108,3 +111,13 @@ jobs:
         if: always()
         run: |
           curl -sf https://fantasyscout.beronilla.rodeo/data/latest.json || echo "latest.json not served yet"
+      # A hand export that fails used to leave only a red run (#366 was found by hand); the same
+      # incident path as the nightly build names the step and leads with the first errors.
+      - name: Report
+        if: always()
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Export failure: ${{ inputs.action }} by hand"
+          outcome: ${{ (steps.gate.outcome == 'failure' || steps.publish.outcome == 'failure' || steps.manage.outcome == 'failure') && 'failure' || 'success' }}
+          detail: "Steps: gate ${{ steps.gate.outcome }}, publish ${{ steps.publish.outcome }}, manage ${{ steps.manage.outcome }}. A gate step that failed with 'could not be processed by the warehouse' is the warehouse refusing statements, not a blocked gate: see the runbook section of that name."

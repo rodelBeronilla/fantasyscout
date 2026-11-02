@@ -156,6 +156,22 @@ Backfills pass `--shots team-season`: the shot chart endpoint returns a whole se
 
 Every passing nightly build publishes a data build to the `fantasyscout-data` bucket: `builds/<build_id>/` holds the Parquet and JSON files, the per-player files and `manifest.json`; `latest.json` at the root points at the current build and `builds.json` lists the seven kept. The site reads `latest.json` first, so a build is only visible once every file is up. The nightly build stages a build, adds the notebooks and the Tableau extract to it, then promotes it (`builds.json`, then `latest.json`). To publish by hand, roll back, release a rollback or list what is served, run the "Export data" workflow with `build`, `rollback`, `unpin` or `list`. A hand-made `build` checks the latest publish gate first and refuses when it did not pass; set `ignore_gate` only in an emergency. A rollback pins the site until `unpin` (see "Roll back a data build"). Locally, `uv run fs-export build --engine duckdb --store local --out web/public/data` writes the same layout under the dev server's `/data/`.
 
+## Warehouse refuses statements
+
+The lakehouse answers every SQL Statement API call with HTTP 400 "The request could not be processed by the warehouse." It happened on 2026-11-01 (issue #366): the afternoon build had used the warehouse, then a hand export failed three times and two queries the same way, and the warehouse answered again by itself after a few hours. The code retries a refused submission four times over about a minute (`ops/results.py`), so a warehouse that is only waking up is covered; one that refuses for longer is not.
+
+Who notices: the watchdog runs one statement every six hours and opens "Warehouse refuses statements" when it does not run; a hand export opens "Export failure"; the nightly build fails at dbt. A Query run goes red (`--strict`) but opens nothing, since a typo looks the same from outside.
+
+What to do, in order:
+
+1. Open the workspace → SQL Warehouses. A warehouse that is **Stopped** should start itself on the next statement; click Start and run the Query workflow (table `ops.publish_gate`, limit 1). A warehouse in an error state, or missing, is recreated: Create SQL warehouse, serverless, the smallest size, auto stop at 10 minutes.
+2. Set the repository variable `DATABRICKS_WAREHOUSE_ID` to the warehouse's id (Connection details → the end of the HTTP path), so the workflows stop picking the oldest warehouse in the workspace.
+3. Run the Query workflow again; green closes the watchdog's incident on its next run. Then run Build lakehouse by hand if a nightly build was missed, or Export with `build` to publish what the last passing gate produced.
+
+## Query the lakehouse
+
+The "Query the lakehouse" workflow (Actions → Query the lakehouse) runs one `select` against a table and prints the rows into the job log: inputs `table` (`ops.publish_gate`, `ops.reconciliation_summary`, any gold or ops table), `columns`, `where` (SQL without the keyword), `order_by`, `limit`. It runs in the `lakehouse` environment with the owner's token. A statement the warehouse refuses is retried four times (5, 10, 20, 30 s); a query that still did not run fails the job (`ops.summary --strict`) with the API's message as an annotation, so a red run means the warehouse or the SQL, never a silent empty result. The nightly build's own report step uses the same module without `--strict`, so a missing ops table never fails a build.
+
 ## Incident issues
 
 A failed job opens (or updates) a `data-incident` issue and the next passing run of the same job closes it. The title says which job, and the title routes the issue: ingest and backfill failures carry `area:ingest` and point at "Rerun a day" and "Replay failed fetches"; a build failure carries `area:lakehouse` and points at the publish gate section; a stale site (the watchdog) or a cancelled ingest carries `area:ops`. Issues are assigned to the repository owner; the `INCIDENT_ASSIGNEE` environment variable on a Report step names someone else (empty assigns nobody), and `AREA` / `PRIORITY` override the labels. An ingest run that GitHub cancelled or timed out (a self-hosted job queued for a day without a runner) opens an "Ingest cancelled: no build ran" incident from the Build workflow.

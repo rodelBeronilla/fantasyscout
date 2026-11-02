@@ -21,6 +21,11 @@ def test_the_title_decides_the_area_and_the_runbook_section() -> None:
         == "area:ops"
     )
     assert incident.route("Export failure")[0] == "area:ops"
+    assert incident.route("Warehouse refuses statements: x")[0] == "area:lakehouse"
+    assert "Warehouse refuses statements" in incident.runbook_hint(
+        "Warehouse refuses statements: x"
+    )
+    assert "Warehouse refuses statements" in incident.runbook_hint("Export failure: build by hand")
     assert incident.route("Something else")[0] == "area:ops"
     assert "Replay failed fetches" in incident.runbook_hint("Ingest failure: espn nba")
     assert "publish gate" in incident.runbook_hint("Build failure: dbt on Databricks")

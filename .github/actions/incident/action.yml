@@ -23,6 +23,10 @@ inputs:
     description: Priority label, overriding P1-high
     required: false
     default: ""
+  log:
+    description: The log file whose first errors and tail go into the issue
+    required: false
+    default: land.log
   token:
     description: The GitHub token (issues:write)
     required: true
@@ -38,4 +42,5 @@ runs:
         DETAIL: ${{ inputs.detail }}
         AREA: ${{ inputs.area }}
         PRIORITY: ${{ inputs.priority }}
+        LOG_PATH: ${{ inputs.log }}
       run: uv run python .github/scripts/incident.py
