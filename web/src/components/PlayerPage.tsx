@@ -62,6 +62,10 @@ interface Zscore {
   [key: string]: unknown;
 }
 
+/** The z-score windows the player file carries, in the order the page lists them. */
+const WINDOWS = ['season', 'last_20', 'last_10'] as const;
+const WINDOW_LABEL: Record<string, string> = { season: 'Season', last_20: 'Last 20', last_10: 'Last 10' };
+
 interface PlayerFile {
   league: League;
   player_id: string;
@@ -449,6 +453,9 @@ export default function PlayerPage() {
 
   const seasons = player.seasons.map((s) => s.season);
   const strengths = seasonZ.find((z) => z.window_name === 'season');
+  // The season's z-scores beside the last twenty and last ten games' (#463): a recent row above
+  // the season one is a player on the rise.
+  const windows = WINDOWS.map((w) => seasonZ.find((z) => z.window_name === w)).filter((z): z is Zscore => !!z);
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
@@ -608,6 +615,40 @@ export default function PlayerPage() {
           </ul>
         ) : (
           <p className="text-sm text-muted">Not in this season's player pool yet.</p>
+        )}
+        {windows.length > 1 && (
+          <div className="table-scroll mt-3 overflow-auto" tabIndex={0} role="region" aria-label="Category z-scores by window">
+            <table className="w-full text-sm" data-testid="category-windows">
+              <thead>
+                <tr>
+                  <Th>Games</Th>
+                  <Th right>GP</Th>
+                  {CATEGORIES.map((c) => (
+                    <Th key={c} right>
+                      {CATEGORY_LABELS[c]}
+                    </Th>
+                  ))}
+                  <Th right>Total</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {windows.map((z) => (
+                  <tr key={z.window_name} className="border-t border-line">
+                    <Td>{WINDOW_LABEL[z.window_name] ?? z.window_name}</Td>
+                    <Td right>{z.games}</Td>
+                    {CATEGORIES.map((c) => (
+                      <Td key={c} right>
+                        <Signed value={z[c] as number | null} />
+                      </Td>
+                    ))}
+                    <Td right>
+                      <Signed value={z.z_total} />
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
 
