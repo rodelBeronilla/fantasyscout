@@ -3567,7 +3567,6 @@
       "Raw stats `boxscoreadvancedv3` payloads parsed to rows; values stay text until silver."
      ],
      "read_by": [
-      "feed_freshness",
       "player_game_advanced"
      ],
      "read_by_pages": [],
@@ -23577,7 +23576,8 @@
      "name": "feed_freshness",
      "notes": [
       "How fresh each source feed is, per league: the newest day a payload landed for it and how many days ago that was, against how often the feed should land while the league is playing. A feed that stops keeps its last landing in silver and gold, where it would otherwise look current; warn_stale_feeds reports a stale one. Out of season (no game three days either side of today) a quiet feed is expected. An unchanged payload lands no new file, so the slower feeds get a few days' grace: a roster or a player directory changes some days, not every day.",
-      "Every landed feed is here. A feed landed from one payload that several bronze models read (the ESPN game summary) is listed once, by one of them. A feed that needs a key the repository may not have yet (The Odds API) is optional: never having landed is 'unconfigured', not 'never'. The core feeds (core: true) are the ones the board cannot do without; assert_core_feeds_fresh blocks the publish gate when one of them is stale by more than two days past its allowance."
+      "Every landed feed is here. A feed landed from one payload that several bronze models read (the ESPN game summary) is listed once, by one of them. A feed that needs a key the repository may not have yet (The Odds API) is optional: never having landed is 'unconfigured', not 'never'. The core feeds (core: true) are the ones the board cannot do without; assert_core_feeds_fresh blocks the publish gate when one of them is stale by more than two days past its allowance.",
+      "A feed the ingest no longer lands is not listed: the per-game advanced box score (stats_boxscoreadvancedv3) was replaced by the season-level player game logs, which carry the same measures, so it stopped on purpose on 2026-10-27; its bronze model stays for the seasons it landed (#394)."
      ],
      "read_by": [],
      "read_by_pages": [],
@@ -23598,7 +23598,6 @@
       "odds_api_player_props",
       "sleeper_players",
       "sleeper_trending",
-      "stats_boxscoreadvancedv3",
       "stats_boxscoretraditionalv3",
       "stats_commonallplayers",
       "stats_commonteamroster",

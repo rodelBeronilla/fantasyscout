@@ -11,13 +11,17 @@
   not have yet (The Odds API) is optional: never having landed is 'unconfigured', not 'never'.
   The core feeds (core: true) are the ones the board cannot do without; assert_core_feeds_fresh
   blocks the publish gate when one of them is stale by more than two days past its allowance.
+
+  A feed the ingest no longer lands is not listed: the per-game advanced box score
+  (stats_boxscoreadvancedv3) was replaced by the season-level player game logs, which carry the
+  same measures, so it stopped on purpose on 2026-10-27; its bronze model stays for the seasons it
+  landed (#394).
 #}
 
 {%- set feeds = [
     {'feed': 'League stats schedule', 'model': 'stats_scheduleleaguev2', 'leagues': ['nba', 'wnba'], 'days': 2, 'core': true},
     {'feed': 'League team game log', 'model': 'stats_leaguegamelog', 'leagues': ['nba', 'wnba'], 'days': 2, 'core': true},
     {'feed': 'League box scores', 'model': 'stats_boxscoretraditionalv3', 'leagues': ['nba', 'wnba'], 'days': 2, 'core': true},
-    {'feed': 'League advanced box scores', 'model': 'stats_boxscoreadvancedv3', 'leagues': ['nba', 'wnba'], 'days': 2},
     {'feed': 'League play-by-play', 'model': 'stats_playbyplayv3', 'leagues': ['nba', 'wnba'], 'days': 2, 'core': true},
     {'feed': 'League shot charts', 'model': 'stats_shotchartdetail', 'leagues': ['nba', 'wnba'], 'days': 2, 'core': true},
     {'feed': 'League player game logs', 'model': 'stats_playergamelogs', 'leagues': ['nba', 'wnba'], 'days': 2},
