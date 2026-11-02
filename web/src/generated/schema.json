@@ -15299,7 +15299,6 @@
      "description": "One row per played game: built from the team game log through silver.games, so games not yet played are not here, with the result and the schedule context from silver.schedule.",
      "exported_as": [
       "dim_game.parquet",
-      "dim_game.json",
       "players/<league>/<player_id>.json"
      ],
      "grain": {
@@ -15458,7 +15457,6 @@
      "description": "One row per player per team stint (SCD type 2 on team); valid_to is null for the current stint.",
      "exported_as": [
       "dim_player.parquet",
-      "dim_player.json",
       "players/<league>/<player_id>.json"
      ],
      "grain": {
@@ -15788,8 +15786,7 @@
      ],
      "description": "Player injury listings from ESPN's injury report, one row per listing at the report it was last seen in, linked to the league player id; is_current marks the latest report per league.",
      "exported_as": [
-      "fct_availability.parquet",
-      "fct_availability.json"
+      "fct_availability.parquet"
      ],
      "grain": {
       "columns": [
@@ -18138,8 +18135,7 @@
      ],
      "description": "Each player's current status: the league's official injury report for the next game it covers, else ESPN's injury listing. ESPN's own status stays alongside for the rest of the season.",
      "exported_as": [
-      "fct_player_status.parquet",
-      "fct_player_status.json"
+      "fct_player_status.parquet"
      ],
      "grain": {
       "columns": [
@@ -20000,8 +19996,7 @@
      ],
      "description": "What each team still has to play for in its current season: eliminated, clinched or racing, the games left, and a late-season rest risk for a team with nothing to play for.",
      "exported_as": [
-      "fct_team_stakes.parquet",
-      "fct_team_stakes.json"
+      "fct_team_stakes.parquet"
      ],
      "grain": {
       "columns": [
@@ -23592,8 +23587,7 @@
      ],
      "description": "How fresh each source feed is per league: the newest landing day, its age in days against the age the feed should keep while the league is playing, and a status.",
      "exported_as": [
-      "feed_freshness.parquet",
-      "feed_freshness.json"
+      "feed_freshness.parquet"
      ],
      "grain": null,
      "landing": [],
@@ -23717,8 +23711,7 @@
      ],
      "description": "Every request an ingest run could not land, one row each, from the run logs: the failures (an error of ours or the host's) and the payloads missing at the source (HTTP 404). Names the endpoint and key so a replay can target them (fs-ingest land --from-run-log or --only).",
      "exported_as": [
-      "fetch_failures.parquet",
-      "fetch_failures.json"
+      "fetch_failures.parquet"
      ],
      "grain": null,
      "landing": [
@@ -23879,8 +23872,7 @@
      ],
      "description": "One row per ingest run, parsed from the run logs the ingestors write to the landing volume.",
      "exported_as": [
-      "ingest_log.parquet",
-      "ingest_log.json"
+      "ingest_log.parquet"
      ],
      "grain": null,
      "landing": [
@@ -24146,8 +24138,7 @@
      ],
      "description": "Match and conflict rates per league and season: how many of the league's player-games ESPN also reports and the crosswalk pairs, and how those pairs agree.",
      "exported_as": [
-      "reconciliation_summary.parquet",
-      "reconciliation_summary.json"
+      "reconciliation_summary.parquet"
      ],
      "grain": null,
      "landing": [],
@@ -24393,8 +24384,7 @@
    ],
    "description": "The fantasy categories per league and how each one is computed from silver columns.",
    "exported_as": [
-    "category_config.parquet",
-    "category_config.json"
+    "category_config.parquet"
    ],
    "name": "category_config",
    "read_by": []

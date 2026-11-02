@@ -83,7 +83,9 @@ def test_export_consumers_follow_the_export_layout() -> None:
     assert "fct_player_game/<league>-<season>.parquet" in out["fct_player_game"]
     assert "players/<league>/<player_id>.json" in out["dim_game"]
     assert "players/<league>/<player_id>.json" not in out["mart_board"]
-    assert out["category_config"] == ["category_config.parquet", "category_config.json"]
+    # only a table a page fetches as JSON gets a JSON copy (#448)
+    assert out["category_config"] == ["category_config.parquet"]
+    assert "dim_team.json" in out["dim_team"]
 
 
 def _manifest() -> dict[str, Any]:
