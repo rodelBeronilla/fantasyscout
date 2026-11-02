@@ -44,11 +44,34 @@ The blocks every workflow shares live once, as composite actions under `.github/
 
 Third-party actions are pinned to a commit SHA with the version in a comment; Dependabot (`.github/dependabot.yml`, the `github-actions` group) proposes the bumps and keeps the comments current. The home runner image is pinned by digest (`infra/runner/README.md`, "Update the runner image"); the Lighthouse check pins an exact version.
 
-## Rotate a key
+## Secrets: inventory and rotation
 
-1. Create the new token or key at the provider.
-2. Update the GitHub Actions secret. Re-run the latest deploy or build workflow to prove the new value works.
-3. Revoke the old one at the provider. Check the next scheduled run is green.
+Every credential the pipeline holds, who reads it, and how to replace it. Values live only in GitHub Actions secrets (repository or `lakehouse` environment) and, for the Worker, in its own secrets set by the deploy. "Set" is when the GitHub secret was last written (`gh secret list`); the provider holds the expiry. The Probe sources workflow runs every Monday and on demand, and checks the league API, ESPN, the Databricks workspace and Cloudflare R2 with these credentials. A quarterly issue ("Quarterly secret review") walks this table.
+
+| Secret | Read by | Scope | Where | Set | Expires | Check | When it fails |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `DATABRICKS_TOKEN` | build, export, query, watchdog, probe; ingest and backfill as the last fallback | the owner's personal access token: everything the owner can do | repository | 2026-10-27 | at creation (Databricks: Settings → Developer → Access tokens) | Probe sources (`databricks`), the watchdog's warehouse probe | HTTP 401/403 at the first warehouse call; the build fails at dbt |
+| `DATABRICKS_HOST` | the same | the workspace URL (not secret, kept with the token) | repository | 2026-10-27 | never | Probe sources | DNS or 404 at the first call |
+| `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET` | ingest, backfill | the `fantasyscout-ingest` service principal: write the landing volume, read the indexes | `lakehouse` environment | 2026-11-01 | up to two years after creation (the secret's lifetime in the workspace UI) | an Ingest run (the token exchange logs its expiry) | "token endpoint answered 401" in the Land step |
+| `DATABRICKS_INGEST_TOKEN` (optional) | ingest, backfill, when the two above are unset | a token for the same principal | repository | not set | at creation | an Ingest run | the jobs fall back to `DATABRICKS_TOKEN` |
+| `CLOUDFLARE_API_TOKEN` | build, export (R2 objects), deploy (Workers, routes, DNS) | Workers, R2, Routes and DNS edit on the zone (#425 splits it) | repository | 2026-10-27 | at creation (Cloudflare: My Profile → API Tokens) | Probe sources (`cloudflare r2`), a Deploy web run | "could not write …: HTTP 403" at the export, or wrangler 10000 at the deploy |
+| `CLOUDFLARE_ACCOUNT_ID` | the same | the account id (not secret) | repository | 2026-10-27 | never | the same | the same |
+| `YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET` | deploy (to the Worker: Yahoo sign-in, the owner cookie, the cookie key); build, export, notebooks (the private tables' reader key, derived from the secret) | the Yahoo app | repository; Worker secrets | 2026-10-29 | never | the SQL page's owner sign-in; a build's notebooks step reading private tables | the notebooks fail with 401 on private tables; the owner sign-in fails |
+| `OWNER_YAHOO_GUID` | deploy (to the Worker) | which Yahoo account is the owner (not a credential) | repository; Worker | 2026-10-29 | never | the owner sign-in | the owner is shown their own id and not signed in |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | build (the League Pulse sheet push) | a service account key with the Sheets API; Editor on that one sheet only | repository | 2026-10-28 | never (Google keys do not expire unless the project's policy says so) | a full build's "Push the extract" step | that step fails; the sheet keeps the last extract |
+| `ODDS_API_KEY` (optional) | ingest (player props) | The Odds API key | repository | not set | at the provider | an Ingest run's reports job | props are skipped, "unconfigured" on Data Health |
+
+**Rotate one** (the same five steps for each; the row says where):
+
+1. Create the new value at the provider: the Databricks token or the principal's OAuth secret (workspace UI), a Cloudflare token with the same permissions (My Profile → API Tokens → Roll, or a new token), a new key for the Google service account (IAM → Service accounts → Keys), a new Yahoo client secret (the Yahoo developer app).
+2. Update the GitHub secret in the same place it is now (repository, or the `lakehouse` environment). Never paste a value into an issue, a PR or a chat.
+3. Prove it: run Probe sources by hand (Databricks, Cloudflare); for the Yahoo or Cloudflare deploy values, run Deploy web; for the Google key, run Build lakehouse or wait for the morning's full build.
+4. Revoke the old value at the provider.
+5. Check the next scheduled run of each consumer in the row is green.
+
+Rotating `YAHOO_CLIENT_SECRET` also rotates the private tables' reader key and signs every browser out (see "The owner's sign-in (private tables)" above); deploy first, then the next build reads with the new key.
+
+**Blast radius.** `DATABRICKS_TOKEN` is the owner's own token: whoever holds it can do anything the owner can in the workspace (#424 moves the build to a principal). `CLOUDFLARE_API_TOKEN` can change the Worker and the zone's DNS as well as the data (#425 splits it). The ingest principal can only write landed files. The Google key can edit only the League Pulse sheet. The Yahoo secret can impersonate the app at Yahoo and derive the private-table reader key (#429 gives the jobs a key of their own).
 
 ## The ingest's own credential
 

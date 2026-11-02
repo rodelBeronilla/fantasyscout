@@ -23,6 +23,7 @@ __all__ = [
     "ProbeResult",
     "Target",
     "databricks_target",
+    "r2_target",
     "run_probe",
     "to_json",
     "to_markdown",
@@ -185,6 +186,26 @@ def databricks_target(env: Mapping[str, str] = os.environ) -> Target | None:
         url=f"{host}/api/2.1/unity-catalog/catalogs",
         headers={"Authorization": f"Bearer {token}"},
         expect="catalogs",
+    )
+
+
+def r2_target(
+    env: Mapping[str, str] = os.environ, bucket: str = "fantasyscout-data"
+) -> Target | None:
+    """The data bucket through the Cloudflare API, with the token the export and deploy use (#417).
+
+    An expired or narrowed CLOUDFLARE_API_TOKEN used to show up only at the export step, after a
+    25-minute build. None when the account id or the token is not set (a pull request's probe).
+    """
+    account = env.get("CLOUDFLARE_ACCOUNT_ID", "")
+    token = env.get("CLOUDFLARE_API_TOKEN", "")
+    if not account or not token:
+        return None
+    return Target(
+        name="cloudflare r2",
+        url=f"https://api.cloudflare.com/client/v4/accounts/{account}/r2/buckets/{bucket}",
+        headers={"Authorization": f"Bearer {token}"},
+        expect="result",
     )
 
 

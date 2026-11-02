@@ -10,6 +10,7 @@ from ingest.probe import (
     DEFAULT_TARGETS,
     Target,
     databricks_target,
+    r2_target,
     run_probe,
     to_json,
     to_markdown,
@@ -44,6 +45,18 @@ def test_reports_each_target_with_json_shape_check() -> None:
     assert not by_name["espn-wnba"].ok and "without 'events'" in by_name["espn-wnba"].detail
     assert not by_name["espn-nba"].ok and "ConnectTimeout" in by_name["espn-nba"].detail
     assert by_name["espn-nba"].status is None
+
+
+def test_r2_target_needs_the_account_and_the_token_and_keeps_the_token_out_of_the_url() -> None:
+    assert r2_target({}) is None
+    assert r2_target({"CLOUDFLARE_ACCOUNT_ID": "acct"}) is None
+    target = r2_target({"CLOUDFLARE_ACCOUNT_ID": "acct", "CLOUDFLARE_API_TOKEN": "secret"})
+    assert target is not None
+    assert (
+        target.url
+        == "https://api.cloudflare.com/client/v4/accounts/acct/r2/buckets/fantasyscout-data"
+    )
+    assert "secret" not in target.url and target.headers["Authorization"] == "Bearer secret"
 
 
 def test_databricks_target_requires_both_env_values() -> None:

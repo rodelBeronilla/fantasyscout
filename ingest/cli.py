@@ -121,6 +121,9 @@ def build_parser() -> argparse.ArgumentParser:
 def _run_probe(out: Path | None, markdown: bool) -> int:
     targets = list(probe_mod.DEFAULT_TARGETS)
     databricks = probe_mod.databricks_target()
+    r2 = probe_mod.r2_target()
+    if r2 is not None:
+        targets.append(r2)
     if databricks is not None:
         targets.append(databricks)
     results = probe_mod.run_probe(targets)
