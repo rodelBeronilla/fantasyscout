@@ -12,7 +12,8 @@
   them back, so an action a re-landed feed no longer carries goes away as it would on a full
   refresh. The hook pins the watermark before it deletes (a literal, so the delete's subquery
   reads only the inputs); the model body reads the watermark after, which can only widen its set,
-  and the merge makes writing a game twice harmless. A run that fails between the two statements
+  and the merge makes writing a game twice harmless. The delete matches one concatenated key:
+  Delta's DELETE rejects a multi-column IN (DELTA_UNSUPPORTED_MULTI_COL_IN_PREDICATE). A run that fails between the two statements
   leaves the next run a wider set, nothing else.
 
   changed_games(sources): the games with a landing on or after this table's newest, as a query.
@@ -49,9 +50,10 @@
     {%- if is_incremental() -%}
     {%- set rows = run_query("select cast(coalesce(max(_ingest_date), cast('1900-01-01' as date)) as string) from " ~ this) -%}
     {%- set newest = rows.columns[0].values()[0] -%}
+    {#- one key, not (league, game_id): Delta's DELETE does not take a multi-column IN -#}
     delete from {{ this }}
-    where (league, game_id) in (
-        select league, game_id
+    where concat_ws(':', league, game_id) in (
+        select concat_ws(':', league, game_id)
         from {{ landed_games(sources) }}
         where _ingest_date >= cast('{{ newest }}' as date)
     )
