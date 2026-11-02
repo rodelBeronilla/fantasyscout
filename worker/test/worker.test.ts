@@ -77,8 +77,9 @@ describe('routing', () => {
     expect(html).toContain(`property="og:title" content="A'ja Wilson · LVA, F · WNBA · FantasyScout"`);
     expect(html).toContain('name="description" content="A&#39;ja Wilson: season line'.replace('&#39;', "'"));
     expect(html).toContain(`rel="canonical" href="${ORIGIN}/p/wnba/1628932/"`);
-    // a player the build does not have keeps the plain shell
+    // a player the build does not have keeps the plain shell, answered 404 (#410)
     const other = await SELF.fetch(`${ORIGIN}/p/wnba/999999999/`);
+    expect(other.status).toBe(404);
     expect(await other.text()).toContain('<title>Player · FantasyScout</title>');
   });
 
@@ -103,9 +104,11 @@ describe('routing', () => {
       expect(await second.text()).toContain('Edge Player');
       expect(second.headers.get('cache-control')).toBe('public, max-age=0, must-revalidate');
       // the shell's validator no longer answers 304 for a named page
+      await env.DATA.put('builds/test/players/nba/78.json', JSON.stringify({ name: 'Second Player' }));
       const shellTag = (await SELF.fetch(`${ORIGIN}/p/`)).headers.get('etag') ?? '"shell"';
       const conditional = await SELF.fetch(`${ORIGIN}/p/nba/78/`, { headers: { 'if-none-match': shellTag } });
       expect(conditional.status).toBe(200);
+      expect(await conditional.text()).toContain('Second Player');
     } finally {
       await caches.default.delete(new Request(url));
       await caches.default.delete(new Request(`${ORIGIN}/p/nba/78/`));
@@ -128,7 +131,9 @@ describe('routing', () => {
     expect(xml).not.toContain('index');
   });
 
-  it('serves the player page for any /p/{league}/{id}/ address', async () => {
+  it('serves the player page for a /p/{league}/{id}/ address the build has', async () => {
+    await env.DATA.put('latest.json', JSON.stringify({ build_id: 'test' }), { httpMetadata: { contentType: 'application/json' } });
+    await env.DATA.put('builds/test/players/wnba/1629476.json', JSON.stringify({ name: 'Some Player' }));
     const res = await SELF.fetch(`${ORIGIN}/p/wnba/1629476/`);
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/html');
