@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { downloadCsv, toCsv } from '../lib/csv';
 import { fetchCurrentJson, fetchPageRows, getLatest, type League } from '../lib/data';
 import { useWarmUp } from '../lib/warm';
+import { blowout, nextGames } from '../lib/blowout';
 import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
@@ -11,7 +12,7 @@ import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
-import { Card, Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
+import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 
 interface StreamerRow {
   player_id: string;
@@ -557,6 +558,8 @@ export default function Streamers() {
     };
   }, [league]);
 
+  // Each team's next game, for the blowout flag on its starters (#486).
+  const nextByTeam = useMemo(() => nextGames(games), [games]);
   const sortKey = sortChoice ?? (games.some((g) => g.days_ahead <= 6) ? 'window_value' : 'minutes_trend');
   const days = useMemo(
     () => (period ? daysBetween(period.from, period.to) : Array.from({ length: horizon }, (_, i) => addDays(start, i))),
@@ -1014,6 +1017,7 @@ export default function Streamers() {
                       {r.is_new_team && <NewTeam from={r.prev_team_abbreviation} />}
                       <LineupTag role={r.lineup_role} confirmed={r.lineup_confirmed} date={r.lineup_date} injuryGroup={r.injury_group} />
                       <RestRiskTag risk={r.rest_risk} stakes={r.team_stakes} />
+                      <BlowoutTag risk={blowout(league, r.lineup_role, r.team_id ? nextByTeam.get(r.team_id) : undefined)} />
                       <NewsTag flag={r.news_flag} headline={r.news_headline} date={r.news_date} />
                       <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />
                     </span>
