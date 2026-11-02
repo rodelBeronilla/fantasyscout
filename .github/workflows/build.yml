@@ -238,10 +238,27 @@ jobs:
           outcome: ${{ env.BUILD_OUTCOME || 'failure' }}
           detail: ${{ env.BUILD_DETAIL }}
           token: ${{ github.token }}
+      # A passing build also closes the "no build ran" incidents a cancelled or timed-out ingest
+      # opened (the cancelled-ingest job below): the incident action closes only the issue that
+      # carries the same title, so each title is named here (#413).
+      - name: Close a cancelled-ingest incident
+        if: always() && env.BUILD_OUTCOME == 'success'
+        uses: ./.github/actions/incident
+        with:
+          title: "Ingest cancelled: no build ran"
+          outcome: success
+          token: ${{ github.token }}
+      - name: Close a timed-out-ingest incident
+        if: always() && env.BUILD_OUTCOME == 'success'
+        uses: ./.github/actions/incident
+        with:
+          title: "Ingest timed_out: no build ran"
+          outcome: success
+          token: ${{ github.token }}
 
   # An ingest that was cancelled or timed out (a self-hosted job queued until GitHub gave up on
   # it, a stats job killed at its limit) used to trigger nothing: no build, no issue. It opens an
-  # incident instead; the next completed ingest closes it through the normal build's report.
+  # incident instead; the next passing build closes it (the two close steps above).
   cancelled-ingest:
     name: Note a cancelled or timed-out ingest
     if: >-
@@ -259,7 +276,7 @@ jobs:
           title: "Ingest ${{ github.event.workflow_run.conclusion }}: no build ran"
           outcome: failure
           area: area:ops
-          detail: "${{ github.event.workflow_run.name }} ended ${{ github.event.workflow_run.conclusion }} (${{ github.event.workflow_run.html_url }}), so no build ran. A self-hosted job that found no runner is cancelled after a day in the queue: check the home runners (infra/runner). Run Ingest again by hand; the next build's report closes this."
+          detail: "${{ github.event.workflow_run.name }} ended ${{ github.event.workflow_run.conclusion }} (${{ github.event.workflow_run.html_url }}), so no build ran. A self-hosted job that found no runner is cancelled after a day in the queue: check the home runners (infra/runner). Run Ingest by hand with source espn (then reports) so a build runs without the runner, and source stats with since set to the first missed day once the runner is back (runbook, Home runner offline); the next passing build closes this."
 
   bundle:
     name: Deploy the Asset Bundle
