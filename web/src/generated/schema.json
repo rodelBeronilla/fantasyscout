@@ -348,7 +348,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 375,
+ "generic_tests": 376,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -10426,7 +10426,7 @@
        "type": "varchar"
       },
       {
-       "description": "When the league published the report, Eastern time",
+       "description": "When the league published the report, Eastern wall clock: the 5 pm cut-off and the game date are Eastern rules, so they read this",
        "meta": {
         "tz": "America/New_York"
        },
@@ -10435,6 +10435,17 @@
         "not_null"
        ],
        "type": "timestamp"
+      },
+      {
+       "description": "When the league published the report, as an instant (UTC); what gold publishes",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "published_at",
+       "tests": [
+        "not_null"
+       ],
+       "type": "timestamp with time zone"
       },
       {
        "description": "The game the listing is for",
@@ -17094,13 +17105,13 @@
        "type": "varchar"
       },
       {
-       "description": "When the report was published (Eastern)",
+       "description": "When the report was published, as an instant (UTC)",
        "meta": {
-        "tz": "America/New_York"
+        "tz": "UTC"
        },
        "name": "report_at",
        "tests": [],
-       "type": "timestamp"
+       "type": "timestamp with time zone"
       },
       {
        "description": "True when the player played the listed game",
@@ -18106,13 +18117,13 @@
        "type": "varchar"
       },
       {
-       "description": "When that report was published, Eastern time",
+       "description": "When that report was published, as an instant (UTC); the pages show it in Eastern time",
        "meta": {
-        "tz": "America/New_York"
+        "tz": "UTC"
        },
        "name": "official_report_at",
        "tests": [],
-       "type": "timestamp"
+       "type": "timestamp with time zone"
       }
      ],
      "description": "Each player's current status: the league's official injury report for the next game it covers, else ESPN's injury listing. ESPN's own status stays alongside for the rest of the season.",
@@ -21301,13 +21312,13 @@
        "type": "date"
       },
       {
-       "description": "When the official report was published, Eastern time",
+       "description": "When the official report was published, as an instant (UTC); the pages show it in Eastern time",
        "meta": {
-        "tz": "America/New_York"
+        "tz": "UTC"
        },
        "name": "official_report_at",
        "tests": [],
-       "type": "timestamp"
+       "type": "timestamp with time zone"
       },
       {
        "description": "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role",
@@ -23301,13 +23312,13 @@
        "type": "date"
       },
       {
-       "description": "When that official report was published (Eastern)",
+       "description": "When that official report was published, as an instant (UTC); the pages show it in Eastern time",
        "meta": {
-        "tz": "America/New_York"
+        "tz": "UTC"
        },
        "name": "official_report_at",
        "tests": [],
-       "type": "timestamp"
+       "type": "timestamp with time zone"
       },
       {
        "description": "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role",

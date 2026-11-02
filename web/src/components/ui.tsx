@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { DataUnavailableError, NoBuildError } from '../lib/data';
-import { day } from '../lib/format';
+import { day, easternClock } from '../lib/format';
 
 export function Loading({ what }: { what: string }) {
   return (
@@ -323,7 +323,7 @@ export interface InjuryFields {
 export function injuryDetail(row: InjuryFields): string {
   return [
     row.injury_source === 'official' && row.official_game_date
-      ? `Official report for ${day(row.official_game_date)}${row.official_report_at ? ` (${row.official_report_at.slice(11, 16)} ET)` : ''}`
+      ? `Official report for ${day(row.official_game_date)}${row.official_report_at ? ` (${easternClock(row.official_report_at)} ET)` : ''}`
       : row.injury_source === 'espn'
         ? "ESPN's injury listing"
         : null,

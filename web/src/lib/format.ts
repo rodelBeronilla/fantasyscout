@@ -21,6 +21,13 @@ export function int(value: number | null | undefined): string {
   return Math.round(value).toLocaleString('en-US');
 }
 
+/** An instant as the Eastern wall clock, "18:45": the report time is published in UTC (#387). */
+export function easternClock(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(11, 16);
+  return d.toLocaleTimeString('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 export function day(value: string | null | undefined): string {
   if (!value) return '–';
   const d = new Date(value.length === 10 ? `${value}T00:00:00Z` : value);

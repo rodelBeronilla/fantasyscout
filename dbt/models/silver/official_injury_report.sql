@@ -27,6 +27,9 @@ typed as (
         season,
         report,
         cast(replace(substr(published_et, 1, 19), 'T', ' ') as timestamp) as published_at_et,
+        -- the same moment as an instant: the landing keeps the offset (-04:00 or -05:00), so this
+        -- is UTC whatever the season's daylight saving (#387)
+        {{ utc_timestamp('published_et') }} as published_at,
         make_date(
             cast(substr(game_date, 7, 4) as integer),
             cast(substr(game_date, 1, 2) as integer),

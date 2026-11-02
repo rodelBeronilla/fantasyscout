@@ -90,7 +90,8 @@ linked as (
         l.status,
         l.reason_group,
         l.injury_detail,
-        l.published_at_et
+        l.published_at_et,
+        l.published_at
     from last_listing as l
     join team_games as g on g.league = l.league and g.team_id = l.team_id and g.game_date = l.game_date
     join unique_names as n
@@ -137,7 +138,7 @@ select
     k.status,
     k.reason_group,
     k.injury_detail,
-    k.published_at_et as report_at,
+    k.published_at as report_at,
     coalesce(pg.played, false) as played,
     s.games_missed,
     s.team_games_left
