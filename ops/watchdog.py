@@ -7,6 +7,13 @@ the build's age with the publish SLA: while a league is playing, a new build is 
 least every IN_SEASON_HOURS; out of season every OFF_SEASON_HOURS. Exit status 0 when the live
 build is inside the SLA, 2 when it is stale or the site does not answer.
 
+A new build is not enough (#400): the evening light build refreshes the reports only, so it goes
+live with the day's stats even when the stats never landed. In season, a core feed of a playing
+league whose last landing is older than the feed's own allowance (health.json's max_age_days,
+the age measured from now) makes the site stale too. A rollback pins the site to an older build
+on purpose: the verdict says so instead of blaming the pipeline. Without a readable health file
+the season is unknown and the in-season limit applies.
+
 This is the one check that runs outside the pipeline, on a GitHub-hosted runner on its own
 schedule. Every other alert is a step of the pipeline that failed, so a pipeline that never
 starts (a home runner offline, a cron GitHub stopped firing, a build cancelled before its
@@ -18,7 +25,7 @@ from __future__ import annotations
 import argparse
 import sys
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import httpx
 
@@ -48,23 +55,56 @@ def decide(
     if created.tzinfo is None:
         created = created.replace(tzinfo=UTC)
     age_hours = (now - created).total_seconds() / 3600
+    if latest.get("pinned") is True:
+        since = latest.get("rolled_back_at") or "an unknown time"
+        return Verdict(
+            False,
+            f"pinned: live build {latest.get('build_id')} is pinned by a rollback since {since} "
+            f"(from {latest.get('rolled_back_from')}); the SLA applies again after fs-export unpin",
+        )
     feeds = health.get("feeds") if health else None
-    leagues = sorted(
-        {
-            str(f.get("league"))
-            for f in (feeds if isinstance(feeds, list) else [])
-            if isinstance(f, dict) and f.get("in_season") is True
-        }
-    )
-    limit = in_season_hours if leagues else off_season_hours
-    season = f"in season ({', '.join(leagues)})" if leagues else "off season"
+    feed_list = [f for f in (feeds if isinstance(feeds, list) else []) if isinstance(f, dict)]
+    leagues = sorted({str(f.get("league")) for f in feed_list if f.get("in_season") is True})
+    if not feed_list:
+        limit, season = in_season_hours, "season unknown (no readable health file)"
+    elif leagues:
+        limit, season = in_season_hours, f"in season ({', '.join(leagues)})"
+    else:
+        limit, season = off_season_hours, "off season"
     detail = (
         f"live build {latest.get('build_id')} created {created.isoformat()} "
         f"is {age_hours:.1f} h old; {season}, limit {limit} h"
     )
     if age_hours > limit:
         return Verdict(True, f"stale: {detail}")
+    old = old_core_feeds(feed_list, now)
+    if old:
+        return Verdict(True, f"stale: {detail}, but its data is old: {'; '.join(old)}")
     return Verdict(False, f"fresh: {detail}")
+
+
+def old_core_feeds(feeds: list[dict[str, object]], now: datetime) -> list[str]:
+    """The in-season core feeds whose last landing, counted from now, is past their allowance."""
+    out: list[str] = []
+    for f in feeds:
+        if f.get("is_core") is not True or f.get("in_season") is not True:
+            continue
+        landed = f.get("last_landed")
+        if not isinstance(landed, str):
+            continue
+        try:
+            last = date.fromisoformat(landed[:10])
+        except ValueError:
+            continue
+        allowed = f.get("max_age_days")
+        allowance = int(allowed) if isinstance(allowed, int | float) else 2
+        age = (now.date() - last).days
+        if age > allowance:
+            out.append(
+                f"{f.get('league')} {f.get('feed')} last landed {landed[:10]} "
+                f"({age} days, allowed {allowance})"
+            )
+    return out
 
 
 def fetch_json(client: httpx.Client, url: str) -> dict[str, object] | None:
