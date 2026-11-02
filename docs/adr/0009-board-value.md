@@ -201,3 +201,7 @@ Nobody else's projection moves. Out of sample the cut takes the bias of the play
 The rest-of-season board barely moves. At the in-season checkpoints, with and without the cut, top-N hits, rank correlation, error per game and capture changed by at most 0.006, in and out of sample. About 56 NBA and 6 WNBA players are cut at a checkpoint. The cut is a short-horizon correction for the next few games, which is what Streamers and a weekly lineup read.
 
 `mart_player_projection` publishes `absence_games`, `games_since_return` and `return_minutes_factor`. The replay applies the same rule, a dbt unit test pins it on a ten-game team (the cap, the fade, an absence too short to count, one carried over from last season, a player who joined mid-season and one with under five games), and `assert_projected_minutes_blend` now takes the cut out before checking the blend. The board backtest notebook re-tests the rule on every build.
+
+## Addendum (2026-11-02): when the aging curve is tested again
+
+The section on the aging curve waits for a second forward NBA season. That is NBA 2026-27, whose regular season ends in April 2027: the board backtest notebook runs the test again on the first full build after it, and the curve is adopted only if its top-N and rank-correlation gains hold in both forward seasons (#492).

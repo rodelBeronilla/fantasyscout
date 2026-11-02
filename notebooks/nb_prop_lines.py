@@ -133,13 +133,15 @@ else:
 
 
 def enough(lg):
+    # whether the league has the outcomes the comparison needs, with its markets and game dates
     part = outcomes[outcomes['league'] == lg] if len(outcomes) else outcomes
-    return len(part) >= MIN_OUTCOMES and part['game_date'].nunique() >= MIN_DATES, len(part)
+    dates = part['game_date'].nunique() if len(part) else 0
+    return len(part) >= MIN_OUTCOMES and dates >= MIN_DATES, len(part), dates
 
 
 rows = []
 for lg in LEAGUES:
-    ok, n = enough(lg)
+    ok, n, _dates = enough(lg)
     if not ok:
         print(f"{LABEL[lg]}: {n} player-game-markets with an outcome; the comparison waits for {MIN_OUTCOMES} over {MIN_DATES} game dates.")
         continue
@@ -194,13 +196,14 @@ for lg in LEAGUES:
         {'label': "Share of the board's rostered pool with a line", 'value': f'{covered:.0%}' if pd.notna(covered) else 'n/a'},
         {'label': 'Bookmakers per line, mean', 'value': f"{raw['books'].mean():.1f}"},
     ]
-    ok, n_out = enough(lg)
+    ok, n_out, n_dates = enough(lg)
     out = vs_outcome[vs_outcome['league'] == lg] if len(vs_outcome) else vs_outcome
     if ok and len(out):
         weights = out['n'] / out['n'].sum()
         facts.append({'label': 'Error against the outcome, line vs board', 'value': f"{(out['mae_line'] * weights).sum():.2f} vs {(out['mae_board'] * weights).sum():.2f}"})
     else:
-        facts.append({'label': 'Against the outcome', 'value': f'accumulating: {n_out} of {MIN_OUTCOMES} player-game-markets'})
+        # Both gates, so a league past the market count but short of dates says which one it waits on (#492).
+        facts.append({'label': 'Against the outcome', 'value': f'accumulating: {n_out:,} markets over {n_dates} of {MIN_DATES} game dates (needs {MIN_OUTCOMES:,} over {MIN_DATES})'})
     table_rows = []
     for _, r in part.sort_values('n', ascending=False).iterrows():
         o = out[out['market'] == r['market']] if len(out) else out

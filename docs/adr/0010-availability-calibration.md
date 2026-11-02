@@ -51,3 +51,7 @@ Decisions:
 - The board joins a listed player to the rows for their league, status and reason, caps each `games_missed` at the games the team has left and takes the listings-weighted mean. Every board value is unchanged (the weighted mean of a histogram is the mean of the listings; the CI sample is byte-identical), and the join is players × histogram rows rather than players × listings.
 - The notebook reads the histogram and shows what the board uses: for the WNBA, the NBA's rows and the fact that they are borrowed, rather than the WNBA's own handful, which the board does not read yet.
 - Unit tests: `status_calibration_falls_back_to_the_nba_until_a_league_has_enough` pins the switch (a league under 300 reads the NBA's rows with its own count beside them; a league at 300 reads its own; the NBA, its own fallback, gets no row for a reason it has never listed), and the board's availability test gains a listing whose games missed exceed the games left, to pin the cap.
+
+## Addendum (2026-11-02): when the WNBA reads its own listings
+
+A league reads its own official listings for a status once it has 300 of them; until then the NBA's apply. The WNBA's archive starts in 2026; the 2026-11-02 audit put the first status past 300 around the middle of the 2027 season, and the rarer statuses later. The switch is automatic; the game context notebook's fact marks each status still read from the NBA ("n 627, NBA's") until then (#492).
