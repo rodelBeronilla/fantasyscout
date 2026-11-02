@@ -11,6 +11,7 @@ import {
   type Scoring,
 } from '../lib/fantasy-league';
 import type { League } from '../lib/data';
+import type { Upgrade } from '../lib/roster-upgrades';
 import { href } from '../lib/site';
 import { Signed } from './ui';
 
@@ -165,6 +166,73 @@ export function LeagueBar({ setup, rostered, myCount, weakest }: { setup: League
         {rostered > 0 ? 'Edit league' : 'Set up your league'} →
       </a>
     </div>
+  );
+}
+
+/** Available players worth more than one of the manager's, as swaps the manager can make here. */
+export function Upgrades({
+  league,
+  list,
+  nameOf,
+  detailOf,
+  onApply,
+}: {
+  league: League;
+  list: Upgrade[];
+  nameOf: (id: string) => string;
+  detailOf: (id: string) => string;
+  onApply: (u: Upgrade) => void;
+}) {
+  const player = (id: string) => (
+    <>
+      <a href={href(`/p/${league}/${id}/`)} className="font-medium underline-offset-4 hover:underline">
+        {nameOf(id)}
+      </a>
+      {detailOf(id) ? <span className="text-muted"> ({detailOf(id)})</span> : null}
+    </>
+  );
+  const labels = (cats: string[]) => cats.map((c) => CATEGORY_LABELS[c] ?? c).join(', ');
+  return (
+    <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="upgrades-h" data-testid="upgrades">
+      <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+        Roster upgrades
+      </h2>
+      <p className="mt-1 text-xs text-muted">
+        Players nobody in your league owns who are worth more for the rest of the season than one of yours, under your
+        league&apos;s scoring. Apply records the swap in the league kept here; make it in your league&apos;s app too.
+      </p>
+      <ul className="mt-2 grid gap-1 text-sm">
+        {list.map((u) => (
+          <li key={`${u.add}-${u.drop}`} className="flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="upgrade">
+            <span>
+              Add {player(u.add)} for {player(u.drop)}
+            </span>
+            <span>
+              <Signed value={u.gain} digits={1} /> <span className="text-muted">rest of season</span>
+            </span>
+            {u.ups.length > 0 && (
+              <span className="text-xs text-good" data-testid="upgrade-ups">
+                up: {labels(u.ups)}
+              </span>
+            )}
+            {u.downs.length > 0 && (
+              <span className="text-xs text-bad" data-testid="upgrade-downs">
+                down: {labels(u.downs)}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => onApply(u)}
+              className="rounded border border-line px-2 py-0.5 text-xs hover:bg-bg"
+              title={`Add ${nameOf(u.add)} and drop ${nameOf(u.drop)} in the league kept here`}
+              data-testid="upgrade-apply"
+            >
+              Apply
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
