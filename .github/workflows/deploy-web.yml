@@ -234,6 +234,14 @@ jobs:
           # than what curl has written when grep finds its match and exits.
           curl -s "$URL/" -o home.html
           grep -q "FantasyScout" home.html || { echo "::error::placeholder text missing"; exit 1; }
+          # The asset layer serves the pages and bundles without the Worker, with the headers the
+          # deploy wrote into _headers (#442): the page keeps its policy, a bundle is kept a year.
+          curl -sI "$URL/" | tr -d '\r' > home.headers
+          grep -qi "^content-security-policy: default-src 'self'" home.headers || { echo "::error::/ has no Content-Security-Policy"; exit 1; }
+          bundle=$(grep -oE '/_astro/[^"]+\.js' home.html | head -1)
+          [ -n "$bundle" ] || { echo "::error::no /_astro/ bundle on /"; exit 1; }
+          curl -sI "$URL$bundle" | tr -d '\r' | grep -qi '^cache-control: public, max-age=31536000, immutable' \
+            || { echo "::error::$bundle is not served with a year's immutable cache"; exit 1; }
           for path in /docs/ /docs/manifest.json /docs/catalog.json; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "$URL$path")
             [ "$code" = "200" ] || { echo "::error::$path returned $code"; exit 1; }

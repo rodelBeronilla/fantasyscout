@@ -1,11 +1,15 @@
 // Astro inlines a few small scripts (its island loader) and one style rule into every page.
-// The Worker's Content-Security-Policy stays at 'self' by listing their SHA-256 hashes, which
-// this script collects from the built pages into src/csp-hashes.json before every test, dry
-// run and deploy. Run from worker/: `node scripts/csp-hashes.mjs [path/to/web/dist]`.
+// The Content-Security-Policy stays at 'self' by listing their SHA-256 hashes, which this script
+// collects from the built pages into src/csp-hashes.json before every test, dry run and deploy.
+// It also writes the build's _headers file from src/policy.ts, so the static-asset layer serves
+// pages and bundles with the same headers the Worker sets on what it serves (#442). Node strips
+// policy.ts's types on load. Run from worker/: `node scripts/csp-hashes.mjs [path/to/web/dist]`.
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { headersFile } from '../src/policy.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = process.argv[2] ?? join(here, '..', '..', 'web', 'dist');
@@ -41,3 +45,5 @@ for (const file of htmlFiles(dist)) {
 const result = { scripts: [...scripts].sort(), styles: [...styles].sort() };
 writeFileSync(out, JSON.stringify(result, null, 2) + '\n');
 console.log(`${pages} pages: ${result.scripts.length} inline script hash(es), ${result.styles.length} inline style hash(es) -> ${out}`);
+writeFileSync(join(dist, '_headers'), headersFile(result));
+console.log(`security headers and the bundles' cache rule -> ${join(dist, '_headers')}`);
