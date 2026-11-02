@@ -129,6 +129,19 @@ describe('routing', () => {
     expect(xml).toContain(`<loc>${ORIGIN}/p/wnba/1/</loc>`);
     expect(xml).toContain(`<loc>${ORIGIN}/p/nba/2/</loc>`);
     expect(xml).not.toContain('index');
+    // The edge keeps it for the hour (#444): with listing broken, the second request still answers.
+    const key = new Request(`${ORIGIN}/sitemap-players.xml`);
+    for (let i = 0; i < 50 && !(await caches.default.match(key)); i++) await new Promise((r) => setTimeout(r, 20));
+    const spy = vi.spyOn(env.DATA, 'list').mockRejectedValue(new Error('r2 down'));
+    try {
+      const again = await SELF.fetch(`${ORIGIN}/sitemap-players.xml`);
+      expect(again.status).toBe(200);
+      expect(await again.text()).toContain(`<loc>${ORIGIN}/p/nba/2/</loc>`);
+      expect(again.headers.get('x-content-type-options')).toBe('nosniff');
+    } finally {
+      spy.mockRestore();
+      await caches.default.delete(key);
+    }
   });
 
   it('serves the player page for a /p/{league}/{id}/ address the build has', async () => {
