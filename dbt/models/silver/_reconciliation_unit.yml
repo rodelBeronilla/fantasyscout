@@ -1,0 +1,39 @@
+unit_tests:
+  - name: player_game_reconciliation_verdicts
+    description: >
+      ADR 0005's rules (#397): counts equal and minutes within half a minute is exact, within one
+      minute minor, anything more or any count apart a conflict; a player neither source has on
+      the floor (the league writes zeros, ESPN nothing) is exact.
+    model: player_game_reconciliation
+    given:
+      - input: ref('player_game_box')
+        rows:
+          - {league: 'nba', season: '2025-26', game_id: 'g1', player_id: '1', player_game_key: 'g1-1', minutes: 30.4, _ingest_date: 2026-01-10, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, three_pointers_made: 0, three_pointers_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: 'nba', season: '2025-26', game_id: 'g1', player_id: '2', player_game_key: 'g1-2', minutes: 30.8, _ingest_date: 2026-01-10, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, three_pointers_made: 0, three_pointers_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: 'nba', season: '2025-26', game_id: 'g1', player_id: '3', player_game_key: 'g1-3', minutes: 31.6, _ingest_date: 2026-01-10, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, three_pointers_made: 0, three_pointers_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: 'nba', season: '2025-26', game_id: 'g1', player_id: '4', player_game_key: 'g1-4', minutes: 30, _ingest_date: 2026-01-10, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, three_pointers_made: 0, three_pointers_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: 'nba', season: '2025-26', game_id: 'g1', player_id: '5', player_game_key: 'g1-5', minutes: 0, _ingest_date: 2026-01-10, points: 0, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, three_pointers_made: 0, three_pointers_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+      - input: ref('game_xwalk')
+        rows:
+          - {league: nba, game_id: g1, event_id: e1}
+      - input: ref('player_xwalk')
+        rows:
+          - {league: nba, stats_player_id: '1', espn_player_id: 'a1'}
+          - {league: nba, stats_player_id: '2', espn_player_id: 'a2'}
+          - {league: nba, stats_player_id: '3', espn_player_id: 'a3'}
+          - {league: nba, stats_player_id: '4', espn_player_id: 'a4'}
+          - {league: nba, stats_player_id: '5', espn_player_id: 'a5'}
+      - input: ref('espn_player_game')
+        rows:
+          - {league: 'nba', event_id: 'e1', athlete_id: 'a1', minutes: 30, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, three_pointers_made: 0, three_pointers_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: 'nba', event_id: 'e1', athlete_id: 'a2', minutes: 30, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, three_pointers_made: 0, three_pointers_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: 'nba', event_id: 'e1', athlete_id: 'a3', minutes: 30, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, three_pointers_made: 0, three_pointers_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: 'nba', event_id: 'e1', athlete_id: 'a4', minutes: 30, points: 12, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, three_pointers_made: 0, three_pointers_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: 'nba', event_id: 'e1', athlete_id: 'a5', minutes: null, points: null, rebounds_total: null, assists: null, steals: null, blocks: null, turnovers: null, field_goals_made: null, field_goals_attempted: null, three_pointers_made: null, three_pointers_attempted: null, free_throws_made: null, free_throws_attempted: null}
+    expect:
+      rows:
+        - {stats_player_id: '1', source_agreement: exact}
+        - {stats_player_id: '2', source_agreement: minor}
+        - {stats_player_id: '3', source_agreement: conflict}
+        - {stats_player_id: '4', source_agreement: conflict}
+        - {stats_player_id: '5', source_agreement: exact}
