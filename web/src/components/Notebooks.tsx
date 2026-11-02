@@ -74,6 +74,8 @@ export default function Notebooks() {
   const [league] = useState<League>(() => currentLeague());
   const [latest, setLatest] = useState<Latest | null | undefined>(undefined);
   const [published, setPublished] = useState<Set<string>>(new Set());
+  // A light build carries the last full build's notebooks (#530): say which build rendered them.
+  const [carried, setCarried] = useState<{ from: string; at: string } | null>(null);
   const [history, setHistory] = useState<FindingsHistory | null>(null);
   const [findings, setFindings] = useState<Record<string, Findings>>({});
   const [error, setError] = useState<unknown>(null);
@@ -92,9 +94,10 @@ export default function Notebooks() {
       if (!l) return;
       const r = await fetch(buildHref(l, 'notebooks/index.json'));
       if (!r.ok) return;
-      const index = (await r.json()) as { files: string[] };
+      const index = (await r.json()) as { files: string[]; carried_from?: string; carried_from_created_at?: string };
       const files = new Set(index.files);
       if (live) setPublished(files);
+      if (live && index.carried_from) setCarried({ from: index.carried_from, at: index.carried_from_created_at ?? '' });
       const loaded: Record<string, Findings> = {};
       await Promise.all(
         NOTEBOOKS.filter((nb) => files.has(`${nb.name}.findings.json`)).map(async (nb) => {
@@ -114,6 +117,12 @@ export default function Notebooks() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6" data-testid="notebooks">
+      {carried && (
+        <p className="text-sm text-muted" data-testid="notebooks-carried">
+          Rendered with the full build of {carried.at ? `${carried.at.slice(0, 16).replace('T', ' ')} UTC` : carried.from}. The evening build
+          refreshes the injury reports and the board; the notebooks run again with the next morning&apos;s full build.
+        </p>
+      )}
       {NOTEBOOKS.map((nb) => {
         const html = `${nb.name}.html`;
         const ready = latest !== null && published.has(html);

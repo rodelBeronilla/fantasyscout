@@ -8,8 +8,8 @@ name: Build lakehouse
 # hand too. A failed build opens or updates a data-incident issue; the next passing build
 # closes it. An ingest that landed only the injury reports and the other evening feeds (the
 # 23:00 UTC schedule) gets a light build: those feeds' models and everything downstream of them
-# (the board and streamers included), with every quality check, and no notebooks or Tableau
-# extract, which the morning's full build refreshes.
+# (the board and streamers included), with every quality check; the notebooks and the Tableau
+# extract are carried from the last full build, which the morning's full build refreshes.
 
 on:
   workflow_run:
@@ -81,7 +81,7 @@ jobs:
           if [ "$source" = "reports" ]; then
             echo "PLAN_SELECT=tag:feed_reports+ path:models/ops" >> "$GITHUB_ENV"
             echo "PLAN_LIGHT=true" >> "$GITHUB_ENV"
-            echo "::notice::light build: the evening ingest landed the reports only, so the build covers those feeds' models and their consumers; notebooks and the Tableau extract wait for the morning's full build"
+            echo "::notice::light build: the evening ingest landed the reports only, so the build covers those feeds' models and their consumers; the notebooks and the Tableau extract are carried from the last full build until the morning's"
           fi
 
       - name: Note an ingest that ended with a failed job

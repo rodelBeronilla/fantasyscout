@@ -245,6 +245,47 @@ def test_prune_keeps_a_pinned_build_whatever_latest_says(tmp_path: Path) -> None
     assert [b["build_id"] for b in json.loads(store.get("builds.json") or b"[]")] == ["b2", "b0"]
 
 
+def test_a_light_build_carries_the_newest_earlier_notebooks_and_extract(tmp_path: Path) -> None:
+    """#530: the evening light build no longer goes live without notebooks or the extract."""
+    store = LocalStore(tmp_path / "bucket")
+    quiet = lambda _: None  # noqa: E731
+    build_mod.publish(store, fake_build("b1"), log=quiet)
+    page = tmp_path / "01_board_backtest.html"
+    page.write_text("<html>old</html>", encoding="utf-8")
+    csv = tmp_path / "player_value.csv"
+    csv.write_bytes(b"league,player\nnba,A\n")
+    build_mod.publish_files(store, [page], subdir="notebooks", build_id="b1", log=quiet)
+    build_mod.publish_files(store, [csv], subdir="tableau", build_id="b1", log=quiet)
+    build_mod.publish(store, fake_build("b2"), log=quiet)  # a full build whose notebooks failed
+    build_mod.stage(store, fake_build("b3"), log=quiet)  # the light build, staged
+
+    carried = build_mod.carry_forward(store, "b3", log=quiet)
+    assert carried == {"notebooks": "b1", "tableau": "b1"}
+    assert store.get("builds/b3/notebooks/01_board_backtest.html") == b"<html>old</html>"
+    assert store.get("builds/b3/tableau/player_value.csv") == b"league,player\nnba,A\n"
+    index = json.loads(store.get("builds/b3/notebooks/index.json") or b"{}")
+    assert index["build_id"] == "b3"
+    assert index["files"] == ["01_board_backtest.html"]
+    assert index["carried_from"] == "b1"
+    listing = (store.get("builds/b3/keys.txt") or b"").decode()
+    assert "builds/b3/notebooks/01_board_backtest.html" in listing, "pruning removes the copies"
+    assert "builds/b3/tableau/index.json" in listing
+
+    # a second light build in a row names the build that rendered them, not the light one
+    build_mod.promote(store, "b3", log=quiet)
+    build_mod.stage(store, fake_build("b4"), log=quiet)
+    assert build_mod.carry_forward(store, "b4", ("notebooks",), log=quiet) == {"notebooks": "b1"}
+    again = json.loads(store.get("builds/b4/notebooks/index.json") or b"{}")
+    assert again["carried_from"] == "b1"
+
+    # nothing to carry: said, not invented
+    fresh = LocalStore(tmp_path / "fresh")
+    build_mod.publish(fresh, fake_build("x1"), log=quiet)
+    build_mod.stage(fresh, fake_build("x2"), log=quiet)
+    assert build_mod.carry_forward(fresh, "x2", log=quiet) == {"notebooks": None, "tableau": None}
+    assert fresh.get("builds/x2/notebooks/index.json") is None
+
+
 def test_findings_history_keeps_one_entry_per_build_and_league(tmp_path: Path) -> None:
     """#293: the findings outlive the seven kept builds."""
     store = LocalStore(tmp_path)

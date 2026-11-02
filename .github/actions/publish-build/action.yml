@@ -21,7 +21,9 @@ inputs:
     required: false
     default: ""
   light:
-    description: Set to true to skip the notebooks and the Tableau extract (the evening build)
+    description: >-
+      Set to true for the evening build: the notebooks and the Tableau extract are not rerun but
+      carried from the newest earlier build (index.json says which), so the pages keep them
     required: false
     default: "false"
 
@@ -33,10 +35,10 @@ outputs:
     description: success or failure
     value: ${{ steps.export.outputs.outcome }}
   notebooks:
-    description: success, failure or skipped
+    description: success, carried, failure or skipped
     value: ${{ steps.notebooks.outputs.outcome }}
   extract:
-    description: success, failure or skipped
+    description: success, carried, failure or skipped
     value: ${{ steps.extract.outputs.outcome }}
   promote:
     description: success, failure or skipped
@@ -72,7 +74,16 @@ runs:
         FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         LIGHT: ${{ inputs.light }}
       run: |
-        if [ "$LIGHT" = "true" ]; then echo "outcome=skipped" >> "$GITHUB_OUTPUT"; echo "light build: notebooks skipped"; exit 0; fi
+        if [ "$LIGHT" = "true" ]; then
+          # not rerun: the newest earlier build's notebooks are copied in, so the page keeps them (#530)
+          if uv run fs-export carry-forward --store r2 --build-id "$FS_BUILD_ID" --subdir notebooks 2>&1 | tee -a land.log; then
+            echo "outcome=carried" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+            echo "::warning::the light build could not carry the notebooks forward; it goes live without them"
+          fi
+          exit 0
+        fi
         set -o pipefail
         if (
           set -euo pipefail
@@ -99,7 +110,16 @@ runs:
         FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         LIGHT: ${{ inputs.light }}
       run: |
-        if [ "$LIGHT" = "true" ]; then echo "outcome=skipped" >> "$GITHUB_OUTPUT"; echo "light build: Tableau extract skipped"; exit 0; fi
+        if [ "$LIGHT" = "true" ]; then
+          # not rerun, and the sheet push waits for a fresh extract: the files are copied in (#530)
+          if uv run fs-export carry-forward --store r2 --build-id "$FS_BUILD_ID" --subdir tableau 2>&1 | tee -a land.log; then
+            echo "outcome=carried" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=failure" >> "$GITHUB_OUTPUT"
+            echo "::warning::the light build could not carry the Tableau extract forward; it goes live without it"
+          fi
+          exit 0
+        fi
         set -o pipefail
         if (
           set -euo pipefail
