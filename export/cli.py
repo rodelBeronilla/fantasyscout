@@ -108,6 +108,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_nb.add_argument("--subdir", required=True, help="folder under the build, e.g. notebooks")
     p_nb.add_argument("--build-id", default=None, help="target build (default: latest)")
 
+    p_cf = sub.add_parser(
+        "carry-forward",
+        help="copy the newest earlier build's notebooks and extract into a staged light build",
+    )
+    add_store(p_cf)
+    p_cf.add_argument("--build-id", required=True, help="the staged build to complete")
+    p_cf.add_argument(
+        "--subdir",
+        action="append",
+        default=None,
+        help="folder to carry (repeatable; default: notebooks and tableau)",
+    )
+
     p_fh = sub.add_parser(
         "findings-history",
         help="append a build's notebook findings to the history the Notebooks page shows",
@@ -161,6 +174,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             for key in keys:
                 print(f"  {key}")
             print(f"published {len(keys)} file(s) under {args.subdir}")
+        elif args.command == "carry-forward":
+            subdirs = tuple(args.subdir or ("notebooks", "tableau"))
+            carried = build_mod.carry_forward(store, args.build_id, subdirs)
+            for sub, origin in carried.items():
+                print(f"{sub}: {'from ' + origin if origin else 'nothing to carry'}")
         elif args.command == "findings-history":
             history = build_mod.findings_history(store, args.build_id)
             print(f"findings history holds {len(history.get('notebooks', {}))} notebook(s)")

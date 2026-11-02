@@ -485,6 +485,76 @@ def findings_history(
     return history
 
 
+def carry_forward(
+    store: Store,
+    build_id: str,
+    subdirs: tuple[str, ...] = ("notebooks", "tableau"),
+    *,
+    log: Log = print,
+) -> dict[str, str | None]:
+    """Copy the newest earlier build's notebooks and Tableau extract into a staged light build.
+
+    The evening light build refreshes the data only (runbook, "light build"); without this it went
+    live with no ``notebooks/`` or ``tableau/`` folder, and the Notebooks and Dashboards pages said
+    nothing was rendered until the next full build (#530). Each folder is copied whole from the
+    newest build in builds.json that has it, its index.json says where it came from
+    (``carried_from``, ``carried_from_created_at``; a folder carried twice keeps the original), and
+    the build's key list grows so pruning removes the copies with the build. Returns, per folder,
+    the build it came from, or None when no earlier build has it.
+    """
+    builds: list[dict[str, Any]] = _read_json(store, BUILDS_KEY) or []
+    listing = store.get(f"builds/{build_id}/keys.txt")
+    known = listing.decode("utf-8").splitlines() if listing else []
+    added: list[str] = []
+    carried: dict[str, str | None] = {}
+    for subdir in subdirs:
+        sub = subdir.strip("/")
+        source: tuple[dict[str, Any], dict[str, Any]] | None = None
+        for entry in builds:
+            other = entry.get("build_id")
+            if not other or other == build_id:
+                continue
+            index = _read_json(store, f"builds/{other}/{sub}/index.json")
+            if index and index.get("files"):
+                source = (entry, index)
+                break
+        if source is None:
+            log(f"  {sub}: no earlier build has it; nothing carried")
+            carried[sub] = None
+            continue
+        entry, index = source
+        src = f"builds/{entry['build_id']}/{sub}/"
+        dst = f"builds/{build_id}/{sub}/"
+        files: list[str] = []
+        for name in index["files"]:
+            body = store.get(src + name)
+            if body is None:
+                continue
+            store.put(dst + name, body)
+            files.append(name)
+            added.append(dst + name)
+        origin = str(index.get("carried_from") or entry["build_id"])
+        origin_at = str(index.get("carried_from_created_at") or entry.get("created_at", ""))
+        store.put(
+            dst + "index.json",
+            to_json(
+                {
+                    "build_id": build_id,
+                    "files": files,
+                    "carried_from": origin,
+                    "carried_from_created_at": origin_at,
+                }
+            ),
+        )
+        added.append(dst + "index.json")
+        log(f"  {sub}: carried {len(files)} file(s) from {origin}")
+        carried[sub] = origin
+    extra = [k for k in added if k not in known]
+    if extra:
+        store.put(f"builds/{build_id}/keys.txt", "\n".join([*known, *extra]).encode("utf-8"))
+    return carried
+
+
 def publish_files(
     store: Store,
     files: list[Path],
