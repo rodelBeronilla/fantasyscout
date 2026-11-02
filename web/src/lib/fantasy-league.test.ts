@@ -61,4 +61,17 @@ describe('name matching', () => {
     const result = matchNames('Gary Trent Jr. (POR - SG)\nJalen Williams\n\nNobody Known\njalen williams', players);
     expect(result).toEqual({ matched: ['1', '2'], unmatched: ['Nobody Known'] });
   });
+
+  it('matches a name shortened to an initial when one player fits, and nobody when two do', () => {
+    const players = [
+      { player_id: '1', full_name: 'Nickeil Alexander-Walker' },
+      { player_id: '2', full_name: 'Jalen Williams' },
+      { player_id: '3', full_name: 'Jaylin Williams' },
+      { player_id: '4', full_name: 'Nneka Ogwumike' },
+    ];
+    expect(matchNames('N. Alexander-Walker\nJ. Williams\nN. Ogwumike (SEA - F)\nX. Ogwumike', players)).toEqual({
+      matched: ['1', '4'],
+      unmatched: ['J. Williams', 'X. Ogwumike'],
+    });
+  });
 });

@@ -257,18 +257,33 @@ export function nameKey(name: string): string {
 
 /**
  * Matches pasted lines (one player each, as any fantasy host lists them) to players. A line may
- * carry extra text such as a team or position; the longest player name it contains wins.
+ * carry extra text such as a team or position; the longest player name it contains wins. A long
+ * name a host shortens to an initial ("N. Alexander-Walker") matches the one player whose surname
+ * fits and whose first name starts with that initial (#519).
  */
 export function matchNames(text: string, players: { player_id: string; full_name: string | null }[]): { matched: string[]; unmatched: string[] } {
   const byKey = new Map<string, string>();
   for (const p of players) if (p.full_name) byKey.set(nameKey(p.full_name), p.player_id);
   const keys = [...byKey.keys()].sort((a, b) => b.length - a.length);
+  // A long name a host shortens to an initial ("N. Alexander-Walker"): one player per alias, or none when two share it.
+  const byAlias = new Map<string, string | null>();
+  for (const p of players) {
+    const parts = p.full_name ? nameKey(p.full_name).split(' ') : [];
+    if (parts.length < 2) continue;
+    const alias = `${parts[0]!.charAt(0)} ${parts.slice(1).join(' ')}`;
+    byAlias.set(alias, byAlias.has(alias) ? null : p.player_id);
+  }
+  const aliases = [...byAlias.keys()].sort((a, b) => b.length - a.length);
   const matched: string[] = [];
   const unmatched: string[] = [];
   for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
     const k = nameKey(line);
     const key = byKey.has(k) ? k : keys.find((candidate) => ` ${k} `.includes(` ${candidate} `));
-    const id = key ? byKey.get(key) : undefined;
+    let id = key ? byKey.get(key) : undefined;
+    if (!id) {
+      const alias = byAlias.has(k) ? k : aliases.find((candidate) => ` ${k} `.includes(` ${candidate} `));
+      if (alias) id = byAlias.get(alias) ?? undefined;
+    }
     if (id && !matched.includes(id)) matched.push(id);
     else if (!id) unmatched.push(line);
   }
