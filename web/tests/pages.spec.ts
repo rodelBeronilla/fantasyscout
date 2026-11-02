@@ -187,6 +187,8 @@ test('a failing data pointer says the data is temporarily unavailable, and a rel
   // board has shown the failure, then let the reload through.
   let failing = true;
   await page.route('**/data/latest.json', (route) => (failing ? route.fulfill({ status: 503, body: 'down' }) : route.fallback()));
+  // the Worker's current-build address resolves the same pointer, so it fails with it (#436)
+  await page.route('**/data/current/**', (route) => (failing ? route.fulfill({ status: 503, body: 'down' }) : route.fallback()));
   await page.goto('/');
   const alert = page.getByTestId('data-unavailable');
   await expect(alert).toContainText('temporarily unavailable (HTTP 503)');
@@ -198,6 +200,7 @@ test('a failing data pointer says the data is temporarily unavailable, and a rel
 
 test('without any build published, the pages say so', async ({ page }) => {
   await page.route('**/data/latest.json', (route) => route.fulfill({ status: 404, body: 'nope' }));
+  await page.route('**/data/current/**', (route) => route.fulfill({ status: 404, body: 'nope' }));
   await page.goto('/');
   await expect(page.getByRole('status')).toContainText('No data build has been published yet');
 });

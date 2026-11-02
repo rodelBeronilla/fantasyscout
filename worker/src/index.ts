@@ -34,6 +34,13 @@ const MUTABLE_UNDER_BUILDS = /^builds\/[^/]+\/(?:keys\.txt|(?:[^/]+\/)*index\.js
 function isMutable(key: string): boolean {
   return POINTER_KEYS.has(key) || MUTABLE_UNDER_BUILDS.test(key);
 }
+/**
+ * The files a page head preloads before it knows the build id (#436): the board, the streamers
+ * and the schedule of the current build, at an address that does not change. The Worker resolves
+ * the pointer, so the page fetches the file beside latest.json instead of after it. Served like a
+ * pointer, for a minute; nothing else (no private table, no player file) is reachable this way.
+ */
+const CURRENT_PATH = /^current\/((?:board|streamers|schedule)\/(?:wnba|nba)\.json)$/;
 
 /** The cache-control a data file is served with: a minute for the mutable keys, a year for the rest. */
 function clientCache(key: string, isPrivate = false): string {
@@ -227,6 +234,31 @@ interface PlayerFile {
 const teamLabel = (team: PlayerFile['team']): string =>
   typeof team === 'string' ? team : (team?.abbreviation ?? team?.name ?? '');
 
+/** A current-build page file (CURRENT_PATH): the pointer resolved here, the file served for a minute, from the edge cache when it can be. */
+async function serveCurrent(request: Request, env: Env, ctx: ExecutionContext, path: string): Promise<Response> {
+  const cacheable =
+    request.method === 'GET' &&
+    !request.headers.has('range') &&
+    !request.headers.has('if-none-match') &&
+    !request.headers.has('if-modified-since');
+  if (cacheable) {
+    const hit = await caches.default.match(request);
+    if (hit) {
+      const out = new Response(hit.body, hit);
+      out.headers.set('cache-control', 'public, max-age=60');
+      return out;
+    }
+  }
+  const build = await currentBuild(env);
+  if (!build) return text(404, 'Not Found');
+  const res = await serveData(request, env, `builds/${build}/${path}`);
+  const out = new Response(res.body, res);
+  out.headers.set('cache-control', 'public, max-age=60');
+  out.headers.set('x-build-id', build);
+  if (cacheable && out.status === 200) ctx.waitUntil(caches.default.put(request, out.clone()));
+  return out;
+}
+
 async function currentBuild(env: Env): Promise<string | null> {
   const latest = await env.DATA.get('latest.json');
   if (!latest) return null;
@@ -323,6 +355,8 @@ export default {
     if (yahoo) return withSecurityHeaders(yahoo, url.pathname);
 
     if (url.pathname.startsWith(DATA_PREFIX)) {
+      const current = CURRENT_PATH.exec(url.pathname.slice(DATA_PREFIX.length));
+      if (current?.[1]) return withSecurityHeaders(await serveCurrent(request, env, ctx, current[1]), url.pathname);
       const isPrivate = isPrivateData(url.pathname);
       if (isPrivate && !(await isOwner(request, env))) {
         const res = text(401, 'The raw tables are private: sign in on the SQL page.');

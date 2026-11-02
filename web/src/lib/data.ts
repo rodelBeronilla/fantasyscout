@@ -99,6 +99,30 @@ export async function fetchBuildJson<T>(path: string): Promise<T> {
   return (await r.json()) as T;
 }
 
+/**
+ * A page file of the current build by its stable address (`/data/current/<path>`, #436), which the
+ * page head preloads before the pointer is read. Where no Worker answers that address (the dev
+ * server, the test preview) it falls back to the pointer and the build's own file.
+ */
+export async function fetchCurrentJson<T>(path: string): Promise<T> {
+  try {
+    const r = await fetch(dataHref(`current/${path}`));
+    if (r.ok && (r.headers.get('content-type') ?? '').includes('json')) return (await r.json()) as T;
+  } catch {
+    // fall through to the pointer
+  }
+  return fetchBuildJson<T>(path);
+}
+
+/** The first rows of a page are on screen: the mark the deploy's slow-phone budget reads (#436). */
+export function markFirstRow(): void {
+  try {
+    if (typeof performance !== 'undefined' && performance.getEntriesByName('fs:first-row').length === 0) performance.mark('fs:first-row');
+  } catch {
+    // marks are a measurement aid only
+  }
+}
+
 /** Absolute URL of a build file, for DuckDB-WASM's httpfs. */
 export function absoluteBuildUrl(latest: Latest, path: string): string {
   return new URL(buildHref(latest, path), window.location.origin).toString();

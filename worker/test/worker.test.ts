@@ -214,6 +214,27 @@ describe('data', () => {
     }
   });
 
+  it("serves the current build's board, streamers and schedule at a stable address, for a minute (#436)", async () => {
+    await env.DATA.put('builds/test/board/nba.json', '[{"player_id":"7"}]', {
+      httpMetadata: { contentType: 'application/json' },
+    });
+    const address = new Request(`${ORIGIN}/data/current/board/nba.json`);
+    try {
+      const res = await SELF.fetch(address);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('cache-control')).toBe('public, max-age=60');
+      expect(res.headers.get('x-build-id')).toBe('test');
+      expect(await res.json()).toEqual([{ player_id: '7' }]);
+      // a file the build does not have, and anything but the page files, is not found here
+      expect((await SELF.fetch(`${ORIGIN}/data/current/streamers/wnba.json`)).status).toBe(404);
+      for (const path of ['current/board/xyz.json', 'current/players/wnba/1.json', 'current/fct_shot.parquet']) {
+        expect((await SELF.fetch(`${ORIGIN}/data/${path}`)).status).not.toBe(200);
+      }
+    } finally {
+      await caches.default.delete(address);
+    }
+  });
+
   it('answers a public build file from the edge cache the second time', async () => {
     await env.DATA.put('builds/c1/board/nba.json', '[{"player_id":"1"}]', {
       httpMetadata: { contentType: 'application/json' },

@@ -15,7 +15,8 @@ import Base from '../../layouts/Base.astro';
       worth, and how far the data can be trusted, re-asked of the newest data. Each opens as a rendered page; the source lives in the repository under <code>notebooks/</code>{' '}
       and runs locally, against the published build, or against the lakehouse.
     </p>
-    <div class="mt-6">
+    <!-- a screen tall while the island loads, so the footer starts below the fold and nothing shifts (#436) -->
+    <div class="mt-6 min-h-screen">
       <Notebooks client:only="react" />
     </div>
   </section>

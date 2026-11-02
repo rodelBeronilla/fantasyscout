@@ -5,6 +5,7 @@ import { href } from '../lib/site';
 ---
 
 <Base
+  preload="board"
   title="Board"
   description="WNBA and NBA players ranked by value above replacement in your league, with tiers, who is still available, punts and filters."
 >
@@ -17,7 +18,8 @@ import { href } from '../lib/site';
         class="underline underline-offset-4">League page</a
       > to see who is still available and what your team needs.
     </p>
-    <div class="mt-6">
+    <!-- a screen tall while the island loads, so the footer starts below the fold and nothing shifts (#436) -->
+    <div class="mt-6 min-h-screen">
       <Board client:only="react" />
     </div>
   </section>

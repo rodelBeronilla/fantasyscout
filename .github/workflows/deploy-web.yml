@@ -292,3 +292,36 @@ jobs:
             }
             if (failed) process.exit(1);
           '
+
+      # The LCP above can be the "Loading" line rather than the board (#436). This run applies the
+      # throttling (slow 4G, 4x CPU) for real and reads the page's own mark for its first rows,
+      # fs:first-row; reported against a 1.8 s budget until it is under it on production.
+      - name: First rows on a throttled phone (home and Streamers, median of three, reported)
+        if: steps.touched.outputs.deploy == 'true'
+        env:
+          URL: ${{ env.BRANCH == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          for page in home streamers; do
+            case "$page" in home) path="/?league=nba";; streamers) path="/streamers/?league=nba";; esac
+            for i in 1 2 3; do
+              npx --yes lighthouse@12.8.2 "$URL$path" --quiet --chrome-flags="--headless=new --no-sandbox" \
+                --only-categories=performance --throttling-method=devtools --output=json --output-path="./fr-$page-$i.json"
+            done
+          done
+          node -e '
+            for (const page of ["home", "streamers"]) {
+              const marks = [1, 2, 3].map((i) => {
+                const r = require(`./fr-${page}-${i}.json`);
+                const items = (r.audits["user-timings"] && r.audits["user-timings"].details && r.audits["user-timings"].details.items) || [];
+                const m = items.find((x) => x.name === "fs:first-row");
+                return m ? m.startTime : null;
+              });
+              const got = marks.filter((x) => x !== null).sort((a, b) => a - b);
+              console.log(`${page}: first rows at ${marks.map((x) => (x === null ? "none" : Math.round(x) + " ms")).join(", ")}`);
+              if (!got.length) { console.log(`::warning::${page}: no fs:first-row mark (page failed to load its rows?)`); continue; }
+              const median = got[Math.floor(got.length / 2)];
+              console.log(`${page}: median first rows ${Math.round(median)} ms`);
+              if (median > 1800) console.log(`::warning::${page}: first rows at ${Math.round(median)} ms, over the 1.8 s budget (reported, not enforced yet)`);
+            }
+          '

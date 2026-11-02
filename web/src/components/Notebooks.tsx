@@ -79,6 +79,8 @@ export default function Notebooks() {
   const [history, setHistory] = useState<FindingsHistory | null>(null);
   const [findings, setFindings] = useState<Record<string, Findings>>({});
   const [error, setError] = useState<unknown>(null);
+  // The cards render once the index and the findings are in, so they do not grow under the reader (#436).
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -91,9 +93,9 @@ export default function Notebooks() {
       const l = await getLatest();
       if (!live) return;
       setLatest(l);
-      if (!l) return;
+      if (!l) return setSettled(true);
       const r = await fetch(buildHref(l, 'notebooks/index.json'));
-      if (!r.ok) return;
+      if (!r.ok) return setSettled(true);
       const index = (await r.json()) as { files: string[]; carried_from?: string; carried_from_created_at?: string };
       const files = new Set(index.files);
       if (live) setPublished(files);
@@ -105,15 +107,23 @@ export default function Notebooks() {
           if (f.ok) loaded[nb.name] = (await f.json()) as Findings;
         }),
       );
-      if (live) setFindings(loaded);
-    })().catch((e: unknown) => live && setError(e));
+      if (live) {
+        setFindings(loaded);
+        setSettled(true);
+      }
+    })().catch((e: unknown) => {
+      if (live) {
+        setError(e);
+        setSettled(true);
+      }
+    });
     return () => {
       live = false;
     };
   }, []);
 
   if (error) return <Problem error={error} />;
-  if (latest === undefined) return <Loading what="the notebooks" />;
+  if (latest === undefined || !settled) return <Loading what="the notebooks" />;
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6" data-testid="notebooks">
