@@ -6,6 +6,9 @@ name: Probe sources
 
 on:
   workflow_dispatch:
+  # Weekly: an expired or narrowed credential shows up here, not at the next build's export (#417).
+  schedule:
+    - cron: "17 13 * * 1"
   pull_request:
     paths:
       - ingest/**
@@ -21,14 +24,16 @@ jobs:
     # A pull request probes the public sources only: no environment and no secrets, so code on a
     # branch never runs with the workspace credentials (#434). A dispatch also probes the workspace
     # (the probe skips it when the host or token is unset).
-    environment: ${{ github.event_name == 'workflow_dispatch' && 'lakehouse' || '' }}
+    environment: ${{ github.event_name != 'pull_request' && 'lakehouse' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-uv
       - name: Probe
         env:
-          DATABRICKS_HOST: ${{ github.event_name == 'workflow_dispatch' && secrets.DATABRICKS_HOST || '' }}
-          DATABRICKS_TOKEN: ${{ github.event_name == 'workflow_dispatch' && secrets.DATABRICKS_TOKEN || '' }}
+          DATABRICKS_HOST: ${{ github.event_name != 'pull_request' && secrets.DATABRICKS_HOST || '' }}
+          DATABRICKS_TOKEN: ${{ github.event_name != 'pull_request' && secrets.DATABRICKS_TOKEN || '' }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ github.event_name != 'pull_request' && secrets.CLOUDFLARE_ACCOUNT_ID || '' }}
+          CLOUDFLARE_API_TOKEN: ${{ github.event_name != 'pull_request' && secrets.CLOUDFLARE_API_TOKEN || '' }}
         run: |
           {
             echo "## Source reachability from a GitHub-hosted runner"
