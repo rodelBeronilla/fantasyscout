@@ -18,14 +18,17 @@ jobs:
   probe:
     name: Probe from a GitHub-hosted runner
     runs-on: ubuntu-latest
-    environment: lakehouse
+    # A pull request probes the public sources only: no environment and no secrets, so code on a
+    # branch never runs with the workspace credentials (#434). A dispatch also probes the workspace
+    # (the probe skips it when the host or token is unset).
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'lakehouse' || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-uv
       - name: Probe
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ github.event_name == 'workflow_dispatch' && secrets.DATABRICKS_HOST || '' }}
+          DATABRICKS_TOKEN: ${{ github.event_name == 'workflow_dispatch' && secrets.DATABRICKS_TOKEN || '' }}
         run: |
           {
             echo "## Source reachability from a GitHub-hosted runner"
