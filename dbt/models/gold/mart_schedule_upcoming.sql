@@ -45,7 +45,7 @@ with upcoming as (
         s.game_datetime_utc
     from {{ ref('schedule') }} as s
     where s.game_status <> 3
-        and s.game_type in ('regular', 'playoffs')
+        and s.game_type in ('regular', 'play_in', 'playoffs')
         and not coalesce(s.if_necessary, false)
         and s.game_date_est >= {{ as_of_date() }}
         and s.game_date_est < {{ add_days(as_of_date(), 14) }}

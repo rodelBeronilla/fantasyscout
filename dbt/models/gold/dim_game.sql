@@ -10,6 +10,8 @@ select
         when g.game_id like '_04%' then 'Playoffs'
         when g.game_id like '_01%' then 'Preseason'
         when g.game_id like '_03%' then 'All-Star'
+        when g.game_id like '_05%' then 'Play-In'
+        when g.game_id like '_06%' then 'Tournament Final'
         else 'Other'
     end as season_type,
     g.game_date,

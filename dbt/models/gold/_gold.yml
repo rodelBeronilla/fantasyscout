@@ -66,10 +66,10 @@ models:
         description: "League stats API game id"
         data_tests: [not_null]
       - name: season_type
-        description: "Regular Season, Playoffs, Preseason or All-Star from the game id's third character; Other for play-in and cup finals"
+        description: "Regular Season, Playoffs, Preseason, All-Star, Play-In or Tournament Final (the in-season cup's final) from the game id's third character, as silver.schedule's game_type names them; Other for an id outside those. The game logs are ingested for the regular season and the playoffs, so a play-in or cup final game has no row here (dbt/README.md)"
         data_tests:
           - accepted_values:
-              values: [Regular Season, Playoffs, Preseason, All-Star, Other]
+              values: [Regular Season, Playoffs, Preseason, All-Star, Play-In, Tournament Final, Other]
       - name: game_date
         description: "Game date, from the team game log"
         data_tests: [not_null]
@@ -1461,7 +1461,7 @@ models:
         description: "The team's regular-season games not yet final from the run date on"
         data_tests: [not_null]
       - name: games_next_7
-        description: "The team's games in the next seven days, playoffs included, unconfirmed if-necessary games left out"
+        description: "The team's games in the next seven days, play-in and playoffs included, unconfirmed if-necessary games left out"
       - name: games_this_week
         description: "Team games left in the fantasy week (Monday to Sunday), from today's Eastern date"
       - name: games_scheduled
@@ -1505,7 +1505,7 @@ models:
         description: "Days from the run's Eastern date to the game (0 for today); the as_of var pins the date in tests"
         data_tests: [not_null]
       - name: game_type
-        description: "regular or playoffs"
+        description: "regular, play_in or playoffs"
       - name: home_team_id
         description: "League team id of the home team"
       - name: home_team_tricode

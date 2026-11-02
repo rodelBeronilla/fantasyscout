@@ -15155,7 +15155,7 @@
        "type": "varchar"
       },
       {
-       "description": "Regular Season, Playoffs, Preseason or All-Star from the game id's third character; Other for play-in and cup finals",
+       "description": "Regular Season, Playoffs, Preseason, All-Star, Play-In or Tournament Final (the in-season cup's final) from the game id's third character, as silver.schedule's game_type names them; Other for an id outside those. The game logs are ingested for the regular season and the playoffs, so a play-in or cup final game has no row here (dbt/README.md)",
        "meta": {},
        "name": "season_type",
        "tests": [
@@ -21487,7 +21487,7 @@
        "type": "integer"
       },
       {
-       "description": "The team's games in the next seven days, playoffs included, unconfirmed if-necessary games left out",
+       "description": "The team's games in the next seven days, play-in and playoffs included, unconfirmed if-necessary games left out",
        "meta": {},
        "name": "games_next_7",
        "tests": [],
@@ -22650,7 +22650,7 @@
        "type": "bigint"
       },
       {
-       "description": "regular or playoffs",
+       "description": "regular, play_in or playoffs",
        "meta": {},
        "name": "game_type",
        "tests": [],
@@ -22869,6 +22869,10 @@
       "team_xwalk"
      ],
      "unit_tests": [
+      {
+       "description": "The games ahead are every game a team plays (#391): the regular season, the play-in and the playoffs. The preseason and the in-season cup's final, which no fantasy league counts, are left out, as is a game already final.",
+       "name": "schedule_upcoming_counts_the_play_in"
+      },
       {
        "description": "Tonight's game has its crew from the assignments page. The crew chief worked 20 games this season and last, 2 free-throw attempts and 1 possession above the league's average game, so shrunk as if 20 average games more, 1 and 0.5; the referee worked 60 games last season 4 attempts below and at the average pace (-3 and 0; the season before does not count); the umpire worked 20 games 1 attempt and 2 possessions above (0.5 and 1). The crew sits half an attempt below the average game and half a possession above it. The alternate does not count. A game without a crew yet has none.",
        "name": "schedule_upcoming_crew_tendency"
@@ -25053,6 +25057,11 @@
    "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",
    "model": "mart_player_projection",
    "name": "projection_return_ramp_cuts_minutes_after_an_absence"
+  },
+  {
+   "description": "The games ahead are every game a team plays (#391): the regular season, the play-in and the playoffs. The preseason and the in-season cup's final, which no fantasy league counts, are left out, as is a game already final.",
+   "model": "mart_schedule_upcoming",
+   "name": "schedule_upcoming_counts_the_play_in"
   },
   {
    "description": "Tonight's game has its crew from the assignments page. The crew chief worked 20 games this season and last, 2 free-throw attempts and 1 possession above the league's average game, so shrunk as if 20 average games more, 1 and 0.5; the referee worked 60 games last season 4 attempts below and at the average pace (-3 and 0; the season before does not count); the umpire worked 20 games 1 attempt and 2 possessions above (0.5 and 1). The crew sits half an attempt below the average game and half a possession above it. The alternate does not count. A game without a crew yet has none.",
