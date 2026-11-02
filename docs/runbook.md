@@ -183,6 +183,18 @@ Every passing nightly build publishes a data build to the `fantasyscout-data` bu
 
 A warn-severity check publishes the build: it shows in the build log and on Data Health and opens nothing. A check that warns in each of the last five builds opens the "Build warnings that persist" issue (P2, `area:quality`), naming the checks and the most rows each returned; the first build in which none of them warns closes it (`ops/chronic.py`, run after the gate). For each check, either fix what it found or, when the check itself is wrong (a retired feed, a threshold that does not fit the data), retune the check; leaving a chronic warning in place teaches everyone to ignore the issue. The "Query the lakehouse" workflow with table `ops.test_results`, where `severity = 'warn'`, ordered by `run_at desc`, shows the history.
 
+## Rerun the notebooks or the sheet push
+
+A build that went live without its notebooks, its Tableau extract or the Google Sheet push says so in its incident ("Build failure: notebooks", "Build failure: Tableau extract", "Build failure: sheet push"; P2, because the data itself is live). Neither needs a rebuild:
+
+- **The notebooks**: Actions, then Export data, then Run workflow with action `notebooks`. It runs the seven notebooks against the live build (or the build named in "to_build"), four at a time, and attaches the pages and findings to that build, as the publish does. The Notebooks page shows them within a minute.
+- **The extract and the sheet**: action `sheets`. It rebuilds the three CSV files from the live build, attaches them under the build's `tableau/`, and pushes them into the League Pulse sheet. Tableau Public picks the sheet up within a day.
+
+When the rerun fails the same way, the cause is not a flaky moment:
+
+- The sheet push needs the repository variable `TABLEAU_SHEET_ID` and the secret `GOOGLE_SERVICE_ACCOUNT_JSON`. A 403 means the sheet is no longer shared with the service account's address (share it again, as editor). A 401 or "invalid_grant" means the key was revoked or rotated: make a new key for the same service account in the Google Cloud console and replace the secret (Secrets: inventory and rotation).
+- A notebook that fails on the live build fails in CI's notebook step too, against the sample, once a pull request touches it; the run's log names the notebook and its first error.
+
 ## Build cancelled mid-way
 
 An export stages a build before it goes live: it records the build in the bucket's root `staging.json`, writes the build's key list, uploads the files and writes the manifest last; promotion takes the build off `staging.json`. A job cancelled or failed in between leaves a staged build nothing points at. It is never served (only `latest.json` makes a build live) and a rollback refuses it (no manifest, or never promoted). The prune that every promotion runs deletes a staged build that is still unpromoted after two days, with every file its key list names. Folders left behind before these records existed are listed by the Export data workflow's `orphans` action (`uv run fs-export orphans --store r2`) and removed by `delete-orphans`; a folder that `builds.json`, `latest.json` or `staging.json` names is never touched.

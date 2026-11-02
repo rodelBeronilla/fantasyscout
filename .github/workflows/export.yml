@@ -12,10 +12,10 @@ on:
       action:
         description: What to do
         type: choice
-        options: [build, rollback, unpin, list, orphans, delete-orphans]
+        options: [build, rollback, unpin, list, orphans, delete-orphans, notebooks, sheets]
         default: build
       to_build:
-        description: Rollback target (blank = the previous build), or unpin target (blank = the newest)
+        description: Rollback target (blank = the previous build), unpin target (blank = the newest), or the build notebooks and sheets run against (blank = the live one)
         type: string
         default: ""
       skip:
@@ -46,6 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-uv
+        with:
+          # the notebooks and the extract read the published build with pandas
+          groups: ${{ (inputs.action == 'notebooks' || inputs.action == 'sheets') && 'dbt notebooks' || '' }}
       - name: Resolve the workspace host and SQL warehouse
         if: inputs.action == 'build'
         uses: ./.github/actions/databricks-context
@@ -85,9 +88,48 @@ jobs:
           EXTRACT: ${{ steps.publish.outputs.extract }}
           BUILD_ID: ${{ steps.publish.outputs.build_id }}
         run: echo "build $BUILD_ID promoted; notebooks $NOTEBOOKS, Tableau extract $EXTRACT"
+      # A build whose notebooks or sheet push failed after it went live (the incident names the
+      # step) gets them again without a rebuild: the same commands as the publish, against the
+      # live build or the one named (#419; docs/runbook.md, "Rerun the notebooks or the sheet push").
+      - name: Re-run the notebooks against the build and attach them
+        id: notebooks
+        if: inputs.action == 'notebooks'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FS_NOTEBOOK_SOURCE: published
+          FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          TO_BUILD: ${{ inputs.to_build }}
+        run: |
+          set -euo pipefail
+          build="${TO_BUILD:-$(curl -sf https://fantasyscout.beronilla.rodeo/data/latest.json | python3 -c 'import json, sys; print(json.load(sys.stdin)["build_id"])')}"
+          export FS_BUILD_ID="$build"
+          echo "notebooks read build $build"
+          bash notebooks/run.sh 1200
+          uv run fs-export publish-files --store r2 --subdir notebooks --build-id "$build" notebooks/_build/*.html notebooks/_build/*.findings.json
+          uv run fs-export findings-history --store r2 --build-id "$build"
+      - name: Refresh the Tableau extract from the build and push it to the sheet
+        id: sheets
+        if: inputs.action == 'sheets'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          FS_NOTEBOOK_SOURCE: published
+          FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          TABLEAU_SHEET_ID: ${{ vars.TABLEAU_SHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          TO_BUILD: ${{ inputs.to_build }}
+        run: |
+          set -euo pipefail
+          build="${TO_BUILD:-$(curl -sf https://fantasyscout.beronilla.rodeo/data/latest.json | python3 -c 'import json, sys; print(json.load(sys.stdin)["build_id"])')}"
+          export FS_BUILD_ID="$build"
+          echo "the extract reads build $build"
+          uv run python tableau/extract.py --out tableau/extract
+          uv run fs-export publish-files --store r2 --subdir tableau --build-id "$build" tableau/extract/*.csv
+          uv run python tableau/sheets.py --extract tableau/extract
       - name: Roll back, unpin or list
         id: manage
-        if: inputs.action != 'build'
+        if: inputs.action != 'build' && inputs.action != 'notebooks' && inputs.action != 'sheets'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -121,5 +163,5 @@ jobs:
         with:
           token: ${{ github.token }}
           title: "Export failure: ${{ inputs.action }} by hand"
-          outcome: ${{ (steps.gate.outcome == 'failure' || steps.publish.outcome == 'failure' || steps.manage.outcome == 'failure') && 'failure' || 'success' }}
-          detail: "Steps: gate ${{ steps.gate.outcome }}, publish ${{ steps.publish.outcome }}, manage ${{ steps.manage.outcome }}. A gate step that failed with 'could not be processed by the warehouse' is the warehouse refusing statements, not a blocked gate: see the runbook section of that name."
+          outcome: ${{ (steps.gate.outcome == 'failure' || steps.publish.outcome == 'failure' || steps.manage.outcome == 'failure' || steps.notebooks.outcome == 'failure' || steps.sheets.outcome == 'failure') && 'failure' || 'success' }}
+          detail: "Steps: gate ${{ steps.gate.outcome }}, publish ${{ steps.publish.outcome }}, manage ${{ steps.manage.outcome }}, notebooks ${{ steps.notebooks.outcome }}, sheets ${{ steps.sheets.outcome }}. A gate step that failed with 'could not be processed by the warehouse' is the warehouse refusing statements, not a blocked gate: see the runbook section of that name."

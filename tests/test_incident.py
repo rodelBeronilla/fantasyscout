@@ -109,3 +109,13 @@ def test_a_passing_build_closes_every_build_failure_and_nothing_else() -> None:
     ]
     assert incident.to_close(issues, "Build failure: dbt build", "Build failure") == [1, 2]
     assert incident.to_close(issues, "Ingest failure: espn nba") == [3]
+
+
+def test_a_failure_after_the_promotion_points_at_the_rerun_section() -> None:
+    """The notebooks, the extract and the sheet push are rerun by hand from Export data (#419)."""
+    for step in ("notebooks", "Tableau extract", "sheet push"):
+        assert "Rerun the notebooks or the sheet push" in incident.runbook_hint(
+            f"Build failure: {step}"
+        )
+    runbook = (SCRIPT.parent.parent.parent / "docs" / "runbook.md").read_text(encoding="utf-8")
+    assert "## Rerun the notebooks or the sheet push" in runbook
