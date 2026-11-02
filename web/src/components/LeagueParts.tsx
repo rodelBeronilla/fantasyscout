@@ -11,7 +11,7 @@ import {
   type Scoring,
 } from '../lib/fantasy-league';
 import type { League } from '../lib/data';
-import type { Upgrade } from '../lib/roster-upgrades';
+import type { RosterReview, Upgrade } from '../lib/roster-upgrades';
 import { href } from '../lib/site';
 import { Signed } from './ui';
 
@@ -169,20 +169,21 @@ export function LeagueBar({ setup, rostered, myCount, weakest }: { setup: League
   );
 }
 
-/** Available players worth more than one of the manager's, as swaps the manager can make here. */
+/** The roster review: who to replace from the players nobody owns, or that the roster holds as is. */
 export function Upgrades({
   league,
-  list,
+  review,
   nameOf,
   detailOf,
   onApply,
 }: {
   league: League;
-  list: Upgrade[];
+  review: RosterReview;
   nameOf: (id: string) => string;
   detailOf: (id: string) => string;
   onApply: (u: Upgrade) => void;
 }) {
+  const list = review.upgrades;
   const player = (id: string) => (
     <>
       <a href={href(`/p/${league}/${id}/`)} className="font-medium underline-offset-4 hover:underline">
@@ -195,12 +196,35 @@ export function Upgrades({
   return (
     <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="upgrades-h" data-testid="upgrades">
       <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
-        Roster upgrades
+        Roster review
       </h2>
-      <p className="mt-1 text-xs text-muted">
-        Players nobody in your league owns who are worth more for the rest of the season than one of yours, under your
-        league&apos;s scoring. Apply records the swap in the league kept here; make it in your league&apos;s app too.
-      </p>
+      {review.optimized ? (
+        <p className="mt-1 text-sm" data-testid="roster-verdict">
+          <strong>Your roster is optimized as is.</strong> No player nobody in your league owns is worth more for the rest
+          of the season than one of yours, under your league&apos;s scoring.
+          {review.weakest && review.weakest.add && (
+            <span className="text-muted">
+              {' '}
+              Weakest spot: {player(review.weakest.drop)}; the best free agent, {player(review.weakest.add)}, would be{' '}
+              <Signed value={review.weakest.gap} digits={1} /> rest of season, so hold.
+            </span>
+          )}
+        </p>
+      ) : (
+        <p className="mt-1 text-sm" data-testid="roster-verdict">
+          <strong>
+            {review.replace.length} of your {review.rostered} players can be upgraded
+          </strong>{' '}
+          from the players nobody in your league owns, under your league&apos;s scoring. Replace:{' '}
+          {review.replace.map((id, i) => (
+            <span key={id}>
+              {i > 0 ? ', ' : ''}
+              {player(id)}
+            </span>
+          ))}
+          . Apply records the swap in the league kept here; make it in your league&apos;s app too.
+        </p>
+      )}
       <ul className="mt-2 grid gap-1 text-sm">
         {list.map((u) => (
           <li key={`${u.add}-${u.drop}`} className="flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="upgrade">

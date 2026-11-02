@@ -828,15 +828,42 @@ test('with rosters set up, the board recommends roster upgrades from the availab
   await page.goto('/');
   const upgrades = page.getByTestId('upgrades');
   await expect(upgrades).toBeVisible();
+  // The verdict names the weak player, and the My team view tags that row and not the best player's.
+  await expect(upgrades.getByTestId('roster-verdict')).toContainText('1 of your 2 players can be upgraded');
+  await expect(upgrades.getByTestId('roster-verdict')).toContainText(weak);
+  await page.getByRole('radio', { name: 'My team' }).click();
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: weak }).getByTestId('replace-tag')).toBeVisible();
+  await expect(rows.filter({ hasText: best }).getByTestId('replace-tag')).toHaveCount(0);
   const first = upgrades.getByTestId('upgrade').first();
   await expect(first).toContainText(`for ${weak}`);
   await expect(first).toContainText('rest of season');
   await first.getByRole('button', { name: 'Apply' }).click();
   await expect(upgrades.getByTestId('upgrade').filter({ hasText: `for ${weak}` })).toHaveCount(0);
-  await page.getByRole('radio', { name: 'My team' }).click();
   await expect(rows).toHaveCount(2);
   await expect(board.locator('tbody')).not.toContainText(weak);
   await expect(page.getByTestId('league-bar')).toContainText('Team 1 (2/');
+});
+
+test('a roster of the two best players is told it is optimized as is', async ({ page }) => {
+  await page.goto('/');
+  const rows = page.getByTestId('board').locator('tbody tr[data-player]');
+  await expect(rows.first()).toBeVisible();
+  const [first, second] = await Promise.all([0, 1].map((i) => rows.nth(i).locator('a').first().innerText()));
+  await page.goto('/league/');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${first}\n${second}`);
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  await page.goto('/');
+  const review = page.getByTestId('upgrades');
+  await expect(review.getByTestId('roster-verdict')).toContainText('optimized as is');
+  await expect(review.getByTestId('roster-verdict')).toContainText('Weakest spot');
+  await expect(review.getByTestId('upgrade')).toHaveCount(0);
+  await page.getByRole('radio', { name: 'My team' }).click();
+  await expect(rows).toHaveCount(2);
+  await expect(page.getByTestId('replace-tag')).toHaveCount(0);
 });
 
 test('a draft on the League page snakes pick by pick, here and on the board, with undo', async ({ page }) => {
