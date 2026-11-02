@@ -37,6 +37,12 @@ vars:
     nba: {teams: 12, roster_spots: 13, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
     wnba: {teams: 10, roster_spots: 10, prior_games: 5, minutes_recency: [1.0, 0.06, 0.02], durability_games: 60}
   fantasy_recency: [1.0, 0.25, 0.08]
+  # Regular-season games per team where the schedule cannot say: the NBA lists two December games
+  # per team as placeholders (team id 0) until the Cup's group stage ends, so its scheduled count
+  # is 80 until then. While a league is listed here its games remaining are this length minus the
+  # games played; a league not listed (the WNBA) counts its scheduled games (mart_board, #386).
+  regular_season_games:
+    nba: 82
   # The data-quality thresholds the warn checks and the data-quality notebook share: [good, ok];
   # below ok is a failure. warn_crosswalk_coverage reads played_match_rate; the notebook reads all.
   quality_thresholds:

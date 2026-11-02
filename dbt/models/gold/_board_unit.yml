@@ -122,6 +122,8 @@ unit_tests:
         as_of: '2026-01-10'
         fantasy:
           nba: {teams: 2, roster_spots: 5, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
+        # a four-game schedule, counted as scheduled rather than as a fixed-length season
+        regular_season_games: {}
     given:
       - input: ref('mart_player_projection')
         rows:
@@ -183,3 +185,66 @@ unit_tests:
         - {player_id: g, games_remaining: 4, availability_multiplier: 0.8125, expected_games_missed: null, season_complete: false, ros_factor: 0.8125}
         - {player_id: h, games_remaining: 4, availability_multiplier: 0.875, expected_games_missed: null, season_complete: false, ros_factor: 0.875}
         - {player_id: i, games_remaining: 4, availability_multiplier: 0.0, expected_games_missed: 4.0, season_complete: false, ros_factor: 0.0}
+
+  - name: board_counts_a_fixed_season_length_where_the_schedule_cannot
+    description: >
+      The NBA lists two games per team as placeholders until the Cup's group stage ends, so its
+      schedule says 80 games; with regular_season_games set (10 here, for a short schedule) the
+      NBA team that has played three of its ten has seven left whatever is scheduled, and its
+      rest-of-season factor is 7/10. The WNBA, not listed, counts its schedule: two played, six
+      scheduled, 6/8 (#386).
+    model: mart_board
+    overrides:
+      vars:
+        as_of: '2026-01-10'
+        fantasy:
+          nba: {teams: 2, roster_spots: 5, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
+          wnba: {teams: 2, roster_spots: 5, prior_games: 5, minutes_recency: [1.0, 0.06, 0.02], durability_games: 60}
+        regular_season_games: {nba: 10}
+    given:
+      - input: ref('mart_player_projection')
+        rows:
+          - {league: nba, season: '2025-26', player_id: x, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+          - {league: wnba, season: '2025', player_id: w, team_id: W, roster_season: '2025', games_share: 1.0, proj_minutes_pg: 0.0, proj_points_pg: 0.0, proj_rebounds_total_pg: 0.0, proj_assists_pg: 0.0, proj_steals_pg: 0.0, proj_blocks_pg: 0.0, proj_three_pointers_made_pg: 0.0, proj_turnovers_pg: 0.0, proj_fgm_pg: 0.0, proj_fga_pg: 0.0, proj_ftm_pg: 0.0, proj_fta_pg: 0.0}
+      - input: ref('schedule_team_games')
+        rows:
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 3, game_date_est: 2025-12-01}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 3, game_date_est: 2025-12-03}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 3, game_date_est: 2025-12-05}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-12}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-14}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-16}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-18}
+          - {league: nba, season: '2025-26', team_id: A, game_type: regular, game_status: 1, game_date_est: 2026-01-20}
+          - {league: wnba, season: '2025', team_id: W, game_type: regular, game_status: 3, game_date_est: 2025-06-01}
+          - {league: wnba, season: '2025', team_id: W, game_type: regular, game_status: 3, game_date_est: 2025-06-03}
+          - {league: wnba, season: '2025', team_id: W, game_type: regular, game_status: 1, game_date_est: 2026-01-12}
+          - {league: wnba, season: '2025', team_id: W, game_type: regular, game_status: 1, game_date_est: 2026-01-13}
+          - {league: wnba, season: '2025', team_id: W, game_type: regular, game_status: 1, game_date_est: 2026-01-14}
+          - {league: wnba, season: '2025', team_id: W, game_type: regular, game_status: 1, game_date_est: 2026-01-15}
+          - {league: wnba, season: '2025', team_id: W, game_type: regular, game_status: 1, game_date_est: 2026-01-16}
+          - {league: wnba, season: '2025', team_id: W, game_type: regular, game_status: 1, game_date_est: 2026-01-17}
+      - input: ref('fct_player_status')
+        rows: []
+      - input: ref('fct_status_calibration')
+        rows: []
+      - input: ref('mart_category_zscores')
+        rows: []
+      - input: ref('int_player_news_latest')
+        rows: []
+      - input: ref('team_current')
+        rows: []
+      - input: ref('dim_player')
+        rows: []
+      - input: ref('teams')
+        rows: []
+      - input: ref('fct_starting_lineup')
+        rows: []
+      - input: ref('fct_market_value')
+        rows: []
+      - input: ref('fct_team_stakes')
+        rows: []
+    expect:
+      rows:
+        - {player_id: x, games_remaining: 7, season_complete: false, ros_factor: 0.7}
+        - {player_id: w, games_remaining: 6, season_complete: false, ros_factor: 0.75}
