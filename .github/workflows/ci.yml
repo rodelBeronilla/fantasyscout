@@ -8,9 +8,13 @@ on:
 permissions:
   contents: read
 
+# A newer push cancels a pull request's run in progress, but not main's: the site deploys only
+# after a CI run on main succeeds, so cancelling there held every deploy back for as long as
+# merges kept coming (#552). GitHub keeps one pending run per group and replaces an older pending
+# one, so on main the newest commit is always the next to run and deploy.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   hygiene:
