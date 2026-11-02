@@ -344,7 +344,10 @@ def _delete_build(store: Store, build_id: str, *, log: Log = print) -> int:
     keys = listing.decode("utf-8").splitlines() if listing else []
     keys.append(f"builds/{build_id}/keys.txt")
     delete_many(store, keys)
-    log(f"  pruned {build_id} ({len(keys)} files)")
+    # Which way the R2 store deleted them (#446): lists of 1,000, or a request per file.
+    bulk = getattr(store, "bulk_delete", None)
+    how = "" if bulk is None else ", in lists" if bulk else ", one request each"
+    log(f"  pruned {build_id} ({len(keys)} files{how})")
     return len(keys)
 
 
