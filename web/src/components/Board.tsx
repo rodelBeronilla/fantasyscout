@@ -10,8 +10,9 @@ import { useWatchlist } from '../lib/watchlist';
 import { assign, draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
 import { reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
+import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { DraftBar, LeagueBar, Upgrades } from './LeagueParts';
-import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
+import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 
 interface BoardRow {
   player_id: string;
@@ -132,36 +133,6 @@ function num(row: BoardRow, key: string): number | null {
 const select = 'rounded border border-line bg-card px-2 py-1';
 
 /** A row of mutually exclusive buttons. */
-function Segmented<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: T;
-  options: { id: T; label: string; title?: string }[];
-  onChange: (id: T) => void;
-}) {
-  return (
-    <div className="inline-flex flex-wrap rounded-lg border border-line bg-card p-0.5" role="radiogroup" aria-label={label}>
-      {options.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          role="radio"
-          aria-checked={value === o.id}
-          title={o.title}
-          onClick={() => onChange(o.id)}
-          className={`rounded-md px-3 py-1 text-sm ${value === o.id ? 'bg-accent text-accent-fg' : 'text-muted hover:text-fg'}`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function roundsLabel(t: Tier): string {
   return t.firstRound === t.lastRound ? `round ${t.firstRound}` : `rounds ${t.firstRound}–${t.lastRound}`;
 }
@@ -292,24 +263,44 @@ export default function Board() {
     }
     return out;
   }, [rows, points, leaguePoints, leagueCats, activeCats]);
-  // Available players worth more than one of the manager's: the swaps the manager can make.
+  // The fantasy-week unit (#466): recent form over the games left this week, offered while the week has games.
+  const [unit, setUnit] = useState<ValueUnit>('rest');
+  const weekAvailable = useMemo(() => !!rows && hasWeekGames(rows), [rows]);
+  const week = unit === 'week' && weekAvailable;
+  const weekCats = useMemo(
+    () => (rows && !points && week ? categoryValues(recentForm(rows, activeCats), activeCats, pool, setup.teams) : null),
+    [rows, points, week, activeCats, pool, setup.teams],
+  );
+  const weekValues = useMemo(() => {
+    const out = new Map<string, number>();
+    if (!week) return out;
+    for (const r of rows ?? []) {
+      const perGame = points
+        ? (leaguePoints?.get(r.player_id)?.value ?? 0)
+        : activeCats.reduce((s, c) => s + (weekCats?.get(r.player_id)?.[c] ?? 0), 0);
+      out.set(r.player_id, weekValue(perGame, r.games_this_week));
+    }
+    return out;
+  }, [rows, week, points, leaguePoints, weekCats, activeCats]);
+  // Available players worth more than one of the manager's, in the unit chosen: the swaps the manager can make.
   const review = useMemo<RosterReview | null>(() => {
     if (!rows || myTeam.length === 0 || setup.drafting) return null;
+    const cats = week && weekCats ? weekCats : leagueCats;
     const totals = setup.rosters.map((roster) =>
       Object.fromEntries(
-        activeCats.map((c) => [c, roster.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + (leagueCats?.get(id)?.[c] ?? 0), 0)]),
+        activeCats.map((c) => [c, roster.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + (cats?.get(id)?.[c] ?? 0), 0)]),
       ),
     );
     return reviewRoster({
       mine: myTeam.map((r) => r.player_id),
       available: rows.filter((r) => !owner.has(r.player_id)).map((r) => r.player_id),
-      rest: restValue,
+      rest: week ? weekValues : restValue,
       cats: points ? [] : activeCats,
-      catValue: (id) => leagueCats?.get(id),
+      catValue: (id) => cats?.get(id),
       totals,
       myTeam: setup.mine,
     });
-  }, [rows, myTeam, setup, activeCats, leagueCats, owner, restValue, points]);
+  }, [rows, myTeam, setup, activeCats, leagueCats, owner, restValue, points, week, weekCats, weekValues]);
   const applyUpgrade = useCallback(
     (u: Upgrade) => updateLeague((s) => assign(assign(s, u.drop, null), u.add, s.mine)),
     [updateLeague],
@@ -664,6 +655,9 @@ export default function Board() {
           nameOf={(id) => byId.get(id)?.full_name ?? id}
           detailOf={(id) => [byId.get(id)?.position, byId.get(id)?.team_abbreviation].filter(Boolean).join(', ')}
           onApply={applyUpgrade}
+          unit={week ? 'week' : 'rest'}
+          onUnit={weekAvailable ? setUnit : null}
+          gamesOf={(id) => byId.get(id)?.games_this_week ?? 0}
         />
       )}
       {setup.drafting && (

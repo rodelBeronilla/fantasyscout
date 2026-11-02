@@ -12,7 +12,8 @@ import { owners, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues } from '../lib/league-value';
 import { href } from '../lib/site';
 import { nearestInValue, openSide, suggestTrades } from '../lib/trade-suggest';
-import { Card, InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th } from './ui';
+import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
+import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th } from './ui';
 
 interface PlayerRow {
   player_id: string;
@@ -27,6 +28,7 @@ interface PlayerRow {
   injury_status: string | null;
   injury_group: string | null;
   injury_type?: string | null;
+  games_this_week?: number | null;
   expected_return?: string | null;
   injury_note?: string | null;
   injury_news?: string | null;
@@ -37,11 +39,12 @@ interface PlayerRow {
   [key: string]: unknown;
 }
 
-/** A player's worth under the league's settings: per game, over the season, and for the rest of it. */
+/** A player's worth under the league's settings: per game, over the season, for the rest of it, and for this fantasy week. */
 interface Worth {
   perGame: number;
   season: number;
   rest: number;
+  week: number;
   cats: Record<string, number>;
   fpts: number | null;
 }
@@ -66,8 +69,8 @@ function AddPlayer({ label, options, onAdd }: { label: string; options: Map<stri
   return <input type="search" list="trade-players" value={text} onChange={onChange} placeholder="Add a player" aria-label={label} className={`${input} w-full`} />;
 }
 
-/** The rest-of-season figure a trade is judged on, as a short label. */
-const REST = 'rest of season';
+/** The figure a trade is judged on, as a short label: the rest of the season, or this fantasy week (#466). */
+const UNIT_TEXT: Record<ValueUnit, string> = { rest: 'rest of season', week: 'rest of this fantasy week' };
 
 export default function TradeAnalyzer() {
   const [league] = useState<League>(() => currentLeague());
@@ -77,6 +80,7 @@ export default function TradeAnalyzer() {
   const [give, setGive] = useState<string[]>([]);
   const [get, setGet] = useState<string[]>([]);
   const [partner, setPartner] = useState<number | null>(null);
+  const [unit, setUnit] = useState<ValueUnit>('rest');
 
   useEffect(() => {
     let live = true;
@@ -96,6 +100,14 @@ export default function TradeAnalyzer() {
   const cats = useMemo(() => CATEGORIES.filter((c) => setup.scoring !== 'cats8' || c !== 'z_turnovers'), [setup.scoring]);
   const catValues = useMemo(() => (rows && !points ? categoryValues(rows, cats, pool, setup.teams) : null), [rows, points, cats, pool, setup.teams]);
   const pointVals = useMemo(() => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null), [rows, points, pool, setup.teams, setup.weights]);
+  // The week unit is offered while the week has games left; it re-measures the categories on last-ten form.
+  const weekAvailable = useMemo(() => !!rows && hasWeekGames(rows), [rows]);
+  const week = unit === 'week' && weekAvailable;
+  const REST = UNIT_TEXT[week ? 'week' : 'rest'];
+  const recentCats = useMemo(
+    () => (rows && !points && week ? categoryValues(recentForm(rows, cats), cats, pool, setup.teams) : null),
+    [rows, points, week, cats, pool, setup.teams],
+  );
 
   // The partner defaults to the first team that is not the manager's.
   const partnerTeam = partner ?? setup.names.findIndex((_, i) => i !== setup.mine);
@@ -110,26 +122,41 @@ export default function TradeAnalyzer() {
       // Only value above replacement counts games: a missed game from a player not worth rostering costs nothing.
       const season = perGame > 0 ? perGame * (r.games_share ?? 1) : perGame;
       const rest = season > 0 && !r.season_complete ? season * (r.ros_factor ?? 1) : season;
-      out.set(r.player_id, { perGame, season, rest, cats: c, fpts: pv ? pv.fpts : null });
+      const recent = points ? perGame : cats.reduce((s, k) => s + (recentCats?.get(r.player_id)?.[k] ?? 0), 0);
+      out.set(r.player_id, { perGame, season, rest, week: weekValue(recent, r.games_this_week), cats: c, fpts: pv ? pv.fpts : null });
     }
     return out;
-  }, [rows, catValues, pointVals, points, cats]);
+  }, [rows, catValues, pointVals, points, cats, recentCats]);
 
   const options = useMemo(() => new Map((rows ?? []).map((p) => [optionLabel(p), p.player_id])), [rows]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
 
+  // The figure each side is judged on: the rest of the season, or this fantasy week.
+  const NONE: Worth = { perGame: 0, season: 0, rest: 0, week: 0, cats: {}, fpts: null };
+  const pick = (w: Worth) => (week ? w.week : w.rest);
   const sideOf = (ids: string[]) => {
     const players = ids.map((id) => byId.get(id)).filter((p): p is PlayerRow => !!p);
-    const sum = (f: (w: Worth) => number) => players.reduce((s, p) => s + f(worth.get(p.player_id) ?? { perGame: 0, season: 0, rest: 0, cats: {}, fpts: null }), 0);
+    const sum = (f: (w: Worth) => number) =>
+      players.reduce((s, p) => s + f(worth.get(p.player_id) ?? NONE), 0);
     const catTotals = Object.fromEntries(cats.map((c) => [c, sum((w) => w.cats[c] ?? 0)]));
-    return { players, perGame: sum((w) => w.perGame), season: sum((w) => w.season), rest: sum((w) => w.rest), cats: catTotals };
+    const games = players.reduce((s, p) => s + (p.games_this_week ?? 0), 0);
+    return {
+      players,
+      perGame: sum((w) => w.perGame),
+      season: sum((w) => w.season),
+      rest: sum((w) => w.rest),
+      week: sum((w) => w.week),
+      value: sum(pick),
+      games,
+      cats: catTotals,
+    };
   };
   const giving = sideOf(give);
   const getting = sideOf(get);
-  const net = getting.rest - giving.rest;
-  const scale = Math.max(Math.abs(giving.rest), Math.abs(getting.rest), 1);
+  const net = getting.value - giving.value;
+  const scale = Math.max(Math.abs(giving.value), Math.abs(getting.value), 1);
   const verdict = Math.abs(net) < 0.05 * scale ? 'even' : net > 0 ? 'you' : 'partner';
   const spots = getting.players.length - giving.players.length;
 
@@ -171,7 +198,7 @@ export default function TradeAnalyzer() {
   // Suggestions: packages from the open side's roster that make the trade about even, ranked by the
   // category ranks they gain the manager; without rosters, players worth about the same as the target.
   const ready = giving.players.length > 0 || getting.players.length > 0;
-  const restOf = new Map([...worth].map(([id, w]) => [id, w.rest]));
+  const restOf = new Map([...worth].map(([id, w]) => [id, pick(w)]));
   const active = (t: number) => (setup.rosters[t] ?? []).filter((id) => !setup.il.includes(id));
   const open = openSide(give, get, restOf);
   const suggestions =
@@ -202,7 +229,7 @@ export default function TradeAnalyzer() {
     const roster = (setup.rosters[team] ?? [])
       .map((id) => byId.get(id))
       .filter((p): p is PlayerRow => !!p)
-      .sort((a, b) => (worth.get(b.player_id)?.rest ?? 0) - (worth.get(a.player_id)?.rest ?? 0));
+      .sort((a, b) => pick(worth.get(b.player_id) ?? NONE) - pick(worth.get(a.player_id) ?? NONE));
     if (!roster.length) return <p className="text-xs text-muted">No players on this roster yet: add them on the League page, or search below.</p>;
     return (
       <ul className="grid gap-0.5 text-sm" data-testid={`roster-${side}`}>
@@ -217,7 +244,7 @@ export default function TradeAnalyzer() {
                 </span>
               )}
               <span className="text-xs text-muted">{p.position ?? '–'}</span>
-              <span className="w-12 text-right tabular-nums"><Signed value={worth.get(p.player_id)?.rest ?? 0} digits={1} /></span>
+              <span className="w-12 text-right tabular-nums"><Signed value={pick(worth.get(p.player_id) ?? NONE)} digits={1} /></span>
             </label>
           </li>
         ))}
@@ -296,6 +323,12 @@ export default function TradeAnalyzer() {
         <Td right>
           <Signed value={w?.rest ?? 0} />
         </Td>
+        {weekAvailable && <Td right>{p.games_this_week ?? 0}</Td>}
+        {weekAvailable && (
+          <Td right>
+            <Signed value={w?.week ?? 0} />
+          </Td>
+        )}
       </tr>
     );
   };
@@ -317,6 +350,12 @@ export default function TradeAnalyzer() {
       <Td right>
         <Signed value={s.rest} />
       </Td>
+      {weekAvailable && <Td right>{s.games}</Td>}
+      {weekAvailable && (
+        <Td right>
+          <Signed value={s.week} />
+        </Td>
+      )}
     </tr>
   );
 
@@ -345,6 +384,19 @@ export default function TradeAnalyzer() {
 
       {ready && (
         <Card title="Verdict" id="verdict">
+          {weekAvailable && (
+            <div className="mb-2">
+              <Segmented
+                label="Value unit"
+                value={week ? 'week' : 'rest'}
+                options={[
+                  { id: 'rest', label: 'Rest of season', title: 'Projected value over the games each player is expected to play from today' },
+                  { id: 'week', label: 'This week', title: 'Last-ten form over the games left this fantasy week (Monday to Sunday)' },
+                ]}
+                onChange={setUnit}
+              />
+            </div>
+          )}
           <div className="grid gap-2 text-sm" data-testid="trade-verdict">
             <p className="text-base">
               {verdict === 'even' ? (
@@ -360,11 +412,25 @@ export default function TradeAnalyzer() {
               )}
             </p>
             <p className="text-muted">
-              You give <Signed value={giving.rest} digits={1} /> and get <Signed value={getting.rest} digits={1} />: value above a replacement-level
-              player under your league&apos;s scoring, counted over the games each player is expected to play from today (injuries, return dates and
-              the schedule included). Over the whole season it is <Signed value={giving.season} digits={1} /> for{' '}
-              <Signed value={getting.season} digits={1} />.
+              You give <Signed value={giving.value} digits={1} /> and get <Signed value={getting.value} digits={1} />:{' '}
+              {week ? (
+                <>
+                  each player&apos;s last-ten form above a replacement-level player under your league&apos;s scoring, counted over the games left
+                  this fantasy week (Monday to Sunday).
+                </>
+              ) : (
+                <>
+                  value above a replacement-level player under your league&apos;s scoring, counted over the games each player is expected to play
+                  from today (injuries, return dates and the schedule included). Over the whole season it is{' '}
+                  <Signed value={giving.season} digits={1} /> for <Signed value={getting.season} digits={1} />.
+                </>
+              )}
             </p>
+            {weekAvailable && (
+              <p className="text-muted" data-testid="trade-week-games">
+                Games left this fantasy week: {giving.games} for the players you give, {getting.games} for the players you get.
+              </p>
+            )}
             {spots !== 0 && (
               <p className="text-muted" data-testid="trade-spots">
                 {spots > 0
@@ -483,6 +549,8 @@ export default function TradeAnalyzer() {
                   <Th right>Season</Th>
                   <Th right>Available</Th>
                   <Th right>Rest of season</Th>
+                  {weekAvailable && <Th right>Games left</Th>}
+                  {weekAvailable && <Th right>This week</Th>}
                 </tr>
               </thead>
               <tbody>

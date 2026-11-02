@@ -941,6 +941,68 @@ test('with rosters set up, the board recommends roster upgrades from the availab
   await expect(page.getByTestId('league-bar')).toContainText('Team 1 (2/');
 });
 
+test('the roster review can be judged for this fantasy week: recent form over the games left', async ({ page }) => {
+  // A doctored NBA board: everyone has three games left this week except the best player on the board, who has none.
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { full_name: string | null; games_this_week: number | null }[];
+  let none = '';
+  await page.route('**/board/nba.json', (route) =>
+    route.fulfill({ json: board.map((r) => ({ ...r, games_this_week: r.full_name === none ? 0 : 3 })) }),
+  );
+  await page.goto('/?league=nba');
+  const rows = page.getByTestId('board').locator('tbody tr[data-player]');
+  await expect(rows.first()).toBeVisible();
+  const [best, weak] = await Promise.all([0, 40].map((i) => rows.nth(i).locator('a').first().innerText()));
+  none = best;
+  await page.goto('/league/?league=nba');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${best}\n${weak}`);
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  await page.goto('/?league=nba');
+  const upgrades = page.getByTestId('upgrades');
+  // Rest of season: the weak player goes, the best stays.
+  await expect(upgrades.getByTestId('roster-verdict')).toContainText(weak);
+  await expect(upgrades.getByTestId('upgrade').first()).toContainText('rest of season');
+  await expect(upgrades.getByTestId('upgrade').filter({ hasText: `for ${best}` })).toHaveCount(0);
+  // This week: the best player has no game left, so he is worth nothing this week and is the one to replace.
+  await upgrades.getByRole('radio', { name: 'This week' }).click();
+  await expect(upgrades.getByTestId('unit-note')).toContainText('last-ten form');
+  await expect(upgrades.getByTestId('roster-verdict')).toContainText(best);
+  await expect(upgrades.getByTestId('upgrade').first()).toContainText('this week');
+  await expect(upgrades.getByTestId('upgrade').filter({ hasText: `for ${best}` })).toContainText('0 games left');
+  await upgrades.getByRole('radio', { name: 'Rest of season' }).click();
+  await expect(upgrades.getByTestId('upgrade').first()).toContainText('rest of season');
+  await expect(upgrades.getByTestId('unit-note')).toHaveCount(0);
+});
+
+test('the Trade page can judge a trade for this fantasy week and counts the games each side has left', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
+    full_name: string;
+    team_abbreviation: string;
+    position: string;
+    games_this_week: number | null;
+  }[];
+  board.forEach((r, i) => {
+    r.games_this_week = i === 0 ? 0 : 3;
+  });
+  await page.route('**/board/nba.json', (route) => route.fulfill({ json: board }));
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/trade/?league=nba');
+  await page.getByLabel('Add a player you give').fill(label(board[1]!));
+  await page.getByLabel('Add a player you get').fill(label(board[0]!));
+  await page.getByLabel('Add a player you get').fill(label(board[2]!));
+  const verdict = page.getByTestId('trade-verdict');
+  await expect(verdict).toContainText('rest of season');
+  await expect(page.getByTestId('trade-week-games')).toContainText('3 for the players you give, 3 for the players you get');
+  await page.getByRole('radio', { name: 'This week' }).click();
+  await expect(verdict).toContainText('this fantasy week');
+  await expect(verdict).not.toContainText('rest of season');
+  await expect(verdict).toContainText('last-ten form');
+  await page.getByRole('radio', { name: 'Rest of season' }).click();
+  await expect(verdict).toContainText('rest of season');
+});
+
 test('a roster of the two best players is told it is optimized as is', async ({ page }) => {
   await page.goto('/');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');
