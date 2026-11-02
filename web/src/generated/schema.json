@@ -12120,7 +12120,12 @@
       "player_game_box",
       "player_xwalk"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "ADR 0005's rules (#397): counts equal and minutes within half a minute is exact, within one minute minor, anything more or any count apart a conflict; a player neither source has on the floor (the league writes zeros, ESPN nothing) is exact.",
+       "name": "player_game_reconciliation_verdicts"
+      }
+     ]
     },
     {
      "checks": [],
@@ -23631,7 +23636,12 @@
       "stats_scheduleleaguev2",
       "stats_shotchartdetail"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "The five statuses (#397): landed within the allowance is fresh, past it stale while the league plays, any age off_season when it does not, never landed never, and never landed for an optional feed (a key not set yet) unconfigured. Today is pinned to 2026-11-02 with the NBA in season and the WNBA not.",
+       "name": "feed_freshness_statuses"
+      }
+     ]
     },
     {
      "checks": [],
@@ -24720,6 +24730,11 @@
    "name": "waiver_trend_links_sleeper_players_by_name_birth_date_and_team"
   },
   {
+   "description": "The five statuses (#397): landed within the allowance is fresh, past it stale while the league plays, any age off_season when it does not, never landed never, and never landed for an optional feed (a key not set yet) unconfigured. Today is pinned to 2026-11-02 with the NBA in season and the WNBA not.",
+   "model": "feed_freshness",
+   "name": "feed_freshness_statuses"
+  },
+  {
    "description": "Last night's game has ESPN's crew (the newest landed summary wins over an older one) and the page's: the crew chief and the referee keep their roles (\"JB DeRosa\" on the page is \"J.B. DeRosa\" on ESPN), the official only ESPN lists has none, and the page's umpire who did not work the game is left out. Tonight's games have only the page's crew, alternate included, linked by the date and the teams the page names: \"L.A. Lakers\" and \"LA Clippers\" are told apart although both play in Los Angeles. A page row for a game the schedule does not have is left out.",
    "model": "game_officials",
    "name": "game_officials_link_both_sources"
@@ -24748,6 +24763,11 @@
    "description": "Tonight's game has its crew from the assignments page. The crew chief worked 20 games this season and last, 2 free-throw attempts and 1 possession above the league's average game, so shrunk as if 20 average games more, 1 and 0.5; the referee worked 60 games last season 4 attempts below and at the average pace (-3 and 0; the season before does not count); the umpire worked 20 games 1 attempt and 2 possessions above (0.5 and 1). The crew sits half an attempt below the average game and half a possession above it. The alternate does not count. A game without a crew yet has none.",
    "model": "mart_schedule_upcoming",
    "name": "schedule_upcoming_crew_tendency"
+  },
+  {
+   "description": "ADR 0005's rules (#397): counts equal and minutes within half a minute is exact, within one minute minor, anything more or any count apart a conflict; a player neither source has on the floor (the league writes zeros, ESPN nothing) is exact.",
+   "model": "player_game_reconciliation",
+   "name": "player_game_reconciliation_verdicts"
   },
   {
    "description": "Headlines from ESPN's feed each get the flag their wording gives, first match wins, and none when nothing applies. An athlete the crosswalk knows gets the league id; an article tagged twice counts two athletes; a later landing of the same article replaces the earlier one.",

@@ -1,0 +1,178 @@
+unit_tests:
+  - name: feed_freshness_statuses
+    description: >
+      The five statuses (#397): landed within the allowance is fresh, past it stale while the
+      league plays, any age off_season when it does not, never landed never, and never landed for
+      an optional feed (a key not set yet) unconfigured. Today is pinned to 2026-11-02 with the NBA
+      in season and the WNBA not.
+    model: feed_freshness
+    overrides:
+      vars:
+        as_of: '2026-11-02'
+    given:
+      - input: ref('espn_fantasy_players')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('espn_injuries')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('espn_news')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('espn_prop_bets')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('espn_roster')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('espn_scoreboard')
+        rows:
+          - {league: nba, _ingest_date: 2026-11-02, _source_file: espn_scoreboard.json}
+          - {league: wnba, _ingest_date: 2026-10-01, _source_file: espn_scoreboard.json}
+      - input: ref('espn_summary_players')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('espn_transactions')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('league_daily_lineups')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('league_injury_report')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('league_player_movement')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('league_referee_assignments')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('odds_api_player_props')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('sleeper_players')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('sleeper_trending')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_boxscoretraditionalv3')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_commonallplayers')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_commonteamroster')
+        rows:
+          - {league: nba, _ingest_date: 2026-10-29, _source_file: stats_commonteamroster.json}
+      - input: ref('stats_leaguedashptstats_passing')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_leaguegamelog')
+        rows:
+          - {league: nba, _ingest_date: 2026-10-29, _source_file: stats_leaguegamelog.json}
+      - input: ref('stats_leaguehustlestatsplayer')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_leaguestandingsv3')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_playbyplayv3')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_playergamelogs')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_playergamelogs_misc')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_playergamelogs_usage')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_scheduleleaguev2')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('stats_shotchartdetail')
+        format: sql
+        rows: |
+          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+      - input: ref('int_league_season_state')
+        rows:
+          - {league: nba, in_season_window: true}
+          - {league: wnba, in_season_window: false}
+    expect:
+      rows:
+        - {feed_key: 'nba:stats_scheduleleaguev2', status: never}
+        - {feed_key: 'wnba:stats_scheduleleaguev2', status: never}
+        - {feed_key: 'nba:stats_leaguegamelog', status: stale}
+        - {feed_key: 'wnba:stats_leaguegamelog', status: never}
+        - {feed_key: 'nba:stats_boxscoretraditionalv3', status: never}
+        - {feed_key: 'wnba:stats_boxscoretraditionalv3', status: never}
+        - {feed_key: 'nba:stats_playbyplayv3', status: never}
+        - {feed_key: 'wnba:stats_playbyplayv3', status: never}
+        - {feed_key: 'nba:stats_shotchartdetail', status: never}
+        - {feed_key: 'wnba:stats_shotchartdetail', status: never}
+        - {feed_key: 'nba:stats_playergamelogs', status: never}
+        - {feed_key: 'wnba:stats_playergamelogs', status: never}
+        - {feed_key: 'nba:stats_playergamelogs_usage', status: never}
+        - {feed_key: 'wnba:stats_playergamelogs_usage', status: never}
+        - {feed_key: 'nba:stats_playergamelogs_misc', status: never}
+        - {feed_key: 'wnba:stats_playergamelogs_misc', status: never}
+        - {feed_key: 'nba:stats_leaguestandingsv3', status: never}
+        - {feed_key: 'wnba:stats_leaguestandingsv3', status: never}
+        - {feed_key: 'nba:stats_commonteamroster', status: fresh}
+        - {feed_key: 'wnba:stats_commonteamroster', status: never}
+        - {feed_key: 'nba:stats_commonallplayers', status: never}
+        - {feed_key: 'wnba:stats_commonallplayers', status: never}
+        - {feed_key: 'nba:stats_leaguedashptstats_passing', status: never}
+        - {feed_key: 'nba:stats_leaguehustlestatsplayer', status: never}
+        - {feed_key: 'nba:espn_scoreboard', status: fresh}
+        - {feed_key: 'wnba:espn_scoreboard', status: off_season}
+        - {feed_key: 'nba:espn_summary_players', status: never}
+        - {feed_key: 'wnba:espn_summary_players', status: never}
+        - {feed_key: 'nba:espn_roster', status: never}
+        - {feed_key: 'wnba:espn_roster', status: never}
+        - {feed_key: 'nba:espn_injuries', status: never}
+        - {feed_key: 'wnba:espn_injuries', status: never}
+        - {feed_key: 'nba:espn_transactions', status: never}
+        - {feed_key: 'wnba:espn_transactions', status: never}
+        - {feed_key: 'nba:espn_fantasy_players', status: never}
+        - {feed_key: 'wnba:espn_fantasy_players', status: never}
+        - {feed_key: 'nba:espn_news', status: never}
+        - {feed_key: 'wnba:espn_news', status: never}
+        - {feed_key: 'nba:espn_prop_bets', status: never}
+        - {feed_key: 'wnba:espn_prop_bets', status: never}
+        - {feed_key: 'nba:odds_api_player_props', status: unconfigured}
+        - {feed_key: 'wnba:odds_api_player_props', status: unconfigured}
+        - {feed_key: 'nba:league_injury_report', status: never}
+        - {feed_key: 'wnba:league_injury_report', status: never}
+        - {feed_key: 'nba:league_referee_assignments', status: never}
+        - {feed_key: 'wnba:league_referee_assignments', status: never}
+        - {feed_key: 'nba:league_daily_lineups', status: never}
+        - {feed_key: 'nba:league_player_movement', status: never}
+        - {feed_key: 'nba:sleeper_players', status: never}
+        - {feed_key: 'nba:sleeper_trending', status: never}
