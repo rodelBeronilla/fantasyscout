@@ -70,7 +70,7 @@ const deployLegend =
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">Pipeline</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">
-      End to end, from six source families to this site. Ingest runs twice a day, at 09:15 and 23:00 UTC, and lands each
+      End to end, from six source families to this site. Ingest runs twice a day, on a schedule at 09:27 and 22:41 UTC and from the home server at 04:30 and 17:15 Eastern, and lands each
       response in a Databricks volume. After each run, dbt models what landed on Databricks through bronze, silver and gold,
       and a quality gate decides whether that build is published. A passing build is staged in Cloudflare R2, analysed,
       then promoted, and the Worker serves it to every page. The stages are numbered 1 to 7, the same in the diagrams and
@@ -124,7 +124,7 @@ const deployLegend =
         id="sequence"
         svg={sequence}
         title="UML sequence diagram"
-        caption="Time runs downward. Solid arrows with filled heads are calls, dashed arrows are replies, open heads are messages that do not wait. A fragment marked alt runs only when its condition holds. The schedule starts Ingest twice a day: at 09:15 UTC with every source, at 23:00 UTC with the reports alone. Each finished Ingest run starts a build, so up to two builds a day go live."
+        caption="Time runs downward. Solid arrows with filled heads are calls, dashed arrows are replies, open heads are messages that do not wait. A fragment marked alt runs only when its condition holds. The schedule starts Ingest twice a day: at 09:27 UTC with every source, at 22:41 UTC with the reports alone (GitHub often starts them late, so a task on the home server also starts each run, at 04:30 and 17:15 Eastern). Each finished Ingest run starts a build, so up to two builds a day go live."
       />
     </section>
 
@@ -184,16 +184,16 @@ const deployLegend =
 
         <h3 id="runs" class="mt-4 font-semibold">Runs</h3>
         <p class="mt-1">
-          The Ingest workflow runs on a schedule and on demand for any league, source or date range. At 09:15 UTC it runs
+          The Ingest workflow runs on a schedule and on demand for any league, source or date range. The morning run (09:27 UTC, and 04:30 Eastern from the home server) runs
           three sources for both leagues: <code>stats</code> and <code>espn</code> over the seven days ending that day
           (the stats job makes a regular-season pass and a playoff pass; out of the playoffs the second finds no games),
-          and <code>reports</code>. At 23:00 UTC, after teams file their injury reports (5 pm ET) and
-          before tip-off, it runs <code>reports</code> alone. The reports run lands seven feeds in order: the official injury
+          and <code>reports</code>. The evening run (22:41 UTC, and 17:15 Eastern from the home server), after teams file their injury reports (5 pm ET) and
+          before tip-off, runs <code>reports</code> alone, and the build after it is a light one: dbt builds those feeds' models and what reads them, and the notebooks and the Tableau extract are carried from the last full build. The reports run lands seven feeds in order: the official injury
           report, the starting lineups, the referee assignments, transactions (ESPN's, and the NBA's player movement), ESPN fantasy, ESPN headlines
           and Sleeper. For the WNBA the lineups, player movement and Sleeper have nothing to land.
         </p>
         <p class="mt-2">
-          The ESPN and reports jobs run on GitHub-hosted runners, one per league in parallel. The stats API does not answer
+          The ESPN and reports jobs run on GitHub-hosted runners, one league at a time, and the reports jobs wait for the ESPN jobs: both call ESPN, so they never run against it at once. The stats API does not answer
           cloud runner addresses, so the stats jobs run on two self-hosted runner containers on a home server, and only when
           the repository variable naming that runner is set (ADR 0002). One stats job per league runs at a time, a limit
           shared with the Backfill workflow.
@@ -516,7 +516,7 @@ const deployLegend =
         <p class="mt-2">
           Promotion writes <code>builds.json</code> and then <code>latest.json</code>, so the live build is always complete,
           and prunes old builds: seven are kept, about three and a half days at two passing builds a day, and the build{' '}
-          <code>latest.json</code> points at is never deleted. A rollback (Export data workflow) points{' '}
+          <code>latest.json</code> points at is never deleted, nor is a pinned one. A rollback (Export data workflow) points{' '}
           <code>latest.json</code> at an earlier build and pins it: new builds are still recorded but do not go live until
           the pin is released. A build exported by hand checks the latest publish gate first and follows the same stage,
           analyse and promote path.
@@ -526,9 +526,11 @@ const deployLegend =
       <section id="serving">
         <h2 class="text-lg font-semibold tracking-tight">7. Serve</h2>
         <p class="mt-2">
-          A Cloudflare Worker serves this static Astro site and, under <code>/data/</code>, the R2 bucket with range requests.
-          The pointers are cached for a minute (<code>public, max-age=60</code>); every build file is cached for a year as
-          immutable, privately for Parquet. Player pages <code>/p/&lt;league&gt;/&lt;id&gt;/</code> are rewritten to one page. The content security
+          Cloudflare's asset layer serves this static Astro site, with the security headers from the build's <code>_headers</code> file and the
+          content-hashed bundles cached for a year. A Worker runs only for <code>/data/</code> (the R2 bucket, with range requests), the
+          player pages, the Yahoo routes and the players sitemap. The pointers, each build's key list and index files, and the
+          current-build addresses are cached for a minute (<code>public, max-age=60</code>); every other build file is cached for a
+          year as immutable, privately for Parquet. Player pages <code>/p/&lt;league&gt;/&lt;id&gt;/</code> are one page named for the player and kept at the edge for a minute. The content security
           policy allows inline code only by hash, WebAssembly for DuckDB, DuckDB's extension host and the Tableau embed;
           the dbt docs and the rendered notebooks have their own policies.
         </p>
@@ -543,10 +545,11 @@ const deployLegend =
         </p>
         <p class="mt-2">
           The site deploys when its code changes, never when data does: production from <code>main</code>, a preview Worker
-          from <code>preprod</code> reading the same bucket. The deploy builds the site, generates the dbt docs from the
-          sample at <code>/docs/</code>, copies DuckDB-WASM into R2 (too large for static assets), deploys the Worker with
-          the Yahoo credentials as secrets, runs a smoke test (the home page, the docs, the pointer and the Yahoo status
-          route) and then Lighthouse three times on the home page, holding the median LCP under 2 s.
+          from <code>preprod</code> reading the same bucket. The deploy ships the site and the dbt docs (at <code>/docs/</code>) that CI built and tested from the same commit,
+          copies DuckDB-WASM into R2 (too large for static assets), deploys the Worker with the Yahoo credentials as secrets,
+          runs a smoke test (the home page and its headers, a bundle's cache, the docs, the pointer and the Yahoo status route),
+          then Lighthouse three times on the home, Streamers and Schema pages: the home page's median LCP must stay under 2 s,
+          the other two are reported until they are under it, and a throttled phone reports when each page's first rows paint.
         </p>
       </section>
     </div>
@@ -563,9 +566,9 @@ const deployLegend =
           tests and a dry-run deploy.
         </li>
         <li>
-          <strong>Probe sources</strong>, by hand and on pull requests that change the ingest: from a GitHub runner, checks
+          <strong>Probe sources</strong>, every Monday, by hand and on pull requests that change the ingest: from a GitHub runner, checks
           that the stats API, ESPN's site and fantasy APIs, the injury-report index and PDFs, the lineups and movement files,
-          Sleeper and the league's CDN answer, and Databricks when its credentials are set. It reports and never fails.
+          Sleeper and the league's CDN answer, and Databricks and Cloudflare R2 when their credentials are set. It reports and never fails.
         </li>
         <li>
           <strong>Backfill:</strong> whole seasons per league, one season and season type at a time, on the same runners and
@@ -574,6 +577,9 @@ const deployLegend =
         <li><strong>Export data:</strong> build (after checking the latest gate), roll back (pinning), unpin, or list builds.</li>
         <li><strong>Run the notebooks:</strong> a branch's notebooks against the published build; findings in the log, pages as a three-day artefact.</li>
         <li><strong>Query the lakehouse:</strong> read-only; prints any table, filtered and ordered, into the job log.</li>
+        <li><strong>Publish watchdog</strong>, every six hours: reads the live pointer and opens a data incident when the build the site serves is older than the publish SLA allows, or an in-season core feed is stale; the next fresh check closes it.</li>
+        <li><strong>Release</strong>, by hand: tags <code>main</code>, publishes the release notes from the pull requests' labels with the data build being served, and opens the version bump.</li>
+        <li><strong>Quarterly secret review:</strong> opens an issue that walks the runbook's secret inventory.</li>
         <li><strong>Databricks job:</strong> the Asset Bundle declares a scheduled Databricks job of the same dbt project, deployed paused as the fallback for an Actions outage, on a dispatch of the Build workflow only (ADR 0013).</li>
       </ul>
     </section>
