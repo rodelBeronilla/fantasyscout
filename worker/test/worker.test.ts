@@ -154,6 +154,17 @@ describe('routing', () => {
     expect(res.headers.get('content-security-policy')).toContain("style-src 'unsafe-inline'");
     const other = await SELF.fetch(`${ORIGIN}/data/builds/b1/health.json`);
     expect(other.headers.get('content-security-policy')).not.toContain("default-src 'none'");
+    // the same notebook with its dot encoded is the same file, so the same policy (#408)
+    const encoded = await SELF.fetch(`${ORIGIN}/data/builds/b1/notebooks/01_shot_profiles%2Ehtml`);
+    expect(encoded.headers.get('content-security-policy')).toContain("default-src 'none'");
+  });
+
+  it('answers a /data/ path that does not decode with 400, not as a private table (#411)', async () => {
+    for (const path of ['/data/%', '/data/builds/%E0%A4%A.parquet']) {
+      const res = await SELF.fetch(`${ORIGIN}${path}`);
+      expect(res.status, path).toBe(400);
+      expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    }
   });
 
   it('serves the 404 page for unknown paths', async () => {
