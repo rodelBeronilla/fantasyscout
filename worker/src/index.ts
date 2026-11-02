@@ -191,6 +191,16 @@ interface PlayerFile {
 const teamLabel = (team: PlayerFile['team']): string =>
   typeof team === 'string' ? team : (team?.abbreviation ?? team?.name ?? '');
 
+/**
+ * The edge-cache key of a public data file: its origin and path, without the query string. The
+ * files are addressed by path alone, so `?v=1` is the same file; keyed on the full URL, every new
+ * query string was another R2 read and another cache entry (#445).
+ */
+function edgeKey(request: Request): Request {
+  const url = new URL(request.url);
+  return new Request(`${url.origin}${url.pathname}`);
+}
+
 /** A current-build page file (CURRENT_PATH): the pointer resolved here, the file served for a minute, from the edge cache when it can be. */
 async function serveCurrent(request: Request, env: Env, ctx: ExecutionContext, path: string): Promise<Response> {
   const cacheable =
@@ -199,7 +209,7 @@ async function serveCurrent(request: Request, env: Env, ctx: ExecutionContext, p
     !request.headers.has('if-none-match') &&
     !request.headers.has('if-modified-since');
   if (cacheable) {
-    const hit = await caches.default.match(request);
+    const hit = await caches.default.match(edgeKey(request));
     if (hit) {
       const out = new Response(hit.body, hit);
       out.headers.set('cache-control', 'public, max-age=60');
@@ -213,7 +223,7 @@ async function serveCurrent(request: Request, env: Env, ctx: ExecutionContext, p
   const out = new Response(res.body, res);
   out.headers.set('cache-control', 'public, max-age=60');
   out.headers.set('x-build-id', build);
-  if (cacheable && out.status === 200) ctx.waitUntil(caches.default.put(request, out.clone()));
+  if (cacheable && out.status === 200) ctx.waitUntil(caches.default.put(edgeKey(request), out.clone()));
   return out;
 }
 
@@ -392,7 +402,7 @@ export default {
         !request.headers.has('if-none-match') &&
         !request.headers.has('if-modified-since');
       if (cacheable) {
-        const hit = await caches.default.match(request);
+        const hit = await caches.default.match(edgeKey(request));
         if (hit) {
           // The header the client sees is the Worker's rule, never what the cache stored: the zone's
           // browser cache TTL can rewrite a lower max-age on cached responses, which would hold a
@@ -412,7 +422,7 @@ export default {
         await serveData(request, env, url.pathname.slice(DATA_PREFIX.length), isPrivate),
         path,
       );
-      if (cacheable && served.status === 200) ctx.waitUntil(caches.default.put(request, served.clone()));
+      if (cacheable && served.status === 200) ctx.waitUntil(caches.default.put(edgeKey(request), served.clone()));
       return served;
     }
 

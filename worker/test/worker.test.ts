@@ -352,6 +352,10 @@ describe('data', () => {
       const second = await SELF.fetch(`${ORIGIN}/data/builds/c1/board/nba.json`);
       expect(second.status).toBe(200);
       expect(await second.json()).toEqual([{ player_id: '1' }]);
+      // A query string is the same file, from the same cache entry, not another R2 read (#445).
+      const queried = await SELF.fetch(`${ORIGIN}/data/builds/c1/board/nba.json?v=1`);
+      expect(queried.status).toBe(200);
+      expect(await queried.json()).toEqual([{ player_id: '1' }]);
       // A range request, and a private table, bypass the cache and reach R2.
       const ranged = await SELF.fetch(`${ORIGIN}/data/builds/c1/board/nba.json`, { headers: { range: 'bytes=0-3' } });
       expect(ranged.status).not.toBe(200);
