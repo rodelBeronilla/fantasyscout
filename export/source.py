@@ -9,6 +9,7 @@ millions of rows out of a warehouse without a driver.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol
 
@@ -38,6 +39,39 @@ class DuckDBSource:
         self._con.close()
 
 
+# A serverless warehouse waking from auto-stop refuses statements with HTTP 400 "The request could
+# not be processed by the warehouse."; 429 and 5xx are the API's own transient answers. A refused
+# submission is retried with a growing pause, about five minutes in all: on 2026-11-01 an export's
+# three attempts met nine minutes of refusals (#366, #402). The gate and the summary queries
+# (ops.results, ops.summary) use the same rule.
+TRANSIENT_SUBMISSION = "could not be processed by the warehouse"
+SUBMISSION_PAUSES: tuple[float, ...] = (5.0, 10.0, 20.0, 30.0, 60.0, 60.0, 60.0, 60.0)
+
+
+def is_transient(response: httpx.Response) -> bool:
+    """A submission answer worth retrying: rate limited, a server error, a warehouse waking up."""
+    if response.status_code == 429 or response.status_code >= 500:
+        return True
+    return response.status_code == 400 and TRANSIENT_SUBMISSION in response.text
+
+
+def submit_with_retry(
+    post: Callable[[], httpx.Response], sleep: Callable[[float], None] = time.sleep
+) -> httpx.Response:
+    """Submit, and resubmit after each pause while the answer is transient; the last answer."""
+    response = post()
+    for pause in SUBMISSION_PAUSES:
+        if response.status_code == 200 or not is_transient(response):
+            break
+        print(
+            f"  statement submission answered HTTP {response.status_code}; "
+            f"the warehouse may be starting, retrying in {pause:g}s"
+        )
+        sleep(pause)
+        response = post()
+    return response
+
+
 class DatabricksSource:
     """Reads the lakehouse through the SQL Statement Execution API (Arrow, external links)."""
 
@@ -51,6 +85,7 @@ class DatabricksSource:
         transport: httpx.BaseTransport | None = None,
         link_transport: httpx.BaseTransport | None = None,
         sleep: float = 2.0,
+        pause: Callable[[float], None] = time.sleep,
     ) -> None:
         if not warehouse_id:
             msg = "warehouse_id is empty; export DATABRICKS_WAREHOUSE_ID"
@@ -66,22 +101,23 @@ class DatabricksSource:
         self._warehouse_id = warehouse_id
         self._catalog = catalog
         self._sleep = sleep
+        self._pause = pause
 
     def close(self) -> None:
         self._api.close()
         self._links.close()
 
     def query(self, sql: str) -> pa.Table:
-        response = self._api.post(
-            "/api/2.0/sql/statements",
-            json={
-                "warehouse_id": self._warehouse_id,
-                "catalog": self._catalog,
-                "statement": sql,
-                "wait_timeout": "30s",
-                "format": "ARROW_STREAM",
-                "disposition": "EXTERNAL_LINKS",
-            },
+        submission = {
+            "warehouse_id": self._warehouse_id,
+            "catalog": self._catalog,
+            "statement": sql,
+            "wait_timeout": "30s",
+            "format": "ARROW_STREAM",
+            "disposition": "EXTERNAL_LINKS",
+        }
+        response = submit_with_retry(
+            lambda: self._api.post("/api/2.0/sql/statements", json=submission), self._pause
         )
         if response.status_code != 200:
             msg = f"statement submission failed: HTTP {response.status_code} {response.text[:500]}"

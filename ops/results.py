@@ -26,6 +26,8 @@ from typing import Literal
 
 import httpx
 
+from export import source as source_mod
+
 Engine = Literal["duckdb", "databricks"]
 
 TEST_RESULTS_DDL = """
@@ -214,17 +216,11 @@ def write_duckdb(path: Path, statements: list[str]) -> None:
         con.close()
 
 
-# A serverless warehouse waking from auto-stop refuses the first statements with HTTP 400 "The
-# request could not be processed by the warehouse."; 429 and 5xx are the API's own transient
-# answers. Submission is retried on those with a growing pause (about a minute in all).
-TRANSIENT_SUBMISSION = "could not be processed by the warehouse"
-SUBMISSION_PAUSES: tuple[float, ...] = (5.0, 10.0, 20.0, 30.0)
-
-
-def _transient(response: httpx.Response) -> bool:
-    if response.status_code in (429,) or response.status_code >= 500:
-        return True
-    return response.status_code == 400 and TRANSIENT_SUBMISSION in response.text
+# The warehouse's transient refusals and the retry schedule are the export's (export/source.py):
+# one rule for every statement the pipeline submits (#402).
+SUBMISSION_PAUSES = source_mod.SUBMISSION_PAUSES
+TRANSIENT_SUBMISSION = source_mod.TRANSIENT_SUBMISSION
+_transient = source_mod.is_transient
 
 
 def _run_statement(
@@ -244,16 +240,9 @@ def _run_statement(
         "format": "JSON_ARRAY",
         "disposition": "INLINE",
     }
-    response = client.post("/api/2.0/sql/statements", json=payload)
-    for pause in SUBMISSION_PAUSES:
-        if response.status_code == 200 or not _transient(response):
-            break
-        print(
-            f"  statement submission answered HTTP {response.status_code}; "
-            f"the warehouse may be starting, retrying in {pause:g}s"
-        )
-        sleep(pause)
-        response = client.post("/api/2.0/sql/statements", json=payload)
+    response = source_mod.submit_with_retry(
+        lambda: client.post("/api/2.0/sql/statements", json=payload), sleep
+    )
     if response.status_code != 200:
         msg = f"statement submission failed: HTTP {response.status_code} {response.text[:500]}"
         raise RuntimeError(msg)
