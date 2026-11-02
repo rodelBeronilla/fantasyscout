@@ -257,7 +257,7 @@ function Console() {
           </pre>
         )}
         {columns.length > 0 && (
-          <div className="mt-3 table-scroll max-h-[70vh] overflow-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Scrollable table">
+          <div className="mt-3 table-scroll max-h-[70vh] overflow-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Query results">
             <table className="w-full text-sm" data-testid="sql-results">
               <thead className="bg-card">
                 <tr>

@@ -300,7 +300,7 @@ export default function Health() {
       <Card title={`Checks (${int(health.check_counts.pass)} pass, ${int(health.check_counts.warn)} warn, ${int((health.check_counts.fail ?? 0) + (health.check_counts.error ?? 0))} fail)`} id="checks">
         {notable.length === 0 && !showAllChecks && <p className="text-sm text-muted">Every check passed in this build.</p>}
         {checks.length > 0 && (
-          <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+          <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="This build's checks">
             <table className="w-full text-sm" data-testid="checks">
               <thead>
                 <tr>
@@ -343,7 +343,7 @@ export default function Health() {
             The newest day each feed landed, against how old it may get while the league is playing. A feed that stops keeps
             showing its last snapshot on the site, so a stale one is flagged here and in the checks.
           </p>
-          <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+          <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Source feeds">
             <table className="w-full text-sm" data-testid="feeds">
               <thead>
                 <tr>
@@ -383,7 +383,7 @@ export default function Health() {
             Requests the recent ingest runs could not land, newest first: the endpoint and key to replay (runbook, &ldquo;Replay failed
             fetches&rdquo;) and why. A payload missing at the source is the source&apos;s gap, not ours.
           </p>
-          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Failed fetches">
             <table className="w-full text-sm" data-testid="fetch-failures">
               <thead>
                 <tr>
@@ -421,7 +421,7 @@ export default function Health() {
       )}
 
       <Card title="Last ingest run per source and league" id="ingest">
-        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Last ingest run per source and league">
           <table className="w-full text-sm" data-testid="ingest">
             <thead>
               <tr>
@@ -464,7 +464,7 @@ export default function Health() {
             Each run of the Build lakehouse workflow: how long it queued for a runner and ran, what its gate decided, and the build it
             published. A light build follows the evening ingest and covers the feeds it landed.
           </p>
-          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Build runs">
             <table className="w-full text-sm" data-testid="builds">
               <thead>
                 <tr>
@@ -530,7 +530,7 @@ export default function Health() {
       )}
 
       <Card title="Reconciliation: league stats API against ESPN" id="reconciliation">
-        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Reconciliation">
           <table className="w-full text-sm" data-testid="reconciliation">
             <thead>
               <tr>

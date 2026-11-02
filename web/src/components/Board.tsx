@@ -934,7 +934,7 @@ export default function Board() {
       )}
 
       <TagLegend />
-      <div className="table-scroll max-h-[70vh] overflow-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Scrollable table">
+      <div className="table-scroll max-h-[70vh] overflow-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Player board">
         <table className="w-full text-sm" data-testid="board">
           <thead className="bg-card">
             <tr>

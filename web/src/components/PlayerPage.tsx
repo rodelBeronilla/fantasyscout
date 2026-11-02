@@ -270,7 +270,7 @@ function NextGames({ games, teamId }: { games: Upcoming[]; teamId: string }) {
   if (!next.length) return null;
   return (
     <Card title="Next games" id="next-games">
-      <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+      <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Next games">
         <table className="w-full text-sm" data-testid="next-games">
           <thead>
             <tr>
@@ -484,7 +484,7 @@ export default function PlayerPage() {
       )}
 
       <Card title="Season lines" id="seasons">
-        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Season lines">
           <table className="w-full text-sm" data-testid="season-lines">
             <thead>
               <tr>
@@ -554,7 +554,7 @@ export default function PlayerPage() {
             <p className="text-sm text-muted">No shots this season yet.</p>
           )}
           {player.shot_zones.length > 0 && (
-            <div className="table-scroll mt-3 max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+            <div className="table-scroll mt-3 max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Shot zones">
               <table className="w-full text-sm">
                 <thead>
                   <tr>
@@ -616,7 +616,7 @@ export default function PlayerPage() {
             ))}
           </select>
         </label>
-        <div className="mt-3 table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Scrollable table">
+        <div className="mt-3 table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Game log">
           <table className="w-full text-sm" data-testid="game-log">
             <thead>
               <tr>
