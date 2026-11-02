@@ -19,7 +19,7 @@ No number shown on the site comes from a language model. See "AI usage" in `SPEC
 1. Branch from `main`: `ai/feat/<issue>-short-name`, `ai/fix/<issue>-short-name`.
 2. Small commits in conventional-commit form: `type(scope): description`.
 3. Open a pull request using the template. Link the issue (`Closes #NN`) and add a `release:*` label.
-4. CI must be green: lint, unit tests, dbt build on DuckDB (from phase 2), notebook execution (from phase 6), web build and Playwright.
+4. CI must be green: the secret and workflow hygiene checks; Python lint, types and tests; the dbt build on DuckDB; the notebooks on the sample; the web app's check, lint, Vitest, build and Playwright; and the Worker's typecheck, tests and dry-run deploy.
 5. The owner reviews and merges. `preprod` deploys the preview Worker; `main` deploys production.
 
 ## Local checks
@@ -72,7 +72,7 @@ On Windows, Cloudflare's local runtime (workerd) needs the Microsoft Visual C++ 
 
 ## Standards
 
-- Python 3.12, `ruff` for lint and format, `mypy --strict` on `ingest/` and `export/`, `pytest`.
+- Python 3.12, `ruff` for lint and format, `mypy --strict` on `ingest/`, `export/` and `ops/`, `pytest`.
 - SQL models are dbt models with descriptions, tests and unit tests; there is no SQL linter (the one-SQL-body-per-engine macros read oddly to one), and `ruff format --check` covers the Python.
 - Web is TypeScript strict, ESLint, Playwright smoke tests and an axe accessibility check on every page.
 - Secrets come only from environment variables or GitHub Actions secrets. Never print, log or commit them.

@@ -2,7 +2,7 @@
 
 Operational procedures. Each section is a checklist someone can follow at 3 a.m. Sections marked "phase N" are filled in when that phase lands.
 
-## First deploy (phase 0)
+## First deploy
 
 1. In Cloudflare, create an API token (My Profile → API Tokens → Create Custom Token) with:
    - Account → Workers Scripts → Edit
@@ -34,11 +34,11 @@ npx wrangler versions list --env production
 npx wrangler rollback --env production      # interactive pick, or pass the version id
 ```
 
-Rolling back the Worker does not touch R2 data; data rollback is a separate step (phase 5, `latest.json` pointer).
+Rolling back the Worker does not touch R2 data; data rollback is a separate step (the `latest.json` pointer; see "Roll back a data build").
 
 ## Environments and pinned actions
 
-Every job that holds the warehouse token or the R2 token runs in the `lakehouse` environment (Ingest, Backfill, Build, Export, Query, Probe); the deploys run in `preview` and `production`. An Export run that ignores the gate or rolls the site back runs in `lakehouse-override`, which requires the repository owner's approval before it starts (Actions → the run → Review deployments). The environments exist so the secrets can live there rather than at the repository level: moving `DATABRICKS_TOKEN`, `DATABRICKS_HOST`, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` into `lakehouse` is a settings step for the owner (Settings → Environments → lakehouse → secrets), after which the repository-level copies can go.
+Every job that holds the warehouse token or the R2 token runs in the `lakehouse` environment (Ingest, Backfill, Build, Export, Query, Probe), and so does Run the notebooks, which holds the Yahoo client secret for the CI reader key; the deploys run in `preview` and `production`. An Export run that ignores the gate or rolls the site back runs in `lakehouse-override`, which requires the repository owner's approval before it starts (Actions → the run → Review deployments). The environments exist so the secrets can live there rather than at the repository level: moving `DATABRICKS_TOKEN`, `DATABRICKS_HOST`, `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` into `lakehouse` is a settings step for the owner (Settings → Environments → lakehouse → secrets), after which the repository-level copies can go.
 
 The blocks every workflow shares live once, as composite actions under `.github/actions/`: `setup-uv` (uv and the locked environment), `databricks-context` (the workspace origin and the SQL warehouse — the repository variable `DATABRICKS_WAREHOUSE_ID` when set, else the oldest warehouse with a notice if there is more than one), `incident` (the data-incident issue) and `publish-build` (stage, notebooks, extract, promote: the one way a build goes live, used by the nightly build and the hand-run export alike).
 
@@ -259,7 +259,7 @@ From the Actions tab, run Ingest with the `only` input (space-separated). The ru
 
 The league stats API's `resultSets` are read by header name (`dbt/macros/stats.sql`: `stats_headers`, `stats_row_values`, `stats_cell`), not by position, so a column the API inserts changes nothing in bronze; a column it renames or removes comes through as null: the silver `not_null` tests name a key, and for a counting stat the box arithmetic and closure checks (`assert_box_arithmetic`, `assert_box_closure`) fail on the first played row that carries a null, naming the player-game. For the ESPN and league JSON feeds, which are read by key, the same holds.
 
-Landed payloads are raw, so a shape change breaks bronze parsing (phase 2), not landing.
+Landed payloads are raw, so a shape change breaks bronze parsing, not landing.
 
 1. Compare a fresh payload with the fixture in `tests/fixtures/<source>/<endpoint>.json`.
 2. Re-record the fixture from a residential address: land the one request locally, for example `uv run fs-ingest land stats --league nba --only leaguegamelog --backend local --root landing-local`, copy the payload it wrote under `landing-local/` over `tests/fixtures/<source>/<endpoint>.json`, trim it to a few rows, and update the parser and its tests.
@@ -393,7 +393,7 @@ uv run fs-export unpin --store r2 [--to <id>]
 
 Versions are tags on `main`. Every PR carries a `release:*` label (the PR template asks for it) and `.github/release.yml` turns the labels into the release notes: breaking changes, features, fixes; `release:skip` and Dependabot's PRs stay out.
 
-Run the "Release" workflow (Actions → Release → Run workflow) with the version, `MAJOR.MINOR.PATCH` without the `v`. It tags `main`, publishes the GitHub release with the generated notes and the data build the site was serving at that moment (its id and data-as-of dates), and opens a PR that bumps `pyproject.toml`; merge that PR. A version already tagged, or one that is not three numbers, fails the run before anything is written.
+Run the "Release" workflow (Actions → Release → Run workflow) with the version, `MAJOR.MINOR.PATCH` without the `v`. It tags `main`, publishes the GitHub release with the generated notes and the data build the site was serving at that moment (its id and data-as-of dates), and opens a PR that bumps `pyproject.toml` unless it already reads that version; merge that PR when there is one. A version already tagged, or one that is not three numbers, fails the run before anything is written.
 
 The tags so far mark the phases: `v0.1.0` phase 0 (skeleton live), `v0.2.0` phase 1 (ingest), `v0.3.0` phase 2 (lakehouse), `v0.4.0` phase 3 (gold and quality), `v0.5.0` phase 4 (reconciliation), `v0.6.0` phase 5 (serving and the app), `v0.7.0` phase 6 (analysis surfaces), `v0.8.0` the platform-hardening milestone.
 

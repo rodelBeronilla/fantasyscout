@@ -1,7 +1,7 @@
 # League Pulse: the Tableau Public workbook
 
-One workbook, three panels, built from a gold extract: team pace and ratings, the distribution
-of player value on the board, and the data-health trend. It is embedded on the site's Dashboards
+One workbook, four panels, built from a gold extract: team pace and ratings, the distribution
+of player value on the board, the top 20 by value, and the data-health trend. It is embedded on the site's Dashboards
 page once published, and refreshes itself daily through a Google Sheet.
 
 ## The extract
@@ -36,11 +36,12 @@ bridge is a sheet the build keeps current, and the workbook is published once by
    "Push the extract to the League Pulse Google Sheet" fills three tabs: `team_pace_ratings`,
    `player_value`, `data_health`.
 4. **The workbook.** In Tableau Public, connect to *Google Sheets*, pick `FantasyScout League
-   Pulse`, and use the three tabs as data sources (no joins). Build three sheets and one dashboard
+   Pulse`, and use the three tabs as data sources (no joins). Build four sheets and one dashboard
    named **League Pulse**:
    - *Pace and ratings*: a scatter of `offensive_rating` (x) against `defensive_rating` (y, reversed)
      per team, sized by `pace`, filtered to the current season, with a league filter.
-   - *Player value*: a histogram of `value_total` per league, with a top-20 bar chart by `player`.
+   - *Player value*: a histogram of `value_total` per league.
+   - *Top 20*: a bar chart of the 20 highest `value_total` by `player`, with team and position.
    - *Data health*: `checks_fail` and `checks_warn` over `run_at` as bars, `passed` as colour.
 5. **Publish.** Save to Tableau Public with *Keep this data up to date* ticked, so Tableau Public
    re-reads the sheet daily. Copy the viz URL (the one ending in `/League_Pulse`, without query
