@@ -1,0 +1,36 @@
+unit_tests:
+  - name: schedule_upcoming_counts_the_play_in
+    description: >
+      The games ahead are every game a team plays (#391): the regular season, the play-in and the
+      playoffs. The preseason and the in-season cup's final, which no fantasy league counts, are
+      left out, as is a game already final.
+    model: mart_schedule_upcoming
+    overrides:
+      vars:
+        as_of: '2026-04-14'
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2025-26', game_id: '0022501230', game_date_est: 2026-04-14, game_status: 1, game_type: regular, if_necessary: false, home_team_id: H, home_team_tricode: HOM, away_team_id: A, away_team_tricode: AWY}
+          - {league: nba, season: '2025-26', game_id: '0052500101', game_date_est: 2026-04-15, game_status: 1, game_type: play_in, if_necessary: false, home_team_id: H, home_team_tricode: HOM, away_team_id: A, away_team_tricode: AWY}
+          - {league: nba, season: '2025-26', game_id: '0042500101', game_date_est: 2026-04-18, game_status: 1, game_type: playoffs, if_necessary: false, home_team_id: H, home_team_tricode: HOM, away_team_id: A, away_team_tricode: AWY}
+          - {league: nba, season: '2025-26', game_id: '0062500001', game_date_est: 2026-04-16, game_status: 1, game_type: tournament_final, if_necessary: false, home_team_id: H, home_team_tricode: HOM, away_team_id: A, away_team_tricode: AWY}
+          - {league: nba, season: '2025-26', game_id: '0012500001', game_date_est: 2026-04-16, game_status: 1, game_type: preseason, if_necessary: false, home_team_id: H, home_team_tricode: HOM, away_team_id: A, away_team_tricode: AWY}
+          - {league: nba, season: '2025-26', game_id: '0052500102', game_date_est: 2026-04-14, game_status: 3, game_type: play_in, if_necessary: false, home_team_id: H, home_team_tricode: HOM, away_team_id: A, away_team_tricode: AWY}
+      - input: ref('fct_team_game')
+        rows: []
+      - input: ref('game_lines')
+        rows: []
+      - input: ref('team_xwalk')
+        rows: []
+      - input: ref('fct_team_game_context')
+        rows: []
+      - input: ref('fct_game_official')
+        rows: []
+      - input: ref('fct_referee_tendency')
+        rows: []
+    expect:
+      rows:
+        - {game_id: '0022501230', game_type: regular}
+        - {game_id: '0052500101', game_type: play_in}
+        - {game_id: '0042500101', game_type: playoffs}

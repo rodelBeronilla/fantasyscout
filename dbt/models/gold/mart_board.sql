@@ -169,7 +169,9 @@ remaining_scheduled as (
         sum(case when s.game_type = 'regular' and s.game_status = 3 then 1 else 0 end) as games_final
     from schedule_sides as s
     join (select distinct league, season from base) as cs on cs.league = s.league and cs.season = s.season
-    where s.game_type in ('regular', 'playoffs')
+    -- games remaining count the regular season; the next seven days and the week count every game
+    -- a team plays, the play-in and the playoffs included (#391)
+    where s.game_type in ('regular', 'play_in', 'playoffs')
     group by s.league, s.season, s.team_id
 
 ),

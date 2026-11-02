@@ -14,6 +14,14 @@ string aggregation, the landing volume); a model never branches on the engine it
 | `gold` | table; `fct_event`, `fct_shot` incremental by game; `fct_board_history` incremental and never rebuilt | Dimensions (`dim_*`), facts (`fct_*`) and the marts the site reads (`mart_board`, `mart_streamers`, `mart_schedule_upcoming`, `mart_player_projection`, `mart_category_zscores`, `mart_player_rolling`). ADR 0003 records the modelling choices; ADRs 0009 to 0012 hold board value, availability, the Streamers sort and the signals tested. |
 | `ops` | table | What the platform says about itself: `test_results` and `publish_gate` (written by `ops.results` after every build), `feed_freshness`, `build_log`, `ingest_log`, `fetch_failures`, the reconciliation tables and `category_config`. |
 
+**Game types.** The schedule (`silver.schedule.game_type`) carries every game type the league
+lists: preseason, regular, All-Star, play_in, playoffs and tournament_final (the in-season cup's
+final). The stats game logs and box scores are ingested for the regular season and the playoffs
+only (`ingest/stats.py` `SeasonType`), so a play-in or cup-final game has a schedule row but no
+player or team stats. The schedule-driven counts (`mart_board.games_next_7`, `games_this_week`,
+`mart_schedule_upcoming`) include the play-in and the playoffs; `games_remaining` counts the
+regular season.
+
 `models/exposures.yml` names the consumers (the site export, the Tableau workbook, each notebook)
 so lineage does not stop at gold; `tests/test_exposures.py` fails when they drift from the code.
 
