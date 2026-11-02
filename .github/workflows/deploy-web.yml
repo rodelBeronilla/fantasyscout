@@ -5,8 +5,9 @@ name: Deploy web
 # Runs when CI has passed on this repository's own push to main or preprod (never on a fork's
 # branch of the same name), and ships the very build CI tested (the
 # web-dist and dbt-docs artifacts of that run), so nothing goes live that CI did not check and
-# nothing is built twice. A push that touched neither the app, the Worker nor the data the pages
-# are built from (web/, worker/, the schema file) is not deployed. The deploy copies the Yahoo
+# nothing is built twice. A push that touched neither the app, the Worker, the data the pages
+# are built from (web/, worker/, the schema file) nor the dbt project is not deployed; a dbt-only
+# change deploys so the dbt docs at /docs/, which ship with the site, follow it (#475). The deploy copies the Yahoo
 # credentials and the owner's id into each Worker as secrets (ADR 0007, 0008); everything else
 # needs only the Cloudflare token and account id.
 
@@ -57,12 +58,12 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           if [ "$EVENT" = "workflow_dispatch" ]; then echo "deploy=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          changed=$(git diff --name-only HEAD^ HEAD -- web worker .github/workflows/deploy-web.yml | head -20)
+          changed=$(git diff --name-only HEAD^ HEAD -- web worker dbt .github/workflows/deploy-web.yml | head -20)
           if [ -n "$changed" ]; then
             echo "$changed"
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::notice::nothing under web/, worker/ or the deploy workflow changed; no deploy"
+            echo "::notice::nothing under web/, worker/, dbt/ or the deploy workflow changed; no deploy"
             echo "deploy=false" >> "$GITHUB_OUTPUT"
           fi
 
