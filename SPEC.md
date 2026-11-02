@@ -61,7 +61,7 @@ A failed check stops the export, so the site keeps serving the last good build w
 | Web app | Astro + React islands, Tailwind, DuckDB-WASM, Observable Plot for charts | Mostly static pages, interactive where it matters |
 | Hosting | Cloudflare Worker `fantasyscout` on the custom domain `fantasyscout.beronilla.rodeo` | Edge-served, no shared infrastructure with the main site |
 | BI | Tableau Public, embedded | Free public hosting; Power BI Publish-to-web needs a paid licence |
-| AI | Anthropic Messages API, current Sonnet-class model, JSON output validated with pydantic | Drafts notes only; see AI usage |
+| AI | Anthropic Messages API, a current general-purpose model, JSON output validated with pydantic | Drafts notes only; see AI usage |
 
 If Databricks Free Edition becomes unavailable or hits its daily quota, the same dbt project builds on DuckDB and the export step reads from there. The site keeps working; the Data Health page shows which engine produced the current build.
 
@@ -194,7 +194,7 @@ No number on the site comes from a language model. The LLM writes words about nu
 
 **Eval:** a fixed set of 30 historical weeks in `ai/evals/`. CI reports the claim-accuracy rate and rejection rate; the AI page shows both. Target: 100% of published claims verified, rejection rate tracked over time.
 
-**AI in development:** `CONTRIBUTING.md` states that Claude Code was used to build the repo and how it was kept honest: tests written or reviewed before merge, ADRs for every design decision, and no generated code merged without a passing CI run. Commit history should show reviewed PRs, not one giant dump.
+**AI in development:** `CONTRIBUTING.md` states that an AI coding assistant was used to build the repo and how it was kept honest: tests written or reviewed before merge, ADRs for every design decision, and no generated code merged without a passing CI run. Commit history should show reviewed PRs, not one giant dump.
 
 ## Hosting and deployment
 
