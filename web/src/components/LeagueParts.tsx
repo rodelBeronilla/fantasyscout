@@ -13,7 +13,8 @@ import {
 import type { League } from '../lib/data';
 import type { RosterReview, Upgrade } from '../lib/roster-upgrades';
 import { href } from '../lib/site';
-import { Signed } from './ui';
+import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
+import { Segmented, Signed } from './ui';
 
 export const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
 
@@ -169,44 +170,72 @@ export function LeagueBar({ setup, rostered, myCount, weakest }: { setup: League
   );
 }
 
-/** The roster review: who to replace from the players nobody owns, or that the roster holds as is. */
+/**
+ * The roster review: who to replace from the players nobody owns, or that the roster holds as is,
+ * for the rest of the season or, when the week has games left, for this fantasy week (#466).
+ */
 export function Upgrades({
   league,
   review,
   nameOf,
   detailOf,
   onApply,
+  unit = 'rest',
+  onUnit = null,
+  gamesOf = null,
 }: {
   league: League;
   review: RosterReview;
   nameOf: (id: string) => string;
   detailOf: (id: string) => string;
   onApply: (u: Upgrade) => void;
+  unit?: ValueUnit;
+  /** Offered when the week has games left; null hides the toggle. */
+  onUnit?: ((u: ValueUnit) => void) | null;
+  gamesOf?: ((id: string) => number) | null;
 }) {
   const list = review.upgrades;
+  const week = unit === 'week';
+  const detail = (id: string) => {
+    const games = week && gamesOf ? gamesOf(id) : null;
+    return [detailOf(id), games === null ? '' : `${games} game${games === 1 ? '' : 's'} left`].filter(Boolean).join(', ');
+  };
   const player = (id: string) => (
     <>
       <a href={href(`/p/${league}/${id}/`)} className="font-medium underline-offset-4 hover:underline">
         {nameOf(id)}
       </a>
-      {detailOf(id) ? <span className="text-muted"> ({detailOf(id)})</span> : null}
+      {detail(id) ? <span className="text-muted"> ({detail(id)})</span> : null}
     </>
   );
   const labels = (cats: string[]) => cats.map((c) => CATEGORY_LABELS[c] ?? c).join(', ');
   return (
     <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="upgrades-h" data-testid="upgrades">
-      <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
-        Roster review
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+          Roster review
+        </h2>
+        {onUnit && (
+          <Segmented
+            label="Value unit"
+            value={unit}
+            options={[
+              { id: 'rest', label: 'Rest of season', title: 'Projected value over the games each player is expected to play from today' },
+              { id: 'week', label: 'This week', title: 'Last-ten form over the games left this fantasy week (Monday to Sunday)' },
+            ]}
+            onChange={onUnit}
+          />
+        )}
+      </div>
       {review.optimized ? (
         <p className="mt-1 text-sm" data-testid="roster-verdict">
-          <strong>Your roster is optimized as is.</strong> No player nobody in your league owns is worth more for the rest
-          of the season than one of yours, under your league&apos;s scoring.
+          <strong>Your roster is optimized as is.</strong> No player nobody in your league owns is worth more{' '}
+          {week ? 'this week' : 'for the rest of the season'} than one of yours, under your league&apos;s scoring.
           {review.weakest && review.weakest.add && (
             <span className="text-muted">
               {' '}
               Weakest spot: {player(review.weakest.drop)}; the best free agent, {player(review.weakest.add)}, would be{' '}
-              <Signed value={review.weakest.gap} digits={1} /> rest of season, so hold.
+              <Signed value={review.weakest.gap} digits={1} /> {UNIT_LABEL[unit]}, so hold.
             </span>
           )}
         </p>
@@ -225,6 +254,12 @@ export function Upgrades({
           . Apply records the swap in the league kept here; make it in your league&apos;s app too.
         </p>
       )}
+      {week && (
+        <p className="mt-1 text-xs text-muted" data-testid="unit-note">
+          This week counts each player&apos;s last-ten form, above your league&apos;s replacement level, over the games left this
+          fantasy week (Monday to Sunday). Rest of season counts the projection over the games each player is expected to play.
+        </p>
+      )}
       <ul className="mt-2 grid gap-1 text-sm">
         {list.map((u) => (
           <li key={`${u.add}-${u.drop}`} className="flex flex-wrap items-center gap-x-2 gap-y-1" data-testid="upgrade">
@@ -232,7 +267,7 @@ export function Upgrades({
               Add {player(u.add)} for {player(u.drop)}
             </span>
             <span>
-              <Signed value={u.gain} digits={1} /> <span className="text-muted">rest of season</span>
+              <Signed value={u.gain} digits={1} /> <span className="text-muted">{UNIT_LABEL[unit]}</span>
             </span>
             {u.ups.length > 0 && (
               <span className="text-xs text-good" data-testid="upgrade-ups">

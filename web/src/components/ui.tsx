@@ -394,3 +394,34 @@ export function RestRiskTag({ risk, stakes }: { risk: boolean | null | undefined
     </span>
   );
 }
+
+/** A row of buttons for one choice among a few, announced as a radiogroup. */
+export function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: { id: T; label: string; title?: string }[];
+  onChange: (id: T) => void;
+}) {
+  return (
+    <div className="inline-flex flex-wrap rounded-lg border border-line bg-card p-0.5" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={value === o.id}
+          title={o.title}
+          onClick={() => onChange(o.id)}
+          className={`rounded-md px-3 py-1 text-sm ${value === o.id ? 'bg-accent text-accent-fg' : 'text-muted hover:text-fg'}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
