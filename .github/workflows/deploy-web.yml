@@ -2,7 +2,8 @@ name: Deploy web
 
 # preprod -> wrangler environment "preview"    (Worker fantasyscout-preview on workers.dev)
 # main    -> wrangler environment "production" (Worker fantasyscout on fantasyscout.beronilla.rodeo)
-# Runs when CI has passed on a push to main or preprod, and ships the very build CI tested (the
+# Runs when CI has passed on this repository's own push to main or preprod (never on a fork's
+# branch of the same name), and ships the very build CI tested (the
 # web-dist and dbt-docs artifacts of that run), so nothing goes live that CI did not check and
 # nothing is built twice. A push that touched neither the app, the Worker nor the data the pages
 # are built from (web/, worker/, the schema file) is not deployed. The deploy copies the Yahoo
@@ -31,7 +32,14 @@ env:
 jobs:
   deploy:
     name: Deploy ${{ (github.event.workflow_run.head_branch || github.ref_name) == 'main' && 'production' || 'preview' }}
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    # Only this repository's own pushes deploy: workflow_run filters on the head branch's NAME, so
+    # without the repository and event checks a fork's branch called main whose CI passed would
+    # ship the fork's code with production secrets (#423).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: ${{ (github.event.workflow_run.head_branch || github.ref_name) == 'main' && 'production' || 'preview' }}
