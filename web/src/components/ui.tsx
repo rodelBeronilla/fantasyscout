@@ -296,6 +296,8 @@ export function TagLegend() {
         <dd>Injury status: the league&apos;s official report for the next game, else ESPN&apos;s listing (hover for detail).</dd>
         <dt className="font-semibold">REST?</dt>
         <dd>The team has nothing left to play for late in the season: minutes are less certain.</dd>
+        <dt className="font-semibold">BLOWOUT?</dt>
+        <dd>A starter whose next game has a spread of 10 points or more: starters sit more of a lopsided game (hover for the minutes).</dd>
         <dt className="font-semibold">NEW</dt>
         <dd>On a new team this season.</dd>
         <dt className="font-semibold">BACK, NEWS, SURG, MIN LIM, ROLE, G LG, SEASON</dt>
@@ -393,6 +395,17 @@ export function RestRiskTag({ risk, stakes }: { risk: boolean | null | undefined
   return (
     <span className="rounded border border-warn px-1 text-[10px] font-semibold text-warn" title={why} data-testid="rest-risk">
       REST?
+    </span>
+  );
+}
+
+/** A starter whose next game is lopsided on the betting line (#486): a flag, not a change of value. */
+export function BlowoutTag({ risk }: { risk: { spread: number; minutes: number } | null }) {
+  if (!risk) return null;
+  const title = `Next game's spread is ${risk.spread} points: starters play about ${risk.minutes.toFixed(1)} fewer minutes in a game this lopsided (game context notebook)`;
+  return (
+    <span className="rounded border border-warn px-1 text-[10px] font-semibold text-warn" title={title} data-testid="blowout">
+      BLOWOUT?
     </span>
   );
 }

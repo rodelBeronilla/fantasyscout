@@ -2106,3 +2106,30 @@ test('streamers shows games played, and the player page sets recent z-scores bes
   await expect(windows.locator('tbody')).toContainText('Last 20');
   await expect(windows.locator('tbody')).toContainText('Last 10');
 });
+
+// A starter whose team's next game has a spread of 10 or more carries a flag; nobody else does (#486).
+test('streamers flags a starter whose next game is lopsided on the line', async ({ page }) => {
+  await page.route('**/schedule/nba*.json', async (route) => {
+    const games = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: games.map((g) => ({ ...g, home_spread: -14 })) });
+  });
+  await page.route('**/streamers/nba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r) => ({ ...r, lineup_role: 'starter' })) });
+  });
+  await page.goto('/streamers/?league=nba');
+  const table = page.getByTestId('trending');
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  const tags = table.getByTestId('blowout');
+  await expect(tags.first()).toBeVisible();
+  await expect(tags.first()).toHaveAttribute('title', /spread is 14 points: starters play about 2\.0 fewer minutes/);
+  // the same rows off the bench carry no flag
+  await page.unroute('**/streamers/nba.json');
+  await page.route('**/streamers/nba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r) => ({ ...r, lineup_role: 'bench' })) });
+  });
+  await page.reload();
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  await expect(table.getByTestId('blowout')).toHaveCount(0);
+});
