@@ -14,8 +14,12 @@ upload_source_maps = true
 directory = "../web/dist"
 binding = "ASSETS"
 not_found_handling = "404-page"
-# Always run the Worker so every response, including static files, carries the security headers.
-run_worker_first = true
+# The Worker runs only for what it serves itself: the data files, the player pages, sign-in and the
+# Yahoo import, and the players sitemap. The asset layer serves every other page and the bundles
+# on its own, with the security headers and the bundles' year-long cache from web/dist/_headers,
+# which scripts/csp-hashes.mjs writes from src/policy.ts (#442). A page view then costs a few
+# Worker requests instead of one per file.
+run_worker_first = ["/data/*", "/p/*", "/api/*", "/auth/*", "/sitemap-players.xml"]
 
 [[r2_buckets]]
 binding = "DATA"

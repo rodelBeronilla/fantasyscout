@@ -2,7 +2,8 @@
 // (web/dist must be built first) and an isolated R2 bucket per test.
 import { env, SELF } from 'cloudflare:test';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { contentRange, parseRange } from '../src/index';
+import { contentRange, parseRange, SECURITY_HEADERS } from '../src/index';
+import { DOCS_CSP, headersFile, IMMUTABLE, STATIC_HEADERS } from '../src/policy';
 import { ciReaderKey, sessionCookie } from '../src/owner';
 
 const ORIGIN = 'https://fantasyscout.example';
@@ -135,6 +136,45 @@ describe('routing', () => {
     const res = await SELF.fetch(`${ORIGIN}/`, { method: 'POST' });
     expect(res.status).toBe(405);
     expect(res.headers.get('allow')).toBe('GET, HEAD');
+  });
+});
+
+// The asset layer serves the pages and bundles without the Worker (#442): its _headers file must
+// give them exactly what the Worker gives the paths it serves.
+describe('the static-asset layer', () => {
+  it('serves a page with the same headers the Worker sets', async () => {
+    for (const path of ['/', '/streamers/', '/health/', '/nope/']) {
+      const res = await SELF.fetch(`${ORIGIN}${path}`);
+      expect(res.headers.get('content-security-policy'), path).toBe(SECURITY_HEADERS['content-security-policy']);
+      for (const [name, value] of Object.entries(STATIC_HEADERS)) expect(res.headers.get(name), `${path} ${name}`).toBe(value);
+    }
+  });
+
+  it('serves the content-hashed bundles for a year, and the pages for no time at all', async () => {
+    const html = await (await SELF.fetch(`${ORIGIN}/`)).text();
+    const bundle = html.match(/\/_astro\/[^"']+\.js/)?.[0];
+    expect(bundle).toBeTruthy();
+    const res = await SELF.fetch(`${ORIGIN}${bundle}`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe(IMMUTABLE);
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    expect((await SELF.fetch(`${ORIGIN}/`)).headers.get('cache-control') ?? '').not.toContain('immutable');
+  });
+
+  it('gives the docs their policy alone, not joined to the pages\' one', async () => {
+    // CI's build has no dbt docs (the deploy adds them), so this is the 404 page under /docs/: the
+    // rule follows the path either way.
+    for (const path of ['/docs/', '/docs/manifest.json']) {
+      expect((await SELF.fetch(`${ORIGIN}${path}`)).headers.get('content-security-policy'), path).toBe(DOCS_CSP);
+    }
+  });
+
+  it('writes a _headers file Cloudflare accepts', () => {
+    const file = headersFile({ scripts: ['sha256-a'], styles: ['sha256-b'] });
+    expect(file.split('\n').filter((l) => /^\S/.test(l) && !l.startsWith('#'))).toEqual(['/*', '/docs/*', '/_astro/*']);
+    expect(file).toContain("script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com 'sha256-a'");
+    const many = { scripts: Array.from({ length: 40 }, (_, i) => `sha256-${'x'.repeat(43)}${i}`), styles: [] };
+    expect(() => headersFile(many)).toThrow(/over Cloudflare's/);
   });
 });
 

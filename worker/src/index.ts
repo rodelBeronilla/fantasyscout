@@ -5,14 +5,18 @@
  *                                  the Parquet tables only for the signed-in owner (owner.ts, ADR 0008)
  *   /auth/owner/*, /api/owner/* -> the owner's sign-in, with the owner's Yahoo account (owner.ts)
  *   /auth/yahoo/*, /api/yahoo/* -> the Yahoo Fantasy league import (yahoo.ts)
- *   /*                          -> static files from the Astro build (assets binding)
+ *   /p/{league}/{id}/           -> the player page's shell, titled for the player
+ *   /sitemap-players.xml        -> the current build's players, for crawlers
  *
- * Every response carries the security headers below. Its secrets are the Yahoo app's client id
+ * Only those paths run the Worker (wrangler.toml run_worker_first); the static-asset layer serves
+ * every other page and bundle on its own, with the same security headers from web/dist/_headers
+ * (policy.ts, #442). Its secrets are the Yahoo app's client id
  * and secret, which sign the owner in (guarding the bulk Parquet tables) and serve the league import.
  */
 
 import cspHashes from './csp-hashes.json';
 import { handleOwner, isOwner, isPrivateData, type OwnerEnv } from './owner';
+import { DOCS_CSP, NOTEBOOK_CSP, pagePolicy, STATIC_HEADERS } from './policy';
 import { handleYahoo, type YahooEnv } from './yahoo';
 
 export interface Env extends YahooEnv, OwnerEnv {
@@ -50,49 +54,10 @@ function clientCache(key: string, isPrivate = false): string {
 /** Player pages are addressed by league and id but rendered by one page. */
 export const PLAYER_PATH = /^\/p\/(wnba|nba)\/[^/]+\/?$/;
 
-// Hashes of the small scripts and the one style rule Astro inlines into every page, collected
-// from the build by scripts/csp-hashes.mjs. Cloudflare's own analytics beacon is allowed too.
-const quoted = (hashes: string[]) => hashes.map((h) => `'${h}'`).join(' ');
-const CSP = [
-  "default-src 'self'",
-  `script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com ${quoted(cspHashes.scripts)}`.trim(),
-  `style-src 'self' ${quoted(cspHashes.styles)}`.trim(),
-  "img-src 'self' data: blob:",
-  "font-src 'self'",
-  // DuckDB-WASM fetches its Parquet reader as an extension from the DuckDB extension repository;
-  // Data Health reads the open data-incident issues from GitHub's public API (#418).
-  "connect-src 'self' blob: https://cloudflareinsights.com https://extensions.duckdb.org https://api.github.com",
-  "worker-src 'self' blob:",
-  'frame-src https://public.tableau.com',
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join('; ');
+// The policies and headers live in policy.ts, shared with the static-asset layer's _headers file (#442).
+const CSP = pagePolicy(cspHashes);
 
-// The generated dbt docs site is a single page of inline scripts and styles (an AngularJS app)
-// that reads manifest.json and catalog.json next to it. It gets its own policy under /docs/.
-const DOCS_CSP = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join('; ');
-
-export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
-  'content-security-policy': CSP,
-  'strict-transport-security': 'max-age=31536000; includeSubDomains',
-  'x-content-type-options': 'nosniff',
-  'x-frame-options': 'DENY',
-  'referrer-policy': 'strict-origin-when-cross-origin',
-  'permissions-policy': 'camera=(), microphone=(), geolocation=()',
-};
+export const SECURITY_HEADERS: Readonly<Record<string, string>> = { 'content-security-policy': CSP, ...STATIC_HEADERS };
 
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
   json: 'application/json; charset=utf-8',
@@ -106,16 +71,6 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
   html: 'text/html; charset=utf-8',
 };
 
-/** Rendered notebooks are static pages with inline styles and images; no script may run. */
-const NOTEBOOK_CSP = [
-  "default-src 'none'",
-  "style-src 'unsafe-inline'",
-  "img-src data:",
-  "font-src data:",
-  "frame-ancestors 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-].join('; ');
 const NOTEBOOK_PATH = /^\/data\/builds\/[^/]+\/notebooks\/[^/]+\.html$/;
 
 function withSecurityHeaders(response: Response, pathname = '/'): Response {
