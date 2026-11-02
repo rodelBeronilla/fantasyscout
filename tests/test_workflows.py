@@ -71,3 +71,25 @@ def test_every_schedule_comparison_names_a_declared_cron() -> None:
                 f"not one of {sorted(crons)}"
             )
     assert checked, "no workflow branches on its schedule; drop this test or the check moved"
+
+
+def test_the_secret_scan_catches_the_key_kinds_the_project_holds() -> None:
+    """The CI scan's pattern matches a PKCS#8 key and a service account's JSON key (#435)."""
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    pattern = re.search(r"pattern='([^']+)'", ci)
+    assert pattern
+    scan = re.compile(pattern.group(1))
+    begin = "-----BEGIN " + "PRIVATE KEY-----"  # split so this file does not match the scan itself
+    for fake in (
+        begin,
+        '"private_key": "' + begin,
+        "-----BEGIN RSA " + "PRIVATE KEY-----",
+        "AKIA" + "A" * 16,
+    ):
+        assert scan.search(fake), fake
+    assert not scan.search("a PRIVATE KEY is mentioned in prose")
+
+
+def test_no_workflow_passes_the_owner_id_as_a_plain_variable() -> None:
+    deploy = (ROOT / ".github" / "workflows" / "deploy-web.yml").read_text(encoding="utf-8")
+    assert "vars.OWNER_YAHOO_GUID" not in deploy

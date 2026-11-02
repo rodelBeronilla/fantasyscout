@@ -69,6 +69,10 @@ export const STATIC_HEADERS: Readonly<Record<string, string>> = {
   'x-frame-options': 'DENY',
   'referrer-policy': 'strict-origin-when-cross-origin',
   'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+  // No other site's window keeps a handle on ours, and no other site embeds our files (#435). The
+  // sign-ins are full-page redirects, not pop-ups, so the opener policy costs nothing.
+  'cross-origin-opener-policy': 'same-origin',
+  'cross-origin-resource-policy': 'same-origin',
 };
 
 /** Astro's bundles are named by their content hash, so a browser may keep each one for a year. */

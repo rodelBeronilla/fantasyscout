@@ -26,7 +26,7 @@ Option 3, the owner's choice.
 - **Credit.** Every page's footer credits NBA.com and WNBA.com for statistics and ESPN for schedules, rosters and injuries. It states that the site is free, non-commercial and unaffiliated with the leagues or ESPN.
 - **Private tables.** The Worker serves Parquet under `/data/` only to the owner (`worker/src/owner.ts`). The check runs on the decoded path, so an escaped name cannot get around it.
 - **Sign-in with the owner's Yahoo account.** No password exists to manage. The Yahoo app from ADR 0007 provides OAuth sign-in even while its Fantasy API access is pending.
-  - Yahoo's token response names the account (`xoauth_yahoo_guid`), and only `OWNER_YAHOO_GUID` (a repository variable) gets the owner's cookie: HMAC-signed, HttpOnly, Secure, SameSite=Lax, 30 days. No Yahoo token is kept.
+  - Yahoo's token response names the account (`xoauth_yahoo_guid`), and only `OWNER_YAHOO_GUID` (a repository variable; *since 2026-11-02 an Actions secret only, #435*) gets the owner's cookie: HMAC-signed, HttpOnly, Secure, SameSite=Lax, 30 days. No Yahoo token is kept.
   - Any other account is shown its own id, which is how the owner learns theirs the first time.
   - The sign-in shares the app's one registered redirect URI with the league import, and a state cookie marks the owner's sign-ins.
 - **CI's reader key.** CI cannot sign in to Yahoo, so it reads with a key derived from the Yahoo client secret it already holds: HMAC-SHA256(secret, "fantasyscout ci reader"). Rotating that secret rotates the key. Without the Yahoo credentials, no one is served.
