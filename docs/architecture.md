@@ -7,7 +7,7 @@ FantasyScout is three loosely coupled systems: ingestion in GitHub Actions, tran
             │                               │                     │
             └──────────────┬────────────────┴─────────────────────┘
                            ▼
-              GitHub Actions cron: ingest/  (Python, httpx, pydantic)
+   GitHub Actions: ingest/ (Python, httpx, pydantic), on a schedule and the home server's dispatch
                            │  raw JSON + sidecar, idempotent by SHA-256
                            ▼
         Unity Catalog volume  fantasyscout.raw.landing   (Databricks Free Edition)
@@ -38,7 +38,7 @@ FantasyScout is three loosely coupled systems: ingestion in GitHub Actions, tran
 | Layer | Choice | Where |
 | --- | --- | --- |
 | Ingestion | Python 3.12, `httpx`, `pydantic`; one module per source; CLI `fs-ingest` | `ingest/` |
-| Orchestration | GitHub Actions: cron for the ingest, and the build (dbt, gate, export, promotion) after every completed ingest; the Asset Bundle's Databricks job is the paused fallback, deployed on dispatch only (ADR 0013) | `.github/workflows/`, `bundles/` |
+| Orchestration | GitHub Actions: a schedule and the home server's dispatch (`infra/host/`) for the ingest, and the build (dbt, gate, export, promotion) after every completed ingest; the Asset Bundle's Databricks job is the paused fallback, deployed on dispatch only (ADR 0013) | `.github/workflows/`, `bundles/` |
 | Landing (bronze) | Raw JSON as received, pushed to a Unity Catalog volume through the Files API | `ingest/landing.py` defines the layout |
 | Warehouse | Databricks Free Edition: Delta, Unity Catalog, one 2X-Small SQL warehouse | `dbt/` |
 | Transform | dbt Core, `dbt-databricks` target plus a `dbt-duckdb` target for CI; one SQL body per model, adapter-dispatched macros hide the engine differences | `dbt/` |
@@ -46,7 +46,7 @@ FantasyScout is three loosely coupled systems: ingestion in GitHub Actions, tran
 | Serving | Nightly export of gold to Parquet and JSON on R2 | `export/` |
 | Web app | Astro static build, Tailwind, React islands where needed | `web/` |
 | Edge | Cloudflare Worker with the assets binding and an R2 binding, on a custom domain | `worker/` |
-| BI | Tableau Public, embedded | `dashboards/` |
+| BI | Tableau Public, embedded on `/dashboards/` | `tableau/` |
 | AI | Anthropic Messages API; drafts notes only, every claim re-checked against gold | `ai/` |
 
 ## Reconciliation
@@ -59,14 +59,14 @@ A passing gate publishes a data build to the `fantasyscout-data` bucket under `b
 
 ## Analysis surfaces
 
-Three doors onto the same gold tables (as the original brief, SPEC.md, asked): the site's pages and SQL console; the notebooks under `notebooks/`, which read the published build over HTTP (or the local DuckDB file, or the lakehouse) through one helper, execute in CI against the sample and against every published build after the export, and are rendered under the build at `/notebooks/`; and the League Pulse workbook on Tableau Public, built from a three-file extract (`tableau/extract.py`) that every build refreshes, publishes next to the data and pushes into a Google Sheet (`tableau/sheets.py`), the one source Tableau Public refreshes on its own; the single manual publish is documented in `tableau/README.md` and the result is embedded on `/dashboards/`. The generated dbt docs (lineage graph, model and column definitions) are produced at deploy time and served at `/docs/`.
+Three doors onto the same gold tables (as the original brief, SPEC.md, asked): the site's pages and SQL console; the notebooks under `notebooks/`, which read the published build over HTTP (or the local DuckDB file, or the lakehouse) through one helper, execute in CI against the sample and against every published build after the export, and are rendered under the build at `/notebooks/`; and the League Pulse workbook on Tableau Public, built from a three-file extract (`tableau/extract.py`) that every build refreshes, publishes next to the data and pushes into a Google Sheet (`tableau/sheets.py`), the one source Tableau Public refreshes on its own; the single manual publish is documented in `tableau/README.md` and the result is embedded on `/dashboards/`. The generated dbt docs (lineage graph, model and column definitions) are built in CI beside the site, shipped by the deploy with that same build, and served at `/docs/`.
 
 ## Trust boundaries
 
 - The Worker reads the static build and the R2 bucket. Its secrets are the Yahoo app's client id and secret, which sign the owner in to the private Parquet tables (ADR 0008) and serve the optional league import (ADR 0007); the manager's Yahoo tokens stay in an encrypted HttpOnly cookie and never reach the page.
 - Every page credits NBA.com and WNBA.com for statistics and ESPN for schedules, rosters and injuries (ADR 0008). Its CSP allows `'wasm-unsafe-eval'` for DuckDB-WASM and frames only `public.tableau.com`.
 - The export job is the only writer to R2 and runs only after the publish gate passes. `latest.json` flips last, so a half-uploaded build is never visible. The last seven builds stay for rollback.
-- Secrets live in GitHub Actions secrets only: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `ANTHROPIC_API_KEY`, and `YAHOO_CLIENT_ID` and `YAHOO_CLIENT_SECRET`, which the deploy copies into the Worker.
+- Secrets live in GitHub Actions secrets only, at the repository level or in the `lakehouse` environment: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, `DATABRICKS_CLIENT_ID` and `DATABRICKS_CLIENT_SECRET` (the ingest's service principal), `DATABRICKS_INGEST_TOKEN`, `ODDS_API_KEY`, `GOOGLE_SERVICE_ACCOUNT_JSON`, and `YAHOO_CLIENT_ID`, `YAHOO_CLIENT_SECRET` and `OWNER_YAHOO_GUID`, which the deploy copies into the Worker. The deploys run in the `preview` and `production` environments. Who reads each one and how to rotate it is the runbook's [secret inventory](runbook.md#secrets-inventory-and-rotation); phase 7's notes will add a model API key.
 - Raw payloads from the stats APIs are never redistributed; only derived gold tables are published.
 
 ## Hosting
@@ -104,4 +104,4 @@ The app has its own subdomain, `fantasyscout.beronilla.rodeo`, bound to the Work
 | 5. Serving + app | Done: every build published to R2 behind the Worker (ADR 0006), the Board, Streamers, Trade, player pages, Data Health, Pipeline and Schema pages, the owner's SQL console (ADR 0008) |
 | 6. Analysis surfaces | Done: seven notebooks rendered after every full build, the League Pulse Tableau workbook from the extract, the Yahoo league import behind its flag (ADR 0007) |
 | 7. AI notes | Planned: waits for the go-ahead and the API key (the `ai/` folder holds the skeleton) |
-| 8. Polish | In progress: the platform-hardening milestone (issues #241 to #296) |
+| 8. Polish | In progress: the milestones of the 2026-11-02 audit (correct data, operable and secure, fast and usable, documented, smarter for the manager); platform hardening (#241 to #296) done and released as v0.8.0 |

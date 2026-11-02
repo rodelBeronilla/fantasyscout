@@ -1,6 +1,6 @@
 # Project State — FantasyScout
 
-Last updated: 2026-11-01 (Platform hardening milestone done and released as v0.8.0; phase 7 still waits for the go-ahead)
+Last updated: 2026-11-02 (phase 8, polish, in progress on the 2026-11-02 audit's milestones; platform hardening done as v0.8.0; phase 7 still waits for the go-ahead). Phase status has one owner: the [phase table in docs/architecture.md](../docs/architecture.md#phase-status).
 
 ## Vision
 
