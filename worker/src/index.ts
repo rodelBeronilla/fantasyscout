@@ -206,7 +206,8 @@ async function serveCurrent(request: Request, env: Env, ctx: ExecutionContext, p
       return out;
     }
   }
-  const build = await currentBuild(env);
+  // The pointer read now: the file itself is what the edge keeps for a minute.
+  const build = await pointerBuild(env);
   if (!build) return text(404, 'Not Found');
   const res = await serveData(request, env, `builds/${build}/${path}`);
   const out = new Response(res.body, res);
@@ -216,20 +217,34 @@ async function serveCurrent(request: Request, env: Env, ctx: ExecutionContext, p
   return out;
 }
 
-async function currentBuild(env: Env): Promise<string | null> {
+/**
+ * The current build's id. The edge keeps it for a minute (#443), the staleness the pointer is
+ * served with anyway (ADR 0006), so a player page or the sitemap does not read latest.json from R2
+ * on every request.
+ */
+async function currentBuild(env: Env, origin: string, ctx: ExecutionContext): Promise<string | null> {
+  const key = new Request(`${origin}/__edge/current-build`);
+  const hit = await caches.default.match(key);
+  if (hit) return (await hit.text()) || null;
+  const build = await pointerBuild(env);
+  if (build) ctx.waitUntil(caches.default.put(key, new Response(build, { headers: { 'cache-control': 'public, max-age=60' } })));
+  return build;
+}
+
+/** The build latest.json names, read from R2 now. */
+async function pointerBuild(env: Env): Promise<string | null> {
   const latest = await env.DATA.get('latest.json');
   if (!latest) return null;
   try {
-    const pointer = (await latest.json()) as { build_id?: string };
-    return pointer.build_id ?? null;
+    return ((await latest.json()) as { build_id?: string }).build_id ?? null;
   } catch {
     return null;
   }
 }
 
 /** /sitemap-players.xml: every player file of the current build as a page URL; an hour's cache. */
-async function playersSitemap(env: Env, origin: string): Promise<Response> {
-  const build = await currentBuild(env);
+async function playersSitemap(env: Env, origin: string, ctx: ExecutionContext): Promise<Response> {
+  const build = await currentBuild(env, origin, ctx);
   const urls: string[] = [];
   if (build) {
     const prefix = `builds/${build}/players/`;
@@ -253,9 +268,9 @@ async function playersSitemap(env: Env, origin: string): Promise<Response> {
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 /** The player shell with the player's name, team and position in its title, description and Open Graph tags. */
-async function namePlayer(shell: Response, env: Env, url: URL): Promise<Response> {
+async function namePlayer(shell: Response, env: Env, url: URL, ctx: ExecutionContext): Promise<Response> {
   const m = /^\/p\/(wnba|nba)\/([^/]+)\/?$/.exec(url.pathname);
-  const build = m ? await currentBuild(env) : null;
+  const build = m ? await currentBuild(env, url.origin, ctx) : null;
   if (!m || !build) return shell;
   const file = await env.DATA.get(`builds/${build}/players/${m[1]}/${m[2]}.json`);
   if (!file) return shell;
@@ -292,6 +307,41 @@ async function namePlayer(shell: Response, env: Env, url: URL): Promise<Response
     .on('meta[property="og:url"]', attr('content', canonical))
     .on('link[rel="canonical"]', attr('href', canonical))
     .transform(shell);
+}
+
+/** How browsers may keep a player page: revalidate every time, like the shell it is made from. */
+const PAGE_CACHE = 'public, max-age=0, must-revalidate';
+
+/**
+ * A player page: the shell named for the player. The edge keeps each named page for a minute
+ * (#443), so a repeat view does not read R2 or rewrite the shell again. The page carries no ETag
+ * or Last-Modified: those were the shell's, shared by every player, so a browser revalidating
+ * with them got a 304 and kept an old title (#409). The shell is fetched unconditionally for the
+ * same reason.
+ */
+async function playerPage(request: Request, env: Env, ctx: ExecutionContext, url: URL): Promise<Response> {
+  const path = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
+  const key = new Request(`${url.origin}${path}`);
+  const hit = await caches.default.match(key);
+  if (hit) {
+    const out = new Response(hit.body, hit);
+    out.headers.set('cache-control', PAGE_CACHE);
+    return out;
+  }
+  const shell = await env.ASSETS.fetch(new Request(new URL('/p/', url), { headers: { accept: request.headers.get('accept') ?? 'text/html' } }));
+  const named = await namePlayer(shell, env, url, ctx);
+  const out = new Response(named.body, named);
+  out.headers.delete('etag');
+  out.headers.delete('last-modified');
+  out.headers.set('cache-control', PAGE_CACHE);
+  if (out.status === 200) {
+    const html = await out.text();
+    const stored = new Response(html, out);
+    stored.headers.set('cache-control', 'public, max-age=60');
+    ctx.waitUntil(caches.default.put(key, stored));
+    return new Response(html, out);
+  }
+  return out;
 }
 
 export default {
@@ -357,16 +407,14 @@ export default {
 
     // The players of the current build, one URL each, for crawlers (robots.txt names it).
     if (url.pathname === '/sitemap-players.xml') {
-      return withSecurityHeaders(await playersSitemap(env, url.origin), url.pathname);
+      return withSecurityHeaders(await playersSitemap(env, url.origin, ctx), url.pathname);
     }
 
     // One static page serves every player: /p/{league}/{player_id}/ -> /p/ (the island reads the URL).
     // The shell's title and description name the player, from the build's player file, so a
     // search result or a link preview says who the page is about before any script runs.
     if (PLAYER_PATH.test(url.pathname)) {
-      const page = new URL('/p/', url);
-      const shell = await env.ASSETS.fetch(new Request(page, request));
-      return withSecurityHeaders(await namePlayer(shell, env, url), url.pathname);
+      return withSecurityHeaders(await playerPage(request, env, ctx, url), url.pathname);
     }
 
     return withSecurityHeaders(await env.ASSETS.fetch(request), url.pathname);
