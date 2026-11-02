@@ -266,16 +266,16 @@ jobs:
       # profile simulates a slow 4G link with a 4x CPU slowdown, stricter than a plain 4G test.
       # A shared runner's CPU and network vary from run to run, so the page is measured three
       # times and the budget applies to the median.
-      - name: Lighthouse (mobile, simulated 4G, median of three; home under the budget, Streamers and Schema reported)
+      - name: Lighthouse (mobile, simulated 4G, median of three; home and Schema under the budget, Streamers reported)
         if: steps.touched.outputs.deploy == 'true'
         env:
           URL: ${{ env.BRANCH == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
         run: |
           set -euo pipefail
-          # The budget holds the home page. The Schema page is pre-rendered at 1.6 MB, and Streamers'
-          # largest paint is its data (the season note or the week's games), which follows the React
-          # runtime and a second wave of modules (#562, #563); both are measured and reported until
-          # they are brought under the budget, and then enforced.
+          # The budget holds the home page and the Schema page (one row per model since #449, the
+          # diagrams loaded as they come into view). Streamers' largest paint is its data (the season
+          # note or the week's games), which follows the React runtime and a second wave of modules
+          # (#562, #563); it is measured and reported until it is under the budget, then enforced.
           for page in home streamers schema; do
             case "$page" in home) path="/";; streamers) path="/streamers/";; schema) path="/schema/";; esac
             for i in 1 2 3; do
@@ -291,7 +291,7 @@ jobs:
               si: r.audits["speed-index"].numericValue,
             });
             let failed = false;
-            for (const [page, enforced] of [["home", true], ["streamers", false], ["schema", false]]) {
+            for (const [page, enforced] of [["home", true], ["streamers", false], ["schema", true]]) {
               const all = [1, 2, 3].map((i) => pick(require(`./lh-${page}-${i}.json`)));
               for (const m of all) console.log(`${page}: performance ${m.perf} | LCP ${Math.round(m.lcp)} ms | TTI ${Math.round(m.tti)} ms | speed index ${Math.round(m.si)} ms`);
               const lcp = all.map((m) => m.lcp).sort((a, b) => a - b)[1];

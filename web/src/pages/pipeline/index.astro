@@ -548,8 +548,8 @@ const deployLegend =
           from <code>preprod</code> reading the same bucket. The deploy ships the site and the dbt docs (at <code>/docs/</code>) that CI built and tested from the same commit,
           copies DuckDB-WASM into R2 (too large for static assets), deploys the Worker with the Yahoo credentials as secrets,
           runs a smoke test (the home page and its headers, a bundle's cache, the docs, the pointer and the Yahoo status route),
-          then Lighthouse three times on the home, Streamers and Schema pages: the home page's median LCP must stay under 2 s,
-          the other two are reported until they are under it, and a throttled phone reports when each page's first rows paint.
+          then Lighthouse three times on the home, Streamers and Schema pages: the home and Schema pages' median LCP must stay
+          under 2 s, Streamers' is reported until it is under it, and a throttled phone reports when each page's first rows paint.
         </p>
       </section>
     </div>
