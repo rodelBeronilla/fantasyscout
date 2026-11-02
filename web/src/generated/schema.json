@@ -10436,6 +10436,17 @@
        "type": "timestamp"
       },
       {
+       "description": "When the league published the report, as an instant (UTC); what gold publishes",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "published_at",
+       "tests": [
+        "not_null"
+       ],
+       "type": "timestamp with time zone"
+      },
+      {
        "description": "The game the listing is for",
        "meta": {},
        "name": "game_date",
@@ -10541,17 +10552,6 @@
        "name": "is_latest",
        "tests": [],
        "type": "boolean"
-      },
-      {
-       "description": "When the league published the report, as an instant (UTC); what gold publishes",
-       "meta": {
-        "tz": "UTC"
-       },
-       "name": "published_at",
-       "tests": [
-        "not_null"
-       ],
-       "type": ""
       }
      ],
      "description": "The leagues' official injury reports, typed: one row per player (or team not yet submitted) per game per report, with the league's newest report marked.",
@@ -17110,7 +17110,7 @@
        },
        "name": "report_at",
        "tests": [],
-       "type": "timestamp"
+       "type": "timestamp with time zone"
       },
       {
        "description": "True when the player played the listed game",
@@ -18122,7 +18122,7 @@
        },
        "name": "official_report_at",
        "tests": [],
-       "type": "timestamp"
+       "type": "timestamp with time zone"
       }
      ],
      "description": "Each player's current status: the league's official injury report for the next game it covers, else ESPN's injury listing. ESPN's own status stays alongside for the rest of the season.",
@@ -21317,7 +21317,7 @@
        },
        "name": "official_report_at",
        "tests": [],
-       "type": "timestamp"
+       "type": "timestamp with time zone"
       },
       {
        "description": "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role",
@@ -23317,7 +23317,7 @@
        },
        "name": "official_report_at",
        "tests": [],
-       "type": "timestamp"
+       "type": "timestamp with time zone"
       },
       {
        "description": "Flag of the newest flagged ESPN headline about the player in the last three days (fct_player_news): out_for_season, surgery, minutes_limit, return, injury, g_league or role",
