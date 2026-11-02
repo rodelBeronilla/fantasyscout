@@ -281,6 +281,15 @@ uv run python -m ops.watchdog --site https://fantasyscout.beronilla.rodeo
 
 A stale incident means no Build lakehouse run promoted a build in time, which the pipeline's own incidents may not say: a home runner that is offline leaves the stats job queued (nothing runs, nothing reports), a schedule GitHub stopped firing produces no run at all, and a cancelled build never reaches its report step. Check, in order: the latest Ingest and Build runs and their conclusions; the home runners (`infra/runner`, "runner shows offline"); whether the schedules fired at all (GitHub disables them after 60 days without a push, and runs them late on busy hours). Then run Ingest and Build by hand.
 
+## Home runner offline
+
+The stats jobs run only on the home runners, so when both are offline the daily ingest's stats jobs queue (for up to a day, until GitHub cancels them), `workflow_run` never fires the build, and the site ages toward the 30 h limit while nothing reports until the watchdog does. `infra/runner/check.sh` on the host opens the "Home runner offline" incident every half hour, but a host that is itself down (power, ISP) opens nothing; the watchdog's "Publish stale" is then the first sign. To keep the site fresh without the runner:
+
+1. **Run what does not need the runner.** Actions → Ingest → Run workflow with `source: espn`; when it finishes, again with `source: reports`. Each completed ingest triggers a build (the reports one a light build), so the ESPN box scores, lineups, injuries and the official reports stay current; only the league stats API's tables (play-by-play, shot charts, usage and tracking logs) wait.
+2. **If a stats job is already queued**, cancel that Ingest run from the Actions tab; otherwise it holds the `stats-<league>` concurrency group and is cancelled by GitHub after a day anyway, which opens "Ingest cancelled: no build ran". Step 1's builds close that incident.
+3. **Bring the runner back** with "Runner shows offline" in `infra/runner/README.md` (container stopped, unhealthy, or registration lost).
+4. **Land the missed days.** Ingest with `source: stats` and `since` set to the first missed game date (`until` defaults to today). The landing is idempotent per game, so a window that overlaps what landed costs only the skipped requests. The build that follows fills the stats tables; the reconciliation summary in its report shows the seasons back at their usual match rates.
+
 ## Backfill status
 
 `select source, league, season, count(*) runs, sum(landed) landed, sum(failures) failures from fantasyscout.ops.ingest_log group by 1,2,3 order by 1,2,3` shows what has landed. `assert_completeness` lists every final scheduled game still missing a box score or play-by-play; it stays red until the backfill finishes, which is the point.
