@@ -49,12 +49,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Any finished ingest or backfill builds what landed. A cancelled one too (#403): Ingest and
+  # Backfill share the stats concurrency groups, and GitHub cancels a pending job when a third
+  # queues, so a cancelled daily ingest may still have landed the ESPN feeds and the reports.
   dbt:
     name: dbt build on Databricks
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success' ||
-      github.event.workflow_run.conclusion == 'failure'
+      github.event.workflow_run.conclusion == 'failure' ||
+      github.event.workflow_run.conclusion == 'cancelled' ||
+      github.event.workflow_run.conclusion == 'timed_out'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     environment: lakehouse
@@ -263,13 +268,17 @@ jobs:
           token: ${{ github.token }}
 
   # An ingest that was cancelled or timed out (a self-hosted job queued until GitHub gave up on
-  # it, a stats job killed at its limit) used to trigger nothing: no build, no issue. It opens an
-  # incident instead; the next passing build closes it (the two close steps above).
+  # it, a stats job killed at its limit) still builds what landed (the dbt job above). When that
+  # build did not complete either, nothing ran: this opens an incident, and the next passing build
+  # closes it (the two close steps above). A build that ran and failed opens its own incident.
   cancelled-ingest:
     name: Note a cancelled or timed-out ingest
+    needs: dbt
     if: >-
+      always() &&
       github.event_name == 'workflow_run' &&
-      (github.event.workflow_run.conclusion == 'cancelled' || github.event.workflow_run.conclusion == 'timed_out')
+      (github.event.workflow_run.conclusion == 'cancelled' || github.event.workflow_run.conclusion == 'timed_out') &&
+      needs.dbt.result != 'success' && needs.dbt.result != 'failure'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
