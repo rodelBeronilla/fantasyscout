@@ -7,9 +7,10 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
-import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
+import { assign, draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, type Tier } from '../lib/league-value';
-import { DraftBar, LeagueBar } from './LeagueParts';
+import { suggestUpgrades, type Upgrade } from '../lib/roster-upgrades';
+import { DraftBar, LeagueBar, Upgrades } from './LeagueParts';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 
 interface BoardRow {
@@ -275,6 +276,43 @@ export default function Board() {
   const weakest = useMemo(
     () => (teamTotals ? Object.entries(teamTotals).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([c]) => c) : []),
     [teamTotals],
+  );
+
+  // Rest-of-season value under the league's scoring, the scale the Trade page uses, whatever view the board is on.
+  const restValue = useMemo(() => {
+    const out = new Map<string, number>();
+    for (const r of rows ?? []) {
+      let v = points
+        ? (leaguePoints?.get(r.player_id)?.value ?? 0)
+        : activeCats.reduce((s, c) => s + (leagueCats?.get(r.player_id)?.[c] ?? 0), 0);
+      // Only value above replacement counts games: a missed game from a player not worth rostering costs nothing.
+      if (v > 0) v *= r.games_share ?? 1;
+      if (v > 0 && !r.season_complete) v *= r.ros_factor ?? 1;
+      out.set(r.player_id, v);
+    }
+    return out;
+  }, [rows, points, leaguePoints, leagueCats, activeCats]);
+  // Available players worth more than one of the manager's: the swaps the manager can make.
+  const upgrades = useMemo<Upgrade[]>(() => {
+    if (!rows || myTeam.length === 0 || setup.drafting) return [];
+    const totals = setup.rosters.map((roster) =>
+      Object.fromEntries(
+        activeCats.map((c) => [c, roster.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + (leagueCats?.get(id)?.[c] ?? 0), 0)]),
+      ),
+    );
+    return suggestUpgrades({
+      mine: myTeam.map((r) => r.player_id),
+      available: rows.filter((r) => !owner.has(r.player_id)).map((r) => r.player_id),
+      rest: restValue,
+      cats: points ? [] : activeCats,
+      catValue: (id) => leagueCats?.get(id),
+      totals,
+      myTeam: setup.mine,
+    });
+  }, [rows, myTeam, setup, activeCats, leagueCats, owner, restValue, points]);
+  const applyUpgrade = useCallback(
+    (u: Upgrade) => updateLeague((s) => assign(assign(s, u.drop, null), u.add, s.mine)),
+    [updateLeague],
   );
 
   const scored = useMemo(() => {
@@ -603,6 +641,15 @@ export default function Board() {
       )}
 
       <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={view === 'value' ? weakest : []} />
+      {upgrades.length > 0 && (
+        <Upgrades
+          league={league}
+          list={upgrades}
+          nameOf={(id) => byId.get(id)?.full_name ?? id}
+          detailOf={(id) => [byId.get(id)?.position, byId.get(id)?.team_abbreviation].filter(Boolean).join(', ')}
+          onApply={applyUpgrade}
+        />
+      )}
       {setup.drafting && (
         <DraftBar
           setup={setup}

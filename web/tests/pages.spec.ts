@@ -812,6 +812,33 @@ test('rosters on the League page give the board who is available, owners, Fit an
   await expect(page.getByLabel(/Likely available/)).toHaveValue('-1');
 });
 
+test('with rosters set up, the board recommends roster upgrades from the available players and applies one', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  const rows = board.locator('tbody tr[data-player]');
+  await expect(rows.first()).toBeVisible();
+  // The best player on the board and one well down it: only the second can be upgraded.
+  const [best, weak] = await Promise.all([0, 40].map((i) => rows.nth(i).locator('a').first().innerText()));
+  await page.goto('/league/');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${best}\n${weak}`);
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  await page.goto('/');
+  const upgrades = page.getByTestId('upgrades');
+  await expect(upgrades).toBeVisible();
+  const first = upgrades.getByTestId('upgrade').first();
+  await expect(first).toContainText(`for ${weak}`);
+  await expect(first).toContainText('rest of season');
+  await first.getByRole('button', { name: 'Apply' }).click();
+  await expect(upgrades.getByTestId('upgrade').filter({ hasText: `for ${weak}` })).toHaveCount(0);
+  await page.getByRole('radio', { name: 'My team' }).click();
+  await expect(rows).toHaveCount(2);
+  await expect(board.locator('tbody')).not.toContainText(weak);
+  await expect(page.getByTestId('league-bar')).toContainText('Team 1 (2/');
+});
+
 test('a draft on the League page snakes pick by pick, here and on the board, with undo', async ({ page }) => {
   await page.goto('/league/');
   await page.getByLabel('Teams in the league').fill('4');
