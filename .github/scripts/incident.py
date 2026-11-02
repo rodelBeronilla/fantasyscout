@@ -17,34 +17,85 @@ import os
 import sys
 from collections.abc import Mapping
 from pathlib import Path
+from typing import NamedTuple
 
 import httpx
 
 DEFAULT_PRIORITY = "P1-high"
+# A step that fails after the promotion leaves the new data live: the site is right, a page of
+# analysis or the dashboard's source is late (#422).
+AFTER_PROMOTE = "P2-medium"
 
-# (title prefix, area label, runbook sections) in the order they are tried.
-ROUTES: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    ("Ingest", "area:ingest", ("Rerun a day", "Replay failed fetches")),
-    ("Backfill", "area:ingest", ("Backfill", "Replay failed fetches")),
-    ("Build", "area:lakehouse", ("Quality checks, results table and the publish gate",)),
-    ("Export", "area:ops", ("Export and rollback", "Warehouse refuses statements")),
-    ("Warehouse", "area:lakehouse", ("Warehouse refuses statements",)),
-    ("Publish", "area:ops", ("Publish SLA and the watchdog",)),
-    ("Notebook", "area:docs", ("Build the lakehouse by hand",)),
+
+# The route of an incident by its title's prefix, tried in order; the build's titles name their
+# first failed step, so the specific ones come before "Build".
+class Route(NamedTuple):
+    prefix: str
+    area: str
+    sections: tuple[str, ...]
+    priority: str = DEFAULT_PRIORITY
+
+
+ROUTES: tuple[Route, ...] = (
+    Route("Ingest", "area:ingest", ("Rerun a day", "Replay failed fetches")),
+    Route("Backfill", "area:ingest", ("Backfill", "Replay failed fetches")),
+    Route(
+        "Build failure: export", "area:ops", ("Export and rollback", "Warehouse refuses statements")
+    ),
+    Route("Build failure: promote", "area:ops", ("Export and rollback",)),
+    Route(
+        "Build failure: notebooks",
+        "area:docs",
+        ("Incident issues", "Build the lakehouse by hand"),
+        AFTER_PROMOTE,
+    ),
+    Route(
+        "Build failure: Tableau extract",
+        "area:ops",
+        ("Incident issues", "Build the lakehouse by hand"),
+        AFTER_PROMOTE,
+    ),
+    Route("Build failure: sheet push", "area:ops", ("Incident issues",), AFTER_PROMOTE),
+    Route("Build", "area:lakehouse", ("Quality checks, results table and the publish gate",)),
+    Route("Export", "area:ops", ("Export and rollback", "Warehouse refuses statements")),
+    Route("Warehouse", "area:lakehouse", ("Warehouse refuses statements",)),
+    Route("Publish", "area:ops", ("Publish SLA and the watchdog",)),
+    Route("Notebook", "area:docs", ("Build the lakehouse by hand",)),
 )
 FALLBACK = ("area:ops", ("Rerun a day",))
 
 
+def _match(title: str) -> Route | None:
+    return next((r for r in ROUTES if title.lower().startswith(r.prefix.lower())), None)
+
+
 def route(title: str) -> tuple[str, tuple[str, ...]]:
     """The area label and runbook sections for an incident with this title."""
-    for prefix, area, sections in ROUTES:
-        if title.lower().startswith(prefix.lower()):
-            return area, sections
-    return FALLBACK
+    found = _match(title)
+    return (found.area, found.sections) if found else FALLBACK
+
+
+def priority_of(title: str) -> str:
+    """The priority an incident with this title opens with: P1 unless its route says otherwise."""
+    found = _match(title)
+    return found.priority if found else DEFAULT_PRIORITY
 
 
 def labels(title: str, area: str | None = None, priority: str | None = None) -> list[str]:
-    return ["data-incident", priority or DEFAULT_PRIORITY, area or route(title)[0]]
+    return ["data-incident", priority or priority_of(title), area or route(title)[0]]
+
+
+def to_close(issues: list[dict[str, object]], title: str, prefix: str = "") -> list[int]:
+    """The open incidents a passing run closes: its own title, and every title with CLOSE_PREFIX.
+
+    A build's incident names the step that failed (#422), so the next passing build closes any
+    "Build failure: ..." it finds, not only one exact title.
+    """
+    return [
+        int(str(i["number"]))
+        for i in issues
+        if i["title"] == title or (prefix and str(i["title"]).startswith(prefix))
+    ]
 
 
 def runbook_hint(title: str) -> str:
@@ -119,11 +170,11 @@ def main() -> int:
     existing = next((i["number"] for i in open_issues.json() if i["title"] == title), None)
 
     if outcome == "success":
-        if existing is not None:
+        for number in to_close(open_issues.json(), title, os.environ.get("CLOSE_PREFIX", "")):
             body = f"Recovered: [run {run_id}]({run_url}) passed.\n\n{lead}```\n{tail}\n```"
-            client.post(f"/issues/{existing}/comments", json={"body": body}).raise_for_status()
-            client.patch(f"/issues/{existing}", json={"state": "closed"}).raise_for_status()
-            print(f"closed incident #{existing}")
+            client.post(f"/issues/{number}/comments", json={"body": body}).raise_for_status()
+            client.patch(f"/issues/{number}", json={"state": "closed"}).raise_for_status()
+            print(f"closed incident #{number}")
         return 0
 
     body = (
