@@ -24,7 +24,7 @@
    ]
   },
   {
-   "about": "Basketball arithmetic on every player-game that was played: PTS = 2*FGM + FG3M + FTM, FGM <= FGA, FG3M <= FGM, FG3A <= FGA, FTM <= FTA, REB = OREB + DREB.",
+   "about": "Basketball arithmetic on every player-game that was played: PTS = 2*FGM + FG3M + FTM, FGM <= FGA, FG3M <= FGM, FG3A <= FGA, FTM <= FTA, REB = OREB + DREB. A counting stat that is null on a played row fails too: a comparison with a null operand is never true, so without this a source that renamed or dropped a column would pass every arithmetic check while the board's values moved (#383).",
    "name": "assert_box_arithmetic",
    "reads": [
     "fct_player_game"
