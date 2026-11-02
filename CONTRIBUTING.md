@@ -50,8 +50,8 @@ dbt (DuckDB, no cloud; the sample under `dbt/sample/` is built from the fixtures
 
 ```bash
 cd dbt
-DBT_PROFILES_DIR=. uv run dbt build --target duckdb
-FS_LANDING_ROOT=/path/to/landing DBT_DUCKDB_PATH=/tmp/real.duckdb DBT_PROFILES_DIR=. uv run dbt build --target duckdb   # against real landed data
+DBT_PROFILES_DIR=. uv run dbt build --target duckdb --exclude tag:quality   # the sample is a shape fixture: the data checks (tag:quality) run on real data
+FS_LANDING_ROOT=/path/to/landing DBT_DUCKDB_PATH=/tmp/real.duckdb DBT_PROFILES_DIR=. uv run dbt build --target duckdb   # against real landed data, every check
 ```
 
 After changing a fixture, re-run `uv run python dbt/sample/build_sample.py` and commit the output; CI fails if the sample is stale.
