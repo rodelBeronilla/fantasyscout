@@ -42,3 +42,32 @@ def test_no_run_script_interpolates_an_expression() -> None:
                     f"{path.relative_to(ROOT).as_posix()}: {step.get('name', '(unnamed step)')}"
                 )
     assert not offenders, "move these into the step's env: " + "; ".join(offenders)
+
+
+SCHEDULE_CHECK = re.compile(r"github\.event\.schedule\s*==\s*'([^']+)'")
+
+
+def test_every_schedule_comparison_names_a_declared_cron() -> None:
+    """A step that branches on which schedule fired names a cron the workflow has (#577).
+
+    #506 moved the evening ingest from 23:00 to 22:41 and left the check for "the evening run"
+    comparing against the old string, so the evening run took the morning's path.
+    """
+    checked = 0
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        text = path.read_text(encoding="utf-8")
+        document = yaml.safe_load(text)
+        # PyYAML reads the bare key `on` as the boolean True.
+        triggers = document.get("on", document.get(True)) or {}
+        crons = (
+            {s["cron"] for s in (triggers.get("schedule") or [])}
+            if isinstance(triggers, dict)
+            else set()
+        )
+        for compared in SCHEDULE_CHECK.findall(text):
+            checked += 1
+            assert compared in crons, (
+                f"{path.name} compares github.event.schedule to {compared!r}, "
+                f"not one of {sorted(crons)}"
+            )
+    assert checked, "no workflow branches on its schedule; drop this test or the check moved"

@@ -68,7 +68,7 @@ jobs:
       - id: plan
         env:
           # The evening schedule runs the injury reports only.
-          SOURCE: ${{ (github.event.schedule == '0 23 * * *' && 'reports') || inputs.source || 'both' }}
+          SOURCE: ${{ (github.event.schedule == '41 22 * * *' && 'reports') || inputs.source || 'both' }}
           STATS_RUNNER_LABEL: ${{ vars.STATS_RUNNER_LABEL }}
         run: |
           echo "leagues=$LEAGUES" >> "$GITHUB_OUTPUT"
@@ -99,7 +99,7 @@ jobs:
       # reports gets a light build of the feeds' models and their consumers, not the whole graph.
       - name: Say what this run lands
         env:
-          SOURCE: ${{ (github.event.schedule == '0 23 * * *' && 'reports') || inputs.source || 'both' }}
+          SOURCE: ${{ (github.event.schedule == '41 22 * * *' && 'reports') || inputs.source || 'both' }}
         run: |
           mkdir -p ingest-plan
           printf '{"source": "%s", "leagues": %s}\n' "$SOURCE" "$LEAGUES" > ingest-plan/ingest-plan.json
