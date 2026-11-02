@@ -238,9 +238,17 @@ jobs:
             code=$(curl -s -o /dev/null -w '%{http_code}' "$URL$path")
             [ "$code" = "200" ] || { echo "::error::$path returned $code"; exit 1; }
           done
-          latest=$(curl -s -o /dev/null -w '%{http_code}' "$URL/data/latest.json")
-          # 404 is expected until the first data export (phase 5); anything else is a Worker fault.
-          [ "$latest" = "200" ] || [ "$latest" = "404" ] || { echo "::error::latest.json returned $latest"; exit 1; }
+          latest=$(curl -s -o latest.json -w '%{http_code}' "$URL/data/latest.json")
+          # Production has served a build since 2026-10-27, so on main anything but 200 with a
+          # build id is a Worker or bucket fault (#401). A preview may point at a bucket that has
+          # no build yet, where 404 is the right answer.
+          if [ "$BRANCH" = "main" ]; then
+            [ "$latest" = "200" ] || { echo "::error::latest.json returned $latest"; exit 1; }
+            python3 -c 'import json, sys; assert json.load(open("latest.json"))["build_id"]' \
+              || { echo "::error::latest.json has no build_id"; exit 1; }
+          else
+            [ "$latest" = "200" ] || [ "$latest" = "404" ] || { echo "::error::latest.json returned $latest"; exit 1; }
+          fi
           code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/yahoo/status")
           [ "$code" = "200" ] || { echo "::error::/api/yahoo/status returned $code"; exit 1; }
           echo "::notice::$URL/ is serving (latest.json: $latest)"
