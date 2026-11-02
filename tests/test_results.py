@@ -117,6 +117,35 @@ def test_gate_blocks_on_error_severity_failure(tmp_path: Path) -> None:
     assert gate.reason == "blocked by: assert_box_closure"
 
 
+def test_a_warn_check_that_errors_blocks_and_is_named(tmp_path: Path) -> None:
+    """#395: an errored check could not judge the data, so it blocks, and the reason says which."""
+    target = tmp_path / "errored"
+    write_artifacts(
+        target,
+        [
+            {"unique_id": "test.fantasyscout.assert_box_closure.1", "status": "pass"},
+            {"unique_id": "test.fantasyscout.warn_new_check.2", "status": "error"},
+        ],
+        {
+            "test.fantasyscout.assert_box_closure.1": {
+                "resource_type": "test",
+                "name": "assert_box_closure",
+                "config": {"severity": "error"},
+                "depends_on": {"nodes": []},
+            },
+            "test.fantasyscout.warn_new_check.2": {
+                "resource_type": "test",
+                "name": "warn_new_check",
+                "config": {"severity": "warn"},
+                "depends_on": {"nodes": []},
+            },
+        },
+    )
+    gate = decide(load_rows(target, engine="duckdb", git_sha="abc", run_at=RUN_AT))
+    assert not gate.passed
+    assert gate.reason == "blocked by: warn_new_check (errored)"
+
+
 def test_gate_blocks_on_chaos_and_names_it(tmp_path: Path) -> None:
     gate = decide(
         load_rows(artifacts(tmp_path, chaos=True), engine="duckdb", git_sha="abc", run_at=RUN_AT)

@@ -140,10 +140,14 @@ def decide(rows: list[ResultRow], selected: str | None = None) -> Gate:
     if passed:
         reason = f"all error-severity checks passed; {warn_failures} warn-severity check(s) flagged"
     else:
+        # A check that errored blocks whatever its severity (it could not say whether the data is
+        # sound), so it is named here too, marked as errored: a warn-severity check with a SQL
+        # mistake used to block the gate with an empty reason (#395).
         blocking = [
-            r.check_name
+            f"{r.check_name} (errored)" if r.status == "error" else r.check_name
             for r in rows
-            if (r.is_test and r.status in ("fail", "error") and r.severity == "error")
+            if (r.is_test and r.status == "error")
+            or (r.is_test and r.status == "fail" and r.severity == "error")
             or (not r.is_test and r.status == "error")
         ]
         reason = "blocked by: " + ", ".join(blocking[:10]) + (" ..." if len(blocking) > 10 else "")
