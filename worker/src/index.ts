@@ -252,8 +252,15 @@ async function pointerBuild(env: Env): Promise<string | null> {
   }
 }
 
-/** /sitemap-players.xml: every player file of the current build as a page URL; an hour's cache. */
+/**
+ * /sitemap-players.xml: every player file of the current build as a page URL; an hour's cache. The
+ * edge keeps it for that hour too (#444): building it lists the bucket (two pages of keys, about
+ * 1.5 s), and crawlers fetch sitemaps as often as they like.
+ */
 async function playersSitemap(env: Env, origin: string, ctx: ExecutionContext): Promise<Response> {
+  const key = new Request(`${origin}/sitemap-players.xml`);
+  const hit = await caches.default.match(key);
+  if (hit) return new Response(hit.body, hit);
   const build = await currentBuild(env, origin, ctx);
   const urls: string[] = [];
   if (build) {
@@ -269,10 +276,13 @@ async function playersSitemap(env: Env, origin: string, ctx: ExecutionContext): 
     } while (cursor);
   }
   const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`;
-  return new Response(body, {
+  const res = new Response(body, {
     status: 200,
     headers: { 'content-type': 'application/xml; charset=utf-8', 'cache-control': 'public, max-age=3600' },
   });
+  // Only a sitemap of a build is kept: before the first build there is nothing worth an hour.
+  if (build) ctx.waitUntil(caches.default.put(key, res.clone()));
+  return res;
 }
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
