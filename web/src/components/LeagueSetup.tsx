@@ -10,6 +10,7 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { assign, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
+import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
 import { href } from '../lib/site';
 import { CategoryProfile, DraftBar, LeagueSettingsForm } from './LeagueParts';
 import { Card, Loading, Problem, Td, Th } from './ui';
@@ -21,6 +22,10 @@ interface PlayerRow {
   position: string | null;
   team_abbreviation: string | null;
   games_share: number | null;
+  injury_group: string | null;
+  injury_status: string | null;
+  expected_games_missed: number | null;
+  expected_return: string | null;
   [key: string]: unknown;
 }
 
@@ -297,6 +302,65 @@ export default function LeagueSetup() {
     }
   };
 
+  // IL moves for the manager's team (#465): who should go on the injured list and who should come off it.
+  const byIdForIl = new Map((rows ?? []).map((r) => [r.player_id, r]));
+  const myRoster = setup.rosters[setup.mine] ?? [];
+  const moves = ilMoves(rows ?? [], myRoster, setup.il);
+  const ilName = (id: string) => byIdForIl.get(id)?.full_name ?? id;
+  const ilCard =
+    myRoster.length > 0 && (moves.toIl.length > 0 || moves.back.length > 0) ? (
+      <Card title="Injured-list moves" id="il-moves">
+        <p className="text-xs text-muted">
+          From the board's availability: a player expected to miss {IL_MIN_GAMES} or more games frees a roster spot on the IL; one no longer
+          listed comes back. The buttons move the player here; make the move in your league's app too.
+        </p>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          {moves.toIl.length > 0 && (
+            <div data-testid="il-candidates">
+              <h3 className="text-sm font-medium">To the IL</h3>
+              <ul className="mt-1 grid gap-1 text-sm">
+                {moves.toIl.map((id) => {
+                  const r = byIdForIl.get(id);
+                  return (
+                    <li key={id} className="flex flex-wrap items-center gap-2">
+                      <a href={href(`/p/${league}/${id}/`)} className="underline-offset-4 hover:underline">
+                        {ilName(id)}
+                      </a>
+                      <span className="text-muted">
+                        {r?.injury_status ?? 'listed'} · {(r?.expected_games_missed ?? 0).toFixed(1)} games expected
+                        {r?.expected_return ? ` · back ${r.expected_return}` : ''}
+                      </span>
+                      <button type="button" className={button} onClick={() => update((s) => toggleIl(s, id))} data-testid="il-move">
+                        Move to IL
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+          {moves.back.length > 0 && (
+            <div data-testid="il-back">
+              <h3 className="text-sm font-medium">Back from the IL</h3>
+              <ul className="mt-1 grid gap-1 text-sm">
+                {moves.back.map((id) => (
+                  <li key={id} className="flex flex-wrap items-center gap-2">
+                    <a href={href(`/p/${league}/${id}/`)} className="underline-offset-4 hover:underline">
+                      {ilName(id)}
+                    </a>
+                    <span className="text-muted">no longer listed</span>
+                    <button type="button" className={button} onClick={() => update((s) => toggleIl(s, id))} data-testid="il-move">
+                      Activate
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </Card>
+    ) : null;
+
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <datalist id="league-players">
@@ -316,6 +380,8 @@ export default function LeagueSetup() {
       </Card>
 
       {setup.drafting && draftCard}
+
+      {ilCard}
 
       <section className="grid gap-3" aria-labelledby="teams-h">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
