@@ -94,12 +94,16 @@ class R2Store:
         self._sleep = sleep
         self.requests = 0
         self._lock = threading.Lock()
+        # Whether the API takes a list of keys in one DELETE; the first refusal turns it off (#446).
+        self.bulk_delete = True
 
     def close(self) -> None:
         self._client.close()
 
-    def _send(self, method: str, key: str, **kwargs: object) -> httpx.Response:
-        url = self._base + key
+    def _send(
+        self, method: str, key: str, *, url: str | None = None, **kwargs: object
+    ) -> httpx.Response:
+        url = url or self._base + key
         for attempt in range(_RETRIES + 1):
             with self._lock:
                 self.requests += 1
@@ -143,6 +147,23 @@ class R2Store:
             msg = f"could not delete {key}: HTTP {response.status_code} {response.text[:200]}"
             raise RuntimeError(msg)
 
+    def delete_keys(self, keys: list[str]) -> bool:
+        """Delete up to 1,000 keys in one request; False when the API refuses the list.
+
+        Pruning a build is about 1,500 files, and one request per file under the API's 1,200
+        requests per five minutes took six minutes (#446). The objects endpoint takes a JSON list
+        of keys on DELETE. The first answer that is not success turns the list off for the run,
+        and the caller deletes those keys one request each, as before.
+        """
+        if not (self.bulk_delete and keys):
+            return False
+        response = self._send("DELETE", "", url=self._base.rstrip("/"), json=keys)
+        with contextlib.suppress(ValueError):
+            if response.status_code == 200 and response.json().get("success") is True:
+                return True
+        self.bulk_delete = False
+        return False
+
     def list(self, prefix: str) -> list[str]:
         """Every key that starts with ``prefix``, sorted, through the API's paged object listing."""
         keys: list[str] = []
@@ -172,9 +193,19 @@ def put_many(store: Store, items: Iterable[tuple[str, bytes]], *, workers: int =
     return count
 
 
+BULK_DELETE = 1000
+
+
 def delete_many(store: Store, keys: Iterable[str], *, workers: int = 8) -> int:
-    count = 0
+    """Delete every key: in lists of 1,000 where the store takes them, else several at a time."""
+    listed = list(keys)
+    bulk = getattr(store, "delete_keys", None)
+    done = 0
+    while bulk is not None and done < len(listed) and bulk(listed[done : done + BULK_DELETE]):
+        done += BULK_DELETE
+    rest = listed[done:]
+    count = len(listed) - len(rest)
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        for _ in pool.map(store.delete, keys):
+        for _ in pool.map(store.delete, rest):
             count += 1
     return count

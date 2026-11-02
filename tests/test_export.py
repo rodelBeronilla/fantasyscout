@@ -13,7 +13,7 @@ from export import build as build_mod
 from export import source as source_mod
 from export.encode import rows_of, sha256, to_json, to_parquet
 from export.source import DatabricksSource, DuckDBSource
-from export.store import LocalStore, R2Store, content_type_for
+from export.store import LocalStore, R2Store, content_type_for, delete_many
 
 DBT_DB = Path(__file__).resolve().parent.parent / "dbt" / "fantasyscout.duckdb"
 
@@ -242,6 +242,47 @@ def test_r2_store_lists_keys_across_pages() -> None:
     store = R2Store("acct", "token", transport=httpx.MockTransport(handler))
     assert store.list("builds/") == ["builds/b1/a.json", "builds/b2/b.json"]
     assert seen == ["", "c2"]
+
+
+def test_r2_store_deletes_a_thousand_keys_per_request() -> None:
+    """Pruning deletes in lists, not one request per file (#446)."""
+    lists: list[list[str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "DELETE"
+        assert request.url.path.endswith("/r2/buckets/fantasyscout-data/objects")
+        keys = json.loads(request.content)
+        lists.append(keys)
+        return httpx.Response(200, json={"success": True, "result": [{"key": k} for k in keys]})
+
+    store = R2Store("acct", "tok", transport=httpx.MockTransport(handler), sleep=0.0)
+    keys = [f"builds/b1/f{i}.json" for i in range(2500)]
+    assert delete_many(store, keys) == 2500
+    assert [len(x) for x in lists] == [1000, 1000, 500]
+    assert [k for x in lists for k in x] == keys
+    assert store.requests == 3
+
+
+def test_r2_store_falls_back_to_a_request_per_key_when_the_list_is_refused() -> None:
+    single: list[str] = []
+    refused = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal refused
+        if request.url.path.endswith("/objects"):
+            refused += 1
+            refusal = {"success": False, "errors": [{"message": "method not allowed"}]}
+            return httpx.Response(405, json=refusal)
+        single.append(request.url.path.rsplit("/objects/", 1)[1])
+        return httpx.Response(204)
+
+    store = R2Store("acct", "tok", transport=httpx.MockTransport(handler), sleep=0.0)
+    keys = [f"builds/b1/f{i}.json" for i in range(1500)]
+    assert delete_many(store, keys) == 1500
+    assert sorted(single) == sorted(keys)
+    # refused once, then never tried again in the run
+    assert refused == 1
+    assert store.bulk_delete is False
 
 
 def test_rollback_points_at_the_previous_build_and_prune_keeps_it(tmp_path: Path) -> None:
