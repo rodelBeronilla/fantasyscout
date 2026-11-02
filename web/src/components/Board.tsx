@@ -513,9 +513,16 @@ export default function Board() {
     }
     const held = ownerName(row.player_id);
     body.push(
-      <tr key={row.player_id} className={`border-t border-line ${held === 'Mine' ? 'bg-good/10' : held ? 'text-muted' : ''}`} data-player={row.player_id}>
-        <Td right>{i + 1}</Td>
-        <Td>
+      <tr
+        key={row.player_id}
+        className={`border-t border-line ${held === 'Mine' ? 'bg-good/10' : held ? 'text-muted' : ''}`}
+        data-player={row.player_id}
+        data-mine={held === 'Mine' ? '' : undefined}
+      >
+        <Td right pin="first">
+          {i + 1}
+        </Td>
+        <Td pin="second">
           <span className="flex items-center gap-1 whitespace-nowrap">
             {setup.drafting && !held && (
               <button
@@ -884,8 +891,8 @@ export default function Board() {
         <table className="w-full text-sm" data-testid="board">
           <thead className="bg-card">
             <tr>
-              <Th right>#</Th>
-              <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')}>
+              <Th right pin="first">#</Th>
+              <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')} pin="second">
                 Player
               </SortTh>
               <SortTh active={sortKey === 'team'} dir={sortDir} onClick={() => sortBy('team', 'asc')}>

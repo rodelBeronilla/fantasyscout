@@ -274,7 +274,7 @@ export default function TradeAnalyzer() {
     const w = worth.get(p.player_id);
     return (
       <tr key={p.player_id} className="border-t border-line">
-        <Td>
+        <Td pin="first">
           <span className="flex items-center gap-1 whitespace-nowrap">
             <a href={href(`/p/${league}/${p.player_id}/`)} className="underline-offset-4 hover:underline">
               {p.full_name ?? p.player_id}

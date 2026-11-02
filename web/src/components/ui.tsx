@@ -56,17 +56,21 @@ export function Card({ title, children, id }: { title: string; children: ReactNo
   );
 }
 
-export function Th({ children, right = false }: { children: ReactNode; right?: boolean }) {
+/** The sticky-column classes for a cell that names the row (#437): the first pinned cell, or the second beside a narrow first. */
+export const pinClass = (pin?: Pin) => (pin === 'first' ? 'pin' : pin === 'second' ? 'pin pin-second' : '');
+export type Pin = 'first' | 'second';
+
+export function Th({ children, right = false, pin }: { children: ReactNode; right?: boolean; pin?: Pin }) {
   return (
-    <th scope="col" className={`px-2 py-1.5 text-xs font-medium whitespace-nowrap text-muted ${right ? 'text-right' : 'text-left'}`}>
+    <th scope="col" className={`px-2 py-1.5 text-xs font-medium whitespace-nowrap text-muted ${right ? 'text-right' : 'text-left'} ${pinClass(pin)}`}>
       {children}
     </th>
   );
 }
 
-export function Td({ children, right = false, mono = false }: { children: ReactNode; right?: boolean; mono?: boolean }) {
+export function Td({ children, right = false, mono = false, pin }: { children: ReactNode; right?: boolean; mono?: boolean; pin?: Pin }) {
   return (
-    <td className={`px-2 py-1.5 whitespace-nowrap ${right ? 'text-right tabular-nums' : ''} ${mono ? 'font-mono text-xs' : ''}`}>
+    <td className={`px-2 py-1.5 whitespace-nowrap ${right ? 'text-right tabular-nums' : ''} ${mono ? 'font-mono text-xs' : ''} ${pinClass(pin)}`}>
       {children}
     </td>
   );
@@ -122,6 +126,7 @@ export function SortTh({
   dir,
   onClick,
   right = false,
+  pin,
   title,
 }: {
   children: ReactNode;
@@ -129,13 +134,14 @@ export function SortTh({
   dir: 'asc' | 'desc';
   onClick: () => void;
   right?: boolean;
+  pin?: Pin;
   title?: string;
 }) {
   return (
     <th
       scope="col"
       aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-      className={`px-2 py-1.5 text-xs font-medium whitespace-nowrap ${right ? 'text-right' : 'text-left'}`}
+      className={`px-2 py-1.5 text-xs font-medium whitespace-nowrap ${right ? 'text-right' : 'text-left'} ${pinClass(pin)}`}
     >
       <button
         type="button"

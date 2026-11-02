@@ -100,6 +100,25 @@ test('a chip shows where keyboard focus is', async ({ page }) => {
   expect(ring.width).not.toBe('0px');
 });
 
+test('on a phone the rank and player cells stay in view while the board scrolls sideways', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  const row = board.locator('tbody tr[data-player]').first();
+  await expect(row).toBeVisible();
+  const region = board.locator('xpath=ancestor::*[contains(@class, "table-scroll")]').first();
+  await region.evaluate((el) => {
+    el.scrollLeft = 500;
+  });
+  const regionBox = await region.boundingBox();
+  const playerBox = await row.locator('td').nth(1).boundingBox();
+  const rankBox = await row.locator('td').nth(0).boundingBox();
+  expect(regionBox && playerBox && rankBox).toBeTruthy();
+  expect(rankBox!.x).toBeGreaterThanOrEqual(regionBox!.x - 1);
+  expect(playerBox!.x).toBeGreaterThanOrEqual(regionBox!.x + rankBox!.width - 1);
+  expect(playerBox!.x).toBeLessThan(regionBox!.x + regionBox!.width / 2);
+});
+
 test('the board ranks players and links to player pages', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
