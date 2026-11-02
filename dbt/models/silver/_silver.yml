@@ -605,8 +605,8 @@ models:
       - name: event_key
         description: "Natural key: league and ESPN event id; one row per ESPN event"
         data_tests: [unique, not_null]
-      - name: event_date
-        description: "The UTC date of tip-off (an evening game in the US can fall on the next day)"
+      - name: event_date_utc
+        description: "The UTC date of tip-off (an evening game in the US can fall on the next day); the Eastern date is event_date_et where a model needs it"
         data_tests: [not_null]
       - name: event_datetime_utc
         meta: {tz: UTC}
@@ -661,7 +661,7 @@ models:
       - name: player_game_key
         description: "Natural key: league, ESPN event id and athlete id; one row per player per game"
         data_tests: [unique, not_null]
-      - name: event_date
+      - name: event_date_utc
         description: "The UTC date of tip-off, from the box score"
       - name: team_id
         description: "ESPN team id of the player's team"
@@ -1182,7 +1182,7 @@ models:
       - name: event_key
         description: "Natural key: league and ESPN event id; one row per event with a line"
         data_tests: [unique, not_null]
-      - name: event_date
+      - name: event_date_utc
         description: "The UTC date of tip-off, from silver.espn_events"
       - name: event_date_et
         description: "The game's date in US Eastern time, to match the league schedule"

@@ -38,7 +38,7 @@ typed as (
         l.season,
         l.event_id,
         l.league || ':' || l.event_id as event_key,
-        e.event_date,
+        e.event_date_utc,
         {{ utc_to_eastern_date('e.event_datetime_utc') }} as event_date_et,
         e.home_team_id as espn_home_team_id,
         e.away_team_id as espn_away_team_id,

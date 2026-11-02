@@ -302,7 +302,7 @@
  "conventions": [
   {
    "name": "dates",
-   "rule": "A `*_date` column (and `date_day`, `valid_from`, `valid_to`, `week_start`) is the Eastern game date: the day the league counts the game on, which is the day it is played in the US."
+   "rule": "A `*_date` column (and `date_day`, `valid_from`, `valid_to`, `week_start`) is the Eastern game date: the day the league counts the game on, which is the day it is played in the US. A UTC date says so (`*_date_utc`); bronze keeps a source's own field names, so ESPN's `event_date` there is the tip-off time as text."
   },
   {
    "name": "instants",
@@ -1358,7 +1358,7 @@
        "type": "varchar"
       },
       {
-       "description": "Tip-off time, ISO 8601 UTC",
+       "description": "Tip-off time as ESPN sends it, ISO 8601 UTC text (bronze keeps the source's field name; silver parses it into event_date_utc and event_datetime_utc)",
        "meta": {},
        "name": "event_date",
        "tests": [],
@@ -1827,7 +1827,7 @@
        "type": "varchar"
       },
       {
-       "description": "Tip-off time",
+       "description": "Tip-off time as ESPN sends it, ISO 8601 UTC text (bronze keeps the source's field name; silver parses it into event_date_utc)",
        "meta": {},
        "name": "event_date",
        "tests": [],
@@ -8534,9 +8534,9 @@
        "type": "varchar"
       },
       {
-       "description": "The UTC date of tip-off (an evening game in the US can fall on the next day)",
+       "description": "The UTC date of tip-off (an evening game in the US can fall on the next day); the Eastern date is event_date_et where a model needs it",
        "meta": {},
-       "name": "event_date",
+       "name": "event_date_utc",
        "tests": [
         "not_null"
        ],
@@ -8853,7 +8853,7 @@
       {
        "description": "The UTC date of tip-off, from the box score",
        "meta": {},
-       "name": "event_date",
+       "name": "event_date_utc",
        "tests": [],
        "type": "date"
       },
@@ -9655,7 +9655,7 @@
       {
        "description": "The UTC date of tip-off, from silver.espn_events",
        "meta": {},
-       "name": "event_date",
+       "name": "event_date_utc",
        "tests": [],
        "type": "date"
       },

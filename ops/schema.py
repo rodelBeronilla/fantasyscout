@@ -307,7 +307,8 @@ CONVENTIONS: tuple[dict[str, str], ...] = (
         "name": "dates",
         "rule": "A `*_date` column (and `date_day`, `valid_from`, `valid_to`, `week_start`) is the "
         "Eastern game date: the day the league counts the game on, which is the day it is "
-        "played in the US.",
+        "played in the US. A UTC date says so (`*_date_utc`); bronze keeps a source's own field "
+        "names, so ESPN's `event_date` there is the tip-off time as text.",
     },
     {
         "name": "instants",
