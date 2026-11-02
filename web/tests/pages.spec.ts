@@ -305,6 +305,36 @@ test('a points league sees fantasy points per game on Streamers, not category z-
   }
 });
 
+test('in season the sorted column is the first number a streamer sees, on a phone and a desktop', async ({ page }) => {
+  // The window columns exist only with games in the next seven days of the fixture's schedule.
+  let league: 'nba' | 'wnba' | null = null;
+  for (const candidate of ['nba', 'wnba'] as const) {
+    const games = (await (await page.request.get(`/data/builds/fixture/schedule/${candidate}.json`)).json()) as { days_ahead: number }[];
+    if (games.some((g) => g.days_ahead <= 6)) {
+      league = candidate;
+      break;
+    }
+  }
+  if (!league) {
+    test.skip(true, 'the fixture has no games in the next seven days');
+    return;
+  }
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/streamers/?league=${league}`);
+    const table = page.getByTestId('trending');
+    await expect(table.locator('tbody tr').first()).toBeVisible();
+    const sorted = table.locator('th[aria-sort="ascending"], th[aria-sort="descending"]');
+    await expect(sorted).toHaveCount(1);
+    await expect(sorted).toContainText('Window value');
+    // the second header: Player, then the window value, so a phone shows it beside the name
+    await expect(table.locator('thead th').nth(1)).toContainText('Window value');
+    const region = table.locator('xpath=ancestor::*[contains(@class, "table-scroll")]').first();
+    const [box, regionBox] = await Promise.all([sorted.boundingBox(), region.boundingBox()]);
+    expect(box && regionBox && box.x + box.width <= regionBox.x + regionBox.width + 1).toBeTruthy();
+  }
+});
+
 test('streamers can be filtered by position and re-sorted', async ({ page }) => {
   await page.goto('/streamers/');
   const rows = page.getByTestId('trending').locator('tbody tr');
