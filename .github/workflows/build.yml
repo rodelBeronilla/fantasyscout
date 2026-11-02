@@ -158,6 +158,28 @@ jobs:
           set -o pipefail
           uv run python -m ops.results --engine databricks --target-dir dbt/target --target-dir dbt/target/quality --selected "$SELECT" 2>&1 | tee -a land.log
 
+      # A warn check that warned in each of the last five builds opens "Build warnings that
+      # persist" at P2; a build without one closes it (#421).
+      - name: Warnings that persist across builds
+        id: chronic
+        if: always() && steps.gate.outcome == 'success'
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_ORIGIN: https://${{ env.DBT_DATABRICKS_HOST }}
+          DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
+        run: uv run python -m ops.chronic --engine databricks
+      - name: Report warnings that persist
+        if: always() && steps.chronic.outcome == 'success'
+        uses: ./.github/actions/incident
+        with:
+          title: "Build warnings that persist"
+          outcome: ${{ steps.chronic.outputs.checks == '' && 'success' || 'failure' }}
+          detail: ${{ steps.chronic.outputs.detail }}
+          area: area:quality
+          priority: P2-medium
+          log: chronic.log
+          token: ${{ github.token }}
+
       - name: Reconciliation summary (match and conflict rates per league and season)
         if: always() && steps.build.outcome != 'skipped'
         env:
