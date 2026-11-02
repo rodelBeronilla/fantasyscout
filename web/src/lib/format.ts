@@ -62,3 +62,13 @@ export const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const CATEGORIES = Object.keys(CATEGORY_LABELS);
+
+/** The season after this one: 2026 -> 2027, 2025-26 -> 2026-27. */
+export function nextSeason(season: string | null | undefined): string | null {
+  if (!season) return null;
+  const y = /^(\d{4})$/.exec(season);
+  if (y) return String(Number(y[1]) + 1);
+  const span = /^(\d{4})-(\d{2})$/.exec(season);
+  if (span) return `${Number(span[1]) + 1}-${String((Number(span[2]) + 1) % 100).padStart(2, '0')}`;
+  return null;
+}

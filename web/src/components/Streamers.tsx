@@ -842,7 +842,8 @@ export default function Streamers() {
         </Card>
       )}
 
-      {weeks.length > 0 && (
+      {/* Nothing is left to stream once the season is over (#450). */}
+      {weeks.length > 0 && !complete && (
         <Card title="Games per fantasy week, rest of season" id="weeks">
           <p className="mb-3 text-sm text-muted">
             Monday-to-Sunday weeks from this one to the last scheduled game, regular season and playoffs. A team with four games
