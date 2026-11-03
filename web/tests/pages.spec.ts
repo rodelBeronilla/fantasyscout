@@ -95,7 +95,7 @@ test('the sources page names every source with what is published from it, and th
 test('every page carries a canonical address without the query, Open Graph tags, and the site has robots and a sitemap', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
   await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', /\/streamers\/$/);
-  await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute('content', /Streamers · FantasyScout/);
+  await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute('content', /Pickups · FantasyScout/);
   await expect(page.locator('head meta[property="og:url"]')).toHaveAttribute('content', /\/streamers\/$/);
   await expect(page.locator('head meta[name="twitter:card"]')).toHaveAttribute('content', 'summary');
   const robots = await page.request.get('/robots.txt');
@@ -261,7 +261,10 @@ test('streamers shows the week grid and the candidates', async ({ page }) => {
   const season = await leagueInSeason(page);
   test.skip(!season, NO_SEASON);
   await page.goto(`/streamers/?league=${season!.league}`);
-  await expect(page.getByTestId('season-note')).toBeVisible();
+  // the pickups lead; the schedule is folded under them (#722)
+  await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
+  await expect(page.getByTestId('week-grid')).toBeHidden();
+  await page.getByTestId('schedule-card').locator('summary').click();
   const grid = page.getByTestId('week-grid');
   await expect(grid).toBeVisible();
   // The grid reads the fixture's schedule: the first game's home team, home ("v") or away ("@").
@@ -289,9 +292,11 @@ test('streamers can show any period: next week Monday to Friday, from the URL or
   const monday = shift(first, dow === 0 ? 1 : 8 - dow);
   const friday = shift(monday, 4);
   await page.goto(`/streamers/?league=${season!.league}&from=${monday}&to=${friday}`);
+  await page.getByTestId('schedule-card').locator('summary').click();
   const grid = page.getByTestId('week-grid');
   await expect(grid).toBeVisible();
-  await expect(page.locator('#schedule-h')).toContainText(/^Games from Mon, .* to Fri, /);
+  const summary = page.getByTestId('schedule-card').locator('summary');
+  await expect(summary).toContainText(/Games from Mon, .* to Fri, /);
   await expect(page.getByRole('radio', { name: 'Custom' })).toHaveAttribute('aria-checked', 'true');
   await expect(grid.locator('thead th')).toHaveCount(7); // Team, Games, five days
   await expect(page.getByTestId('open-days').getByRole('checkbox')).toHaveCount(5);
@@ -306,11 +311,11 @@ test('streamers can show any period: next week Monday to Friday, from the URL or
   await expect(page.getByTestId('trending').locator('thead')).toContainText('Period');
   // a preset window clears the period, and the shortcut brings it back
   await page.getByRole('radio', { name: '7 days' }).click();
-  await expect(page.locator('#schedule-h')).toHaveText('Games in the next 7 days');
+  await expect(summary).toContainText('games in the next 7 days');
   await expect(page).not.toHaveURL(/from=/);
   await page.getByRole('radio', { name: 'Custom' }).click();
   await page.getByRole('button', { name: 'Next week, Mon to Fri' }).click();
-  await expect(page.locator('#schedule-h')).toContainText(/^Games from Mon, .* to Fri, /);
+  await expect(summary).toContainText(/Games from Mon, .* to Fri, /);
   await expect(page).toHaveURL(new RegExp(`from=${monday}&to=${friday}`));
   await expect(page.getByLabel('Period start')).toHaveValue(monday);
 });
@@ -330,12 +335,16 @@ test('streamers shows games per fantasy week for the rest of the season when wee
     await route.fulfill({ json: rows.map((r) => ({ ...r, season_complete: false })) });
   });
   await page.goto('/streamers/');
-  await expect(page.getByTestId('season-note')).toBeVisible();
+  await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
   if (weeks.length === 0) {
     // The fixture season has no week ahead: the card stays away rather than showing an empty grid.
     await expect(page.getByTestId('weeks-grid')).toHaveCount(0);
     return;
   }
+  await page.getByTestId('schedule-card').locator('summary').click();
+  // with no game in the window, the weeks are the only grid; otherwise their tab
+  const tab = page.getByRole('radio', { name: 'Weeks to the end' });
+  if (await tab.count()) await tab.click();
   const grid = page.getByTestId('weeks-grid');
   await expect(grid).toBeVisible();
   const first = weeks[0];
@@ -441,11 +450,13 @@ test('streamers can be filtered by position and re-sorted', async ({ page }) => 
   const rows = page.getByTestId('trending').locator('tbody tr');
   await expect(rows.first()).toBeVisible();
   await page.getByLabel('Position C').check({ force: true });
-  const positions = await rows.locator('td:nth-child(3)').allInnerTexts();
+  const positions = await rows.getByTestId('team-pos').allInnerTexts();
   expect(positions.length).toBeGreaterThan(0);
-  expect(positions.every((p) => p.includes('C'))).toBe(true);
+  expect(positions.every((p) => (p.split(' · ')[0] ?? '').includes('C'))).toBe(true);
+  await page.getByLabel('More columns').check();
   await page.getByRole('button', { name: /^PTS/ }).click();
-  const pts = (await rows.locator('td:nth-child(10)').allInnerTexts()).map(Number);
+  const at = await page.getByTestId('trending').locator('thead th').evaluateAll((ths) => ths.findIndex((th) => (th.textContent ?? '').trim().startsWith('PTS (5)')));
+  const pts = (await rows.locator(`td:nth-child(${at + 1})`).allInnerTexts()).map(Number);
   expect(pts[0]).toBeGreaterThanOrEqual(pts[pts.length - 1] ?? 0);
 });
 
@@ -584,6 +595,8 @@ test('streamers with back-to-backs passes axe, best practices included, in both 
     await route.fulfill({ json: games.map((g) => ({ ...g, home_back_to_back: true, away_back_to_back: true })) });
   });
   await page.goto('/streamers/?league=nba');
+  await page.getByTestId('schedule-card').locator('summary').click();
+  await page.getByLabel('More columns').check();
   await expect(page.getByTestId('back-to-back').first()).toBeVisible();
   for (let i = 0; i < 2; i++) {
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'best-practice']).analyze();
@@ -961,6 +974,7 @@ test('streamers rank by the categories you need and leave out likely rostered pl
   await page.getByLabel('Need REB').check({ force: true });
   await expect(table.locator('thead')).toContainText('Need fit');
   await page.getByLabel(/Likely available/).selectOption('60');
+  await page.getByLabel('More columns').check();
   const after = await table.locator('tbody tr').count();
   expect(after).toBeLessThanOrEqual(all);
   const ranks = (await table.locator('tbody tr td:nth-last-child(2)').allInnerTexts()).filter((t) => t !== '–').map(Number);
@@ -973,6 +987,8 @@ for (const [path, testid] of [['/', 'board'], ['/streamers/', 'trending']]) {
   test(`sorting ${path} by another column keeps the table where it was scrolled`, async ({ page }) => {
     await page.goto(path);
     const table = page.getByTestId(testid);
+    // the wide table: the Pickups' extra columns (#722)
+    if (path === '/streamers/') await page.getByLabel('More columns').check();
     await expect(table.locator('tbody tr').nth(20)).toBeVisible();
     const region = page.locator('.table-scroll', { has: table });
     // A little to the right: the table is only a little wider than its region on a desktop, and
@@ -1005,7 +1021,7 @@ test('every page but the Board sits under a nav header, and the header opens on 
   const nav = page.getByRole('navigation', { name: 'Primary' });
   await expect(nav.getByRole('link', { name: 'Board' })).toHaveAttribute('href', '/');
   for (const [header, items] of [
-    ['tools', ['League', 'Streamers', 'Trade']],
+    ['tools', ['League', 'Pickups', 'Trade', 'Draft']],
     ['analysis', ['Notebooks', 'Dashboards']],
     ['platform', ['Data Health', 'Pipeline', 'Schema', 'Docs (opens in a new tab)', 'SQL console (owner only)']],
   ] as const) {
@@ -1795,6 +1811,8 @@ test('streamers show the points the betting lines imply, in the grid and per pla
     await route.fulfill({ json: lined });
   });
   await page.goto(`/streamers/?league=${season!.league}`);
+  await page.getByTestId('schedule-card').locator('summary').click();
+  await page.getByLabel('More columns').check();
   const grid = page.getByTestId('week-grid');
   await expect(grid.getByTestId('implied-points').first()).toHaveText(/^(82|78) pts$/);
   const team = season!.games[0].home_team_tricode;
@@ -2454,6 +2472,7 @@ test('every Streamers column says what it holds, and the box-score columns are t
   await page.goto('/streamers/?league=nba');
   const table = page.getByTestId('trending');
   await expect(table.locator('tbody tr').first()).toBeVisible();
+  await page.getByLabel('More columns').check();
   const untitled = await table.locator('thead th').evaluateAll((ths) =>
     ths.filter((th) => !th.hasAttribute('title') && !th.querySelector('[title]')).map((th) => th.textContent?.trim()),
   );
@@ -2461,7 +2480,7 @@ test('every Streamers column says what it holds, and the box-score columns are t
   await expect(table.locator('thead')).toContainText('PTS (5)');
   await expect(table.getByRole('button', { name: 'PTS (5)' })).toHaveAttribute('title', 'Points per game, last five games');
   // the intro describes the same baseline the columns use
-  await expect(page.locator('main > section > p').first()).toContainText('the games before them blended with last season');
+  await expect(page.locator('main > section > p').first()).toContainText("each player's baseline");
   await expect(page.locator('main')).not.toContainText('twenty-game');
 });
 
@@ -2546,6 +2565,7 @@ test('streamers shows games played, and the player page sets recent z-scores bes
   await page.goto('/streamers/?league=nba');
   const table = page.getByTestId('trending');
   await expect(table.locator('tbody tr').first()).toBeVisible();
+  await page.getByLabel('More columns').check();
   await expect(table.getByRole('button', { name: 'GP', exact: true })).toHaveAttribute('title', /Games played this season/);
   await page.goto('/p/wnba/1628932/');
   const windows = page.getByTestId('category-windows');

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
 import { withRankTotal } from '../lib/streamer-rows';
+import { movesRotation } from '../lib/rotation-moves';
 import { fetchCurrentJson, fetchPageRows, getLatest, type League } from '../lib/data';
 import { useWarmUp } from '../lib/warm';
 import { blowout, nextGames } from '../lib/blowout';
@@ -13,7 +14,7 @@ import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { keptCategories, owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
-import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, lineupDay, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag } from './ui';
+import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, lineupDay, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag } from './ui';
 import type { StreamerColumn, ExportedRow } from '../generated/columns';
 
 interface StreamerRowFields {
@@ -163,15 +164,16 @@ const MOVE_LABEL: Record<string, string> = {
   other: 'Other',
 };
 
-/** The league's moves of the last two weeks: who just got signed, waived, traded or sent down. */
-function RecentMoves({ moves, league, start }: { moves: Move[]; league: League; start: string }) {
+/** The league's moves of the last two weeks that open or close minutes: ten at most. */
+function RecentMoves({ moves, league, start, minutes }: { moves: Move[]; league: League; start: string; minutes: (id: string) => number | null }) {
   const since = addDays(start, -14);
-  const recent = moves.filter((m) => m.transaction_date >= since).slice(0, 30);
+  const recent = moves.filter((m) => m.transaction_date >= since && movesRotation(m, minutes)).slice(0, 10);
   if (!recent.length) return null;
   return (
-    <Card title="Recent moves" id="moves">
+    <Card title="Moves that change a rotation" id="moves">
       <p className="mb-2 text-xs text-muted">
-        Signings, waivers, trades{league === 'nba' ? ' and G League moves' : ''} of the last two weeks: a new role on a new team, or minutes opening up behind a player who left.
+        Trades, standard signings, and players with real minutes waived or suspended, in the last two weeks: a new role on a new team, or minutes opening up
+        behind a player who left.
       </p>
       <ul className="grid gap-1 text-sm" data-testid="recent-moves">
         {recent.map((m) => (
@@ -505,8 +507,13 @@ function part(r: StreamerRow, key: string): number {
 }
 
 export default function Streamers() {
+  // the box-score and identity columns, and which schedule grid shows (#722)
+  const [moreCols, setMoreCols] = useState(false);
+  const [scheduleView, setScheduleView] = useState<'window' | 'weeks'>('window');
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<StreamerRow[] | null>(null);
+  // each player's minutes before the last five games: whether a waiver opens a rotation spot (#722)
+  const minutesOf = useMemo(() => new Map((rows ?? []).map((r) => [r.player_id, r.minutes_baseline ?? null])), [rows]);
   const [games, setGames] = useState<Game[]>([]);
   // The schedule file failed to load: the page must not read that as "no games ahead" (#440).
   const [scheduleError, setScheduleError] = useState<unknown>(null);
@@ -758,6 +765,10 @@ export default function Streamers() {
   };
   const select = 'rounded border border-line bg-card px-2 py-1';
 
+  // the weeks to the end of the season, while any are left; the only grid when the window has no games (#450, #722)
+  const weeksLeft = weeks.length > 0 && !complete;
+  const shownSchedule = !inWeek ? 'weeks' : !weeksLeft ? 'window' : scheduleView;
+
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       {scheduleError ? (
@@ -776,110 +787,91 @@ export default function Streamers() {
           No {LEAGUE_LABEL[league]} regular-season games in the next seven days. The list below is who finished the {season} season strongly: their last five
           games against their baseline, the rest of the season blended with the one before.
         </Note>
-      ) : (
-        <Note testid="season-note">
-          The {LEAGUE_LABEL[league]} schedule ahead, and players whose last five games beat their baseline: their earlier {season}{' '}
-          games, blended with last season, which is all there is early on. Pick the days you have open lineup spots and the
-          categories you need; a team with more games, or a game on a light day, is worth more to a streamer.
-        </Note>
-      )}
-
-      {inWeek && (
-        <Card title={periodTitle ?? (horizonChoice === 'week' ? 'Games left this fantasy week' : `Games in the next ${horizon} days`)} id="schedule">
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Window">
-              {[...HORIZONS, 'week' as const].map((h) => (
-                <button
-                  key={h}
-                  type="button"
-                  role="radio"
-                  aria-checked={!period && horizonChoice === h}
-                  onClick={() => {
-                    setHorizonChoice(h);
-                    pickPeriod(null);
-                  }}
-                  title={h === 'week' ? 'The rest of the fantasy week, to Sunday' : undefined}
-                  className={`rounded-full border px-3 py-1 text-sm ${!period && horizonChoice === h ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
-                >
-                  {h === 'week' ? `This week (${weekDays} ${weekDays === 1 ? 'day' : 'days'})` : `${h} days`}
-                </button>
-              ))}
-              <button
-                type="button"
-                role="radio"
-                aria-checked={!!period}
-                onClick={() => pickPeriod(period ?? { from: nextMonday(start), to: addDays(nextMonday(start), 6) })}
-                title="Any start and end day: next week, say, or Monday to Friday"
-                className={`rounded-full border px-3 py-1 text-sm ${period ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
-              >
-                Custom
-              </button>
-            </div>
-            {period && (
-              <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="period">
-                <label className="flex items-center gap-1">
-                  <span className="text-muted">From</span>
-                  <input
-                    type="date"
-                    value={period.from}
-                    min={start || undefined}
-                    max={lastScheduled || undefined}
-                    onChange={(e) => pickPeriod({ from: e.target.value, to: period.to })}
-                    aria-label="Period start"
-                    className="rounded border border-line bg-bg px-2 py-1"
-                  />
-                </label>
-                <label className="flex items-center gap-1">
-                  <span className="text-muted">To</span>
-                  <input
-                    type="date"
-                    value={period.to}
-                    min={period.from}
-                    max={lastScheduled || undefined}
-                    onChange={(e) => pickPeriod({ from: period.from, to: e.target.value })}
-                    aria-label="Period end"
-                    className="rounded border border-line bg-bg px-2 py-1"
-                  />
-                </label>
-                <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 6) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
-                  Next week
-                </button>
-                <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 4) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
-                  Next week, Mon to Fri
-                </button>
-                {lastScheduled && period.to > lastScheduled && (
-                  <span className="text-xs text-muted" data-testid="period-note">
-                    The schedule is published through {dayLabel(lastScheduled)}; later days show no games yet.
-                  </span>
-                )}
-              </div>
-            )}
-            <fieldset className="flex flex-wrap items-center gap-1" data-testid="open-days">
-              <legend className="sr-only">Open lineup days</legend>
-              <span className="mr-1 text-xs text-muted">Open days:</span>
-              {days.map((d) => (
-                <Chip key={d} label={`Open on ${d}`} checked={pickedDays.has(d)} onChange={() => setPickedDays(toggle(pickedDays, d))}>
-                  {weekday(d)} {d.slice(8)}
-                </Chip>
-              ))}
-            </fieldset>
-          </div>
-          <WeekGrid games={games} teams={teams} days={days} picked={pickedDays} />
-        </Card>
-      )}
-
-      {/* Nothing is left to stream once the season is over (#450). */}
-      {weeks.length > 0 && !complete && (
-        <Card title="Games per fantasy week, rest of season" id="weeks">
-          <p className="mb-3 text-sm text-muted">
-            Monday-to-Sunday weeks from this one to the last scheduled game, regular season and playoffs. A team with four games
-            is worth a streaming spot that week; two is a week to look elsewhere. &ldquo;+1&rdquo; is an if-necessary playoff game.
-          </p>
-          <WeeksGrid weeks={weeks} />
-        </Card>
-      )}
+      ) : null}
 
       <Card title={scheduleError ? 'Trending up' : complete || !inWeek ? 'Finished strong' : 'Best pickups this window'} id="trending">
+        {inWeek && (
+          <div data-testid="window-controls">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Window">
+                {[...HORIZONS, 'week' as const].map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    role="radio"
+                    aria-checked={!period && horizonChoice === h}
+                    onClick={() => {
+                      setHorizonChoice(h);
+                      pickPeriod(null);
+                    }}
+                    title={h === 'week' ? 'The rest of the fantasy week, to Sunday' : undefined}
+                    className={`rounded-full border px-3 py-1 text-sm ${!period && horizonChoice === h ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
+                  >
+                    {h === 'week' ? `This week (${weekDays} ${weekDays === 1 ? 'day' : 'days'})` : `${h} days`}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!!period}
+                  onClick={() => pickPeriod(period ?? { from: nextMonday(start), to: addDays(nextMonday(start), 6) })}
+                  title="Any start and end day: next week, say, or Monday to Friday"
+                  className={`rounded-full border px-3 py-1 text-sm ${period ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
+                >
+                  Custom
+                </button>
+              </div>
+              {period && (
+                <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="period">
+                  <label className="flex items-center gap-1">
+                    <span className="text-muted">From</span>
+                    <input
+                      type="date"
+                      value={period.from}
+                      min={start || undefined}
+                      max={lastScheduled || undefined}
+                      onChange={(e) => pickPeriod({ from: e.target.value, to: period.to })}
+                      aria-label="Period start"
+                      className="rounded border border-line bg-bg px-2 py-1"
+                    />
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <span className="text-muted">To</span>
+                    <input
+                      type="date"
+                      value={period.to}
+                      min={period.from}
+                      max={lastScheduled || undefined}
+                      onChange={(e) => pickPeriod({ from: period.from, to: e.target.value })}
+                      aria-label="Period end"
+                      className="rounded border border-line bg-bg px-2 py-1"
+                    />
+                  </label>
+                  <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 6) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
+                    Next week
+                  </button>
+                  <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 4) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
+                    Next week, Mon to Fri
+                  </button>
+                  {lastScheduled && period.to > lastScheduled && (
+                    <span className="text-xs text-muted" data-testid="period-note">
+                      The schedule is published through {dayLabel(lastScheduled)}; later days show no games yet.
+                    </span>
+                  )}
+                </div>
+              )}
+              <fieldset className="flex flex-wrap items-center gap-1" data-testid="open-days">
+                <legend className="sr-only">Open lineup days</legend>
+                <span className="mr-1 text-xs text-muted">Open days:</span>
+                {days.map((d) => (
+                  <Chip key={d} label={`Open on ${d}`} checked={pickedDays.has(d)} onChange={() => setPickedDays(toggle(pickedDays, d))}>
+                    {weekday(d)} {d.slice(8)}
+                  </Chip>
+                ))}
+              </fieldset>
+            </div>
+          </div>
+        )}
         <div className="mb-3 grid gap-3">
           <fieldset className="flex flex-wrap items-center gap-1" data-testid="needs">
             <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Categories you need (rank by last-ten value in them)</legend>
@@ -969,6 +961,10 @@ export default function Streamers() {
                 {hasHeat ? 'Being added on Sleeper' : 'Rising in ESPN leagues'}
               </label>
             )}
+            <label className="flex items-center gap-2 text-sm" title="Team, games played, minutes, the last five games' box score, the board rank and the last game">
+              <input type="checkbox" checked={moreCols} onChange={(e) => setMoreCols(e.target.checked)} />
+              More columns
+            </label>
             <span className="text-sm text-muted">{list.length} players</span>
             <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="streamers-csv">
               Export CSV
@@ -986,18 +982,12 @@ export default function Streamers() {
                 {inWeek && col('window_value', 'Window value', 'What the player adds to the window: last-ten production per game (counting stats and shooting above the pool, turnovers subtracted) times games in the window, plus each game’s matchup. The default sort: it finds the week’s best pickups most often (streamer signals notebook)')}
                 {inWeek && col('games_window', period ? 'Period' : `Next ${horizon}`, period ? `Team games from ${dayLabel(period.from)} to ${dayLabel(period.to)}` : `Team games in the next ${horizon} days`)}
                 {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
-                {inWeek && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
-                <Th>
-                  <span title="The player's team, with the team the player left when the move is recent">Team</span>
-                </Th>
-                <Th>
-                  <span title="The positions the player is listed at">Pos</span>
-                </Th>
-                {col('games_season', 'GP', 'Games played this season: a short sample makes the trends below less sure (#463)')}
-                {col('minutes_avg_5', 'Min (5)', 'Minutes per game, last five games')}
-                {col('minutes_baseline', 'Min (base)', 'Minutes per game before the last five games, blended with last season')}
+                {inWeek && moreCols && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
+                {moreCols && col('games_season', 'GP', 'Games played this season: a short sample makes the trends below less sure (#463)')}
+                {moreCols && col('minutes_avg_5', 'Min (5)', 'Minutes per game, last five games')}
+                {moreCols && col('minutes_baseline', 'Min (base)', 'Minutes per game before the last five games, blended with last season')}
                 {col('minutes_trend', 'Min trend', 'Last five games minus the baseline')}
-                {col(
+                {(moreCols || !inWeek) && col(
                   'value_10',
                   points ? 'FPts (10)' : 'Value (10)',
                   points
@@ -1007,16 +997,16 @@ export default function Streamers() {
                       : 'Total category z-score over the last ten games',
                 )}
                 {col('value_trend', 'Value trend', 'Last-ten value minus the baseline (this season blended with last)')}
-                {/* The box-score columns are the last five games, like Min (5) (#456). */}
-                {col('points_avg_5', 'PTS (5)', 'Points per game, last five games')}
-                {col('rebounds_total_avg_5', 'REB (5)', 'Rebounds per game, last five games')}
-                {col('assists_avg_5', 'AST (5)', 'Assists per game, last five games')}
-                {col('steals_avg_5', 'STL (5)', 'Steals per game, last five games')}
-                {col('blocks_avg_5', 'BLK (5)', 'Blocks per game, last five games')}
-                {col('three_pointers_made_avg_5', '3PM (5)', 'Three-pointers made per game, last five games')}
-                {col('field_goal_pct_5', 'FG% (5)', 'Field-goal percentage over the last five games')}
-                {col('free_throw_pct_5', 'FT% (5)', 'Free-throw percentage over the last five games')}
-                {col('turnovers_avg_5', 'TO (5)', 'Turnovers per game, last five games')}
+                {/* The box-score columns are the last five games, like Min (5) (#456); behind More columns (#722). */}
+                {moreCols && col('points_avg_5', 'PTS (5)', 'Points per game, last five games')}
+                {moreCols && col('rebounds_total_avg_5', 'REB (5)', 'Rebounds per game, last five games')}
+                {moreCols && col('assists_avg_5', 'AST (5)', 'Assists per game, last five games')}
+                {moreCols && col('steals_avg_5', 'STL (5)', 'Steals per game, last five games')}
+                {moreCols && col('blocks_avg_5', 'BLK (5)', 'Blocks per game, last five games')}
+                {moreCols && col('three_pointers_made_avg_5', '3PM (5)', 'Three-pointers made per game, last five games')}
+                {moreCols && col('field_goal_pct_5', 'FG% (5)', 'Field-goal percentage over the last five games')}
+                {moreCols && col('free_throw_pct_5', 'FT% (5)', 'Free-throw percentage over the last five games')}
+                {moreCols && col('turnovers_avg_5', 'TO (5)', 'Turnovers per game, last five games')}
                 {needs.size > 0 && col('fit', 'Need fit', 'Last-ten z-score summed over the categories you need')}
                 {pickedDays.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
                 {hasTrend && (
@@ -1025,10 +1015,12 @@ export default function Streamers() {
                   </Th>
                 )}
                 {hasHeat && col('sleeper_net', 'Sleeper', 'Sleeper leagues that added the player minus those that dropped the player, last 24 hours (from Sleeper)')}
-                {col('rank_total', 'Board #', 'Rank on the board with the default league settings (12 teams of 13 in the NBA, 10 of 10 in the WNBA); inside a league-sized pool usually means rostered')}
-                <Th>
-                  <span title="The date of the player's most recent game">Last game</span>
-                </Th>
+                {moreCols && col('rank_total', 'Board #', 'Rank on the board with the default league settings (12 teams of 13 in the NBA, 10 of 10 in the WNBA); inside a league-sized pool usually means rostered')}
+                {moreCols && (
+                  <Th>
+                    <span title="The date of the player's most recent game">Last game</span>
+                  </Th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -1048,6 +1040,10 @@ export default function Streamers() {
                       <NewsTag flag={r.news_flag} headline={r.news_headline} date={r.news_date} />
                       <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />
                     </span>
+                    {/* team and position under the name, as on the board (#722) */}
+                    <span className="block text-[11px] text-muted" data-testid="team-pos">
+                      {r.position ?? '–'} · {r.team_abbreviation ?? '–'}
+                    </span>
                   </td>
                   {inWeek && <Td right>{fmt(r.window_value, 2)}</Td>}
                   {inWeek && <Td right>{r.games_window}</Td>}
@@ -1056,28 +1052,26 @@ export default function Streamers() {
                       <Signed value={r.matchup} />
                     </Td>
                   )}
-                  {inWeek && <Td right>{fmt(r.implied_points, 1)}</Td>}
-                  <Td>{r.team_abbreviation ?? '–'}</Td>
-                  <Td>{r.position ?? '–'}</Td>
-                  <Td right>{r.games_season ?? '–'}</Td>
-                  <Td right>{fmt(r.minutes_avg_5)}</Td>
-                  <Td right>{fmt(r.minutes_baseline)}</Td>
+                  {inWeek && moreCols && <Td right>{fmt(r.implied_points, 1)}</Td>}
+                  {moreCols && <Td right>{r.games_season ?? '–'}</Td>}
+                  {moreCols && <Td right>{fmt(r.minutes_avg_5)}</Td>}
+                  {moreCols && <Td right>{fmt(r.minutes_baseline)}</Td>}
                   <Td right>
                     <Signed value={r.minutes_trend} digits={1} />
                   </Td>
-                  <Td right>{fmt(r.value_10, 2)}</Td>
+                  {(moreCols || !inWeek) && <Td right>{fmt(r.value_10, 2)}</Td>}
                   <Td right>
                     <Signed value={r.value_trend} />
                   </Td>
-                  <Td right>{fmt(r.points_avg_5)}</Td>
-                  <Td right>{fmt(r.rebounds_total_avg_5)}</Td>
-                  <Td right>{fmt(r.assists_avg_5)}</Td>
-                  <Td right>{fmt(r.steals_avg_5)}</Td>
-                  <Td right>{fmt(r.blocks_avg_5)}</Td>
-                  <Td right>{fmt(r.three_pointers_made_avg_5)}</Td>
-                  <Td right>{pct(r.field_goal_pct_5)}</Td>
-                  <Td right>{pct(r.free_throw_pct_5)}</Td>
-                  <Td right>{fmt(r.turnovers_avg_5)}</Td>
+                  {moreCols && <Td right>{fmt(r.points_avg_5)}</Td>}
+                  {moreCols && <Td right>{fmt(r.rebounds_total_avg_5)}</Td>}
+                  {moreCols && <Td right>{fmt(r.assists_avg_5)}</Td>}
+                  {moreCols && <Td right>{fmt(r.steals_avg_5)}</Td>}
+                  {moreCols && <Td right>{fmt(r.blocks_avg_5)}</Td>}
+                  {moreCols && <Td right>{fmt(r.three_pointers_made_avg_5)}</Td>}
+                  {moreCols && <Td right>{pct(r.field_goal_pct_5)}</Td>}
+                  {moreCols && <Td right>{pct(r.free_throw_pct_5)}</Td>}
+                  {moreCols && <Td right>{fmt(r.turnovers_avg_5)}</Td>}
                   {needs.size > 0 && (
                     <Td right>
                       <Signed value={r.fit} />
@@ -1098,8 +1092,8 @@ export default function Streamers() {
                       <WaiverHeat row={r} />
                     </Td>
                   )}
-                  <Td right>{r.rank_total ?? '–'}</Td>
-                  <Td>{day(r.last_game_date)}</Td>
+                  {moreCols && <Td right>{r.rank_total ?? '–'}</Td>}
+                  {moreCols && <Td>{day(r.last_game_date)}</Td>}
                 </tr>
               ))}
             </tbody>
@@ -1127,7 +1121,45 @@ export default function Streamers() {
         )}
       </Card>
 
-      {start && <RecentMoves moves={moves} league={league} start={start} />}
+      {(inWeek || weeksLeft) && (
+        <details className="rounded-lg border border-line bg-card p-3" data-testid="schedule-card" id="schedule">
+          <summary className="cursor-pointer text-sm font-medium tracking-wide text-muted uppercase">
+            Schedule:{' '}
+            {inWeek
+              ? `${periodTitle ?? (horizonChoice === 'week' ? 'games left this fantasy week' : `games in the next ${horizon} days`)}${weeksLeft ? ', and games per week to the end of the season' : ''}`
+              : 'games per week to the end of the season'}
+          </summary>
+          {inWeek && weeksLeft && (
+            <div className="mt-2">
+              <Segmented
+                label="Schedule"
+                value={shownSchedule}
+                options={[
+                  { id: 'window', label: 'This window' },
+                  { id: 'weeks', label: 'Weeks to the end' },
+                ]}
+                onChange={setScheduleView}
+              />
+            </div>
+          )}
+          {inWeek && (
+            <div className={`mt-3 ${shownSchedule === 'window' ? '' : 'hidden'}`}>
+              <WeekGrid games={games} teams={teams} days={days} picked={pickedDays} />
+            </div>
+          )}
+          {weeksLeft && (
+            <div className={`mt-3 ${shownSchedule === 'weeks' ? '' : 'hidden'}`} id="weeks">
+              <p className="mb-3 text-sm text-muted">
+                Monday-to-Sunday weeks from this one to the last scheduled game, regular season and playoffs. A team with four games is worth a streaming
+                spot that week; two is a week to look elsewhere. &ldquo;+1&rdquo; is an if-necessary playoff game.
+              </p>
+              <WeeksGrid weeks={weeks} />
+            </div>
+          )}
+        </details>
+      )}
+
+      {start && <RecentMoves moves={moves} league={league} start={start} minutes={(id) => minutesOf.get(id) ?? null} />}
     </div>
   );
 }
