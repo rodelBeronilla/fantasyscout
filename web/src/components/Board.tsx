@@ -10,7 +10,7 @@ import { href } from '../lib/site';
 import { type BoardAvailability, type BoardView, readBoardFilters, writeBoardFilters } from '../lib/board-url';
 import { useWatchlist } from '../lib/watchlist';
 import { assign, draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
-import { categoryValues, fitWeights, leagueTiers, pointValues, primaryPosition, scaleValue, type Tier } from '../lib/league-value';
+import { categoryValues, fitWeights, pointValues, type Tier } from '../lib/league-value';
 import { reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { matchup, matchupWeights, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
@@ -18,6 +18,7 @@ import { DraftBar, LeagueBar, Matchup, Today, Upgrades } from './LeagueParts';
 import { easternDate, type TodayGame } from '../lib/today';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
+import { isLine, num, rankAndTier, restValues, scoreRows, zKey } from '../lib/board-model';
 
 interface BoardRowFields {
   player_id: string;
@@ -115,14 +116,6 @@ function lineColumns(view: View): { key: string; label: string; kind: 'num' | 'p
   return LINE.map((c) => ({ ...c, key: view === 'projected' ? `proj_${c.key}` : c.key }));
 }
 
-const isLine = (view: View) => view === 'pergame' || view === 'projected';
-
-const Z_PREFIX: Partial<Record<View, string>> = { season: 'season_', last20: 'last20_', recent: 'recent_' };
-
-function zKey(view: View, category: string): string {
-  return `${Z_PREFIX[view] ?? ''}${category}`;
-}
-
 type Availability = BoardAvailability;
 type Show = 'available' | 'mine' | 'all';
 
@@ -133,11 +126,6 @@ const FIRST_ROWS = 25;
 /** How widely ESPN leagues roster a player, in words (fct_market_value buckets). */
 const OWNED_LABEL: Record<string, string> = { most: 'most', many: 'many', some: 'some', few: 'few', rare: 'almost no' };
 const COMPARE_MAX = 4;
-
-function num(row: BoardRow, key: string): number | null {
-  const v = row[key];
-  return typeof v === 'number' && !Number.isNaN(v) ? v : null;
-}
 
 const select = 'rounded border border-line bg-card px-2 py-1';
 
@@ -283,16 +271,10 @@ export default function Board() {
   );
 
   // Rest-of-season value under the league's scoring, the scale the Trade page uses, whatever view the board is on.
-  const restValue = useMemo(() => {
-    const out = new Map<string, number>();
-    for (const r of rows ?? []) {
-      const v = points
-        ? (leaguePoints?.get(r.player_id)?.value ?? 0)
-        : activeCats.reduce((s, c) => s + (leagueCats?.get(r.player_id)?.[c] ?? 0), 0);
-      out.set(r.player_id, scaleValue(v, r));
-    }
-    return out;
-  }, [rows, points, leaguePoints, leagueCats, activeCats]);
+  const restValue = useMemo(
+    () => restValues(rows ?? [], { points, leaguePoints, leagueCats, activeCats }),
+    [rows, points, leaguePoints, leagueCats, activeCats],
+  );
   // The fantasy-week unit (#466): recent form over the games left this week, offered while the week has games.
   const [unit, setUnit] = useState<ValueUnit>(setup.format === 'h2h' ? 'week' : 'rest');
   const weekAvailable = useMemo(() => !!rows && hasWeekGames(rows), [rows]);
@@ -357,52 +339,16 @@ export default function Board() {
     [updateLeague],
   );
 
-  const scored = useMemo(() => {
-    if (!rows) return [];
-    const scale = (r: BoardRow, v: number) => scaleValue(v, r, { countGames, restOfSeason });
-    return rows.map((r) => {
-      let value: number | null;
-      let fit: number | null = null;
-      if (isLine(view)) {
-        value = num(r, view === 'projected' ? 'proj_points_pg' : 'points_pg');
-      } else if (view === 'value' && leaguePoints) {
-        value = scale(r, leaguePoints.get(r.player_id)?.value ?? 0);
-      } else if (view === 'value' && leagueCats) {
-        const cats = leagueCats.get(r.player_id) ?? {};
-        value = scale(r, activeCats.reduce((s, c) => s + (cats[c] ?? 0), 0));
-        if (weights) fit = scale(r, activeCats.reduce((s, c) => s + (weights[c] ?? 1) * (cats[c] ?? 0), 0));
-      } else {
-        const parts = activeCats.map((c) => num(r, zKey(view, c)));
-        value = parts.every((p) => p === null) ? null : parts.reduce<number>((s, p) => s + (p ?? 0), 0);
-      }
-      return { row: r, value, fit };
-    });
-  }, [rows, view, activeCats, restOfSeason, countGames, leagueCats, leaguePoints, weights]);
+  const scored = useMemo(
+    () => scoreRows(rows ?? [], { view, points, activeCats, countGames, restOfSeason, leagueCats, leaguePoints, weights }),
+    [rows, view, points, activeCats, restOfSeason, countGames, leagueCats, leaguePoints, weights],
+  );
 
   // Position ranks and tiers, over every player in the current value order.
-  const { posRank, overall, tiers } = useMemo(() => {
-    const order = [...scored].filter((s) => s.value !== null).sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
-    const counts = new Map<string, number>();
-    const rank = new Map<string, string>();
-    // Overall rank under this league's settings, for the gap to the market.
-    const overall = new Map(order.map((s, i) => [s.row.player_id, i + 1]));
-    for (const s of order) {
-      const p = primaryPosition(s.row.position);
-      if (!p) continue;
-      counts.set(p, (counts.get(p) ?? 0) + 1);
-      rank.set(s.row.player_id, `${p}${counts.get(p)}`);
-    }
-    if (view !== 'value') return { posRank: rank, overall, tiers: null };
-    const list = leagueTiers(order.map((s) => s.value ?? 0), setup.teams, setup.rosterSpots);
-    const of = new Map<string, number>();
-    const left = new Map<number, number>();
-    for (const t of list) {
-      const members = order.slice(t.start, t.end + 1);
-      for (const s of members) of.set(s.row.player_id, t.tier);
-      left.set(t.tier, members.filter((s) => !owner.has(s.row.player_id)).length);
-    }
-    return { posRank: rank, overall, tiers: { list, of, left } };
-  }, [scored, view, setup.teams, setup.rosterSpots, owner]);
+  const { posRank, overall, tiers } = useMemo(
+    () => rankAndTier(scored, { view, teams: setup.teams, rosterSpots: setup.rosterSpots, owned: (id) => owner.has(id) }),
+    [scored, view, setup.teams, setup.rosterSpots, owner],
+  );
 
   // The market's rank against this board's, under the league's settings (the export's market_gap is
   // the default league's).
