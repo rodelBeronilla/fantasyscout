@@ -102,12 +102,34 @@ linked as (
 
 next_played as (
 
-    select k.league, k.game_id, k.player_id, min(p.game_date) as next_played_date
-    from linked as k
-    join {{ ref('fct_player_game') }} as p
-        on p.league = k.league and p.player_id = k.player_id and p.season = k.season
-        and p.played and substr(p.game_id, 3, 1) = '2' and p.game_date >= k.game_date
-    group by k.league, k.game_id, k.player_id
+    -- The player's first played regular-season game on or after each listed game. Listings and
+    -- played games go in one date order per player-season, and each listing takes the earliest
+    -- played date at or after it. A range join of the listings to fct_player_game did the same
+    -- in four and a half minutes on the warehouse, most of a build's dbt time (#447).
+    select league, game_id, player_id, min(next_played_date) as next_played_date
+    from (
+        select
+            league,
+            game_id,
+            player_id,
+            is_listing,
+            min(case when not is_listing then game_date end) over (
+                partition by league, player_id, season
+                -- a listing sorts before a game played on its own date, so that game counts
+                order by game_date, is_listing desc
+                rows between current row and unbounded following
+            ) as next_played_date
+        from (
+            select league, season, player_id, game_date, game_id, true as is_listing
+            from linked
+            union all
+            select league, season, player_id, game_date, game_id, false as is_listing
+            from {{ ref('fct_player_game') }}
+            where played and substr(game_id, 3, 1) = '2'
+        ) as events
+    ) as ordered
+    where is_listing
+    group by league, game_id, player_id
 
 ),
 
