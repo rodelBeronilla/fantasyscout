@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
-import { fetchBuildJson, fetchPageRows, type League } from '../lib/data';
+import { fetchPageRows, type League } from '../lib/data';
 import { useWarmUp } from '../lib/warm';
 import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
@@ -9,17 +9,13 @@ import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortD
 import { href } from '../lib/site';
 import { type BoardAvailability, type BoardView, readBoardFilters, writeBoardFilters } from '../lib/board-url';
 import { useWatchlist } from '../lib/watchlist';
-import { assign, draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
+import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, pointValues, type Tier } from '../lib/league-value';
-import { reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
-import { matchup, matchupWeights, type WeekMatchup, weekTotals } from '../lib/matchup';
-import { rivals, standingsModel, standingWeights, teamTotals as standingTotals, winChances } from '../lib/standings';
-import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
-import { DraftBar, LeagueBar, Matchup, Today, Upgrades } from './LeagueParts';
-import { easternDate, type TodayGame } from '../lib/today';
+import { leagueStandings } from '../lib/standings';
+import { DraftBar, LeagueBar } from './LeagueParts';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
-import { isLine, num, rankAndTier, restValues, scoreRows, zKey } from '../lib/board-model';
+import { isLine, num, rankAndTier, scoreRows, zKey } from '../lib/board-model';
 
 interface BoardRowFields {
   player_id: string;
@@ -232,19 +228,6 @@ export default function Board() {
     };
   }, [league]);
 
-  // The schedule, for the Today card (#464): fetched after the board, so it never holds up the first rows.
-  const [games, setGames] = useState<TodayGame[] | null>(null);
-  useEffect(() => {
-    if (!rows) return;
-    let live = true;
-    fetchBuildJson<TodayGame[]>(`schedule/${league}.json`)
-      .then((g) => live && setGames(g))
-      .catch(() => live && setGames(null));
-    return () => {
-      live = false;
-    };
-  }, [rows, league]);
-
   const meta = useMemo(() => {
     const list = rows ?? [];
     const season = list[0]?.season ?? '';
@@ -282,110 +265,17 @@ export default function Board() {
     [teamTotals],
   );
 
-  // Rest-of-season value under the league's scoring, the scale the Trade page uses, whatever view the board is on.
-  const restValue = useMemo(
-    () => restValues(rows ?? [], { points, leaguePoints, leagueCats, activeCats }),
-    [rows, points, leaguePoints, leagueCats, activeCats],
-  );
-  // The fantasy-week unit (#466): recent form over the games left this week, offered while the week has games.
-  const [unit, setUnit] = useState<ValueUnit>(setup.format === 'h2h' ? 'week' : 'rest');
-  const weekAvailable = useMemo(() => !!rows && hasWeekGames(rows), [rows]);
-  const week = unit === 'week' && weekAvailable;
-  const weekCats = useMemo(
-    () => (rows && !points && week ? categoryValues(recentForm(rows, activeCats), activeCats, pool, setup.teams) : null),
-    [rows, points, week, activeCats, pool, setup.teams],
-  );
-  const weekValues = useMemo(() => {
-    const out = new Map<string, number>();
-    if (!week) return out;
-    for (const r of rows ?? []) {
-      const perGame = points
-        ? (leaguePoints?.get(r.player_id)?.value ?? 0)
-        : activeCats.reduce((s, c) => s + (weekCats?.get(r.player_id)?.[c] ?? 0), 0);
-      out.set(r.player_id, weekValue(perGame, r.games_this_week));
-    }
-    return out;
-  }, [rows, week, points, leaguePoints, weekCats, activeCats]);
-  // Head-to-head (#490): the week's projected totals against the chosen opponent set Fit and the categories the bar names.
-  const h2h = setup.format === 'h2h';
-  const opponentRows = useMemo(
-    () =>
-      h2h && setup.opponent !== null
-        ? (rows ?? []).filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id))
-        : [],
-    [h2h, rows, owner, setup.opponent, setup.il],
-  );
-  const match = useMemo<WeekMatchup | null>(() => {
-    if (!h2h || setup.opponent === null || !weekAvailable || myTeam.length === 0) return null;
-    const scoring = points ? setup.weights : undefined;
-    return matchup(points ? [] : activeCats, weekTotals(myTeam, activeCats, scoring), weekTotals(opponentRows, activeCats, scoring));
-  }, [h2h, setup.opponent, setup.weights, weekAvailable, myTeam, opponentRows, activeCats, points]);
-  // The league standings (#662): every team's totals, each player counted by the share of the
-  // games left he is expected to play, and the chance of beating each rival in each kept category.
+  // The league standings (#662): every team's totals and the chance of beating each rival in each
+  // kept category; they weigh Fit. This week's matchup and the roster's moves are on My Team.
   const standings = useMemo(() => {
     if (!rows || !leagueCats || myTeam.length === 0) return null;
-    const others = rivals(setup.rosters, setup.mine, setup.rosterSpots);
-    if (!others.length) return null;
     const availability = new Map(rows.map((r) => [r.player_id, r.availability_multiplier ?? 1]));
-    const active = setup.rosters.map((r) => r.filter((id) => !setup.il.includes(id)));
-    const totals = active.map((r) => standingTotals(r, activeCats, (id) => leagueCats.get(id), (id) => availability.get(id) ?? 1));
-    const ranked = [setup.mine, ...others];
-    const players = ranked.reduce((s, t) => s + (active[t] ?? []).reduce((n, id) => n + (availability.get(id) ?? 1), 0), 0) / ranked.length;
-    const model = standingsModel(league, activeCats, players, setup.format, meta.remaining);
-    return { weights: standingWeights(totals, setup.mine, others, model), chances: winChances(totals, setup.mine, others, model) };
-  }, [rows, leagueCats, myTeam.length, setup.rosters, setup.mine, setup.rosterSpots, setup.il, setup.format, activeCats, league, meta.remaining]);
-  // Fit: this week's matchup while judging the week; otherwise the league standings, or the
-  // manager's own totals when no other team's roster is in.
-  const weekMatch = week && match && !points ? match : null;
-  const weights = useMemo(
-    () => (weekMatch ? matchupWeights(weekMatch.cats) : (standings?.weights ?? rotoWeights)),
-    [weekMatch, standings, rotoWeights],
-  );
-  const weakest = useMemo(() => {
-    if (weekMatch) return weekMatch.cats.filter((r) => r.result !== 'win').sort((a, b) => a.share - b.share).slice(0, 3).map((r) => r.cat);
-    if (standings) return Object.entries(standings.chances).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([c]) => c);
-    return rotoWeakest;
-  }, [weekMatch, standings, rotoWeakest]);
-  // Available players worth more than one of the manager's, in the unit chosen: the swaps the manager can make.
-  const review = useMemo<RosterReview | null>(() => {
-    if (!rows || myTeam.length === 0 || setup.drafting) return null;
-    const cats = week && weekCats ? weekCats : leagueCats;
-    const totals = setup.rosters.map((roster) =>
-      Object.fromEntries(
-        activeCats.map((c) => [c, roster.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + (cats?.get(id)?.[c] ?? 0), 0)]),
-      ),
-    );
-    const positions = new Map(rows.map((r) => [r.player_id, r.position]));
-    // Who may be dropped (#710): not a player the league or the market ranks among its starters
-    // (about six a team), whose value to other managers a drop would throw away; and in the week
-    // unit, only the two lowest-valued for the rest of the season, since one week's form is a
-    // reason to stream a bench spot, not to cut a regular.
-    const starters = setup.teams * Math.ceil(setup.rosterSpots * 0.6);
-    const byId = new Map(rows.map((r) => [r.player_id, r]));
-    const bench = new Set(
-      [...myTeam].sort((a, b) => (restValue.get(a.player_id) ?? 0) - (restValue.get(b.player_id) ?? 0)).slice(0, 2).map((r) => r.player_id),
-    );
-    const droppable = (id: string) => {
-      const r = byId.get(id);
-      const ranked = (x: number | null | undefined) => typeof x === 'number' && x <= starters;
-      if (r && (ranked(r.rank_total) || ranked(r.market_rank))) return false;
-      return !week || bench.has(id);
-    };
-    return reviewRoster({
-      position: (id) => positions.get(id),
-      droppable,
-      mine: myTeam.map((r) => r.player_id),
-      available: rows.filter((r) => !owner.has(r.player_id)).map((r) => r.player_id),
-      rest: week ? weekValues : restValue,
-      cats: points ? [] : activeCats,
-      catValue: (id) => cats?.get(id),
-      totals,
-      myTeam: setup.mine,
-    });
-  }, [rows, myTeam, setup, activeCats, leagueCats, owner, restValue, points, week, weekCats, weekValues]);
-  const applyUpgrade = useCallback(
-    (u: Upgrade) => updateLeague((s) => assign(assign(s, u.drop, null), u.add, s.mine)),
-    [updateLeague],
+    return leagueStandings(league, setup, activeCats, (id) => leagueCats.get(id), (id) => availability.get(id) ?? 1, meta.remaining);
+  }, [rows, leagueCats, myTeam.length, setup, activeCats, league, meta.remaining]);
+  const weights = standings?.weights ?? rotoWeights;
+  const weakest = useMemo(
+    () => (standings ? Object.entries(standings.chances).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([c]) => c) : rotoWeakest),
+    [standings, rotoWeakest],
   );
 
   const scored = useMemo(
@@ -607,15 +497,6 @@ export default function Board() {
                 {held}
               </span>
             )}
-            {held === 'Mine' && review?.replace.includes(row.player_id) && (
-              <span
-                className="rounded border border-warn px-1 text-[10px] text-warn"
-                title="A player nobody owns is worth more for the rest of the season: see Roster review"
-                data-testid="replace-tag"
-              >
-                Replace
-              </span>
-            )}
           </span>
         </Td>
         <Td>{row.team_abbreviation ?? '–'}</Td>
@@ -708,24 +589,7 @@ export default function Board() {
         rostered={owner.size}
         myCount={myTeam.length}
         weakest={view === 'value' ? weakest : []}
-        weakLabel={weekMatch ? 'Behind this week' : 'Weakest'}
       />
-      {h2h && owner.size > 0 && !setup.drafting && weekAvailable && (
-        <Matchup setup={setup} match={match} points={points} onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))} />
-      )}
-      {games && myTeam.length > 0 && !setup.drafting && <Today league={league} players={myTeam} games={games} date={easternDate()} />}
-      {review && (
-        <Upgrades
-          league={league}
-          review={review}
-          nameOf={(id) => byId.get(id)?.full_name ?? id}
-          detailOf={(id) => [byId.get(id)?.position, byId.get(id)?.team_abbreviation].filter(Boolean).join(', ')}
-          onApply={applyUpgrade}
-          unit={week ? 'week' : 'rest'}
-          onUnit={weekAvailable ? setUnit : null}
-          gamesOf={(id) => byId.get(id)?.games_this_week ?? 0}
-        />
-      )}
       {setup.drafting && (
         <DraftBar
           setup={setup}
@@ -1005,11 +869,9 @@ export default function Board() {
                   dir={sortDir}
                   onClick={() => sortBy('fit')}
                   title={
-                    weekMatch
-                      ? `Value with each category weighted by how close it is against ${setup.names[setup.opponent ?? 0]} this week (1.5 for the closest third, 1 the middle, 0.5 the blowouts either way)`
-                      : standings
-                        ? "Value with each category weighted by how much a gain there raises your chance of beating the league's other teams in it: close categories count most, ones won or lost against everyone by a wide margin least"
-                        : 'Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)'
+                    standings
+                      ? "Value with each category weighted by how much a gain there raises your chance of beating the league's other teams in it: close categories count most, ones won or lost against everyone by a wide margin least"
+                      : 'Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)'
                   }
                 >
                   Fit

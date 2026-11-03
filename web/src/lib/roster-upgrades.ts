@@ -65,6 +65,37 @@ export interface RosterReview {
   chips: string[];
 }
 
+/** What the drop rule reads of a player: the board's default rank and the market's. */
+export interface DropRow {
+  player_id: string;
+  rank_total?: number | null;
+  market_rank?: number | null;
+}
+
+/**
+ * Who may be dropped (#710): not a player the board or the market ranks among the league's
+ * starters (about six a team), whose value to other managers a drop would throw away; and judging
+ * the week, only the two lowest-valued for the rest of the season, since one week's form is a
+ * reason to stream a bench spot, not to cut a regular.
+ */
+export function dropRule(
+  rows: DropRow[],
+  mine: string[],
+  league: { teams: number; rosterSpots: number },
+  rest: Map<string, number>,
+  week: boolean,
+): (id: string) => boolean {
+  const starters = league.teams * Math.ceil(league.rosterSpots * 0.6);
+  const byId = new Map(rows.map((r) => [r.player_id, r]));
+  const bench = new Set([...mine].sort((a, b) => (rest.get(a) ?? 0) - (rest.get(b) ?? 0)).slice(0, 2));
+  const ranked = (x: number | null | undefined) => typeof x === 'number' && x <= starters;
+  return (id) => {
+    const r = byId.get(id);
+    if (r && (ranked(r.rank_total) || ranked(r.market_rank))) return false;
+    return !week || bench.has(id);
+  };
+}
+
 export function reviewRoster(input: UpgradeInput): RosterReview {
   const upgrades = suggestUpgrades(input);
   const value = (id: string) => input.rest.get(id) ?? 0;

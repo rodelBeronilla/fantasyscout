@@ -21,6 +21,7 @@ const currentBase = href('data/current/');
 // small script keeps one dropdown open at a time and closes it on a click elsewhere.
 const nav: { label: string; path?: string; items?: readonly (readonly [string, string])[] }[] = [
   { label: 'Board', path: '/' },
+  { label: 'My Team', path: '/team/' },
   // League leads Tools: the Board, Streamers and Trade all send a manager there to set up their league (#452).
   { label: 'Tools', items: [['League', '/league/'], ['Streamers', '/streamers/'], ['Trade', '/trade/']] },
   { label: 'Analysis', items: [['Notes', '/notes/'], ['Notebooks', '/notebooks/'], ['Dashboards', '/dashboards/']] },

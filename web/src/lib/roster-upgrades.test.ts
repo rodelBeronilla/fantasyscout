@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { reviewRoster, suggestUpgrades } from './roster-upgrades';
+import { dropRule, reviewRoster, suggestUpgrades } from './roster-upgrades';
 
 const rest = new Map([
   ['star', 12],
@@ -174,5 +174,32 @@ describe('a player other managers value is a trade, not a drop (#710)', () => {
     expect(reviewRoster({ ...input, droppable: (id) => id !== 'star' }).weakest?.drop).toBe('bench');
     // with nobody droppable, the lowest of all
     expect(reviewRoster({ ...input, droppable: () => false }).weakest?.drop).toBe('star');
+  });
+});
+
+describe('dropRule (#710)', () => {
+  // a 4-team league of 8: the top 20 are the starters
+  const rows = [
+    { player_id: 'star', rank_total: 5, market_rank: 40 },
+    { player_id: 'market', rank_total: 60, market_rank: 12 },
+    { player_id: 'mid', rank_total: 30, market_rank: 35 },
+    { player_id: 'low', rank_total: 70, market_rank: null },
+    { player_id: 'lower', rank_total: 90, market_rank: null },
+  ];
+  const mine = rows.map((r) => r.player_id);
+  const rest = new Map([
+    ['star', 9],
+    ['market', 2],
+    ['mid', 3],
+    ['low', 1],
+    ['lower', 0.5],
+  ]);
+  it('protects a player the board or the market ranks among the starters', () => {
+    const may = dropRule(rows, mine, { teams: 4, rosterSpots: 8 }, rest, false);
+    expect(mine.filter(may)).toEqual(['mid', 'low', 'lower']);
+  });
+  it('judging the week, lets only the two lowest for the rest of the season go', () => {
+    const may = dropRule(rows, mine, { teams: 4, rosterSpots: 8 }, rest, true);
+    expect(mine.filter(may)).toEqual(['low', 'lower']);
   });
 });

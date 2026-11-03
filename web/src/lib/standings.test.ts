@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { expectedWins, GAME_SPREAD, normalCdf, rivals, standingsModel, standingWeights, teamTotals, winChances } from './standings';
+import { expectedWins, GAME_SPREAD, leagueStandings, normalCdf, rivals, standingsModel, standingWeights, teamTotals, winChances } from './standings';
 
 const cats = ['z_points', 'z_steals', 'z_blocks'];
 
@@ -73,5 +73,21 @@ describe('teamTotals', () => {
 describe('rivals', () => {
   it('leaves out the manager and teams with less than half a roster entered', () => {
     expect(rivals([['a', 'b'], ['c', 'd'], ['e'], []], 0, 4)).toEqual([1]);
+  });
+});
+
+describe('leagueStandings (#712)', () => {
+  const values: Record<string, Record<string, number>> = { a: { z_steals: 2 }, b: { z_steals: -1 }, c: { z_steals: 0 } };
+  const base = { rosters: [['a'], ['b'], ['c']], mine: 0, rosterSpots: 1, il: [] as string[], format: 'h2h' as const };
+  it('compares the team with every rival that has half a roster', () => {
+    const s = leagueStandings('nba', base, ['z_steals'], (id) => values[id], () => 1, 0)!;
+    expect(s.others).toEqual([1, 2]);
+    expect(s.totals.map((t) => t['z_steals'])).toEqual([2, -1, 0]);
+    expect(s.chances['z_steals']).toBeGreaterThan(0.5);
+  });
+  it('leaves out players on the injured list, and is null without a rival', () => {
+    const s = leagueStandings('nba', { ...base, il: ['a'] }, ['z_steals'], (id) => values[id], () => 1, 0)!;
+    expect(s.totals[0]?.['z_steals']).toBe(0);
+    expect(leagueStandings('nba', { ...base, rosters: [['a'], [], []] }, ['z_steals'], (id) => values[id], () => 1, 0)).toBeNull();
   });
 });
