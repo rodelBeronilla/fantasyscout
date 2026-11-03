@@ -662,7 +662,7 @@ test('the dashboards page explains the workbook and lists the extract', async ({
   await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
 });
 
-for (const path of ['/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notes/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/', '/schema/mart_board/']) {
+for (const path of ['/', '/team/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notes/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/', '/schema/mart_board/']) {
   test(`${path} has no horizontal scroll on a phone`, async ({ page, isMobile }) => {
     test.skip(!isMobile, 'mobile project only');
     await page.goto(path);
@@ -1253,7 +1253,7 @@ test("in a head-to-head league with this week's opponent set, the trade verdict 
   for (const [team, picked] of [[1, [0, 5, 9]], [2, [1, 2, 7]], [3, [3, 4, 8]]] as const) {
     for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
   }
-  await page.goto('/?league=nba');
+  await page.goto('/team/?league=nba');
   await page.getByTestId('matchup').getByLabel("This week's opponent").selectOption({ label: 'Team 3' });
   await page.goto('/trade/?league=nba');
   await page.getByTestId('roster-give').getByRole('checkbox').first().check();
@@ -1358,24 +1358,27 @@ test('with rosters set up, the board recommends roster upgrades from the availab
   await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${best}\n${weak}`);
   await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
   await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  // the roster's moves are on My Team, not the board (#712)
   await page.goto('/');
+  await expect(rows.first()).toBeVisible();
+  await expect(page.getByTestId('upgrades')).toHaveCount(0);
+  await page.goto('/team/');
   const upgrades = page.getByTestId('upgrades');
   await expect(upgrades).toBeVisible();
-  // The verdict names the weak player, and the My team view tags that row and not the best player's.
   await expect(upgrades.getByTestId('roster-verdict')).toContainText('1 of your 2 players can be upgraded');
   await expect(upgrades.getByTestId('roster-verdict')).toContainText(weak);
-  await page.getByRole('radio', { name: 'My team' }).click();
-  await expect(rows).toHaveCount(2);
-  await expect(rows.filter({ hasText: weak }).getByTestId('replace-tag')).toBeVisible();
-  await expect(rows.filter({ hasText: best }).getByTestId('replace-tag')).toHaveCount(0);
+  const roster = page.getByTestId('roster-table').locator('tbody tr');
+  await expect(roster).toHaveCount(2);
   const first = upgrades.getByTestId('upgrade').first();
   await expect(first).toContainText(`for ${weak}`);
   await expect(first).toContainText('rest of season');
   await first.getByRole('button', { name: 'Apply' }).click();
   await expect(upgrades.getByTestId('upgrade').filter({ hasText: `for ${weak}` })).toHaveCount(0);
-  await expect(rows).toHaveCount(2);
-  await expect(board.locator('tbody')).not.toContainText(weak);
+  await expect(roster).toHaveCount(2);
+  await expect(page.getByTestId('roster-table')).not.toContainText(weak);
   await expect(page.getByTestId('league-bar')).toContainText('Team 1 (2/');
+  await page.goto('/');
+  await expect(board.locator('tbody')).not.toContainText(weak);
 });
 
 test('the roster review can be judged for this fantasy week: recent form over the games left', async ({ page }) => {
@@ -1397,7 +1400,7 @@ test('the roster review can be judged for this fantasy week: recent form over th
   await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${best}\n${weak}`);
   await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
   await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
-  await page.goto('/?league=nba');
+  await page.goto('/team/?league=nba');
   const upgrades = page.getByTestId('upgrades');
   // Rest of season: the weak player goes, the best stays.
   await expect(upgrades.getByTestId('roster-verdict')).toContainText(weak);
@@ -1444,7 +1447,7 @@ test('the Trade page can judge a trade for this fantasy week and counts the game
   await expect(verdict).toContainText('rest of season');
 });
 
-test('a head-to-head league picks this week\'s opponent on the board and sees the categories it projects to win', async ({ page }) => {
+test('a head-to-head league picks this week\'s opponent on My Team and sees the categories it projects to win', async ({ page }) => {
   // Everyone has three games left this week.
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { games_this_week: number | null }[];
   await page.route('**/board/nba.json', (route) => route.fulfill({ json: board.map((r) => ({ ...r, games_this_week: 3 })) }));
@@ -1463,7 +1466,7 @@ test('a head-to-head league picks this week\'s opponent on the board and sees th
   await page.getByLabel('Paste names for Team 2', { exact: true }).fill(names[3] ?? '');
   await cards.nth(1).getByRole('button', { name: 'Add pasted players' }).click();
   await expect(cards.nth(1).getByTestId('paste-result')).toContainText('Added 1');
-  await page.goto('/?league=nba');
+  await page.goto('/team/?league=nba');
   await expect(page.getByTestId('league-summary')).toContainText('head-to-head');
   const matchupCard = page.getByTestId('matchup');
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText('Pick the team you face');
@@ -1473,9 +1476,7 @@ test('a head-to-head league picks this week\'s opponent on the board and sees th
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText('Games left this week: you 9, Team 2 3');
   await expect(matchupCard.getByTestId('matchup-row')).toHaveCount(9);
   await expect(matchupCard.getByTestId('matchup-row').filter({ hasText: 'TO' })).toContainText('loss');
-  // Fit is now judged against the opponent, the bar names the categories behind, and the review defaults to this week
-  await expect(page.getByTestId('board').locator('[title*="against Team 2 this week"]')).toHaveCount(1);
-  await expect(page.getByTestId('league-bar')).toContainText('Behind this week');
+  // a head-to-head review defaults to this week
   await expect(page.getByTestId('upgrades').getByRole('radio', { name: 'This week' })).toHaveAttribute('aria-checked', 'true');
   // the opponent survives a reload and can be cleared
   await page.reload();
@@ -1504,7 +1505,7 @@ test('with rival rosters in, Fit weighs the categories by the league standings a
   await expect(page.getByTestId('league-bar')).toContainText('Weakest');
 });
 
-test('the Today card groups the active roster by plays, listed and no game, on the Board and the League page', async ({ page }) => {
+test('the Today card groups the active roster by plays, listed and no game, on My Team', async ({ page }) => {
   type Row = { player_id: string; full_name: string | null; team_id: string | null; injury_group: string | null };
   type Game = { game_date: string; home_team_id: string; away_team_id: string };
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
@@ -1527,7 +1528,7 @@ test('the Today card groups the active roster by plays, listed and no game, on t
   await page.getByLabel('Paste names for Team 1', { exact: true }).fill(roster.map((r) => r.full_name).join('\n'));
   await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
   await expect(cards.nth(0).getByTestId('paste-result')).toContainText(`Added ${roster.length}`);
-  for (const path of ['/league/?league=nba', '/?league=nba']) {
+  for (const path of ['/team/?league=nba']) {
     await page.goto(path);
     const today = page.getByTestId('today');
     await expect(today.getByTestId('today-summary')).toContainText(`${plays ? 1 : 0} of your ${roster.length} active players play today`);
@@ -1548,17 +1549,44 @@ test('a roster of the two best players is told it is optimized as is', async ({ 
   await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${first}\n${second}`);
   await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
   await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
-  await page.goto('/');
+  await page.goto('/team/');
   const review = page.getByTestId('upgrades');
   await expect(review.getByTestId('roster-verdict')).toContainText('optimized as is');
   await expect(review.getByTestId('roster-verdict')).toContainText('Weakest spot');
   await expect(review.getByTestId('upgrade')).toHaveCount(0);
-  await page.getByRole('radio', { name: 'My team' }).click();
-  await expect(rows).toHaveCount(2);
-  await expect(page.getByTestId('replace-tag')).toHaveCount(0);
 });
 
-test('the League page suggests IL moves from the board availability and applies them', async ({ page }) => {
+test('My Team shows the chance of beating the league in each kept category, and says where to start when the team is empty (#712)', async ({ page }) => {
+  await page.goto('/team/');
+  await expect(page.getByTestId('team-empty')).toContainText('Your team is empty');
+  await page.goto('/');
+  const rows = page.getByTestId('board').locator('tbody tr[data-player]');
+  await expect(rows.first()).toBeVisible();
+  const names = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => rows.nth(i).locator('a').first().innerText()));
+  await page.goto('/league/');
+  await page.getByLabel('Roster spots').fill('6');
+  const cards = page.getByTestId('team-card');
+  for (const [team, picked] of [[0, [0, 3, 4]], [1, [1, 2, 5]]] as const) {
+    await cards.nth(team).getByText('Paste a roster').click();
+    await page.getByLabel(`Paste names for Team ${team + 1}`, { exact: true }).fill(picked.map((i) => names[i]).join('\n'));
+    await cards.nth(team).getByRole('button', { name: 'Add pasted players' }).click();
+    await expect(cards.nth(team).getByTestId('paste-result')).toContainText('Added 3');
+  }
+  await page.getByLabel('Punt PTS').check({ force: true });
+  await expect(page.getByTestId('team-link').getByRole('link', { name: /My Team/ })).toBeVisible();
+  await page.goto('/team/');
+  const cats = page.getByTestId('my-categories');
+  await expect(cats.getByTestId('cats-summary')).toContainText(/of 8 categories/);
+  await expect(cats.getByTestId('cat-chance')).toHaveCount(8);
+  await expect(cats.locator('[data-cat="z_points"]')).toHaveCount(0);
+  await expect(cats).toContainText('Punted: PTS');
+  await expect(cats.getByTestId('cat-chance').first()).toContainText(/\d+%\s*(1st|2nd) of 2/);
+  await expect(page.getByTestId('roster-table').locator('tbody tr')).toHaveCount(3);
+  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+  expect(results.violations).toEqual([]);
+});
+
+test('My Team suggests IL moves from the board availability and applies them', async ({ page }) => {
   const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
     full_name: string | null;
     expected_games_missed: number | null;
@@ -1576,15 +1604,18 @@ test('the League page suggests IL moves from the board availability and applies 
   await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${hurt.full_name}\n${healthy.full_name}`);
   await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
   await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  await page.goto('/team/?league=nba');
   const candidates = page.getByTestId('il-candidates');
   await expect(candidates).toContainText(hurt.full_name ?? '');
   await expect(candidates).not.toContainText(healthy.full_name ?? '');
   await candidates.getByTestId('il-move').first().click();
-  await expect(page.getByText(/1 of \d+ roster spots filled \(1 more on the IL\)/)).toBeVisible();
+  await expect(page.getByTestId('roster-table').locator('tr').filter({ hasText: hurt.full_name ?? '' })).toContainText('IL');
   await expect(page.getByTestId('il-candidates')).toHaveCount(0);
-  // a healthy player parked on the IL by hand is offered back
+  // a healthy player parked on the IL by hand on the League page is offered back
+  await page.goto('/league/?league=nba');
   const row = cards.nth(0).getByTestId('roster').locator('li').filter({ hasText: healthy.full_name ?? '' });
   await row.getByRole('button', { name: /^Injured list:/ }).click();
+  await page.goto('/team/?league=nba');
   const back = page.getByTestId('il-back');
   await expect(back).toContainText(healthy.full_name ?? '');
   await back.getByTestId('il-move').first().click();

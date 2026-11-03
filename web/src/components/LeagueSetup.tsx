@@ -10,10 +10,8 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
-import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
 import { href } from '../lib/site';
-import { CategoryProfile, DraftBar, LeagueSettingsForm, Today, type TodayRow } from './LeagueParts';
-import { easternDate, type TodayGame } from '../lib/today';
+import { CategoryProfile, DraftBar, LeagueSettingsForm } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
 import { Card, Loading, Problem, Td, Th } from './ui';
 import AccountBox from './AccountBox';
@@ -93,18 +91,6 @@ export default function LeagueSetup() {
     fetchBuildJson<PlayerRow[]>(`board/${league}.json`)
       .then((data) => live && setRows(data))
       .catch((e: unknown) => live && setError(e));
-    return () => {
-      live = false;
-    };
-  }, [league]);
-
-  // The schedule, for the Today card (#464); the page works without it.
-  const [games, setGames] = useState<TodayGame[] | null>(null);
-  useEffect(() => {
-    let live = true;
-    fetchBuildJson<TodayGame[]>(`schedule/${league}.json`)
-      .then((g) => live && setGames(g))
-      .catch(() => live && setGames(null));
     return () => {
       live = false;
     };
@@ -300,65 +286,6 @@ export default function LeagueSetup() {
     }
   };
 
-  // IL moves for the manager's team (#465): who should go on the injured list and who should come off it.
-  const byIdForIl = new Map((rows ?? []).map((r) => [r.player_id, r]));
-  const myRoster = setup.rosters[setup.mine] ?? [];
-  const moves = ilMoves(rows ?? [], myRoster, setup.il);
-  const ilName = (id: string) => byIdForIl.get(id)?.full_name ?? id;
-  const ilCard =
-    myRoster.length > 0 && (moves.toIl.length > 0 || moves.back.length > 0) ? (
-      <Card title="Injured-list moves" id="il-moves">
-        <p className="text-xs text-muted">
-          From the board's availability: a player expected to miss {IL_MIN_GAMES} or more games frees a roster spot on the IL; one no longer
-          listed comes back. The buttons move the player here; make the move in your league's app too.
-        </p>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          {moves.toIl.length > 0 && (
-            <div data-testid="il-candidates">
-              <h3 className="text-sm font-medium">To the IL</h3>
-              <ul className="mt-1 grid gap-1 text-sm">
-                {moves.toIl.map((id) => {
-                  const r = byIdForIl.get(id);
-                  return (
-                    <li key={id} className="flex flex-wrap items-center gap-2">
-                      <a href={href(`/p/${league}/${id}/`)} className="underline-offset-4 hover:underline">
-                        {ilName(id)}
-                      </a>
-                      <span className="text-muted">
-                        {r?.injury_status ?? 'listed'} · {(r?.expected_games_missed ?? 0).toFixed(1)} games expected
-                        {r?.expected_return ? ` · back ${r.expected_return}` : ''}
-                      </span>
-                      <button type="button" className={button} onClick={() => update((s) => toggleIl(s, id))} data-testid="il-move">
-                        Move to IL
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-          {moves.back.length > 0 && (
-            <div data-testid="il-back">
-              <h3 className="text-sm font-medium">Back from the IL</h3>
-              <ul className="mt-1 grid gap-1 text-sm">
-                {moves.back.map((id) => (
-                  <li key={id} className="flex flex-wrap items-center gap-2">
-                    <a href={href(`/p/${league}/${id}/`)} className="underline-offset-4 hover:underline">
-                      {ilName(id)}
-                    </a>
-                    <span className="text-muted">no longer listed</span>
-                    <button type="button" className={button} onClick={() => update((s) => toggleIl(s, id))} data-testid="il-move">
-                      Activate
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      </Card>
-    ) : null;
-
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
 
@@ -376,14 +303,14 @@ export default function LeagueSetup() {
 
       {setup.drafting && draftCard}
 
-      {games && !setup.drafting && (() => {
-        const active = (setup.rosters[setup.mine] ?? [])
-          .filter((id) => !setup.il.includes(id))
-          .map((id) => byIdForIl.get(id))
-          .filter((r): r is PlayerRow => !!r) as unknown as TodayRow[];
-        return active.length > 0 ? <Today league={league} players={active} games={games} date={easternDate()} /> : null;
-      })()}
-      {ilCard}
+      {(setup.rosters[setup.mine] ?? []).length > 0 && !setup.drafting && (
+        <p className="rounded-lg border border-line bg-card px-3 py-2 text-sm" data-testid="team-link">
+          Your week, your categories against the league, injured-list moves and the swaps worth making are on{' '}
+          <a href={href('/team/')} className="font-medium text-accent underline-offset-4 hover:underline">
+            My Team →
+          </a>
+        </p>
+      )}
 
       <section className="grid gap-3" aria-labelledby="teams-h">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

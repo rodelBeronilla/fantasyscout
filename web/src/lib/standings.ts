@@ -152,3 +152,46 @@ export function rivals(rosters: string[][], team: number, rosterSpots: number): 
   const least = Math.max(1, Math.ceil(rosterSpots / 2));
   return rosters.map((r, t) => (t !== team && r.length >= least ? t : -1)).filter((t) => t >= 0);
 }
+
+/** What the standings read from the league kept here. */
+export interface StandingsLeague {
+  rosters: string[][];
+  mine: number;
+  rosterSpots: number;
+  il: string[];
+  format: Format;
+}
+
+export interface LeagueStandings {
+  /** Fit weights from the standings (null without a rival). */
+  weights: Record<string, number> | null;
+  /** The chance of beating an average rival in each category. */
+  chances: Record<string, number>;
+  /** Every team's category totals (active players only). */
+  totals: Record<string, number>[];
+  /** The teams compared against. */
+  others: number[];
+}
+
+/**
+ * The manager's standings in the league kept here (#662): every team's totals, each active player
+ * counted by the share of the games left they are expected to play, and the chance of beating each
+ * rival in each category. Null until another team has half a roster in.
+ */
+export function leagueStandings(
+  league: League,
+  setup: StandingsLeague,
+  cats: string[],
+  catValue: (id: string) => Record<string, number> | undefined,
+  availability: (id: string) => number,
+  gamesLeft: number,
+): LeagueStandings | null {
+  const others = rivals(setup.rosters, setup.mine, setup.rosterSpots);
+  if (!others.length || !cats.length) return null;
+  const active = setup.rosters.map((r) => r.filter((id) => !setup.il.includes(id)));
+  const totals = active.map((r) => teamTotals(r, cats, catValue, availability));
+  const ranked = [setup.mine, ...others];
+  const players = ranked.reduce((s, t) => s + (active[t] ?? []).reduce((n, id) => n + availability(id), 0), 0) / ranked.length;
+  const model = standingsModel(league, cats, players, setup.format, gamesLeft);
+  return { weights: standingWeights(totals, setup.mine, others, model), chances: winChances(totals, setup.mine, others, model), totals, others };
+}

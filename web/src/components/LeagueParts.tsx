@@ -277,7 +277,7 @@ export function Upgrades({
     <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="upgrades-h" data-testid="upgrades">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
-          Roster review
+          Moves
         </h2>
         {onUnit && (
           <Segmented
@@ -438,7 +438,7 @@ export function Matchup({
             </strong>{' '}
             against {them}, lose {match.losses}
             {match.close ? `, with ${match.close} too close to call (within 5%)` : ''}. Games left this week: you {match.mine.games}, {them}{' '}
-            {match.theirs.games}. Judging this week, Fit favours the categories within reach.
+            {match.theirs.games}.
           </p>
           <div className="table-scroll mt-2 overflow-auto" tabIndex={0} role="region" aria-label="Matchup, category by category">
             <table className="w-full text-sm" data-testid="matchup-table">
