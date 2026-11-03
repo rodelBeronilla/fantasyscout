@@ -12,7 +12,7 @@ import { categoryWeights, DEFAULT_SETTINGS, FOCUS_WEIGHT, isDefaultSettings, kep
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { href } from '../lib/site';
 import { matchup, weekTotals } from '../lib/matchup';
-import { type LeagueState, leagueStandings, meaningful, rostersAfter, tradeImpact } from '../lib/trade-impact';
+import { type LeagueState, leagueStandings, meaningful, objective, rostersAfter, teamNeeds, tradeImpact } from '../lib/trade-impact';
 import { median, ranks, tradeChips, tradeTargets } from '../lib/punt-chips';
 import { rivals } from '../lib/standings';
 import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
@@ -185,6 +185,8 @@ export default function TradeAnalyzer() {
   // The trade finder (#664): on request, the best trades with every partner. The search tries a
   // few thousand trades, so it runs when asked rather than on every change.
   const [finding, setFinding] = useState(false);
+  // Suggestions and the finder: only trades that raise the partner's expected categories too (#682).
+  const [winWin, setWinWin] = useState(true);
   const found = useMemo<FoundTrade[] | null>(() => {
     if (!finding || !state || !standings) return null;
     const rest = new Map([...worth].map(([id, w]) => [id, Math.max(0, week ? w.week : w.rest)]));
@@ -197,9 +199,10 @@ export default function TradeAnalyzer() {
         return { gain: e.mine.weightedGain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
       },
       minGain: meaningful(state, setup.mine),
+      winWin,
       position: (id) => byId.get(id)?.position,
     });
-  }, [finding, state, standings, worth, week, setup.mine, byId]);
+  }, [finding, state, standings, worth, week, setup.mine, byId, winWin]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
@@ -283,6 +286,10 @@ export default function TradeAnalyzer() {
   const threshold = state ? meaningful(state, setup.mine) : 0;
   const h2h = setup.format === 'h2h';
   const partnerName = setup.names[partnerTeam] ?? 'Your partner';
+  // Both sides in the same depth (#682): each team's needs from the standings, and the trade
+  // judged by both teams' change in expected categories.
+  const needs = impact && state && standings ? { mine: teamNeeds(state, standings, setup.mine), partner: teamNeeds(state, standings, partnerTeam) } : null;
+  const verdictBoth = impact && state ? objective(impact.mine.weightedGain, impact.partner.gain, threshold) : null;
 
   // This week's matchup before and after (#674): a head-to-head league with an opponent set and
   // games left this week, on the projected line over the games left, as the board's matchup card.
@@ -321,6 +328,7 @@ export default function TradeAnalyzer() {
                 }
               : undefined,
           minGain: threshold || undefined,
+          winWin,
           position: (id) => byId.get(id)?.position,
         })
       : [];
@@ -533,6 +541,10 @@ export default function TradeAnalyzer() {
 
       {!ready && standings && (
         <Card title="Trades across your league" id="finder">
+          <label className="mb-2 flex items-center gap-2 text-sm" title="Both teams' expected categories must rise">
+            <input type="checkbox" checked={winWin} onChange={(e) => setWinWin(e.target.checked)} data-testid="win-win" />
+            Win-win only
+          </label>
           {!found ? (
             <div className="grid gap-2 text-sm">
               <p className="text-muted">
@@ -582,7 +594,9 @@ export default function TradeAnalyzer() {
             </ul>
           ) : (
             <p className="text-sm text-muted" data-testid="found-none">
-              No one-for-one, two-for-one or one-for-two trade raises the categories you expect to win on terms the other team has a reason to accept.
+              {winWin
+                ? 'No one-for-one, two-for-one or one-for-two trade raises the categories both teams expect to win. Untick win-win only to see trades that pay the other team in value instead.'
+                : 'No one-for-one, two-for-one or one-for-two trade raises the categories you expect to win on terms the other team has a reason to accept.'}
             </p>
           )}
           {found && (
@@ -696,6 +710,17 @@ export default function TradeAnalyzer() {
                     </>
                   )}
                 </p>
+                {verdictBoth && (
+                  <p data-testid="trade-objective" className={verdictBoth === 'win-win' ? 'font-medium text-good' : verdictBoth === 'neither' ? 'text-bad' : ''}>
+                    {verdictBoth === 'win-win'
+                      ? 'Win-win: both teams expect to win more categories, an objectively good trade.'
+                      : verdictBoth === 'you'
+                        ? `Good for you only: ${partnerName} does not gain categories, so they have less reason to accept.`
+                        : verdictBoth === 'them'
+                          ? `Good for ${partnerName} only: they gain categories and you do not.`
+                          : 'Neither team gains categories.'}
+                  </p>
+                )}
                 {(impact.ups.length > 0 || impact.downs.length > 0) && <p>{catMoves(impact.ups, impact.downs)}</p>}
                 {setup.focus.length > 0 && (
                   <p className="text-muted" data-testid="trade-focus">
@@ -734,11 +759,78 @@ export default function TradeAnalyzer() {
                     )}
                   </p>
                 )}
-                <p data-testid="trade-partner">
-                  <span className="text-muted">For {partnerName}: </span>
-                  <Signed value={impact.partner.gain} digits={h2h ? 2 : 1} /> {h2h ? 'expected categories a week' : 'rotisserie points'} and{' '}
-                  <Signed value={-net} digits={1} /> in value. <span className="text-muted">{acceptance(impact.partner.gain, -net, scale)}</span>
-                </p>
+                <div className="grid gap-1 rounded border border-line p-2" data-testid="trade-partner">
+                  <p>
+                    <span className="text-muted">For {partnerName}: </span>
+                    {h2h ? (
+                      <>
+                        {fmt(impact.partner.scoreBefore, 2)} → <strong>{fmt(impact.partner.scoreAfter, 2)}</strong> expected categories a week (
+                        <Signed value={impact.partner.gain} digits={2} />)
+                      </>
+                    ) : (
+                      <>
+                        {fmt(impact.partner.scoreBefore, 1)} → <strong>{fmt(impact.partner.scoreAfter, 1)}</strong> rotisserie points (
+                        <Signed value={impact.partner.gain} digits={1} />)
+                      </>
+                    )}{' '}
+                    and <Signed value={-net} digits={1} /> in value. <span className="text-muted">{acceptance(impact.partner.gain, -net, scale)}</span>
+                  </p>
+                  {(impact.partnerUps.length > 0 || impact.partnerDowns.length > 0) && <p>{catMoves(impact.partnerUps, impact.partnerDowns)}</p>}
+                  {(impact.sides.partner.dropped.length > 0 || impact.sides.partner.added.length > 0) && (
+                    <p className="text-muted">
+                      {impact.sides.partner.dropped.length > 0 && <>They would drop {nameList(impact.sides.partner.dropped)} to make room. </>}
+                      {impact.sides.partner.added.length > 0 && <>They would pick up {nameList(impact.sides.partner.added)}, the best free agent left. </>}
+                    </p>
+                  )}
+                </div>
+                {needs && (
+                  <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Each team's needs">
+                    <table className="w-full text-sm" data-testid="trade-needs">
+                      <thead>
+                        <tr>
+                          <Th>Needs, from the standings</Th>
+                          <Th>You</Th>
+                          <Th>{partnerName}</Th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(
+                          [
+                            ['Swing categories (close against the league)', 'swing'],
+                            ['Conceding (under 25%)', 'conceding'],
+                            ['Locked (over 75%)', 'locked'],
+                          ] as const
+                        ).map(([label, key]) => (
+                          <tr key={key} className="border-t border-line">
+                            <Td>{label}</Td>
+                            {(['mine', 'partner'] as const).map((side) => {
+                              const list = needs[side][key];
+                              const up = side === 'mine' ? impact.ups : impact.partnerUps;
+                              const down = side === 'mine' ? impact.downs : impact.partnerDowns;
+                              return (
+                                <Td key={side}>
+                                  {list.length
+                                    ? list.map((c, i) => (
+                                        <span key={c} className={key === 'swing' ? (up.includes(c) ? 'text-good' : down.includes(c) ? 'text-bad' : '') : ''}>
+                                          {i > 0 ? ', ' : ''}
+                                          {CATEGORY_LABELS[c] ?? c}
+                                          {key === 'swing' ? (up.includes(c) ? ' ↑' : down.includes(c) ? ' ↓' : '') : ''}
+                                        </span>
+                                      ))
+                                    : '–'}
+                                </Td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="mt-1 text-xs text-muted">
+                      Swing categories are where a gain moves a team&apos;s chances most; an arrow shows the trade moving one up or down. A good trade for
+                      both sides helps each team&apos;s swing categories and costs it only categories it concedes or has locked.
+                    </p>
+                  </div>
+                )}
                 {(market(give) || market(get)) && (
                   <p className="text-muted" data-testid="trade-market">
                     ESPN draft ranks, which many managers trade by: you give {market(give) || 'none ranked'}, you get {market(get) || 'none ranked'}.
@@ -810,6 +902,12 @@ export default function TradeAnalyzer() {
 
       {ready && hasRosters && (
         <Card title="Suggested trades" id="suggestions">
+          {standings && (
+            <label className="mb-2 flex items-center gap-2 text-sm" title="Both teams' expected categories must rise">
+              <input type="checkbox" checked={winWin} onChange={(e) => setWinWin(e.target.checked)} data-testid="win-win" />
+              Win-win only
+            </label>
+          )}
           {suggestions.length ? (
             <>
               {/* A phone gets a stacked list, so each suggestion's button is on screen (#455); wider screens the table. */}
@@ -892,14 +990,14 @@ export default function TradeAnalyzer() {
                 : open === 'get' && !active(partnerTeam).length
                   ? `Add ${setup.names[partnerTeam] ?? 'the partner'}’s roster on the League page to see what you could ask for.`
                   : standings
-                    ? `No package of up to three players from ${open === 'give' ? 'your' : `${partnerName}’s`} roster raises your expected categories won on terms ${partnerName} could accept. Try another partner, or a different player.`
+                    ? `No package of up to three players from ${open === 'give' ? 'your' : `${partnerName}’s`} roster raises your expected categories won on terms ${partnerName} could accept${winWin ? ' (win-win only: theirs must rise too)' : ''}. Try another partner, or a different player.`
                     : `No package of up to three players from ${open === 'give' ? 'your' : `${partnerName}’s`} roster comes within 15% of the other side for the ${REST}. Try another partner, or a different player.`}
             </p>
           )}
           <p className="mt-2 text-xs text-muted">
             {open === 'give' ? 'Packages from your roster' : `Packages from ${partnerName}’s roster`}
             {standings
-              ? ` that raise the categories you expect to win, biggest gain first, among trades ${partnerName} could accept: they give up at most 15% in value, or their own categories rise. The value can favour ${partnerName}; what counts is the categories. Your categories: the change in the categories you expect to win ${h2h ? 'a week' : '(rotisserie points)'}; ${partnerName}: theirs. Pick one to load it into the trade and see the full breakdown.`
+              ? ` that raise the categories you expect to win, biggest gain first, among trades ${partnerName} could accept: ${winWin ? 'win-win only, so their expected categories rise too' : 'they give up at most 15% in value, or their own categories rise'}. The value can favour ${partnerName}; what counts is the categories. Your categories: the change in the categories you expect to win ${h2h ? 'a week' : '(rotisserie points)'}; ${partnerName}: theirs. Pick one to load it into the trade and see the full breakdown.`
               : ` that bring the two sides within 15% of each other for the ${REST}, the ones that favour you most first.${
                   points ? '' : ' Enter half or more of a second team’s roster on the League page to rank them by the categories they win you instead.'
                 }`}
@@ -975,6 +1073,7 @@ export default function TradeAnalyzer() {
                   {change && <Th right>Your team before</Th>}
                   {change && <Th right>After</Th>}
                   {change && (impact ? <Th right>{h2h ? 'Win chance' : 'Teams beaten'}</Th> : <Th right>Rank of {change.ranked}</Th>)}
+                  {change && impact && <Th right>{partnerName}&apos;s</Th>}
                 </tr>
               </thead>
               <tbody>
@@ -1009,6 +1108,14 @@ export default function TradeAnalyzer() {
                           <span className={chanceTone(impact.mine.before[c] ?? 0, impact.mine.after[c] ?? 0)}>
                             {chance(impact.mine.before[c])}
                             {chance(impact.mine.after[c]) !== chance(impact.mine.before[c]) ? ` → ${chance(impact.mine.after[c])}` : ''}
+                          </span>
+                        </Td>
+                      )}
+                      {row && impact && (
+                        <Td right>
+                          <span className={chanceTone(impact.partner.before[c] ?? 0, impact.partner.after[c] ?? 0)}>
+                            {chance(impact.partner.before[c])}
+                            {chance(impact.partner.after[c]) !== chance(impact.partner.before[c]) ? ` → ${chance(impact.partner.after[c])}` : ''}
                           </span>
                         </Td>
                       )}

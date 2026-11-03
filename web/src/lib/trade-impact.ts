@@ -6,7 +6,7 @@
  */
 import type { League } from './data';
 import type { Format } from './fantasy-league';
-import { expectedWins, rivals, standingsModel, type StandingsModel, teamTotals, winChances } from './standings';
+import { expectedWins, rivals, standingsModel, type StandingsModel, standingWeights, teamTotals, winChances } from './standings';
 
 export interface LeagueState {
   league: League;
@@ -105,6 +105,9 @@ export interface TradeImpact {
   /** The categories where the manager's chance rises, and where it falls, by at least two points. */
   ups: string[];
   downs: string[];
+  /** The same for the partner (#682). */
+  partnerUps: string[];
+  partnerDowns: string[];
 }
 
 /** Head-to-head: expected categories won a week. Rotisserie: points, one per category plus one per rival finished ahead of. */
@@ -132,9 +135,58 @@ export function tradeImpact(state: LeagueState, standings: Standings, mine: numb
   const m = change(mine, state.focus);
   // the partner's focus is not known: every category counts 1
   const p = change(partner);
-  const ups = state.cats.filter((c) => (m.after[c] ?? 0) - (m.before[c] ?? 0) >= 0.02);
-  const downs = state.cats.filter((c) => (m.before[c] ?? 0) - (m.after[c] ?? 0) >= 0.02);
-  return { totals: { before: standings.totals[mine] ?? {}, after: totals[mine] ?? {} }, mine: m, partner: p, sides, ups, downs };
+  const moves = (t: TeamChange) => ({
+    up: state.cats.filter((c) => (t.after[c] ?? 0) - (t.before[c] ?? 0) >= 0.02),
+    down: state.cats.filter((c) => (t.before[c] ?? 0) - (t.after[c] ?? 0) >= 0.02),
+  });
+  const mm = moves(m);
+  const pm = moves(p);
+  return {
+    totals: { before: standings.totals[mine] ?? {}, after: totals[mine] ?? {} },
+    mine: m,
+    partner: p,
+    sides,
+    ups: mm.up,
+    downs: mm.down,
+    partnerUps: pm.up,
+    partnerDowns: pm.down,
+  };
+}
+
+export interface TeamNeeds {
+  /** The categories a gain moves most: close against the league (the standings weights' top three). */
+  swing: string[];
+  /** The categories the team is conceding: under a one-in-four chance against the league. */
+  conceding: string[];
+  /** The categories the team has locked: over a three-in-four chance. */
+  locked: string[];
+}
+
+/** A team's needs read from the standings: where a gain matters, and what it concedes or has locked (#682). */
+export function teamNeeds(state: LeagueState, standings: Standings, team: number): TeamNeeds {
+  const others = rivals(state.rosters, team, state.rosterSpots);
+  const chances = winChances(standings.totals, team, others, standings.model);
+  const weights = standingWeights(standings.totals, team, others, standings.model) ?? {};
+  return {
+    swing: [...state.cats].sort((a, b) => (weights[b] ?? 0) - (weights[a] ?? 0)).slice(0, 3),
+    conceding: state.cats.filter((c) => (chances[c] ?? 0.5) < 0.25),
+    locked: state.cats.filter((c) => (chances[c] ?? 0.5) > 0.75),
+  };
+}
+
+export type Objective = 'win-win' | 'you' | 'them' | 'neither';
+
+/**
+ * The trade judged from both sides by each team's change in expected categories: good for both
+ * (win-win), for one side only, or for neither. A change smaller than `threshold` counts as even.
+ */
+export function objective(mineGain: number, partnerGain: number, threshold: number): Objective {
+  const me = mineGain >= threshold ? 1 : mineGain <= -threshold ? -1 : 0;
+  const them = partnerGain >= threshold ? 1 : partnerGain <= -threshold ? -1 : 0;
+  if (me >= 0 && them >= 0 && me + them > 0) return 'win-win';
+  if (me > 0) return 'you';
+  if (them > 0) return 'them';
+  return 'neither';
 }
 
 /**

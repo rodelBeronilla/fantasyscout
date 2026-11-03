@@ -148,3 +148,28 @@ describe('the trade finder (#664)', () => {
     expect(out.filter((t) => t.partner === 1).length).toBeLessThanOrEqual(3);
   });
 });
+
+describe('win-win only (#682)', () => {
+  it('keeps only packages that raise the partner’s categories too', () => {
+    const rest = new Map([
+      ['a', 5],
+      ['helps-both', 4],
+      ['pays-value', 3],
+    ]);
+    const effects: Record<string, { gain: number; partnerGain: number }> = {
+      'helps-both': { gain: 0.2, partnerGain: 0.1 },
+      'pays-value': { gain: 0.4, partnerGain: -0.1 },
+    };
+    const input = {
+      give: ['a'],
+      get: [],
+      mine: ['a'],
+      theirs: ['helps-both', 'pays-value'],
+      rest,
+      maxAdd: 1,
+      effect: (_g: string[], get: string[]) => ({ ...(effects[get[0]!] ?? { gain: 0, partnerGain: 0 }), ups: [], downs: [] }),
+    };
+    expect(suggestTrades(input).map((s) => s.get)).toEqual([['pays-value'], ['helps-both']]);
+    expect(suggestTrades({ ...input, winWin: true }).map((s) => s.get)).toEqual([['helps-both']]);
+  });
+});

@@ -1181,6 +1181,12 @@ test('with rival rosters in, the Trade page judges a trade by the categories it 
   await expect(page.getByTestId('trade-verdict')).toContainText('In value');
   await expect(page.getByTestId('trade-spots')).toHaveCount(0);
   await expect(page.getByTestId('trade-categories').locator('thead')).toContainText('Win chance');
+  // both sides in the same depth (#682): the objective verdict, each team's needs, the partner's win chances
+  await expect(page.getByTestId('trade-objective')).toHaveText(/^(Win-win|Good for you only|Good for Team 2 only|Neither team)/);
+  await expect(page.getByTestId('trade-partner')).toContainText('expected categories a week');
+  await expect(page.getByTestId('trade-needs').locator('thead')).toContainText('Team 2');
+  await expect(page.getByTestId('trade-needs').locator('tbody tr')).toHaveCount(3);
+  await expect(page.getByTestId('trade-categories').locator('thead')).toContainText("Team 2's");
   // the suggestions now weigh categories and show the partner's side
   await page.getByTestId('roster-get').getByRole('checkbox').nth(1).uncheck();
   await page.getByTestId('roster-give').getByRole('checkbox').first().uncheck();
@@ -1203,7 +1209,11 @@ test('the trade finder lists trades across the league that win the manager categ
   await page.goto('/trade/');
   const finder = page.locator('#finder');
   await expect(finder).toContainText('every team');
+  // the fixture's best trades pay Team 2 in value, not categories: win-win only finds none
+  await expect(page.getByTestId('win-win')).toBeChecked();
   await page.getByTestId('find-trades').click();
+  await expect(page.getByTestId('found-none')).toContainText('both teams');
+  await page.getByTestId('win-win').uncheck();
   const found = page.getByTestId('found-trades').locator('li');
   await expect(found.first()).toContainText('Your categories');
   await found.first().getByRole('button', { name: 'Use this trade' }).click();

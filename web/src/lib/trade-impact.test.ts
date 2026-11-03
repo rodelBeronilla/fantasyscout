@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type LeagueState, leagueStandings, rostersAfter, tradeImpact } from './trade-impact';
+import { type LeagueState, leagueStandings, objective, rostersAfter, teamNeeds, tradeImpact } from './trade-impact';
 
 const values: Record<string, Record<string, number>> = {
   // the manager: a scorer who does nothing for the kept categories, and two bigs
@@ -83,5 +83,27 @@ describe('tradeImpact', () => {
   });
   it('is not judged without a rival roster', () => {
     expect(leagueStandings({ ...state, rosters: [['scorer'], [], []] }, 0)).toBeNull();
+  });
+});
+
+describe('both sides (#682)', () => {
+  const standings = leagueStandings(state, 0)!;
+  it('reads each team’s needs from the standings', () => {
+    const needs = teamNeeds(state, standings, 0);
+    expect(needs.swing.length).toBeLessThanOrEqual(3);
+    for (const c of [...needs.conceding, ...needs.locked]) expect(state.cats).toContain(c);
+    expect(needs.conceding.some((c) => needs.locked.includes(c))).toBe(false);
+  });
+  it('lists the partner’s categories that move', () => {
+    const impact = tradeImpact(state, standings, 0, 1, ['scorer'], ['boards']);
+    expect(impact.partnerDowns.length).toBeGreaterThan(0);
+  });
+  it('judges a trade from both sides', () => {
+    expect(objective(0.2, 0.1, 0.05)).toBe('win-win');
+    expect(objective(0.2, 0, 0.05)).toBe('win-win');
+    expect(objective(0.2, -0.1, 0.05)).toBe('you');
+    expect(objective(-0.2, 0.1, 0.05)).toBe('them');
+    expect(objective(0.01, -0.01, 0.05)).toBe('neither');
+    expect(objective(-0.2, -0.2, 0.05)).toBe('neither');
   });
 });
