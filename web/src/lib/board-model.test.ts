@@ -53,14 +53,6 @@ describe('board model', () => {
     expect(scoreRows(rows, { ...base, view: 'season' }).map((s) => s.value)).toEqual([1.5, null]);
   });
 
-  it('counts a focus category more in value and Fit (#680)', () => {
-    const rows = [row('a', 'G')];
-    // a: 2 points, 1 assist; assists a focus at 1.5
-    expect(restValues(rows, { ...none, focus: { z_points: 1, z_assists: 1.5 } }).get('a')).toBeCloseTo(3.5);
-    const base = { ...none, countGames: true, restOfSeason: false, weights: { z_points: 2, z_assists: 1 }, focus: { z_points: 1, z_assists: 1.5 } };
-    expect(scoreRows(rows, { ...base, view: 'value' }).map((s) => [s.value, s.fit])).toEqual([[3.5, 5.5]]);
-  });
-
   it('ranks by position and tiers the value view, counting the players on no roster', () => {
     const rows = [row('g1', 'G'), row('g2', 'G-F'), row('c1', 'C'), row('x', null)];
     const scored = [

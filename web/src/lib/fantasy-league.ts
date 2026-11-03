@@ -52,8 +52,6 @@ export interface LeagueSettings {
   format: Format;
   /** Categories the manager gives up on (a categories league): every page values players without them (#661). */
   punts: string[];
-  /** Categories the manager builds around: they count FOCUS_WEIGHT times as much in value, Fit and trades (#680). */
-  focus: string[];
 }
 
 interface Pick {
@@ -77,8 +75,8 @@ export interface LeagueSetup extends LeagueSettings {
 
 /** The league the published values assume (dbt var `fantasy`). */
 export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
-  nba: { teams: 12, rosterSpots: 13, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [], focus: [] },
-  wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [], focus: [] },
+  nba: { teams: 12, rosterSpots: 13, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [] },
+  wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [] },
 };
 
 /**
@@ -90,15 +88,9 @@ export function keptCategories(s: { scoring: Scoring; punts: string[] }): string
   return CATEGORIES.filter((c) => !s.punts.includes(c) && !(s.scoring === 'cats8' && c === 'z_turnovers'));
 }
 
-/** How much a focused category counts against one that is only kept (#680). */
-export const FOCUS_WEIGHT = 1.5;
-
-/**
- * Each kept category's weight in value, Fit and trades: FOCUS_WEIGHT for a focused category, 1
- * for the rest. Empty for a points league.
- */
-export function categoryWeights(s: { scoring: Scoring; punts: string[]; focus: string[] }): Record<string, number> {
-  return Object.fromEntries(keptCategories(s).map((c) => [c, s.focus.includes(c) ? FOCUS_WEIGHT : 1]));
+/** Each kept category's weight in value: 1, a punted one left out. Empty for a points league. */
+export function categoryWeights(s: { scoring: Scoring; punts: string[] }): Record<string, number> {
+  return Object.fromEntries(keptCategories(s).map((c) => [c, 1]));
 }
 
 /** A player's (or a team's) categories summed with the weights; a category without a weight counts 0. */
@@ -117,7 +109,6 @@ export function isDefaultSettings(s: LeagueSettings, d: LeagueSettings): boolean
     s.scoring === d.scoring &&
     s.format === d.format &&
     s.punts.length === 0 &&
-    s.focus.length === 0 &&
     JSON.stringify(s.weights) === JSON.stringify(d.weights)
   );
 }
@@ -148,10 +139,6 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
     format: raw.format === 'h2h' || raw.format === 'roto' ? raw.format : fallback.format,
     // known categories only, once each, in the board's order
     punts: CATEGORIES.filter((c) => (Array.isArray(raw.punts) ? raw.punts : fallback.punts).includes(c)),
-    // a punted category cannot also be a focus
-    focus: CATEGORIES.filter(
-      (c) => (Array.isArray(raw.focus) ? raw.focus : fallback.focus).includes(c) && !(Array.isArray(raw.punts) ? raw.punts : fallback.punts).includes(c),
-    ),
     names,
     rosters,
     mine,
@@ -213,8 +200,9 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
  * 3: the league format (`format`: roto or head-to-head) and this week's opponent (`opponent`).
  * 4: the punted categories (`punts`), which until then were a view setting on the board.
  * 5: the focus categories (`focus`).
+ * 6: focus categories withdrawn (#706); the field is dropped.
  */
-export const SETUP_VERSION = 5;
+export const SETUP_VERSION = 6;
 
 interface StoredSetup extends LeagueSetup {
   version: number;
@@ -252,7 +240,13 @@ export function migrate(raw: unknown, fallback: LeagueSettings, legacy: LegacySt
   }
   if (version <= 4) {
     // 4 -> 5: no league had a focus.
-    value = { ...value, focus: [] };
+    value = { ...value, focus: [] } as typeof value;
+  }
+  if (version <= 5) {
+    // 5 -> 6: focus categories were withdrawn (#706); the field goes.
+    const rest: Record<string, unknown> = { ...value };
+    delete rest['focus'];
+    value = rest as typeof value;
   }
   const setup = normalize(value, fallback);
   if (legacy.marks?.length) {

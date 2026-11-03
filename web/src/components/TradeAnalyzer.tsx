@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague } from '../lib/league';
-import { categoryWeights, DEFAULT_SETTINGS, FOCUS_WEIGHT, isDefaultSettings, keptCategories, owners, useLeague, weightedSum } from '../lib/fantasy-league';
+import { categoryWeights, DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague, weightedSum } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { href } from '../lib/site';
 import { matchup, weekTotals } from '../lib/matchup';
@@ -99,7 +99,7 @@ export default function TradeAnalyzer() {
   const points = setup.scoring === 'points';
   // The league's categories less its punts (#661): a punted category counts for nothing in a trade.
   const cats = useMemo(() => keptCategories(setup), [setup]);
-  // A focus category counts more in value and in judging a trade (#680).
+  // The kept categories each count once; punted ones not at all (#661).
   const catWeight = useMemo(() => categoryWeights(setup), [setup]);
   const punted = points ? [] : setup.punts;
   const catValues = useMemo(() => (rows && !points ? categoryValues(rows, cats, pool, setup.teams) : null), [rows, points, cats, pool, setup.teams]);
@@ -159,9 +159,8 @@ export default function TradeAnalyzer() {
       catValue: (id) => worth.get(id)?.cats,
       availability: (id) => availability.get(id) ?? 1,
       gamesLeft: rows.reduce((m, r) => Math.max(m, r.games_remaining ?? 0), 0),
-      focus: catWeight,
     };
-  }, [rows, points, hasRosters, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner, catWeight]);
+  }, [rows, points, hasRosters, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner]);
   const standings = useMemo(() => (state ? leagueStandings(state, setup.mine) : null), [state, setup.mine]);
   // The market's price of each player (#692): his ESPN rank, priced at the rest-of-season value the
   // board's player of that rank has, so it reads on the same scale as the projected value.
@@ -226,7 +225,7 @@ export default function TradeAnalyzer() {
       rest,
       effect: (team, g, r) => {
         const e = tradeImpact(state, standings, setup.mine, team, g, r);
-        return { gain: e.mine.weightedGain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
+        return { gain: e.mine.gain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
       },
       minGain: meaningful(state, setup.mine),
       winWin,
@@ -319,12 +318,12 @@ export default function TradeAnalyzer() {
   // Is it even? (#692) Projected value with the roster spots settled, the market, and the categories:
   // even only when they agree; a warning when any says the trade is bad for the manager.
   const lenses = ready ? lensesFor(hasRosters ? partnerTeam : -1, give, get) : null;
-  const fair = lenses ? judge(lenses.value, lenses.market, impact ? impact.mine.weightedGain : null, threshold) : null;
+  const fair = lenses ? judge(lenses.value, lenses.market, impact ? impact.mine.gain : null, threshold) : null;
   const settledNote = lenses?.settled && (lenses.settled.dropped.length > 0 || lenses.settled.added.length > 0);
   // Both sides in the same depth (#682): each team's needs from the standings, and the trade
   // judged by both teams' change in expected categories.
   const needs = impact && state && standings ? { mine: teamNeeds(state, standings, setup.mine), partner: teamNeeds(state, standings, partnerTeam) } : null;
-  const verdictBoth = impact && state ? objective(impact.mine.weightedGain, impact.partner.gain, threshold) : null;
+  const verdictBoth = impact && state ? objective(impact.mine.gain, impact.partner.gain, threshold) : null;
 
   // This week's matchup before and after (#674): a head-to-head league with an opponent set and
   // games left this week, on the projected line over the games left, as the board's matchup card.
@@ -359,7 +358,7 @@ export default function TradeAnalyzer() {
             state && standings
               ? (g, r): CategoryEffect => {
                   const e = tradeImpact(state, standings, setup.mine, partnerTeam, g, r);
-                  return { gain: e.mine.weightedGain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
+                  return { gain: e.mine.gain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
                 }
               : undefined,
           minGain: threshold || undefined,
@@ -853,7 +852,7 @@ export default function TradeAnalyzer() {
               <div className="grid gap-1" data-testid="trade-category-verdict">
                 <p className="text-base">
                   <strong>
-                    {impact.mine.weightedGain >= threshold ? 'Wins you categories' : impact.mine.weightedGain <= -threshold ? 'Costs you categories' : 'About even in categories'}:
+                    {impact.mine.gain >= threshold ? 'Wins you categories' : impact.mine.gain <= -threshold ? 'Costs you categories' : 'About even in categories'}:
                   </strong>{' '}
                   {h2h ? (
                     <>
@@ -883,12 +882,6 @@ export default function TradeAnalyzer() {
                   </p>
                 )}
                 {(impact.ups.length > 0 || impact.downs.length > 0) && <p>{catMoves(impact.ups, impact.downs)}</p>}
-                {setup.focus.length > 0 && (
-                  <p className="text-muted" data-testid="trade-focus">
-                    Counting your focus ({setup.focus.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}) {FOCUS_WEIGHT}×:{' '}
-                    <Signed value={impact.mine.weightedGain} digits={2} />.
-                  </p>
-                )}
                 {(impact.sides.mine.dropped.length > 0 || impact.sides.mine.added.length > 0) && (
                   <p className="text-muted" data-testid="trade-roster-moves">
                     {impact.sides.mine.dropped.length > 0 && <>To make room you would drop {nameList(impact.sides.mine.dropped)}, your lowest-valued player after the trade. </>}

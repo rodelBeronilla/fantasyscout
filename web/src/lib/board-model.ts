@@ -35,17 +35,15 @@ export interface LeagueValues {
   leaguePoints: Map<string, { fpts: number; value: number }> | null;
   leagueCats: Map<string, Record<string, number>> | null;
   activeCats: string[];
-  /** Each category's weight: the league's focus categories count more (#680); absent, every category counts 1. */
-  focus?: Record<string, number>;
 }
 
 /** Rest-of-season value under the league's scoring, per player: the scale the Trade page uses. */
-export function restValues(rows: ModelRow[], { points, leaguePoints, leagueCats, activeCats, focus }: LeagueValues): Map<string, number> {
+export function restValues(rows: ModelRow[], { points, leaguePoints, leagueCats, activeCats }: LeagueValues): Map<string, number> {
   const out = new Map<string, number>();
   for (const r of rows) {
     const v = points
       ? (leaguePoints?.get(r.player_id)?.value ?? 0)
-      : activeCats.reduce((s, c) => s + (focus?.[c] ?? 1) * (leagueCats?.get(r.player_id)?.[c] ?? 0), 0);
+      : activeCats.reduce((s, c) => s + (leagueCats?.get(r.player_id)?.[c] ?? 0), 0);
     out.set(r.player_id, scaleValue(v, r));
   }
   return out;
@@ -65,7 +63,6 @@ export function scoreRows<R extends ModelRow>(
   opts: LeagueValues & { view: BoardView; countGames: boolean; restOfSeason: boolean; weights: Record<string, number> | null },
 ): Scored<R>[] {
   const { view, activeCats, leagueCats, leaguePoints, weights } = opts;
-  const focus = (c: string) => opts.focus?.[c] ?? 1;
   const scale = (r: R, v: number) => scaleValue(v, r, { countGames: opts.countGames, restOfSeason: opts.restOfSeason });
   return rows.map((r) => {
     let value: number | null;
@@ -76,13 +73,10 @@ export function scoreRows<R extends ModelRow>(
       value = scale(r, leaguePoints.get(r.player_id)?.value ?? 0);
     } else if (view === 'value' && leagueCats) {
       const cats = leagueCats.get(r.player_id) ?? {};
-      value = scale(r, activeCats.reduce((s, c) => s + focus(c) * (cats[c] ?? 0), 0));
-      if (weights) fit = scale(r, activeCats.reduce((s, c) => s + (weights[c] ?? 1) * focus(c) * (cats[c] ?? 0), 0));
+      value = scale(r, activeCats.reduce((s, c) => s + (cats[c] ?? 0), 0));
+      if (weights) fit = scale(r, activeCats.reduce((s, c) => s + (weights[c] ?? 1) * (cats[c] ?? 0), 0));
     } else {
-      const parts = activeCats.map((c) => {
-        const z = num(r, zKey(view, c));
-        return z === null ? null : focus(c) * z;
-      });
+      const parts = activeCats.map((c) => num(r, zKey(view, c)));
       value = parts.every((p) => p === null) ? null : parts.reduce<number>((s, p) => s + (p ?? 0), 0);
     }
     return { row: r, value, fit };
