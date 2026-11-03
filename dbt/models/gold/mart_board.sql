@@ -38,6 +38,9 @@
   scales value above replacement by it; a value below replacement is left as it is, since a
   missing game from a player not worth rostering costs nothing. Once the regular season is
   over (playoffs or the off-season) season_complete is true and ros_factor is 1.
+  A regular (fantasy_rest_risk.min_minutes projected) on a team with nothing left to play for
+  (fct_team_stakes.rest_risk) is expected to sit out fantasy_rest_risk.extra_sit_out more of the
+  games left, measured point in time in notebook 03 (#494): the multiplier keeps the rest.
   games_next_7 counts playoff games too.
 #}
 
@@ -377,6 +380,15 @@ assembled as (
                     when 'questionable' then 0.5
                     when 'day_to_day' then 0.25
                     else 0 end) * 1.0 / r.games_remaining)
+        end
+        -- a regular on a team with nothing to play for sits out more of the games left (#494)
+        * case
+            when coalesce(ts.rest_risk, false) and not coalesce(ls.season_complete, true)
+                and v.proj_minutes_pg >= case v.league
+                    {%- for lg, s in var('fantasy_rest_risk').items() %} when '{{ lg }}' then {{ s['min_minutes'] }}{% endfor %} else 999 end
+                then 1.0 - case v.league
+                    {%- for lg, s in var('fantasy_rest_risk').items() %} when '{{ lg }}' then {{ s['extra_sit_out'] }}{% endfor %} else 0 end
+            else 1.0
         end as availability_multiplier,
         em.games_missed as expected_games_missed,
         {%- for c in pgcols %}
