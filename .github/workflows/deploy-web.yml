@@ -196,6 +196,11 @@ jobs:
           OWNER_YAHOO_GUID: ${{ secrets.OWNER_YAHOO_GUID }}
           # CI's own reader key (#429): once set, the only bearer key the Parquet tables accept.
           CI_READER_KEY: ${{ secrets.CI_READER_KEY }}
+          # Live AI (ADR 0017): the tunnel's address of the local model and the Access service token
+          # only this Worker holds. Until all three are set, the AI routes say it is not set up.
+          AI_URL: ${{ vars.AI_URL }}
+          AI_ACCESS_CLIENT_ID: ${{ secrets.AI_ACCESS_CLIENT_ID }}
+          AI_ACCESS_CLIENT_SECRET: ${{ secrets.AI_ACCESS_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           if [ -z "$YAHOO_CLIENT_ID" ] || [ -z "$YAHOO_CLIENT_SECRET" ]; then
@@ -204,7 +209,8 @@ jobs:
           fi
           umask 077
           jq -n --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET" --arg owner "$OWNER_YAHOO_GUID" --arg reader "$CI_READER_KEY" \
-            '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret, OWNER_YAHOO_GUID: $owner, CI_READER_KEY: $reader} | with_entries(select(.value != ""))' \
+            --arg aiurl "$AI_URL" --arg aiid "$AI_ACCESS_CLIENT_ID" --arg aisecret "$AI_ACCESS_CLIENT_SECRET" \
+            '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret, OWNER_YAHOO_GUID: $owner, CI_READER_KEY: $reader, AI_URL: $aiurl, AI_ACCESS_CLIENT_ID: $aiid, AI_ACCESS_CLIENT_SECRET: $aisecret} | with_entries(select(.value != ""))' \
             > "$RUNNER_TEMP/yahoo.json"
           npx wrangler secret bulk "$RUNNER_TEMP/yahoo.json" --env "$WRANGLER_ENV"
           rm -f "$RUNNER_TEMP/yahoo.json"

@@ -25,6 +25,12 @@ run_worker_first = ["/data/*", "/p/*", "/api/*", "/auth/*", "/sitemap-players.xm
 binding = "DATA"
 bucket_name = "fantasyscout-data"
 
+# Live AI (ai.ts): a few explanations a minute per signed-in account.
+[[ratelimits]]
+name = "AI_LIMIT"
+namespace_id = "1702"
+simple = { limit = 4, period = 60 }
+
 [observability]
 enabled = true
 
@@ -38,6 +44,11 @@ routes = [{ pattern = "fantasyscout.beronilla.rodeo", custom_domain = true }]
 binding = "DATA"
 bucket_name = "fantasyscout-data"
 
+[[env.production.ratelimits]]
+name = "AI_LIMIT"
+namespace_id = "1702"
+simple = { limit = 4, period = 60 }
+
 [env.production.observability]
 enabled = true
 
@@ -49,6 +60,11 @@ workers_dev = true
 [[env.preview.r2_buckets]]
 binding = "DATA"
 bucket_name = "fantasyscout-data"
+
+[[env.preview.ratelimits]]
+name = "AI_LIMIT"
+namespace_id = "1703"
+simple = { limit = 4, period = 60 }
 
 [env.preview.observability]
 enabled = true

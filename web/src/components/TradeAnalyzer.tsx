@@ -20,6 +20,7 @@ import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openS
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
+import ExplainTrade from './ExplainTrade';
 import { TradeScorecard } from './TradeScorecard';
 import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
@@ -537,6 +538,28 @@ export default function TradeAnalyzer() {
     return notes;
   });
 
+  // What the AI is given to explain (ADR 0017): the scorecard's numbers as shown, no more (#702).
+  const r2 = (x: number) => Math.round(x * 100) / 100;
+  const catLabels = (list: string[]) => list.map((c) => CATEGORY_LABELS[c] ?? c);
+  const aiFacts = fair
+    ? {
+        you_give: giving.players.map((p) => p.full_name ?? p.player_id),
+        you_get: getting.players.map((p) => p.full_name ?? p.player_id),
+        partner: partnerName,
+        verdict: fair.severity !== 'fine' ? `bad for you (${fair.severity})` : fair.even ? 'fair' : fair.disagree ? 'a judgment call' : 'not even',
+        your_categories_a_week: impact ? { before: r2(impact.mine.scoreBefore), after: r2(impact.mine.scoreAfter), change: r2(impact.mine.gain) } : null,
+        partner_categories_a_week: impact ? { before: r2(impact.partner.scoreBefore), after: r2(impact.partner.scoreAfter), change: r2(impact.partner.gain) } : null,
+        your_categories_up: impact ? catLabels(impact.ups) : [],
+        your_categories_down: impact ? catLabels(impact.downs) : [],
+        partner_categories_up: impact ? catLabels(impact.partnerUps) : [],
+        partner_categories_down: impact ? catLabels(impact.partnerDowns) : [],
+        projected_value_lean_percent_positive_favours_you: Math.round(fair.value.share * 100),
+        market_lean_percent_positive_favours_you: fair.market ? Math.round(fair.market.share * 100) : null,
+        warnings: fair.reasons,
+        timing,
+      }
+    : null;
+
   const playerRow = (p: PlayerRow) => {
     const w = worth.get(p.player_id);
     const form = points ? null : formOf(p);
@@ -822,6 +845,7 @@ export default function TradeAnalyzer() {
             {fair && (
               <TradeScorecard fair={fair} impact={impact} needs={needs} objective={verdictBoth} partnerName={partnerName} h2h={h2h} nameList={nameList} threshold={threshold} />
             )}
+            {aiFacts && <ExplainTrade facts={aiFacts} />}
             <details className="rounded-lg border border-line p-2" data-testid="trade-details">
               <summary className="cursor-pointer text-sm font-medium">The full breakdown: how this is worked out</summary>
               <div className="mt-2 grid gap-2">

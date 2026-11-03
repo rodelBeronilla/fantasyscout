@@ -16,11 +16,12 @@
 
 import cspHashes from './csp-hashes.json';
 import { handleAccount, isAccountWrite, PRIVATE_PREFIX } from './account';
+import { type AiEnv, handleAi } from './ai';
 import { handleOwner, isOwner, isPrivateData, type OwnerEnv } from './owner';
 import { DOCS_CSP, NOTEBOOK_CSP, pagePolicy, STATIC_HEADERS } from './policy';
 import { handleYahoo, type YahooEnv } from './yahoo';
 
-interface Env extends YahooEnv, OwnerEnv {
+interface Env extends YahooEnv, OwnerEnv, AiEnv {
   ASSETS: Fetcher;
   DATA: R2Bucket;
 }
@@ -388,6 +389,9 @@ export default {
 
     const account = await handleAccount(request, env);
     if (account) return withSecurityHeaders(account, url.pathname);
+
+    const ai = await handleAi(request, env);
+    if (ai) return withSecurityHeaders(ai, url.pathname);
 
     if (url.pathname.startsWith(DATA_PREFIX)) {
       // The path is decoded once, here: a path that does not decode is a bad request, not a

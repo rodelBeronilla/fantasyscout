@@ -2324,6 +2324,29 @@ test('UI polish: a phone sees each value beside the name, a day without games ha
   // the fixture's WNBA season is over: no games today, so no Today card
   await expect(page.getByTestId('today')).toHaveCount(0);
   await expect(page.locator('footer')).toContainText('any bookmaker. Sources, terms and what is published');
+
+test('live AI: a signed-in manager has the trade explained from its own numbers; others are asked to sign in (#702)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  let sent: { facts?: Record<string, unknown> } = {};
+  await page.route('**/api/ai/status', (route) => route.fulfill({ json: { available: true, signedIn: true } }));
+  await page.route('**/api/ai/explain-trade', async (route) => {
+    sent = route.request().postDataJSON() as typeof sent;
+    await route.fulfill({ json: { explanation: 'Take it: the value leans your way.' } });
+  });
+  await page.goto('/trade/');
+  await page.getByLabel('Add a player you give').fill(label(board[1]!));
+  await page.getByLabel('Add a player you get').fill(label(board[0]!));
+  await page.getByRole('button', { name: 'Explain this trade' }).click();
+  await expect(page.getByTestId('explain-text')).toHaveText('Take it: the value leans your way.');
+  expect(sent.facts?.['you_give']).toEqual([board[1]!.full_name]);
+  expect(sent.facts?.['you_get']).toEqual([board[0]!.full_name]);
+
+  await page.unroute('**/api/ai/status');
+  await page.route('**/api/ai/status', (route) => route.fulfill({ json: { available: true, signedIn: false } }));
+  await page.reload();
+  await page.getByLabel('Add a player you give').fill(label(board[1]!));
+  await expect(page.getByTestId('explain-signin')).toContainText('Sign in with Yahoo');
 });
 
 test('every Streamers column says what it holds, and the box-score columns are the last five games (#456)', async ({ page }) => {
