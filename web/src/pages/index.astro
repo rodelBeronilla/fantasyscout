@@ -5,11 +5,11 @@ import Base from '../layouts/Base.astro';
 
 <Base
   preload={['board/{league}.columns.json']}
-  title="Board"
+  title="Rankings"
   description="WNBA and NBA players ranked by value above replacement in your league, with tiers, who is still available, punts and filters."
 >
   <section>
-    <h1 class="text-2xl font-semibold tracking-tight">Board</h1>
+    <h1 class="text-2xl font-semibold tracking-tight">Rankings</h1>
     <!-- shown on a phone too: it is the page's largest early paint, and hiding it moved the LCP to
          what React renders later, over the budget (#704) -->
     <p class="mt-1 max-w-3xl text-sm text-muted" data-testid="intro">
