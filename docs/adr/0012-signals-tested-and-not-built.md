@@ -154,3 +154,23 @@ Crews differ, and some of the difference carries over: a crew whose games have r
 ## Addendum (2026-11-02): when the betting line's minutes effect is confirmed
 
 The matchup decision carries a "to confirm" mark until the line's minutes effect has full seasons behind it. The closing lines start in October 2026, so the first full season with them is NBA 2026-27, complete in April 2027; the game context notebook's findings after it confirm the decision or reopen it (#492). The prop lines' own comparison against outcomes waits for 200 player-game markets over 7 game dates per league, and its notebook fact now names both counts.
+
+## Three backtests run ahead of their retests: none adopted (2026-11-03)
+
+Three audit findings (#487, #493, #488) proposed changes to the board and Streamers, each with a bar to clear out of sample. They were run on the published build (the `Run the notebooks` workflow on their branches) rather than left for the next season.
+
+**Shooting percentages shrunk toward the pool (#487, run 41565973493).** Each projected FG%, FT% and 3P% was pulled toward the pool's rate by notebook 05's stabilization attempts (78/31/340 NBA, 84/34/299 WNBA), attempt rates unchanged and points following the makes, and the board was replayed beside the built one. It made the projection worse:
+
+| Out of sample | NBA built | NBA shrunk | WNBA built | WNBA shrunk |
+| --- | --- | --- | --- | --- |
+| FG%: attempt-weighted error | 0.039 | 0.046 | 0.051 | 0.054 |
+| FG%: slope of realised on projected | 0.73 | 0.28 | 0.66 | 0.51 |
+| FT%: attempt-weighted error | 0.059 | 0.061 | 0.066 | 0.066 |
+| Season-total top-N hits | 0.680 | 0.667 | 0.624 | 0.600 |
+| Value per game, error | 1.81 | 1.82 | 2.18 | 2.33 |
+
+One pool rate erases differences that are real: a center's field-goal percentage is not a guard's. The stabilization points say how fast a player's percentage settles against players like them, not against the whole pool. Not built. The notebook section was not kept, since it doubled the board replay to show a method that lost; a position-aware prior is the version still worth trying.
+
+**Games share from the player's own injury listings (#493, run 41565617995).** At each checkpoint, the share of the team's games before it, that season and the last, for which the player was listed Out for an injury. Realised share was fitted on the board's share and that listed share in the tuning seasons (NBA, 3,607 player-checkpoints), then scored on the later ones (1,399). Correlation with the share played rose from 0.573 to 0.591, short of the +0.05 bar. Season-total top-N hits, with each total rescaled by the new share, fell from 0.680 to 0.673. Given the board's share, the listed share's coefficient came out positive (+0.22). So frequent listings carry no sign of fewer games to come beyond what the board's share already holds, and the run does not say why the sign is positive. The WNBA report starts in 2026, so it has no later checkpoints to score. Not adopted. The comparison stays in notebook 01 and re-runs on every build.
+
+**Tracking signals for Streamers (#488, run 41566156843).** Two NBA-only trends were built the way the opportunity trend is: touches a game, and potential assists per 36 minutes, each over the last five games against a baseline. Over 23 test weeks they trend the right way, with rank correlation 0.21 for touches and 0.06 for potential assists. But both fall well short of the default sort's 0.47, and as the sort they find fewer of the week's top-10 pickups: −0.074 a week for touches (t −3.7) and −0.122 for potential assists (t −7.9), against a bar of +0.3 at t ≥ 2. Not built as a column. The signals stay in notebook 02, which re-runs on every build.

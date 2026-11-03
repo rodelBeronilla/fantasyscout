@@ -75,6 +75,7 @@ exposures:
       - ref('fct_player_game')
       - ref('mart_board')
       - ref('mart_player_projection')
+      - ref('fct_official_listing')
   - name: notebook_streamer_signals
     label: "Notebook 02_streamer_signals"
     type: analysis
@@ -87,6 +88,7 @@ exposures:
       - ref('fct_official_listing')
       - ref('fct_player_game')
       - ref('mart_streamers')
+      - ref('fct_player_tracking')
   - name: notebook_game_context
     label: "Notebook 03_game_context"
     type: analysis

@@ -283,6 +283,73 @@ if len(players):
     ),
     (
         "md",
+        """## Games share from the player's own injury listings (#493)
+
+The board's games share regresses each player's share of team games played toward a typical share
+(the durability settings). The league's injury report says more: how often the player has been
+listed Out. This adds, point in time at each checkpoint, the share of the team's games before it,
+this season and last, for which the player was listed Out for an injury, fits realised share on
+the board's share and that listed share in the tuning seasons, and checks the fit out of sample:
+its correlation with the share actually played, and the season-total top-N when each player's
+total is rescaled by the new share. It is adopted only at +0.05 correlation out of sample with
+season-total top-N not lower. The WNBA report starts in 2026, so its test is thin.""",
+    ),
+    (
+        "code",
+        """listed_records = []
+if has_table(con, 'fct_official_listing') and len(players):
+    out = con.sql(
+        "select league, season, game_id, game_date, player_id from fct_official_listing "
+        "where status = 'Out' and coalesce(reason_group, 'injury') = 'injury' and substr(game_id, 3, 1) = '2'"
+    ).df()
+    out['game_date'] = pd.to_datetime(out['game_date'])
+    pl = players.rename_axis('player_id').reset_index()
+    parts = []
+    for lg, r in replays.items():
+        g = r.games
+        teams = g[g['regular']].drop_duplicates(['season', 'team_id', 'game_id'])
+        for (season, label), q in pl[pl['league'] == lg].groupby(['season', 'checkpoint']):
+            day = dict(r.checkpoints(season))[label]
+            seasons = r.seasons()
+            prev = [s for s in seasons if s < season][-1:]
+            window = [season, *prev]
+            # a team's games in the window before the day (the most any team had)
+            tg = teams[teams['season'].isin(window) & (teams['game_date'] < day)].groupby('team_id').size()
+            team_games = float(tg.max()) if len(tg) else np.nan
+            lo = out[(out['league'] == lg) & out['season'].isin(window) & (out['game_date'] < day)]
+            listed = lo.groupby('player_id')['game_id'].nunique()
+            q = q.copy()
+            q['listed_share'] = (q['player_id'].map(listed).fillna(0) / team_games) if team_games else np.nan
+            q['listings_cover'] = bool(len(lo))
+            parts.append(q)
+    pl = pd.concat(parts, ignore_index=True) if parts else pl.iloc[0:0]
+    pl = pl[pl['listings_cover'] & pl['pred_share'].notna() & pl['real_share'].notna() & (pl['team_games_left'] >= 5)]
+    for lg in LEAGUES:
+        d = pl[pl['league'] == lg]
+        train, test = d[d['sample'] == 'in-sample'], d[d['sample'] == 'out-of-sample']
+        rec = {'league': LABEL[lg], 'train': len(train), 'test': len(test)}
+        if len(train) >= 200 and len(test) >= 200:
+            X = np.c_[np.ones(len(train)), train['pred_share'], train['listed_share']]
+            beta = rp.ols(X, train['real_share'].to_numpy(dtype=float))
+            fitted = np.clip(np.c_[np.ones(len(test)), test['pred_share'], test['listed_share']] @ beta, 0, 1)
+            rec.update({'coef_board_share': beta[1], 'coef_listed_share': beta[2],
+                        'corr_board': test['pred_share'].corr(test['real_share']),
+                        'corr_with_listings': pd.Series(fitted, index=test.index).corr(test['real_share'])})
+            test = test.assign(new_share=fitted)
+            scale = (test['new_share'] / test['pred_share'].replace(0, np.nan)).fillna(1.0)
+            test = test.assign(new_total=np.where(test['pred_total'] > 0, test['pred_total'] * scale, test['pred_total']))
+            hits_board, hits_new = [], []
+            for _, c in test.groupby(['season', 'checkpoint']):
+                hits_board.append(rp.top_hits(c['pred_total'].to_numpy(), c['real_total'].to_numpy(), rp.TOP_N[lg]))
+                hits_new.append(rp.top_hits(c['new_total'].to_numpy(), c['real_total'].to_numpy(), rp.TOP_N[lg]))
+            rec.update({'top_total_board': float(np.nanmean(hits_board)), 'top_total_with_listings': float(np.nanmean(hits_new))})
+            rec['adopt'] = bool(rec['corr_with_listings'] - rec['corr_board'] >= 0.05 and rec['top_total_with_listings'] >= rec['top_total_board'])
+        listed_records.append(rec)
+listed_share_summary = pd.DataFrame(listed_records)
+display(listed_share_summary.round(3) if len(listed_share_summary) else 'No official injury listings in this build.')""",
+    ),
+    (
+        "md",
         """## Minutes after a return from absence
 
 A player back from several games out tends to play fewer minutes at first, and the projection's
