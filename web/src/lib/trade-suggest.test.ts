@@ -54,3 +54,30 @@ describe('trade suggestions keep the positions covered (#489)', () => {
     expect(suggestTrades({ ...input, position: (id) => positions[id] }).map((s) => s.get)).toEqual([['c2']]);
   });
 });
+
+describe('trade suggestions count a player below replacement as zero', () => {
+  it('never pad a package with a below-replacement player to make it look even', () => {
+    // giving a 1.0 for their 2.0 star is lopsided; adding their -1.0 player only looks even if
+    // negatives count (2.0 - 1.0 = 1.0), though a free agent is worth as much as that player
+    const rest = new Map([
+      ['mine', 1],
+      ['star', 2],
+      ['dud', -1],
+    ]);
+    const out = suggestTrades({
+      give: ['mine'],
+      get: [],
+      mine: ['mine'],
+      theirs: ['star', 'dud'],
+      rest,
+      cats: [],
+      catValue: () => undefined,
+      totals: [{}, {}],
+      myTeam: 0,
+      partnerTeam: 1,
+      tolerance: 0.15,
+    });
+    expect(out.some((s) => s.get.includes('dud'))).toBe(false);
+    expect(out).toEqual([]);
+  });
+});

@@ -73,12 +73,17 @@ export function suggestTrades(input: SuggestInput): Suggestion[] {
   const tolerance = input.tolerance ?? 0.15;
   const limit = input.limit ?? 8;
   if (!give.length && !get.length) return [];
-  const value = (ids: string[]) => ids.reduce((s, id) => s + (rest.get(id) ?? 0), 0);
+  const value = (ids: string[]) => ids.reduce((s, id) => s + Math.max(0, rest.get(id) ?? 0), 0);
 
   const open = openSide(give, get, rest);
   const roster = (open === 'give' ? input.mine : input.theirs).filter((id) => !give.includes(id) && !get.includes(id));
   // The biggest names first, and no more than 16 candidates, keep the search small.
-  const candidates = [...roster].sort((a, b) => (rest.get(b) ?? 0) - (rest.get(a) ?? 0)).slice(0, 16);
+  // Only players worth more than replacement: one below it adds nothing a free agent would not,
+  // so padding a package with him only makes the trade look more even than it is.
+  const candidates = [...roster]
+    .filter((id) => (rest.get(id) ?? 0) > 0)
+    .sort((a, b) => (rest.get(b) ?? 0) - (rest.get(a) ?? 0))
+    .slice(0, 16);
   const add = give.length && get.length ? Math.min(maxAdd, 2) : maxAdd;
 
   const before = cats.map((c) => rankOf(totals.map((t) => t[c] ?? 0), myTeam));

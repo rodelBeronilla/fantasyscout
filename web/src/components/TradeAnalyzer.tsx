@@ -130,11 +130,19 @@ export default function TradeAnalyzer() {
   // The figure each side is judged on: the rest of the season, or this fantasy week.
   const NONE: Value = { perGame: 0, season: 0, rest: 0, week: 0, cats: {}, fpts: null };
   const pick = (w: Value) => (week ? w.week : w.rest);
+  // A player below replacement is worth zero in a trade, not less: either side could drop him for
+  // a free agent. Counting his negative value would make giving him away look like a gain, and a
+  // package padded with him look closer to even than it is.
+  const floor = (v: number) => Math.max(0, v);
   const sideOf = (ids: string[]) => {
     const players = ids.map((id) => byId.get(id)).filter((p): p is PlayerRow => !!p);
     const sum = (f: (w: Value) => number) =>
+      players.reduce((s, p) => s + floor(f(worth.get(p.player_id) ?? NONE)), 0);
+    const catSum = (f: (w: Value) => number) =>
       players.reduce((s, p) => s + f(worth.get(p.player_id) ?? NONE), 0);
-    const catTotals = Object.fromEntries(cats.map((c) => [c, sum((w) => w.cats[c] ?? 0)]));
+    // the categories are what the player actually produces, so they keep their sign
+    const catTotals = Object.fromEntries(cats.map((c) => [c, catSum((w) => w.cats[c] ?? 0)]));
+    const belowReplacement = players.filter((p) => pick(worth.get(p.player_id) ?? NONE) < 0);
     const games = players.reduce((s, p) => s + (p.games_this_week ?? 0), 0);
     return {
       players,
@@ -145,6 +153,7 @@ export default function TradeAnalyzer() {
       value: sum(pick),
       games,
       cats: catTotals,
+      belowReplacement,
     };
   };
   const giving = sideOf(give);
@@ -192,7 +201,7 @@ export default function TradeAnalyzer() {
   // Suggestions: packages from the open side's roster that make the trade about even, ranked by the
   // category ranks they gain the manager; without rosters, players worth about the same as the target.
   const ready = giving.players.length > 0 || getting.players.length > 0;
-  const restOf = new Map([...worth].map(([id, w]) => [id, pick(w)]));
+  const restOf = new Map([...worth].map(([id, w]) => [id, Math.max(0, pick(w))]));
   const active = (t: number) => (setup.rosters[t] ?? []).filter((id) => !setup.il.includes(id));
   const open = openSide(give, get, restOf);
   const suggestions =
@@ -440,6 +449,14 @@ export default function TradeAnalyzer() {
             {weekAvailable && (
               <p className="text-muted" data-testid="trade-week-games">
                 Games left this fantasy week: {giving.games} for the players you give, {getting.games} for the players you get.
+              </p>
+            )}
+            {[...giving.belowReplacement, ...getting.belowReplacement].length > 0 && (
+              <p className="text-muted" data-testid="trade-below-replacement">
+                {[...giving.belowReplacement, ...getting.belowReplacement].map((p) => p.full_name ?? p.player_id).join(', ')}{' '}
+                {[...giving.belowReplacement, ...getting.belowReplacement].length === 1 ? 'is' : 'are'} below replacement level and
+                count as zero: a free agent would do as well, so a trade gains nothing by sending or taking{' '}
+                {[...giving.belowReplacement, ...getting.belowReplacement].length === 1 ? 'him' : 'them'}.
               </p>
             )}
             {spots !== 0 && (
