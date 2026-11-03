@@ -398,12 +398,16 @@ export default function LeagueSetup() {
             </span>
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {setup.names.map((name, t) => {
             const roster = setup.rosters[t] ?? [];
             const mine = t === setup.mine;
             return (
-              <div key={t} className={`grid content-start gap-2 rounded-lg border bg-card p-3 ${mine ? 'border-good' : 'border-line'}`} data-testid="team-card">
+              <div
+                key={t}
+                className={`grid content-start gap-2 rounded-lg border p-3 ${mine ? 'border-good bg-card' : roster.length ? 'border-line bg-card' : 'border-dashed border-line'}`}
+                data-testid="team-card"
+              >
                 <div className="flex items-center gap-2">
                   <input
                     value={name}
@@ -489,7 +493,8 @@ export default function LeagueSetup() {
                 </tr>
               </thead>
               <tbody>
-                {strength.teams.map((x) => (
+                {/* only the teams with players: an empty team has nothing to compare (#696) */}
+                {strength.teams.filter((x) => x.size > 0).map((x) => (
                   <tr key={x.team} className={`border-t border-line ${x.team === setup.mine ? 'font-semibold' : ''}`}>
                     <Td>{setup.names[x.team]}</Td>
                     <Td right>{x.size}</Td>

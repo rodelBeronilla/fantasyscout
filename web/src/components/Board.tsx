@@ -561,6 +561,12 @@ export default function Board() {
             <a href={href(`/p/${league}/${row.player_id}/`)} className="underline-offset-4 hover:underline">
               {row.full_name ?? row.player_id}
             </a>
+            {/* on a phone the value column is off to the right: the value rides with the name (#696) */}
+            {value !== null && (
+              <span className="rounded bg-bg px-1 text-xs font-semibold tabular-nums md:hidden" data-testid="row-value" title="Value">
+                {fmt(value, 1)}
+              </span>
+            )}
             {row.is_rookie && (
               <span className="rounded border border-line px-1 text-[10px] text-muted" title="Rookie">
                 R

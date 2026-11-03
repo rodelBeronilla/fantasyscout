@@ -2314,6 +2314,18 @@ test('a trade the market calls lopsided is not called even: the lenses are shown
   await expect(page.getByTestId('trade-verdict')).not.toContainText('About even');
 });
 
+test('UI polish: a phone sees each value beside the name, a day without games has no Today card, and the footer reads cleanly (#696)', async ({ page }) => {
+  await page.goto('/');
+  const first = page.getByTestId('board').locator('tbody tr[data-player]').first();
+  await expect(first).toBeVisible();
+  const badge = first.getByTestId('row-value');
+  if (page.viewportSize()!.width < 768) await expect(badge).toBeVisible();
+  else await expect(badge).toBeHidden();
+  // the fixture's WNBA season is over: no games today, so no Today card
+  await expect(page.getByTestId('today')).toHaveCount(0);
+  await expect(page.locator('footer')).toContainText('any bookmaker. Sources, terms and what is published');
+});
+
 test('every Streamers column says what it holds, and the box-score columns are the last five games (#456)', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
   const table = page.getByTestId('trending');

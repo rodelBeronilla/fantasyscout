@@ -567,7 +567,8 @@ export default function PlayerPage() {
         </div>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      {/* items-start: the trend card keeps its own height instead of stretching to the shot chart's (#696) */}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
         <Card title={`Rolling 10-game trend, ${player.current_season ?? ''}`} id="trend">
           {player.rolling.length ? (
             <TrendChart

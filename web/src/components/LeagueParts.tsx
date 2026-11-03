@@ -501,6 +501,8 @@ const LOCAL_TIME = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-dig
 /** The manager's game day (#464): who plays today, who is listed, who has no game. */
 export function Today({ league, players, games, date }: { league: League; players: TodayRow[]; games: TodayGame[]; date: string }) {
   const { plays, listed, idle, leagueGames } = todayGroups(players, games, date);
+  // a day with no games has nothing to plan: the card stays away rather than say so (#696)
+  if (leagueGames === 0) return null;
   const day = TODAY_DAY.format(new Date(`${date}T12:00:00Z`));
   const time = (iso: string | null) => (iso ? LOCAL_TIME.format(new Date(iso)) : '');
   const line = (s: TodaySlot<TodayRow>) => (

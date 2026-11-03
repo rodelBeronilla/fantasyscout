@@ -103,7 +103,8 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
         aria-label="Primary"
       >
         <a href={href('/')} class="text-lg font-semibold tracking-tight">FantasyScout</a>
-        <ul class="flex flex-wrap items-center gap-1 text-sm">
+        <!-- on a phone the logo and the league toggle share the first row, the menu the second (#696) -->
+        <ul class="order-3 -ml-2 flex w-full flex-wrap items-center gap-1 text-sm sm:order-none sm:ml-0 sm:w-auto">
           {
             nav.map((group) =>
               group.path ? (
@@ -157,7 +158,7 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
             )
           }
         </ul>
-        <div class="flex items-center gap-2">
+        <div class="order-2 flex items-center gap-2 sm:order-none">
           <div class="flex items-center gap-1 rounded-full border border-line p-1" role="group" aria-label="League">
             {
               LEAGUES.map((l) => (
@@ -195,7 +196,7 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
           href="https://official.nba.com/referee-assignments/"
           class="underline underline-offset-4">NBA.com</a
         >.
-        FantasyScout is free, non-commercial and not affiliated with the NBA, the WNBA, ESPN, Sleeper, The Odds API or any bookmaker.
+        FantasyScout is free, non-commercial and not affiliated with the NBA, the WNBA, ESPN, Sleeper, The Odds API or any bookmaker.{' '}
         <a href={href('/sources/')} class="underline underline-offset-4" data-testid="sources-link">Sources, terms and what is published</a>.
       </p>
       <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-sm text-muted">
