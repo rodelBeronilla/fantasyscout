@@ -5,6 +5,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { contentRange, parseRange, SECURITY_HEADERS } from '../src/index';
 import { DOCS_CSP, headersFile, IMMUTABLE, STATIC_HEADERS } from '../src/policy';
 import { ciReaderKey, sessionCookie } from '../src/owner';
+import { accountCookie } from '../src/account';
 
 const ORIGIN = 'https://fantasyscout.example';
 /** CI's reader key, derived from the Yahoo client secret in the test bindings (vitest.config.ts). */
@@ -196,6 +197,67 @@ describe('routing', () => {
     const res = await SELF.fetch(`${ORIGIN}/`, { method: 'POST' });
     expect(res.status).toBe(405);
     expect(res.headers.get('allow')).toBe('GET, HEAD');
+  });
+});
+
+describe('accounts (#684)', () => {
+  const signedIn = async (guid = 'SOMEONE') => {
+    const set = await accountCookie('test-client-secret', guid);
+    return set.split(';')[0]!;
+  };
+  const put = (cookie: string, body: unknown, origin = ORIGIN) =>
+    SELF.fetch(`${ORIGIN}/api/account/setup?league=nba`, {
+      method: 'PUT',
+      headers: { cookie, origin, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+  it('says whether a browser is signed in', async () => {
+    expect(await (await SELF.fetch(`${ORIGIN}/api/account/status`)).json()).toEqual({ configured: true, signedIn: false });
+    const cookie = await signedIn();
+    expect(await (await SELF.fetch(`${ORIGIN}/api/account/status`, { headers: { cookie } })).json()).toEqual({ configured: true, signedIn: true });
+    // a tampered cookie signs in to nothing
+    const forged = cookie.replace(/\.[\w-]+$/, '.forged');
+    expect(await (await SELF.fetch(`${ORIGIN}/api/account/status`, { headers: { cookie: forged } })).json()).toEqual({ configured: true, signedIn: false });
+  });
+
+  it('saves and reads back a league setup per account, never across accounts', async () => {
+    const me = await signedIn('ME');
+    const other = await signedIn('OTHER');
+    expect((await put(me, { setup: { teams: 12, punts: ['z_points'] }, savedAt: 5 })).status).toBe(200);
+    expect(await (await SELF.fetch(`${ORIGIN}/api/account/setup?league=nba`, { headers: { cookie: me } })).json()).toEqual({
+      setup: { teams: 12, punts: ['z_points'] },
+      savedAt: 5,
+    });
+    expect(await (await SELF.fetch(`${ORIGIN}/api/account/setup?league=nba`, { headers: { cookie: other } })).json()).toEqual({ setup: null, savedAt: null });
+    // the bucket holds the setup under the account's hashed id, not the Yahoo id
+    const keys = (await env.DATA.list({ prefix: 'private/accounts/' })).objects.map((o) => o.key);
+    expect(keys.length).toBe(1);
+    expect(keys[0]).toMatch(/^private\/accounts\/[0-9a-f]{32}\/nba\.json$/);
+    expect(keys[0]).not.toContain('ME');
+    // and the public data route never serves it
+    expect((await SELF.fetch(`${ORIGIN}/data/${keys[0]}`)).status).toBe(404);
+    expect((await SELF.fetch(`${ORIGIN}/data/builds/../${keys[0]}`)).status).toBe(404);
+  });
+
+  it('refuses a write without a session, from another site, or that is not a setup', async () => {
+    const me = await signedIn();
+    expect((await put('', { setup: {}, savedAt: 1 })).status).toBe(401);
+    expect((await put(me, { setup: { a: 1 }, savedAt: 1 }, 'https://evil.example')).status).toBe(403);
+    expect((await put(me, { setup: [1], savedAt: 1 })).status).toBe(400);
+    expect((await put(me, { setup: { a: 1 } })).status).toBe(400);
+    expect((await SELF.fetch(`${ORIGIN}/api/account/setup?league=mlb`, { headers: { cookie: me } })).status).toBe(400);
+    // other paths stay read-only
+    expect((await SELF.fetch(`${ORIGIN}/data/latest.json`, { method: 'PUT', headers: { cookie: me, origin: ORIGIN } })).status).toBe(405);
+  });
+
+  it('deletes everything stored for the account and signs it out', async () => {
+    const me = await signedIn('ME');
+    await put(me, { setup: { teams: 10 }, savedAt: 1 });
+    const res = await SELF.fetch(`${ORIGIN}/api/account`, { method: 'DELETE', headers: { cookie: me, origin: ORIGIN } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('set-cookie')).toContain('Max-Age=0');
+    expect((await env.DATA.list({ prefix: 'private/accounts/' })).objects).toHaveLength(0);
   });
 });
 

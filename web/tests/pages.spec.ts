@@ -2198,6 +2198,33 @@ test('focus categories are a league setting: they mark the board, name themselve
   await expect(page.getByTestId('focus-head')).toHaveText('REB');
 });
 
+test('signed in to a Yahoo account, the League page takes the account’s newer setup and saves each change to it (#684)', async ({ page }) => {
+  const saved: { setup: Record<string, unknown>; savedAt: number }[] = [];
+  await page.route('**/api/account/status', (route) => route.fulfill({ json: { configured: true, signedIn: true } }));
+  await page.route('**/api/account/setup?league=wnba', async (route) => {
+    if (route.request().method() === 'PUT') {
+      saved.push(route.request().postDataJSON() as (typeof saved)[number]);
+      return route.fulfill({ json: { saved: true } });
+    }
+    // the account holds a 6-team league saved later than anything in this fresh browser
+    return route.fulfill({ json: { setup: { version: 5, teams: 6, rosterSpots: 10, scoring: 'cats9', format: 'h2h', punts: ['z_points'], focus: ['z_blocks'] }, savedAt: Date.now() + 60_000 } });
+  });
+  await page.goto('/league/');
+  await expect(page.getByTestId('account-box')).toContainText('Saved to your Yahoo account');
+  await expect(page.getByTestId('team-card')).toHaveCount(6);
+  await expect(page.getByLabel('Punt PTS')).toBeChecked();
+  await expect(page.getByLabel('Focus BLK')).toBeChecked();
+  await page.getByLabel('Teams in the league').fill('7');
+  await expect.poll(() => saved.at(-1)?.setup['teams']).toBe(7);
+  expect(saved.at(-1)?.savedAt).toBeGreaterThan(0);
+});
+
+test('not signed in, the League page offers the Yahoo sign-in that saves the league to an account (#684)', async ({ page }) => {
+  await page.route('**/api/account/status', (route) => route.fulfill({ json: { configured: true, signedIn: false } }));
+  await page.goto('/league/');
+  await expect(page.getByTestId('account-signin')).toHaveAttribute('href', '/auth/account/start?league=wnba');
+});
+
 test('every Streamers column says what it holds, and the box-score columns are the last five games (#456)', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
   const table = page.getByTestId('trending');
