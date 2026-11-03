@@ -41,7 +41,7 @@ const available = (env: AiEnv) => !!(env.AI_URL && env.AI_ACCESS_CLIENT_ID && en
 /** Every number in a JSON value, with the decimals it is written with. */
 export function factNumbers(value: unknown, out: number[] = []): number[] {
   if (typeof value === 'number' && Number.isFinite(value)) out.push(value);
-  else if (typeof value === 'string') for (const m of value.matchAll(NUMBER)) out.push(Number(m[0].replace('%', '').replace('−', '-')));
+  else if (typeof value === 'string') for (const m of value.matchAll(NUMBER)) out.push(Number(m[0].replace(/%/g, '').replace(/−/g, '-')));
   else if (Array.isArray(value)) for (const v of value) factNumbers(v, out);
   else if (value && typeof value === 'object') for (const v of Object.values(value)) factNumbers(v, out);
   return out;
@@ -54,8 +54,8 @@ export function strayNumbers(text: string, facts: number[]): string[] {
   const stray: string[] = [];
   for (const m of text.matchAll(NUMBER)) {
     const token = m[0];
-    const written = Number(token.replace('%', '').replace('−', '-'));
-    const decimals = token.replace('%', '').split('.')[1]?.length ?? 0;
+    const written = Number(token.replace(/%/g, '').replace(/−/g, '-'));
+    const decimals = token.replace(/%/g, '').split('.')[1]?.length ?? 0;
     const tol = 0.5 * 10 ** -decimals + 1e-9;
     if (!facts.some((f) => Math.abs(Math.abs(written) - Math.abs(f)) <= tol)) stray.push(token);
   }
