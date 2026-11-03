@@ -47,7 +47,7 @@
    ]
   },
   {
-   "about": "Every final regular-season or playoff game on the schedule that finished more than a day ago has a box score and play-by-play in gold. Preseason, All-Star, play-in and tournament finals are on the schedule but outside what the ingestors fetch (SPEC.md scope), so they are not counted as missing.",
+   "about": "Every final regular-season or playoff game on the schedule that finished more than a day ago has a box score and play-by-play in gold. Preseason, All-Star, play-in and tournament finals are on the schedule but outside what the ingestors fetch (SPEC.md scope), so they are not counted as missing.  A season a Backfill run is still landing is left out until it finishes (#420): the build passes the league-seasons of the unfinished Backfill runs as var backfilling ([\"nba:2023-24\", ...], ops.backfilling), and the first build after the backfill judges the season again.",
    "name": "assert_completeness",
    "reads": [
     "fct_event",
