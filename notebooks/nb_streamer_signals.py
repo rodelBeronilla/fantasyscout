@@ -82,6 +82,18 @@ for lg in LEAGUES:
         r = rp.Replay(g, SETTINGS[lg])
         # opportunity: minutes times the share of the team's plays the player used
         r.games['opportunity'] = (r.games['minutes'] * r.games['usage_percentage']).where(r.games['played'])
+        # tracking (NBA only, #488): touches a game, and potential assists per 36 minutes
+        if lg == 'nba' and has_table(con, 'fct_player_tracking'):
+            tr = con.sql("select game_id, player_id, touches, potential_assists from fct_player_tracking where league = 'nba'").df()
+            tr = tr.drop_duplicates(['game_id', 'player_id'])
+            r.games = r.games.merge(tr, on=['game_id', 'player_id'], how='left')
+        else:
+            r.games['touches'] = np.nan
+            r.games['potential_assists'] = np.nan
+        for c in ['touches', 'potential_assists']:
+            r.games[c] = pd.to_numeric(r.games[c], errors='coerce')
+        r.games['touches'] = r.games['touches'].where(r.games['played'])
+        r.games['potential_assists_36'] = (36 * r.games['potential_assists'] / r.games['minutes'].where(r.games['minutes'] > 0)).where(r.games['played'])
         replays[lg] = r
 
 SIGNALS = {
@@ -99,8 +111,11 @@ SIGNALS = {
     'board_projection': "Board's projected line x games",
     'board_projection_expected': "Board's projected line x expected games",
     'opportunity_trend': 'Opportunity trend (minutes x usage)',
+    'touches_trend': 'Touches trend (NBA tracking)',
+    'potential_assists_trend': 'Potential assists per 36 trend (NBA tracking)',
 }
-NEW = ['expected_games', 'production_expected', 'board_projection', 'board_projection_expected', 'opportunity_trend']
+NEW = ['expected_games', 'production_expected', 'board_projection', 'board_projection_expected', 'opportunity_trend',
+       'touches_trend', 'potential_assists_trend']
 OLD = [k for k in SIGNALS if k not in NEW]
 PRIOR = 10  # mart_streamers: last season counts as up to ten games in the baselines
 
@@ -136,10 +151,10 @@ def previous_lines(r, lg, season):
     for s in [x for x in r.seasons() if x < season]:
         part = g[g['season'] == s]
         z = rp.category_z(rp.lines(part), rp.ZSCORE_POOL[lg])
-        opp = part[part['played']].groupby('player_id')['opportunity'].mean()
-        out.append(z[['games', 'minutes_pg', 'z_total']].join(opp).assign(season=s))
+        means = part[part['played']].groupby('player_id')[['opportunity', 'touches', 'potential_assists_36']].mean()
+        out.append(z[['games', 'minutes_pg', 'z_total']].join(means).assign(season=s))
     if not out:
-        return pd.DataFrame(columns=['games', 'minutes_pg', 'z_total', 'opportunity'])
+        return pd.DataFrame(columns=['games', 'minutes_pg', 'z_total', 'opportunity', 'touches', 'potential_assists_36'])
     prev = pd.concat(out).rename_axis('player_id').reset_index().sort_values('season')
     return prev.drop_duplicates('player_id', keep='last').set_index('player_id')""",
     ),
@@ -354,13 +369,19 @@ def week(r, lg, season, monday, values, prev, schedule, earlier):
     last10 = rp.category_z(rp.lines(played.groupby('player_id').tail(10)), rp.ZSCORE_POOL[lg])
     last5 = played.groupby('player_id').tail(5).groupby('player_id').agg(
         minutes_avg_5=('minutes', 'mean'), games_in_window_5=('minutes', 'size'), starts_last_5=('started', 'sum'),
-        opportunity_5=('opportunity', 'mean'), opportunity_n_5=('opportunity', 'count'))
+        opportunity_5=('opportunity', 'mean'), opportunity_n_5=('opportunity', 'count'),
+        touches_5=('touches', 'mean'), touches_n_5=('touches', 'count'),
+        potential_assists_36_5=('potential_assists_36', 'mean'), potential_assists_36_n_5=('potential_assists_36', 'count'))
     latest = played.groupby('player_id').agg(last_game=('game_date', 'max'), team_id=('team_id', 'last'),
-                                             opportunity_season=('opportunity', 'mean'), opportunity_n=('opportunity', 'count'))
+                                             opportunity_season=('opportunity', 'mean'), opportunity_n=('opportunity', 'count'),
+                                             touches_season=('touches', 'mean'), touches_n=('touches', 'count'),
+                                             potential_assists_36_season=('potential_assists_36', 'mean'),
+                                             potential_assists_36_n=('potential_assists_36', 'count'))
     f = season_z[['games', 'minutes_pg', 'z_total']].rename(columns={'z_total': 'season_z_total'})
     f = f.join(last10['z_total'].rename('last_10_z_total')).join(last5).join(latest)
     f = f.join(prev.rename(columns={'games': 'prev_games', 'minutes_pg': 'prev_minutes', 'z_total': 'prev_z',
-                                    'opportunity': 'prev_opportunity'}))
+                                    'opportunity': 'prev_opportunity', 'touches': 'prev_touches',
+                                    'potential_assists_36': 'prev_potential_assists_36'}))
     league_last = played['game_date'].max()
     f = f[(f['games'] >= 3) & (f['last_game'] >= league_last - pd.Timedelta(days=30))].copy()
     # baselines, as mart_streamers: the games before the window, blended with last season
@@ -374,6 +395,10 @@ def week(r, lg, season, monday, values, prev, schedule, earlier):
     f['opportunity_baseline'] = baseline(f, f['opportunity_5'], f['opportunity_n_5'], f['opportunity_season'], f['opportunity_n'],
                                          f['prev_opportunity'], weight)
     f['opportunity_trend'] = f['opportunity_5'] - f['opportunity_baseline']
+    for c in ['touches', 'potential_assists_36']:
+        base = baseline(f, f[f'{c}_5'], f[f'{c}_n_5'], f[f'{c}_season'], f[f'{c}_n'], f[f'prev_{c}'], weight)
+        trend = f[f'{c}_5'] - base
+        f['touches_trend' if c == 'touches' else 'potential_assists_trend'] = trend
     # the team's games in the next seven days, and the ones the player is expected to play
     end = monday + pd.Timedelta(days=7)
     upcoming = schedule[(schedule['game_date'] >= monday) & (schedule['game_date'] < end)].groupby('team_id').size()
