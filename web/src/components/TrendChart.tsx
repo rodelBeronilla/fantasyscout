@@ -17,9 +17,10 @@ interface Props {
 const TONES = ['stroke-accent', 'stroke-good', 'stroke-warn', 'stroke-bad'] as const;
 const SWATCH = ['bg-accent', 'bg-good', 'bg-warn', 'bg-bad'] as const;
 
-const W = 640;
-const H = 220;
-const M = { top: 10, right: 12, bottom: 26, left: 36 };
+// wide enough to span the page without growing tall (#726)
+const W = 960;
+const H = 240;
+const M = { top: 10, right: 64, bottom: 26, left: 36 };
 
 function ticks(max: number): number[] {
   if (max <= 0) return [0];
@@ -28,6 +29,8 @@ function ticks(max: number): number[] {
   const step = [1, 2, 5, 10].map((m) => m * pow).find((s) => s >= raw) ?? raw;
   const out: number[] = [];
   for (let v = 0; v <= max + 1e-9; v += step) out.push(Number(v.toFixed(6)));
+  // the top tick covers the largest value, so no line runs off the top of the chart (#726)
+  if ((out.at(-1) ?? 0) < max) out.push(Number(((out.at(-1) ?? 0) + step).toFixed(6)));
   return out;
 }
 
@@ -80,6 +83,19 @@ export default function TrendChart({ rows, series, title }: Props) {
             .join(' ');
           return <polyline key={s.key} points={pts} fill="none" strokeWidth="2" className={TONES[i % TONES.length]} />;
         })}
+        {/* each line's latest value at its end, so the chart reads without the axis (#726) */}
+        <g className="fill-fg text-[11px]" data-testid="trend-last">
+          {series.map((s) => {
+            const last = [...rows].reverse().find((r) => typeof r[s.key] === 'number');
+            if (!last) return null;
+            const v = last[s.key] as number;
+            return (
+              <text key={s.key} x={x(last.game_number) + 4} y={y(v) + 4}>
+                {s.label} {v.toFixed(1)}
+              </text>
+            );
+          })}
+        </g>
       </svg>
       <figcaption className="mt-1 text-xs text-muted">{title}</figcaption>
     </figure>

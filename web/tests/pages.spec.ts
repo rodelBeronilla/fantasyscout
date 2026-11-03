@@ -2558,6 +2558,38 @@ test('the player picker finds a player from part of a name and Enter adds the be
 
 // Columns the export ships are shown (#463): games played beside Min (5) on Streamers, and the
 // season's z-scores beside the last twenty and last ten games' on the player page.
+test('the player page says where the player stands in your league and takes the next step: add, or trade for (#726)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { player_id: string; full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  const player = board.find((r) => r.player_id === '1628932')!;
+  const other = board.find((r) => r.player_id !== player.player_id && r.full_name)!;
+  await page.goto('/p/wnba/1628932/');
+  await expect(page.getByTestId('league-status')).toContainText('Set up your league');
+  // the trend labels each line's latest value; no source-agreement columns
+  await expect(page.getByTestId('trend-last').locator('text').first()).toHaveText(/^[A-Z]+ \d+\.\d$/);
+  await expect(page.getByTestId('season-lines').locator('thead')).not.toContainText('Sources');
+  // available in a league with rosters: one tap adds the player to your team
+  await page.goto('/league/');
+  await page.getByLabel('Add a player to Team 1', { exact: true }).fill(label(other));
+  await page.goto('/p/wnba/1628932/');
+  const status = page.getByTestId('league-status');
+  await expect(status).toContainText('Available in your league');
+  await status.getByRole('button', { name: 'Add to Team 1' }).click();
+  await expect(status).toContainText('On your team');
+  await expect(status.getByRole('link', { name: 'Offer in a trade' })).toHaveAttribute('href', '/trade/?league=wnba&give=1628932');
+  // on another team: Trade for opens the Trade page with the player asked for and that team as the partner
+  await page.goto('/league/');
+  const mine = page.getByTestId('team-card').nth(0).getByTestId('roster').locator('li').filter({ hasText: player.full_name });
+  await mine.getByRole('button', { name: /^Remove / }).click();
+  await page.getByLabel('Add a player to Team 2', { exact: true }).fill(label(player));
+  await page.goto('/p/wnba/1628932/');
+  await expect(status).toContainText('On Team 2');
+  await status.getByRole('link', { name: /^Trade for / }).click();
+  await expect(page).toHaveURL(/\/trade\/\?league=wnba&get=1628932$/);
+  await expect(page.getByTestId('picked-get')).toContainText(player.full_name);
+  await expect(page.getByLabel('Trade partner')).toHaveValue('1');
+});
+
 test('streamers shows games played, and the player page sets recent z-scores beside the season', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
   const table = page.getByTestId('trending');
