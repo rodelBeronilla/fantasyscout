@@ -23146,9 +23146,65 @@
        "type": "double"
       },
       {
+       "description": "The points part of last_10_production, which a league punting the category leaves out (#666)",
+       "meta": {},
+       "name": "last_10_production_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The rebounds part of last_10_production, which a league punting the category leaves out (#666)",
+       "meta": {},
+       "name": "last_10_production_rebounds_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The assists part of last_10_production, which a league punting the category leaves out (#666)",
+       "meta": {},
+       "name": "last_10_production_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The steals part of last_10_production, which a league punting the category leaves out (#666)",
+       "meta": {},
+       "name": "last_10_production_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The blocks part of last_10_production, which a league punting the category leaves out (#666)",
+       "meta": {},
+       "name": "last_10_production_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The three-pointers made part of last_10_production, which a league punting the category leaves out (#666)",
+       "meta": {},
+       "name": "last_10_production_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
        "description": "The turnovers part of last_10_production (negative), which an 8-category league leaves out",
        "meta": {},
        "name": "last_10_production_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The field goal percentage (makes above the pool percentage) part of last_10_production, which a league punting the category leaves out (#666)",
+       "meta": {},
+       "name": "last_10_production_field_goal_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The free throw percentage (makes above the pool percentage) part of last_10_production, which a league punting the category leaves out (#666)",
+       "meta": {},
+       "name": "last_10_production_free_throw_pct",
        "tests": [],
        "type": "double"
       },
