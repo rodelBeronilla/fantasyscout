@@ -20,13 +20,30 @@ Then set the repository variable `STATS_RUNNER_LABEL` to `home` (Settings → Se
 - `ingest.yml` triggers on schedule and manual dispatch only. No workflow that runs on a pull request targets this runner, and the repository requires approval before workflows from outside collaborators run.
 - The container holds no secrets at rest. Job secrets are injected by GitHub per job and the only ones used are the Databricks host and the ingest service principal's client id and secret (runbook, "The ingest's own credential"), which can write the landing volume and nothing else.
 - Jobs run as the unprivileged `runner` user inside the container; nothing from the host is mounted; `no-new-privileges` is set, so nothing in a job can gain privileges it did not start with.
-- The runner is registered with `--disableupdate`: it stays at the digest `compose.yml` pins instead of updating itself, so the image is the one update channel and it is reviewed by hand ("Update the runner image").
-- The two containers share a bridge network of their own with inter-container communication off; they reach the internet and nothing on the host's other networks is reachable from them by name. Docker itself cannot restrict which internet hosts a container may reach; a host-side egress allow-list (the stats hosts, GitHub, the workspace) is an iptables rule on the host, listed under "What is still open".
+- The runner is registered with `--disableupdate`, so it does not update itself. Note that the runner's files live in the `runner-state` volume mounted over `/home/runner`: a volume keeps the runner binaries it was first filled with, so a new image digest changes the runner only after the volume is recreated (`down -v` and re-register, "Update the runner image").
+- Egress goes through an allow-list (next section). Each runner sits alone with the egress proxy on an internal network: no gateway, so no route to the internet, the host, the LAN or the other runner except through the proxy.
 - The runners are persistent, not ephemeral: the work folder and the tool caches live in the `runner-state` volumes between jobs. An ephemeral runner (a fresh registration per job) needs a host-side loop that mints a registration token for every start; that is the next hardening step and it runs on the host, not in this repository.
+
+## Egress
+
+The runners reach the outside only through `egress-proxy` (Squid, pinned by digest), the one container on both their internal networks and a network with a route out. `squid.conf` forwards to the hosts the stats jobs need and refuses everything else:
+
+- GitHub (`.github.com`, `.githubusercontent.com`, and the Actions storage under `.blob.core.windows.net`): the runner's own connection, checkout, the cache, artifacts and logs, release downloads, the incident action;
+- `releases.astral.sh`, `pypi.org`, `files.pythonhosted.org`: uv and the Python packages;
+- `stats.nba.com`, `stats.wnba.com`: the league stats API (ADR 0002);
+- `.cloud.databricks.com`: the workspace (the ingest's OAuth token and the Files API).
+
+A private, loopback or link-local address is refused even behind an allowed name, so a name that resolves into the LAN gets nowhere. The runners carry `HTTPS_PROXY`/`HTTP_PROXY` (both cases) pointing at the proxy; a step that ignores them simply has no route. Every request, allowed or refused, is in the proxy's log:
+
+```bash
+docker exec fantasyscout-egress-proxy tail -50 /var/log/squid/access.log    # TCP_TUNNEL = allowed, TCP_DENIED = refused
+```
+
+A job that needs a new host fails with the host's name as `TCP_DENIED` in that log; add it to `squid.conf` in a PR and `docker compose -f infra/runner/compose.yml up -d` from the main checkout.
 
 ## What is still open
 
-Two measures need the host, not the repository: an egress allow-list (iptables rules on the Docker bridge limiting the containers to the stats hosts, github.com and the Databricks workspace) and ephemeral registration (a loop on the host that runs `config.sh --ephemeral` with a fresh token before each job). Until then the protections are: the fork approval policy on the repository, no workflow on a pull request targeting the `home` label, the unprivileged user, no mounts, no privilege escalation, the pinned image with self-update off, and the isolated network.
+Ephemeral registration (a fresh registration for every job) needs a host-side loop that mints a registration token for every start, so a credential that can register runners would live next to them; it is left out until a narrowly scoped token and supervisor justify it. The protections today: the fork approval policy on the repository, no workflow on a pull request targeting the `home` label, the unprivileged user, no host mounts in the runners, no privilege escalation, the pinned image with self-update off, and egress through the allow-listed proxy only.
 
 ## Monitor
 
@@ -47,7 +64,8 @@ Independently, the Publish watchdog (`docs/runbook.md`, "Publish SLA and the wat
 
 ## Maintain
 
-- Update: `docker compose -f infra/runner/compose.yml pull && docker compose -f infra/runner/compose.yml up -d`. The runner does not self-update (`--disableupdate`); the image pin is the update.
+- Update: `docker compose -f infra/runner/compose.yml pull && docker compose -f infra/runner/compose.yml up -d`. The runner does not self-update (`--disableupdate`). The proxy's image updates this way; the runner's binaries come from its volume, so a new runner version takes `down -v` and re-registration (Start).
+- Run `docker compose ... up -d` from the main checkout, not a worktree: the proxy mounts `squid.conf` from the directory it was started in.
 - Apply this file's changes to running containers with `docker compose -f infra/runner/compose.yml up -d` (the network is created on the way; a registration made before `--disableupdate` keeps working, and the flag takes effect at the next `config.sh`, i.e. after a `down -v` and re-registration).
 - Re-register after a token rotation or a wiped volume: `docker compose ... down -v`, then the Start steps.
 - Remove: deregister with `./config.sh remove --token <remove-token>` (see `compose.yml`), then `down -v`.
