@@ -20,7 +20,7 @@
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.11",
     "@cloudflare/workers-types": "^5.20261031.1",
-    "knip": "6.44.0",
+    "knip": "6.44.1",
     "typescript": "^5.9.0",
     "vitest": "^5.0.5",
     "wrangler": "^4.153.0"
