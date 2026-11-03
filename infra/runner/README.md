@@ -56,6 +56,21 @@ docker exec fantasyscout-ai ollama list    # qwen3:8b
 
 A new model is the same pull with its name, and `FS_AI_MODEL` in the notes workflow. The service answers one request at a time and unloads the model after five idle minutes, so it shares the GPU with the server's other work.
 
+## Live answers
+
+The Trade page's "Explain this trade" (ADR 0017, `worker/src/ai.ts`) reaches the model through a Cloudflare Tunnel. Only the Worker can pass it: an Access application in front of the tunnel's hostname admits nothing but the Worker's service token. Once, in the Cloudflare dashboard (Zero Trust):
+
+1. **Tunnel.** Networks → Tunnels → Create a tunnel (cloudflared), named `fantasyscout-ai`. Copy its token. Add a public hostname, e.g. `ai.<your zone>`, with service `http://ai:11434`.
+2. **Service token.** Access → Service Auth → Create a service token, `fantasyscout-worker`. Copy its client id and secret: they are shown once.
+3. **Access application.** Access → Applications → Add a self-hosted application on the tunnel's hostname, with one policy: action **Service Auth**, include the service token. Nothing else gets through.
+4. **Secrets, in your own terminal or the GitHub UI, never in a chat or a file in the repository:**
+   - `gh variable set AI_URL --body https://ai.<your zone>`;
+   - `gh secret set AI_ACCESS_CLIENT_ID`, and `gh secret set AI_ACCESS_CLIENT_SECRET`;
+   - the next web deploy gives them to the Worker.
+5. **Start the tunnel**, with its token in the shell's environment rather than in a file: `AI_TUNNEL_TOKEN=<token> docker compose -f infra/runner/compose.yml --profile live up -d ai-tunnel` from the main checkout.
+
+`/api/ai/status` then says `available: true`. A signed-in manager gets four explanations a minute. The tunnel reaches the model on `ai-live` and Cloudflare's edge on the `egress` network; the runners never touch either.
+
 ## What is still open
 
 Ephemeral registration (a fresh registration for every job) needs a host-side loop that mints a registration token for every start, so a credential that can register runners would live next to them; it is left out until a narrowly scoped token and supervisor justify it. The protections today: the fork approval policy on the repository, no workflow on a pull request targeting the `home` label, the unprivileged user, no host mounts in the runners, no privilege escalation, the pinned image with self-update off, and egress through the allow-listed proxy only.

@@ -73,10 +73,19 @@ function json(status: number, body: unknown, headers: Record<string, string> = {
 
 const clearCookie = `${COOKIE}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 
-/** The methods the account routes take; the Worker otherwise answers GET and HEAD only. */
+/** The account a request is signed in to, or null: for the other signed-in routes (ai.ts). */
+export function accountOfRequest(request: Request, env: AccountEnv): Promise<string | null> {
+  return signedInAccount(request, env);
+}
+
+/** The methods the account and AI routes take; the Worker otherwise answers GET and HEAD only. */
 export function isAccountWrite(request: Request): boolean {
   const { pathname } = new URL(request.url);
-  return (request.method === 'PUT' && pathname === '/api/account/setup') || (request.method === 'DELETE' && pathname === '/api/account');
+  return (
+    (request.method === 'PUT' && pathname === '/api/account/setup') ||
+    (request.method === 'DELETE' && pathname === '/api/account') ||
+    (request.method === 'POST' && pathname === '/api/ai/explain-trade')
+  );
 }
 
 /** Handles the account routes; anything else returns null. */

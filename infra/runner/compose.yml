@@ -164,6 +164,33 @@ services:
     networks:
       - runner-1-net
       - runner-2-net
+      # the live tunnel's side (ai-tunnel below); internal like the runners' networks
+      - ai-live
+
+  # Live AI (ADR 0017): the Cloudflare Tunnel the site's Worker reaches the model through, behind
+  # an Access policy that admits only the Worker's service token. It reaches the model on ai-live
+  # and Cloudflare's edge on the proxy's way out; it is started only with the `live` profile and
+  # the tunnel's token (README, "Live answers").
+  ai-tunnel:
+    image: cloudflare/cloudflared@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
+    container_name: fantasyscout-ai-tunnel
+    profiles: [live]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${AI_TUNNEL_TOKEN:-}
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
+    depends_on:
+      - ai
+    networks:
+      - ai-live
+      - egress
 
 volumes:
   runner-state:
@@ -184,3 +211,7 @@ networks:
   # the proxy's way out
   egress:
     driver: bridge
+  # the model and the live tunnel only
+  ai-live:
+    driver: bridge
+    internal: true
