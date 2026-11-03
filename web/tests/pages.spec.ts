@@ -2277,6 +2277,39 @@ test('before the first notes, the notes page says when they come (phase 7)', asy
   await expect(page.getByTestId('notes-none')).toContainText('drafted every Monday');
 });
 
+test('a trade the market calls lopsided is not called even: the lenses are shown and a warning stops the manager (#692)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
+    player_id: string;
+    full_name: string;
+    team_abbreviation: string;
+    position: string;
+    market_rank: number | null;
+  }[];
+  // the manager gives a player the market prices as its first pick, for three it ranks near 300
+  const star = board[40]!;
+  const depth = [board[2]!, board[3]!, board[4]!];
+  await page.route('**/board/nba.json', (route) =>
+    route.fulfill({
+      json: board.map((r) => ({
+        ...r,
+        market_rank: r.player_id === star.player_id ? 1 : depth.some((d) => d.player_id === r.player_id) ? 300 : null,
+      })),
+    }),
+  );
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/trade/?league=nba');
+  await page.getByLabel('Add a player you give').fill(label(star));
+  for (const p of depth) await page.getByLabel('Add a player you get').fill(label(p));
+  const warning = page.getByTestId('trade-warning');
+  await expect(warning).toBeVisible();
+  await expect(warning).toContainText('terrible trade for you');
+  await expect(warning).toContainText("ESPN's ranks");
+  await expect(page.getByTestId('trade-fairness')).toContainText('Not clearly even');
+  await expect(page.getByTestId('trade-fairness-market')).toContainText('partner +');
+  await expect(page.getByTestId('trade-fairness-disagree')).toBeVisible();
+  await expect(page.getByTestId('trade-verdict')).not.toContainText('About even');
+});
+
 test('every Streamers column says what it holds, and the box-score columns are the last five games (#456)', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
   const table = page.getByTestId('trending');

@@ -34,6 +34,8 @@ export interface SuggestInput {
   minGain?: number;
   /** Only packages that raise the partner's expected categories too (#682). */
   winWin?: boolean;
+  /** Whether a package is fair enough to suggest: not a bad trade for the manager on value or market (#692). */
+  acceptable?: (give: string[], get: string[]) => boolean;
   /** The most players a suggestion adds to a side. */
   maxAdd?: number;
   /** How much value the partner may give up (or, without the category model, how far apart the sides may be), as a share of the larger side. */
@@ -99,6 +101,7 @@ export function suggestTrades(input: SuggestInput): Suggestion[] {
     const net = value(r) - value(g);
     const scale = Math.max(value(g), value(r), 1);
     if (input.position && !keepsPositions(input.mine, [...input.mine.filter((id) => !g.includes(id)), ...r], input.position)) continue;
+    if (input.acceptable && !input.acceptable(g, r)) continue;
     if (effect) {
       // Worth making: the manager's categories rise. One the partner could accept: it costs them
       // little value, or their categories rise too.
@@ -146,6 +149,8 @@ export interface FinderInput {
   minGain: number;
   /** Only trades that raise the partner's expected categories too (#682). */
   winWin?: boolean;
+  /** Whether a trade is fair enough to list: not a bad trade for the manager on value or market (#692). */
+  acceptable?: (partner: number, give: string[], get: string[]) => boolean;
   /** How many of each roster's most valuable players are tried. */
   candidates?: number;
   /** The most trades listed with one partner, so the list is not one team's. */
@@ -187,6 +192,7 @@ export function findTrades(input: FinderInput): FoundTrade[] {
       for (const give of gives) {
         for (const get of gets) {
           if (input.position && !keepsPositions(input.mine, [...input.mine.filter((id) => !give.includes(id)), ...get], input.position)) continue;
+          if (input.acceptable && !input.acceptable(team, give, get)) continue;
           const e = effect(team, give, get);
           const net = value(get) - value(give);
           if (e.gain < minGain || (e.partnerGain <= 0 && (input.winWin || net > 0))) continue;
