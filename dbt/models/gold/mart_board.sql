@@ -327,6 +327,10 @@ assembled as (
 
     select
         v.*,
+        -- a listed player's share of games leaves out the absence he is still on, which
+        -- availability_multiplier counts (#690); everyone else's is the projection's
+        case when i.espn_status_group is not null then coalesce(v.games_share_healthy, v.games_share) else v.games_share end
+            as games_share_now,
         nm.player_sk,
         nm.full_name,
         nm.position,
@@ -426,7 +430,7 @@ totals as (
         {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} as z_total,
         case
             when {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} > 0
-                then ({% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %}) * games_share
+                then ({% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %}) * games_share_now
             else {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %}
         end as season_value,
         case
@@ -453,7 +457,7 @@ select
     minutes_current,
     minutes_prev,
     minutes_prev2,
-    games_share,
+    games_share_now as games_share,
     in_pool,
     w_cur,
     w_prev,

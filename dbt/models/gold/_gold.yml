@@ -1140,6 +1140,8 @@ models:
       - name: games_share
         description: "Projected share of team games played, regressed toward a typical share (0.8) and capped at 1"
         data_tests: [not_null]
+      - name: games_share_healthy
+        description: "games_share without the games of the absence the player is still on (this season's run of missed games, when he has not played since); mart_board uses it for a player on the injury report, whose availability_multiplier already counts that absence (#690)"
       - name: proj_minutes_pg
         meta: {unit: minutes}
         description: "Projected minutes per game: proj_minutes_season_pg, blended half and half with minutes_last5_pg in season after 5+ games, times return_minutes_factor"
@@ -1233,7 +1235,7 @@ models:
         meta: {unit: minutes}
         description: "Total minutes played two seasons before"
       - name: games_share
-        description: "Projected share of team games played (mart_player_projection)"
+        description: "Projected share of team games played (mart_player_projection); for a player on the injury report, the share without the absence he is still on (games_share_healthy), which availability_multiplier counts instead (#690)"
       - name: in_pool
         description: "True for the pool (teams x roster spots, fewer on a small board) that the second valuation pass values most"
         data_tests: [not_null]
