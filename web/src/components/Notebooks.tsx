@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { buildHref, dataHref, getLatest, type Latest, type League } from '../lib/data';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
+import { parseLenientJson } from '../lib/lenient-json';
 import { Card, Loading, Problem, Td, Th } from './ui';
 
 const NOTEBOOKS = [
@@ -101,10 +102,16 @@ export default function Notebooks() {
       if (live) setPublished(files);
       if (live && index.carried_from) setCarried({ from: index.carried_from, at: index.carried_from_created_at ?? '' });
       const loaded: Record<string, Findings> = {};
+      // Each notebook's findings load on their own: one that fails leaves that card without
+      // findings, not the page without cards (#678).
       await Promise.all(
         NOTEBOOKS.filter((nb) => files.has(`${nb.name}.findings.json`)).map(async (nb) => {
-          const f = await fetch(buildHref(l, `notebooks/${nb.name}.findings.json`));
-          if (f.ok) loaded[nb.name] = (await f.json()) as Findings;
+          try {
+            const f = await fetch(buildHref(l, `notebooks/${nb.name}.findings.json`));
+            if (f.ok) loaded[nb.name] = parseLenientJson<Findings>(await f.text());
+          } catch {
+            // the card renders without findings
+          }
         }),
       );
       if (live) {
