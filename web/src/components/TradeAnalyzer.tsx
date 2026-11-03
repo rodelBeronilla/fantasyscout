@@ -83,8 +83,10 @@ export default function TradeAnalyzer() {
   const [rows, setRows] = useState<PlayerRow[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [setup] = useLeague(league);
-  const [give, setGive] = useState<string[]>([]);
-  const [get, setGet] = useState<string[]>([]);
+  // a player page's "Offer" or "Trade for" link puts the player on a side (#726)
+  const [fromLink] = useState(() => new URLSearchParams(window.location.search));
+  const [give, setGive] = useState<string[]>(() => fromLink.getAll('give'));
+  const [get, setGet] = useState<string[]>(() => fromLink.getAll('get'));
   const [partner, setPartner] = useState<number | null>(null);
   const [unit, setUnit] = useState<ValueUnit>('rest');
 
@@ -100,6 +102,12 @@ export default function TradeAnalyzer() {
 
   const owner = useMemo(() => owners(setup), [setup]);
   const hasRosters = owner.size > 0;
+  // the partner of a linked trade is the team that has the player asked for
+  useEffect(() => {
+    const t = fromLink.get('get') ? owner.get(fromLink.get('get')!) : undefined;
+    if (t !== undefined && t !== setup.mine) setPartner(t);
+    // once, from the link
+  }, []);
   const byId = useMemo(() => new Map((rows ?? []).map((r) => [r.player_id, r])), [rows]);
   const pool = setup.teams * setup.rosterSpots;
   const points = setup.scoring === 'points';

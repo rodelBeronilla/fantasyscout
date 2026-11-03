@@ -5,6 +5,7 @@ import { CATEGORIES, CATEGORY_LABELS, day, fmt, lineSource, nextSeason, pct } fr
 import { isLeague } from '../lib/league';
 import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
+import { assign, owners, useLeague } from '../lib/fantasy-league';
 import ShotChart from './ShotChart';
 import TrendChart from './TrendChart';
 import { Badge, Card, Loading, Problem, Signed, Td, Th } from './ui';
@@ -183,7 +184,7 @@ function Fact({ label, value, hint }: { label: string; value: ReactNode; hint?: 
 }
 
 /** What the board projects for the player and the context it shows beside the value. */
-function OutlookCard({ board, league, season }: { board: NonNullable<PlayerFile['board']>; league: League; season: string | null }) {
+function OutlookCard({ board, league, season, status }: { board: NonNullable<PlayerFile['board']>; league: League; season: string | null; status: ReactNode }) {
   const line: [string, string][] = [
     ['MIN', fmt(board.proj_minutes_pg)],
     ['PTS', fmt(board.proj_points_pg)],
@@ -200,6 +201,7 @@ function OutlookCard({ board, league, season }: { board: NonNullable<PlayerFile[
     board.lineup_role === 'starter' ? 'Starting' : board.lineup_role === 'inactive' ? 'Inactive' : 'Bench';
   return (
     <Card title="Fantasy outlook" id="outlook">
+      {status}
       {/* After the last game the week, the stakes and the ownership no longer apply (#450). */}
       {board.season_complete && season && (
         <p className="mb-3 text-sm text-muted" data-testid="season-over">
@@ -280,6 +282,62 @@ function OutlookCard({ board, league, season }: { board: NonNullable<PlayerFile[
         them for your league&apos;s settings.
       </p>
     </Card>
+  );
+}
+
+/**
+ * Where the player stands in the manager's league (#726): on their team, free, or on another team,
+ * with the next step from here: offer them in a trade, add them, or trade for them.
+ */
+function LeagueStatus({ league, playerId, name }: { league: League; playerId: string; name: string }) {
+  const [setup, update] = useLeague(league);
+  const owner = owners(setup);
+  const t = owner.get(playerId);
+  const link = 'rounded border border-accent px-2 py-0.5 text-sm font-medium text-accent hover:bg-accent hover:text-accent-fg';
+  const q = (side: 'give' | 'get') => href(`/trade/?league=${league}&${side}=${playerId}`);
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-line bg-bg px-3 py-2 text-sm" data-testid="league-status">
+      {owner.size === 0 ? (
+        <span className="text-muted">
+          <a href={href('/league/')} className="underline underline-offset-4">
+            Set up your league
+          </a>{' '}
+          to see whether {name} is free, and what to do about it.
+        </span>
+      ) : t === setup.mine ? (
+        <>
+          <strong className="text-good">On your team</strong>
+          <a href={q('give')} className={link}>
+            Offer in a trade
+          </a>
+          <a href={href('/team/')} className="underline-offset-4 hover:underline">
+            My Team →
+          </a>
+        </>
+      ) : t === undefined ? (
+        <>
+          <strong>Available in your league</strong>
+          <button
+            type="button"
+            className={link}
+            onClick={() => update((s) => assign(s, playerId, s.mine))}
+            title="Records the pickup in the league kept here; make it in your league's app too"
+          >
+            Add to {setup.names[setup.mine]}
+          </button>
+          <a href={href('/streamers/')} className="underline-offset-4 hover:underline">
+            Compare on Pickups →
+          </a>
+        </>
+      ) : (
+        <>
+          <strong>On {setup.names[t]}</strong>
+          <a href={q('get')} className={link}>
+            Trade for {name}
+          </a>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -421,9 +479,6 @@ function parsePath(): { league: League; playerId: string } | null {
   return { league: m[1], playerId: decodeURIComponent(m[2] ?? '') };
 }
 
-function agreementTone(s: string): 'good' | 'warn' | 'bad' | 'muted' {
-  return s === 'exact' ? 'good' : s === 'minor' ? 'warn' : s === 'conflict' ? 'bad' : 'muted';
-}
 
 export default function PlayerPage() {
   const [target] = useState(() => (typeof window === 'undefined' ? null : parsePath()));
@@ -499,126 +554,14 @@ export default function PlayerPage() {
         </p>
       </header>
 
-      {player.board?.injury_group && <InjuryCard board={player.board} history={player.injury_history ?? []} />}
-
-      {player.board && <OutlookCard board={player.board} league={target.league} season={player.current_season} />}
-
-      {player.team.team_id && <NextGames games={schedule} teamId={player.team.team_id} />}
-
-      {(player.news ?? []).length > 0 && <NewsCard news={player.news ?? []} />}
-
-      {(player.moves ?? []).length > 0 && (
-        <Card title="Moves" id="moves">
-          <ul className="grid gap-1 text-sm" data-testid="player-moves">
-            {(player.moves ?? []).map((m) => (
-              <li key={`${m.transaction_date}-${m.description}`}>
-                <span className="mr-2 text-xs text-muted">{day(m.transaction_date)}</span>
-                {m.description}
-              </li>
-            ))}
-          </ul>
-        </Card>
+      {player.board && (
+        <OutlookCard
+          board={player.board}
+          league={target.league}
+          season={player.current_season}
+          status={<LeagueStatus league={target.league} playerId={player.player_id} name={player.name ?? 'this player'} />}
+        />
       )}
-
-      <Card title="Season lines" id="seasons">
-        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Season lines">
-          <table className="w-full text-sm" data-testid="season-lines">
-            <thead>
-              <tr>
-                <Th>Season</Th>
-                <Th right>GP</Th>
-                <Th right>MIN</Th>
-                <Th right>PTS</Th>
-                <Th right>REB</Th>
-                <Th right>AST</Th>
-                <Th right>STL</Th>
-                <Th right>BLK</Th>
-                <Th right>3PM</Th>
-                <Th right>TO</Th>
-                <Th right>FG%</Th>
-                <Th right>FT%</Th>
-                <Th>Sources agree</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {player.seasons.map((s) => (
-                <tr key={s.season} className="border-t border-line">
-                  <Td>{s.season}</Td>
-                  <Td right>{s.games_played}</Td>
-                  <Td right>{fmt(s.minutes_pg)}</Td>
-                  <Td right>{fmt(s.points_pg)}</Td>
-                  <Td right>{fmt(s.rebounds_total_pg)}</Td>
-                  <Td right>{fmt(s.assists_pg)}</Td>
-                  <Td right>{fmt(s.steals_pg)}</Td>
-                  <Td right>{fmt(s.blocks_pg)}</Td>
-                  <Td right>{fmt(s.three_pointers_made_pg)}</Td>
-                  <Td right>{fmt(s.turnovers_pg)}</Td>
-                  <Td right>{pct(s.field_goal_pct)}</Td>
-                  <Td right>{pct(s.free_throw_pct)}</Td>
-                  <Td>
-                    <span className="text-xs text-muted">
-                      {s.agree_exact} exact · {s.agree_minor} minor · {s.agree_conflict} conflict · {s.agree_unverified} unverified
-                    </span>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* items-start: the trend card keeps its own height instead of stretching to the shot chart's (#696) */}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        <Card title={`Rolling 10-game trend, ${player.current_season ?? ''}`} id="trend">
-          {player.rolling.length ? (
-            <TrendChart
-              rows={player.rolling}
-              series={[
-                { key: 'points_avg_10', label: 'PTS' },
-                { key: 'minutes_avg_10', label: 'MIN' },
-                { key: 'rebounds_total_avg_10', label: 'REB' },
-                { key: 'assists_avg_10', label: 'AST' },
-              ]}
-              title="Ten-game rolling averages of points, minutes, rebounds and assists"
-            />
-          ) : (
-            <p className="text-sm text-muted">No games this season yet.</p>
-          )}
-        </Card>
-        <Card title={`Shot chart, ${player.current_season ?? ''}`} id="shots">
-          {player.shots.length ? (
-            <ShotChart shots={player.shots} league={target.league} title={`${player.name ?? ''} shot chart`} />
-          ) : (
-            <p className="text-sm text-muted">No shots this season yet.</p>
-          )}
-          {player.shot_zones.length > 0 && (
-            <div className="table-scroll mt-3 max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Shot zones">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr>
-                    <Th>Zone</Th>
-                    <Th right>FGA</Th>
-                    <Th right>FG%</Th>
-                    <Th right>League</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {player.shot_zones
-                    .filter((z) => z.zone !== 'Backcourt')
-                    .map((z) => (
-                      <tr key={z.zone} className="border-t border-line">
-                        <Td>{z.zone}</Td>
-                        <Td right>{z.attempts}</Td>
-                        <Td right>{pct(z.pct)}</Td>
-                        <Td right>{pct(z.league_pct)}</Td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Card>
-      </div>
 
       <Card title="Category strengths and drags (season z-scores)" id="categories">
         {strengths ? (
@@ -677,6 +620,121 @@ export default function PlayerPage() {
         )}
       </Card>
 
+      {/* the status strip (#726): injury, next games, news and moves together, near the top */}
+      <div className="grid items-start gap-6 empty:hidden lg:grid-cols-2" data-testid="player-status">
+        {player.board?.injury_group && <InjuryCard board={player.board} history={player.injury_history ?? []} />}
+        {player.team.team_id && <NextGames games={schedule} teamId={player.team.team_id} />}
+        {(player.news ?? []).length > 0 && <NewsCard news={player.news ?? []} />}
+        {(player.moves ?? []).length > 0 && (
+          <Card title="Moves" id="moves">
+            <ul className="grid gap-1 text-sm" data-testid="player-moves">
+              {(player.moves ?? []).map((m) => (
+                <li key={`${m.transaction_date}-${m.description}`}>
+                  <span className="mr-2 text-xs text-muted">{day(m.transaction_date)}</span>
+                  {m.description}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+      </div>
+
+      <Card title={`Rolling 10-game trend, ${player.current_season ?? ''}`} id="trend">
+        {player.rolling.length ? (
+          <TrendChart
+            rows={player.rolling}
+            series={[
+              { key: 'points_avg_10', label: 'PTS' },
+              { key: 'minutes_avg_10', label: 'MIN' },
+              { key: 'rebounds_total_avg_10', label: 'REB' },
+              { key: 'assists_avg_10', label: 'AST' },
+            ]}
+            title="Ten-game rolling averages of points, minutes, rebounds and assists"
+          />
+        ) : (
+          <p className="text-sm text-muted">No games this season yet.</p>
+        )}
+      </Card>
+
+      <Card title="Season lines" id="seasons">
+        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Season lines">
+          <table className="w-full text-sm" data-testid="season-lines">
+            <thead>
+              <tr>
+                <Th>Season</Th>
+                <Th right>GP</Th>
+                <Th right>MIN</Th>
+                <Th right>PTS</Th>
+                <Th right>REB</Th>
+                <Th right>AST</Th>
+                <Th right>STL</Th>
+                <Th right>BLK</Th>
+                <Th right>3PM</Th>
+                <Th right>TO</Th>
+                <Th right>FG%</Th>
+                <Th right>FT%</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {player.seasons.map((s) => (
+                <tr key={s.season} className="border-t border-line">
+                  <Td>{s.season}</Td>
+                  <Td right>{s.games_played}</Td>
+                  <Td right>{fmt(s.minutes_pg)}</Td>
+                  <Td right>{fmt(s.points_pg)}</Td>
+                  <Td right>{fmt(s.rebounds_total_pg)}</Td>
+                  <Td right>{fmt(s.assists_pg)}</Td>
+                  <Td right>{fmt(s.steals_pg)}</Td>
+                  <Td right>{fmt(s.blocks_pg)}</Td>
+                  <Td right>{fmt(s.three_pointers_made_pg)}</Td>
+                  <Td right>{fmt(s.turnovers_pg)}</Td>
+                  <Td right>{pct(s.field_goal_pct)}</Td>
+                  <Td right>{pct(s.free_throw_pct)}</Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card title={`Shot chart, ${player.current_season ?? ''}`} id="shots">
+      {/* the chart beside its zones: at the page's full width it would stand a screen tall (#726) */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+          {player.shots.length ? (
+            <ShotChart shots={player.shots} league={target.league} title={`${player.name ?? ''} shot chart`} />
+          ) : (
+            <p className="text-sm text-muted">No shots this season yet.</p>
+          )}
+          {player.shot_zones.length > 0 && (
+            <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Shot zones">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <Th>Zone</Th>
+                    <Th right>FGA</Th>
+                    <Th right>FG%</Th>
+                    <Th right>League</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {player.shot_zones
+                    .filter((z) => z.zone !== 'Backcourt')
+                    .map((z) => (
+                      <tr key={z.zone} className="border-t border-line">
+                        <Td>{z.zone}</Td>
+                        <Td right>{z.attempts}</Td>
+                        <Td right>{pct(z.pct)}</Td>
+                        <Td right>{pct(z.league_pct)}</Td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+    
+      </div>
+    </Card>
+
       <Card title="Game log" id="games">
         <label className="text-sm">
           Season{' '}
@@ -705,7 +763,6 @@ export default function PlayerPage() {
                 <Th right>3P</Th>
                 <Th right>FT</Th>
                 <Th right>+/-</Th>
-                <Th>Sources</Th>
               </tr>
             </thead>
             <tbody>
@@ -742,9 +799,6 @@ export default function PlayerPage() {
                       {g.comment || 'Did not play'}
                     </td>
                   )}
-                  <Td>
-                    <Badge tone={agreementTone(g.source_agreement)}>{g.source_agreement}</Badge>
-                  </Td>
                 </tr>
               ))}
             </tbody>
