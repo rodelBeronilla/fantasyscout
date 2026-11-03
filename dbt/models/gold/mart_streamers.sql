@@ -338,8 +338,8 @@ select
     {%- for c in cats %}
     rv.last_10_z_{{ c }},
     {%- endfor %}
-    bd.rank_total as board_rank,
-    bd.value_total as board_value,
+    bd.rank_total,
+    bd.value_total,
     coalesce(bd.is_new_team, false) as is_new_team,
     bd.prev_team_abbreviation,
     lr.points_avg_5,

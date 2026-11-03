@@ -252,7 +252,7 @@ STREAMER_COLUMNS = (
     "last_10_fgm_pg",
     "last_10_ftm_pg",
     "last_10_z_turnovers",
-    "board_rank",
+    "rank_total",
     "is_new_team",
     "prev_team_abbreviation",
     "points_avg_5",

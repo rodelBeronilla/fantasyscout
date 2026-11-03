@@ -42,7 +42,7 @@ interface PlayerRow {
 }
 
 /** A player's worth under the league's settings: per game, over the season, for the rest of it, and for this fantasy week. */
-interface Worth {
+interface Value {
   perGame: number;
   season: number;
   rest: number;
@@ -105,7 +105,7 @@ export default function TradeAnalyzer() {
   const partnerTeam = partner ?? setup.names.findIndex((_, i) => i !== setup.mine);
 
   const worth = useMemo(() => {
-    const out = new Map<string, Worth>();
+    const out = new Map<string, Value>();
     for (const r of rows ?? []) {
       const c: Record<string, number> = {};
       if (catValues) for (const k of cats) c[k] = catValues.get(r.player_id)?.[k] ?? 0;
@@ -125,11 +125,11 @@ export default function TradeAnalyzer() {
   if (!rows) return <Loading what="the board" />;
 
   // The figure each side is judged on: the rest of the season, or this fantasy week.
-  const NONE: Worth = { perGame: 0, season: 0, rest: 0, week: 0, cats: {}, fpts: null };
-  const pick = (w: Worth) => (week ? w.week : w.rest);
+  const NONE: Value = { perGame: 0, season: 0, rest: 0, week: 0, cats: {}, fpts: null };
+  const pick = (w: Value) => (week ? w.week : w.rest);
   const sideOf = (ids: string[]) => {
     const players = ids.map((id) => byId.get(id)).filter((p): p is PlayerRow => !!p);
-    const sum = (f: (w: Worth) => number) =>
+    const sum = (f: (w: Value) => number) =>
       players.reduce((s, p) => s + f(worth.get(p.player_id) ?? NONE), 0);
     const catTotals = Object.fromEntries(cats.map((c) => [c, sum((w) => w.cats[c] ?? 0)]));
     const games = players.reduce((s, p) => s + (p.games_this_week ?? 0), 0);
