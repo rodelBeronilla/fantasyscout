@@ -32,6 +32,8 @@ METRICS: dict[str, tuple[str, int]] = {
     "games_remaining": ("games_remaining", 0),
 }
 MINUTES_Z = 1.5
+# players a deep league rosters: the notes leave out the waiver wire's long tail (#698)
+MAX_RANK = {"nba": 200, "wnba": 120}
 # how the model sees each metric: a small model writes what it reads, so it reads plain words
 LABELS: dict[str, str] = {
     "value_rest_of_season": "rest-of-season value",
@@ -46,6 +48,19 @@ LABELS: dict[str, str] = {
 PARTS = ("before", "after", "change")
 
 
+def _view_of(metric: str, values: dict[str, Any]) -> dict[str, Any]:
+    """A metric as the model reads it. A board rank goes down as it gets better, which the model
+    misread ("fell 107 places" for a climb from 169 to 62): it reads the places climbed instead,
+    positive for a better rank, which is the change's size with the sign that reads naturally."""
+    if metric != "rank" or values.get("change") is None:
+        return values
+    return {
+        "before": values.get("before"),
+        "after": values.get("after"),
+        "places climbed (negative: dropped)": -values["change"],
+    }
+
+
 def model_view(inp: dict[str, Any]) -> dict[str, Any]:
     """What the model is given for one player: the same numbers under plain names."""
     return {
@@ -56,7 +71,7 @@ def model_view(inp: dict[str, Any]) -> dict[str, Any]:
         "injury status before": inp.get("injury_before") or "healthy",
         "injury status after": inp.get("injury_after") or "healthy",
         "row_ref": inp["row_ref"],
-        "numbers": {LABELS.get(m, m): v for m, v in inp["metrics"].items()},
+        "numbers": {LABELS.get(m, m): _view_of(m, v) for m, v in inp["metrics"].items()},
     }
 
 
@@ -114,7 +129,14 @@ def select(
         [before, league, after],
     ).fetchall()
     names = [d[0] for d in con.description]
-    records = [dict(zip(names, r, strict=True)) for r in rows]
+    # players who matter to a manager: ranked within a deep league's rosters on either day
+    limit = MAX_RANK.get(league, 200)
+
+    def ranked(r: dict[str, Any]) -> bool:
+        ranks = [r.get("a_rank_total"), r.get("b_rank_total")]
+        return any(x is not None and x <= limit for x in ranks)
+
+    records = [rec for rec in (dict(zip(names, r, strict=True)) for r in rows) if ranked(rec)]
 
     def delta(r: dict[str, Any], col: str) -> float:
         a, b = r.get(f"a_{col}"), r.get(f"b_{col}")
@@ -128,16 +150,28 @@ def select(
     for r in by_value[:top]:
         if delta(r, "value_rest_of_season") < 0:
             chosen.setdefault(r["player_id"], "faller")
-    for r in records:
-        if (r.get("a_injury_group") or "healthy") != (r.get("b_injury_group") or "healthy"):
-            chosen.setdefault(r["player_id"], "availability")
+    # availability changes and minutes shifts: at most `top` each, the ones that move value most
+    changed = [
+        r
+        for r in records
+        if (r.get("a_injury_group") or "healthy") != (r.get("b_injury_group") or "healthy")
+    ]
+    changed = [r for r in changed if r["player_id"] not in chosen]
+    changed.sort(key=lambda r: -abs(delta(r, "value_rest_of_season")))
+    for r in changed[:top]:
+        chosen.setdefault(r["player_id"], "availability")
     shifts = [delta(r, "proj_minutes_pg") for r in records]
     if len(shifts) > 2:
         mean = sum(shifts) / len(shifts)
         sd = math.sqrt(sum((s - mean) ** 2 for s in shifts) / (len(shifts) - 1))
-        for r, s in zip(records, shifts, strict=True):
-            if sd > 0 and abs(s - mean) / sd > MINUTES_Z:
-                chosen.setdefault(r["player_id"], "minutes")
+        moved = [
+            (abs(s - mean), r)
+            for r, s in zip(records, shifts, strict=True)
+            if sd > 0 and abs(s - mean) / sd > MINUTES_Z and r["player_id"] not in chosen
+        ]
+        moved.sort(key=lambda x: -x[0])
+        for _, r in moved[:top]:
+            chosen.setdefault(r["player_id"], "minutes")
 
     players = []
     for r in records:
