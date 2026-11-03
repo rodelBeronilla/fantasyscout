@@ -55,3 +55,16 @@ Decisions:
 ## Addendum (2026-11-02): when the WNBA reads its own listings
 
 A league reads its own official listings for a status once it has 300 of them; until then the NBA's apply. The WNBA's archive starts in 2026; the 2026-11-02 audit put the first status past 300 around the middle of the 2027 season, and the rarer statuses later. The switch is automatic; the game context notebook's fact marks each status still read from the NBA ("n 627, NBA's") until then (#492).
+
+## Addendum (2026-11-03): teams with nothing to play for rest their regulars (#494)
+
+The board tagged a team with nothing left to play for (`fct_team_stakes.rest_risk`: clinched or eliminated with 10 or fewer games left in the NBA, 6 in the WNBA) but charged nothing for it. Notebook 03 now tests the belief point in time. `fct_team_stakes` is a snapshot, so the notebook rebuilds the standings before each of a team's last games from the results. A team counts as clinched when its wins are beyond what the first team outside a guaranteed place can still reach (top 6 of the conference in the NBA, top 8 in the WNBA). It counts as eliminated when it cannot reach the wins of the last place in the race (10th in the conference with the play-in, 8th in the WNBA). Ties and tiebreakers are ignored, so both calls are conservative. Regulars, meaning 20+ games and 28+ minutes a game before, were compared with regulars on teams still racing in the same stretch, with a bootstrap over team-seasons (run 41565914043, the published build of 2026-11-02):
+
+| Last stretch | NBA | WNBA |
+| --- | --- | --- |
+| Regulars sat out, nothing to play for / racing | 50.7% / 21.7% | 10.6% / 8.1% |
+| Difference | +29.0 pts (22.2 to 36.4) | +2.5 pts (-2.9 to +7.1) |
+| Minutes when they played | -1.04 (-1.74 to -0.19) | -1.61 (-2.54 to -0.83) |
+| Team-seasons with nothing to play for | 58 | 91 |
+
+The bar set in advance was 5 points or more with the interval clear of zero. The NBA clears it and the WNBA does not. So the board now charges an NBA regular (28+ projected minutes) on a `rest_risk` team 0.29 of the games left: the availability multiplier, and with it `ros_factor` and value for the rest of the season, keeps 0.71 (`fantasy_rest_risk` in `dbt_project.yml`). The WNBA's setting is 0. The notebook re-runs the comparison on every build and publishes it as a fact, so the charge can be revisited as seasons add up.

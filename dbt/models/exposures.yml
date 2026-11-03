@@ -107,6 +107,9 @@ exposures:
       - ref('fct_team_game_context')
       - ref('mart_schedule_upcoming')
       - ref('fct_status_calibration')
+      - ref('dim_game')
+      - ref('dim_team')
+      - ref('fct_team_stakes')
   - name: notebook_data_quality
     label: "Notebook 04_data_quality"
     type: analysis

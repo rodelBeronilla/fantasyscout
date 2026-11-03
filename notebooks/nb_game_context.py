@@ -434,6 +434,122 @@ if not listing:
     ),
     (
         "md",
+        """## Teams with nothing to play for (#494)
+
+The board and Streamers tag a team with nothing left to play for in the last stretch of its season
+(fct_team_stakes.rest_risk: clinched or eliminated with 10 or fewer games left in the NBA, 6 in the
+WNBA), on the belief that it rests its regulars. That table is a snapshot of today, so this rebuilds
+the stakes point in time from the results: before each of a team's last games, the standings so
+far, and whether the team had clinched (its wins beyond what the first team outside a guaranteed
+place could still reach: the top 6 of the conference in the NBA, the top 8 in the WNBA) or been
+eliminated (unable to reach the wins of the last place in the race: 10th in the conference with the
+NBA's play-in, 8th in the WNBA). Ties and tiebreakers are ignored, so both calls are conservative.
+Regulars (20+ games and 28+ minutes a game before it) on those teams are compared with regulars on
+teams still racing in the same stretch: how often they sat out, and their minutes when they
+played. The interval is a bootstrap over team-seasons. It would be adopted into
+expected_games_missed at 5 points or more with the interval clear of zero.""",
+    ),
+    (
+        "code",
+        """STRETCH = {'nba': 10, 'wnba': 6}
+CUT = {'nba': {'guaranteed': 6, 'race': 10}, 'wnba': {'guaranteed': 8, 'race': 8}}
+
+
+def stakes_by_game(lg):
+    \"\"\"Each team's last regular-season games with clinched / eliminated before them, from the results.\"\"\"
+    dg = con.sql(
+        f"select season, game_id, game_date, home_team_id, away_team_id, winner_team_id from dim_game "
+        f"where league = '{lg}' and season_type = 'Regular Season' and winner_team_id is not null"
+    ).df()
+    if dg.empty:
+        return pd.DataFrame()
+    conf = (con.sql(f"select season, team_id, conference from dim_team where league = '{lg}'").df()
+            if lg == 'nba' and has_table(con, 'dim_team') else pd.DataFrame(columns=['season', 'team_id', 'conference']))
+    dg['game_date'] = pd.to_datetime(dg['game_date'])
+    side = pd.concat([dg.assign(team_id=dg['home_team_id']), dg.assign(team_id=dg['away_team_id'])])
+    side['win'] = (side['winner_team_id'] == side['team_id']).astype(int)
+    side = side[['season', 'game_id', 'game_date', 'team_id', 'win']].sort_values(['season', 'team_id', 'game_date', 'game_id'])
+    side['played_before'] = side.groupby(['season', 'team_id']).cumcount()
+    side['wins_before'] = side.groupby(['season', 'team_id'])['win'].cumsum() - side['win']
+    side['season_games'] = side.groupby(['season', 'team_id'])['game_id'].transform('size')
+    side['left'] = side['season_games'] - side['played_before']
+    late = side[side['left'] <= STRETCH[lg]].copy()
+    if lg == 'nba' and len(conf):
+        late = late.merge(conf, on=['season', 'team_id'], how='left')
+        side = side.merge(conf, on=['season', 'team_id'], how='left')
+    else:
+        late['conference'] = 'league'
+        side['conference'] = 'league'
+    out = []
+    for (season, day), q in late.groupby(['season', 'game_date']):
+        # the standings before that date: each team's wins and games left
+        before = side[(side['season'] == season) & (side['game_date'] < day)]
+        st = before.groupby(['team_id', 'conference']).agg(wins=('win', 'sum'), played=('game_id', 'size')).reset_index()
+        st['left'] = side[side['season'] == season].groupby('team_id')['season_games'].first().reindex(st['team_id']).to_numpy() - st['played']
+        st['max_wins'] = st['wins'] + st['left']
+        for _, row in q.iterrows():
+            c = st[st['conference'] == row['conference']].sort_values('wins', ascending=False).reset_index(drop=True)
+            me = c[c['team_id'] == row['team_id']]
+            if me.empty:
+                continue
+            me = me.iloc[0]
+            g_cut, r_cut = CUT[lg]['guaranteed'], CUT[lg]['race']
+            others = c[c['team_id'] != row['team_id']].sort_values('max_wins', ascending=False).reset_index(drop=True)
+            # clinched: more wins than the team that would be first outside the guaranteed places can reach
+            clinched = len(others) >= g_cut and me['wins'] > others['max_wins'].iloc[g_cut - 1]
+            racers = c[c['team_id'] != row['team_id']].sort_values('wins', ascending=False).reset_index(drop=True)
+            eliminated = len(racers) >= r_cut and me['max_wins'] < racers['wins'].iloc[r_cut - 1]
+            out.append({'season': season, 'game_id': row['game_id'], 'team_id': row['team_id'],
+                        'clinched': bool(clinched), 'eliminated': bool(eliminated)})
+    return pd.DataFrame(out)
+
+
+stakes_table = {}
+for lg, m in frames.items():
+    sg = stakes_by_game(lg)
+    if sg.empty:
+        continue
+    sg['nothing'] = sg['clinched'] | sg['eliminated']
+    r = m.merge(sg, on=['season', 'game_id', 'team_id'])
+    r = r[(r['pre_games'] >= 20) & (r['pre_mpg'] >= 28)]
+    r['minutes_diff'] = r['minutes'] - r['pre_mpg']
+    if r['nothing'].sum() < 50 or (~r['nothing']).sum() < 50:
+        stakes_table[lg] = {'n_nothing': int(r['nothing'].sum()), 'n_racing': int((~r['nothing']).sum())}
+        continue
+    key = r['season'].astype(str) + ':' + r['team_id'].astype(str)
+    clusters = key.unique()
+    rng = np.random.default_rng(11)
+
+    def diff(frame):
+        a, b = frame[frame['nothing']], frame[~frame['nothing']]
+        played_a, played_b = a[a['played']], b[b['played']]
+        return (100 * (a['missed'].mean() - b['missed'].mean()),
+                played_a['minutes_diff'].mean() - played_b['minutes_diff'].mean())
+
+    est = diff(r)
+    groups = {k: g for k, g in r.groupby(key)}
+    reps = []
+    for _ in range(200):
+        pick = rng.choice(clusters, len(clusters))
+        reps.append(diff(pd.concat([groups[k] for k in pick])))
+    reps = np.array(reps)
+    stakes_table[lg] = {
+        'n_nothing': int(r['nothing'].sum()), 'n_racing': int((~r['nothing']).sum()),
+        'team_seasons_nothing': int(r.loc[r['nothing'], ['season', 'team_id']].drop_duplicates().shape[0]),
+        'sat_out_nothing': float(100 * r.loc[r['nothing'], 'missed'].mean()),
+        'sat_out_racing': float(100 * r.loc[~r['nothing'], 'missed'].mean()),
+        'sat_out_diff': est[0], 'sat_out_lo': float(np.nanquantile(reps[:, 0], 0.025)), 'sat_out_hi': float(np.nanquantile(reps[:, 0], 0.975)),
+        'minutes_diff': est[1], 'minutes_lo': float(np.nanquantile(reps[:, 1], 0.025)), 'minutes_hi': float(np.nanquantile(reps[:, 1], 0.975)),
+    }
+    s = stakes_table[lg]
+    s['adopt'] = bool(s['sat_out_diff'] >= 5 and s['sat_out_lo'] > 0)
+if stakes_table:
+    display(pd.DataFrame(stakes_table).T.round(2))
+else:
+    print('No finished regular season to rebuild stakes from in this build.')""",
+    ),
+    (
+        "md",
         """## The referee crew
 
 Every game's crew comes from ESPN's game summaries (`fct_game_official`); the day's crews are
@@ -889,6 +1005,15 @@ for lg in LEAGUES:
                                    f"difference {d['gain_pct']:+.2f} points ({d['lo']:+.2f} to {d['hi']:+.2f})"})
     elif lg in line_split:
         facts.append({'label': 'Betting line backtest', 'value': f"accumulating: too few player-games with a line yet ({line_split[lg]})"})
+    stk = stakes_table.get(lg)
+    if stk and 'sat_out_diff' in stk:
+        facts.append({'label': 'Nothing to play for, last stretch: regulars sitting out and minutes, against racing teams',
+                      'value': f"sat out {stk['sat_out_nothing']:.1f}% vs {stk['sat_out_racing']:.1f}%, "
+                               f"{stk['sat_out_diff']:+.1f} pts ({stk['sat_out_lo']:+.1f} to {stk['sat_out_hi']:+.1f}); "
+                               f"minutes {stk['minutes_diff']:+.2f} ({stk['minutes_lo']:+.2f} to {stk['minutes_hi']:+.2f}); "
+                               f"{stk['team_seasons_nothing']} team-seasons"})
+    elif stk:
+        facts.append({'label': 'Nothing to play for, last stretch', 'value': f"accumulating: {stk['n_nothing']} regular-games on such teams, {stk['n_racing']} on racing ones"})
     e = effects_table[(effects_table['league'] == lg)]
     table = []
     for f, label in {**REST, **TRAVEL}.items():

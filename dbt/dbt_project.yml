@@ -80,6 +80,14 @@ vars:
   # 0003): for the players cut, error 4.57 to 4.13 and 4.24 to 3.94 minutes out of sample in the
   # NBA, 4.16 to 3.94 and 4.06 to 4.04 in the WNBA; nobody else moves.
   fantasy_return_ramp: {min_games_missed: 3, per_game_missed: 0.01, max_cut: 0.5, games_back: 2}
+  # A team with nothing left to play for in its last stretch (fct_team_stakes.rest_risk) rests its
+  # regulars: notebook 03 rebuilt the stakes point in time and found NBA regulars (28+ minutes)
+  # on such teams sat out 50.7% of those games against 21.7% on teams still racing, +29 points
+  # (22 to 36; 58 team-seasons; ADR 0010, #494). The board charges that share of the games left
+  # to a regular there. The WNBA's +2.5 points (-2.9 to +7.1) did not clear the bar, so it is 0.
+  fantasy_rest_risk:
+    nba: {extra_sit_out: 0.29, min_minutes: 28}
+    wnba: {extra_sit_out: 0.0, min_minutes: 28}
   # Matchups (mart_schedule_upcoming): value per game per standard deviation of the opponent's
   # defensive rating and of the expected pace, from replaying past seasons (ADR 0003); team
   # ratings blend this season to date with last season, last season counting as prior_games.
