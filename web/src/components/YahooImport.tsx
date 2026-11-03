@@ -3,7 +3,7 @@
  * cookie) and calls Yahoo; this card only sees league data. Until the Worker reports the import
  * live (Yahoo has approved the app), the card says it is coming soon.
  */
-import { useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import type { League } from '../lib/data';
 import { DEFAULT_SETTINGS, type LeagueSetup, matchNames, normalize, type PointWeights } from '../lib/fantasy-league';
@@ -70,6 +70,20 @@ function fromYahoo(
   return { setup, matched, total: data.teams.reduce((s, t) => s + t.players.length, 0), unmatched };
 }
 
+/** The import's frame: a card while the league is empty; with rosters in, one folded line (#716). */
+function Shell({ folded, children }: { folded: boolean; children: ReactNode }) {
+  return folded ? (
+    <details className="rounded-lg border border-line bg-card px-3 py-2" data-testid="yahoo-folded">
+      <summary className="cursor-pointer text-sm font-medium">Re-import from Yahoo</summary>
+      <div className="mt-2">{children}</div>
+    </details>
+  ) : (
+    <Card title="Import from Yahoo" id="yahoo">
+      {children}
+    </Card>
+  );
+}
+
 export default function YahooImport({
   league,
   players,
@@ -131,7 +145,7 @@ export default function YahooImport({
     // Parked until Yahoo approves the app for its Fantasy API; Yahoo runs NBA leagues only.
     if (league !== 'nba') return null;
     return (
-      <Card title="Import from Yahoo" id="yahoo">
+      <Shell folded={hasRosters && !note}>
         <div className="grid gap-1 text-sm" data-testid="yahoo-soon">
           <p>
             <span className="mr-2 rounded-full border border-accent px-2 py-0.5 text-xs font-medium text-accent">Coming soon</span>
@@ -202,7 +216,7 @@ export default function YahooImport({
             team pages, one per line.
           </p>
         </div>
-      </Card>
+      </Shell>
     );
   }
 
@@ -226,7 +240,7 @@ export default function YahooImport({
   };
 
   return (
-    <Card title="Import from Yahoo" id="yahoo">
+    <Shell folded={hasRosters && !note}>
       <div className="grid gap-2 text-sm" data-testid="yahoo-import">
         {league !== 'nba' ? (
           <p className="text-muted">Yahoo runs NBA leagues only; switch to the NBA to import one.</p>
@@ -271,6 +285,6 @@ export default function YahooImport({
           </p>
         )}
       </div>
-    </Card>
+    </Shell>
   );
 }

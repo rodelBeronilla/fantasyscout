@@ -1,19 +1,20 @@
 /**
- * The League page: the manager's league (settings, teams in draft order, rosters), a snake draft,
- * and how the teams stand. Kept in this browser; the board and Streamers read it.
+ * The League page: the manager's league (settings, teams in draft order, rosters), kept in this
+ * browser; every other page reads it. With mode "draft" it is the Draft page instead (#716): the
+ * snake draft, pick by pick, on the same league.
  */
 import { useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, type League } from '../lib/data';
-import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
+import { CATEGORIES, fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { href } from '../lib/site';
-import { CategoryProfile, DraftBar, LeagueSettingsForm } from './LeagueParts';
+import { DraftBar, LeagueSettingsForm, describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
-import { Card, Loading, Problem, Td, Th } from './ui';
+import { Card, Loading, Problem } from './ui';
 import AccountBox from './AccountBox';
 import YahooImport from './YahooImport';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
@@ -79,12 +80,14 @@ function PasteNames({ teamName, players, onAdd }: { teamName: string; players: P
   );
 }
 
-export default function LeagueSetup() {
+export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draft' }) {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<PlayerRow[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [setup, update] = useLeague(league);
   const [loadNote, setLoadNote] = useState<string | null>(null);
+  // with every roster full, one team card is open at a time (#716); the manager's own to start
+  const [openCard, setOpenCard] = useState<number | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -139,41 +142,11 @@ export default function LeagueSetup() {
   );
   const options = useMemo(() => new Map(available.map((p) => [optionLabel(p), p.player_id])), [available]);
 
-  // Each team's total in every category (per game, above replacement), and its rank in each.
-  const strength = useMemo(() => {
-    if (!rows) return null;
-    const teams = setup.rosters.map((roster, t) => {
-      const totals: Record<string, number> = {};
-      // Players on the injured list are owned but not playing: they stay out of the team's totals.
-      const active = roster.filter((id) => !setup.il.includes(id));
-      if (catValues) for (const c of cats) totals[c] = active.reduce((s, id) => s + (catValues.get(id)?.[c] ?? 0), 0);
-      const fpts = pointVals ? active.reduce((s, id) => s + (pointVals.get(id)?.fpts ?? 0), 0) : 0;
-      const total = catValues ? cats.reduce((s, c) => s + (totals[c] ?? 0), 0) : fpts;
-      return { team: t, totals, fpts, total, size: roster.length };
-    });
-    // Only teams with players are ranked against each other.
-    const rankIn = (get: (x: (typeof teams)[number]) => number) => {
-      const order = teams.filter((x) => x.size > 0).sort((a, b) => get(b) - get(a)).map((x) => x.team);
-      return new Map(order.map((t, i) => [t, i + 1]));
-    };
-    const ranks = Object.fromEntries(cats.map((c) => [c, rankIn((x) => x.totals[c] ?? 0)]));
-    return { teams, ranks, totalRank: rankIn((x) => x.total), ranked: teams.filter((x) => x.size > 0).length };
-  }, [rows, setup.rosters, setup.il, catValues, pointVals, cats]);
-
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the league" />;
 
   const rostered = owner.size;
-  const mineTotals = strength?.teams[setup.mine]?.totals ?? {};
-  const weakest = Object.entries(mineTotals)
-    .sort((a, b) => a[1] - b[1])
-    .slice(0, 3)
-    .map(([c]) => c);
   const lastPick = setup.picks.at(-1);
-  const ranked = strength?.ranked ?? 0;
-  const third = Math.max(1, Math.round(ranked / 3));
-  const rankTone = (rank: number | undefined) =>
-    rank === undefined || ranked < 3 ? '' : rank <= third ? 'text-good' : rank > ranked - third ? 'text-bad' : '';
 
   const draftCard = (
     <Card title="Draft" id="draft">
@@ -286,12 +259,28 @@ export default function LeagueSetup() {
     }
   };
 
+  if (mode === 'draft') {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+        <p className="text-sm text-muted" data-testid="league-bar">
+          Drafting for <span data-testid="league-summary">{describeSettings(setup)}</span>, teams in the order on the{' '}
+          <a href={href('/league/')} className="font-medium text-accent underline-offset-4 hover:underline">
+            League page →
+          </a>
+        </p>
+        {draftCard}
+      </div>
+    );
+  }
+
+  const yahoo = <YahooImport league={league} players={rows} hasRosters={rostered > 0} onImport={(next) => update(() => next)} />;
+  // the setup a manager does once leads only until it is done: with rosters in, the import folds
+  // to one line (#716); it keeps its place, so an import's result survives the switch
+  const full = setup.rosters.every((r) => r.length >= setup.rosterSpots);
+
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-
-      <AccountBox league={league} />
-
-      <YahooImport league={league} players={rows} hasRosters={rostered > 0} onImport={(next) => update(() => next)} />
+      {yahoo}
 
       <Card title="Settings" id="settings">
         <LeagueSettingsForm league={league} setup={setup} onChange={update} />
@@ -301,7 +290,14 @@ export default function LeagueSetup() {
         </p>
       </Card>
 
-      {setup.drafting && draftCard}
+      {setup.drafting && (
+        <p className="rounded-lg border border-accent bg-card px-3 py-2 text-sm" data-testid="draft-link">
+          A draft is under way:{' '}
+          <a href={href('/draft/')} className="font-medium text-accent underline-offset-4 hover:underline">
+            back to the draft room →
+          </a>
+        </p>
+      )}
 
       {(setup.rosters[setup.mine] ?? []).length > 0 && !setup.drafting && (
         <p className="rounded-lg border border-line bg-card px-3 py-2 text-sm" data-testid="team-link">
@@ -325,17 +321,36 @@ export default function LeagueSetup() {
             </span>
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {setup.names.map((name, t) => {
             const roster = setup.rosters[t] ?? [];
             const mine = t === setup.mine;
+            const folded = full && (openCard ?? setup.mine) !== t;
+            if (folded) {
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setOpenCard(t)}
+                  className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm hover:bg-card ${mine ? 'border-good' : 'border-line'}`}
+                  data-testid="team-card-folded"
+                  aria-label={`Show ${name}'s roster`}
+                >
+                  <span className="min-w-0 truncate font-medium">{name}</span>
+                  <span className="text-xs whitespace-nowrap text-muted">
+                    {mine ? 'My team · ' : ''}
+                    {roster.length}/{setup.rosterSpots} ▾
+                  </span>
+                </button>
+              );
+            }
             return (
               <div
                 key={t}
                 className={`grid content-start gap-2 rounded-lg border p-3 ${mine ? 'border-good bg-card' : roster.length ? 'border-line bg-card' : 'border-dashed border-line'}`}
                 data-testid="team-card"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     value={name}
                     onChange={(e) => {
@@ -400,64 +415,9 @@ export default function LeagueSetup() {
         </div>
       </section>
 
-      {!setup.drafting && draftCard}
-
-      {strength && rostered > 0 && (
-        <Card title="Team strength" id="strength">
-          <p className="mb-2 text-xs text-muted">
-            {points
-              ? 'Each team’s projected fantasy points a game, from the players on its roster.'
-              : 'Each team’s value per game above replacement in every category, summed over its roster. Green is the top third of the teams with players, red the bottom third.'}
-          </p>
-          <div className="table-scroll max-h-[70vh] overflow-auto rounded border border-line" tabIndex={0} role="region" aria-label="Team strength">
-            <table className="w-full text-sm" data-testid="team-strength">
-              <thead>
-                <tr>
-                  <Th>Team</Th>
-                  <Th right>Players</Th>
-                  {!points && cats.map((c) => <Th key={c} right>{CATEGORY_LABELS[c] ?? c}</Th>)}
-                  <Th right>{points ? 'FPts/G' : 'Total'}</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* only the teams with players: an empty team has nothing to compare (#696) */}
-                {strength.teams.filter((x) => x.size > 0).map((x) => (
-                  <tr key={x.team} className={`border-t border-line ${x.team === setup.mine ? 'font-semibold' : ''}`}>
-                    <Td>{setup.names[x.team]}</Td>
-                    <Td right>{x.size}</Td>
-                    {!points &&
-                      cats.map((c) => {
-                        const rank = strength.ranks[c]?.get(x.team);
-                        return (
-                          <Td key={c} right>
-                            <span className={rankTone(rank)} title={rank ? `Rank ${rank} of ${ranked}` : undefined}>
-                              {x.size ? fmt(x.totals[c] ?? 0, 1) : '–'}
-                            </span>
-                          </Td>
-                        );
-                      })}
-                    <Td right>
-                      <span className={rankTone(strength.totalRank.get(x.team))}>{x.size ? fmt(x.total, 1) : '–'}</span>
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!points && (setup.rosters[setup.mine] ?? []).length > 0 && (
-            <div className="mt-3 grid gap-1 text-xs">
-              <p className="text-muted">
-                {setup.names[setup.mine]}: weakest in <strong className="text-fg">{weakest.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</strong>. The
-                board&apos;s Fit column ranks players by how much they add there.
-              </p>
-              <CategoryProfile totals={mineTotals} weakest={weakest} />
-            </div>
-          )}
-        </Card>
-      )}
-
-      <Card title="Save and load" id="file">
-        <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="league-file">
+      <Card title="Your data" id="file">
+        <AccountBox league={league} />
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm" data-testid="league-file">
           <button type="button" onClick={download} className={button}>
             Download the league file
           </button>
@@ -479,7 +439,7 @@ export default function LeagueSetup() {
           {loadNote && <span role="status">{loadNote}</span>}
         </div>
         <p className="mt-2 text-xs text-muted">
-          The league lives in this browser only. The file moves it to another browser or device; nothing is sent anywhere.
+          Signed out, the league lives in this browser only: the file moves it to another browser or device, and nothing is sent anywhere.
         </p>
       </Card>
     </div>

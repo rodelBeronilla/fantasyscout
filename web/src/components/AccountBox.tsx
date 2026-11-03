@@ -31,7 +31,7 @@ export default function AccountBox({ league }: { league: League }) {
     setStatus(await accountStatus(true));
   };
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-card px-3 py-2 text-sm" data-testid="account-box">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" data-testid="account-box">
       {status.signedIn ? (
         <>
           <span>Saved to your Yahoo account: your setups follow you across devices.</span>

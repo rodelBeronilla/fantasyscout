@@ -1324,6 +1324,7 @@ test('rosters on the League page give the board who is available, owners, Fit an
   await page.getByLabel('Paste names for Rivals').fill(b ?? '');
   await cards.nth(1).getByRole('button', { name: 'Add pasted players' }).click();
   await expect(cards.nth(1).getByTestId('roster')).toContainText(b ?? '');
+  await page.goto('/team/');
   await expect(page.getByTestId('team-strength')).toContainText('Rivals');
   await expect(page.getByTestId('category-profile')).toBeVisible();
   await page.goto('/');
@@ -1635,9 +1636,12 @@ test('My Team suggests IL moves from the board availability and applies them', a
   await expect(page.getByTestId('il-back')).toHaveCount(0);
 });
 
-test('a draft on the League page snakes pick by pick, here and on the board, with undo', async ({ page }) => {
+test('a draft on the Draft page snakes pick by pick, here and on the board, with undo', async ({ page }) => {
   await page.goto('/league/');
   await page.getByLabel('Teams in the league').fill('4');
+  await expect(page.getByTestId('draft-panel')).toHaveCount(0);
+  await page.goto('/draft/');
+  await expect(page.locator('h1')).toContainText('Coming soon');
   await page.getByRole('button', { name: 'Start a draft' }).click();
   const bar = page.getByTestId('draft-bar');
   await expect(bar).toContainText('Round 1, pick 1 (#1): Team 1 is your team');
@@ -1674,15 +1678,44 @@ test('the value view groups the board into tiers by pick and round, and ranks pl
   await expect(heads).toHaveCount(0);
 });
 
-test('/league/ has no accessibility violations', async ({ page }) => {
-  await page.goto('/league/');
+test('/league/ and /draft/ have no accessibility violations', async ({ page }) => {
+  await page.goto('/draft/');
   await page.getByRole('button', { name: 'Start a draft' }).click();
   const best = page.getByTestId('best-available').locator('li');
   await best.first().getByRole('button', { name: /^Draft / }).click();
   await best.first().getByRole('button', { name: /^Draft / }).click();
-  await expect(page.getByTestId('team-strength')).toBeVisible();
-  const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
-  expect(results.violations).toEqual([]);
+  await expect(page.getByTestId('pick-log').locator('li')).toHaveCount(2);
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([]);
+  await page.goto('/league/');
+  await expect(page.getByTestId('draft-link')).toBeVisible();
+  await expect(page.getByTestId('team-card').first()).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([]);
+});
+
+test('the League page leads with the Yahoo import only while the league is empty, and folds full rosters to one open card (#716)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/?league=nba');
+  await expect(page.getByTestId('yahoo-soon')).toBeVisible();
+  await expect(page.getByTestId('yahoo-folded')).toHaveCount(0);
+  await page.getByLabel('Teams in the league').fill('4');
+  await page.getByLabel('Roster spots').fill('6');
+  for (let i = 0; i < 24; i += 1) await page.getByLabel(`Add a player to Team ${(i % 4) + 1}`, { exact: true }).fill(label(board[i]!));
+  // with rosters in, the import is one folded line
+  const folded = page.getByTestId('yahoo-folded');
+  await expect(folded).toContainText('Re-import from Yahoo');
+  await expect(folded.getByTestId('yahoo-soon')).toBeHidden();
+  // every roster full: your card stays open, the other folds to a name and a count
+  await expect(page.getByTestId('team-card')).toHaveCount(1);
+  await expect(page.getByTestId('team-card-folded')).toHaveCount(3);
+  await expect(page.getByTestId('team-card-folded').first()).toHaveText(/Team 2\s*6\/6/);
+  await page.getByTestId('team-card-folded').first().click();
+  await expect(page.getByTestId('team-card').getByLabel('Name of team 2')).toBeVisible();
+  await expect(page.getByTestId('team-card-folded').first()).toContainText('My team');
+  // the league table is on My Team now
+  await expect(page.getByTestId('team-strength')).toHaveCount(0);
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('team-strength').locator('tbody tr')).toHaveCount(4);
 });
 
 test('the Yahoo import shows as coming soon until it is live, then imports settings, teams and rosters', async ({ page }) => {
