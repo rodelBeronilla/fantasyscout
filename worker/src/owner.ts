@@ -12,7 +12,9 @@
  *    accepted, so the nightly jobs need not hold the Yahoo app's secret.
  *
  *   GET /auth/owner/start      -> Yahoo's OpenID sign-in, with a state value held in a cookie
- *   GET /auth/yahoo/callback   -> (with that state) check the account, set the owner's cookie
+ *   GET /auth/account/start    -> the same sign-in, back to the League page (account.ts, #684)
+ *   GET /auth/yahoo/callback   -> (with that state) check the account, set the account's cookie,
+ *                                 and the owner's when it is the owner
  *   GET /auth/owner/logout     -> clear the cookie
  *   GET /api/owner/status      -> { configured, owner }
  *
@@ -20,6 +22,7 @@
  * (yahoo.ts); the owner's state cookie tells the two apart. Without the Yahoo app's credentials
  * nobody is the owner and the Parquet tables are served to no one.
  */
+import { accountCookie } from './account';
 import { AUTH_URL, type Credentials, type Fetcher, readCookie, type TokenReply, tokenReply } from './yahoo';
 
 const USERINFO_URL = 'https://api.login.yahoo.com/openid/v1/userinfo';
@@ -147,9 +150,14 @@ export async function handleOwner(request: Request, env: OwnerEnv, fetcher: Fetc
   }
   if (url.pathname === '/auth/owner/logout') return redirect('/sql/', [cookie(COOKIE, '', 0)]);
 
-  if (url.pathname === '/auth/owner/start') {
-    if (!creds) return redirect('/sql/?signin=unavailable');
-    const state = `owner-${b64url(crypto.getRandomValues(new Uint8Array(16)))}`;
+  // The account sign-in (#684) is the owner's flow returning to the League page; its state names
+  // the league to return to.
+  const accountStart = url.pathname === '/auth/account/start';
+  if (url.pathname === '/auth/owner/start' || accountStart) {
+    const league = url.searchParams.get('league') === 'wnba' ? 'wnba' : 'nba';
+    if (!creds) return redirect(accountStart ? `/league/?league=${league}&account=unavailable` : '/sql/?signin=unavailable');
+    const nonce = b64url(crypto.getRandomValues(new Uint8Array(16)));
+    const state = accountStart ? `account-${league}-${nonce}` : `owner-${nonce}`;
     const auth = new URL(AUTH_URL);
     auth.search = new URLSearchParams({
       client_id: creds.YAHOO_CLIENT_ID,
@@ -167,6 +175,25 @@ export async function handleOwner(request: Request, env: OwnerEnv, fetcher: Fetc
   const clearState = cookie(STATE_COOKIE, '', 0);
   const state = url.searchParams.get('state');
   const code = url.searchParams.get('code');
+  const account = /^account-(nba|wnba)-/.exec(expected);
+  if (account) {
+    // An account sign-in: any Yahoo account gets the account's cookie (and the owner, the owner's).
+    const back = `/league/?league=${account[1]}`;
+    if (!creds || !code || state !== expected) return redirect(`${back}&account=failed`, [clearState]);
+    let reply: TokenReply;
+    try {
+      reply = await tokenReply(creds, { grant_type: 'authorization_code', code, redirect_uri: `${url.origin}/auth/yahoo/callback` }, fetcher);
+    } catch {
+      return redirect(`${back}&account=failed`, [clearState]);
+    }
+    const guid = await accountOf(reply, fetcher);
+    if (!guid) return redirect(`${back}&account=noid`, [clearState]);
+    const cookies = [clearState, await accountCookie(creds.YAHOO_CLIENT_SECRET, guid)];
+    if (env.OWNER_YAHOO_GUID && guid === env.OWNER_YAHOO_GUID) {
+      cookies.push(cookie(COOKIE, await sessionCookie(creds.YAHOO_CLIENT_SECRET, guid), SESSION_DAYS * 86_400));
+    }
+    return redirect(`${back}&account=signedin`, cookies);
+  }
   // Yahoo refused the sign-in itself (an unknown scope, say): pass its reason on.
   const refused = url.searchParams.get('error_description') ?? url.searchParams.get('error');
   if (refused && state === expected) {
@@ -189,5 +216,10 @@ export async function handleOwner(request: Request, env: OwnerEnv, fetcher: Fetc
     // Not the owner, or no owner named yet: show the account's id, which the owner sets once.
     return redirect(`/sql/?signin=notowner&account=${encodeURIComponent(guid)}`, [clearState]);
   }
-  return redirect('/sql/', [clearState, cookie(COOKIE, await sessionCookie(creds.YAHOO_CLIENT_SECRET, guid), SESSION_DAYS * 86_400)]);
+  return redirect('/sql/', [
+    clearState,
+    cookie(COOKIE, await sessionCookie(creds.YAHOO_CLIENT_SECRET, guid), SESSION_DAYS * 86_400),
+    // the owner is signed in to their account too
+    await accountCookie(creds.YAHOO_CLIENT_SECRET, guid),
+  ]);
 }

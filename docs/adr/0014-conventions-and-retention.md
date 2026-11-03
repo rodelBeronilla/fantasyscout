@@ -21,7 +21,7 @@ Before #349, only the builds' retention (seven) was stated. The landing volume h
 - **Landing volume**: kept indefinitely, as the record of what each source said each day. Pruning superseded snapshots is written down for when the volume passes 50 GB (ADR 0004).
 - **Lakehouse tables**: rebuilt from the landing on every build. `fct_board_history` and the ops ledgers grow by one row a day and are never pruned.
 - **Notebook findings history**: the newest 90 builds per notebook and league (below).
-- **Visitors**: nothing on the server. A visitor's settings live in their own browser's storage (below).
+- **Visitors**: a visitor's settings live in their own browser's storage (below). Since ADR 0016, a visitor who signs in with Yahoo can save their league setups to an account; those are kept until the visitor deletes them on the League page.
 - **Removal on request**: the runbook's "Remove a source on request" (#349).
 
 ### Column conventions on the Schema page

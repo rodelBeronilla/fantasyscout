@@ -95,3 +95,33 @@ describe("the owner's sign-in", () => {
     expect(new URL(start.headers.get('location')!).searchParams.get('scope')).toBe('openid');
   });
 });
+
+describe('the account sign-in (#684)', () => {
+  const accountCallback = (state: string) =>
+    new Request(`${ORIGIN}/auth/yahoo/callback?code=c&state=${state}`, { headers: { cookie: `fs_owner_state=${state}` } });
+  const named = (res: Response, name: string) => res.headers.getSetCookie().find((c) => c.startsWith(`${name}=`));
+
+  it('starts the OpenID sign-in with a state naming the league to return to', async () => {
+    const res = (await handleOwner(new Request(`${ORIGIN}/auth/account/start?league=wnba`), ENV))!;
+    expect(res.status).toBe(302);
+    expect(new URL(res.headers.get('location')!).searchParams.get('scope')).toBe('openid');
+    expect(named(res, 'fs_owner_state')).toMatch(/^fs_owner_state=account-wnba-/);
+  });
+
+  it('signs any Yahoo account in to its account, and only the owner gets the owner cookie too', async () => {
+    const someone = (await handleOwner(accountCallback('account-nba-x'), ENV, yahooAs('SOMEONE')))!;
+    expect(someone.headers.get('location')).toBe('/league/?league=nba&account=signedin');
+    expect(named(someone, 'fs_account')).toMatch(/^fs_account=\d+\.[0-9a-f]{32}\.[\w-]+;/);
+    expect(named(someone, 'fs_owner')).toBeUndefined();
+    const owner = (await handleOwner(accountCallback('account-wnba-x'), ENV, yahooAs('OWNERGUID')))!;
+    expect(owner.headers.get('location')).toBe('/league/?league=wnba&account=signedin');
+    expect(named(owner, 'fs_owner')).toBeDefined();
+    expect(named(owner, 'fs_account')).toBeDefined();
+  });
+
+  it('sends a failed sign-in back to the League page', async () => {
+    const failing = async () => new Response('no', { status: 400 });
+    expect((await handleOwner(accountCallback('account-nba-x'), ENV, failing))!.headers.get('location')).toBe('/league/?league=nba&account=failed');
+    expect((await handleOwner(accountCallback('account-nba-x'), ENV, yahooAs()))!.headers.get('location')).toBe('/league/?league=nba&account=noid');
+  });
+});

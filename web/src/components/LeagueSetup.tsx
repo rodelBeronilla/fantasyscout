@@ -16,6 +16,7 @@ import { CategoryProfile, DraftBar, LeagueSettingsForm, Today, type TodayRow } f
 import { easternDate, type TodayGame } from '../lib/today';
 import { PlayerPicker } from './PlayerPicker';
 import { Card, Loading, Problem, Td, Th } from './ui';
+import AccountBox from './AccountBox';
 import YahooImport from './YahooImport';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 
@@ -360,6 +361,8 @@ export default function LeagueSetup() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+
+      <AccountBox league={league} />
 
       <YahooImport league={league} players={rows} hasRosters={rostered > 0} onImport={(next) => update(() => next)} />
 

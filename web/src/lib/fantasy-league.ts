@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
+import { accountStatus, loadSaved, saveSoon } from './account';
 import type { League } from './data';
 import { CATEGORIES } from './format';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
@@ -217,6 +218,8 @@ export const SETUP_VERSION = 5;
 
 interface StoredSetup extends LeagueSetup {
   version: number;
+  /** When this browser last saved it (ms since the epoch); between it and the account's copy, the newer wins (#684). */
+  savedAt?: number;
 }
 
 /** What an older build left under its own keys, for the migrations that read it. */
@@ -280,37 +283,87 @@ function load(league: League): LeagueSetup {
   };
   const setup = migrate(stored, fallback, legacy);
   if (legacy.marks || (stored && (stored as { version?: unknown }).version !== SETUP_VERSION)) {
-    // migrated: write the current shape back and retire the old key
-    save(league, setup);
+    // migrated: write the current shape back and retire the old key (a migration is not an edit,
+    // so the time it was saved stays)
+    save(league, setup, savedAt(league));
     removeRaw(marksKey(league));
   }
   return setup;
 }
 
-function save(league: League, setup: LeagueSetup): void {
-  const stored: StoredSetup = { ...setup, version: SETUP_VERSION };
+/** When this browser last saved the league's setup, or 0 when it never has. */
+function savedAt(league: League): number {
+  const stored = parseJson(readRaw(setupKey(league))) as { savedAt?: unknown } | undefined;
+  return typeof stored?.savedAt === 'number' ? stored.savedAt : 0;
+}
+
+function save(league: League, setup: LeagueSetup, at = Date.now()): void {
+  const stored: StoredSetup = { ...setup, version: SETUP_VERSION, savedAt: at };
   writeRaw(setupKey(league), JSON.stringify(stored));
 }
 
+/** What the account is sent: the stored object as this browser holds it, and when it was saved. */
+function storedForAccount(league: League): { setup: unknown; savedAt: number } | null {
+  const stored = parseJson(readRaw(setupKey(league)));
+  return stored && typeof stored === 'object' ? { setup: stored, savedAt: savedAt(league) } : null;
+}
+
+const synced = new Map<League, Promise<LeagueSetup | null>>();
+
 /**
- * The league for this browser. Another tab changing it (the League page during a draft, say)
- * updates this one too.
+ * Brings this browser and the account into line once per page (#684): the account's copy when it
+ * is newer, which is then this browser's too; otherwise this browser's copy goes to the account.
+ * Resolves to the setup to show when the account's copy won, or null.
+ */
+function syncWithAccount(league: League): Promise<LeagueSetup | null> {
+  let pending = synced.get(league);
+  if (!pending) {
+    pending = (async () => {
+      if (!(await accountStatus()).signedIn) return null;
+      const remote = await loadSaved(league);
+      const local = savedAt(league);
+      if (remote && (remote.savedAt ?? 0) > local) {
+        const setup = migrate(remote.setup, DEFAULT_SETTINGS[league]);
+        save(league, setup, remote.savedAt ?? Date.now());
+        return setup;
+      }
+      if (local > (remote?.savedAt ?? 0)) saveSoon(league, () => storedForAccount(league), 0);
+      return null;
+    })();
+    synced.set(league, pending);
+  }
+  return pending;
+}
+
+/**
+ * The league for this browser, and for the manager's account when signed in (#684). Another tab
+ * changing it (the League page during a draft, say) updates this one too.
  */
 export function useLeague(league: League): [LeagueSetup, (change: (current: LeagueSetup) => LeagueSetup) => void] {
   const [setup, setSetup] = useState<LeagueSetup>(() => load(league));
   useEffect(() => {
+    let live = true;
     setSetup(load(league));
+    // signed in to an account: its copy, when newer, replaces this browser's (#684)
+    void syncWithAccount(league).then((remote) => {
+      if (live && remote) setSetup(remote);
+    });
     const onStorage = (e: StorageEvent) => {
       if (e.key === setupKey(league)) setSetup(load(league));
     };
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    return () => {
+      live = false;
+      window.removeEventListener('storage', onStorage);
+    };
   }, [league]);
   const update = useCallback(
     (change: (current: LeagueSetup) => LeagueSetup) =>
       setSetup((current) => {
         const next = normalize(change(current), DEFAULT_SETTINGS[league]);
         save(league, next);
+        // and to the account, once the edits pause
+        saveSoon(league, () => storedForAccount(league));
         return next;
       }),
     [league],

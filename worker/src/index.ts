@@ -15,6 +15,7 @@
  */
 
 import cspHashes from './csp-hashes.json';
+import { handleAccount, isAccountWrite, PRIVATE_PREFIX } from './account';
 import { handleOwner, isOwner, isPrivateData, type OwnerEnv } from './owner';
 import { DOCS_CSP, NOTEBOOK_CSP, pagePolicy, STATIC_HEADERS } from './policy';
 import { handleYahoo, type YahooEnv } from './yahoo';
@@ -371,7 +372,8 @@ export default {
   async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
 
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
+    // The account routes (#684) take PUT and DELETE; everything else is read-only.
+    if (request.method !== 'GET' && request.method !== 'HEAD' && !isAccountWrite(request)) {
       const res = text(405, 'Method Not Allowed');
       res.headers.set('allow', 'GET, HEAD');
       return withSecurityHeaders(res);
@@ -384,6 +386,9 @@ export default {
     const yahoo = await handleYahoo(request, env);
     if (yahoo) return withSecurityHeaders(yahoo, url.pathname);
 
+    const account = await handleAccount(request, env);
+    if (account) return withSecurityHeaders(account, url.pathname);
+
     if (url.pathname.startsWith(DATA_PREFIX)) {
       // The path is decoded once, here: a path that does not decode is a bad request, not a
       // private table (#411), and the policy is chosen on the decoded path, so a notebook asked
@@ -394,6 +399,8 @@ export default {
       } catch {
         return withSecurityHeaders(text(400, 'Bad Request'), url.pathname);
       }
+      // The accounts' setups (#684) sit in the same bucket and are never served as data.
+      if (path.slice(DATA_PREFIX.length).startsWith(PRIVATE_PREFIX)) return withSecurityHeaders(text(404, 'Not Found'), path);
       const current = CURRENT_PATH.exec(url.pathname.slice(DATA_PREFIX.length));
       if (current?.[1]) return withSecurityHeaders(await serveCurrent(request, env, ctx, current[1]), path);
       const isPrivate = isPrivateData(url.pathname);
