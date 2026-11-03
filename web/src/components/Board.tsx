@@ -573,8 +573,8 @@ export default function Board() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       {meta.complete ? (
         <Note testid="season-note">
-          The {LEAGUE_LABEL[league]} {meta.season} regular season is over. Values project next season from this one and the two before it, for
-          players on a current roster; rest-of-season ranking returns when the next schedule is out.
+          {/* one sentence: a longer note outgrew the static intro and became the page's late largest paint (#717) */}
+          The {LEAGUE_LABEL[league]} {meta.season} regular season is over: values project next season.
         </Note>
       ) : null}
 

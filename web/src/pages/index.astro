@@ -12,7 +12,7 @@ import Base from '../layouts/Base.astro';
     <h1 class="text-2xl font-semibold tracking-tight">Board</h1>
     <!-- shown on a phone too: it is the page's largest early paint, and hiding it moved the LCP to
          what React renders later, over the budget (#704) -->
-    <p class="mt-1 max-w-3xl text-sm text-muted">
+    <p class="mt-1 max-w-3xl text-sm text-muted" data-testid="intro">
       Every player ranked by value above a replacement-level pickup in your league, under its size and scoring, from a
       projected per-game line.
     </p>
