@@ -68,3 +68,5 @@ The league stats API and ESPN's public JSON are unofficial. Requests are throttl
 ## License
 
 The code and documentation are under the [MIT License](LICENSE). The data the site serves is not: it is derived from the leagues' and the other sources' feeds named on the Sources page and stays theirs, under their terms.
+
+MIT rather than Apache-2.0 (#379): the point is that anyone can read, run and reuse the code with no condition beyond keeping the notice, and the project has no copyleft dependency. Apache-2.0 would add a patent grant and NOTICE handling that the project has no use for.
