@@ -20,6 +20,7 @@ import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openS
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
+import { TradeScorecard } from './TradeScorecard';
 import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 
@@ -486,8 +487,61 @@ export default function TradeAnalyzer() {
     </Card>
   );
 
+  // More of each player than his value (#694): where the market ranks him, his form over the last
+  // ten games against his projection in the kept categories, what he is good and bad at, and when
+  // that makes the timing good or bad.
+  const numOf = (p: PlayerRow, key: string) => {
+    const v = p[key];
+    return typeof v === 'number' && !Number.isNaN(v) ? v : null;
+  };
+  const formOf = (p: PlayerRow): number | null => {
+    let sum = 0;
+    let seen = false;
+    for (const c of cats) {
+      const recent = numOf(p, `recent_${c}`);
+      const proj = numOf(p, c);
+      if (recent === null || proj === null) continue;
+      sum += recent - proj;
+      seen = true;
+    }
+    return seen ? sum : null;
+  };
+  const HOT = 1.5;
+  const profileOf = (p: PlayerRow) => {
+    const c = worth.get(p.player_id)?.cats ?? {};
+    const order = cats.filter((k) => typeof c[k] === 'number').sort((a, b) => (c[b] ?? 0) - (c[a] ?? 0));
+    const best = order.filter((k) => (c[k] ?? 0) > 0.5).slice(0, 2);
+    const worst = order.filter((k) => (c[k] ?? 0) < -0.5).slice(-1);
+    return { best, worst };
+  };
+  const timing = [...giving.players.map((p) => ['give', p] as const), ...getting.players.map((p) => ['get', p] as const)].flatMap(([side, p]) => {
+    const name = p.full_name ?? p.player_id;
+    const notes: string[] = [];
+    const form = points ? null : formOf(p);
+    if (form !== null && form >= HOT)
+      notes.push(
+        side === 'give'
+          ? `${name} has run ${fmt(form, 1)} above their projection over the last ten games: you sell high.`
+          : `${name} has run ${fmt(form, 1)} above their projection over the last ten games: you buy at the top, and the projection expects them to cool off.`,
+      );
+    if (form !== null && form <= -HOT)
+      notes.push(
+        side === 'give'
+          ? `${name} has run ${fmt(-form, 1)} below their projection over the last ten games: you sell low, and the projection expects them to recover.`
+          : `${name} has run ${fmt(-form, 1)} below their projection over the last ten games: you buy low.`,
+      );
+    if (p.injury_group === 'out' || p.injury_group === 'doubtful')
+      notes.push(
+        `${name} is ${(p.injury_status ?? 'out').toLowerCase()}${p.expected_return ? ` (expected back ${p.expected_return})` : ''}: the value counts only the games they are expected to play.`,
+      );
+    return notes;
+  });
+
   const playerRow = (p: PlayerRow) => {
     const w = worth.get(p.player_id);
+    const form = points ? null : formOf(p);
+    const profile = points ? null : profileOf(p);
+    const market = numOf(p, 'market_rank');
     return (
       <tr key={p.player_id} className="border-t border-line">
         <Td pin="first">
@@ -500,6 +554,27 @@ export default function TradeAnalyzer() {
         </Td>
         <Td>{p.team_abbreviation ?? '–'}</Td>
         <Td>{p.position ?? '–'}</Td>
+        <Td right>{market === null ? '–' : `#${market}`}</Td>
+        {!points && (
+          <Td right>
+            <span
+              className={form !== null && form >= HOT ? 'font-semibold text-good' : form !== null && form <= -HOT ? 'font-semibold text-bad' : ''}
+              title="Last ten games against the projection, summed over your kept categories"
+            >
+              {form === null ? '–' : `${form > 0 ? '+' : ''}${fmt(form, 1)}${form >= HOT ? ' hot' : form <= -HOT ? ' cold' : ''}`}
+            </span>
+          </Td>
+        )}
+        {!points && (
+          <Td>
+            <span className="whitespace-nowrap text-xs">
+              {profile && profile.best.length > 0 && <span className="text-good">{profile.best.map((c) => CATEGORY_LABELS[c] ?? c).join(' ')}</span>}
+              {profile && profile.worst.length > 0 && <span className="text-bad"> · {profile.worst.map((c) => CATEGORY_LABELS[c] ?? c).join(' ')}</span>}
+              {profile && !profile.best.length && !profile.worst.length && <span className="text-muted">balanced</span>}
+            </span>
+          </Td>
+        )}
+        {!complete && <Td right>{p.games_remaining ?? '–'}</Td>}
         {points && <Td right>{fmt(w?.fpts ?? null)}</Td>}
         <Td right>
           <Signed value={w?.perGame ?? 0} />
@@ -529,6 +604,10 @@ export default function TradeAnalyzer() {
       <Td>{label}</Td>
       <Td>{''}</Td>
       <Td>{s.players.length ? `${s.players.length} player${s.players.length === 1 ? '' : 's'}` : '–'}</Td>
+      <Td right>{''}</Td>
+      {!points && <Td right>{''}</Td>}
+      {!points && <Td>{''}</Td>}
+      {!complete && <Td right>{s.players.reduce((n, p) => n + (p.games_remaining ?? 0), 0)}</Td>}
       {points && <Td right>{''}</Td>}
       <Td right>
         <Signed value={s.perGame} />
@@ -646,7 +725,7 @@ export default function TradeAnalyzer() {
         <Card title="Trade chips and targets for your punt" id="chips">
           <p className="mb-3 text-sm text-muted">
             Punting {punted.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}, you rank players differently from the rest of your league. For you: the
-            player&apos;s rank on value over the categories you keep. On value: his rank over every category, roughly where other managers see him.
+            player&apos;s rank on value over the categories you keep. On value: the rank over every category, roughly where other managers see the player.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
@@ -702,7 +781,7 @@ export default function TradeAnalyzer() {
           </div>
           <p className="mt-2 text-xs text-muted">
             Ranks on rest-of-season value above replacement, over every player on the board; listed when they differ by a round ({setup.teams} places) or
-            more. A chip is a player to sell: other managers pay for categories you do not use. A target is one to buy for less than he is worth to you,
+            more. A chip is a player to sell: other managers pay for categories you do not use. A target is one to buy for less than the player is worth to you,
             among players who would start for you (ranked for you at least as high as your median player).
           </p>
         </Card>
@@ -740,6 +819,12 @@ export default function TradeAnalyzer() {
                 </ul>
               </div>
             )}
+            {fair && (
+              <TradeScorecard fair={fair} impact={impact} needs={needs} objective={verdictBoth} partnerName={partnerName} h2h={h2h} nameList={nameList} threshold={threshold} />
+            )}
+            <details className="rounded-lg border border-line p-2" data-testid="trade-details">
+              <summary className="cursor-pointer text-sm font-medium">The full breakdown: how this is worked out</summary>
+              <div className="mt-2 grid gap-2">
             {impact && (
               <div className="grid gap-1" data-testid="trade-category-verdict">
                 <p className="text-base">
@@ -768,7 +853,9 @@ export default function TradeAnalyzer() {
                         ? `Good for you only: ${partnerName} does not gain categories, so they have less reason to accept.`
                         : verdictBoth === 'them'
                           ? `Good for ${partnerName} only: they gain categories and you do not.`
-                          : 'Neither team gains categories.'}
+                          : verdictBoth === 'even'
+                            ? 'About even for both teams’ categories.'
+                            : 'Neither team gains categories.'}
                   </p>
                 )}
                 {(impact.ups.length > 0 || impact.downs.length > 0) && <p>{catMoves(impact.ups, impact.downs)}</p>}
@@ -965,7 +1052,7 @@ export default function TradeAnalyzer() {
                 {[...giving.belowReplacement, ...getting.belowReplacement].map((p) => p.full_name ?? p.player_id).join(', ')}{' '}
                 {[...giving.belowReplacement, ...getting.belowReplacement].length === 1 ? 'is' : 'are'} below replacement level and
                 count as zero: a free agent would do as well, so a trade gains nothing by sending or taking{' '}
-                {[...giving.belowReplacement, ...getting.belowReplacement].length === 1 ? 'him' : 'them'}.
+                {[...giving.belowReplacement, ...getting.belowReplacement].length === 1 ? 'that player' : 'them'}.
               </p>
             )}
             {spots !== 0 && !impact && (
@@ -984,6 +1071,8 @@ export default function TradeAnalyzer() {
             {points && (
               <p className="text-muted">Your league scores points: the values are fantasy points per game above replacement, with your league&apos;s weights.</p>
             )}
+              </div>
+            </details>
           </div>
         </Card>
       )}
@@ -1120,13 +1209,17 @@ export default function TradeAnalyzer() {
                   <Th>Player</Th>
                   <Th>Team</Th>
                   <Th>Pos</Th>
+                  <Th right>ESPN</Th>
+                  {!points && <Th right>Form</Th>}
+                  {!points && <Th>Strong · weak</Th>}
+                  {!complete && <Th right>Games left</Th>}
                   {points && <Th right>FPts/G</Th>}
                   <Th right>Value/G</Th>
                   <Th right>Games share</Th>
                   <Th right>{complete ? 'Next season' : 'Season'}</Th>
                   {!complete && <Th right>Available</Th>}
                   {!complete && <Th right>Rest of season</Th>}
-                  {weekAvailable && <Th right>Games left</Th>}
+                  {weekAvailable && <Th right>Games this week</Th>}
                   {weekAvailable && <Th right>This week</Th>}
                 </tr>
               </thead>
@@ -1138,9 +1231,20 @@ export default function TradeAnalyzer() {
               </tbody>
             </table>
           </div>
+          {timing.length > 0 && (
+            <ul className="mt-3 grid gap-1 text-sm" data-testid="trade-timing">
+              {timing.map((n) => (
+                <li key={n} className="flex gap-2">
+                  <span aria-hidden="true">⏱</span>
+                  <span>{n}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="mt-2 text-xs text-muted">
-            Value/G: value per game above your league&apos;s replacement level. Games share: the share of the season&apos;s games the player is projected to
-            play.{' '}
+            ESPN: where ESPN&apos;s drafters rank the player. Form: the last ten games against the projection, summed over your kept categories
+            (hot or cold past {HOT}). Strong · weak: the player's best categories and worst. Value/G: value per game above your league&apos;s replacement level.
+            Games share: the share of the season&apos;s games the player is projected to play.{' '}
             {complete
               ? 'The season is over: Next season counts those games under the projection.'
               : 'Available: the share of the remaining games the player is expected to play. Season and rest of season count those games.'}
@@ -1224,7 +1328,7 @@ export default function TradeAnalyzer() {
           <p className="mt-2 text-xs text-muted">
             Per game above replacement in each category (percentages weighted by attempts).
             {impact
-              ? ` Your team’s totals (each player counted by the share of the games left he is expected to play, after any drop or pickup) and your chance of ${
+              ? ` Your team’s totals (each player counted by the share of the games left they are expected to play, after any drop or pickup) and your chance of ${
                   h2h ? 'winning the category in an average week against your league' : 'finishing ahead of each other team in it'
                 }, before and after. A category you already lose or win by a wide margin barely moves; one you are close in can swing.`
               : change

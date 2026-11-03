@@ -2306,7 +2306,11 @@ test('a trade the market calls lopsided is not called even: the lenses are shown
   await expect(warning).toContainText("ESPN's ranks");
   await expect(page.getByTestId('trade-fairness')).toContainText('Not clearly even');
   await expect(page.getByTestId('trade-fairness-market')).toContainText('partner +');
-  await expect(page.getByTestId('trade-fairness-disagree')).toBeVisible();
+  await expect(page.getByTestId('trade-fairness-disagree')).toHaveCount(1);
+  // the scorecard leads with the call and the lenses (#694)
+  await expect(page.getByTestId('trade-call')).toHaveText('Bad for you');
+  await expect(page.getByTestId('lens-market')).toContainText('Team 2 +');
+  await expect(page.getByTestId('lens-value')).toContainText('you +');
   await expect(page.getByTestId('trade-verdict')).not.toContainText('About even');
 });
 
