@@ -43,15 +43,23 @@ export const DOT_DEFAULTS = `
 /** A DOT graph as an SVG string, sized in points, with Graphviz's header and comments removed. */
 export async function renderDot(dot: string): Promise<string> {
   engine ??= Graphviz.load();
-  const svg = (await engine).dot(dot);
-  return svg
+  return withoutComments((await engine).dot(dot))
     .replace(/^[\s\S]*?(<svg\b)/, '$1')
-    .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<svg\b/, '<svg class="dg" focusable="false"')
     .replace(/font-family="Helvetica[^"]*"/g, 'font-family="Helvetica,Arial,sans-serif"')
     .replace(/<polygon fill="(?:white|transparent)" stroke="none"[^>]*\/>/, '')
     // SVG 2 links: plain href, which every current browser follows and selectors match.
     .replace(/ xlink:href=/g, ' href=');
+}
+
+/** The markup with every comment removed, repeated until none is left, so a nested one cannot survive. */
+function withoutComments(markup: string): string {
+  let out = markup;
+  for (let before = ''; before !== out; ) {
+    before = out;
+    out = out.replace(/<!--[\s\S]*?-->/g, '');
+  }
+  return out;
 }
 
 /**
