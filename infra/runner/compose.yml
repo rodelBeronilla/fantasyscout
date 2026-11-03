@@ -46,13 +46,10 @@ x-runner: &runner
       limits:
         cpus: "1.0"
         memory: 1g
-  # No privilege escalation inside the container, and the two runners on a network of their own
-  # that cannot talk to each other (#427). --disableupdate above keeps the runner at the pinned
-  # digest instead of updating itself past it.
+  # No privilege escalation inside the container (#427). --disableupdate above keeps the runner
+  # from updating itself.
   security_opt:
     - no-new-privileges:true
-  networks:
-    - runners
 
 services:
   runner-1:
@@ -63,8 +60,19 @@ services:
       RUNNER_NAME: home-server
       RUNNER_LABELS: home
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      # The only way out: the egress proxy (squid.conf). The runner and the job steps read these.
+      HTTPS_PROXY: http://egress-proxy:3128
+      HTTP_PROXY: http://egress-proxy:3128
+      https_proxy: http://egress-proxy:3128
+      http_proxy: http://egress-proxy:3128
+      NO_PROXY: localhost,127.0.0.1
+      no_proxy: localhost,127.0.0.1
     volumes:
       - runner-state:/home/runner
+    networks:
+      - runner-1-net
+    depends_on:
+      - egress-proxy
 
   runner-2:
     <<: *runner
@@ -74,15 +82,60 @@ services:
       RUNNER_NAME: home-server-2
       RUNNER_LABELS: home
       RUNNER_TOKEN: ${RUNNER_TOKEN:-}
+      # The only way out: the egress proxy (squid.conf). The runner and the job steps read these.
+      HTTPS_PROXY: http://egress-proxy:3128
+      HTTP_PROXY: http://egress-proxy:3128
+      https_proxy: http://egress-proxy:3128
+      http_proxy: http://egress-proxy:3128
+      NO_PROXY: localhost,127.0.0.1
+      no_proxy: localhost,127.0.0.1
     volumes:
       - runner-state-2:/home/runner
+    networks:
+      - runner-2-net
+    depends_on:
+      - egress-proxy
+
+  # The runners' only route out: each runner is alone with the proxy on an internal network (no
+  # gateway, so not the host, the LAN or the other runner), and the proxy forwards to the
+  # allow-listed hosts in squid.conf alone, never to a private address.
+  egress-proxy:
+    # Pinned by digest like the runner image; Dependabot's docker-compose entry proposes updates.
+    image: ubuntu/squid:latest@sha256:6a097f68bae708cedbabd6188d68c7e2e7a38cedd05a176e1cc0ba29e3bbe029
+    container_name: fantasyscout-egress-proxy
+    restart: unless-stopped
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "squid -k check || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
+    networks:
+      - egress
+      - runner-1-net
+      - runner-2-net
 
 volumes:
   runner-state:
   runner-state-2:
 
 networks:
-  runners:
+  # internal: no gateway; a container here reaches only the others on the same network (the proxy)
+  runner-1-net:
     driver: bridge
-    driver_opts:
-      com.docker.network.bridge.enable_icc: "false"
+    internal: true
+  runner-2-net:
+    driver: bridge
+    internal: true
+  # the proxy's way out
+  egress:
+    driver: bridge
