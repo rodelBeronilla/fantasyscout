@@ -100,10 +100,13 @@ describe('both sides (#682)', () => {
   });
   it('judges a trade from both sides', () => {
     expect(objective(0.2, 0.1, 0.05)).toBe('win-win');
-    expect(objective(0.2, 0, 0.05)).toBe('win-win');
+    // win-win needs both to gain: one gaining and the other even is not (#694)
+    expect(objective(0.2, 0, 0.05)).toBe('you');
+    expect(objective(0.02, 0.17, 0.05)).toBe('them');
     expect(objective(0.2, -0.1, 0.05)).toBe('you');
     expect(objective(-0.2, 0.1, 0.05)).toBe('them');
-    expect(objective(0.01, -0.01, 0.05)).toBe('neither');
+    expect(objective(0.01, -0.01, 0.05)).toBe('even');
     expect(objective(-0.2, -0.2, 0.05)).toBe('neither');
+    expect(objective(-0.2, 0, 0.05)).toBe('neither');
   });
 });

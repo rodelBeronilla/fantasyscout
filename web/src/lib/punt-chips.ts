@@ -10,7 +10,7 @@ export interface BuildRank {
   id: string;
   /** Rank over every category the league counts: roughly where other managers see the player. */
   league: number;
-  /** Rank over the manager's kept categories: where the build sees him. */
+  /** Rank over the manager's kept categories: where the build sees the player. */
   build: number;
 }
 

@@ -174,18 +174,20 @@ export function teamNeeds(state: LeagueState, standings: Standings, team: number
   };
 }
 
-export type Objective = 'win-win' | 'you' | 'them' | 'neither';
+export type Objective = 'win-win' | 'you' | 'them' | 'even' | 'neither';
 
 /**
  * The trade judged from both sides by each team's change in expected categories: good for both
- * (win-win), for one side only, or for neither. A change smaller than `threshold` counts as even.
+ * (win-win, only when both gain), for one side, about even for both, or a loss for both. A change
+ * smaller than `threshold` counts as even.
  */
 export function objective(mineGain: number, partnerGain: number, threshold: number): Objective {
   const me = mineGain >= threshold ? 1 : mineGain <= -threshold ? -1 : 0;
   const them = partnerGain >= threshold ? 1 : partnerGain <= -threshold ? -1 : 0;
-  if (me >= 0 && them >= 0 && me + them > 0) return 'win-win';
+  if (me > 0 && them > 0) return 'win-win';
   if (me > 0) return 'you';
   if (them > 0) return 'them';
+  if (me === 0 && them === 0) return 'even';
   return 'neither';
 }
 
