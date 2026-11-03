@@ -41,6 +41,21 @@ docker exec fantasyscout-egress-proxy tail -50 /var/log/squid/access.log    # TC
 
 A job that needs a new host fails with the host's name as `TCP_DENIED` in that log; add it to `squid.conf` in a PR and `docker compose -f infra/runner/compose.yml up -d` from the main checkout.
 
+## The language model
+
+Phase 7's notes are drafted by a local model (ADR 0017): the `ai` service runs Ollama on the GPU, on the runners' internal networks only. A job reaches it at `http://ai:11434` (`FS_AI_URL`; `ai` is in the runners' `NO_PROXY`), and the service itself has no route out, so it cannot fetch anything at run time. The model lives in the external volume `fantasyscout-ai-models` and is pulled once, on a container that does have a route out:
+
+```bash
+docker volume create fantasyscout-ai-models
+docker run -d --name fs-ai-pull -v fantasyscout-ai-models:/root/.ollama ollama/ollama@sha256:5d3a2f25f9825628daba94dc0b1d421c7d57d6c03ae5faa9ba050e058bab8241
+docker exec fs-ai-pull ollama pull qwen3:8b
+docker rm -f fs-ai-pull
+docker compose -f infra/runner/compose.yml up -d ai
+docker exec fantasyscout-ai ollama list    # qwen3:8b
+```
+
+A new model is the same pull with its name, and `FS_AI_MODEL` in the notes workflow. The service answers one request at a time and unloads the model after five idle minutes, so it shares the GPU with the server's other work.
+
 ## What is still open
 
 Ephemeral registration (a fresh registration for every job) needs a host-side loop that mints a registration token for every start, so a credential that can register runners would live next to them; it is left out until a narrowly scoped token and supervisor justify it. The protections today: the fork approval policy on the repository, no workflow on a pull request targeting the `home` label, the unprivileged user, no host mounts in the runners, no privilege escalation, the pinned image with self-update off, and egress through the allow-listed proxy only.
