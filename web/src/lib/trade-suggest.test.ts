@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { combinations, nearestInValue, openSide } from './trade-suggest';
+import { combinations, nearestInValue, openSide, suggestTrades } from './trade-suggest';
 
 describe('trade suggestions', () => {
   it('enumerate every package up to the size allowed', () => {
@@ -26,5 +26,31 @@ describe('trade suggestions', () => {
       { id: 'c', diff: -7 },
     ]);
     expect(nearestInValue(['a'], rest, [], 1)).toEqual([{ id: 'd', diff: -1 }]);
+  });
+});
+
+describe('trade suggestions keep the positions covered (#489)', () => {
+  it('leave out a package that takes the manager’s only center for a guard', () => {
+    const rest = new Map([
+      ['c1', 5],
+      ['g1', 5],
+      ['g2', 5],
+      ['c2', 5],
+    ]);
+    const positions: Record<string, string> = { c1: 'C', g1: 'G', g2: 'G', c2: 'C' };
+    const input = {
+      give: ['c1'],
+      get: [],
+      mine: ['c1', 'g1'],
+      theirs: ['g2', 'c2'],
+      rest,
+      cats: [],
+      catValue: () => undefined,
+      totals: [{}, {}],
+      myTeam: 0,
+      partnerTeam: 1,
+    };
+    expect(suggestTrades(input).map((s) => s.get)).toEqual(expect.arrayContaining([['g2'], ['c2']]));
+    expect(suggestTrades({ ...input, position: (id) => positions[id] }).map((s) => s.get)).toEqual([['c2']]);
   });
 });
