@@ -1194,6 +1194,26 @@ test('the trade finder lists trades across the league that win the manager categ
   await expect(finder).toHaveCount(0);
 });
 
+test('with punts set, the Trade page lists the chips the league ranks above the build, and offers one (#671)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/');
+  await page.getByLabel('Roster spots').fill('6');
+  for (const c of ['PTS', 'AST', '3PM']) await page.getByLabel(`Punt ${c}`).check({ force: true });
+  for (const [team, picked] of [[1, [0, 5, 9, 12, 15, 18]], [2, [1, 2, 7, 13, 16, 19]], [3, [3, 4, 8, 14, 17, 20]]] as const) {
+    for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
+  }
+  await page.goto('/trade/');
+  const chips = page.getByTestId('trade-chips');
+  await expect(chips.locator('li').first()).toContainText(/#\d+ on value, #\d+ for you/);
+  // the league's best player stays on top for any build: never a chip
+  await expect(chips).not.toContainText(board[0]!.full_name);
+  const first = (await chips.locator('li').first().locator('span').first().innerText()).trim();
+  await chips.getByRole('button', { name: 'Offer' }).first().click();
+  await expect(page.getByTestId('picked-give')).toContainText(first);
+  await expect(page.locator('#chips')).toHaveCount(0);
+});
+
 test('the League page sets the league the board values for, and points leagues score fantasy points', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');

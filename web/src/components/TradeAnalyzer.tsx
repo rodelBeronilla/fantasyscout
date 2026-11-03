@@ -12,6 +12,7 @@ import { DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague 
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { href } from '../lib/site';
 import { type LeagueState, leagueStandings, meaningful, tradeImpact } from '../lib/trade-impact';
+import { median, ranks, tradeChips, tradeTargets } from '../lib/punt-chips';
 import { rivals } from '../lib/standings';
 import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
@@ -155,6 +156,27 @@ export default function TradeAnalyzer() {
     };
   }, [rows, points, hasRosters, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner]);
   const standings = useMemo(() => (state ? leagueStandings(state, setup.mine) : null), [state, setup.mine]);
+
+  // Trade chips and targets for a punt build (#671): where each player ranks on rest-of-season value
+  // over every category the league counts (roughly where other managers see him) against where he
+  // ranks over the kept ones (where the build does). A gap of a round or more counts.
+  const chipsAndTargets = useMemo(() => {
+    if (!rows || points || !hasRosters || !punted.length) return null;
+    const counted = keptCategories({ scoring: setup.scoring, punts: [] });
+    const everyCat = categoryValues(rows, counted, pool, setup.teams);
+    const allValue = new Map(
+      rows.map((r) => [r.player_id, scaleValue(counted.reduce((s, c) => s + (everyCat.get(r.player_id)?.[c] ?? 0), 0), r)]),
+    );
+    const ids = rows.map((r) => r.player_id);
+    const league = ranks(ids, (id) => allValue.get(id) ?? 0);
+    const build = ranks(ids, (id) => worth.get(id)?.rest ?? 0);
+    const mine = (setup.rosters[setup.mine] ?? []).filter((id) => !setup.il.includes(id));
+    const elsewhere = setup.rosters.flatMap((r, t) => (t === setup.mine ? [] : r.filter((id) => !setup.il.includes(id))));
+    return {
+      chips: tradeChips(mine, league, build, { pool, minGap: setup.teams }),
+      targets: tradeTargets(elsewhere, league, build, { ceiling: median(mine.map((id) => build.get(id) ?? Infinity)), minGap: setup.teams }),
+    };
+  }, [rows, points, hasRosters, punted, setup.scoring, setup.rosters, setup.mine, setup.il, setup.teams, pool, worth]);
 
   // The trade finder (#664): on request, the best trades with every partner. The search tries a
   // few thousand trades, so it runs when asked rather than on every change.
@@ -546,6 +568,72 @@ export default function TradeAnalyzer() {
               team&apos;s. Biggest gain first, at most three a team, over each roster&apos;s eight most valuable players.
             </p>
           )}
+        </Card>
+      )}
+
+      {!ready && chipsAndTargets && (chipsAndTargets.chips.length > 0 || chipsAndTargets.targets.length > 0) && (
+        <Card title="Trade chips and targets for your punt" id="chips">
+          <p className="mb-3 text-sm text-muted">
+            Punting {punted.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}, you rank players differently from the rest of your league. For you: the
+            player&apos;s rank on value over the categories you keep. On value: his rank over every category, roughly where other managers see him.
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <h3 className="mb-1 text-sm font-semibold">Chips: worth more to others</h3>
+              {chipsAndTargets.chips.length ? (
+                <ul className="grid gap-1 text-sm" data-testid="trade-chips">
+                  {chipsAndTargets.chips.map((v) => (
+                    <li key={v.id} className="flex flex-wrap items-center gap-x-2">
+                      <span className="min-w-0 flex-1 truncate">{nameOf(v.id)}</span>
+                      <span className="text-xs text-muted">
+                        #{v.league} on value, #{v.build} for you
+                      </span>
+                      <button type="button" className={button} onClick={() => add('give', v.id)}>
+                        Offer
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">None of your players is worth much more to others than to your build.</p>
+              )}
+            </div>
+            <div>
+              <h3 className="mb-1 text-sm font-semibold">Targets: worth more to you</h3>
+              {chipsAndTargets.targets.length ? (
+                <ul className="grid gap-1 text-sm" data-testid="trade-targets">
+                  {chipsAndTargets.targets.map((v) => (
+                    <li key={v.id} className="flex flex-wrap items-center gap-x-2">
+                      <span className="min-w-0 flex-1 truncate">
+                        {nameOf(v.id)} <span className="text-xs text-muted">{setup.names[owner.get(v.id) ?? -1] ?? ''}</span>
+                      </span>
+                      <span className="text-xs text-muted">
+                        #{v.league} on value, #{v.build} for you
+                      </span>
+                      <button
+                        type="button"
+                        className={button}
+                        onClick={() => {
+                          const t = owner.get(v.id);
+                          if (t !== undefined) setPartner(t);
+                          add('get', v.id);
+                        }}
+                      >
+                        Ask for
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">No player on another roster is worth much more to your build than to the league, among those who would start for you.</p>
+              )}
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Ranks on rest-of-season value above replacement, over every player on the board; listed when they differ by a round ({setup.teams} places) or
+            more. A chip is a player to sell: other managers pay for categories you do not use. A target is one to buy for less than he is worth to you,
+            among players who would start for you (ranked for you at least as high as your median player).
+          </p>
         </Card>
       )}
 
