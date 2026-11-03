@@ -13,23 +13,23 @@ unit_tests:
       - input: ref('espn_fantasy_players')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('espn_injuries')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('espn_news')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('espn_prop_bets')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('espn_roster')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('espn_scoreboard')
         rows:
           - {league: nba, _ingest_date: 2026-11-02, _source_file: espn_scoreboard.json}
@@ -37,89 +37,89 @@ unit_tests:
       - input: ref('espn_summary_players')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('espn_transactions')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('league_daily_lineups')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('league_injury_report')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('league_player_movement')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('league_referee_assignments')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('odds_api_player_props')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('sleeper_players')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('sleeper_trending')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_boxscoretraditionalv3')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_commonallplayers')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_commonteamroster')
         rows:
           - {league: nba, _ingest_date: 2026-10-29, _source_file: stats_commonteamroster.json}
       - input: ref('stats_leaguedashptstats_passing')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_leaguegamelog')
         rows:
           - {league: nba, _ingest_date: 2026-10-29, _source_file: stats_leaguegamelog.json}
       - input: ref('stats_leaguehustlestatsplayer')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_leaguestandingsv3')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_playbyplayv3')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_playergamelogs')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_playergamelogs_misc')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_playergamelogs_usage')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_scheduleleaguev2')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_shotchartdetail')
         format: sql
         rows: |
-          select cast(null as varchar) as league, cast(null as date) as _ingest_date, cast(null as varchar) as _source_file where false
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('int_league_season_state')
         rows:
           - {league: nba, in_season_window: true}
