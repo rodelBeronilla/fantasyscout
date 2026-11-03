@@ -31,7 +31,7 @@ Option 3, the owner's choice.
   - The sign-in shares the app's one registered redirect URI with the league import, and a state cookie marks the owner's sign-ins.
 - **CI's reader key.** CI cannot sign in to Yahoo, so it reads with a key derived from the Yahoo client secret it already holds: HMAC-SHA256(secret, "fantasyscout ci reader"). Rotating that secret rotates the key. Without the Yahoo credentials, no one is served.
 - **Public surfaces.** The JSON the pages read stays public: board, streamers, player pages, Data Health and the manifest. So do the rendered notebooks, the Tableau extract and the dbt docs.
-- **CI.** The notebooks and the Tableau extract read the published build with a reader key that `notebooks/fs.py` adds to DuckDB as an HTTP secret: `FS_READER_KEY`, CI's own key (the `CI_READER_KEY` secret, which the deploy also gives the Worker; once set, the only bearer key accepted, #429), or until then one derived from the Yahoo client secret in `FS_READER_SECRET`. The deploy copies the Yahoo credentials into the Worker and passes `OWNER_YAHOO_GUID` as a variable.
+- **CI.** The notebooks and the Tableau extract read the published build with a reader key that `notebooks/fs.py` adds to DuckDB as an HTTP secret: `FS_READER_KEY`, CI's own key (the `CI_READER_KEY` secret, which the deploy also gives the Worker, and the only bearer key it accepts, #429). The build, export and notebook jobs no longer receive the Yahoo client secret; only the deploy does, to give the Worker its credentials. The deploy copies the Yahoo credentials into the Worker and passes `OWNER_YAHOO_GUID` as a variable.
 
 ## Consequences
 

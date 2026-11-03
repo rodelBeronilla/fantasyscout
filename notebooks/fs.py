@@ -19,8 +19,6 @@ Every gold and ops table is a view with its bare name (``fct_shot``, ``mart_boar
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import os
 import urllib.request
@@ -125,12 +123,9 @@ def connect(source: str | None = None) -> duckdb.DuckDBPyConnection:
         base = f"{SITE}/data/builds/{latest['build_id']}"
         con.execute("install httpfs; load httpfs")
         # The Parquet tables are private to the site's owner (ADR 0008). CI reads them with its own
-        # reader key (FS_READER_KEY, the Worker's CI_READER_KEY, #429), or, until that is set, a key
-        # derived from the Yahoo client secret (FS_READER_SECRET), as the Worker derives it (owner.ts).
+        # reader key, FS_READER_KEY (the CI_READER_KEY secret the Worker also holds, #429); the
+        # jobs no longer hold the Yahoo app's secret.
         key = os.environ.get("FS_READER_KEY", "")
-        secret = os.environ.get("FS_READER_SECRET", "")
-        if not key and secret:
-            key = hmac.new(secret.encode(), b"fantasyscout ci reader", hashlib.sha256).hexdigest()
         if key:
             con.execute(
                 "create secret fs_owner (type http, scope '"
