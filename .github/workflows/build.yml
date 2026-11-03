@@ -104,6 +104,16 @@ jobs:
           host: ${{ secrets.DATABRICKS_HOST }}
           token: ${{ secrets.DATABRICKS_TOKEN }}
           warehouse-id: ${{ vars.DATABRICKS_WAREHOUSE_ID }}
+      # The serverless warehouse takes about 23 s to wake, which the first bronze models used to
+      # wait for. Starting it here (the call returns at once) overlaps the wake with the next step
+      # and dbt's parse (#447); a warehouse already running ignores it.
+      - name: Wake the SQL warehouse
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          url="$DATABRICKS_ORIGIN/api/2.0/sql/warehouses/$DATABRICKS_WAREHOUSE_ID/start"
+          code=$(curl -s -o /dev/null -w "%{http_code}" -X POST -H "Authorization: Bearer $DATABRICKS_TOKEN" "$url" || true)
+          echo "warehouse start: HTTP $code"
       - name: Ensure every endpoint directory exists in the landing volume
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
