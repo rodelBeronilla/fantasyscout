@@ -93,6 +93,12 @@ def test_the_model_sees_plain_names_not_keys() -> None:
     assert "rest-of-season value" in view["numbers"]
     assert "value_rest_of_season" not in view["numbers"]
     assert view["injury status after"] == "Out"
+    # a rank reads as places climbed: 31 -> 58 is 27 places dropped
+    assert view["numbers"]["board rank"] == {
+        "before": 31,
+        "after": 58,
+        "places climbed (negative: dropped)": -27,
+    }
 
 
 def _con() -> duckdb.DuckDBPyConnection:
@@ -137,6 +143,29 @@ def test_inputs_pick_risers_fallers_availability_and_minutes_without_the_model()
     p0 = next(p for p in picked["players"] if p["player_id"] == "p0")
     assert p0["metrics"]["value_rest_of_season"] == {"before": 5.0, "after": 8.0, "change": 3.0}
     assert p0["row_ref"] == "fct_board_history/nba/p0/2026-10-27..2026-11-03"
+
+
+def test_inputs_cap_each_list_and_leave_out_the_waiver_wire() -> None:
+    con = _con()
+    # thirty more players change status, most of them deep on the wire
+    for i in range(20, 50):
+        pid = f"p{i}"
+        con.execute("insert into mart_board values ('nba', ?, ?, 'TST')", [pid, f"Player {i}"])
+        rank = 100 + i if i < 30 else 400 + i
+        con.execute(
+            "insert into fct_board_history values"
+            " ('nba', '2026-10-27', ?, ?, 5.0, 30.0, 15, 6, 3, 1.0, 70, null, null)",
+            [pid, rank],
+        )
+        con.execute(
+            "insert into fct_board_history values"
+            " ('nba', '2026-11-03', ?, ?, ?, 30.0, 15, 6, 3, 1.0, 70, 'Out', 'out')",
+            [pid, rank, 5.0 - 0.01 * i],
+        )
+    picked = select(con, "nba", days=7, top=3)
+    availability = [p for p in picked["players"] if p["reason"] == "availability"]
+    assert len(availability) == 3
+    assert all(int(p["player_id"][1:]) < 30 or p["player_id"] == "p3" for p in availability)
 
 
 def test_review_publishes_passing_notes_logs_rejections_and_scores_the_eval() -> None:
