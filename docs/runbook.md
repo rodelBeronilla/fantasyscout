@@ -23,7 +23,7 @@ Operational procedures. Each section is a checklist someone can follow at 3 a.m.
 
 ## When the site deploys
 
-The "Deploy web" workflow runs when CI has passed on a push to `main` (production) or `preprod` (preview), and ships the very build CI tested: the `web-dist` and `dbt-docs` artifacts of that CI run, so nothing goes live that CI did not check and nothing is built twice. A push that touched neither `web/`, `worker/` nor the deploy workflow is not deployed. Run it by hand (Actions → Deploy web → Run workflow on a branch) to build and deploy without a CI run.
+The "Deploy web" workflow runs when CI has passed on this repository's own push to `main` (production) or `preprod` (preview), and ships the very build CI tested: the `web-dist` and `dbt-docs` artifacts of that CI run, so nothing goes live that CI did not check and nothing is built twice (#312, #502). A push that touched nothing under `web/`, `worker/`, `dbt/` or the deploy workflow is not deployed; a dbt-only change deploys so `/docs/` follows the project (#580). Run it by hand (Actions → Deploy web → Run workflow on a branch) to build and deploy without a CI run. After the deploy, Lighthouse holds the home and Schema pages to a 2 s median LCP and reports Streamers (ADR 0001, addendum of 2026-11-02).
 
 ## Roll back a web deploy
 
@@ -43,6 +43,16 @@ Every job that holds the warehouse token or the R2 token runs in the `lakehouse`
 The blocks every workflow shares live once, as composite actions under `.github/actions/`: `setup-uv` (uv and the locked environment), `databricks-context` (the workspace origin and the SQL warehouse — the repository variable `DATABRICKS_WAREHOUSE_ID` when set, else the oldest warehouse with a notice if there is more than one), `incident` (the data-incident issue) and `publish-build` (stage, notebooks, extract, promote: the one way a build goes live, used by the nightly build and the hand-run export alike).
 
 Third-party actions are pinned to a commit SHA with the version in a comment; Dependabot (`.github/dependabot.yml`, the `github-actions` group) proposes the bumps and keeps the comments current. The home runner image is pinned by digest (`infra/runner/README.md`, "Update the runner image"); the Lighthouse check pins an exact version.
+
+## A Dependabot lock update that conflicts
+
+Dependabot opens grouped updates weekly (`.github/dependabot.yml`: minor and patch versions grouped per ecosystem, labelled `dependencies` and `release:skip`). When a group's lock-file PR conflicts with the lock on `main` and `@dependabot rebase` does not clear it, re-lock the same packages on `main` in a PR of your own and close Dependabot's in favour of it. #353 did this for #43, Dependabot's `python-minor-patch` group:
+
+1. On a branch from `main`, `uv lock --upgrade-package <name>` for each package the Dependabot PR moves. Leave `pyproject.toml` alone.
+2. Read each package's changelog and say in the PR what it changes for this project.
+3. `uv sync --all-groups` and `uv run fs-dev check`. When a dbt package moved, also run `dbt build --target duckdb`.
+4. Open the PR with a before-and-after table of the versions and the `release:skip` label, and say which Dependabot PR it supersedes.
+5. Close the Dependabot PR with a comment that points to the new PR. Closing a grouped PR does not make Dependabot ignore those versions in the future.
 
 ## Secrets: inventory and rotation
 
@@ -405,7 +415,7 @@ uv run fs-export unpin --store r2 [--to <id>]
 
 Versions are tags on `main`. Every PR carries a `release:*` label (the PR template asks for it) and `.github/release.yml` turns the labels into the release notes: breaking changes, features, fixes; `release:skip` and Dependabot's PRs stay out.
 
-Run the "Release" workflow (Actions → Release → Run workflow) with the version, `MAJOR.MINOR.PATCH` without the `v`. It tags `main`, publishes the GitHub release with the generated notes and the data build the site was serving at that moment (its id and data-as-of dates), and opens a PR that bumps `pyproject.toml` unless it already reads that version; merge that PR when there is one. A version already tagged, or one that is not three numbers, fails the run before anything is written.
+Run the "Release" workflow (Actions → Release → Run workflow) with the version, `MAJOR.MINOR.PATCH` without the `v`. It tags `main`, publishes the GitHub release with the generated notes and the data build the site was serving at that moment (its id and data-as-of dates), and opens a PR that bumps `pyproject.toml` unless it already reads that version; merge that PR when there is one. A version already tagged, or one that is not three numbers, fails the run before anything is written. The workflow and the label-driven notes came in #345; the skipped bump in #357. ADR 0014 records the convention.
 
 The tags so far mark the phases: `v0.1.0` phase 0 (skeleton live), `v0.2.0` phase 1 (ingest), `v0.3.0` phase 2 (lakehouse), `v0.4.0` phase 3 (gold and quality), `v0.5.0` phase 4 (reconciliation), `v0.6.0` phase 5 (serving and the app), `v0.7.0` phase 6 (analysis surfaces), `v0.8.0` the platform-hardening milestone.
 
