@@ -13,10 +13,6 @@ inputs:
     required: true
   cloudflare-account-id:
     required: true
-  reader-secret:
-    description: The Yahoo client secret, from which the reader key is derived until reader-key is set
-    required: false
-    default: ""
   reader-key:
     description: CI's own reader key for the staged build's private files (CI_READER_KEY, #429)
     required: false
@@ -75,7 +71,6 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         FS_NOTEBOOK_SOURCE: published
-        FS_READER_SECRET: ${{ inputs.reader-secret }}
         FS_READER_KEY: ${{ inputs.reader-key }}
         FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         LIGHT: ${{ inputs.light }}
@@ -114,7 +109,6 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         FS_NOTEBOOK_SOURCE: published
-        FS_READER_SECRET: ${{ inputs.reader-secret }}
         FS_READER_KEY: ${{ inputs.reader-key }}
         FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         LIGHT: ${{ inputs.light }}

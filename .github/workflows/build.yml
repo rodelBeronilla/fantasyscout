@@ -220,7 +220,6 @@ jobs:
           databricks-token: ${{ secrets.DATABRICKS_TOKEN }}
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          reader-secret: ${{ secrets.YAHOO_CLIENT_SECRET }}
           reader-key: ${{ secrets.CI_READER_KEY }}
           light: ${{ env.PLAN_LIGHT || 'false' }}
 
