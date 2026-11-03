@@ -1342,6 +1342,26 @@ test('a head-to-head league picks this week\'s opponent on the board and sees th
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText('Pick the team you face');
 });
 
+test('with rival rosters in, Fit weighs the categories by the league standings and the bar names the least likely wins (#662)', async ({ page }) => {
+  await page.goto('/');
+  const rows = page.getByTestId('board').locator('tbody tr[data-player]');
+  await expect(rows.first()).toBeVisible();
+  const names = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => rows.nth(i).locator('a').first().innerText()));
+  await page.goto('/league/');
+  await page.getByLabel('Roster spots').fill('6');
+  const cards = page.getByTestId('team-card');
+  for (const [team, picked] of [[0, [0, 3, 4]], [1, [1, 2, 5]]] as const) {
+    await cards.nth(team).getByText('Paste a roster').click();
+    await page.getByLabel(`Paste names for Team ${team + 1}`, { exact: true }).fill(picked.map((i) => names[i]).join('\n'));
+    await cards.nth(team).getByRole('button', { name: 'Add pasted players' }).click();
+    await expect(cards.nth(team).getByTestId('paste-result')).toContainText('Added 3');
+  }
+  await page.goto('/');
+  await expect(rows.first()).toBeVisible();
+  await expect(page.getByTestId('board').locator('[title*="chance of beating"]')).toHaveCount(1);
+  await expect(page.getByTestId('league-bar')).toContainText('Weakest');
+});
+
 test('the Today card groups the active roster by plays, listed and no game, on the Board and the League page', async ({ page }) => {
   type Row = { player_id: string; full_name: string | null; team_id: string | null; injury_group: string | null };
   type Game = { game_date: string; home_team_id: string; away_team_id: string };
