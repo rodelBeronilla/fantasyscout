@@ -4,6 +4,11 @@
 -- ago has a box score and play-by-play in gold. Preseason, All-Star, play-in and tournament
 -- finals are on the schedule but outside what the ingestors fetch (SPEC.md scope), so they
 -- are not counted as missing.
+--
+-- A season a Backfill run is still landing is left out until it finishes (#420): the build passes
+-- the league-seasons of the unfinished Backfill runs as var backfilling (["nba:2023-24", ...],
+-- ops.backfilling), and the first build after the backfill judges the season again.
+{% set backfilling = var('backfilling', []) %}
 with final_games as (
 
     select league, season, game_id, game_date_est, game_type
@@ -11,6 +16,9 @@ with final_games as (
     where game_status = 3
         and game_type in ('regular', 'playoffs')
         and game_date_est < {{ add_days(as_of_date(), -1) }}
+        {%- if backfilling %}
+        and league || ':' || season not in ({% for s in backfilling %}'{{ s | replace("'", "") }}'{{ ', ' if not loop.last }}{% endfor %})
+        {%- endif %}
 
 ),
 
