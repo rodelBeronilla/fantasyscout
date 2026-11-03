@@ -20750,7 +20750,7 @@
        "type": "double"
       },
       {
-       "description": "Projected share of team games played (mart_player_projection)",
+       "description": "Projected share of team games played (mart_player_projection); for a player on the injury report, the share without the absence he is still on (games_share_healthy), which availability_multiplier counts instead (#690)",
        "meta": {},
        "name": "games_share",
        "tests": [],
@@ -21619,7 +21619,7 @@
      ],
      "unit_tests": [
       {
-       "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0; j (officially available after a rest listing, still day-to-day on ESPN) reads as probable for rest, whose one past listing cost no games, 1.0 and no status shown, as Streamers shows it (#388); k (no status, a regular of 30 projected minutes on team A, which has nothing left to play for) sits out 0.29 more of the games left, 0.71 (#494), while the other team A players, projected at no minutes, are not regulars. Every projected line is zero, so value is zero and the factors are exact.",
+       "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0; j (officially available after a rest listing, still day-to-day on ESPN) reads as probable for rest, whose one past listing cost no games, 1.0 and no status shown, as Streamers shows it (#388); k (no status, a regular of 30 projected minutes on team A, which has nothing left to play for) sits out 0.29 more of the games left, 0.71 (#494), while the other team A players, projected at no minutes, are not regulars. b (listed out) and e (not listed) both have a projected share of 0.6 that is 0.9 without the absence they are on: b's share is 0.9, because his availability already charges that absence, and e's stays 0.6 (#690). Every projected line is zero, so value is zero and the factors are exact.",
        "name": "board_availability_follows_the_status"
       },
       {
@@ -22068,6 +22068,13 @@
        "tests": [
         "not_null"
        ],
+       "type": "double"
+      },
+      {
+       "description": "games_share without the games of the absence the player is still on (this season's run of missed games, when he has not played since); mart_board uses it for a player on the injury report, whose availability_multiplier already counts that absence (#690)",
+       "meta": {},
+       "name": "games_share_healthy",
+       "tests": [],
        "type": "double"
       },
       {
@@ -25095,7 +25102,7 @@
    "name": "ingest_endpoint_volume_flags_one_endpoint"
   },
   {
-   "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0; j (officially available after a rest listing, still day-to-day on ESPN) reads as probable for rest, whose one past listing cost no games, 1.0 and no status shown, as Streamers shows it (#388); k (no status, a regular of 30 projected minutes on team A, which has nothing left to play for) sits out 0.29 more of the games left, 0.71 (#494), while the other team A players, projected at no minutes, are not regulars. Every projected line is zero, so value is zero and the factors are exact.",
+   "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0; j (officially available after a rest listing, still day-to-day on ESPN) reads as probable for rest, whose one past listing cost no games, 1.0 and no status shown, as Streamers shows it (#388); k (no status, a regular of 30 projected minutes on team A, which has nothing left to play for) sits out 0.29 more of the games left, 0.71 (#494), while the other team A players, projected at no minutes, are not regulars. b (listed out) and e (not listed) both have a projected share of 0.6 that is 0.9 without the absence they are on: b's share is 0.9, because his availability already charges that absence, and e's stays 0.6 (#690). Every projected line is zero, so value is zero and the factors are exact.",
    "model": "mart_board",
    "name": "board_availability_follows_the_status"
   },

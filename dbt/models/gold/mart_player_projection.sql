@@ -378,6 +378,13 @@ projected as (
         {{ return_factor }} as return_minutes_factor,
         least(1.0, (w.regular_games_weight + {{ fantasy_setting('durability_games', 'w.league') }} * {{ durability['typical_share'] }})
             / (w.team_games_weight + {{ fantasy_setting('durability_games', 'w.league') }})) as games_share,
+        -- the same without the absence the player is still on: for a player on the injury report,
+        -- availability_multiplier (mart_board) already carries that absence into the games left, so
+        -- counting its games here too charged the injury twice (#690)
+        least(1.0, (w.regular_games_weight + {{ fantasy_setting('durability_games', 'w.league') }} * {{ durability['typical_share'] }})
+            / (w.team_games_weight
+                - case when la.games_since_return = 0 then {{ var('fantasy_recency')[0] }} * la.absence_games else 0 end
+                + {{ fantasy_setting('durability_games', 'w.league') }})) as games_share_healthy,
         {%- for s in production %}
         rl.prior_{{ s }}_pg{{ "," if not loop.last }}
         {%- endfor %}
@@ -429,6 +436,7 @@ select
     rate_weight_prev2 / rate_weight as w_prev2,
     prior_minutes / rate_weight as w_prior,
     games_share,
+    games_share_healthy,
     proj_minutes_pg,
     proj_minutes_season_pg,
     minutes_last5_pg,
