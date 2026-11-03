@@ -1,7 +1,8 @@
 version: 2
 updates:
+  # The workflows and the composite actions under .github/actions, which pin actions too (#433).
   - package-ecosystem: github-actions
-    directory: /
+    directories: ["/", "/.github/actions/*"]
     schedule:
       interval: weekly
     labels: [dependencies, "release:skip"]
@@ -45,3 +46,10 @@ updates:
     groups:
       worker-minor-patch:
         update-types: [minor, patch]
+
+  # The self-hosted runner image, pinned by digest in infra/runner/compose.yml (#433).
+  - package-ecosystem: docker-compose
+    directory: /infra/runner
+    schedule:
+      interval: weekly
+    labels: [dependencies, "release:skip"]
