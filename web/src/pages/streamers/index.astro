@@ -5,14 +5,14 @@ import Base from '../../layouts/Base.astro';
 
 <Base
   preload={['streamers/{league}.columns.json', 'schedule/{league}.json', 'dim_team.json', 'transactions/{league}.json', 'team_weeks/{league}.json']}
-  title="Streamers"
-  description="Games per team over the next seven days and the players trending up in minutes."
+  title="Pickups"
+  description="The best free agents to pick up this week: games left, matchups, minutes and value trending up, and the categories you need."
 >
   <section>
-    <h1 class="text-2xl font-semibold tracking-tight">Streamers</h1>
+    <h1 class="text-2xl font-semibold tracking-tight">Pickups</h1>
     <p class="mt-1 text-sm text-muted">
-      Who plays the most this week, and whose minutes are climbing: the last five games against the
-      player's baseline, the games before them blended with last season.
+      The players worth adding for the days ahead: games left, matchups, and minutes and value climbing against each
+      player's baseline.
     </p>
     <!-- a screen tall while the island loads, so the footer starts below the fold and nothing shifts (#436) -->
     <div class="mt-6 min-h-screen">
