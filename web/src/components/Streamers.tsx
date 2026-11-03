@@ -11,7 +11,7 @@ import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortD
 import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
-import { owners, useLeague } from '../lib/fantasy-league';
+import { keptCategories, owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
 import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, lineupDay, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag } from './ui';
 import type { StreamerColumn, ExportedRow } from '../generated/columns';
@@ -498,6 +498,12 @@ function WeeksGrid({ weeks }: { weeks: TeamWeek[] }) {
   );
 }
 
+/** A numeric column of a streamer row, or 0. */
+function part(r: StreamerRow, key: string): number {
+  const v = r[key];
+  return typeof v === 'number' && !Number.isNaN(v) ? v : 0;
+}
+
 export default function Streamers() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<StreamerRow[] | null>(null);
@@ -611,9 +617,7 @@ export default function Streamers() {
     return { teamDates: dates, teamMatchups: matchups, teamImplied: implied };
   }, [games, days]);
 
-  // The league's categories: an 8-category league leaves out turnovers. A points league scores
-  // the last-ten per-game line with its own weights instead (#467).
-  const cats8 = setup.scoring === 'cats8';
+  // A points league scores the last-ten per-game line with its own weights (#467).
   const points = setup.scoring === 'points';
   const weights = setup.weights;
   const last10Points = useCallback(
@@ -638,21 +642,28 @@ export default function Streamers() {
     },
     [weights],
   );
+  // The categories the league does not count: its punts (#661), and turnovers in an 8-category
+  // league. Their parts come out of the last-ten value and production (#666).
+  const dropped = useMemo(() => {
+    const kept = keptCategories(setup);
+    return points ? [] : CATEGORIES.filter((c) => !kept.includes(c));
+  }, [setup, points]);
   const value10 = useCallback(
     (r: StreamerRow): number | null => {
       if (points) return last10Points(r);
-      return r.last_10_z_total === null ? null : cats8 ? r.last_10_z_total - ((r.last_10_z_turnovers as number | null) ?? 0) : r.last_10_z_total;
+      if (r.last_10_z_total === null) return null;
+      return dropped.reduce((s, c) => s - part(r, `last_10_${c}`), r.last_10_z_total);
     },
-    [cats8, points, last10Points],
+    [dropped, points, last10Points],
   );
   const production10 = useCallback(
     (r: StreamerRow): number | null => {
       if (points) return last10Points(r);
       const p = r.last_10_production as number | null | undefined;
       if (typeof p !== 'number') return null;
-      return cats8 ? p - ((r.last_10_production_turnovers as number | null) ?? 0) : p;
+      return dropped.reduce((s, c) => s - part(r, `last_10_production_${c.slice(2)}`), p);
     },
-    [cats8, points, last10Points],
+    [dropped, points, last10Points],
   );
   // The manager's league pool (teams x roster spots), as a likely-available cut.
   const leaguePool = setup.teams * setup.rosterSpots;
@@ -991,8 +1002,8 @@ export default function Streamers() {
                   points ? 'FPts (10)' : 'Value (10)',
                   points
                     ? "Fantasy points per game over the last ten games, scored with your league's weights"
-                    : cats8
-                      ? 'Total category z-score over the last ten games, turnovers left out (8 categories)'
+                    : dropped.length
+                      ? `Total category z-score over the last ten games, leaving out ${dropped.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}`
                       : 'Total category z-score over the last ten games',
                 )}
                 {col('value_trend', 'Value trend', 'Last-ten value minus the baseline (this season blended with last)')}
