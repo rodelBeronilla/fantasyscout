@@ -1,0 +1,77 @@
+import { describe, expect, it } from 'vitest';
+
+import { expectedWins, GAME_SPREAD, normalCdf, rivals, standingsModel, standingWeights, teamTotals, winChances } from './standings';
+
+const cats = ['z_points', 'z_steals', 'z_blocks'];
+
+describe('normalCdf', () => {
+  it('is the standard normal distribution', () => {
+    expect(normalCdf(0)).toBeCloseTo(0.5, 6);
+    expect(normalCdf(1.96)).toBeCloseTo(0.975, 3);
+    expect(normalCdf(-1.96)).toBeCloseTo(0.025, 3);
+    expect(normalCdf(1) + normalCdf(-1)).toBeCloseTo(1, 6);
+  });
+});
+
+describe('standingsModel', () => {
+  it('spreads a noisy category wider than a steady one, and a week wider than a season', () => {
+    const week = standingsModel('nba', cats, 13, 'h2h');
+    const season = standingsModel('nba', cats, 13, 'roto', 60);
+    expect(week.spread['z_steals']!).toBeGreaterThan(week.spread['z_points']!);
+    expect(week.spread['z_steals']! / week.spread['z_points']!).toBeCloseTo(GAME_SPREAD.nba['z_steals']! / GAME_SPREAD.nba['z_points']!, 6);
+    expect(season.spread['z_points']!).toBeLessThan(week.spread['z_points']!);
+  });
+});
+
+describe('winChances and expectedWins', () => {
+  const model = { cats, spread: { z_points: 2, z_steals: 2, z_blocks: 2 } };
+  it('gives an even chance against an equal team and near certainty against a far weaker one', () => {
+    const totals = [
+      { z_points: 0, z_steals: 10, z_blocks: -10 },
+      { z_points: 0, z_steals: 0, z_blocks: 0 },
+    ];
+    const chances = winChances(totals, 0, [1], model);
+    expect(chances['z_points']).toBeCloseTo(0.5, 6);
+    expect(chances['z_steals']!).toBeGreaterThan(0.99);
+    expect(chances['z_blocks']!).toBeLessThan(0.01);
+    expect(expectedWins(chances)).toBeCloseTo(1.5, 2);
+  });
+  it('averages over the rivals', () => {
+    const totals = [{ z_points: 0 }, { z_points: 100 }, { z_points: -100 }];
+    expect(winChances(totals, 0, [1, 2], { cats: ['z_points'], spread: { z_points: 1 } })['z_points']).toBeCloseTo(0.5, 6);
+  });
+});
+
+describe('standingWeights', () => {
+  it('weights a close category most and one decided either way least, averaging 1', () => {
+    const model = { cats, spread: { z_points: 2, z_steals: 2, z_blocks: 2 } };
+    // close in points, far ahead in steals, far behind in blocks (a punt)
+    const totals = [
+      { z_points: 0.5, z_steals: 12, z_blocks: -12 },
+      { z_points: 0, z_steals: 0, z_blocks: 0 },
+      { z_points: 1, z_steals: 1, z_blocks: 1 },
+    ];
+    const w = standingWeights(totals, 0, [1, 2], model)!;
+    expect(w['z_points']!).toBeGreaterThan(2.9);
+    expect(w['z_steals']!).toBeLessThan(0.01);
+    expect(w['z_blocks']!).toBeLessThan(0.01);
+    expect((w['z_points']! + w['z_steals']! + w['z_blocks']!) / 3).toBeCloseTo(1, 6);
+  });
+  it('is null with nobody to compare against', () => {
+    expect(standingWeights([{ z_points: 1 }], 0, [], { cats: ['z_points'], spread: { z_points: 1 } })).toBeNull();
+  });
+});
+
+describe('teamTotals', () => {
+  it('sums the players by the share of games each is expected to play', () => {
+    const values: Record<string, Record<string, number>> = { a: { z_points: 2, z_steals: 1 }, b: { z_points: 1, z_steals: -1 } };
+    const totals = teamTotals(['a', 'b', 'missing'], ['z_points', 'z_steals'], (id) => values[id], (id) => (id === 'b' ? 0.5 : 1));
+    expect(totals).toEqual({ z_points: 2.5, z_steals: 0.5 });
+  });
+});
+
+describe('rivals', () => {
+  it('leaves out the manager and teams with less than half a roster entered', () => {
+    expect(rivals([['a', 'b'], ['c', 'd'], ['e'], []], 0, 4)).toEqual([1]);
+  });
+});

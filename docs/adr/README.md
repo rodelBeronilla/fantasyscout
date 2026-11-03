@@ -18,6 +18,7 @@ One record per real decision, written when the decision is made. Numbered; a lat
 | [0012](0012-signals-tested-and-not-built.md) | Signals tested and not built | 2026-10-30 | Accepted | none: moved from ADR 0003 on 2026-11-01, text unchanged |  |
 | [0013](0013-where-the-dbt-build-runs.md) | Where the dbt build runs | 2026-11-02 | Accepted | the orchestration row of SPEC.md and docs/architecture.md |  |
 | [0014](0014-conventions-and-retention.md) | Platform conventions and retention | 2026-11-02 | Accepted |  |  |
+| [0015](0015-categories-standings-model.md) | A standings model for categories leagues | 2026-11-03 | Accepted |  |  |
 
 ## Addenda
 
