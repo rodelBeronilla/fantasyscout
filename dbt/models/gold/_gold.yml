@@ -1620,6 +1620,22 @@ models:
         description: "What an average game of the last ten adds to a week's category totals, in units of each category's spread over the season's pool: counting stats add, turnovers subtract, shooting adds makes above the pool's percentage"
       - name: last_10_production_turnovers
         description: "The turnovers part of last_10_production (negative), which an 8-category league leaves out"
+      - name: last_10_production_points
+        description: "The points part of last_10_production, which a league punting the category leaves out (#666)"
+      - name: last_10_production_rebounds_total
+        description: "The rebounds part of last_10_production, which a league punting the category leaves out (#666)"
+      - name: last_10_production_assists
+        description: "The assists part of last_10_production, which a league punting the category leaves out (#666)"
+      - name: last_10_production_steals
+        description: "The steals part of last_10_production, which a league punting the category leaves out (#666)"
+      - name: last_10_production_blocks
+        description: "The blocks part of last_10_production, which a league punting the category leaves out (#666)"
+      - name: last_10_production_three_pointers_made
+        description: "The three-pointers made part of last_10_production, which a league punting the category leaves out (#666)"
+      - name: last_10_production_field_goal_pct
+        description: "The field goal percentage (makes above the pool percentage) part of last_10_production, which a league punting the category leaves out (#666)"
+      - name: last_10_production_free_throw_pct
+        description: "The free throw percentage (makes above the pool percentage) part of last_10_production, which a league punting the category leaves out (#666)"
       - name: last_10_points_pg
         description: "Points per game over the last ten games played; a points league scores the line with its own weights"
       - name: last_10_rebounds_total_pg

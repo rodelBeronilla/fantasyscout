@@ -27,7 +27,7 @@ LISTS = (
     "PLAYER_ZSCORE_COLUMNS",
 )
 # Prefixes a component joins to a category name instead of spelling the column out.
-PREFIXES = ("season_", "last20_", "recent_", "proj_")
+PREFIXES = ("season_", "last20_", "recent_", "proj_", "last_10_")
 
 _INTERFACE = re.compile(r"(?:export\s+)?interface\s+\w+[^{]*\{(?:[^{}]|\{[^{}]*\})*\}", re.S)
 _TYPE = re.compile(r"(?:export\s+)?type\s+\w+\s*=\s*\{(?:[^{}]|\{[^{}]*\})*\};?", re.S)

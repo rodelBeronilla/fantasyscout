@@ -152,7 +152,16 @@ recent_production as (
             - coalesce(z.turnovers_pg / nullif(s.sd_turnovers, 0), 0)
             + coalesce((z.field_goal_pct - s.pool_fg_pct) * z.fga_pg / nullif(p.sd_fg_impact, 0), 0)
             + coalesce((z.free_throw_pct - s.pool_ft_pct) * z.fta_pg / nullif(p.sd_ft_impact, 0), 0) as last_10_production,
-        -coalesce(z.turnovers_pg / nullif(s.sd_turnovers, 0), 0) as last_10_production_turnovers
+        -- each category's part, so a league can leave out its punts (#666)
+        coalesce(z.points_pg / nullif(s.sd_points, 0), 0) as last_10_production_points,
+        coalesce(z.rebounds_total_pg / nullif(s.sd_rebounds_total, 0), 0) as last_10_production_rebounds_total,
+        coalesce(z.assists_pg / nullif(s.sd_assists, 0), 0) as last_10_production_assists,
+        coalesce(z.steals_pg / nullif(s.sd_steals, 0), 0) as last_10_production_steals,
+        coalesce(z.blocks_pg / nullif(s.sd_blocks, 0), 0) as last_10_production_blocks,
+        coalesce(z.three_pointers_made_pg / nullif(s.sd_three_pointers_made, 0), 0) as last_10_production_three_pointers_made,
+        -coalesce(z.turnovers_pg / nullif(s.sd_turnovers, 0), 0) as last_10_production_turnovers,
+        coalesce((z.field_goal_pct - s.pool_fg_pct) * z.fga_pg / nullif(p.sd_fg_impact, 0), 0) as last_10_production_field_goal_pct,
+        coalesce((z.free_throw_pct - s.pool_ft_pct) * z.fta_pg / nullif(p.sd_ft_impact, 0), 0) as last_10_production_free_throw_pct
     from {{ ref('mart_category_zscores') }} as z
     join current_season as cs on cs.league = z.league and cs.season = z.season
     join pool_scale as s on s.league = z.league
@@ -334,7 +343,9 @@ select
     b.value_baseline,
     rv.last_10_z_total - b.value_baseline as value_trend,
     rp.last_10_production,
-    rp.last_10_production_turnovers,
+    {%- for c in cats %}
+    rp.last_10_production_{{ c }},
+    {%- endfor %}
     {%- for c in cats %}
     rv.last_10_z_{{ c }},
     {%- endfor %}

@@ -919,6 +919,25 @@ test('the board exports what it shows as CSV', async ({ page }) => {
   expect(lines.length).toBeGreaterThan(10);
 });
 
+test('Need fit reads the last-ten category columns, and Streamers leaves the league’s punts out of its value (#666)', async ({ page }) => {
+  // The columns arrive with the next live build; until then the fixture carries them empty.
+  await page.route('**/streamers/wnba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r) => ({ ...r, last_10_z_blocks: 7.77, last_10_z_points: 1, last_10_production_points: 1 })) });
+  });
+  await page.goto('/streamers/');
+  const table = page.getByTestId('trending');
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  await page.getByLabel('Need BLK').check({ force: true });
+  await expect(table.locator('tbody')).toContainText('+7.77');
+
+  await page.goto('/league/');
+  await page.getByLabel('Punt PTS').check({ force: true });
+  await page.goto('/streamers/');
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  await expect(table.locator('thead [title*="leaving out PTS"]')).toHaveCount(1);
+});
+
 test('streamers rank by the categories you need and leave out likely rostered players', async ({ page }) => {
   await page.goto('/streamers/');
   const table = page.getByTestId('trending');
