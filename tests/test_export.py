@@ -627,3 +627,12 @@ def test_rows_can_round_floats_for_compact_json() -> None:
     table = pa.table({"x": [1.234567891, None], "n": [3, 4]})
     assert rows_of(table, digits=4) == [{"x": 1.2346, "n": 3}, {"x": None, "n": 4}]
     assert rows_of(table)[0]["x"] == 1.234567891
+
+
+def test_page_json_goes_out_to_three_decimals() -> None:
+    # the per-league page files round to layout.JSON_DIGITS: a fifth smaller than four (#557)
+    from export import layout
+
+    table = pa.table({"z": [0.76449, -1.23456, 2.0]})
+    assert layout.JSON_DIGITS == 3
+    assert rows_of(table, digits=layout.JSON_DIGITS) == [{"z": 0.764}, {"z": -1.235}, {"z": 2.0}]

@@ -95,7 +95,7 @@ OPS: tuple[TableSpec, ...] = (
 TABLES: tuple[TableSpec, ...] = GOLD + OPS
 
 # The board, the streamers and the upcoming schedule go out per league as compact JSON the
-# pages render directly: only the columns they read, numbers rounded to four decimals.
+# pages render directly: only the columns they read, numbers rounded to three decimals.
 # The per-league files carry the columns a page reads and no more (the gold tables keep every
 # column; the Parquet mirror and the player files have their own lists). A column added here
 # needs the fixture refreshed (tests/test_fixture_contract.py); a page that reads a column not
@@ -440,7 +440,10 @@ PER_LEAGUE_JSON = (
     ("transactions", TRANSACTIONS_SQL),
     ("team_weeks", TEAM_WEEKS_SQL),
 )
-JSON_DIGITS = 4
+# Three decimals: the pages show a percentage to a tenth of a point and values to two places, and
+# the board file is a fifth smaller compressed than at four (108 KB to 87 KB gzipped for the NBA,
+# #557), the largest single download on a phone's first paint.
+JSON_DIGITS = 3
 
 # The latest build's checks, one row per check, for Data Health.
 LATEST_CHECKS_SQL = """
