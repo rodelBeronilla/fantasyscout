@@ -109,6 +109,8 @@ jobs:
         run: |
           (cd dbt && uv run dbt docs generate --target duckdb >/dev/null)
           mkdir -p dbt-docs && cp dbt/target/index.html dbt/target/manifest.json dbt/target/catalog.json dbt-docs/
+          # the docs every deploy ships say they come from this sample (#350, #625)
+          uv run python -m ops.docs_banner dbt-docs/index.html
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: dbt-docs
