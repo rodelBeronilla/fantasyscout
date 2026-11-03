@@ -4,6 +4,7 @@
  * value gained, each with the categories where the manager's league rank moves. Pure functions
  * over per-player values, so the Board and the tests share them.
  */
+import { keepsPositions } from './players';
 
 export interface UpgradeInput {
   /** The manager's active players (not on the injured list). */
@@ -24,6 +25,8 @@ export interface UpgradeInput {
   /** How many available players, best first, are considered. */
   candidates?: number;
   limit?: number;
+  /** Each player's position ("G-F"); when given, no swap leaves a position letter the roster covers uncovered (#489). */
+  position?: (id: string) => string | null | undefined;
 }
 
 export interface Upgrade {
@@ -111,8 +114,15 @@ export function suggestUpgrades(input: UpgradeInput): Upgrade[] {
   pairs.sort((a, b) => b.gain - a.gain || b.fit - a.fit);
   const used = new Set<string>();
   const out: Upgrade[] = [];
+  // the roster as the swaps so far leave it, for the position check
+  let roster = [...mine];
   for (const p of pairs) {
     if (used.has(p.add) || used.has(p.drop)) continue;
+    if (input.position) {
+      const after = [...roster.filter((id) => id !== p.drop), p.add];
+      if (!keepsPositions(roster, after, input.position)) continue;
+      roster = after;
+    }
     used.add(p.add);
     used.add(p.drop);
     out.push(p);

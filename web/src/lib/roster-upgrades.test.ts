@@ -113,3 +113,33 @@ describe('roster review', () => {
   });
 });
 
+
+describe('roster upgrades keep the positions covered (#489)', () => {
+  const values = new Map([
+    ['c1', 1],
+    ['g1', 5],
+    ['f1', 5],
+    ['g-hi', 9],
+    ['c-ok', 3],
+  ]);
+  const positions: Record<string, string> = { c1: 'C', g1: 'G', f1: 'F', 'g-hi': 'G', 'c-ok': 'F-C' };
+  const input = {
+    mine: ['c1', 'g1', 'f1'],
+    available: ['g-hi', 'c-ok'],
+    rest: values,
+    cats: [],
+    catValue: () => undefined,
+    totals: [{}, {}],
+    myTeam: 0,
+  };
+
+  it('never drops the only center for a non-center', () => {
+    // without positions, the best guard replaces the center
+    expect(suggestUpgrades(input).map((u) => [u.add, u.drop])[0]).toEqual(['g-hi', 'c1']);
+    const out = suggestUpgrades({ ...input, position: (id) => positions[id] });
+    expect(out.map((u) => [u.add, u.drop])).toEqual([
+      ['g-hi', 'g1'],
+      ['c-ok', 'c1'],
+    ]);
+  });
+});

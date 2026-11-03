@@ -337,7 +337,9 @@ export default function Board() {
         activeCats.map((c) => [c, roster.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + (cats?.get(id)?.[c] ?? 0), 0)]),
       ),
     );
+    const positions = new Map(rows.map((r) => [r.player_id, r.position]));
     return reviewRoster({
+      position: (id) => positions.get(id),
       mine: myTeam.map((r) => r.player_id),
       available: rows.filter((r) => !owner.has(r.player_id)).map((r) => r.player_id),
       rest: week ? weekValues : restValue,

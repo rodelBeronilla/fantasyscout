@@ -205,6 +205,7 @@ export default function TradeAnalyzer() {
           totals: setup.rosters.map((r) => teamTotals(r)),
           myTeam: setup.mine,
           partnerTeam,
+          position: (id) => byId.get(id)?.position,
         })
       : [];
   const targetSide: Side = get.length ? 'get' : 'give';

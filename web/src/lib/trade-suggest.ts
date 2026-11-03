@@ -4,6 +4,7 @@
  * of the season, ranked by how much they lift the manager's team in the league's category ranks.
  * Pure functions over per-player values, so the Trade page and tests share them.
  */
+import { keepsPositions } from './players';
 
 export interface SuggestInput {
   /** Players already fixed on each side. At least one side must have a player. */
@@ -27,6 +28,8 @@ export interface SuggestInput {
   /** How far apart the sides may be, as a share of the larger side. */
   tolerance?: number;
   limit?: number;
+  /** Each player's position ("G-F"); when given, no package leaves a position letter the manager's roster covers uncovered (#489). */
+  position?: (id: string) => string | null | undefined;
 }
 
 export interface Suggestion {
@@ -86,6 +89,7 @@ export function suggestTrades(input: SuggestInput): Suggestion[] {
     const net = value(r) - value(g);
     const scale = Math.max(Math.abs(value(g)), Math.abs(value(r)), 1);
     if (Math.abs(net) > tolerance * scale) continue;
+    if (input.position && !keepsPositions(input.mine, [...input.mine.filter((id) => !g.includes(id)), ...r], input.position)) continue;
     const ups: string[] = [];
     const downs: string[] = [];
     let fit = 0;

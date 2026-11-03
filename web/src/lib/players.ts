@@ -13,6 +13,26 @@ export function eligibleAt(position: string | null | undefined, letters: Readonl
     .some((p) => letters.has(p as PositionLetter));
 }
 
+/** The position letters a roster covers: a letter is covered when someone on it is eligible there. */
+function coveredLetters(ids: readonly string[], position: (id: string) => string | null | undefined): Set<PositionLetter> {
+  return new Set(POSITION_LETTERS.filter((l) => ids.some((id) => eligibleAt(position(id), new Set([l])))));
+}
+
+/**
+ * True when a roster after a move still has someone at every position letter it had someone at
+ * before (#489): a swap must not leave a guard, forward or center slot that nobody can fill. A
+ * letter the roster never covered is not required.
+ */
+export function keepsPositions(
+  before: readonly string[],
+  after: readonly string[],
+  position: (id: string) => string | null | undefined,
+): boolean {
+  const had = coveredLetters(before, position);
+  const has = coveredLetters(after, position);
+  return [...had].every((l) => has.has(l));
+}
+
 export function toggle<T>(set: ReadonlySet<T>, value: T): Set<T> {
   const next = new Set(set);
   if (next.has(value)) next.delete(value);
