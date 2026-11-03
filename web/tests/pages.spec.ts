@@ -1197,6 +1197,10 @@ test('rosters on the League page give the board who is available, owners, Fit an
   await expect(board.getByTestId('tier-head').first()).toContainText('available');
   await page.getByRole('radio', { name: 'My team' }).click();
   await expect(rows).toHaveCount(2);
+  // Rostered: everyone on a team in the league, the rival's player too
+  await page.getByRole('radio', { name: 'Rostered' }).click();
+  await expect(rows).toHaveCount(3);
+  await expect(rows.filter({ hasText: b ?? '' })).toHaveCount(1);
   await page.getByRole('radio', { name: 'Everyone' }).click();
   await expect(rows.filter({ hasText: b ?? '' }).getByTestId('owner')).toHaveText('Rivals');
   await page.goto('/streamers/');
