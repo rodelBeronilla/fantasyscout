@@ -2324,6 +2324,7 @@ test('UI polish: a phone sees each value beside the name, a day without games ha
   // the fixture's WNBA season is over: no games today, so no Today card
   await expect(page.getByTestId('today')).toHaveCount(0);
   await expect(page.locator('footer')).toContainText('any bookmaker. Sources, terms and what is published');
+});
 
 test('live AI: a signed-in manager has the trade explained from its own numbers; others are asked to sign in (#702)', async ({ page }) => {
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
