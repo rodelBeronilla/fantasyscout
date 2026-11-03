@@ -2184,20 +2184,6 @@ test('punts are a league setting: chosen on the League page, they reach the boar
   await expect(page.getByLabel('Punt AST')).not.toBeChecked();
 });
 
-test('focus categories are a league setting: they mark the board, name themselves in the summary, and cannot be punted at once (#680)', async ({ page }) => {
-  await page.goto('/league/');
-  await page.getByLabel('Focus REB').check({ force: true });
-  await page.getByLabel('Focus BLK').check({ force: true });
-  // punting a focus category takes it out of the focus
-  await page.getByLabel('Punt BLK').check({ force: true });
-  await expect(page.getByLabel('Focus BLK')).not.toBeChecked();
-  await expect(page.getByLabel('Focus BLK')).toBeDisabled();
-  await page.goto('/');
-  await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
-  await expect(page.getByTestId('league-summary')).toContainText('punting BLK, focusing REB');
-  await expect(page.getByTestId('focus-head')).toHaveText('REB');
-});
-
 test('signed in to a Yahoo account, the League page takes the account’s newer setup and saves each change to it (#684)', async ({ page }) => {
   const saved: { setup: Record<string, unknown>; savedAt: number }[] = [];
   await page.route('**/api/account/status', (route) => route.fulfill({ json: { configured: true, signedIn: true } }));
@@ -2213,7 +2199,6 @@ test('signed in to a Yahoo account, the League page takes the account’s newer 
   await expect(page.getByTestId('account-box')).toContainText('Saved to your Yahoo account');
   await expect(page.getByTestId('team-card')).toHaveCount(6);
   await expect(page.getByLabel('Punt PTS')).toBeChecked();
-  await expect(page.getByLabel('Focus BLK')).toBeChecked();
   await page.getByLabel('Teams in the league').fill('7');
   await expect.poll(() => saved.at(-1)?.setup['teams']).toBe(7);
   expect(saved.at(-1)?.savedAt).toBeGreaterThan(0);

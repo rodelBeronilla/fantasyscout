@@ -62,7 +62,7 @@ const EVEN = { value: 0.1, market: 0.15 } as const;
 export interface Fairness {
   value: Lens;
   market: Lens | null;
-  /** The manager's change in expected categories (weighted by the focus), when the standings judge it. */
+  /** The manager's change in expected categories, when the standings judge it. */
   categories: number | null;
   /** All the lenses at hand call it even. */
   even: boolean;

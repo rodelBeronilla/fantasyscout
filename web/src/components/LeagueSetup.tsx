@@ -132,7 +132,7 @@ export default function LeagueSetup() {
   const pool = setup.teams * setup.rosterSpots;
   const points = setup.scoring === 'points';
   const cats = useMemo(() => CATEGORIES.filter((c) => setup.scoring !== 'cats8' || c !== 'z_turnovers'), [setup.scoring]);
-  // The draft list's value counts the league's punts out and its focus categories more (#661, #680).
+  // The draft list's value counts the league's punts out (#661).
   const catWeight = useMemo(() => categoryWeights({ ...setup, scoring: setup.scoring === 'points' ? 'cats9' : setup.scoring }), [setup]);
   const catValues = useMemo(() => (rows && !points ? categoryValues(rows, cats, pool, setup.teams) : null), [rows, points, cats, pool, setup.teams]);
   const pointVals = useMemo(() => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null), [rows, points, setup.weights, pool, setup.teams]);

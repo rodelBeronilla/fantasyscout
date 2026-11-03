@@ -32,16 +32,16 @@ describe('the stored league setup migrates by version', () => {
       { teams: 4, il: [], mine: 0, rosters: [['p1'], ['p2'], [], []], format: 'h2h', opponent: 1, punts: [] },
     ],
     [
-      'version 4 (no focus): unknown punts dropped, no focus',
+      'version 4: unknown punts dropped',
       { version: 4, teams: 4, rosters: [['p1'], [], [], []], il: [], mine: 0, punts: ['z_assists', 'z_points', 'nonsense'] },
       {},
-      { teams: 4, rosters: [['p1'], [], [], []], punts: ['z_points', 'z_assists'], focus: [] },
+      { teams: 4, rosters: [['p1'], [], [], []], punts: ['z_points', 'z_assists'] },
     ],
     [
-      'version 5: as stored; a category both punted and focused stays punted',
+      'version 5 (focus categories, withdrawn in 6): the punts stay, the focus goes',
       { version: 5, teams: 4, rosters: [['p1'], [], [], []], il: [], mine: 0, punts: ['z_points'], focus: ['z_blocks', 'z_points', 'z_steals'] },
       {},
-      { teams: 4, punts: ['z_points'], focus: ['z_steals', 'z_blocks'] },
+      { teams: 4, punts: ['z_points'] },
     ],
     [
       'a newer build\'s object keeps what this build understands',
@@ -55,9 +55,10 @@ describe('the stored league setup migrates by version', () => {
     expect(setup).toMatchObject(expected);
     expect(setup.weights).toEqual(expect.objectContaining(nba.weights));
     expect('version' in setup).toBe(false);
+    expect('focus' in setup).toBe(false);
   });
 
-  it('is at version 5', () => {
-    expect(SETUP_VERSION).toBe(5);
+  it('is at version 6', () => {
+    expect(SETUP_VERSION).toBe(6);
   });
 });

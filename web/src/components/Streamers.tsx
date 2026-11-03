@@ -11,7 +11,7 @@ import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortD
 import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
-import { FOCUS_WEIGHT, keptCategories, owners, useLeague } from '../lib/fantasy-league';
+import { keptCategories, owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
 import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, lineupDay, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag } from './ui';
 import type { StreamerColumn, ExportedRow } from '../generated/columns';
@@ -652,21 +652,18 @@ export default function Streamers() {
     (r: StreamerRow): number | null => {
       if (points) return last10Points(r);
       if (r.last_10_z_total === null) return null;
-      const base = dropped.reduce((s, c) => s - part(r, `last_10_${c}`), r.last_10_z_total);
-      return setup.focus.reduce((s, c) => s + (FOCUS_WEIGHT - 1) * part(r, `last_10_${c}`), base);
+      return dropped.reduce((s, c) => s - part(r, `last_10_${c}`), r.last_10_z_total);
     },
-    [dropped, points, last10Points, setup.focus],
+    [dropped, points, last10Points],
   );
   const production10 = useCallback(
     (r: StreamerRow): number | null => {
       if (points) return last10Points(r);
       const p = r.last_10_production as number | null | undefined;
       if (typeof p !== 'number') return null;
-      const base = dropped.reduce((s, c) => s - part(r, `last_10_production_${c.slice(2)}`), p);
-      // focus categories count more (#680)
-      return setup.focus.reduce((s, c) => s + (FOCUS_WEIGHT - 1) * part(r, `last_10_production_${c.slice(2)}`), base);
+      return dropped.reduce((s, c) => s - part(r, `last_10_production_${c.slice(2)}`), p);
     },
-    [dropped, points, last10Points, setup.focus],
+    [dropped, points, last10Points],
   );
   // The manager's league pool (teams x roster spots), as a likely-available cut.
   const leaguePool = setup.teams * setup.rosterSpots;

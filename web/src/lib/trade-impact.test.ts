@@ -72,15 +72,6 @@ describe('tradeImpact', () => {
     expect(impact.mine.scoreBefore).toBeLessThanOrEqual(6);
     expect(impact.mine.gain).toBeCloseTo(0, 9);
   });
-  it('weights the manager’s gain by the focus categories, and leaves the shown count plain (#680)', () => {
-    const plain = tradeImpact(state, standings, 0, 1, ['scorer'], ['boards']);
-    expect(plain.mine.weightedGain).toBeCloseTo(plain.mine.gain, 9);
-    const focused = { ...state, focus: { z_rebounds_total: 1.5, z_blocks: 1 } };
-    const f = tradeImpact(focused, standings, 0, 1, ['scorer'], ['boards']);
-    expect(f.mine.gain).toBeCloseTo(plain.mine.gain, 9);
-    const reb = (f.mine.after['z_rebounds_total'] ?? 0) - (f.mine.before['z_rebounds_total'] ?? 0);
-    expect(f.mine.weightedGain).toBeCloseTo(plain.mine.gain + 0.5 * reb, 9);
-  });
   it('is not judged without a rival roster', () => {
     expect(leagueStandings({ ...state, rosters: [['scorer'], [], []] }, 0)).toBeNull();
   });

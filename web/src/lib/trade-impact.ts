@@ -26,8 +26,6 @@ export interface LeagueState {
   availability: (id: string) => number;
   /** Games left in the season, for a rotisserie league's spread. */
   gamesLeft: number;
-  /** The manager's weight per category: a focus category counts more (#680); absent, every one counts 1. */
-  focus?: Record<string, number>;
 }
 
 export interface Standings {
@@ -92,8 +90,6 @@ interface TeamChange {
   scoreBefore: number;
   scoreAfter: number;
   gain: number;
-  /** The gain with each category weighted by the team's focus (#680): what verdicts and rankings go by. */
-  weightedGain: number;
 }
 
 export interface TradeImpact {
@@ -122,18 +118,15 @@ export function tradeImpact(state: LeagueState, standings: Standings, mine: numb
   const totals = [...standings.totals];
   totals[mine] = teamTotals(sides.mine.after, state.cats, state.catValue, state.availability);
   totals[partner] = teamTotals(sides.partner.after, state.cats, state.catValue, state.availability);
-  const change = (team: number, weights: Record<string, number> = {}): TeamChange => {
+  const change = (team: number): TeamChange => {
     const others = rivals(state.rosters, team, state.rosterSpots);
     const before = winChances(standings.totals, team, others, standings.model);
     const after = winChances(totals, team, others, standings.model);
     const scoreBefore = score(state, before, others.length);
     const scoreAfter = score(state, after, others.length);
-    const per = state.format === 'roto' ? Math.max(1, others.length) : 1;
-    const weightedGain = state.cats.reduce((s, c) => s + (weights[c] ?? 1) * ((after[c] ?? 0) - (before[c] ?? 0)) * per, 0);
-    return { before, after, scoreBefore, scoreAfter, gain: scoreAfter - scoreBefore, weightedGain };
+    return { before, after, scoreBefore, scoreAfter, gain: scoreAfter - scoreBefore };
   };
-  const m = change(mine, state.focus);
-  // the partner's focus is not known: every category counts 1
+  const m = change(mine);
   const p = change(partner);
   const moves = (t: TeamChange) => ({
     up: state.cats.filter((c) => (t.after[c] ?? 0) - (t.before[c] ?? 0) >= 0.02),

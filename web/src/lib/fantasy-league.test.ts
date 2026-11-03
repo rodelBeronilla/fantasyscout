@@ -95,18 +95,17 @@ describe('isDefaultSettings', () => {
     expect(isDefaultSettings({ ...d, format: 'h2h' }, d)).toBe(false);
     expect(isDefaultSettings({ ...d, weights: { ...d.weights, points: d.weights.points + 1 } }, d)).toBe(false);
     expect(isDefaultSettings({ ...d, punts: ['z_points'] }, d)).toBe(false);
-    expect(isDefaultSettings({ ...d, focus: ['z_blocks'] }, d)).toBe(false);
   });
 });
 
 describe('categoryWeights and weightedSum', () => {
-  it('count a focused category 1.5 and a punted one not at all', () => {
-    const w = categoryWeights({ scoring: 'cats9', punts: ['z_points'], focus: ['z_blocks'] });
-    expect(w['z_blocks']).toBe(1.5);
+  it('count a kept category once and a punted one not at all', () => {
+    const w = categoryWeights({ scoring: 'cats9', punts: ['z_points'] });
+    expect(w['z_blocks']).toBe(1);
     expect(w['z_rebounds_total']).toBe(1);
     expect('z_points' in w).toBe(false);
-    expect(weightedSum({ z_points: 10, z_blocks: 2, z_rebounds_total: 1 }, w)).toBe(4);
-    expect(categoryWeights({ scoring: 'points', punts: [], focus: ['z_blocks'] })).toEqual({});
+    expect(weightedSum({ z_points: 10, z_blocks: 2, z_rebounds_total: 1 }, w)).toBe(3);
+    expect(categoryWeights({ scoring: 'points', punts: [] })).toEqual({});
   });
 });
 
