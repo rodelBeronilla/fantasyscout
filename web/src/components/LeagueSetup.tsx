@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
-import { assign, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague } from '../lib/fantasy-league';
+import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
@@ -131,6 +131,8 @@ export default function LeagueSetup() {
   const pool = setup.teams * setup.rosterSpots;
   const points = setup.scoring === 'points';
   const cats = useMemo(() => CATEGORIES.filter((c) => setup.scoring !== 'cats8' || c !== 'z_turnovers'), [setup.scoring]);
+  // The draft list's value counts the league's punts out and its focus categories more (#661, #680).
+  const catWeight = useMemo(() => categoryWeights({ ...setup, scoring: setup.scoring === 'points' ? 'cats9' : setup.scoring }), [setup]);
   const catValues = useMemo(() => (rows && !points ? categoryValues(rows, cats, pool, setup.teams) : null), [rows, points, cats, pool, setup.teams]);
   const pointVals = useMemo(() => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null), [rows, points, setup.weights, pool, setup.teams]);
 
@@ -138,11 +140,11 @@ export default function LeagueSetup() {
   const valueOf = useMemo(() => {
     const out = new Map<string, number>();
     for (const r of rows ?? []) {
-      const perGame = points ? (pointVals?.get(r.player_id)?.value ?? 0) : cats.reduce((s, c) => s + (catValues?.get(r.player_id)?.[c] ?? 0), 0);
+      const perGame = points ? (pointVals?.get(r.player_id)?.value ?? 0) : weightedSum(catValues?.get(r.player_id), catWeight);
       out.set(r.player_id, scaleValue(perGame, r, { restOfSeason: false }));
     }
     return out;
-  }, [rows, points, pointVals, catValues, cats]);
+  }, [rows, points, pointVals, catValues, catWeight]);
 
   const available = useMemo(
     () => (rows ?? []).filter((r) => !owner.has(r.player_id)).sort((a, b) => (valueOf.get(b.player_id) ?? 0) - (valueOf.get(a.player_id) ?? 0)),

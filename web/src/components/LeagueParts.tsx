@@ -2,6 +2,7 @@
 import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
 import {
   DEFAULT_SETTINGS,
+  FOCUS_WEIGHT,
   type Format,
   isDefaultSettings,
   type LeagueSetup,
@@ -26,8 +27,10 @@ const FORMAT_LABEL: Record<Format, string> = { roto: 'rotisserie', h2h: 'head-to
 
 export function describeSettings(s: LeagueSetup): string {
   const punts = s.scoring === 'points' ? [] : s.punts.map((c) => CATEGORY_LABELS[c] ?? c);
+  const focus = s.scoring === 'points' ? [] : s.focus.map((c) => CATEGORY_LABELS[c] ?? c);
   return `${s.teams} teams × ${s.rosterSpots}, ${SCORING_LABEL[s.scoring]}${s.format === 'h2h' ? `, ${FORMAT_LABEL[s.format]}` : ''}${
     punts.length ? `, punting ${punts.join(', ')}` : ''
+  }${focus.length ? `, focusing ${focus.join(', ')}` : ''
   }`;
 }
 
@@ -113,7 +116,7 @@ export function LeagueSettingsForm({
         {!isDefault && (
           <button
             type="button"
-            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts }))}
+            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts, focus: d.focus }))}
             className="rounded border border-line px-2 py-1 text-xs hover:bg-bg"
           >
             Reset settings
@@ -137,8 +140,36 @@ export function LeagueSettingsForm({
                   disabled={no}
                   title={no ? 'An 8-category league does not count turnovers: there is nothing to punt' : undefined}
                   onChange={() =>
-                    onChange((s) => ({ ...s, punts: s.punts.includes(c) ? s.punts.filter((x) => x !== c) : [...s.punts, c] }))
+                    onChange((s) => ({
+                      ...s,
+                      punts: s.punts.includes(c) ? s.punts.filter((x) => x !== c) : [...s.punts, c],
+                      focus: s.focus.filter((x) => x !== c),
+                    }))
                   }
+                >
+                  {CATEGORY_LABELS[c] ?? c}
+                </Chip>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
+      {setup.scoring !== 'points' && (
+        <fieldset className="grid gap-2" data-testid="league-focus">
+          <legend className="text-xs text-muted">
+            Focus: categories you build around. They count {FOCUS_WEIGHT}× in value, Fit and trades.
+          </legend>
+          <div className="flex flex-wrap gap-1">
+            {CATEGORIES.map((c) => {
+              const no = (setup.scoring === 'cats8' && c === 'z_turnovers') || setup.punts.includes(c);
+              return (
+                <Chip
+                  key={c}
+                  label={`Focus ${CATEGORY_LABELS[c] ?? c}`}
+                  checked={setup.focus.includes(c)}
+                  disabled={no}
+                  title={setup.punts.includes(c) ? 'Punted: un-punt it to focus on it' : no ? 'An 8-category league does not count turnovers' : undefined}
+                  onChange={() => onChange((s) => ({ ...s, focus: s.focus.includes(c) ? s.focus.filter((x) => x !== c) : [...s.focus, c] }))}
                 >
                   {CATEGORY_LABELS[c] ?? c}
                 </Chip>

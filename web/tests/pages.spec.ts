@@ -2174,6 +2174,20 @@ test('punts are a league setting: chosen on the League page, they reach the boar
   await expect(page.getByLabel('Punt AST')).not.toBeChecked();
 });
 
+test('focus categories are a league setting: they mark the board, name themselves in the summary, and cannot be punted at once (#680)', async ({ page }) => {
+  await page.goto('/league/');
+  await page.getByLabel('Focus REB').check({ force: true });
+  await page.getByLabel('Focus BLK').check({ force: true });
+  // punting a focus category takes it out of the focus
+  await page.getByLabel('Punt BLK').check({ force: true });
+  await expect(page.getByLabel('Focus BLK')).not.toBeChecked();
+  await expect(page.getByLabel('Focus BLK')).toBeDisabled();
+  await page.goto('/');
+  await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
+  await expect(page.getByTestId('league-summary')).toContainText('punting BLK, focusing REB');
+  await expect(page.getByTestId('focus-head')).toHaveText('REB');
+});
+
 test('every Streamers column says what it holds, and the box-score columns are the last five games (#456)', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
   const table = page.getByTestId('trending');
