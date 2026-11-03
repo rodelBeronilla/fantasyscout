@@ -1333,13 +1333,25 @@ test('rosters on the League page give the board who is available, owners, Fit an
   await expect(page.getByLabel(/Likely available/)).toHaveValue('-1');
 });
 
+/** A named player neither the board nor the market ranks among any default league's starters (#710). */
+async function deepBench(page: Page, league: 'nba' | 'wnba'): Promise<string> {
+  const rows = (await (await page.request.get(`/data/builds/fixture/board/${league}.json`)).json()) as {
+    full_name: string | null;
+    rank_total: number | null;
+    market_rank: number | null;
+  }[];
+  return rows.find((r) => r.full_name && (r.rank_total ?? 999) > 120 && (r.market_rank ?? 999) > 120)!.full_name!;
+}
+
 test('with rosters set up, the board recommends roster upgrades from the available players and applies one', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
   const rows = board.locator('tbody tr[data-player]');
   await expect(rows.first()).toBeVisible();
-  // The best player on the board and one well down it: only the second can be upgraded.
-  const [best, weak] = await Promise.all([0, 40].map((i) => rows.nth(i).locator('a').first().innerText()));
+  // The best player on the board and a deep bench player nobody ranks among the starters: only
+  // the second can be upgraded (#710).
+  const best = await rows.nth(0).locator('a').first().innerText();
+  const weak = await deepBench(page, 'wnba');
   await page.goto('/league/');
   const cards = page.getByTestId('team-card');
   await cards.nth(0).getByText('Paste a roster').click();
@@ -1369,6 +1381,7 @@ test('with rosters set up, the board recommends roster upgrades from the availab
 test('the roster review can be judged for this fantasy week: recent form over the games left', async ({ page }) => {
   // A doctored NBA board: everyone has three games left this week except the best player on the board, who has none.
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { full_name: string | null; games_this_week: number | null }[];
+  const weak = await deepBench(page, 'nba');
   let none = '';
   await page.route('**/board/nba.json', (route) =>
     route.fulfill({ json: board.map((r) => ({ ...r, games_this_week: r.full_name === none ? 0 : 3 })) }),
@@ -1376,7 +1389,7 @@ test('the roster review can be judged for this fantasy week: recent form over th
   await page.goto('/?league=nba');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');
   await expect(rows.first()).toBeVisible();
-  const [best, weak] = await Promise.all([0, 40].map((i) => rows.nth(i).locator('a').first().innerText()));
+  const best = await rows.nth(0).locator('a').first().innerText();
   none = best;
   await page.goto('/league/?league=nba');
   const cards = page.getByTestId('team-card');
@@ -1390,12 +1403,15 @@ test('the roster review can be judged for this fantasy week: recent form over th
   await expect(upgrades.getByTestId('roster-verdict')).toContainText(weak);
   await expect(upgrades.getByTestId('upgrade').first()).toContainText('rest of season');
   await expect(upgrades.getByTestId('upgrade').filter({ hasText: `for ${best}` })).toHaveCount(0);
-  // This week: the best player has no game left, so he is worth nothing this week and is the one to replace.
+  // This week: the best player has no game left and is worth nothing this week, but a star is a
+  // trade, not a drop (#710): the bench player is the one to replace, the star a trade chip.
   await upgrades.getByRole('radio', { name: 'This week' }).click();
   await expect(upgrades.getByTestId('unit-note')).toContainText('last-ten form');
-  await expect(upgrades.getByTestId('roster-verdict')).toContainText(best);
+  await expect(upgrades.getByTestId('roster-verdict')).toContainText(weak);
   await expect(upgrades.getByTestId('upgrade').first()).toContainText('this week');
-  await expect(upgrades.getByTestId('upgrade').filter({ hasText: `for ${best}` })).toContainText('0 games left');
+  await expect(upgrades.getByTestId('upgrade').filter({ hasText: `for ${best}` })).toHaveCount(0);
+  await expect(upgrades.getByTestId('roster-chips')).toContainText(best);
+  await expect(upgrades.getByTestId('roster-chips').getByRole('link', { name: 'Shop on the Trade page' })).toBeVisible();
   await upgrades.getByRole('radio', { name: 'Rest of season' }).click();
   await expect(upgrades.getByTestId('upgrade').first()).toContainText('rest of season');
   await expect(upgrades.getByTestId('unit-note')).toHaveCount(0);

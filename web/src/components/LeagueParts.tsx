@@ -294,8 +294,8 @@ export function Upgrades({
       {review.optimized ? (
         <p className="mt-1 text-sm" data-testid="roster-verdict">
           <strong>Your roster is optimized as is.</strong> No player nobody in your league owns is worth more{' '}
-          {week ? 'this week' : 'for the rest of the season'} than one of yours, under your league&apos;s scoring.
-          {review.weakest && review.weakest.add && (
+          {week ? 'this week' : 'for the rest of the season'} than one of yours you could drop, under your league&apos;s scoring.
+          {review.weakest && review.weakest.add && !review.chips.includes(review.weakest.drop) && (
             <span className="text-muted">
               {' '}
               Weakest spot: {player(review.weakest.drop)}; the best free agent, {player(review.weakest.add)}, would be{' '}
@@ -316,6 +316,26 @@ export function Upgrades({
             </span>
           ))}
           . Apply records the swap in the league kept here; make it in your league&apos;s app too.
+        </p>
+      )}
+      {review.chips.length > 0 && (
+        <p className="mt-1 text-sm" data-testid="roster-chips">
+          <span className="text-muted">Trade, don&apos;t drop: </span>
+          {review.chips.map((id, i) => (
+            <span key={id}>
+              {i > 0 ? ', ' : ''}
+              {player(id)}
+            </span>
+          ))}
+          <span className="text-muted">
+            {' '}
+            {review.chips.length === 1 ? 'adds' : 'add'} less to your build than a free agent, but other managers rank{' '}
+            {review.chips.length === 1 ? 'this player' : 'them'} among the starters.{' '}
+          </span>
+          <a href={href('/trade/')} className="underline underline-offset-4">
+            Shop on the Trade page
+          </a>
+          .
         </p>
       )}
       {week && (

@@ -356,8 +356,24 @@ export default function Board() {
       ),
     );
     const positions = new Map(rows.map((r) => [r.player_id, r.position]));
+    // Who may be dropped (#710): not a player the league or the market ranks among its starters
+    // (about six a team), whose value to other managers a drop would throw away; and in the week
+    // unit, only the two lowest-valued for the rest of the season, since one week's form is a
+    // reason to stream a bench spot, not to cut a regular.
+    const starters = setup.teams * Math.ceil(setup.rosterSpots * 0.6);
+    const byId = new Map(rows.map((r) => [r.player_id, r]));
+    const bench = new Set(
+      [...myTeam].sort((a, b) => (restValue.get(a.player_id) ?? 0) - (restValue.get(b.player_id) ?? 0)).slice(0, 2).map((r) => r.player_id),
+    );
+    const droppable = (id: string) => {
+      const r = byId.get(id);
+      const ranked = (x: number | null | undefined) => typeof x === 'number' && x <= starters;
+      if (r && (ranked(r.rank_total) || ranked(r.market_rank))) return false;
+      return !week || bench.has(id);
+    };
     return reviewRoster({
       position: (id) => positions.get(id),
+      droppable,
       mine: myTeam.map((r) => r.player_id),
       available: rows.filter((r) => !owner.has(r.player_id)).map((r) => r.player_id),
       rest: week ? weekValues : restValue,
