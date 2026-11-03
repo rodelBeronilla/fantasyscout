@@ -201,7 +201,8 @@ for lg, m in frames.items():
     ),
     (
         "code",
-        """REST = {'b2b': 'Second night of a back-to-back', 'three_in_four': 'Third game in four nights',
+        """from replay import finished, ols
+REST = {'b2b': 'Second night of a back-to-back', 'three_in_four': 'Third game in four nights',
         'opp_b2b': 'Opponent on a back-to-back', 'home': 'At home',
         'opp_def_z': 'Opponent defence, per SD (higher rating = leakier)', 'pace_z': 'Opponent pace, per SD'}
 TRAVEL = {'miles_1000': 'Travel, per 1,000 miles', 'tz_abs': 'Time zones crossed, each',
@@ -224,13 +225,6 @@ def model_rows(m, outcome):
 def design(r, feats):
     tiers = pd.get_dummies(r['tier'], drop_first=True, dtype=float)
     return np.c_[np.ones(len(r)), r[feats].to_numpy(dtype=float), tiers.to_numpy()], np.ones(len(r))
-
-
-def ols(X, y, w=None):
-    if w is not None:
-        s = np.sqrt(w)
-        X, y = X * s[:, None], y * s
-    return np.linalg.lstsq(X, y, rcond=None)[0]
 
 
 def effects(m, feats, outcome, test_season, reps=100, seed=11):
@@ -261,12 +255,6 @@ def effects(m, feats, outcome, test_season, reps=100, seed=11):
         pred_base = np.delete(Xt, range(1, len(feats) + 1), axis=1) @ base
         out['oos_r2_gain'] = 1 - ((yt - pred_full) ** 2).sum() / ((yt - pred_base) ** 2).sum()
     return out
-
-
-def finished(g):
-    seasons = sorted(g['season'].unique())
-    playoffs = set(g.loc[~g['regular'], 'season'])
-    return [s for i, s in enumerate(seasons) if s in playoffs or i < len(seasons) - 1]
 
 
 results, tests = {}, {}

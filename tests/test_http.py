@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 
 import httpx
 import pytest
@@ -33,12 +34,14 @@ class FakeTime:
 
 
 def make_client(
-    handler: object, throttle: Throttle | None = None, seed: int = 1
+    handler: Callable[[httpx.Request], httpx.Response],
+    throttle: Throttle | None = None,
+    seed: int = 1,
 ) -> tuple[ThrottledClient, FakeTime]:
     ft = FakeTime()
     client = ThrottledClient(
         throttle,
-        transport=httpx.MockTransport(handler),  # type: ignore[arg-type]
+        transport=httpx.MockTransport(handler),
         sleep=ft.sleep,
         clock=ft.clock,
         rng=random.Random(seed),
@@ -112,9 +115,11 @@ def test_rate_limit_doubles_the_gap_and_cools_down() -> None:
 
 
 def test_slow_answers_widen_the_gap() -> None:
-    client, ft = make_client(
-        lambda _: (ft.advance(4.0), httpx.Response(200, json={}))[1], Throttle.adaptive()
-    )
+    def slow(_: httpx.Request) -> httpx.Response:
+        ft.advance(4.0)
+        return httpx.Response(200, json={})
+
+    client, ft = make_client(slow, Throttle.adaptive())
     with client:
         client.get("https://stats.nba.com/stats/x")
     stats = client.pacing()["stats.nba.com"]

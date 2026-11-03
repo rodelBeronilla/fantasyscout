@@ -10,6 +10,7 @@ import pytest
 from ingest.store import (
     INDEX_NAME,
     Landing,
+    LandResult,
     LocalBackend,
     Scope,
     VolumeBackend,
@@ -21,7 +22,7 @@ SCOPE = Scope(source="stats", endpoint="leaguegamelog", league="wnba", season="2
 FETCHED = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
 
 
-def _land(landing: Landing, key: str, body: bytes):  # type: ignore[no-untyped-def]
+def _land(landing: Landing, key: str, body: bytes) -> LandResult:
     return landing.land(
         SCOPE,
         key,
@@ -233,11 +234,10 @@ def test_threaded_writes_overlap_and_failures_are_reported(tmp_path: Path) -> No
 def test_volume_writes_retry_on_rate_limiting(monkeypatch: pytest.MonkeyPatch) -> None:
     from pathlib import PurePosixPath
 
-    from ingest import store as store_mod
     from ingest.store import VolumeBackend
 
     sleeps: list[float] = []
-    monkeypatch.setattr(store_mod.time, "sleep", sleeps.append)
+    monkeypatch.setattr("ingest.store.time.sleep", sleeps.append)
     puts = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -261,10 +261,9 @@ def test_volume_writes_retry_on_rate_limiting(monkeypatch: pytest.MonkeyPatch) -
 def test_volume_writes_give_up_after_the_retries(monkeypatch: pytest.MonkeyPatch) -> None:
     from pathlib import PurePosixPath
 
-    from ingest import store as store_mod
     from ingest.store import VolumeBackend
 
-    monkeypatch.setattr(store_mod.time, "sleep", lambda _: None)
+    monkeypatch.setattr("ingest.store.time.sleep", lambda _: None)
     backend = VolumeBackend(
         "https://dbc-1.cloud.databricks.com",
         "t",

@@ -79,7 +79,7 @@ export const STATIC_HEADERS: Readonly<Record<string, string>> = {
 export const IMMUTABLE = 'public, max-age=31536000, immutable';
 
 /** Cloudflare rejects a _headers line longer than this. */
-export const HEADERS_LINE_LIMIT = 2000;
+const HEADERS_LINE_LIMIT = 2000;
 
 /**
  * The static-asset layer's _headers file: the security headers on every page, the docs' own

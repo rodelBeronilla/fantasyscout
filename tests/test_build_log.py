@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import duckdb
+import pytest
 
 from ops import build_log
+from ops.results import write_duckdb
 from tests.test_results import artifacts
 
 NOW = datetime(2026, 11, 1, 16, 30, tzinfo=UTC)
@@ -60,7 +64,7 @@ ENV = {
 }
 
 
-def _api(path: str) -> dict[str, object] | None:
+def _api(path: str) -> Mapping[str, Any] | None:
     if path.endswith("/jobs?per_page=100"):
         return JOBS
     if path.endswith("/runs/41"):
@@ -112,7 +116,7 @@ def test_statements_create_and_insert_one_row_on_duckdb(tmp_path: Path) -> None:
         ENV, api=_api, fetch_json=lambda _: MANIFEST, target_dirs=[target], now=NOW
     )
     db = tmp_path / "lake.duckdb"
-    build_log.write_duckdb(db, build_log.statements("ops", record))
+    write_duckdb(db, build_log.statements("ops", record))
     con = duckdb.connect(str(db), read_only=True)
     try:
         row = con.execute(
@@ -141,7 +145,9 @@ def test_summary_names_the_gate_the_build_the_steps_and_the_rows(tmp_path: Path)
     assert "| gold.fct_event | 900,000 |" in text
 
 
-def test_main_writes_duckdb_and_prints_the_summary(tmp_path: Path, monkeypatch, capsys) -> None:  # type: ignore[no-untyped-def]
+def test_main_writes_duckdb_and_prints_the_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     target = artifacts(tmp_path)
     for key in ENV:
         monkeypatch.delenv(key, raising=False)
@@ -184,7 +190,7 @@ def test_ingest_crons_are_read_from_the_workflow(tmp_path: Path) -> None:
 def test_collect_records_how_late_a_scheduled_trigger_fired(tmp_path: Path) -> None:
     target = artifacts(tmp_path)
 
-    def api(path: str):  # type: ignore[no-untyped-def]
+    def api(path: str) -> Mapping[str, Any] | None:
         if path.endswith("/runs/40"):
             return {"event": "schedule", "created_at": "2026-11-02T16:04:06Z"}
         return _api(path)

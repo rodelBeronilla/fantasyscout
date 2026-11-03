@@ -29,7 +29,7 @@ const RATIO: Record<string, [string, string]> = {
   z_field_goal_pct: ['proj_fgm_pg', 'proj_fga_pg'],
   z_free_throw_pct: ['proj_ftm_pg', 'proj_fta_pg'],
 };
-export const LOWER_WINS = new Set(['z_turnovers']);
+const LOWER_WINS = new Set(['z_turnovers']);
 export const isRatio = (cat: string): boolean => cat in RATIO;
 
 export interface WeekTotals {

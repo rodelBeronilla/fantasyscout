@@ -7,7 +7,7 @@ from pathlib import Path
 
 import httpx
 
-from ingest.http import Throttle, ThrottledClient
+from ingest.http import League, Throttle, ThrottledClient
 from ingest.run import RunSummary
 from ingest.store import Landing, LocalBackend
 from ingest.transactions import TransactionsIngestor, trim_movement
@@ -17,7 +17,7 @@ ESPN = (FIXTURES / "espn" / "transactions.json").read_bytes()
 MOVEMENT = (FIXTURES / "league" / "player_movement.json").read_bytes()
 
 
-def run(tmp_path: Path, league: str, now: datetime, calls: list[str]) -> RunSummary:
+def run(tmp_path: Path, league: League, now: datetime, calls: list[str]) -> RunSummary:
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request.url.host + request.url.path)
         if request.url.host == "site.api.espn.com":
@@ -33,9 +33,9 @@ def run(tmp_path: Path, league: str, now: datetime, calls: list[str]) -> RunSumm
         clock=lambda: 0.0,
         rng=random.Random(0),
     )
-    summary = RunSummary("league", league, "2026-27", now)  # type: ignore[arg-type]
+    summary = RunSummary("league", league, "2026-27", now)
     landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
-    TransactionsIngestor(client, landing, league, "2026-27", now=now).land_into(summary)  # type: ignore[arg-type]
+    TransactionsIngestor(client, landing, league, "2026-27", now=now).land_into(summary)
     landing.flush()
     return summary
 

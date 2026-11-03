@@ -8,6 +8,7 @@ to the workflow fails until the page follows.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -16,8 +17,12 @@ PAGE = (ROOT / "web" / "src" / "pages" / "pipeline" / "index.astro").read_text(e
 DIAGRAMS = (ROOT / "web" / "src" / "lib" / "pipeline-diagrams.ts").read_text(encoding="utf-8")
 
 
-def _workflow(name: str) -> dict:
-    return yaml.safe_load((ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8"))
+def _workflow(name: str) -> dict[Any, Any]:
+    """The workflow file, parsed; YAML reads the bare ``on:`` key as True."""
+    data: dict[Any, Any] = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / name).read_text(encoding="utf-8")
+    )
+    return data
 
 
 def test_the_page_names_the_ingest_schedule() -> None:

@@ -19,7 +19,7 @@ import { handleOwner, isOwner, isPrivateData, type OwnerEnv } from './owner';
 import { DOCS_CSP, NOTEBOOK_CSP, pagePolicy, STATIC_HEADERS } from './policy';
 import { handleYahoo, type YahooEnv } from './yahoo';
 
-export interface Env extends YahooEnv, OwnerEnv {
+interface Env extends YahooEnv, OwnerEnv {
   ASSETS: Fetcher;
   DATA: R2Bucket;
 }
@@ -52,7 +52,7 @@ function clientCache(key: string, isPrivate = false): string {
   return isMutable(key) ? 'public, max-age=60' : `${isPrivate ? 'private' : 'public'}, max-age=31536000, immutable`;
 }
 /** Player pages are addressed by league and id but rendered by one page. */
-export const PLAYER_PATH = /^\/p\/(wnba|nba)\/[^/]+\/?$/;
+const PLAYER_PATH = /^\/p\/(wnba|nba)\/[^/]+\/?$/;
 
 // The policies and headers live in policy.ts, shared with the static-asset layer's _headers file (#442).
 const CSP = pagePolicy(cspHashes);
@@ -366,6 +366,7 @@ async function playerPage(request: Request, env: Env, ctx: ExecutionContext, url
   return out;
 }
 
+/** The Worker itself: wrangler.toml names this module as main, so the runtime calls this export. @public */
 export default {
   async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);

@@ -8,7 +8,7 @@ from ops.plan_checks import plan, quality_checks
 
 
 def test_only_compiled_quality_tests_are_planned() -> None:
-    manifest = {
+    manifest: dict[str, object] = {
         "nodes": {
             "test.a": {
                 "resource_type": "test",

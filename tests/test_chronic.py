@@ -8,6 +8,7 @@ from pathlib import Path
 import duckdb
 
 from ops import chronic
+from ops.summary import query_duckdb
 
 
 def _results(path: Path, builds: list[dict[str, str]]) -> None:
@@ -36,7 +37,7 @@ def _results(path: Path, builds: list[dict[str, str]]) -> None:
 
 
 def _query(path: Path) -> chronic.Query:
-    return lambda sql: chronic.query_duckdb(path, sql)
+    return lambda sql: query_duckdb(path, sql)
 
 
 def test_a_check_that_warned_in_each_of_the_last_five_builds_is_chronic(tmp_path: Path) -> None:

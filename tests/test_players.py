@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import date
 from typing import Any
 
@@ -9,7 +10,7 @@ import pyarrow as pa
 import pytest
 
 from export import layout
-from export.players import BOX, PlayerFiles, assemble
+from export.players import BOX, PlayerFiles, Rows, assemble
 
 
 def _table(rows: list[dict[str, Any]]) -> pa.Table:
@@ -44,7 +45,7 @@ def _wide(columns: tuple[str, ...], **values: Any) -> dict[str, Any]:
 
 
 @pytest.fixture
-def files() -> PlayerFiles:
+def files() -> Iterator[PlayerFiles]:
     tables = {
         "dim_player": _table(
             [
@@ -305,7 +306,7 @@ def test_assemble_without_a_board_row_or_a_current_stint() -> None:
         "valid_from": None,
         "valid_to": None,
     }
-    empty: dict[str, Any] = {}
+    empty: Rows = {}
     sections = {
         name: empty
         for name in (

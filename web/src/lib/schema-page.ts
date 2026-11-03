@@ -13,7 +13,7 @@ export interface Column {
   tests: string[];
   meta?: { tz?: string; unit?: string; null_when?: string };
 }
-export interface UnitTest {
+interface UnitTest {
   name: string;
   description: string;
 }
@@ -77,7 +77,7 @@ export const described = (cols: Column[]) => cols.filter((c) => c.description.tr
 export const list = (items: string[]) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
 const numberWords = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 export const count = (n: number) => numberWords[n] ?? String(n);
-export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export const grainText = (g: { key: string; columns: string[] }) => `One row per ${list(g.columns)}`;
 
 /** The line under a model's or seed's name: how it is built and what it holds. */

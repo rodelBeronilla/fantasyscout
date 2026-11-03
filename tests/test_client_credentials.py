@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -99,7 +100,7 @@ def test_refused_credentials_fail_with_the_reason() -> None:
         auth.token()
 
 
-def test_the_backend_signs_with_the_principal_when_given_one(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_the_backend_signs_with_the_principal_when_given_one(tmp_path: Path) -> None:
     ws = Workspace()
     transport = httpx.MockTransport(ws.handler)
     auth = ClientCredentials("dbc-1.cloud.databricks.com", "a", "s", transport=transport)
@@ -109,7 +110,7 @@ def test_the_backend_signs_with_the_principal_when_given_one(tmp_path) -> None: 
     backend.close()
 
 
-def test_the_environment_picks_the_principal_then_the_token(tmp_path) -> None:  # type: ignore[no-untyped-def]
+def test_the_environment_picks_the_principal_then_the_token(tmp_path: Path) -> None:
     both = {
         "DATABRICKS_HOST": "dbc-1.cloud.databricks.com",
         "DATABRICKS_CLIENT_ID": "a",

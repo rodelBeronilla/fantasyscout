@@ -7,13 +7,13 @@
  */
 import { DEFAULT_SETTINGS, type LeagueSetup, matchNames, normalize } from './fantasy-league';
 
-export interface YahooPlayer {
+interface YahooPlayer {
   name: string;
   /** On an injured-list slot (IL, IL+), which does not take a roster spot. */
   il: boolean;
 }
 
-export interface YahooTeam {
+interface YahooTeam {
   id: number;
   name: string;
   players: YahooPlayer[];
@@ -37,7 +37,7 @@ export interface YahooPayload {
  * Util, BN, IL...): player links elsewhere on a page (news, research, suggested pickups) are not
  * the roster (#515).
  */
-export function collectYahooLeague(target: string): void {
+function collectYahooLeague(target: string): void {
   const doc = document;
   const anchors = Array.from(doc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
   const hrefOf = (a: Element) => a.getAttribute('href') || '';

@@ -9,6 +9,7 @@ import pytest
 
 from ops.results import (
     Gate,
+    ResultRow,
     _sql_literal,
     decide,
     insert_statements,
@@ -187,7 +188,10 @@ def test_a_selected_build_is_judged_with_the_quality_checks_and_says_so(tmp_path
         },
         invocation_id="0123456789ab-cdef",
     )
-    load = lambda d: load_rows(d, engine="duckdb", git_sha="abc", run_at=RUN_AT)  # noqa: E731
+
+    def load(d: Path) -> list[ResultRow]:
+        return load_rows(d, engine="duckdb", git_sha="abc", run_at=RUN_AT)
+
     rows = merge_rows(load(selected), load(quality))
     # One row per node: the closure check appears once even though both runs reported it.
     assert [r.node_id for r in rows].count("test.fantasyscout.assert_box_closure.1") == 1
@@ -273,8 +277,7 @@ def test_databricks_writer_refuses_an_empty_warehouse_and_reports_the_body(
 
     original = httpx.Client
     monkeypatch.setattr(
-        results_mod.httpx,
-        "Client",
+        "ops.results.httpx.Client",
         lambda **kw: original(transport=httpx.MockTransport(handler), **kw),
     )
     with pytest.raises(RuntimeError, match=r"HTTP 400 .*Invalid warehouse id"):

@@ -10,10 +10,10 @@ import { useEffect, useRef, useState } from 'react';
 import { absoluteBuildUrl, dataHref, getLatest, getManifest, type Latest, type Manifest } from '../lib/data';
 
 declare const __DUCKDB_VERSION__: string;
-export const DUCKDB_VERSION: string = __DUCKDB_VERSION__;
+const DUCKDB_VERSION: string = __DUCKDB_VERSION__;
 
 /** Where the deploy puts the engine files (scripts/vendor-duckdb.mjs mirrors this locally). */
-export function duckdbFile(name: string): string {
+function duckdbFile(name: string): string {
   return dataHref(`vendor/duckdb-wasm/${DUCKDB_VERSION}/${name}`);
 }
 import { href } from '../lib/site';
@@ -22,7 +22,7 @@ import { Loading, Problem, Td, Th } from './ui';
 type DuckModule = typeof import('@duckdb/duckdb-wasm');
 type Connection = import('@duckdb/duckdb-wasm').AsyncDuckDBConnection;
 
-export const SAVED_QUERIES: { title: string; sql: string }[] = [
+const SAVED_QUERIES: { title: string; sql: string }[] = [
   {
     title: 'Top usage by minutes, current WNBA season',
     sql: `select p.full_name, g.team_tricode, count(*) as games,

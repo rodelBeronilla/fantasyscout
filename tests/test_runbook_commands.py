@@ -11,7 +11,9 @@ import argparse
 import importlib
 import re
 import shlex
+from collections.abc import Sequence
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
@@ -62,7 +64,11 @@ def test_a_runbook_command_parses(command: str, monkeypatch: pytest.MonkeyPatch)
     module = importlib.import_module(module_name)
     real = argparse.ArgumentParser.parse_args
 
-    def parse_then_stop(self, args=None, namespace=None):  # type: ignore[no-untyped-def]
+    def parse_then_stop(
+        self: argparse.ArgumentParser,
+        args: Sequence[str] | None = None,
+        namespace: argparse.Namespace | None = None,
+    ) -> NoReturn:
         real(self, args, namespace)  # an unknown subcommand or flag exits here with status 2
         raise _ParsedError
 

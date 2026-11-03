@@ -39,7 +39,7 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 /** The League page's setup from a Yahoo league, with players matched to the board by name. */
-export function fromYahoo(
+function fromYahoo(
   league: League,
   data: YahooLeague,
   players: { player_id: string; full_name: string | null }[],

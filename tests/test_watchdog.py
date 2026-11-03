@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 import httpx
+import pytest
 
 from ops import watchdog
 
@@ -51,7 +53,7 @@ def test_without_a_health_file_the_season_is_unknown_and_the_in_season_limit_app
 
 def test_a_new_build_over_old_stats_is_stale_in_season() -> None:
     """#400: the evening light build is new, but the stats feed stopped landing three days ago."""
-    health = {
+    health: dict[str, Any] = {
         "feeds": [
             {
                 "league": "nba",
@@ -93,7 +95,7 @@ def test_a_new_build_over_old_stats_is_stale_in_season() -> None:
     # the off-season league and the optional feed do not count
     assert "wnba" not in verdict.line.split("old:")[1] and "Headlines" not in verdict.line
     # the same feed landed yesterday: fresh
-    health["feeds"][0]["last_landed"] = "2026-11-01"  # type: ignore[index]
+    health["feeds"][0]["last_landed"] = "2026-11-01"
     assert not watchdog.decide(_latest("2026-11-02T03:00:00+00:00"), health, NOW).stale
 
 
@@ -117,7 +119,7 @@ def test_a_naive_timestamp_is_read_as_utc() -> None:
     assert not verdict.stale and "2.0 h old" in verdict.line
 
 
-def test_check_reads_the_pointer_then_the_health_file(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_check_reads_the_pointer_then_the_health_file(monkeypatch: pytest.MonkeyPatch) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/data/latest.json":
             return httpx.Response(200, json=_latest("2026-11-02T08:00:00+00:00"))
@@ -128,27 +130,26 @@ def test_check_reads_the_pointer_then_the_health_file(monkeypatch) -> None:  # t
     transport = httpx.MockTransport(handler)
     real_client = httpx.Client
 
-    def client(**kwargs: object) -> httpx.Client:
-        return real_client(transport=transport, **kwargs)  # type: ignore[arg-type]
+    def client(**kwargs: Any) -> httpx.Client:
+        return real_client(transport=transport, **kwargs)
 
-    monkeypatch.setattr(watchdog.httpx, "Client", client)
+    monkeypatch.setattr("ops.watchdog.httpx.Client", client)
     verdict = watchdog.check("https://example.org/", NOW)
     assert not verdict.stale and "in season (nba)" in verdict.line
 
 
-def test_check_reports_a_site_that_does_not_answer(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_check_reports_a_site_that_does_not_answer(monkeypatch: pytest.MonkeyPatch) -> None:
     transport = httpx.MockTransport(lambda request: httpx.Response(503))
     real_client = httpx.Client
     monkeypatch.setattr(
-        watchdog.httpx,
-        "Client",
-        lambda **kwargs: real_client(transport=transport, **kwargs),  # type: ignore[arg-type]
+        "ops.watchdog.httpx.Client",
+        lambda **kwargs: real_client(transport=transport, **kwargs),
     )
     verdict = watchdog.check("https://example.org", NOW)
     assert verdict.stale and "no build pointer" in verdict.line
 
 
-def test_main_exit_status(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_main_exit_status(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(watchdog, "check", lambda site: watchdog.Verdict(False, "fresh"))
     assert watchdog.main(["--site", "https://example.org"]) == 0
     monkeypatch.setattr(watchdog, "check", lambda site: watchdog.Verdict(True, "stale"))

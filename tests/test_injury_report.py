@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import random
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from ingest.injury_report import (
     report_name,
     report_time,
 )
+from ingest.run import RunSummary
 from ingest.store import Landing, LocalBackend
 
 FIXTURES = Path(__file__).parent / "fixtures" / "league"
@@ -24,7 +26,7 @@ NBA_PDF = (FIXTURES / "nba_injury_report.pdf").read_bytes()
 WNBA_PDF = (FIXTURES / "wnba_injury_report.pdf").read_bytes()
 
 
-def client_for(handler) -> ThrottledClient:  # type: ignore[no-untyped-def]
+def client_for(handler: Callable[[httpx.Request], httpx.Response]) -> ThrottledClient:
     return ThrottledClient(
         Throttle(max_retries=0),
         transport=httpx.MockTransport(handler),
@@ -118,13 +120,13 @@ def test_the_nba_run_lands_the_newest_report_once_a_day(tmp_path: Path) -> None:
 
     now = datetime(2026, 10, 29, 23, 5, tzinfo=UTC)
 
-    def run() -> object:
+    def run() -> RunSummary:
         landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
         return InjuryReportIngestor(client_for(handler), landing, "nba", "2026-27", now=now).run()
 
     first = run()
     # 19:05 Eastern: the newest report, and the day's 5 pm report the calibration is built on.
-    assert first.ok and first.landed == 2 and first.games == 26  # type: ignore[attr-defined]
+    assert first.ok and first.landed == 2 and first.games == 26
     five = "Injury-Report_2026-10-29_05_00PM.pdf"
     assert calls == [
         "/nba-injury-report-2026-27-season/",
@@ -141,7 +143,7 @@ def test_the_nba_run_lands_the_newest_report_once_a_day(tmp_path: Path) -> None:
     calls.clear()
     again = run()
     # The newest report is already landed today, so the run stops there (the 5 pm one came with it).
-    assert again.ok and again.landed == 0 and again.skipped == 1  # type: ignore[attr-defined]
+    assert again.ok and again.landed == 0 and again.skipped == 1
     assert calls == ["/nba-injury-report-2026-27-season/"], (
         "the PDFs are not fetched twice in a day"
     )
@@ -213,13 +215,10 @@ def test_out_of_season_the_wnba_run_asks_for_nothing(tmp_path: Path) -> None:
 
 
 def test_old_hourly_report_names_parse_and_history_tries_the_likelier_form_first() -> None:
+    five_pm = report_time("Injury-Report_2024-03-10_05_00PM.pdf")
+    assert five_pm is not None
     assert report_time("Injury-Report_2024-03-10_05PM.pdf") == datetime(
-        2024,
-        3,
-        10,
-        17,
-        0,
-        tzinfo=report_time("Injury-Report_2024-03-10_05_00PM.pdf").tzinfo,  # type: ignore[union-attr]
+        2024, 3, 10, 17, 0, tzinfo=five_pm.tzinfo
     )
     assert history_names(date(2024, 3, 10)) == [
         "Injury-Report_2024-03-10_05PM.pdf",
@@ -239,7 +238,7 @@ def test_a_history_run_lands_one_report_per_day_and_skips_days_without_one(tmp_p
 
     now = datetime(2026, 10, 30, 12, tzinfo=UTC)
 
-    def run() -> object:
+    def run() -> RunSummary:
         landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
         return ReportHistoryIngestor(
             client_for(handler),
@@ -252,7 +251,7 @@ def test_a_history_run_lands_one_report_per_day_and_skips_days_without_one(tmp_p
         ).run()
 
     first = run()
-    assert first.ok and first.landed == 1  # type: ignore[attr-defined]
+    assert first.ok and first.landed == 1
     assert calls == [
         "Injury-Report_2024-03-09_05PM.pdf",
         "Injury-Report_2024-03-09_05_00PM.pdf",
@@ -263,4 +262,4 @@ def test_a_history_run_lands_one_report_per_day_and_skips_days_without_one(tmp_p
     )
     calls.clear()
     again = run()
-    assert again.landed == 0 and "Injury-Report_2024-03-10_05PM.pdf" not in calls  # type: ignore[attr-defined]
+    assert again.landed == 0 and "Injury-Report_2024-03-10_05PM.pdf" not in calls

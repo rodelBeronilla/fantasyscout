@@ -189,7 +189,12 @@ def test_odds_api_without_a_key_is_skipped_not_failed(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     seen: list[httpx.Request] = []
-    client = client_for(lambda r: seen.append(r) or httpx.Response(500))  # type: ignore[func-returns-value]
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(500)
+
+    client = client_for(refuse)
     summary = RunSummary("reports", "nba", "2026-27", MORNING)
     landing = Landing(LocalBackend(tmp_path), ingest_date=MORNING.date())
     OddsApiIngestor(client, landing, "nba", "2026-27", "", now=MORNING).land_into(summary)

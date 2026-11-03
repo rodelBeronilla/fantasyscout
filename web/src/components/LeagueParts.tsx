@@ -20,9 +20,9 @@ import { type TodayGame, todayGroups, type TodaySlot } from '../lib/today';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
 import { InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Td, Th } from './ui';
 
-export const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
+const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
 
-export const FORMAT_LABEL: Record<Format, string> = { roto: 'rotisserie', h2h: 'head-to-head' };
+const FORMAT_LABEL: Record<Format, string> = { roto: 'rotisserie', h2h: 'head-to-head' };
 
 export function describeSettings(s: LeagueSetup): string {
   return `${s.teams} teams × ${s.rosterSpots}, ${SCORING_LABEL[s.scoring]}${s.format === 'h2h' ? `, ${FORMAT_LABEL[s.format]}` : ''}`;

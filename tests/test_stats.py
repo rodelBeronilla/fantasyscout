@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from ingest.http import Throttle, ThrottledClient
+from ingest.http import League, Throttle, ThrottledClient
 from ingest.land import LandOptions, plan_lines
 from ingest.run import describe
 from ingest.stats import (
@@ -370,8 +370,9 @@ def test_a_finished_game_is_fetched_until_settled_then_left_alone(tmp_path: Path
 
 
 def test_usage_and_misc_game_logs_are_one_call_per_season_in_both_leagues() -> None:
-    for league, season in (("wnba", "2026"), ("nba", "2025-26")):
-        planner = StatsPlanner(league, season, "Playoffs")  # type: ignore[arg-type]
+    cases: tuple[tuple[League, str], ...] = (("wnba", "2026"), ("nba", "2025-26"))
+    for league, season in cases:
+        planner = StatsPlanner(league, season, "Playoffs")
         logs = {
             r.key: r.params for r in planner.season_requests() if r.endpoint == "playergamelogs"
         }
