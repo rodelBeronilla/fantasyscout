@@ -2010,6 +2010,34 @@ test("Trade's no-roster sentence names the manager's settings, the same summary 
   await expect(page.getByTestId('trade-no-league')).not.toContainText('9 categories');
 });
 
+test('punts are a league setting: chosen on the League page, they reach the board and the Trade page (#661)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/');
+  await page.getByLabel('Punt PTS').check({ force: true });
+  await page.getByLabel('Punt AST').check({ force: true });
+  await page.goto('/');
+  const table = page.getByTestId('board');
+  await expect(table.locator('tbody tr[data-player]').first()).toBeVisible();
+  await expect(table.locator('thead s')).toHaveCount(2);
+  await expect(page.getByTestId('league-summary')).toContainText('punting PTS, AST');
+  await expect(page).toHaveURL(/[?&]punt=pts-ast(&|$)/);
+
+  await page.goto('/trade/');
+  await page.getByLabel('Add a player you give').fill(label(board[1]!));
+  await page.getByLabel('Add a player you get').fill(label(board[0]!));
+  await expect(page.getByTestId('trade-punts')).toContainText('Punting PTS, AST');
+  await expect(page.getByTestId('trade-categories').locator('tbody tr')).toHaveCount(7);
+
+  // The board's chips edit the same setting.
+  await page.goto('/');
+  await expect(table.locator('tbody tr[data-player]').first()).toBeVisible();
+  await page.getByTestId('active-filters').getByRole('button', { name: 'Clear all' }).click();
+  await page.goto('/league/');
+  await expect(page.getByLabel('Punt PTS')).not.toBeChecked();
+  await expect(page.getByLabel('Punt AST')).not.toBeChecked();
+});
+
 test('every Streamers column says what it holds, and the box-score columns are the last five games (#456)', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
   const table = page.getByTestId('trending');

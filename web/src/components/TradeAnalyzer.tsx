@@ -6,9 +6,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, type League } from '../lib/data';
-import { CATEGORIES, CATEGORY_LABELS, fmt, pct } from '../lib/format';
+import { CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague } from '../lib/league';
-import { DEFAULT_SETTINGS, isDefaultSettings, owners, useLeague } from '../lib/fantasy-league';
+import { DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { href } from '../lib/site';
 import { nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
@@ -90,7 +90,9 @@ export default function TradeAnalyzer() {
   const byId = useMemo(() => new Map((rows ?? []).map((r) => [r.player_id, r])), [rows]);
   const pool = setup.teams * setup.rosterSpots;
   const points = setup.scoring === 'points';
-  const cats = useMemo(() => CATEGORIES.filter((c) => setup.scoring !== 'cats8' || c !== 'z_turnovers'), [setup.scoring]);
+  // The league's categories less its punts (#661): a punted category counts for nothing in a trade.
+  const cats = useMemo(() => keptCategories(setup), [setup]);
+  const punted = points ? [] : setup.punts;
   const catValues = useMemo(() => (rows && !points ? categoryValues(rows, cats, pool, setup.teams) : null), [rows, points, cats, pool, setup.teams]);
   const pointVals = useMemo(() => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null), [rows, points, pool, setup.teams, setup.weights]);
   // The week unit is offered while the week has games left; it re-measures the categories on last-ten form.
@@ -464,6 +466,12 @@ export default function TradeAnalyzer() {
                 {spots > 0
                   ? `You receive ${spots} more player${spots === 1 ? '' : 's'} than you send, so you would drop ${spots}. A dropped player is worth about replacement level, which the values above already count as zero.`
                   : `You send ${-spots} more player${-spots === 1 ? '' : 's'} than you receive, freeing ${-spots} roster spot${-spots === 1 ? '' : 's'}. The best free agent fills each at about replacement level, so the values above already allow for it.`}
+              </p>
+            )}
+            {punted.length > 0 && (
+              <p className="text-muted" data-testid="trade-punts">
+                Punting {punted.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}: values and categories leave {punted.length === 1 ? 'it' : 'them'} out
+                (change the punts on the <a href={href('/league/')} className="underline underline-offset-4">League page</a> or the board).
               </p>
             )}
             {points && (

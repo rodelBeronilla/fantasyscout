@@ -1,5 +1,5 @@
 /** League pieces shared by the League page and the board: settings, the summary bar, the draft bar, a team's profile. */
-import { CATEGORY_LABELS, fmt } from '../lib/format';
+import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
 import {
   DEFAULT_SETTINGS,
   type Format,
@@ -18,14 +18,17 @@ import { href } from '../lib/site';
 import { isRatio, type WeekMatchup } from '../lib/matchup';
 import { type TodayGame, todayGroups, type TodaySlot } from '../lib/today';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
-import { InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Td, Th } from './ui';
+import { Chip, InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Td, Th } from './ui';
 
 const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
 
 const FORMAT_LABEL: Record<Format, string> = { roto: 'rotisserie', h2h: 'head-to-head' };
 
 export function describeSettings(s: LeagueSetup): string {
-  return `${s.teams} teams × ${s.rosterSpots}, ${SCORING_LABEL[s.scoring]}${s.format === 'h2h' ? `, ${FORMAT_LABEL[s.format]}` : ''}`;
+  const punts = s.scoring === 'points' ? [] : s.punts.map((c) => CATEGORY_LABELS[c] ?? c);
+  return `${s.teams} teams × ${s.rosterSpots}, ${SCORING_LABEL[s.scoring]}${s.format === 'h2h' ? `, ${FORMAT_LABEL[s.format]}` : ''}${
+    punts.length ? `, punting ${punts.join(', ')}` : ''
+  }`;
 }
 
 const field = 'rounded border border-line bg-bg px-2 py-1';
@@ -110,13 +113,40 @@ export function LeagueSettingsForm({
         {!isDefault && (
           <button
             type="button"
-            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format }))}
+            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts }))}
             className="rounded border border-line px-2 py-1 text-xs hover:bg-bg"
           >
             Reset settings
           </button>
         )}
       </div>
+      {setup.scoring !== 'points' && (
+        <fieldset className="grid gap-2" data-testid="league-punts">
+          <legend className="text-xs text-muted">
+            Punt: categories you give up on. The board, Trade, roster upgrades and Streamers value players without them.
+          </legend>
+          <div className="flex flex-wrap gap-1">
+            {CATEGORIES.map((c) => {
+              const no = setup.scoring === 'cats8' && c === 'z_turnovers';
+              return (
+                <Chip
+                  key={c}
+                  label={`Punt ${CATEGORY_LABELS[c] ?? c}`}
+                  checked={setup.punts.includes(c)}
+                  strike
+                  disabled={no}
+                  title={no ? 'An 8-category league does not count turnovers: there is nothing to punt' : undefined}
+                  onChange={() =>
+                    onChange((s) => ({ ...s, punts: s.punts.includes(c) ? s.punts.filter((x) => x !== c) : [...s.punts, c] }))
+                  }
+                >
+                  {CATEGORY_LABELS[c] ?? c}
+                </Chip>
+              );
+            })}
+          </div>
+        </fieldset>
+      )}
       {setup.scoring === 'points' && (
         <fieldset className="grid gap-2" data-testid="point-weights">
           <legend className="text-xs text-muted">
