@@ -27,6 +27,12 @@ export interface UpgradeInput {
   limit?: number;
   /** Each player's position ("G-F"); when given, no swap leaves a position letter the roster covers uncovered (#489). */
   position?: (id: string) => string | null | undefined;
+  /**
+   * Whether a player may be dropped (#710). A player the league or the market ranks among the
+   * starters is a trade, not a drop, however little they add to the manager's build; and a week's
+   * form drops nobody but the bench's weakest. Absent, anyone may be.
+   */
+  droppable?: (id: string) => boolean;
 }
 
 export interface Upgrade {
@@ -48,26 +54,40 @@ export interface RosterReview {
   replace: string[];
   /** True when the manager has players and no available player beats one of them by the minimum gain. */
   optimized: boolean;
-  /** The manager's lowest-valued player and the best available alternative; the gap is negative when the roster holds. */
+  /** The manager's lowest-valued player who may be dropped (else the lowest) and the best available alternative; the gap is negative when the roster holds. */
   weakest: { drop: string; add: string | null; gap: number } | null;
   /** How many of the manager's players were judged. */
   rostered: number;
+  /**
+   * The manager's players a free agent beats for the build but who may not be dropped: worth
+   * more to other managers than to this build, so trade chips (#710). Lowest value first.
+   */
+  chips: string[];
 }
 
 export function reviewRoster(input: UpgradeInput): RosterReview {
   const upgrades = suggestUpgrades(input);
   const value = (id: string) => input.rest.get(id) ?? 0;
+  const keep = input.droppable;
   const mine = [...input.mine].sort((a, b) => value(a) - value(b));
   const bestAdd = [...input.available].filter((id) => value(id) > 0).sort((a, b) => value(b) - value(a))[0] ?? null;
-  const lowest = mine[0];
+  // the weakest spot is the lowest player who may go; with none, the lowest of all
+  const lowest = (keep ? mine.find((id) => keep(id)) : undefined) ?? mine[0];
   const weakest =
     lowest === undefined ? null : { drop: lowest, add: bestAdd, gap: bestAdd ? value(bestAdd) - value(lowest) : -value(lowest) };
+  // the players the free agents beat but who stay: the trade chips
+  const minGain = input.minGain ?? 0.5;
+  const chips =
+    keep && bestAdd
+      ? mine.filter((id) => !keep(id) && value(bestAdd) - value(id) >= minGain)
+      : [];
   return {
     upgrades,
     replace: upgrades.map((u) => u.drop),
     optimized: mine.length > 0 && upgrades.length === 0,
     weakest,
     rostered: mine.length,
+    chips,
   };
 }
 
@@ -86,7 +106,7 @@ export function suggestUpgrades(input: UpgradeInput): Upgrade[] {
     .filter((id) => value(id) > 0)
     .sort((a, b) => value(b) - value(a))
     .slice(0, input.candidates ?? 25);
-  const drops = [...mine].sort((a, b) => value(a) - value(b));
+  const drops = [...mine].filter((id) => !input.droppable || input.droppable(id)).sort((a, b) => value(a) - value(b));
   const before = cats.map((c) => rankOf(totals.map((t) => t[c] ?? 0), myTeam));
 
   const pairs: Upgrade[] = [];

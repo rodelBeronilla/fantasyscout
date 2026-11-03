@@ -143,3 +143,36 @@ describe('roster upgrades keep the positions covered (#489)', () => {
     ]);
   });
 });
+
+describe('a player other managers value is a trade, not a drop (#710)', () => {
+  // the manager punts what "star" is good at: for the build, a free agent beats them
+  const punted = new Map([
+    ['star', 1],
+    ['bench', 2],
+    ['free-fit', 5],
+  ]);
+  const input = {
+    mine: ['star', 'bench'],
+    available: ['free-fit'],
+    rest: punted,
+    cats: [],
+    catValue: () => undefined,
+    totals: [{}, {}],
+    myTeam: 0,
+  };
+  it('never drops a protected player, and lists them as a trade chip instead', () => {
+    expect(reviewRoster(input).upgrades.map((u) => u.drop)).toEqual(['star']);
+    const review = reviewRoster({ ...input, droppable: (id) => id !== 'star' });
+    expect(review.upgrades.map((u) => [u.add, u.drop])).toEqual([['free-fit', 'bench']]);
+    expect(review.chips).toEqual(['star']);
+  });
+  it('lists no chips when nobody is protected', () => {
+    expect(reviewRoster(input).chips).toEqual([]);
+  });
+  it('names the weakest spot among the players who may go', () => {
+    expect(reviewRoster(input).weakest?.drop).toBe('star');
+    expect(reviewRoster({ ...input, droppable: (id) => id !== 'star' }).weakest?.drop).toBe('bench');
+    // with nobody droppable, the lowest of all
+    expect(reviewRoster({ ...input, droppable: () => false }).weakest?.drop).toBe('star');
+  });
+});
