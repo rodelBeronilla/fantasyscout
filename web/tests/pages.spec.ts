@@ -173,28 +173,39 @@ test('punting a category removes it from the total', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
   await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
-  const before = await board.locator('tbody tr[data-player]').first().locator('td').nth(-2).innerText();
+  const before = await board.locator('tbody tr[data-player]').first().getByTestId('value').innerText();
   await page.getByTestId('board-options-toggle').click();
   await page.locator('fieldset label', { hasText: /^PTS$/ }).click();
-  await expect(board.locator('thead s')).toHaveText('PTS');
+  await expect(board.locator('thead [data-cat="z_points"]')).toHaveCount(0);
   await expect(page.getByTestId('active-filters')).toContainText('Punt PTS');
-  const after = await board.locator('tbody tr[data-player]').first().locator('td').nth(-2).innerText();
+  const after = await board.locator('tbody tr[data-player]').first().getByTestId('value').innerText();
   expect(after).not.toBe(before);
 });
 
-test('counting games played scales the total by the projected games share', async ({ page }) => {
+test('the visible value switch weighs a game against the season, and the schedule columns are optional (#714)', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  await expect(board.locator('thead')).toContainText('GP%');
   const first = board.locator('tbody tr[data-player]').first();
   await expect(first).toBeVisible();
+  const counted = page.getByRole('radiogroup', { name: 'Value counted' });
+  await expect(counted.getByRole('radio', { name: 'Season' })).toHaveAttribute('aria-checked', 'true');
+  // the fixture's WNBA season is over: no rest of season to count
+  await expect(counted.getByRole('radio', { name: 'Rest of season' })).toHaveCount(0);
   const name = await first.locator('a').innerText();
-  const withGames = Number(await first.locator('td').nth(-2).innerText());
-  await page.getByTestId('board-options-toggle').click();
-  await page.getByLabel('Count games played').uncheck();
+  const withGames = Number(await first.getByTestId('value').innerText());
+  await counted.getByRole('radio', { name: 'Per game' }).click();
+  await expect(page).toHaveURL(/[?&]games=0(&|$)/);
   const row = board.locator('tbody tr[data-player]', { hasText: name }).first();
-  const perGame = Number(await row.locator('td').nth(-2).innerText());
+  const perGame = Number(await row.getByTestId('value').innerText());
   expect(perGame).toBeGreaterThan(withGames);
+  await expect(page.getByTestId('view-help')).toContainText('Per game: what one game is worth');
+  // the columns lead with the value; age and games played wait behind Filters
+  await expect(board.locator('thead th').nth(2)).toContainText('Value');
+  await expect(board.locator('thead')).not.toContainText('GP%');
+  await page.getByTestId('board-options-toggle').click();
+  await page.getByLabel(/Schedule and health columns/).check();
+  await expect(board.locator('thead')).toContainText('GP%');
+  await expect(board.locator('thead')).toContainText('Age');
 });
 
 test('the footer shows the data build and links to its Data Health entry', async ({ page }) => {
@@ -443,18 +454,18 @@ test('the board switches between value, recent, projected and per-game views', a
   const board = page.getByTestId('board');
   await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   await expect(page.getByTestId('season-note')).toContainText('regular season is over');
-  await page.getByRole('radio', { name: 'Per game' }).click();
+  await page.getByRole('radio', { name: 'Season line' }).click();
   await expect(board.locator('thead')).toContainText('MIN');
-  await expect(board.locator('thead')).not.toContainText('Total');
+  await expect(board.locator('thead')).not.toContainText('Value');
   await page.getByRole('button', { name: /^PTS/ }).click();
-  const pts = (await board.locator('tbody tr[data-player] td:nth-child(8)').allInnerTexts()).map(Number);
+  const pts = (await board.locator('tbody tr[data-player] td[data-col="points_pg"]').allInnerTexts()).map(Number);
   expect(pts[0]).toBeGreaterThanOrEqual(pts[1] ?? 0);
-  await page.getByRole('radio', { name: 'Last 10 games' }).click();
-  await expect(board.locator('thead')).toContainText('Total');
+  await page.getByRole('radio', { name: 'Last 10' }).click();
+  await expect(board.locator('thead')).toContainText('Value');
   await page.getByRole('radio', { name: 'Projected line' }).click();
   await expect(board.locator('thead')).toContainText('MIN');
-  await expect(board.locator('thead')).not.toContainText('Total');
-  await expect(board.locator('tbody tr[data-player]').first().locator('td:nth-child(7)')).toHaveText(/^\d+(\.\d+)?$/);
+  await expect(board.locator('thead')).not.toContainText('Value');
+  await expect(board.locator('tbody tr[data-player]').first().locator('td[data-col="proj_minutes_pg"]')).toHaveText(/^\d+(\.\d+)?$/);
 });
 
 test('the board filters by position and shows injury tags', async ({ page }) => {
@@ -464,7 +475,7 @@ test('the board filters by position and shows injury tags', async ({ page }) => 
   await page.getByTestId('board-more').click();
   await expect(page.getByTestId('injury-tag').first()).toBeVisible();
   await page.getByLabel('Position G').check({ force: true });
-  const positions = await board.locator('tbody tr[data-player] td:nth-child(4)').allInnerTexts();
+  const positions = await board.locator('tbody tr[data-player]').getByTestId('pos').allInnerTexts();
   expect(positions.every((p) => p.includes('G'))).toBe(true);
 });
 
@@ -871,8 +882,8 @@ test('the board ranks by this season and the last twenty games, and filters to r
   const board = page.getByTestId('board');
   await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   await page.getByRole('radio', { name: 'This season' }).click();
-  await expect(board.locator('thead')).toContainText('Total');
-  await page.getByRole('radio', { name: 'Last 20 games' }).click();
+  await expect(board.locator('thead')).toContainText('Value');
+  await page.getByRole('radio', { name: 'Last 20' }).click();
   await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   await page.getByRole('radio', { name: 'Value' }).click();
   const all = await board.locator('tbody tr[data-player]').count();
@@ -911,6 +922,7 @@ test('the watchlist keeps starred players across visits, and compare lines playe
 test('the board exports what it shows as CSV', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByTestId('board').locator('tbody tr').first()).toBeVisible();
+  await page.getByTestId('board-options-toggle').click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId('board-csv').click()]);
   expect(download.suggestedFilename()).toBe('fantasyscout-wnba-board-value.csv');
   const text = await (await download.createReadStream()).toArray();
@@ -1268,7 +1280,7 @@ test('the League page sets the league the board values for, and points leagues s
   const board = page.getByTestId('board');
   const first = board.locator('tbody tr[data-player]').first();
   await expect(first).toBeVisible();
-  const before = Number(await first.locator('td').nth(-2).innerText());
+  const before = Number(await first.getByTestId('value').innerText());
   await expect(page.getByTestId('league-summary')).toHaveText('10 teams × 10, 9-cat');
   await page.getByRole('link', { name: /Set up your league/ }).click();
   await expect(page).toHaveURL(/\/league\//);
@@ -1277,12 +1289,13 @@ test('the League page sets the league the board values for, and points leagues s
   await expect(page.getByTestId('team-card')).toHaveCount(6);
   await page.goto('/');
   await expect(page.getByTestId('league-summary')).toHaveText('6 teams × 8, 9-cat');
-  const smaller = Number(await board.locator('tbody tr[data-player]').first().locator('td').nth(-2).innerText());
+  const smaller = Number(await board.locator('tbody tr[data-player]').first().getByTestId('value').innerText());
   expect(smaller).not.toBe(before);
   await page.goto('/league/');
   await page.getByLabel('Scoring').selectOption('cats8');
   await page.goto('/');
-  await expect(board.locator('thead s')).toHaveText('TO');
+  await expect(board.locator('thead [data-cat="z_turnovers"]')).toHaveCount(0);
+  await expect(board.locator('thead [data-cat]')).toHaveCount(8);
   await page.goto('/league/');
   await page.getByLabel('Scoring').selectOption('points');
   await expect(page.getByTestId('point-weights')).toBeVisible();
@@ -1502,7 +1515,7 @@ test('with rival rosters in, Fit weighs the categories by the league standings a
   await page.goto('/');
   await expect(rows.first()).toBeVisible();
   await expect(page.getByTestId('board').locator('[title*="chance of beating"]')).toHaveCount(1);
-  await expect(page.getByTestId('league-bar')).toContainText('Weakest');
+  await expect(page.getByTestId('league-bar').getByRole('link', { name: /Team 1/ })).toHaveAttribute('href', /\/team\/$/);
 });
 
 test('the Today card groups the active roster by plays, listed and no game, on My Team', async ({ page }) => {
@@ -1656,8 +1669,8 @@ test('the value view groups the board into tiers by pick and round, and ranks pl
   await expect(heads.first()).toContainText(/^Tier 1 · (pick 1 \(round 1\) · value [\d.]+$|picks 1–\d+ \(rounds? 1)/);
   expect(await heads.count()).toBeGreaterThan(1);
   await expect(page.getByTestId('tier-note')).toContainText('natural breaks');
-  await expect(board.getByTestId('pos-rank').first()).toHaveText(/^[GFC]1$/);
-  await page.getByRole('radio', { name: 'Per game' }).click();
+  await expect(board.getByTestId('pos-rank').first()).toHaveText(/^\([GFC]1\)$/);
+  await page.getByRole('radio', { name: 'Season line' }).click();
   await expect(heads).toHaveCount(0);
 });
 
@@ -2089,7 +2102,7 @@ test("the board sets the fantasy market's rank beside its own, and streamers can
   await expect(board.locator('thead')).toContainText('vs Mkt');
   const mkt = board.getByTestId('market-rank').filter({ hasText: /^9$/ });
   await expect(mkt).toHaveAttribute('title', 'Rostered in most ESPN leagues');
-  await expect(board.locator('tbody tr[data-player]').first().locator('td').nth(-2)).toHaveText(/\d/);
+  await expect(board.locator('tbody tr[data-player]').first().getByTestId('value')).toHaveText(/\d/);
   // The gap is the market's rank minus this board's rank under the league's settings, not the export's default-league gap.
   const rows = board.locator('tbody tr[data-player]');
   const at = await rows.evaluateAll((trs) => trs.findIndex((tr) => tr.querySelector('[data-testid="market-rank"]')?.textContent === '9'));
@@ -2212,7 +2225,7 @@ test('punts are a league setting: chosen on the League page, they reach the boar
   await page.goto('/');
   const table = page.getByTestId('board');
   await expect(table.locator('tbody tr[data-player]').first()).toBeVisible();
-  await expect(table.locator('thead s')).toHaveCount(2);
+  await expect(table.locator('thead [data-cat]')).toHaveCount(7);
   await expect(page.getByTestId('league-summary')).toContainText('punting PTS, AST');
   await expect(page).toHaveURL(/[?&]punt=pts-ast(&|$)/);
 
@@ -2350,9 +2363,8 @@ test('UI polish: a phone sees each value beside the name, a day without games ha
   await page.goto('/');
   const first = page.getByTestId('board').locator('tbody tr[data-player]').first();
   await expect(first).toBeVisible();
-  const badge = first.getByTestId('row-value');
-  if (page.viewportSize()!.width < 768) await expect(badge).toBeVisible();
-  else await expect(badge).toBeHidden();
+  // the value is the third column, beside the pinned name, on a phone too (#714)
+  await expect(first.getByTestId('value')).toBeInViewport();
   // the fixture's WNBA season is over: no games today, so no Today card
   await expect(page.getByTestId('today')).toHaveCount(0);
   await expect(page.locator('footer')).toContainText('any bookmaker. Sources, terms and what is published');
@@ -2583,7 +2595,7 @@ test('the board keeps its punts and filters in the URL, through a reload and a c
   await expect(page).toHaveURL(/[?&]punt=pts(&|$)/);
   await page.reload();
   await expect(page.getByTestId('active-filters')).toContainText('Punt PTS');
-  await expect(board.locator('thead s')).toHaveText('PTS');
+  await expect(board.locator('thead [data-cat="z_points"]')).toHaveCount(0);
 
   // a link someone copied: punt FT%, 20+ MPG, healthy only
   await page.goto('/?punt=ft&mpg=20&avail=healthy');
@@ -2603,8 +2615,8 @@ test('"Clear all" on the board clears every punt, not only the last', async ({ p
   await page.getByTestId('board-options-toggle').click();
   await page.locator('fieldset label', { hasText: /^PTS$/ }).click();
   await page.locator('fieldset label', { hasText: /^AST$/ }).click();
-  await expect(board.locator('thead s')).toHaveCount(2);
+  await expect(board.locator('thead [data-cat]')).toHaveCount(7);
   await page.getByTestId('active-filters').getByRole('button', { name: 'Clear all' }).click();
   await expect(page.getByTestId('active-filters')).toHaveCount(0);
-  await expect(board.locator('thead s')).toHaveCount(0);
+  await expect(board.locator('thead [data-cat]')).toHaveCount(9);
 });
