@@ -17,8 +17,9 @@ import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week
 import { DraftBar, LeagueBar, Matchup, Today, Upgrades } from './LeagueParts';
 import { easternDate, type TodayGame } from '../lib/today';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
+import type { BoardColumn, ExportedRow } from '../generated/columns';
 
-interface BoardRow {
+interface BoardRowFields {
   player_id: string;
   season: string;
   full_name: string | null;
@@ -74,6 +75,8 @@ interface BoardRow {
   proj_minutes_pg: number | null;
   [key: string]: unknown;
 }
+// Only columns the export ships (export/layout.py): a field it does not ship fails the type check (#479).
+type BoardRow = ExportedRow<BoardColumn, BoardRowFields>;
 
 type View = BoardView;
 

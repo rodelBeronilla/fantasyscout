@@ -16,8 +16,9 @@ import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week
 import { describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
 import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th } from './ui';
+import type { BoardColumn, ExportedRow } from '../generated/columns';
 
-interface PlayerRow {
+interface PlayerRowFields {
   player_id: string;
   full_name: string | null;
   position: string | null;
@@ -40,6 +41,8 @@ interface PlayerRow {
   official_report_at?: string | null;
   [key: string]: unknown;
 }
+// Only columns the export ships (export/layout.py): a field it does not ship fails the type check (#479).
+type PlayerRow = ExportedRow<BoardColumn, PlayerRowFields>;
 
 /** A player's worth under the league's settings: per game, over the season, for the rest of it, and for this fantasy week. */
 interface Value {
