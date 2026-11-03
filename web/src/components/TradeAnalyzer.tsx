@@ -11,7 +11,8 @@ import { currentLeague } from '../lib/league';
 import { DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { href } from '../lib/site';
-import { type LeagueState, leagueStandings, meaningful, tradeImpact } from '../lib/trade-impact';
+import { matchup, weekTotals } from '../lib/matchup';
+import { type LeagueState, leagueStandings, meaningful, rostersAfter, tradeImpact } from '../lib/trade-impact';
 import { median, ranks, tradeChips, tradeTargets } from '../lib/punt-chips';
 import { rivals } from '../lib/standings';
 import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
@@ -279,6 +280,25 @@ export default function TradeAnalyzer() {
   const threshold = state ? meaningful(state, setup.mine) : 0;
   const h2h = setup.format === 'h2h';
   const partnerName = setup.names[partnerTeam] ?? 'Your partner';
+
+  // This week's matchup before and after (#674): a head-to-head league with an opponent set and
+  // games left this week, on the projected line over the games left, as the board's matchup card.
+  const opponent = h2h && setup.opponent !== null && weekAvailable && state ? setup.opponent : null;
+  const weekMatch = (() => {
+    if (opponent === null || !state || !ready) return null;
+    const rowsOf = (ids: string[]) => ids.map((id) => byId.get(id)).filter((p): p is PlayerRow => !!p);
+    const sides = rostersAfter(state, setup.mine, partnerTeam, give, get);
+    const theirs = state.rosters[opponent] ?? [];
+    const before = matchup(cats, weekTotals(rowsOf(state.rosters[setup.mine] ?? []), cats), weekTotals(rowsOf(theirs), cats));
+    const after = matchup(
+      cats,
+      weekTotals(rowsOf(sides.mine.after), cats),
+      weekTotals(rowsOf(opponent === partnerTeam ? sides.partner.after : theirs), cats),
+    );
+    const flips = after.cats.filter((r) => r.result !== before.cats.find((b) => b.cat === r.cat)?.result);
+    return { before, after, flips, name: setup.names[opponent] ?? 'your opponent' };
+  })();
+  const record = (m: { wins: number; losses: number; close: number }) => `${m.wins}–${m.losses}${m.close ? `–${m.close}` : ''}`;
   const restOf = new Map([...worth].map(([id, w]) => [id, Math.max(0, pick(w))]));
   const active = (t: number) => (setup.rosters[t] ?? []).filter((id) => !setup.il.includes(id));
   const open = openSide(give, get, restOf);
@@ -679,6 +699,30 @@ export default function TradeAnalyzer() {
                     {impact.sides.mine.dropped.length > 0 && <>To make room you would drop {nameList(impact.sides.mine.dropped)}, your lowest-valued player after the trade. </>}
                     {impact.sides.mine.added.length > 0 && <>You would pick up {nameList(impact.sides.mine.added)}, the best free agent, for the open spot. </>}
                     The categories count {impact.sides.mine.dropped.length > 0 ? 'the drop' : 'the pickup'}.
+                  </p>
+                )}
+                {weekMatch && (
+                  <p data-testid="trade-week-matchup">
+                    <span className="text-muted">This week against {weekMatch.name}: </span>
+                    {record(weekMatch.before)} → <strong>{record(weekMatch.after)}</strong>
+                    <span className="text-muted"> (won–lost{weekMatch.before.close || weekMatch.after.close ? '–too close' : ''}, over the games left)</span>
+                    {weekMatch.flips.length > 0 ? (
+                      <>
+                        {'. '}
+                        {weekMatch.flips.map((r, i) => {
+                          const was = weekMatch.before.cats.find((b) => b.cat === r.cat)?.result ?? 'close';
+                          const better = (r.result === 'win' && was !== 'win') || (r.result === 'close' && was === 'loss');
+                          return (
+                            <span key={r.cat} className={better ? 'text-good' : 'text-bad'}>
+                              {i > 0 ? ', ' : ''}
+                              {CATEGORY_LABELS[r.cat] ?? r.cat} {was} → {r.result}
+                            </span>
+                          );
+                        })}
+                      </>
+                    ) : (
+                      <span className="text-muted">: no category changes hands.</span>
+                    )}
                   </p>
                 )}
                 <p data-testid="trade-partner">
