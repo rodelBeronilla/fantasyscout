@@ -149,6 +149,89 @@ function Categories({
   );
 }
 
+/**
+ * Every team with players, category by category (moved from the League page, #716): each team's
+ * value per game above replacement summed over its active roster, the top third green and the
+ * bottom third red; in a points league, its fantasy points a game.
+ */
+function LeagueTable({
+  names,
+  mine,
+  rosters,
+  il,
+  cats,
+  catValue,
+  fpts,
+}: {
+  names: string[];
+  mine: number;
+  rosters: string[][];
+  il: string[];
+  cats: string[];
+  catValue: ((id: string) => Record<string, number> | undefined) | null;
+  fpts: ((id: string) => number) | null;
+}) {
+  const teams = rosters
+    .map((roster, t) => {
+      const active = roster.filter((id) => !il.includes(id));
+      const totals = Object.fromEntries(cats.map((c) => [c, active.reduce((s, id) => s + (catValue?.(id)?.[c] ?? 0), 0)]));
+      const total = fpts ? active.reduce((s, id) => s + fpts(id), 0) : cats.reduce((s, c) => s + (totals[c] ?? 0), 0);
+      return { team: t, size: roster.length, totals, total };
+    })
+    .filter((x) => x.size > 0);
+  if (teams.length < 2) return null;
+  const n = teams.length;
+  const third = Math.max(1, Math.round(n / 3));
+  const rankOf = (get: (x: (typeof teams)[number]) => number, team: number) => 1 + teams.filter((x) => get(x) > get(teams.find((y) => y.team === team)!)).length;
+  const tone = (rank: number) => (n < 3 ? '' : rank <= third ? 'text-good' : rank > n - third ? 'text-bad' : '');
+  const label = (c: string) => CATEGORY_LABELS[c] ?? c;
+  return (
+    <Tile title="League table" id="league-table" testid="league-table">
+      <p className="mt-1 text-xs text-muted">
+        {fpts
+          ? 'Each team’s projected fantasy points a game, from its active players.'
+          : 'Each team’s value per game above replacement in every kept category, summed over its active players. Green is the top third, red the bottom third.'}
+      </p>
+      <div className="table-scroll mt-2 max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="League table">
+        <table className="w-full text-sm" data-testid="team-strength">
+          <thead>
+            <tr>
+              <Th>Team</Th>
+              <Th right>Players</Th>
+              {!fpts && cats.map((c) => <Th key={c} right>{label(c)}</Th>)}
+              <Th right>{fpts ? 'FPts/G' : 'Total'}</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...teams]
+              .sort((a, b) => b.total - a.total)
+              .map((x) => (
+                <tr key={x.team} className={`border-t border-line ${x.team === mine ? 'font-semibold' : ''}`}>
+                  <Td>{names[x.team]}</Td>
+                  <Td right>{x.size}</Td>
+                  {!fpts &&
+                    cats.map((c) => {
+                      const rank = rankOf((y) => y.totals[c] ?? 0, x.team);
+                      return (
+                        <Td key={c} right>
+                          <span className={tone(rank)} title={`Rank ${rank} of ${n}`}>
+                            {fmt(x.totals[c] ?? 0, 1)}
+                          </span>
+                        </Td>
+                      );
+                    })}
+                  <Td right>
+                    <span className={tone(rankOf((y) => y.total, x.team))}>{fmt(x.total, 1)}</span>
+                  </Td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+    </Tile>
+  );
+}
+
 export default function MyTeam() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<TeamRow[] | null>(null);
@@ -413,6 +496,16 @@ export default function MyTeam() {
           gamesOf={(id) => byId.get(id)?.games_this_week ?? 0}
         />
       )}
+
+      <LeagueTable
+        names={setup.names}
+        mine={setup.mine}
+        rosters={setup.rosters}
+        il={setup.il}
+        cats={points ? [] : activeCats}
+        catValue={leagueCats ? (id) => leagueCats.get(id) : null}
+        fpts={points && leaguePoints ? (id) => leaguePoints.get(id)?.fpts ?? 0 : null}
+      />
     </div>
   );
 }
