@@ -1,10 +1,23 @@
 /**
  * Trade suggestions: given the players a manager has fixed on one or both sides of a trade with a
- * partner, the packages from the open side's roster that make the trade about even for the rest
- * of the season, ranked by how much they lift the manager's team in the league's category ranks.
+ * partner, the packages from the open side's roster worth making. In a categories league with
+ * rival rosters in, a package must raise the manager's expected categories won (#663) and be one
+ * the partner could accept: it costs them little value, or it helps their categories too. Without
+ * that model (a points league, or no rival rosters) it must make the two sides about even in value.
  * Pure functions over per-player values, so the Trade page and tests share them.
  */
 import { keepsPositions } from './players';
+
+/** What a package does to both teams' categories, from the standings model (trade-impact.ts). */
+export interface CategoryEffect {
+  /** The manager's change in expected categories won (rotisserie: points). */
+  gain: number;
+  /** The partner's. */
+  partnerGain: number;
+  /** Categories where the manager's chance rises, and where it falls. */
+  ups: string[];
+  downs: string[];
+}
 
 export interface SuggestInput {
   /** Players already fixed on each side. At least one side must have a player. */
@@ -15,17 +28,13 @@ export interface SuggestInput {
   theirs: string[];
   /** Rest-of-season value above replacement, per player. */
   rest: Map<string, number>;
-  /** Category keys, empty for a points league. */
-  cats: string[];
-  /** Per-game category values above replacement, per player. */
-  catValue: (id: string) => Record<string, number> | undefined;
-  /** Each team's category totals before the trade (active players only). */
-  totals: Record<string, number>[];
-  myTeam: number;
-  partnerTeam: number;
+  /** The category effect of a package; absent in a points league or without rival rosters. */
+  effect?: (give: string[], get: string[]) => CategoryEffect;
+  /** The least category gain a suggestion must bring the manager. */
+  minGain?: number;
   /** The most players a suggestion adds to a side. */
   maxAdd?: number;
-  /** How far apart the sides may be, as a share of the larger side. */
+  /** How much value the partner may give up (or, without the category model, how far apart the sides may be), as a share of the larger side. */
   tolerance?: number;
   limit?: number;
   /** Each player's position ("G-F"); when given, no package leaves a position letter the manager's roster covers uncovered (#489). */
@@ -35,13 +44,10 @@ export interface SuggestInput {
 export interface Suggestion {
   give: string[];
   get: string[];
-  /** Rest-of-season value the manager gains (negative: gives up). */
+  /** Rest-of-season value the manager gains (negative: gives up); the partner gains the opposite. */
   net: number;
-  /** Ranks gained across categories, minus ranks lost. */
-  fit: number;
-  /** Categories where the manager's rank improves, and where it drops. */
-  ups: string[];
-  downs: string[];
+  /** The category effect, when the model applies. */
+  effect: CategoryEffect | null;
 }
 
 /** Every subset of `items` with 1 to `max` members. */
@@ -56,9 +62,6 @@ export function combinations<T>(items: T[], max: number): T[][] {
   return out;
 }
 
-/** 1 + the number of teams whose total beats this one. */
-const rankOf = (totals: number[], team: number) => 1 + totals.filter((v, t) => t !== team && v > (totals[team] ?? 0)).length;
-
 /** The side a suggestion fills: the one with nothing fixed, or with both fixed, the lighter one. */
 export function openSide(give: string[], get: string[], rest: Map<string, number>): 'give' | 'get' {
   if (!give.length) return 'give';
@@ -68,10 +71,11 @@ export function openSide(give: string[], get: string[], rest: Map<string, number
 }
 
 export function suggestTrades(input: SuggestInput): Suggestion[] {
-  const { give, get, rest, cats, catValue, totals, myTeam, partnerTeam } = input;
+  const { give, get, rest, effect } = input;
   const maxAdd = input.maxAdd ?? 3;
   const tolerance = input.tolerance ?? 0.15;
   const limit = input.limit ?? 8;
+  const minGain = input.minGain ?? 0.05;
   if (!give.length && !get.length) return [];
   const value = (ids: string[]) => ids.reduce((s, id) => s + Math.max(0, rest.get(id) ?? 0), 0);
 
@@ -86,31 +90,33 @@ export function suggestTrades(input: SuggestInput): Suggestion[] {
     .slice(0, 16);
   const add = give.length && get.length ? Math.min(maxAdd, 2) : maxAdd;
 
-  const before = cats.map((c) => rankOf(totals.map((t) => t[c] ?? 0), myTeam));
   const out: Suggestion[] = [];
   for (const combo of combinations(candidates, add)) {
     const g = open === 'give' ? [...give, ...combo] : give;
     const r = open === 'get' ? [...get, ...combo] : get;
     const net = value(r) - value(g);
-    const scale = Math.max(Math.abs(value(g)), Math.abs(value(r)), 1);
-    if (Math.abs(net) > tolerance * scale) continue;
+    const scale = Math.max(value(g), value(r), 1);
     if (input.position && !keepsPositions(input.mine, [...input.mine.filter((id) => !g.includes(id)), ...r], input.position)) continue;
-    const ups: string[] = [];
-    const downs: string[] = [];
-    let fit = 0;
-    cats.forEach((c, i) => {
-      const swing = r.reduce((s, id) => s + (catValue(id)?.[c] ?? 0), 0) - g.reduce((s, id) => s + (catValue(id)?.[c] ?? 0), 0);
-      const after = totals.map((t, team) => (t[c] ?? 0) + (team === myTeam ? swing : team === partnerTeam ? -swing : 0));
-      const rank = rankOf(after, myTeam);
-      const was = before[i] ?? rank;
-      fit += was - rank;
-      if (rank < was) ups.push(c);
-      else if (rank > was) downs.push(c);
-    });
-    out.push({ give: g, get: r, net, fit, ups, downs });
+    if (effect) {
+      // Worth making: the manager's categories rise. One the partner could accept: it costs them
+      // little value, or their categories rise too.
+      const e = effect(g, r);
+      if (e.gain < minGain) continue;
+      if (net > tolerance * scale && e.partnerGain < 0) continue;
+      out.push({ give: g, get: r, net, effect: e });
+    } else {
+      if (Math.abs(net) > tolerance * scale) continue;
+      out.push({ give: g, get: r, net, effect: null });
+    }
   }
-  // Best fit first; then the trade that favours the manager most; then the simpler package.
-  out.sort((a, b) => b.fit - a.fit || b.net - a.net || a.give.length + a.get.length - (b.give.length + b.get.length));
+  // The biggest category gain first (then the partner's), or without the model the trade that
+  // favours the manager most; then the simpler package.
+  const size = (s: Suggestion) => s.give.length + s.get.length;
+  out.sort((a, b) =>
+    a.effect && b.effect
+      ? b.effect.gain - a.effect.gain || b.effect.partnerGain - a.effect.partnerGain || size(a) - size(b)
+      : b.net - a.net || size(a) - size(b),
+  );
   return out.slice(0, limit);
 }
 
