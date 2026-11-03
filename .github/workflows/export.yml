@@ -80,6 +80,7 @@ jobs:
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           reader-secret: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          reader-key: ${{ secrets.CI_READER_KEY }}
           skip: ${{ inputs.skip }}
       - name: What the build carried
         if: inputs.action == 'build'
@@ -99,6 +100,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           FS_NOTEBOOK_SOURCE: published
           FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          FS_READER_KEY: ${{ secrets.CI_READER_KEY }}
           TO_BUILD: ${{ inputs.to_build }}
         run: |
           set -euo pipefail
@@ -116,6 +118,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           FS_NOTEBOOK_SOURCE: published
           FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          FS_READER_KEY: ${{ secrets.CI_READER_KEY }}
           TABLEAU_SHEET_ID: ${{ vars.TABLEAU_SHEET_ID }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           TO_BUILD: ${{ inputs.to_build }}

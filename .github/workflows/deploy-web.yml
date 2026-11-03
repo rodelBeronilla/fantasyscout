@@ -194,6 +194,8 @@ jobs:
           YAHOO_CLIENT_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
           # The owner's Yahoo account, kept as a secret (a repository variable of the same name works too).
           OWNER_YAHOO_GUID: ${{ secrets.OWNER_YAHOO_GUID }}
+          # CI's own reader key (#429): once set, the only bearer key the Parquet tables accept.
+          CI_READER_KEY: ${{ secrets.CI_READER_KEY }}
         run: |
           set -euo pipefail
           if [ -z "$YAHOO_CLIENT_ID" ] || [ -z "$YAHOO_CLIENT_SECRET" ]; then
@@ -201,8 +203,8 @@ jobs:
             exit 0
           fi
           umask 077
-          jq -n --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET" --arg owner "$OWNER_YAHOO_GUID" \
-            '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret, OWNER_YAHOO_GUID: $owner} | with_entries(select(.value != ""))' \
+          jq -n --arg id "$YAHOO_CLIENT_ID" --arg secret "$YAHOO_CLIENT_SECRET" --arg owner "$OWNER_YAHOO_GUID" --arg reader "$CI_READER_KEY" \
+            '{YAHOO_CLIENT_ID: $id, YAHOO_CLIENT_SECRET: $secret, OWNER_YAHOO_GUID: $owner, CI_READER_KEY: $reader} | with_entries(select(.value != ""))' \
             > "$RUNNER_TEMP/yahoo.json"
           npx wrangler secret bulk "$RUNNER_TEMP/yahoo.json" --env "$WRANGLER_ENV"
           rm -f "$RUNNER_TEMP/yahoo.json"

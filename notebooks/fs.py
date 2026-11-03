@@ -124,11 +124,14 @@ def connect(source: str | None = None) -> duckdb.DuckDBPyConnection:
         manifest = _get_json(f"{SITE}/data/{latest['manifest']}")
         base = f"{SITE}/data/builds/{latest['build_id']}"
         con.execute("install httpfs; load httpfs")
-        # The Parquet tables are private to the site's owner (ADR 0008). CI reads them with a key
-        # derived from the Yahoo client secret it holds; the Worker derives the same (owner.ts).
+        # The Parquet tables are private to the site's owner (ADR 0008). CI reads them with its own
+        # reader key (FS_READER_KEY, the Worker's CI_READER_KEY, #429), or, until that is set, a key
+        # derived from the Yahoo client secret (FS_READER_SECRET), as the Worker derives it (owner.ts).
+        key = os.environ.get("FS_READER_KEY", "")
         secret = os.environ.get("FS_READER_SECRET", "")
-        if secret:
+        if not key and secret:
             key = hmac.new(secret.encode(), b"fantasyscout ci reader", hashlib.sha256).hexdigest()
+        if key:
             con.execute(
                 "create secret fs_owner (type http, scope '"
                 + SITE

@@ -59,6 +59,14 @@ describe("the owner's sign-in", () => {
     expect(await isOwner(new Request(ORIGIN, { headers: { authorization: `Bearer ${key}` } }), {})).toBe(false);
   });
 
+  it("accepts only CI's own reader key once it is set (#429)", async () => {
+    const derived = await ciReaderKey('client-secret');
+    const env = { ...ENV, CI_READER_KEY: 'a-random-reader-key' };
+    expect(await isOwner(new Request(ORIGIN, { headers: { authorization: 'Bearer a-random-reader-key' } }), env)).toBe(true);
+    expect(await isOwner(new Request(ORIGIN, { headers: { authorization: `Bearer ${derived}` } }), env)).toBe(false);
+    expect(await isOwner(new Request(ORIGIN, { headers: { authorization: 'Bearer client-secret' } }), env)).toBe(false);
+  });
+
   it('reads the account from the OpenID token when Yahoo sends one', async () => {
     const claims = btoa(JSON.stringify({ sub: 'OWNERGUID', iss: 'https://api.login.yahoo.com' })).replace(/=+$/, '');
     const withIdToken = async () => Response.json({ access_token: 'a', expires_in: 3600, id_token: `eyJhbGciOiJFUzI1NiJ9.${claims}.sig` });

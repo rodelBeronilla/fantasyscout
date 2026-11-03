@@ -6,8 +6,10 @@
  *  - in a browser, after signing in with the owner's Yahoo account: the sign-in names the
  *    account (accountOf below), and only OWNER_YAHOO_GUID gets the owner's cookie
  *    (HMAC-signed, HttpOnly). No Yahoo token is kept;
- *  - in CI, with a reader key derived from the Yahoo client secret, which CI holds as an
- *    Actions secret: HMAC-SHA256(secret, "fantasyscout ci reader"), hex.
+ *  - in CI, with a reader key: CI_READER_KEY, a random key of its own (#429), when the deploy has
+ *    set it; until then, one derived from the Yahoo client secret,
+ *    HMAC-SHA256(secret, "fantasyscout ci reader"), hex. Once CI_READER_KEY is set, only it is
+ *    accepted, so the nightly jobs need not hold the Yahoo app's secret.
  *
  *   GET /auth/owner/start      -> Yahoo's OpenID sign-in, with a state value held in a cookie
  *   GET /auth/yahoo/callback   -> (with that state) check the account, set the owner's cookie
@@ -27,6 +29,8 @@ export interface OwnerEnv {
   YAHOO_CLIENT_SECRET?: string;
   /** The owner's Yahoo account id; until it is set, signing in shows the account's id. */
   OWNER_YAHOO_GUID?: string;
+  /** CI's own reader key (#429); when set, the only bearer key the Parquet tables accept. */
+  CI_READER_KEY?: string;
 }
 
 const COOKIE = 'fs_owner';
@@ -113,7 +117,7 @@ export async function isOwner(request: Request, env: OwnerEnv, now = Date.now())
   if (!creds) return false;
   const secret = creds.YAHOO_CLIENT_SECRET;
   const auth = request.headers.get('authorization');
-  if (auth?.startsWith('Bearer ')) return same(auth.slice(7), await ciReaderKey(secret), secret);
+  if (auth?.startsWith('Bearer ')) return same(auth.slice(7), env.CI_READER_KEY || (await ciReaderKey(secret)), secret);
   const guid = env.OWNER_YAHOO_GUID;
   const value = readCookie(request, COOKIE);
   if (!guid || !value) return false;

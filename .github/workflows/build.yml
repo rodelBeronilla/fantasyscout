@@ -221,6 +221,7 @@ jobs:
           cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           reader-secret: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          reader-key: ${{ secrets.CI_READER_KEY }}
           light: ${{ env.PLAN_LIGHT || 'false' }}
 
       # Tableau Public refreshes a Google Sheets source daily on its own, so the extract also goes
