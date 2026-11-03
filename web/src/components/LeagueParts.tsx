@@ -196,6 +196,7 @@ export function LeagueBar({
   myCount,
   weakest,
   weakLabel = 'Weakest',
+  quiet = false,
 }: {
   setup: LeagueSetup;
   rostered: number;
@@ -203,7 +204,28 @@ export function LeagueBar({
   weakest: string[];
   /** What the listed categories are: the manager's weakest, or the ones behind this week. */
   weakLabel?: string;
+  /** One muted line rather than a card: the board's settings line (#714). */
+  quiet?: boolean;
 }) {
+  if (quiet) {
+    return (
+      <p className="text-sm text-muted" data-testid="league-bar">
+        Valued for <span data-testid="league-summary">{describeSettings(setup)}</span>
+        {rostered > 0 ? (
+          <>
+            {' · '}
+            <a href={href('/team/')} className="text-fg underline-offset-4 hover:underline">
+              {setup.names[setup.mine]} ({myCount}/{setup.rosterSpots})
+            </a>
+          </>
+        ) : null}
+        {' · '}
+        <a href={href('/league/')} className="font-medium text-accent underline-offset-4 hover:underline">
+          {rostered > 0 ? 'Edit league' : 'Set up your league'} →
+        </a>
+      </p>
+    );
+  }
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-line bg-card px-3 py-2 text-sm" data-testid="league-bar">
       <span>

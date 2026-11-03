@@ -1,7 +1,6 @@
 ---
 import Board from '../components/Board';
 import Base from '../layouts/Base.astro';
-import { href } from '../lib/site';
 ---
 
 <Base
@@ -14,11 +13,8 @@ import { href } from '../lib/site';
     <!-- shown on a phone too: it is the page's largest early paint, and hiding it moved the LCP to
          what React renders later, over the budget (#704) -->
     <p class="mt-1 max-w-3xl text-sm text-muted">
-      Players ranked by value above replacement in your league, scored on a projected per-game line and counted over
-      the games each player is projected to play. Set up your league's size, scoring and rosters on the <a
-        href={href('/league/')}
-        class="underline underline-offset-4">League page</a
-      > to see who is still available and what your team needs.
+      Every player ranked by value above a replacement-level pickup in your league, under its size and scoring, from a
+      projected per-game line.
     </p>
     <!-- a screen tall while the island loads, so the footer starts below the fold and nothing shifts (#436) -->
     <div class="mt-6 min-h-screen">

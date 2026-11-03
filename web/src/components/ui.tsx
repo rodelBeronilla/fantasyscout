@@ -69,9 +69,9 @@ export function Th({ children, right = false, pin }: { children: ReactNode; righ
   );
 }
 
-export function Td({ children, right = false, mono = false, pin }: { children: ReactNode; right?: boolean; mono?: boolean; pin?: Pin }) {
+export function Td({ children, right = false, mono = false, pin, col }: { children: ReactNode; right?: boolean; mono?: boolean; pin?: Pin; col?: string }) {
   return (
-    <td className={`px-2 py-1.5 whitespace-nowrap ${right ? 'text-right tabular-nums' : ''} ${mono ? 'font-mono text-xs' : ''} ${pinClass(pin)}`}>
+    <td data-col={col} className={`px-2 py-1.5 whitespace-nowrap ${right ? 'text-right tabular-nums' : ''} ${mono ? 'font-mono text-xs' : ''} ${pinClass(pin)}`}>
       {children}
     </td>
   );

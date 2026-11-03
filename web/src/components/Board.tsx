@@ -85,14 +85,14 @@ const VIEWS: { id: View; label: string; help: string }[] = [
     help: 'Value per game above replacement in your league, from each player’s projected line, times the share of games they are projected to play. Zero is a player you could pick up for free.',
   },
   { id: 'season', label: 'This season', help: 'Category z-scores over this season’s games.' },
-  { id: 'last20', label: 'Last 20 games', help: 'Category z-scores over each player’s last twenty games this season.' },
-  { id: 'recent', label: 'Last 10 games', help: 'Category z-scores over each player’s last ten games this season.' },
+  { id: 'last20', label: 'Last 20', help: 'Category z-scores over each player’s last twenty games this season.' },
+  { id: 'recent', label: 'Last 10', help: 'Category z-scores over each player’s last ten games this season.' },
   {
     id: 'projected',
     label: 'Projected line',
     help: 'The per-game line the value is scored on: production per minute (seasons weighted by minutes played) times projected minutes, recent seasons counting more, starting from a replacement-level player.',
   },
-  { id: 'pergame', label: 'Per game', help: 'This season’s per-game line; percentages are makes over attempts.' },
+  { id: 'pergame', label: 'Season line', help: 'This season’s per-game line; percentages are makes over attempts.' },
 ];
 
 const LINE: { key: string; label: string; kind: 'num' | 'pct' }[] = [
@@ -112,6 +112,14 @@ const LINE: { key: string; label: string; kind: 'num' | 'pct' }[] = [
 function lineColumns(view: View): { key: string; label: string; kind: 'num' | 'pct' }[] {
   return LINE.map((c) => ({ ...c, key: view === 'projected' ? `proj_${c.key}` : c.key }));
 }
+
+/** What the value counts (#714): a game, the season's games played, or the games left. */
+type Basis = 'pergame' | 'season' | 'rest';
+const BASIS_HELP: Record<Basis, string> = {
+  pergame: 'Per game: what one game is worth, however often the player plays.',
+  season: 'Season: per game, times the share of games the player is projected to play.',
+  rest: 'Rest of season: per game, over the games left the player is expected to play.',
+};
 
 type Availability = BoardAvailability;
 type Show = 'available' | 'mine' | 'rostered' | 'all';
@@ -184,6 +192,8 @@ export default function Board() {
   const warm = useWarmUp(!!rows);
   const [compare, setCompare] = useState<string[]>([]);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  // Age, games played, games share and the schedule: an optional column set (#714)
+  const [scheduleCols, setScheduleCols] = useState(false);
   const [showChoice, setShowChoice] = useState<Show | null>(null);
   const { watched, toggleWatched } = useWatchlist(league);
   const [setup, updateLeague] = useLeague(league);
@@ -260,10 +270,6 @@ export default function Board() {
     return Object.fromEntries(activeCats.map((c) => [c, myTeam.reduce((s, r) => s + (leagueCats.get(r.player_id)?.[c] ?? 0), 0)]));
   }, [leagueCats, myTeam, activeCats]);
   const rotoWeights = useMemo(() => (teamTotals ? fitWeights(teamTotals) : null), [teamTotals]);
-  const rotoWeakest = useMemo(
-    () => (teamTotals ? Object.entries(teamTotals).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([c]) => c) : []),
-    [teamTotals],
-  );
 
   // The league standings (#662): every team's totals and the chance of beating each rival in each
   // kept category; they weigh Fit. This week's matchup and the roster's moves are on My Team.
@@ -273,10 +279,6 @@ export default function Board() {
     return leagueStandings(league, setup, activeCats, (id) => leagueCats.get(id), (id) => availability.get(id) ?? 1, meta.remaining);
   }, [rows, leagueCats, myTeam.length, setup, activeCats, league, meta.remaining]);
   const weights = standings?.weights ?? rotoWeights;
-  const weakest = useMemo(
-    () => (standings ? Object.entries(standings.chances).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([c]) => c) : rotoWeakest),
-    [standings, rotoWeakest],
-  );
 
   const scored = useMemo(
     () => scoreRows(rows ?? [], { view, points, activeCats, countGames, restOfSeason, leagueCats, leaguePoints, weights }),
@@ -347,12 +349,18 @@ export default function Board() {
   const toggleCompare = (id: string) =>
     setCompare((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length >= COMPARE_MAX ? c : [...c, id]));
   const showNext7 = !meta.complete;
+  const basis: Basis = !countGames ? 'pergame' : restOfSeason && !meta.complete ? 'rest' : 'season';
+  const setBasis = (next: Basis) => {
+    setCountGames(next !== 'pergame');
+    setRestOfSeason(next === 'rest');
+  };
   type Column = { key: string; label: string; kind: 'num' | 'pct' | 'z' | 'fpts'; category?: string };
   const categoryColumns: Column[] = isLine(view)
     ? lineColumns(view).map((c) => ({ key: c.key, label: c.label, kind: c.kind }))
     : view === 'value' && points
       ? [{ key: 'fpts', label: 'FPts/G', kind: 'fpts' }, ...lineColumns('projected').map((c) => ({ key: c.key, label: c.label, kind: c.kind }))]
-      : CATEGORIES.map((c) => ({ key: zKey(view, c), label: CATEGORY_LABELS[c] ?? c, category: c, kind: 'z' as const }));
+      : // a punted category's column goes: it would only show dashes (#714)
+        CATEGORIES.filter((c) => !punted.has(c)).map((c) => ({ key: zKey(view, c), label: CATEGORY_LABELS[c] ?? c, category: c, kind: 'z' as const }));
   /** A category cell: in the value view, measured against this league's replacement level. */
   const catValue = (row: BoardRow, c: string): number | null => {
     if (punted.has(c)) return null;
@@ -369,8 +377,8 @@ export default function Board() {
   // The market columns only when the market ranks someone: the WNBA has ownership but no draft
   // position, which left a column of dashes (#451). Its trend arrow then sits with the name tags.
   const showMarket = view === 'value' && rows.some((r) => r.market_rank != null);
-  const columns =
-    6 + (view === 'value' ? 1 : 0) + (showNext7 ? 2 : 0) + categoryColumns.length + (showFit ? 1 : 0) + (showMarket ? 2 : 0) + (isLine(view) ? 0 : 1) + 1;
+  const scheduleCount = scheduleCols ? 2 + (view === 'value' ? 1 : 0) + (showNext7 ? 2 : 0) : 0;
+  const columns = 2 + (isLine(view) ? 0 : 1) + (showMarket ? 2 : 0) + (showFit ? 1 : 0) + categoryColumns.length + scheduleCount + 1;
   const lastPick = setup.picks.at(-1);
   const ownerName = (id: string) => {
     const t = owner.get(id);
@@ -380,8 +388,6 @@ export default function Board() {
   // Filters and options behind the Filters button, each shown as a chip while it applies.
   const active: { label: string; clear: () => void }[] = [
     ...(!isLine(view) && !points ? [...punts].map((c) => ({ label: `Punt ${CATEGORY_LABELS[c] ?? c}`, clear: () => setPunts((p) => toggle(p, c)) })) : []),
-    ...(view === 'value' && !countGames ? [{ label: 'Games played not counted', clear: () => setCountGames(true) }] : []),
-    ...(view === 'value' && restOfSeason && !meta.complete ? [{ label: 'Rest of season', clear: () => setRestOfSeason(false) }] : []),
     ...(team ? [{ label: `Team ${team}`, clear: () => setTeam('') }] : []),
     ...(minGames ? [{ label: `${minGames}+ games`, clear: () => setMinGames(0) }] : []),
     ...(minMinutes ? [{ label: `${minMinutes}+ MPG`, clear: () => setMinMinutes(0) }] : []),
@@ -465,12 +471,6 @@ export default function Board() {
             <a href={href(`/p/${league}/${row.player_id}/`)} className="underline-offset-4 hover:underline">
               {row.full_name ?? row.player_id}
             </a>
-            {/* on a phone the value view's Total is off to the right: the value rides with the name (#696) */}
-            {view === 'value' && value !== null && (
-              <span className="rounded bg-bg px-1 text-xs font-semibold tabular-nums md:hidden" data-testid="row-value" title="Value">
-                {fmt(value, 1)}
-              </span>
-            )}
             {row.is_rookie && (
               <span className="rounded border border-line px-1 text-[10px] text-muted" title="Rookie">
                 R
@@ -498,37 +498,20 @@ export default function Board() {
               </span>
             )}
           </span>
+          {/* team and position ride under the name: two columns fewer before the value (#714) */}
+          <span className="block text-[11px] text-muted">
+            <span data-testid="pos">{row.position ?? '–'}</span>
+            {posRank.get(row.player_id) && (
+              <span className="ml-0.5" title="Rank among players at this position" data-testid="pos-rank">
+                ({posRank.get(row.player_id)})
+              </span>
+            )}{' '}
+            · {row.team_abbreviation ?? '–'}
+          </span>
         </Td>
-        <Td>{row.team_abbreviation ?? '–'}</Td>
-        <Td>
-          {row.position ?? '–'}
-          {posRank.get(row.player_id) && (
-            <span className="ml-1 text-[10px] text-muted" title="Rank among players at this position" data-testid="pos-rank">
-              {posRank.get(row.player_id)}
-            </span>
-          )}
-        </Td>
-        <Td right>{row.age ?? '–'}</Td>
-        <Td right>{row.games_current ?? 0}</Td>
-        {view === 'value' && <Td right>{pct(row.games_share)}</Td>}
-        {showNext7 && <Td right>{row.games_next_7 ?? 0}</Td>}
-        {showNext7 && <Td right>{row.games_this_week ?? 0}</Td>}
-        {categoryColumns.map((c) => (
-          <Td key={c.key} right>
-            {c.kind === 'fpts' ? (
-              fmt(leaguePoints?.get(row.player_id)?.fpts ?? null, 1)
-            ) : c.kind === 'z' ? (
-              <Signed value={c.category ? catValue(row, c.category) : null} />
-            ) : c.kind === 'pct' ? (
-              pct(num(row, c.key))
-            ) : (
-              fmt(num(row, c.key))
-            )}
-          </Td>
-        ))}
-        {showFit && (
-          <Td right>
-            <Signed value={fitOf.get(row.player_id) ?? null} />
+        {!isLine(view) && (
+          <Td right col="value">
+            <strong data-testid="value">{fmt(value, 2)}</strong>
           </Td>
         )}
         {showMarket && (
@@ -546,11 +529,29 @@ export default function Board() {
             </span>
           </Td>
         )}
-        {!isLine(view) && (
+        {showFit && (
           <Td right>
-            <strong>{fmt(value, 2)}</strong>
+            <Signed value={fitOf.get(row.player_id) ?? null} />
           </Td>
         )}
+        {categoryColumns.map((c) => (
+          <Td key={c.key} right col={c.key}>
+            {c.kind === 'fpts' ? (
+              fmt(leaguePoints?.get(row.player_id)?.fpts ?? null, 1)
+            ) : c.kind === 'z' ? (
+              <Signed value={c.category ? catValue(row, c.category) : null} />
+            ) : c.kind === 'pct' ? (
+              pct(num(row, c.key))
+            ) : (
+              fmt(num(row, c.key))
+            )}
+          </Td>
+        ))}
+        {scheduleCols && <Td right>{row.age ?? '–'}</Td>}
+        {scheduleCols && <Td right>{row.games_current ?? 0}</Td>}
+        {scheduleCols && view === 'value' && <Td right>{pct(row.games_share)}</Td>}
+        {scheduleCols && showNext7 && <Td right>{row.games_next_7 ?? 0}</Td>}
+        {scheduleCols && showNext7 && <Td right>{row.games_this_week ?? 0}</Td>}
         <Td>
           {/* The label pads the box to a 24 by 24 target (#457). */}
           <label className="-m-1 inline-flex cursor-pointer p-1">
@@ -575,21 +576,9 @@ export default function Board() {
           The {LEAGUE_LABEL[league]} {meta.season} regular season is over. Values project next season from this one and the two before it, for
           players on a current roster; rest-of-season ranking returns when the next schedule is out.
         </Note>
-      ) : (
-        <Note testid="season-note">
-          {LEAGUE_LABEL[league]} {meta.season}: up to {meta.maxGames} game{meta.maxGames === 1 ? '' : 's'} played and up to {meta.remaining} left
-          per team.
-          {meta.maxGames < 20 ? ' Projections count this season by games played, so a few games move a value only a little.' : ''}
-          {meta.injured ? ` ${meta.injured} players are on the current injury report.` : ''}
-        </Note>
-      )}
+      ) : null}
 
-      <LeagueBar
-        setup={setup}
-        rostered={owner.size}
-        myCount={myTeam.length}
-        weakest={view === 'value' ? weakest : []}
-      />
+      <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={[]} quiet />
       {setup.drafting && (
         <DraftBar
           setup={setup}
@@ -600,8 +589,36 @@ export default function Board() {
       )}
 
       <div className="grid gap-1">
-        <Segmented label="Value view" value={view} options={views.map((v) => ({ id: v.id, label: v.label, title: v.help }))} onChange={pickView} />
-        <p className="text-xs text-muted">{VIEWS.find((v) => v.id === view)?.help}</p>
+        <div className="flex flex-wrap items-center gap-2" data-testid="view-controls">
+          <Segmented
+            label="Rank by"
+            value={view}
+            options={views.filter((v) => !isLine(v.id)).map((v) => ({ id: v.id, label: v.label, title: v.help }))}
+            onChange={pickView}
+          />
+          {view === 'value' && (
+            <Segmented
+              label="Value counted"
+              value={basis}
+              options={[
+                { id: 'pergame' as const, label: 'Per game', title: BASIS_HELP.pergame },
+                { id: 'season' as const, label: 'Season', title: BASIS_HELP.season },
+                ...(meta.complete ? [] : [{ id: 'rest' as const, label: 'Rest of season', title: BASIS_HELP.rest }]),
+              ]}
+              onChange={setBasis}
+            />
+          )}
+          <Segmented
+            label="Stat line"
+            value={view}
+            options={views.filter((v) => isLine(v.id)).map((v) => ({ id: v.id, label: v.label, title: v.help }))}
+            onChange={pickView}
+          />
+        </div>
+        <p className="text-xs text-muted" data-testid="view-help">
+          {/* the value view: what value is, then what the switch counts, in one line */}
+          {view === 'value' ? `Value above a replacement-level pickup in your league. ${BASIS_HELP[basis]}` : VIEWS.find((v) => v.id === view)?.help}
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2" data-testid="board-filters">
@@ -640,9 +657,6 @@ export default function Board() {
           Filters{active.length ? ` (${active.length})` : ''} {optionsOpen ? '▴' : '▾'}
         </button>
         <span className="ml-auto text-sm text-muted">{ranked.length} players</span>
-        <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="board-csv">
-          Export CSV
-        </button>
       </div>
 
       {optionsOpen && (
@@ -705,9 +719,9 @@ export default function Board() {
               </label>
             </div>
           </fieldset>
-          {!isLine(view) && (
+          {!isLine(view) && !points && (
             <fieldset className="grid content-start gap-2">
-              <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">{points ? 'Value' : 'Punt (drop from the total)'}</legend>
+              <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Punt (your league&apos;s setting)</legend>
               {!points && (
                 <div className="flex flex-wrap gap-1">
                   {CATEGORIES.map((c) => (
@@ -724,20 +738,20 @@ export default function Board() {
                   ))}
                 </div>
               )}
-              {view === 'value' && (
-                <div className="flex flex-wrap items-center gap-4">
-                  <label className="flex items-center gap-2" title="Multiply value per game by the projected share of team games played">
-                    <input type="checkbox" checked={countGames} onChange={(e) => setCountGames(e.target.checked)} />
-                    Count games played
-                  </label>
-                  <label className={`flex items-center gap-2 ${meta.complete ? 'text-muted' : ''}`} title="Value above replacement × games left × availability">
-                    <input type="checkbox" checked={restOfSeason && !meta.complete} disabled={meta.complete} onChange={(e) => setRestOfSeason(e.target.checked)} />
-                    Rest of season
-                  </label>
-                </div>
-              )}
             </fieldset>
           )}
+          <fieldset className="grid content-start gap-2 md:col-span-2">
+            <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Columns and export</legend>
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={scheduleCols} onChange={(e) => setScheduleCols(e.target.checked)} />
+                Schedule and health columns (age, games played{showNext7 ? ', games in the next 7 days and this week' : ''})
+              </label>
+              <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-bg" data-testid="board-csv">
+                Export what the board shows as CSV
+              </button>
+            </div>
+          </fieldset>
         </div>
       )}
 
@@ -827,54 +841,9 @@ export default function Board() {
               <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')} pin="second">
                 Player
               </SortTh>
-              <SortTh active={sortKey === 'team'} dir={sortDir} onClick={() => sortBy('team', 'asc')}>
-                Team
-              </SortTh>
-              <SortTh active={sortKey === 'pos'} dir={sortDir} onClick={() => sortBy('pos', 'asc')}>
-                Pos
-              </SortTh>
-              <SortTh right active={sortKey === 'age'} dir={sortDir} onClick={() => sortBy('age', 'asc')}>
-                Age
-              </SortTh>
-              <SortTh right active={sortKey === 'games_current'} dir={sortDir} onClick={() => sortBy('games_current')} title="Games this season">
-                GP
-              </SortTh>
-              {view === 'value' && (
-                <SortTh right active={sortKey === 'games_share'} dir={sortDir} onClick={() => sortBy('games_share')} title="Projected share of team games played">
-                  GP%
-                </SortTh>
-              )}
-              {showNext7 && (
-                <SortTh right active={sortKey === 'games_next_7'} dir={sortDir} onClick={() => sortBy('games_next_7')} title="Team games in the next 7 days">
-                  Next 7
-                </SortTh>
-              )}
-              {showNext7 && (
-                <SortTh right active={sortKey === 'games_this_week'} dir={sortDir} onClick={() => sortBy('games_this_week')} title="Team games left this fantasy week (Monday to Sunday)">
-                  Wk
-                </SortTh>
-              )}
-              {categoryColumns.map((c) => {
-                const isPunted = !!c.category && punted.has(c.category);
-                return (
-                  <SortTh key={c.key} right active={sortKey === c.key} dir={sortDir} onClick={() => sortBy(c.key, c.label === 'TO' && c.kind !== 'z' ? 'asc' : 'desc')}>
-                    {isPunted ? <s>{c.label}</s> : c.label}
-                  </SortTh>
-                );
-              })}
-              {showFit && (
-                <SortTh
-                  right
-                  active={sortKey === 'fit'}
-                  dir={sortDir}
-                  onClick={() => sortBy('fit')}
-                  title={
-                    standings
-                      ? "Value with each category weighted by how much a gain there raises your chance of beating the league's other teams in it: close categories count most, ones won or lost against everyone by a wide margin least"
-                      : 'Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)'
-                  }
-                >
-                  Fit
+              {!isLine(view) && (
+                <SortTh right active={sortKey === 'value'} dir={sortDir} onClick={() => sortBy('value')} title={BASIS_HELP[basis]}>
+                  Value
                 </SortTh>
               )}
               {showMarket && (
@@ -899,9 +868,49 @@ export default function Board() {
                   vs Mkt
                 </SortTh>
               )}
-              {!isLine(view) && (
-                <SortTh right active={sortKey === 'value'} dir={sortDir} onClick={() => sortBy('value')}>
-                  Total
+              {showFit && (
+                <SortTh
+                  right
+                  active={sortKey === 'fit'}
+                  dir={sortDir}
+                  onClick={() => sortBy('fit')}
+                  title={
+                    standings
+                      ? "Value with each category weighted by how much a gain there raises your chance of beating the league's other teams in it: close categories count most, ones won or lost against everyone by a wide margin least"
+                      : 'Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)'
+                  }
+                >
+                  Fit
+                </SortTh>
+              )}
+              {categoryColumns.map((c) => (
+                <SortTh key={c.key} right active={sortKey === c.key} dir={sortDir} onClick={() => sortBy(c.key, c.label === 'TO' && c.kind !== 'z' ? 'asc' : 'desc')}>
+                  <span data-cat={c.category}>{c.label}</span>
+                </SortTh>
+              ))}
+              {scheduleCols && (
+                <SortTh right active={sortKey === 'age'} dir={sortDir} onClick={() => sortBy('age', 'asc')}>
+                  Age
+                </SortTh>
+              )}
+              {scheduleCols && (
+                <SortTh right active={sortKey === 'games_current'} dir={sortDir} onClick={() => sortBy('games_current')} title="Games this season">
+                  GP
+                </SortTh>
+              )}
+              {scheduleCols && view === 'value' && (
+                <SortTh right active={sortKey === 'games_share'} dir={sortDir} onClick={() => sortBy('games_share')} title="Projected share of team games played">
+                  GP%
+                </SortTh>
+              )}
+              {scheduleCols && showNext7 && (
+                <SortTh right active={sortKey === 'games_next_7'} dir={sortDir} onClick={() => sortBy('games_next_7')} title="Team games in the next 7 days">
+                  Next 7
+                </SortTh>
+              )}
+              {scheduleCols && showNext7 && (
+                <SortTh right active={sortKey === 'games_this_week'} dir={sortDir} onClick={() => sortBy('games_this_week')} title="Team games left this fantasy week (Monday to Sunday)">
+                  Wk
                 </SortTh>
               )}
               <Th>Cmp</Th>
@@ -912,9 +921,8 @@ export default function Board() {
       </div>
       {showTiers && (
         <p className="text-xs text-muted" data-testid="tier-note">
-          Tiers split the {pool} players a league of {setup.teams} teams × {setup.rosterSpots} rosters into {tiers.list.length} groups where their
-          values naturally separate (Jenks natural breaks), about one per round. Players in a tier are close in value, so when a tier is nearly gone,
-          take its last player before the drop to the next.
+          Tiers group the {pool} players a league this size rosters where their values naturally separate (natural breaks), about one per round:
+          when a tier is nearly gone, take its last player before the drop to the next.
         </p>
       )}
       {ranked.length > shown && (
