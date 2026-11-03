@@ -72,7 +72,13 @@ const optionLabel = (p: PlayerRow) => `${p.full_name ?? p.player_id} · ${p.team
 /** The figure a trade is judged on, as a short label: the rest of the season, or this fantasy week (#466). */
 const UNIT_TEXT: Record<ValueUnit, string> = { rest: 'rest of season', week: 'rest of this fantasy week' };
 
+/** The page's three tools (#720): build a trade, find one across the league, or start from the build's chips and targets. */
+type Tab = 'build' | 'find' | 'chips';
+
 export default function TradeAnalyzer() {
+  const [tab, setTab] = useState<Tab>('build');
+  // the numbers under the verdict: one card, closed until asked for, players or categories
+  const [numbers, setNumbers] = useState<'players' | 'categories'>('players');
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<PlayerRow[] | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -656,6 +662,15 @@ export default function TradeAnalyzer() {
   const rankTone = (before: number, after: number) => (after < before ? 'text-good' : after > before ? 'text-bad' : '');
   const chanceTone = (before: number, after: number) => (after - before >= 0.005 ? 'text-good' : before - after >= 0.005 ? 'text-bad' : '');
 
+  const hasChips = !!chipsAndTargets && (chipsAndTargets.chips.length > 0 || chipsAndTargets.targets.length > 0);
+  const tabs: { id: Tab; label: string; title: string }[] = [
+    { id: 'build', label: 'Build', title: 'Pick the players each side gives and see the verdict' },
+    ...(standings ? [{ id: 'find' as const, label: 'Find', title: 'Trades across your league that win you categories' }] : []),
+    ...(hasChips ? [{ id: 'chips' as const, label: 'Chips & targets', title: 'Players worth more to others, and to you, under your punts' }] : []),
+  ];
+  // a tab whose tool has gone (no rival rosters, no punts) falls back to Build
+  const current: Tab = tabs.some((x) => x.id === tab) ? tab : 'build';
+
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
 
@@ -669,12 +684,20 @@ export default function TradeAnalyzer() {
         </p>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {sideCard('give', 'You give', hasRosters ? setup.mine : null, give)}
-        {sideCard('get', 'You get', hasRosters ? partnerTeam : null, get)}
-      </div>
+      {tabs.length > 1 && (
+        <div className="-mb-2" data-testid="trade-tabs">
+          <Segmented label="Trade tools" value={current} options={tabs} onChange={setTab} />
+        </div>
+      )}
 
-      {!ready && standings && (
+      {current === 'build' && (
+        <div className="grid gap-6 md:grid-cols-2">
+          {sideCard('give', 'You give', hasRosters ? setup.mine : null, give)}
+          {sideCard('get', 'You get', hasRosters ? partnerTeam : null, get)}
+        </div>
+      )}
+
+      {current === 'find' && standings && (
         <Card title="Trades across your league" id="finder">
           <label className="mb-2 flex items-center gap-2 text-sm" title="Both teams' expected categories must rise">
             <input type="checkbox" checked={winWin} onChange={(e) => setWinWin(e.target.checked)} data-testid="win-win" />
@@ -720,6 +743,7 @@ export default function TradeAnalyzer() {
                       setPartner(t.partner);
                       setGive(t.give);
                       setGet(t.get);
+                      setTab('build');
                     }}
                   >
                     Use this trade
@@ -743,7 +767,7 @@ export default function TradeAnalyzer() {
         </Card>
       )}
 
-      {!ready && chipsAndTargets && (chipsAndTargets.chips.length > 0 || chipsAndTargets.targets.length > 0) && (
+      {current === 'chips' && hasChips && (
         <Card title="Trade chips and targets for your punt" id="chips">
           <p className="mb-3 text-sm text-muted">
             Punting {punted.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}, you rank players differently from the rest of your league. For you: the
@@ -760,7 +784,14 @@ export default function TradeAnalyzer() {
                       <span className="text-xs text-muted">
                         #{v.league} on value, #{v.build} for you
                       </span>
-                      <button type="button" className={button} onClick={() => add('give', v.id)}>
+                      <button
+                        type="button"
+                        className={button}
+                        onClick={() => {
+                          add('give', v.id);
+                          setTab('build');
+                        }}
+                      >
                         Offer
                       </button>
                     </li>
@@ -789,6 +820,7 @@ export default function TradeAnalyzer() {
                           const t = owner.get(v.id);
                           if (t !== undefined) setPartner(t);
                           add('get', v.id);
+                          setTab('build');
                         }}
                       >
                         Ask for
@@ -809,7 +841,7 @@ export default function TradeAnalyzer() {
         </Card>
       )}
 
-      {ready && (
+      {current === 'build' && ready && (
         <Card title="Verdict" id="verdict">
           {weekAvailable && (
             <div className="mb-2">
@@ -1094,7 +1126,7 @@ export default function TradeAnalyzer() {
         </Card>
       )}
 
-      {ready && hasRosters && (
+      {current === 'build' && ready && hasRosters && (
         <Card title="Suggested trades" id="suggestions">
           {standings && (
             <label className="mb-2 flex items-center gap-2 text-sm" title="Both teams' expected categories must rise">
@@ -1199,7 +1231,7 @@ export default function TradeAnalyzer() {
         </Card>
       )}
 
-      {ready && !hasRosters && nearest.length > 0 && (
+      {current === 'build' && ready && !hasRosters && nearest.length > 0 && (
         <Card title="Players worth about the same" id="suggestions">
           <ul className="flex flex-wrap gap-1" data-testid="trade-nearest">
             {nearest.map(({ id, diff }) => (
@@ -1217,8 +1249,25 @@ export default function TradeAnalyzer() {
         </Card>
       )}
 
-      {ready && (
-        <Card title="The players" id="players">
+      {current === 'build' && ready && (
+        <details className="rounded-lg border border-line bg-card p-3" data-testid="trade-numbers">
+          <summary className="cursor-pointer text-sm font-medium tracking-wide text-muted uppercase">
+            The numbers: {points ? 'the players' : change ? 'the players and your categories' : 'the players and the categories'}
+          </summary>
+          {!points && (
+            <div className="mt-2">
+              <Segmented
+                label="The numbers"
+                value={numbers}
+                options={[
+                  { id: 'players', label: 'Players' },
+                  { id: 'categories', label: change ? 'Your categories' : 'Categories' },
+                ]}
+                onChange={setNumbers}
+              />
+            </div>
+          )}
+          <div className={`mt-2 ${numbers === 'players' || points ? '' : 'hidden'}`} id="players">
           <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="The players">
             <table className="w-full text-sm" data-testid="trade-players">
               <thead>
@@ -1266,11 +1315,9 @@ export default function TradeAnalyzer() {
               ? 'The season is over: Next season counts those games under the projection.'
               : 'Available: the share of the remaining games the player is expected to play. Season and rest of season count those games.'}
           </p>
-        </Card>
-      )}
-
-      {ready && !points && (
-        <Card title={change ? 'Your team, category by category' : 'Category by category'} id="categories">
+          </div>
+          {!points && (
+            <div className={`mt-2 ${numbers === 'categories' ? '' : 'hidden'}`} id="categories">
           <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Category by category">
             <table className="w-full text-sm" data-testid="trade-categories">
               <thead>
@@ -1352,7 +1399,9 @@ export default function TradeAnalyzer() {
                 ? ' Your team’s totals and its rank among the league’s teams, before and after: a trade that drops a category you already lose costs little, and one that lifts a category you are close in can swing it.'
                 : ' Set up your league’s rosters to see your team’s totals and ranks before and after.'}
           </p>
-        </Card>
+            </div>
+          )}
+        </details>
       )}
     </div>
   );
