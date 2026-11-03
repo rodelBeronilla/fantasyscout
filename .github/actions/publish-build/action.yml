@@ -14,8 +14,13 @@ inputs:
   cloudflare-account-id:
     required: true
   reader-secret:
-    description: The secret the notebooks present to read the staged build's private files
-    required: true
+    description: The Yahoo client secret, from which the reader key is derived until reader-key is set
+    required: false
+    default: ""
+  reader-key:
+    description: CI's own reader key for the staged build's private files (CI_READER_KEY, #429)
+    required: false
+    default: ""
   skip:
     description: Tables to leave out of the export, comma-separated
     required: false
@@ -71,6 +76,7 @@ runs:
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         FS_NOTEBOOK_SOURCE: published
         FS_READER_SECRET: ${{ inputs.reader-secret }}
+        FS_READER_KEY: ${{ inputs.reader-key }}
         FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         LIGHT: ${{ inputs.light }}
       run: |
@@ -109,6 +115,7 @@ runs:
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         FS_NOTEBOOK_SOURCE: published
         FS_READER_SECRET: ${{ inputs.reader-secret }}
+        FS_READER_KEY: ${{ inputs.reader-key }}
         FS_BUILD_ID: ${{ steps.export.outputs.build_id }}
         LIGHT: ${{ inputs.light }}
       run: |

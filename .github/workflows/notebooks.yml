@@ -34,6 +34,7 @@ jobs:
         env:
           FS_NOTEBOOK_SOURCE: published
           FS_READER_SECRET: ${{ secrets.YAHOO_CLIENT_SECRET }}
+          FS_READER_KEY: ${{ secrets.CI_READER_KEY }}
           FS_BUILD_ID: ${{ inputs.build_id }}
         run: uv run jupyter nbconvert --to html --execute --output-dir _build --ExecutePreprocessor.timeout=1800 *.ipynb
       - name: Print the findings
