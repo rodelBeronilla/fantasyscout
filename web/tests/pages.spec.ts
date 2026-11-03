@@ -993,7 +993,9 @@ test('/trade/ has no accessibility violations once a trade is on the page', asyn
   await page.goto('/trade/');
   await page.getByLabel('Add a player you give').fill(label(board[0]!));
   await page.getByLabel('Add a player you get').fill(label(board[1]!));
-  await expect(page.locator('main table').first()).toBeVisible();
+  // the numbers card opens on its players table (#720)
+  await page.getByTestId('trade-numbers').locator('summary').click();
+  await expect(page.getByTestId('trade-players')).toBeVisible();
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(results.violations).toEqual([]);
 });
@@ -1219,6 +1221,7 @@ test('the trade finder lists trades across the league that win the manager categ
     for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
   }
   await page.goto('/trade/');
+  await page.getByTestId('trade-tabs').getByRole('radio', { name: 'Find' }).click();
   const finder = page.locator('#finder');
   await expect(finder).toContainText('every team');
   // the fixture's best trades pay Team 2 in value, not categories: win-win only finds none
@@ -1231,8 +1234,9 @@ test('the trade finder lists trades across the league that win the manager categ
   await found.first().getByRole('button', { name: 'Use this trade' }).click();
   await expect(page.getByTestId('picked-give').locator('li').first()).toBeVisible();
   await expect(page.getByTestId('trade-category-verdict')).toContainText('Wins you categories');
-  // with a trade on the page the finder steps aside
+  // using a found trade goes back to Build
   await expect(finder).toHaveCount(0);
+  await expect(page.getByTestId('trade-tabs').getByRole('radio', { name: 'Build' })).toHaveAttribute('aria-checked', 'true');
 });
 
 test('with punts set, the Trade page lists the chips the league ranks above the build, and offers one (#671)', async ({ page }) => {
@@ -1245,6 +1249,7 @@ test('with punts set, the Trade page lists the chips the league ranks above the 
     for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
   }
   await page.goto('/trade/');
+  await page.getByTestId('trade-tabs').getByRole('radio', { name: 'Chips & targets' }).click();
   const chips = page.getByTestId('trade-chips');
   await expect(chips.locator('li').first()).toContainText(/#\d+ on value, #\d+ for you/);
   // the league's best player stays on top for any build: never a chip
