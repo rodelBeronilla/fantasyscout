@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import { DataUnavailableError, NoBuildError } from '../lib/data';
 import { day, easternClock } from '../lib/format';
+import { easternDate } from '../lib/today';
 
 export function Loading({ what }: { what: string }) {
   return (
@@ -230,20 +231,22 @@ export function Star({ on, label, onToggle }: { on: boolean; label: string; onTo
   );
 }
 
+// Built once (#557): a formatter per call cost a slow phone a tenth of a second across the board's rows.
+const LINEUP_DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
+
 /** The day a lineup role is for: "today", or the weekday and date of the next game day. */
 export function lineupDay(date: string | null | undefined): string {
   if (!date) return 'today';
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  if (date === today) return 'today';
-  const d = new Date(`${date}T12:00:00Z`);
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  if (date === easternDate()) return 'today';
+  return LINEUP_DAY.format(new Date(`${date}T12:00:00Z`));
 }
 
 /** The weekday of a lineup's game day for a tag ("TODAY", "THU"). */
 function lineupDayShort(date: string | null | undefined): string {
   const when = lineupDay(date);
   if (when === 'today') return 'TODAY';
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }).toUpperCase();
+  return WEEKDAY.format(new Date(`${date}T12:00:00Z`)).toUpperCase();
 }
 
 /**

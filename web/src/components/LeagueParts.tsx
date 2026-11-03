@@ -433,12 +433,15 @@ export interface TodayRow extends InjuryFields {
   lineup_date?: string | null;
 }
 
+// Built once, as in lib/format.ts (#557); tip-off times in the visitor's own zone.
+const TODAY_DAY = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
+const LOCAL_TIME = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' });
+
 /** The manager's game day (#464): who plays today, who is listed, who has no game. */
 export function Today({ league, players, games, date }: { league: League; players: TodayRow[]; games: TodayGame[]; date: string }) {
   const { plays, listed, idle, leagueGames } = todayGroups(players, games, date);
-  const day = new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'UTC' });
-  const time = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+  const day = TODAY_DAY.format(new Date(`${date}T12:00:00Z`));
+  const time = (iso: string | null) => (iso ? LOCAL_TIME.format(new Date(iso)) : '');
   const line = (s: TodaySlot<TodayRow>) => (
     <li key={s.player.player_id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5" data-player={s.player.player_id}>
       <a href={href(`/p/${league}/${s.player.player_id}/`)} className="font-medium underline-offset-4 hover:underline">

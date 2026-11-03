@@ -30,9 +30,11 @@ export interface TodaySlot<P> {
 /** On the report and not expected to play normally: the group a manager checks before lineups lock. */
 const LISTED = new Set(['out', 'doubtful', 'questionable', 'day_to_day']);
 
+const EASTERN_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
+
 /** Today's date in Eastern time, as YYYY-MM-DD. */
 export function easternDate(now: Date = new Date()): string {
-  return now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  return EASTERN_DATE.format(now);
 }
 
 export function todayGroups<P extends TodayPlayer>(

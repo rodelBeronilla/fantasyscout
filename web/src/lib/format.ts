@@ -15,32 +15,32 @@ export function int(value: number | null | undefined): string {
   return Math.round(value).toLocaleString('en-US');
 }
 
+// One formatter per format, built once: toLocaleDateString and its kin with options build a new
+// Intl.DateTimeFormat on every call, which cost a slow phone about 0.45 s across the board's first
+// rows (#557). The output is the same.
+const EASTERN_CLOCK = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
+const DAY = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const WHEN = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC', hour12: false });
+
 /** An instant as the Eastern wall clock, "18:45": the report time is published in UTC (#387). */
 export function easternClock(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso.slice(11, 16);
-  return d.toLocaleTimeString('en-GB', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false });
+  return EASTERN_CLOCK.format(d);
 }
 
 export function day(value: string | null | undefined): string {
   if (!value) return '–';
   const d = new Date(value.length === 10 ? `${value}T00:00:00Z` : value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  return DAY.format(d);
 }
 
 export function when(value: string | null | undefined): string {
   if (!value) return '–';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'UTC',
-    hour12: false,
-  }) + ' UTC';
+  return WHEN.format(d) + ' UTC';
 }
 
 export const CATEGORY_LABELS: Record<string, string> = {

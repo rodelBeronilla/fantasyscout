@@ -269,13 +269,17 @@ function addDays(iso: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Built once, as in lib/format.ts (#557).
+const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
+const DAY_LABEL = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+
 function weekday(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+  return WEEKDAY.format(new Date(`${iso}T00:00:00Z`));
 }
 
 /** "Mon, Nov 9". */
 function dayLabel(iso: string): string {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  return DAY_LABEL.format(new Date(`${iso}T00:00:00Z`));
 }
 
 /** A period of the manager's own (#523): any start and end day, kept in the URL (?from=&to=) so it can be shared. */
