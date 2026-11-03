@@ -16,24 +16,29 @@ interface Props {
 const { title, description, preload } = Astro.props;
 const currentBase = href('data/current/');
 
-// The nav: the Board on its own, every other page under a header. A header opens as a dropdown
-// (a details element, so it works without script); the header of the current page is bold, and a
-// small script keeps one dropdown open at a time and closes it on a click elsewhere.
+// The nav (#724): the fantasy pages flat, in the order a manager uses them, and the pages about the
+// data under one header. The header opens as a dropdown (a details element, so it works without
+// script); it is bold on its own pages, and a small script keeps it closed on a click elsewhere.
 const nav: { label: string; path?: string; items?: readonly (readonly [string, string])[] }[] = [
-  { label: 'Board', path: '/' },
+  { label: 'Rankings', path: '/' },
   { label: 'My Team', path: '/team/' },
-  // League leads Tools: the Board, Streamers and Trade all send a manager there to set up their league (#452).
-  { label: 'Tools', items: [['League', '/league/'], ['Pickups', '/streamers/'], ['Trade', '/trade/'], ['Draft', '/draft/']] },
-  { label: 'Analysis', items: [['Notes', '/notes/'], ['Notebooks', '/notebooks/'], ['Dashboards', '/dashboards/']] },
+  { label: 'Trade', path: '/trade/' },
+  { label: 'Pickups', path: '/streamers/' },
+  { label: 'League', path: '/league/' },
+  { label: 'Draft', path: '/draft/' },
+  { label: 'Notes', path: '/notes/' },
   {
-    label: 'Platform',
+    label: 'Behind the data',
     items: [
+      ['Notebooks', '/notebooks/'],
+      ['Dashboards', '/dashboards/'],
       ['Data Health', '/health/'],
       ['Pipeline', '/pipeline/'],
       ['Schema', '/schema/'],
       ['Docs', '/docs/'],
       // The console loads the full tables, which only the site's owner may read (ADR 0008).
       ['SQL console (owner only)', '/sql/'],
+      ['Sources and terms', '/sources/'],
     ],
   },
 ];

@@ -1016,36 +1016,33 @@ test('/trade/ has no accessibility violations once a trade is on the page', asyn
   expect(results.violations).toEqual([]);
 });
 
-test('every page but the Board sits under a nav header, and the header opens on its pages', async ({ page }) => {
+test('the fantasy pages sit flat in the nav, the data pages under one header that opens on its pages (#724)', async ({ page }) => {
   await page.goto('/');
   const nav = page.getByRole('navigation', { name: 'Primary' });
-  await expect(nav.getByRole('link', { name: 'Board' })).toHaveAttribute('href', '/');
-  for (const [header, items] of [
-    ['tools', ['League', 'Pickups', 'Trade', 'Draft']],
-    ['analysis', ['Notebooks', 'Dashboards']],
-    ['platform', ['Data Health', 'Pipeline', 'Schema', 'Docs (opens in a new tab)', 'SQL console (owner only)']],
-  ] as const) {
-    const group = page.getByTestId(`nav-${header}`);
-    await expect(group).not.toHaveAttribute('open', '');
-    await group.locator('summary').click();
-    for (const item of items) await expect(group.getByRole('link', { name: item, exact: true })).toBeVisible();
+  const flat = ['Rankings', 'My Team', 'Trade', 'Pickups', 'League', 'Draft', 'Notes'];
+  for (const name of flat) await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'Rankings', exact: true })).toHaveAttribute('aria-current', 'page');
+  const data = page.getByTestId('nav-behind-the-data');
+  await expect(data).not.toHaveAttribute('open', '');
+  await data.locator('summary').click();
+  for (const item of ['Notebooks', 'Dashboards', 'Data Health', 'Pipeline', 'Schema', 'Docs (opens in a new tab)', 'SQL console (owner only)', 'Sources and terms']) {
+    await expect(data.getByRole('link', { name: item, exact: true })).toBeVisible();
   }
-  // Opening one header closes the others, and a click elsewhere closes them all.
-  await expect(page.getByTestId('nav-tools')).not.toHaveAttribute('open', '');
-  await expect(page.getByTestId('nav-platform')).toHaveAttribute('open', '');
-  await page.locator('main h1').click();
-  await expect(page.getByTestId('nav-platform')).not.toHaveAttribute('open', '');
-  // Nothing in the nav is "coming soon": League works today and every page sends managers to it (#452).
+  // it stays on the screen, and a click elsewhere closes it
+  const box = (await data.locator('ul').boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await page.locator('footer').click();
+  await expect(data).not.toHaveAttribute('open', '');
+  // Nothing in the nav is "coming soon": every page there works today (#452).
   await expect(nav).not.toContainText('Coming soon');
-  // The header of the current page is marked, not opened over the page.
+  // a flat page is marked as current; the header of a data page is marked, not opened over the page
   await page.goto('/trade/');
-  const tools = page.getByTestId('nav-tools');
-  await expect(tools).toHaveAttribute('data-current', 'true');
-  await expect(tools).not.toHaveAttribute('open', '');
-  await tools.locator('summary').click();
-  await expect(tools.getByRole('link', { name: 'Trade' })).toHaveAttribute('aria-current', 'page');
-  await page.goto('/league/');
-  await expect(page.getByTestId('nav-tools')).toHaveAttribute('data-current', 'true');
+  await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Trade', exact: true })).toHaveAttribute('aria-current', 'page');
+  await page.goto('/schema/');
+  const header = page.getByTestId('nav-behind-the-data');
+  await expect(header).toHaveAttribute('data-current', 'true');
+  await expect(header).not.toHaveAttribute('open', '');
 });
 
 test('on a phone, tapping the Yahoo bookmark link copies its code and shows the steps', async ({ page, context, browserName }) => {
@@ -2621,7 +2618,7 @@ test("streamers tags a candidate whose team's top-usage teammate is out", async 
 // line says who posted it and when (#462).
 test('the docs open in a new tab and the line cells name their provider and date', async ({ page }) => {
   await page.goto('/');
-  await page.getByTestId('nav-platform').locator('summary').click();
+  await page.getByTestId('nav-behind-the-data').locator('summary').click();
   const docs = page.getByRole('link', { name: /^Docs/ });
   await expect(docs).toHaveAttribute('target', '_blank');
   await expect(docs).toHaveAttribute('rel', 'noopener');
