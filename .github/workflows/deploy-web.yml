@@ -269,6 +269,12 @@ jobs:
           # (#562, #563); it is measured and reported until it is under the budget, then enforced.
           # A run whose trace Chrome fails to record (NO_NAVSTART) is tried again, up to three
           # times, rather than failing the deploy (#623).
+          # The edge injects Cloudflare's analytics beacon into production pages (a module script
+          # from a third origin, and its /cdn-cgi/rum call); the preview has none. Lighthouse's
+          # simulation charges the new origin's connection to the paint, which put production about
+          # 0.4 s behind the same build's preview and made Schema flap around the budget, while a
+          # real-throttled run paints production no later (#630). The budget is for this site's own
+          # page, so these runs block the beacon.
           lh() {
             for attempt in 1 2 3; do
               npx --yes lighthouse@12.8.2 "$@" && return 0
@@ -280,6 +286,7 @@ jobs:
             case "$page" in home) path="/";; streamers) path="/streamers/";; schema) path="/schema/";; esac
             for i in 1 2 3; do
               lh "$URL$path" --quiet --chrome-flags="--headless=new --no-sandbox" \
+                --blocked-url-patterns="*cloudflareinsights*" --blocked-url-patterns="*/cdn-cgi/rum*" \
                 --only-categories=performance --output=json --output-path="./lh-$page-$i.json"
             done
           done
