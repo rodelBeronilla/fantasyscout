@@ -277,10 +277,19 @@ jobs:
           # diagrams loaded as they come into view). Streamers' largest paint is its data (the season
           # note or the week's games), which follows the React runtime and a second wave of modules
           # (#562, #563); it is measured and reported until it is under the budget, then enforced.
+          # A run whose trace Chrome fails to record (NO_NAVSTART) is tried again, up to three
+          # times, rather than failing the deploy (#623).
+          lh() {
+            for attempt in 1 2 3; do
+              npx --yes lighthouse@12.8.2 "$@" && return 0
+              echo "::warning::Lighthouse run failed (attempt $attempt of 3)"
+            done
+            return 1
+          }
           for page in home streamers schema; do
             case "$page" in home) path="/";; streamers) path="/streamers/";; schema) path="/schema/";; esac
             for i in 1 2 3; do
-              npx --yes lighthouse@12.8.2 "$URL$path" --quiet --chrome-flags="--headless=new --no-sandbox" \
+              lh "$URL$path" --quiet --chrome-flags="--headless=new --no-sandbox" \
                 --only-categories=performance --output=json --output-path="./lh-$page-$i.json"
             done
           done
@@ -314,10 +323,18 @@ jobs:
           URL: ${{ env.BRANCH == 'main' && 'https://fantasyscout.beronilla.rodeo' || steps.deploy.outputs.deployment-url }}
         run: |
           set -euo pipefail
+          # as above: a run that fails to record its trace is tried again (#623)
+          lh() {
+            for attempt in 1 2 3; do
+              npx --yes lighthouse@12.8.2 "$@" && return 0
+              echo "::warning::Lighthouse run failed (attempt $attempt of 3)"
+            done
+            return 1
+          }
           for page in home streamers; do
             case "$page" in home) path="/?league=nba";; streamers) path="/streamers/?league=nba";; esac
             for i in 1 2 3; do
-              npx --yes lighthouse@12.8.2 "$URL$path" --quiet --chrome-flags="--headless=new --no-sandbox" \
+              lh "$URL$path" --quiet --chrome-flags="--headless=new --no-sandbox" \
                 --only-categories=performance --throttling-method=devtools --output=json --output-path="./fr-$page-$i.json"
             done
           done
