@@ -1,0 +1,20 @@
+---
+import Notes from '../../components/Notes';
+import Base from '../../layouts/Base.astro';
+---
+
+<Base
+  title="Scouting notes"
+  description="Weekly AI-drafted scouting notes on the board's risers, fallers and availability changes, every number traced to the data."
+>
+  <section>
+    <h1 class="text-2xl font-semibold tracking-tight">Scouting notes</h1>
+    <p class="mt-1 text-sm text-muted">
+      Every Monday: the week's biggest risers and fallers on the board, availability changes and minutes shifts, each in a few plain sentences.
+    </p>
+    <!-- a screen tall while the island loads, so the footer starts below the fold and nothing shifts (#436) -->
+    <div class="mt-6 min-h-screen">
+      <Notes client:only="react" />
+    </div>
+  </section>
+</Base>

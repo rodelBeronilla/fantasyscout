@@ -21,7 +21,7 @@ sources ─► GitHub Actions ingest ─► Databricks lakehouse (dbt: bronze/si
 | Notebooks and dashboards on the same data | Jupyter notebooks over the published build, Tableau Public, in-browser SQL console | [/notebooks/](https://fantasyscout.beronilla.rodeo/notebooks/), [/dashboards/](https://fantasyscout.beronilla.rodeo/dashboards/), [/sql/](https://fantasyscout.beronilla.rodeo/sql/) (the owner's) |
 | Products for non-technical readers | Fantasy board, streamers, trade and league tools, player scouting pages | [The Board](https://fantasyscout.beronilla.rodeo/), [/streamers/](https://fantasyscout.beronilla.rodeo/streamers/), [/trade/](https://fantasyscout.beronilla.rodeo/trade/), [/league/](https://fantasyscout.beronilla.rodeo/league/) |
 | Documentation of pipelines and definitions | dbt docs site, data dictionary, runbook, ADRs | `docs/` |
-| Generative AI, kept honest | Deterministic numbers; a language model only drafts notes from gold tables, schema-validated and cited | Planned (phase 7): `ai/` |
+| Generative AI, kept honest | Deterministic numbers; a local language model only drafts words, and a validator traces every number in a note to the board's history | `/notes`, `ai/`, ADR 0017 |
 | Tracking and event data | Play-by-play events, shot locations, tracking-derived stats where exposed | The shot chart on each player page, `fct_event` and `fct_shot` on [/schema/](https://fantasyscout.beronilla.rodeo/schema/) |
 
 ## Status
@@ -35,7 +35,7 @@ ingest/      Python ingestors, one module per source; CLI: fs-ingest
 export/      gold -> Parquet/JSON -> R2, manifest, latest pointer, the Playwright fixture
 ops/         results recorder, publish gate, build log, watchdog, schema file for the site's data dictionary
 dbt/         dbt project: models/bronze|silver|gold|ops, tests/ (quality checks), seeds/, macros/, sample/
-ai/          notes generator, prompts, evals/ (phase 7: planned, not built)
+ai/          the weekly notes: inputs, the local model's client, prompt, validator (phase 7)
 notebooks/   01_board_backtest .. 07_teammate_absence as nb_*.py cell sources and committed .ipynb; replay.py
 tableau/     the League Pulse extract (three CSVs) and the Google Sheet push behind the Tableau Public workbook
 web/         Astro app (React islands), Playwright and vitest tests, the committed data fixture

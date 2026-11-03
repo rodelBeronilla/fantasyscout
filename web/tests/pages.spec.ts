@@ -662,7 +662,7 @@ test('the dashboards page explains the workbook and lists the extract', async ({
   await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
 });
 
-for (const path of ['/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/', '/schema/mart_board/']) {
+for (const path of ['/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notes/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/', '/schema/mart_board/']) {
   test(`${path} has no horizontal scroll on a phone`, async ({ page, isMobile }) => {
     test.skip(!isMobile, 'mobile project only');
     await page.goto(path);
@@ -2223,6 +2223,58 @@ test('not signed in, the League page offers the Yahoo sign-in that saves the lea
   await page.route('**/api/account/status', (route) => route.fulfill({ json: { configured: true, signedIn: false } }));
   await page.goto('/league/');
   await expect(page.getByTestId('account-signin')).toHaveAttribute('href', '/auth/account/start?league=wnba');
+});
+
+test('the scouting notes show each note with the numbers it states traced to the board history, the rejections and the eval (phase 7)', async ({ page }) => {
+  const rowRef = 'fct_board_history/wnba/1628932/2026-09-01..2026-09-08';
+  await page.route('**/data/notes/wnba.json', (route) =>
+    route.fulfill({
+      json: {
+        league: 'wnba',
+        label: 'AI-drafted from FantasyScout data',
+        model: 'qwen3:8b',
+        generated_at: '2026-09-08T14:40:00+00:00',
+        compared: { before: '2026-09-01', after: '2026-09-08' },
+        counts: { drafted: 2, published: 1, rejected: 1, numbers_written: 5, numbers_traced: 4 },
+        notes: [
+          {
+            player_id: '1628932',
+            name: "A'ja Wilson",
+            team: 'LVA',
+            reason: 'riser',
+            headline: 'Wilson climbs with more minutes',
+            body: 'Projected minutes rose by 2.3 to 33.8. Rest-of-season value increased by 2.2 to 13.4. Start her.',
+            confidence: 'high',
+            claims: [
+              { metric: 'projected_minutes.change', value: 2.3, row_ref: rowRef },
+              { metric: 'value_rest_of_season.after', value: 13.4, row_ref: rowRef },
+            ],
+          },
+        ],
+        rejected: [{ player_id: '1', name: 'Someone Else', reasons: ["the text states 85%, which is not one of the build's numbers"] }],
+      },
+    }),
+  );
+  await page.route('**/data/notes/evals.json', (route) =>
+    route.fulfill({
+      json: { model: 'qwen3:8b', generated_at: '2026-09-08T14:40:00+00:00', leagues: { wnba: { weeks: [{}, {}], drafted: 20, rejection_rate: 0.25, claim_accuracy: 0.9, published_claims_verified: 1 } } },
+    }),
+  );
+  await page.goto('/notes/');
+  await expect(page.getByTestId('notes-meta')).toContainText('drafted by qwen3:8b');
+  const note = page.getByTestId('note');
+  await expect(note).toHaveCount(1);
+  await expect(note).toContainText('Wilson climbs with more minutes');
+  await note.locator('summary').click();
+  await expect(note.getByTestId('note-claims')).toContainText('projected minutes change: 2.3');
+  await expect(note.getByTestId('note-claims')).toContainText(rowRef);
+  await expect(page.getByTestId('notes-rejected')).toContainText("85%, which is not one of the build's numbers");
+  await expect(page.getByTestId('notes-eval')).toContainText('90% were the build');
+});
+
+test('before the first notes, the notes page says when they come (phase 7)', async ({ page }) => {
+  await page.goto('/notes/');
+  await expect(page.getByTestId('notes-none')).toContainText('drafted every Monday');
 });
 
 test('every Streamers column says what it holds, and the box-score columns are the last five games (#456)', async ({ page }) => {
