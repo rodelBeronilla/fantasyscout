@@ -1662,10 +1662,10 @@ models:
       - name: last_10_z_free_throw_pct
         meta: {unit: ratio 0 to 1}
         description: "Z-score of free throw percentage (volume-weighted impact) over the last ten games this season"
-      - name: board_rank
-        description: "rank_total on the board; null for a player not on a current roster"
-      - name: board_value
-        description: "value_total on the board; null for a player not on a current roster"
+      - name: rank_total
+        description: "The player's rank_total on the board (mart_board), named as there; null for a player not on a current roster"
+      - name: value_total
+        description: "The player's value_total on the board (mart_board), named as there; null for a player not on a current roster"
       - name: is_new_team
         description: "True when the board flags the player as on a new team; false when not on the board"
       - name: prev_team_abbreviation

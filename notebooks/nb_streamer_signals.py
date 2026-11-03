@@ -93,7 +93,7 @@ SIGNALS = {
     'games_next_7': 'Games in the next seven days',
     'starts_last_5': 'Starts in the last five games',
     'window_value': 'Old window value (last-ten z-score x games)',
-    'board_value': 'Board value',
+    'value_total': 'Board value',
     'expected_games': 'Expected games in the next seven days',
     'production_expected': 'Last-ten production x expected games',
     'board_projection': "Board's projected line x games",
@@ -388,8 +388,8 @@ def week(r, lg, season, monday, values, prev, schedule, earlier):
     f['production_expected'] = per_game * f['expected_games']
     # outside the rostered pool on the board as of that Monday
     board = r.board(monday, r.roster_at(season, monday, preseason=False), in_season=True, complete_seasons=earlier)
-    f['board_rank'] = board['rank_total'].reindex(f.index) if len(board) else np.nan
-    f['board_value'] = board['value_total'].reindex(f.index) if len(board) else np.nan
+    f['rank_total'] = board['rank_total'].reindex(f.index) if len(board) else np.nan
+    f['value_total'] = board['value_total'].reindex(f.index) if len(board) else np.nan
     if len(board):
         line = board[[f'proj_{c}_pg' for c in (*rp.COUNTING, 'fgm', 'fga', 'ftm', 'fta')]]
         line.columns = [*rp.COUNTING, 'fgm', 'fga', 'ftm', 'fta']
@@ -399,7 +399,7 @@ def week(r, lg, season, monday, values, prev, schedule, earlier):
     f['board_production'] = board_pg
     f['board_projection'] = board_pg * f['games_next_7']
     f['board_projection_expected'] = board_pg * f['expected_games']
-    f = f[~(f['board_rank'] <= s.pool_size)]
+    f = f[~(f['rank_total'] <= s.pool_size)]
     nxt = values[(values['game_date'] >= monday) & (values['game_date'] < end)]
     f['target'] = nxt.groupby('player_id')['value'].sum().reindex(f.index).fillna(0)
     f['games_played_next_7'] = nxt.groupby('player_id').size().reindex(f.index).fillna(0)

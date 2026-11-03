@@ -23220,16 +23220,16 @@
        "type": "double"
       },
       {
-       "description": "rank_total on the board; null for a player not on a current roster",
+       "description": "The player's rank_total on the board (mart_board), named as there; null for a player not on a current roster",
        "meta": {},
-       "name": "board_rank",
+       "name": "rank_total",
        "tests": [],
        "type": "bigint"
       },
       {
-       "description": "value_total on the board; null for a player not on a current roster",
+       "description": "The player's value_total on the board (mart_board), named as there; null for a player not on a current roster",
        "meta": {},
-       "name": "board_value",
+       "name": "value_total",
        "tests": [],
        "type": "double"
       },

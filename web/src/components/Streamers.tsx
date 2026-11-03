@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
+import { withRankTotal } from '../lib/streamer-rows';
 import { fetchCurrentJson, fetchPageRows, getLatest, type League } from '../lib/data';
 import { useWarmUp } from '../lib/warm';
 import { blowout, nextGames } from '../lib/blowout';
@@ -75,7 +76,7 @@ interface StreamerRow {
   last_10_fgm_pg: number | null;
   last_10_ftm_pg: number | null;
   value_trend: number | null;
-  board_rank: number | null;
+  rank_total: number | null;
   is_new_team: boolean | null;
   prev_team_abbreviation: string | null;
   points_avg_5: number | null;
@@ -549,7 +550,7 @@ export default function Streamers() {
     ])
       .then(([s, g, t, latest, mv, tw]) => {
         if (!live) return;
-        setRows(s);
+        setRows(withRankTotal(s));
         setGames(g);
         setMoves(mv);
         setWeeks(tw);
@@ -692,7 +693,7 @@ export default function Streamers() {
           ? !owner.has(r.player_id)
           : rostered === -2
             ? !['most', 'many', 'some'].includes(r.ownership_bucket ?? '')
-            : !rostered || r.board_rank === null || r.board_rank > rostered,
+            : !rostered || r.rank_total === null || r.rank_total > rostered,
       )
       .filter((r) => pickedDays.size === 0 || r.games_picked > 0)
       .filter((r) => !watchOnly || watched.has(r.player_id))
@@ -734,7 +735,7 @@ export default function Streamers() {
   const hasTrend = (rows ?? []).some((r) => r.ownership_trend);
   const exportCsv = () => {
     const header = ['player', 'team', 'new_team_from', 'position', period ? `games_${period.from}_to_${period.to}` : `games_next_${horizon}`, 'matchup', 'implied_team_points', 'window_value', 'games_on_picked_days', 'games_played', 'minutes_last_5', 'minutes_baseline', 'minutes_trend', 'value_last_10', 'value_trend', 'need_fit', 'sleeper_net_adds', 'espn_trend', 'board_rank', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'threes', 'fg_pct', 'ft_pct', 'turnovers', 'injury', 'lineup', 'news', 'last_game'];
-    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.games_season, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.value_10, r.value_trend, r.fit, r.sleeper_net, r.ownership_trend, r.board_rank, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.free_throw_pct_5, r.turnovers_avg_5, r.injury_status, r.lineup_role, r.news_flag, r.last_game_date]);
+    const body = list.map((r) => [r.full_name, r.team_abbreviation, r.is_new_team ? r.prev_team_abbreviation : null, r.position, r.games_window, r.matchup, r.implied_points, r.window_value, r.games_picked, r.games_season, r.minutes_avg_5, r.minutes_baseline, r.minutes_trend, r.value_10, r.value_trend, r.fit, r.sleeper_net, r.ownership_trend, r.rank_total, r.points_avg_5, r.rebounds_total_avg_5, r.assists_avg_5, r.steals_avg_5, r.blocks_avg_5, r.three_pointers_made_avg_5, r.field_goal_pct_5, r.free_throw_pct_5, r.turnovers_avg_5, r.injury_status, r.lineup_role, r.news_flag, r.last_game_date]);
     downloadCsv(`fantasyscout-${league}-streamers.csv`, toCsv(header, body));
   };
   const select = 'rounded border border-line bg-card px-2 py-1';
@@ -1006,7 +1007,7 @@ export default function Streamers() {
                   </Th>
                 )}
                 {hasHeat && col('sleeper_net', 'Sleeper', 'Sleeper leagues that added the player minus those that dropped the player, last 24 hours (from Sleeper)')}
-                {col('board_rank', 'Board #', 'Rank on the board with the default league settings (12 teams of 13 in the NBA, 10 of 10 in the WNBA); inside a league-sized pool usually means rostered')}
+                {col('rank_total', 'Board #', 'Rank on the board with the default league settings (12 teams of 13 in the NBA, 10 of 10 in the WNBA); inside a league-sized pool usually means rostered')}
                 <Th>
                   <span title="The date of the player's most recent game">Last game</span>
                 </Th>
@@ -1079,7 +1080,7 @@ export default function Streamers() {
                       <WaiverHeat row={r} />
                     </Td>
                   )}
-                  <Td right>{r.board_rank ?? '–'}</Td>
+                  <Td right>{r.rank_total ?? '–'}</Td>
                   <Td>{day(r.last_game_date)}</Td>
                 </tr>
               ))}
