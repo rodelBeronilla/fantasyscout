@@ -44,11 +44,6 @@ describe('trade suggestions keep the positions covered (#489)', () => {
       mine: ['c1', 'g1'],
       theirs: ['g2', 'c2'],
       rest,
-      cats: [],
-      catValue: () => undefined,
-      totals: [{}, {}],
-      myTeam: 0,
-      partnerTeam: 1,
     };
     expect(suggestTrades(input).map((s) => s.get)).toEqual(expect.arrayContaining([['g2'], ['c2']]));
     expect(suggestTrades({ ...input, position: (id) => positions[id] }).map((s) => s.get)).toEqual([['c2']]);
@@ -70,14 +65,45 @@ describe('trade suggestions count a player below replacement as zero', () => {
       mine: ['mine'],
       theirs: ['star', 'dud'],
       rest,
-      cats: [],
-      catValue: () => undefined,
-      totals: [{}, {}],
-      myTeam: 0,
-      partnerTeam: 1,
       tolerance: 0.15,
     });
     expect(out.some((s) => s.get.includes('dud'))).toBe(false);
     expect(out).toEqual([]);
+  });
+});
+
+describe('trade suggestions in a categories league rank by the categories won (#663)', () => {
+  // The manager gives "a" (value 5). The partner has: "fit" (value 3) and "wash" (value 2), which
+  // raise the manager's categories; "star" (value 5), which barely does; and "steal" (value 8),
+  // which raises them but costs the partner value and categories alike.
+  const rest = new Map([
+    ['a', 5],
+    ['fit', 3],
+    ['wash', 2],
+    ['star', 5],
+    ['steal', 8],
+  ]);
+  const effects: Record<string, { gain: number; partnerGain: number }> = {
+    fit: { gain: 0.4, partnerGain: 0.1 },
+    wash: { gain: 0.1, partnerGain: -0.1 },
+    star: { gain: 0.01, partnerGain: 0 },
+    steal: { gain: 0.2, partnerGain: -0.1 },
+  };
+  const out = suggestTrades({
+    give: ['a'],
+    get: [],
+    mine: ['a'],
+    theirs: ['fit', 'wash', 'star', 'steal'],
+    rest,
+    maxAdd: 1,
+    effect: (_give, get) => ({ ...(effects[get[0]!] ?? { gain: 0, partnerGain: 0 }), ups: [], downs: [] }),
+  });
+  it('keeps packages that win the manager categories even when they give up value, biggest gain first', () => {
+    expect(out.map((s) => s.get)).toEqual([['fit'], ['wash']]);
+    expect(out[0]?.net).toBe(-2);
+  });
+  it('leaves out a package that wins nothing, and one the partner loses on in value and categories alike', () => {
+    expect(out.some((s) => s.get.includes('star'))).toBe(false);
+    expect(out.some((s) => s.get.includes('steal'))).toBe(false);
   });
 });

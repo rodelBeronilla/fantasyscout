@@ -1114,12 +1114,14 @@ test("with league rosters set up, the Trade page picks from them and shows the m
   if (width >= 768) {
     const suggestions = page.getByTestId('trade-suggestions');
     await expect(suggestions.locator('tbody tr').first()).toBeVisible();
-    await expect(suggestions.locator('thead')).toContainText('Your ranks');
+    // one team's roster alone has no rival to judge categories against: value only
+    await expect(suggestions.locator('thead')).toContainText('Value');
+    await expect(suggestions.locator('thead')).not.toContainText('Your categories');
     await expect(page.getByTestId('trade-suggestions-list')).toBeHidden();
   } else {
     const list = page.getByTestId('trade-suggestions-list');
     await expect(list.locator('li').first()).toContainText('You give');
-    await expect(list.locator('li').first()).toContainText('Net');
+    await expect(list.locator('li').first()).toContainText('Value');
     await expect(page.getByTestId('trade-suggestions')).toBeHidden();
     const use = list.getByRole('button', { name: 'Use this trade' }).first();
     await use.scrollIntoViewIfNeeded();
@@ -1135,6 +1137,39 @@ test("with league rosters set up, the Trade page picks from them and shows the m
   await expect(cats.locator('thead')).toContainText('Your team before');
   await expect(cats.locator('thead')).toContainText('Rank of 2');
   await expect(cats.locator('tbody tr')).toHaveCount(9);
+});
+
+test('with rival rosters in, the Trade page judges a trade by the categories it wins, settles the roster spots and shows the partner’s side (#663)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/');
+  await page.getByLabel('Format').selectOption('h2h');
+  await page.getByLabel('Roster spots').fill('6');
+  for (const [team, picked] of [[1, [0, 5, 6]], [2, [1, 2, 7]], [3, [3, 4, 8]]] as const) {
+    for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
+  }
+  await page.goto('/trade/');
+  await expect(page.getByTestId('roster-give').locator('li')).toHaveCount(3);
+  // two of Team 2's players for one of the manager's: the manager drops one to make room
+  await page.getByTestId('roster-give').getByRole('checkbox').first().check();
+  await page.getByTestId('roster-get').getByRole('checkbox').nth(0).check();
+  await page.getByTestId('roster-get').getByRole('checkbox').nth(1).check();
+  const verdict = page.getByTestId('trade-category-verdict');
+  await expect(verdict).toContainText(/categories in an average week against your league/);
+  await expect(verdict).toContainText(/of your 9 categories/);
+  await expect(page.getByTestId('trade-roster-moves')).toContainText('To make room you would drop');
+  await expect(page.getByTestId('trade-partner')).toContainText('For Team 2');
+  await expect(page.getByTestId('trade-verdict')).toContainText('In value');
+  await expect(page.getByTestId('trade-spots')).toHaveCount(0);
+  await expect(page.getByTestId('trade-categories').locator('thead')).toContainText('Win chance');
+  // the suggestions now weigh categories and show the partner's side
+  await page.getByTestId('roster-get').getByRole('checkbox').nth(1).uncheck();
+  await page.getByTestId('roster-give').getByRole('checkbox').first().uncheck();
+  const width = page.viewportSize()!.width;
+  if (width >= 768) {
+    const head = page.locator('#suggestions');
+    await expect(head).toContainText(/raise the categories you expect to win/);
+  }
 });
 
 test('the League page sets the league the board values for, and points leagues score fantasy points', async ({ page }) => {

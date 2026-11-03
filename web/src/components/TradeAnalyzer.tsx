@@ -11,7 +11,8 @@ import { currentLeague } from '../lib/league';
 import { DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { href } from '../lib/site';
-import { nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
+import { type LeagueState, leagueStandings, meaningful, tradeImpact } from '../lib/trade-impact';
+import { type CategoryEffect, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
@@ -126,6 +127,34 @@ export default function TradeAnalyzer() {
 
   const options = useMemo(() => new Map((rows ?? []).map((p) => [optionLabel(p), p.player_id])), [rows]);
 
+  // The league as the standings model reads it (#663, ADR 0015): active rosters, free agents best
+  // first, each player's category values and the share of the games left he is expected to play.
+  // A categories league with rosters in only; the standings also need a rival roster.
+  const state = useMemo<LeagueState | null>(() => {
+    if (!rows || points || !hasRosters) return null;
+    const availability = new Map(rows.map((r) => [r.player_id, r.availability_multiplier ?? 1]));
+    const value = (id: string) => {
+      const w = worth.get(id);
+      return w ? (week ? w.week : w.rest) : 0;
+    };
+    return {
+      league,
+      format: setup.format,
+      cats,
+      rosters: setup.rosters.map((r) => r.filter((id) => !setup.il.includes(id))),
+      rosterSpots: setup.rosterSpots,
+      freeAgents: rows
+        .filter((r) => !owner.has(r.player_id))
+        .map((r) => r.player_id)
+        .sort((a, b) => value(b) - value(a)),
+      rest: value,
+      catValue: (id) => worth.get(id)?.cats,
+      availability: (id) => availability.get(id) ?? 1,
+      gamesLeft: rows.reduce((m, r) => Math.max(m, r.games_remaining ?? 0), 0),
+    };
+  }, [rows, points, hasRosters, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner]);
+  const standings = useMemo(() => (state ? leagueStandings(state, setup.mine) : null), [state, setup.mine]);
+
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
 
@@ -203,6 +232,11 @@ export default function TradeAnalyzer() {
   // Suggestions: packages from the open side's roster that make the trade about even, ranked by the
   // category ranks they gain the manager; without rosters, players worth about the same as the target.
   const ready = giving.players.length > 0 || getting.players.length > 0;
+  // What the trade does to both teams' categories (#663); null without the standings.
+  const impact = state && standings && ready && partnerTeam >= 0 ? tradeImpact(state, standings, setup.mine, partnerTeam, give, get) : null;
+  const threshold = state ? meaningful(state, setup.mine) : 0;
+  const h2h = setup.format === 'h2h';
+  const partnerName = setup.names[partnerTeam] ?? 'Your partner';
   const restOf = new Map([...worth].map(([id, w]) => [id, Math.max(0, pick(w))]));
   const active = (t: number) => (setup.rosters[t] ?? []).filter((id) => !setup.il.includes(id));
   const open = openSide(give, get, restOf);
@@ -214,11 +248,14 @@ export default function TradeAnalyzer() {
           mine: active(setup.mine),
           theirs: active(partnerTeam),
           rest: restOf,
-          cats: points ? [] : cats,
-          catValue: (id) => worth.get(id)?.cats,
-          totals: setup.rosters.map((r) => teamTotals(r)),
-          myTeam: setup.mine,
-          partnerTeam,
+          effect:
+            state && standings
+              ? (g, r): CategoryEffect => {
+                  const e = tradeImpact(state, standings, setup.mine, partnerTeam, g, r);
+                  return { gain: e.mine.gain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
+                }
+              : undefined,
+          minGain: threshold || undefined,
           position: (id) => byId.get(id)?.position,
         })
       : [];
@@ -230,17 +267,41 @@ export default function TradeAnalyzer() {
     setGive(s.give);
     setGet(s.get);
   };
-  /** The categories a suggestion moves your rank in, up and down. */
-  const rankChanges = (s: Suggestion) =>
-    s.ups.length || s.downs.length ? (
+  const catList = (list: string[]) => list.map((c) => CATEGORY_LABELS[c] ?? c).join(', ');
+  /** The categories a change moves the manager's chances in, up and down. */
+  const catMoves = (ups: string[], downs: string[]) =>
+    ups.length || downs.length ? (
       <span className="whitespace-nowrap">
-        {s.ups.length > 0 && <span className="text-good">↑ {s.ups.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</span>}
-        {s.ups.length > 0 && s.downs.length > 0 && ' '}
-        {s.downs.length > 0 && <span className="text-bad">↓ {s.downs.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}</span>}
+        {ups.length > 0 && <span className="text-good">↑ {catList(ups)}</span>}
+        {ups.length > 0 && downs.length > 0 && ' '}
+        {downs.length > 0 && <span className="text-bad">↓ {catList(downs)}</span>}
       </span>
     ) : (
-      <span className="text-muted">no rank changes</span>
+      <span className="text-muted">no category moves</span>
     );
+  const effectCell = (e: CategoryEffect) => (
+    <span className="flex flex-wrap items-center gap-x-2">
+      <Signed value={e.gain} digits={2} />
+      {catMoves(e.ups, e.downs)}
+    </span>
+  );
+  /** Whole-percent win chance. */
+  const chance = (p: number | undefined) => `${Math.round((p ?? 0) * 100)}%`;
+  /** Who the partner is likely to see it: their categories and their value. */
+  const acceptance = (partnerGain: number, partnerValue: number, scale: number) =>
+    partnerGain >= 0 && partnerValue >= -0.05 * scale
+      ? 'Good for them on both counts: a trade they have reason to accept.'
+      : partnerGain >= 0
+        ? 'Their categories improve though they give up value: worth offering to a manager who builds for categories.'
+        : partnerValue >= 0
+          ? 'They gain value but lose ground in their categories: a manager who goes by rankings may take it.'
+          : 'They lose on both counts: unlikely to be accepted.';
+  const market = (ids: string[]) =>
+    ids
+      .map((id) => byId.get(id)?.market_rank)
+      .filter((r): r is number => typeof r === 'number')
+      .map((r) => `#${r}`)
+      .join(', ');
 
   const add = (side: Side, id: string) => (side === 'give' ? setGive : setGet)((s) => (s.includes(id) ? s : [...s, id]));
   const remove = (side: Side, id: string) => (side === 'give' ? setGive : setGet)((s) => s.filter((x) => x !== id));
@@ -385,6 +446,7 @@ export default function TradeAnalyzer() {
   );
 
   const rankTone = (before: number, after: number) => (after < before ? 'text-good' : after > before ? 'text-bad' : '');
+  const chanceTone = (before: number, after: number) => (after - before >= 0.005 ? 'text-good' : before - after >= 0.005 ? 'text-bad' : '');
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
@@ -420,7 +482,48 @@ export default function TradeAnalyzer() {
             </div>
           )}
           <div className="grid gap-2 text-sm" data-testid="trade-verdict">
-            <p className="text-base">
+            {impact && (
+              <div className="grid gap-1" data-testid="trade-category-verdict">
+                <p className="text-base">
+                  <strong>
+                    {impact.mine.gain >= threshold ? 'Wins you categories' : impact.mine.gain <= -threshold ? 'Costs you categories' : 'About even in categories'}:
+                  </strong>{' '}
+                  {h2h ? (
+                    <>
+                      you would expect to win {fmt(impact.mine.scoreAfter, 2)} of your {cats.length} categories in an average week against your league,
+                      from {fmt(impact.mine.scoreBefore, 2)} (<Signed value={impact.mine.gain} digits={2} />
+                      ).
+                    </>
+                  ) : (
+                    <>
+                      your expected rotisserie points over your {cats.length} categories go from {fmt(impact.mine.scoreBefore, 1)} to{' '}
+                      {fmt(impact.mine.scoreAfter, 1)} (<Signed value={impact.mine.gain} digits={1} />
+                      ).
+                    </>
+                  )}
+                </p>
+                {(impact.ups.length > 0 || impact.downs.length > 0) && <p>{catMoves(impact.ups, impact.downs)}</p>}
+                {(impact.sides.mine.dropped.length > 0 || impact.sides.mine.added.length > 0) && (
+                  <p className="text-muted" data-testid="trade-roster-moves">
+                    {impact.sides.mine.dropped.length > 0 && <>To make room you would drop {nameList(impact.sides.mine.dropped)}, your lowest-valued player after the trade. </>}
+                    {impact.sides.mine.added.length > 0 && <>You would pick up {nameList(impact.sides.mine.added)}, the best free agent, for the open spot. </>}
+                    The categories count {impact.sides.mine.dropped.length > 0 ? 'the drop' : 'the pickup'}.
+                  </p>
+                )}
+                <p data-testid="trade-partner">
+                  <span className="text-muted">For {partnerName}: </span>
+                  <Signed value={impact.partner.gain} digits={h2h ? 2 : 1} /> {h2h ? 'expected categories a week' : 'rotisserie points'} and{' '}
+                  <Signed value={-net} digits={1} /> in value. <span className="text-muted">{acceptance(impact.partner.gain, -net, scale)}</span>
+                </p>
+                {(market(give) || market(get)) && (
+                  <p className="text-muted" data-testid="trade-market">
+                    ESPN draft ranks, which many managers trade by: you give {market(give) || 'none ranked'}, you get {market(get) || 'none ranked'}.
+                  </p>
+                )}
+              </div>
+            )}
+            <p className={impact ? 'text-muted' : 'text-base'}>
+              {impact ? 'In value: ' : ''}
               {verdict === 'even' ? (
                 <>About even: the two sides are within 5% of each other for the {REST}.</>
               ) : verdict === 'you' ? (
@@ -461,7 +564,7 @@ export default function TradeAnalyzer() {
                 {[...giving.belowReplacement, ...getting.belowReplacement].length === 1 ? 'him' : 'them'}.
               </p>
             )}
-            {spots !== 0 && (
+            {spots !== 0 && !impact && (
               <p className="text-muted" data-testid="trade-spots">
                 {spots > 0
                   ? `You receive ${spots} more player${spots === 1 ? '' : 's'} than you send, so you would drop ${spots}. A dropped player is worth about replacement level, which the values above already count as zero.`
@@ -497,12 +600,23 @@ export default function TradeAnalyzer() {
                       <span className="text-xs text-muted">You get </span>
                       {nameList(s.get)}
                     </p>
+                    {s.effect && (
+                      <p className="flex flex-wrap items-center gap-x-2">
+                        <span className="text-xs text-muted">Your categories </span>
+                        {effectCell(s.effect)}
+                      </p>
+                    )}
                     <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <span>
-                        <span className="text-xs text-muted">Net </span>
+                        <span className="text-xs text-muted">Value </span>
                         <Signed value={s.net} digits={1} />
                       </span>
-                      {!points && rankChanges(s)}
+                      {s.effect && (
+                        <span>
+                          <span className="text-xs text-muted">{partnerName} </span>
+                          <Signed value={s.effect.partnerGain} digits={2} />
+                        </span>
+                      )}
                     </p>
                     <button type="button" className={`${button} justify-self-start`} onClick={() => applySuggestion(s)}>
                       Use this trade
@@ -516,8 +630,9 @@ export default function TradeAnalyzer() {
                     <tr>
                       <Th>You give</Th>
                       <Th>You get</Th>
-                      <Th right>Net</Th>
-                      {!points && <Th>Your ranks</Th>}
+                      {standings && <Th>Your categories</Th>}
+                      {standings && <Th right>{partnerName}</Th>}
+                      <Th right>Value</Th>
                       <Th>{''}</Th>
                     </tr>
                   </thead>
@@ -526,10 +641,15 @@ export default function TradeAnalyzer() {
                       <tr key={`${s.give.join()}>${s.get.join()}`} className="border-t border-line">
                         <Td>{nameList(s.give)}</Td>
                         <Td>{nameList(s.get)}</Td>
+                        {standings && <Td>{s.effect ? effectCell(s.effect) : '–'}</Td>}
+                        {standings && (
+                          <Td right>
+                            <Signed value={s.effect?.partnerGain ?? null} digits={2} />
+                          </Td>
+                        )}
                         <Td right>
                           <Signed value={s.net} digits={1} />
                         </Td>
-                        {!points && <Td>{rankChanges(s)}</Td>}
                         <Td>
                           <button type="button" className={button} onClick={() => applySuggestion(s)}>
                             Use this trade
@@ -547,15 +667,18 @@ export default function TradeAnalyzer() {
                 ? 'Add your own roster on the League page to see what you could offer.'
                 : open === 'get' && !active(partnerTeam).length
                   ? `Add ${setup.names[partnerTeam] ?? 'the partner'}’s roster on the League page to see what you could ask for.`
-                  : `No package of up to three players from ${open === 'give' ? 'your' : `${setup.names[partnerTeam] ?? 'the partner'}’s`} roster comes within 15% of the other side for the ${REST}. Try another partner, or a different player.`}
+                  : standings
+                    ? `No package of up to three players from ${open === 'give' ? 'your' : `${partnerName}’s`} roster raises your expected categories won on terms ${partnerName} could accept. Try another partner, or a different player.`
+                    : `No package of up to three players from ${open === 'give' ? 'your' : `${partnerName}’s`} roster comes within 15% of the other side for the ${REST}. Try another partner, or a different player.`}
             </p>
           )}
           <p className="mt-2 text-xs text-muted">
-            {open === 'give' ? 'Packages from your roster' : `Packages from ${setup.names[partnerTeam] ?? 'the partner'}’s roster`} that bring the two sides within 15%
-            of each other for the {REST}
-            {points
-              ? ', the ones that favour you most first.'
-              : ', ranked by the category ranks your team gains (counting the partner’s side changing too), then by value. Pick one to load it into the trade and see the full breakdown.'}
+            {open === 'give' ? 'Packages from your roster' : `Packages from ${partnerName}’s roster`}
+            {standings
+              ? ` that raise the categories you expect to win, biggest gain first, among trades ${partnerName} could accept: they give up at most 15% in value, or their own categories rise. The value can favour ${partnerName}; what counts is the categories. Your categories: the change in the categories you expect to win ${h2h ? 'a week' : '(rotisserie points)'}; ${partnerName}: theirs. Pick one to load it into the trade and see the full breakdown.`
+              : ` that bring the two sides within 15% of each other for the ${REST}, the ones that favour you most first.${
+                  points ? '' : ' Enter half or more of a second team’s roster on the League page to rank them by the categories they win you instead.'
+                }`}
           </p>
         </Card>
       )}
@@ -627,7 +750,7 @@ export default function TradeAnalyzer() {
                   <Th right>Net</Th>
                   {change && <Th right>Your team before</Th>}
                   {change && <Th right>After</Th>}
-                  {change && <Th right>Rank of {change.ranked}</Th>}
+                  {change && (impact ? <Th right>{h2h ? 'Win chance' : 'Teams beaten'}</Th> : <Th right>Rank of {change.ranked}</Th>)}
                 </tr>
               </thead>
               <tbody>
@@ -649,15 +772,23 @@ export default function TradeAnalyzer() {
                       </Td>
                       {row && (
                         <Td right>
-                          <Signed value={row.before} digits={1} />
+                          <Signed value={impact ? (impact.totals.before[c] ?? 0) : row.before} digits={1} />
                         </Td>
                       )}
                       {row && (
                         <Td right>
-                          <Signed value={row.after} digits={1} />
+                          <Signed value={impact ? (impact.totals.after[c] ?? 0) : row.after} digits={1} />
                         </Td>
                       )}
-                      {row && (
+                      {row && impact && (
+                        <Td right>
+                          <span className={chanceTone(impact.mine.before[c] ?? 0, impact.mine.after[c] ?? 0)}>
+                            {chance(impact.mine.before[c])}
+                            {chance(impact.mine.after[c]) !== chance(impact.mine.before[c]) ? ` → ${chance(impact.mine.after[c])}` : ''}
+                          </span>
+                        </Td>
+                      )}
+                      {row && !impact && (
                         <Td right>
                           <span className={rankTone(row.rankBefore, row.rankAfter)}>
                             {row.rankBefore}
@@ -673,9 +804,13 @@ export default function TradeAnalyzer() {
           </div>
           <p className="mt-2 text-xs text-muted">
             Per game above replacement in each category (percentages weighted by attempts).
-            {change
-              ? ' Your team’s totals and its rank among the league’s teams, before and after: a trade that drops a category you already lose costs little, and one that lifts a category you are close in can swing it.'
-              : ' Set up your league’s rosters to see your team’s totals and ranks before and after.'}
+            {impact
+              ? ` Your team’s totals (each player counted by the share of the games left he is expected to play, after any drop or pickup) and your chance of ${
+                  h2h ? 'winning the category in an average week against your league' : 'finishing ahead of each other team in it'
+                }, before and after. A category you already lose or win by a wide margin barely moves; one you are close in can swing.`
+              : change
+                ? ' Your team’s totals and its rank among the league’s teams, before and after: a trade that drops a category you already lose costs little, and one that lifts a category you are close in can swing it.'
+                : ' Set up your league’s rosters to see your team’s totals and ranks before and after.'}
           </p>
         </Card>
       )}
