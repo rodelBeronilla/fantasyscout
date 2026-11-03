@@ -1172,6 +1172,28 @@ test('with rival rosters in, the Trade page judges a trade by the categories it 
   }
 });
 
+test('the trade finder lists trades across the league that win the manager categories, and loads one (#664)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/');
+  await page.getByLabel('Format').selectOption('h2h');
+  await page.getByLabel('Roster spots').fill('6');
+  for (const [team, picked] of [[1, [0, 5, 9, 12]], [2, [1, 2, 7, 13]], [3, [3, 4, 8, 14]]] as const) {
+    for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
+  }
+  await page.goto('/trade/');
+  const finder = page.locator('#finder');
+  await expect(finder).toContainText('every team');
+  await page.getByTestId('find-trades').click();
+  const found = page.getByTestId('found-trades').locator('li');
+  await expect(found.first()).toContainText('Your categories');
+  await found.first().getByRole('button', { name: 'Use this trade' }).click();
+  await expect(page.getByTestId('picked-give').locator('li').first()).toBeVisible();
+  await expect(page.getByTestId('trade-category-verdict')).toContainText('Wins you categories');
+  // with a trade on the page the finder steps aside
+  await expect(finder).toHaveCount(0);
+});
+
 test('the League page sets the league the board values for, and points leagues score fantasy points', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');

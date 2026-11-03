@@ -130,3 +130,69 @@ export function nearestInValue(target: string[], rest: Map<string, number>, excl
     .sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff))
     .slice(0, limit);
 }
+
+export interface FinderInput {
+  /** The manager's active players. */
+  mine: string[];
+  /** Every other team with its active players. */
+  partners: { team: number; roster: string[] }[];
+  /** Rest-of-season value above replacement, per player. */
+  rest: Map<string, number>;
+  /** The category effect of a trade with a partner. */
+  effect: (partner: number, give: string[], get: string[]) => CategoryEffect;
+  /** The least category gain a trade must bring the manager. */
+  minGain: number;
+  /** How many of each roster's most valuable players are tried. */
+  candidates?: number;
+  /** The most trades listed with one partner, so the list is not one team's. */
+  perPartner?: number;
+  limit?: number;
+  position?: (id: string) => string | null | undefined;
+}
+
+export interface FoundTrade extends Suggestion {
+  partner: number;
+  effect: CategoryEffect;
+}
+
+/**
+ * The trade finder (#664): one-for-one, two-for-one and one-for-two trades with every partner,
+ * kept when they raise the manager's expected categories won and give the partner a reason to say
+ * yes (their categories rise, or they gain value), biggest gain first.
+ */
+export function findTrades(input: FinderInput): FoundTrade[] {
+  const { rest, effect, minGain } = input;
+  const n = input.candidates ?? 8;
+  const value = (ids: string[]) => ids.reduce((s, id) => s + Math.max(0, rest.get(id) ?? 0), 0);
+  const top = (roster: string[]) =>
+    [...roster]
+      .filter((id) => (rest.get(id) ?? 0) > 0)
+      .sort((a, b) => (rest.get(b) ?? 0) - (rest.get(a) ?? 0))
+      .slice(0, n);
+  const mine = top(input.mine);
+  const out: FoundTrade[] = [];
+  for (const { team, roster } of input.partners) {
+    const theirs = top(roster);
+    const found: FoundTrade[] = [];
+    const shapes: [string[][], string[][]][] = [
+      [combinations(mine, 1), combinations(theirs, 1)],
+      [combinations(mine, 2).filter((c) => c.length === 2), combinations(theirs, 1)],
+      [combinations(mine, 1), combinations(theirs, 2).filter((c) => c.length === 2)],
+    ];
+    for (const [gives, gets] of shapes) {
+      for (const give of gives) {
+        for (const get of gets) {
+          if (input.position && !keepsPositions(input.mine, [...input.mine.filter((id) => !give.includes(id)), ...get], input.position)) continue;
+          const e = effect(team, give, get);
+          const net = value(get) - value(give);
+          if (e.gain < minGain || (e.partnerGain <= 0 && net > 0)) continue;
+          found.push({ partner: team, give, get, net, effect: e });
+        }
+      }
+    }
+    found.sort((a, b) => b.effect.gain - a.effect.gain || b.effect.partnerGain - a.effect.partnerGain);
+    out.push(...found.slice(0, input.perPartner ?? 3));
+  }
+  out.sort((a, b) => b.effect.gain - a.effect.gain || b.effect.partnerGain - a.effect.partnerGain);
+  return out.slice(0, input.limit ?? 10);
+}
