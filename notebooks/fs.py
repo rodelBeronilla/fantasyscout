@@ -20,6 +20,7 @@ Every gold and ops table is a view with its bare name (``fct_shot``, ``mart_boar
 from __future__ import annotations
 
 import json
+import math
 import os
 import urllib.request
 from pathlib import Path
@@ -216,5 +217,19 @@ def save_findings(name: str, findings: dict) -> Path:
     out = Path.cwd() / "_build"
     out.mkdir(exist_ok=True)
     path = out / f"{name}.findings.json"
-    path.write_text(json.dumps(findings, default=str, indent=1), encoding="utf-8")
+    # NaN and infinity (a correlation over too few rows) are not JSON: null, which the page shows
+    # as a dash. A NaN in one file took the whole Notebooks page down (#678).
+    text = json.dumps(_json_safe(findings), default=str, indent=1, allow_nan=False)
+    path.write_text(text, encoding="utf-8")
     return path
+
+
+def _json_safe(value: object) -> object:
+    """The findings with every NaN or infinite float, at any depth, as None."""
+    if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
+        return None
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
