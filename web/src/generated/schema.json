@@ -21601,6 +21601,7 @@
       "/",
       "/league/",
       "/p/",
+      "/team/",
       "/trade/"
      ],
      "reads": [
@@ -22861,10 +22862,9 @@
       "mart_streamers"
      ],
      "read_by_pages": [
-      "/",
-      "/league/",
       "/p/",
-      "/streamers/"
+      "/streamers/",
+      "/team/"
      ],
      "reads": [
       "fct_game_official",
@@ -24519,8 +24519,7 @@
  "pages": [
   {
    "reads": [
-    "board",
-    "schedule"
+    "board"
    ],
    "route": "/"
   },
@@ -24532,8 +24531,7 @@
   },
   {
    "reads": [
-    "board",
-    "schedule"
+    "board"
    ],
    "route": "/league/"
   },
@@ -24553,6 +24551,13 @@
     "transactions"
    ],
    "route": "/streamers/"
+  },
+  {
+   "reads": [
+    "board",
+    "schedule"
+   ],
+   "route": "/team/"
   },
   {
    "reads": [
