@@ -41,7 +41,7 @@ describe('routing', () => {
     const res = await SELF.fetch(`${ORIGIN}/`);
     const csp = res.headers.get('content-security-policy') ?? '';
     const html = await res.text();
-    const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].filter(
+    const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi)].filter(
       (m) => !/\ssrc=/.test(m[0].slice(0, m[0].indexOf('>') + 1)) && m[1]!.trim(),
     );
     expect(inline.length).toBeGreaterThan(0);

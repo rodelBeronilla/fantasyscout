@@ -43,7 +43,7 @@ let pages = 0;
 for (const file of htmlFiles(dist)) {
   pages += 1;
   const html = readFileSync(file, 'utf8');
-  for (const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) {
+  for (const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi)) {
     const open = m[0].slice(0, m[0].indexOf('>') + 1);
     if (!/\ssrc=/.test(open) && m[1].trim()) scripts.add(hash(m[1]));
   }
