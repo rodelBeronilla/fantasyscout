@@ -9,7 +9,7 @@ import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortD
 import { href } from '../lib/site';
 import { type BoardAvailability, type BoardView, readBoardFilters, writeBoardFilters } from '../lib/board-url';
 import { useWatchlist } from '../lib/watchlist';
-import { assign, draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
+import { assign, draftPick, FOCUS_WEIGHT, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, pointValues, type Tier } from '../lib/league-value';
 import { reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { matchup, matchupWeights, type WeekMatchup, weekTotals } from '../lib/matchup';
@@ -217,6 +217,8 @@ export default function Board() {
   // 8-cat leagues drop turnovers; on top of that, the manager's own punts.
   const punted = useMemo(() => (setup.scoring === 'cats8' ? new Set([...punts, 'z_turnovers']) : punts), [punts, setup.scoring]);
   const activeCats = useMemo(() => CATEGORIES.filter((c) => !punted.has(c)), [punted]);
+  // Focus categories count more in value and Fit (#680).
+  const focus = useMemo(() => Object.fromEntries(activeCats.map((c) => [c, setup.focus.includes(c) ? FOCUS_WEIGHT : 1])), [activeCats, setup.focus]);
   const views = points ? VIEWS.filter((v) => v.id === 'value' || v.id === 'projected') : VIEWS;
   useEffect(() => {
     if (points && view !== 'value' && view !== 'projected') setView('value');
@@ -284,8 +286,8 @@ export default function Board() {
 
   // Rest-of-season value under the league's scoring, the scale the Trade page uses, whatever view the board is on.
   const restValue = useMemo(
-    () => restValues(rows ?? [], { points, leaguePoints, leagueCats, activeCats }),
-    [rows, points, leaguePoints, leagueCats, activeCats],
+    () => restValues(rows ?? [], { points, leaguePoints, leagueCats, activeCats, focus }),
+    [rows, points, leaguePoints, leagueCats, activeCats, focus],
   );
   // The fantasy-week unit (#466): recent form over the games left this week, offered while the week has games.
   const [unit, setUnit] = useState<ValueUnit>(setup.format === 'h2h' ? 'week' : 'rest');
@@ -301,11 +303,11 @@ export default function Board() {
     for (const r of rows ?? []) {
       const perGame = points
         ? (leaguePoints?.get(r.player_id)?.value ?? 0)
-        : activeCats.reduce((s, c) => s + (weekCats?.get(r.player_id)?.[c] ?? 0), 0);
+        : activeCats.reduce((s, c) => s + (focus[c] ?? 1) * (weekCats?.get(r.player_id)?.[c] ?? 0), 0);
       out.set(r.player_id, weekValue(perGame, r.games_this_week));
     }
     return out;
-  }, [rows, week, points, leaguePoints, weekCats, activeCats]);
+  }, [rows, week, points, leaguePoints, weekCats, activeCats, focus]);
   // Head-to-head (#490): the week's projected totals against the chosen opponent set Fit and the categories the bar names.
   const h2h = setup.format === 'h2h';
   const opponentRows = useMemo(
@@ -373,8 +375,8 @@ export default function Board() {
   );
 
   const scored = useMemo(
-    () => scoreRows(rows ?? [], { view, points, activeCats, countGames, restOfSeason, leagueCats, leaguePoints, weights }),
-    [rows, view, points, activeCats, restOfSeason, countGames, leagueCats, leaguePoints, weights],
+    () => scoreRows(rows ?? [], { view, points, activeCats, countGames, restOfSeason, leagueCats, leaguePoints, weights, focus }),
+    [rows, view, points, activeCats, restOfSeason, countGames, leagueCats, leaguePoints, weights, focus],
   );
 
   // Position ranks and tiers, over every player in the current value order.
@@ -838,6 +840,17 @@ export default function Board() {
                   ))}
                 </div>
               )}
+              {!points && (
+                <p className="text-xs text-muted">
+                  {setup.focus.length
+                    ? `Focus: ${setup.focus.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}, counted ${FOCUS_WEIGHT}× (`
+                    : `Focus categories, counted ${FOCUS_WEIGHT}×, are set on the `}
+                  <a href={href('/league/')} className="underline underline-offset-4">
+                    {setup.focus.length ? 'change on the League page' : 'League page'}
+                  </a>
+                  {setup.focus.length ? ').' : '.'}
+                </p>
+              )}
               {view === 'value' && (
                 <div className="flex flex-wrap items-center gap-4">
                   <label className="flex items-center gap-2" title="Multiply value per game by the projected share of team games played">
@@ -972,7 +985,15 @@ export default function Board() {
                 const isPunted = !!c.category && punted.has(c.category);
                 return (
                   <SortTh key={c.key} right active={sortKey === c.key} dir={sortDir} onClick={() => sortBy(c.key, c.label === 'TO' && c.kind !== 'z' ? 'asc' : 'desc')}>
-                    {isPunted ? <s>{c.label}</s> : c.label}
+                    {isPunted ? (
+                      <s>{c.label}</s>
+                    ) : c.category && setup.focus.includes(c.category) && !points ? (
+                      <span className="text-accent" title={`Focus: counts ${FOCUS_WEIGHT}× in value and Fit`} data-testid="focus-head">
+                        {c.label}
+                      </span>
+                    ) : (
+                      c.label
+                    )}
                   </SortTh>
                 );
               })}

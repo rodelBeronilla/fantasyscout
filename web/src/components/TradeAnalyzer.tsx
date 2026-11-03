@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague } from '../lib/league';
-import { DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague } from '../lib/fantasy-league';
+import { categoryWeights, DEFAULT_SETTINGS, FOCUS_WEIGHT, isDefaultSettings, keptCategories, owners, useLeague, weightedSum } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { href } from '../lib/site';
 import { matchup, weekTotals } from '../lib/matchup';
@@ -96,6 +96,8 @@ export default function TradeAnalyzer() {
   const points = setup.scoring === 'points';
   // The league's categories less its punts (#661): a punted category counts for nothing in a trade.
   const cats = useMemo(() => keptCategories(setup), [setup]);
+  // A focus category counts more in value and in judging a trade (#680).
+  const catWeight = useMemo(() => categoryWeights(setup), [setup]);
   const punted = points ? [] : setup.punts;
   const catValues = useMemo(() => (rows && !points ? categoryValues(rows, cats, pool, setup.teams) : null), [rows, points, cats, pool, setup.teams]);
   const pointVals = useMemo(() => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null), [rows, points, pool, setup.teams, setup.weights]);
@@ -119,14 +121,14 @@ export default function TradeAnalyzer() {
       const c: Record<string, number> = {};
       if (catValues) for (const k of cats) c[k] = catValues.get(r.player_id)?.[k] ?? 0;
       const pv = pointVals?.get(r.player_id);
-      const perGame = points ? (pv?.value ?? 0) : cats.reduce((s, k) => s + (c[k] ?? 0), 0);
+      const perGame = points ? (pv?.value ?? 0) : weightedSum(c, catWeight);
       const season = scaleValue(perGame, r, { restOfSeason: false });
       const rest = scaleValue(perGame, r);
-      const recent = points ? perGame : cats.reduce((s, k) => s + (recentCats?.get(r.player_id)?.[k] ?? 0), 0);
+      const recent = points ? perGame : weightedSum(recentCats?.get(r.player_id), catWeight);
       out.set(r.player_id, { perGame, season, rest, week: weekValue(recent, r.games_this_week), cats: c, fpts: pv ? pv.fpts : null });
     }
     return out;
-  }, [rows, catValues, pointVals, points, cats, recentCats]);
+  }, [rows, catValues, pointVals, points, cats, recentCats, catWeight]);
 
   const options = useMemo(() => new Map((rows ?? []).map((p) => [optionLabel(p), p.player_id])), [rows]);
 
@@ -154,8 +156,9 @@ export default function TradeAnalyzer() {
       catValue: (id) => worth.get(id)?.cats,
       availability: (id) => availability.get(id) ?? 1,
       gamesLeft: rows.reduce((m, r) => Math.max(m, r.games_remaining ?? 0), 0),
+      focus: catWeight,
     };
-  }, [rows, points, hasRosters, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner]);
+  }, [rows, points, hasRosters, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner, catWeight]);
   const standings = useMemo(() => (state ? leagueStandings(state, setup.mine) : null), [state, setup.mine]);
 
   // Trade chips and targets for a punt build (#671): where each player ranks on rest-of-season value
@@ -191,7 +194,7 @@ export default function TradeAnalyzer() {
       rest,
       effect: (team, g, r) => {
         const e = tradeImpact(state, standings, setup.mine, team, g, r);
-        return { gain: e.mine.gain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
+        return { gain: e.mine.weightedGain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
       },
       minGain: meaningful(state, setup.mine),
       position: (id) => byId.get(id)?.position,
@@ -314,7 +317,7 @@ export default function TradeAnalyzer() {
             state && standings
               ? (g, r): CategoryEffect => {
                   const e = tradeImpact(state, standings, setup.mine, partnerTeam, g, r);
-                  return { gain: e.mine.gain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
+                  return { gain: e.mine.weightedGain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
                 }
               : undefined,
           minGain: threshold || undefined,
@@ -677,7 +680,7 @@ export default function TradeAnalyzer() {
               <div className="grid gap-1" data-testid="trade-category-verdict">
                 <p className="text-base">
                   <strong>
-                    {impact.mine.gain >= threshold ? 'Wins you categories' : impact.mine.gain <= -threshold ? 'Costs you categories' : 'About even in categories'}:
+                    {impact.mine.weightedGain >= threshold ? 'Wins you categories' : impact.mine.weightedGain <= -threshold ? 'Costs you categories' : 'About even in categories'}:
                   </strong>{' '}
                   {h2h ? (
                     <>
@@ -694,6 +697,12 @@ export default function TradeAnalyzer() {
                   )}
                 </p>
                 {(impact.ups.length > 0 || impact.downs.length > 0) && <p>{catMoves(impact.ups, impact.downs)}</p>}
+                {setup.focus.length > 0 && (
+                  <p className="text-muted" data-testid="trade-focus">
+                    Counting your focus ({setup.focus.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}) {FOCUS_WEIGHT}×:{' '}
+                    <Signed value={impact.mine.weightedGain} digits={2} />.
+                  </p>
+                )}
                 {(impact.sides.mine.dropped.length > 0 || impact.sides.mine.added.length > 0) && (
                   <p className="text-muted" data-testid="trade-roster-moves">
                     {impact.sides.mine.dropped.length > 0 && <>To make room you would drop {nameList(impact.sides.mine.dropped)}, your lowest-valued player after the trade. </>}
