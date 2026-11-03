@@ -12,7 +12,8 @@ import { DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague 
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { href } from '../lib/site';
 import { type LeagueState, leagueStandings, meaningful, tradeImpact } from '../lib/trade-impact';
-import { type CategoryEffect, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
+import { rivals } from '../lib/standings';
+import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
@@ -154,6 +155,25 @@ export default function TradeAnalyzer() {
     };
   }, [rows, points, hasRosters, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner]);
   const standings = useMemo(() => (state ? leagueStandings(state, setup.mine) : null), [state, setup.mine]);
+
+  // The trade finder (#664): on request, the best trades with every partner. The search tries a
+  // few thousand trades, so it runs when asked rather than on every change.
+  const [finding, setFinding] = useState(false);
+  const found = useMemo<FoundTrade[] | null>(() => {
+    if (!finding || !state || !standings) return null;
+    const rest = new Map([...worth].map(([id, w]) => [id, Math.max(0, week ? w.week : w.rest)]));
+    return findTrades({
+      mine: state.rosters[setup.mine] ?? [],
+      partners: rivals(state.rosters, setup.mine, state.rosterSpots).map((team) => ({ team, roster: state.rosters[team] ?? [] })),
+      rest,
+      effect: (team, g, r) => {
+        const e = tradeImpact(state, standings, setup.mine, team, g, r);
+        return { gain: e.mine.gain, partnerGain: e.partner.gain, ups: e.ups, downs: e.downs };
+      },
+      minGain: meaningful(state, setup.mine),
+      position: (id) => byId.get(id)?.position,
+    });
+  }, [finding, state, standings, worth, week, setup.mine, byId]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
@@ -465,6 +485,69 @@ export default function TradeAnalyzer() {
         {sideCard('give', 'You give', hasRosters ? setup.mine : null, give)}
         {sideCard('get', 'You get', hasRosters ? partnerTeam : null, get)}
       </div>
+
+      {!ready && standings && (
+        <Card title="Trades across your league" id="finder">
+          {!found ? (
+            <div className="grid gap-2 text-sm">
+              <p className="text-muted">
+                One-for-one, two-for-one and one-for-two trades with every team, kept when they raise the categories you expect to win and give the other
+                team a reason to say yes: their categories rise too, or they gain value.
+              </p>
+              <button type="button" className={`${button} justify-self-start`} onClick={() => setFinding(true)} data-testid="find-trades">
+                Find trades
+              </button>
+            </div>
+          ) : found.length ? (
+            <ul className="grid gap-2 text-sm" data-testid="found-trades">
+              {found.map((t) => (
+                <li key={`${t.partner}:${t.give.join()}>${t.get.join()}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded border border-line p-2">
+                  <span className="min-w-0">
+                    <strong>{setup.names[t.partner]}</strong>
+                    <span className="text-muted">: you give </span>
+                    {nameList(t.give)}
+                    <span className="text-muted">, you get </span>
+                    {nameList(t.get)}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-x-2">
+                    <span className="text-xs text-muted">Your categories</span>
+                    {effectCell(t.effect)}
+                  </span>
+                  <span>
+                    <span className="text-xs text-muted">Theirs </span>
+                    <Signed value={t.effect.partnerGain} digits={2} />
+                  </span>
+                  <span>
+                    <span className="text-xs text-muted">Value </span>
+                    <Signed value={t.net} digits={1} />
+                  </span>
+                  <button
+                    type="button"
+                    className={button}
+                    onClick={() => {
+                      setPartner(t.partner);
+                      setGive(t.give);
+                      setGet(t.get);
+                    }}
+                  >
+                    Use this trade
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted" data-testid="found-none">
+              No one-for-one, two-for-one or one-for-two trade raises the categories you expect to win on terms the other team has a reason to accept.
+            </p>
+          )}
+          {found && (
+            <p className="mt-2 text-xs text-muted">
+              Your categories: the change in the categories you expect to win {setup.format === 'h2h' ? 'a week' : '(rotisserie points)'}; theirs: the other
+              team&apos;s. Biggest gain first, at most three a team, over each roster&apos;s eight most valuable players.
+            </p>
+          )}
+        </Card>
+      )}
 
       {ready && (
         <Card title="Verdict" id="verdict">
