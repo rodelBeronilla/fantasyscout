@@ -17,8 +17,9 @@ import { easternDate, type TodayGame } from '../lib/today';
 import { PlayerPicker } from './PlayerPicker';
 import { Card, Loading, Problem, Td, Th } from './ui';
 import YahooImport from './YahooImport';
+import type { BoardColumn, ExportedRow } from '../generated/columns';
 
-interface PlayerRow {
+interface PlayerRowFields {
   player_id: string;
   full_name: string | null;
   position: string | null;
@@ -30,6 +31,8 @@ interface PlayerRow {
   expected_return: string | null;
   [key: string]: unknown;
 }
+// Only columns the export ships (export/layout.py): a field it does not ship fails the type check (#479).
+type PlayerRow = ExportedRow<BoardColumn, PlayerRowFields>;
 
 const input = 'rounded border border-line bg-bg px-2 py-1 text-sm';
 const button = 'rounded border border-line px-2 py-1 text-xs hover:bg-bg disabled:opacity-50';

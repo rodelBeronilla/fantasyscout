@@ -14,8 +14,9 @@ import { useWatchlist } from '../lib/watchlist';
 import { owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
 import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, lineupDay, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag } from './ui';
+import type { StreamerColumn, ExportedRow } from '../generated/columns';
 
-interface StreamerRow {
+interface StreamerRowFields {
   player_id: string;
   /** Today's role from the league's starting lineups (NBA): starter, bench or inactive. */
   lineup_role?: string | null;
@@ -92,6 +93,8 @@ interface StreamerRow {
   injury_group: string | null;
   [key: string]: unknown;
 }
+// Only columns the export ships (export/layout.py): a field it does not ship fails the type check (#479).
+type StreamerRow = ExportedRow<StreamerColumn, StreamerRowFields>;
 
 interface Game extends CrewFields {
   game_id: string;

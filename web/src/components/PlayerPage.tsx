@@ -8,6 +8,7 @@ import { href } from '../lib/site';
 import ShotChart from './ShotChart';
 import TrendChart from './TrendChart';
 import { Badge, Card, Loading, Problem, Signed, Td, Th } from './ui';
+import type { ExportedRow, PlayerBoardColumn, PlayerRollingColumn, PlayerZscoreColumn } from '../generated/columns';
 
 interface Season {
   season: string;
@@ -54,17 +55,60 @@ interface Game {
   source_agreement: string;
 }
 
-interface Zscore {
+interface ZscoreFields {
   window_name: string;
   season: string;
   games: number;
   z_total: number | null;
   [key: string]: unknown;
 }
+// The player file's sections name only columns the export ships (export/layout.py, #479).
+type Zscore = ExportedRow<PlayerZscoreColumn, ZscoreFields>;
+type Rolling = ExportedRow<PlayerRollingColumn, { game_number: number; game_date: string; [key: string]: unknown }>;
 
 /** The z-score windows the player file carries, in the order the page lists them. */
 const WINDOWS = ['season', 'last_20', 'last_10'] as const;
 const WINDOW_LABEL: Record<string, string> = { season: 'Season', last_20: 'Last 20', last_10: 'Last 10' };
+
+interface PlayerBoardFields {
+  rank_total: number;
+  value_total: number | null;
+  value_rest_of_season: number | null;
+  value_per_game?: number | null;
+  games_share?: number | null;
+  availability_multiplier?: number | null;
+  expected_games_missed?: number | null;
+  games_remaining?: number | null;
+  games_next_7?: number | null;
+  season_complete?: boolean | null;
+  proj_minutes_pg?: number | null;
+  proj_points_pg?: number | null;
+  proj_rebounds_total_pg?: number | null;
+  proj_assists_pg?: number | null;
+  proj_steals_pg?: number | null;
+  proj_blocks_pg?: number | null;
+  proj_three_pointers_made_pg?: number | null;
+  proj_turnovers_pg?: number | null;
+  proj_field_goal_pct?: number | null;
+  proj_free_throw_pct?: number | null;
+  lineup_role?: string | null;
+  lineup_confirmed?: boolean | null;
+  market_rank?: number | null;
+  ownership_bucket?: string | null;
+  team_stakes?: string | null;
+  rest_risk?: boolean | null;
+  injury_status?: string | null;
+  injury_group?: string | null;
+  injury_type?: string | null;
+  expected_return?: string | null;
+  injury_note?: string | null;
+  injury_news?: string | null;
+  injury_since?: string | null;
+  /** official (the league's report for the next game) or espn. */
+  injury_source?: string | null;
+  official_game_date?: string | null;
+}
+type PlayerBoard = ExportedRow<PlayerBoardColumn, PlayerBoardFields>;
 
 interface PlayerFile {
   league: League;
@@ -82,46 +126,9 @@ interface PlayerFile {
   stints: { team_id: string; abbreviation: string | null; valid_from: string; valid_to: string | null }[];
   seasons: Season[];
   game_log: Game[];
-  rolling: { game_number: number; game_date: string; [key: string]: unknown }[];
+  rolling: Rolling[];
   zscores: Zscore[];
-  board: {
-    rank_total: number;
-    value_total: number | null;
-    value_rest_of_season: number | null;
-    value_per_game?: number | null;
-    games_share?: number | null;
-    availability_multiplier?: number | null;
-    expected_games_missed?: number | null;
-    games_remaining?: number | null;
-    games_next_7?: number | null;
-    season_complete?: boolean | null;
-    proj_minutes_pg?: number | null;
-    proj_points_pg?: number | null;
-    proj_rebounds_total_pg?: number | null;
-    proj_assists_pg?: number | null;
-    proj_steals_pg?: number | null;
-    proj_blocks_pg?: number | null;
-    proj_three_pointers_made_pg?: number | null;
-    proj_turnovers_pg?: number | null;
-    proj_field_goal_pct?: number | null;
-    proj_free_throw_pct?: number | null;
-    lineup_role?: string | null;
-    lineup_confirmed?: boolean | null;
-    market_rank?: number | null;
-    ownership_bucket?: string | null;
-    team_stakes?: string | null;
-    rest_risk?: boolean | null;
-    injury_status?: string | null;
-    injury_group?: string | null;
-    injury_type?: string | null;
-    expected_return?: string | null;
-    injury_note?: string | null;
-    injury_news?: string | null;
-    injury_since?: string | null;
-    /** official (the league's report for the next game) or espn. */
-    injury_source?: string | null;
-    official_game_date?: string | null;
-  } | null;
+  board: PlayerBoard | null;
   /** The player's signings, waivers and trades from the league's feed, newest first (NBA). */
   moves?: { transaction_date: string; team_abbreviation: string | null; move_type: string; description: string }[];
   /** ESPN's newest headlines about the player: the headline, its date and a link to ESPN (absent in older builds). */
