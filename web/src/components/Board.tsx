@@ -117,7 +117,7 @@ function lineColumns(view: View): { key: string; label: string; kind: 'num' | 'p
 }
 
 type Availability = BoardAvailability;
-type Show = 'available' | 'mine' | 'all';
+type Show = 'available' | 'mine' | 'rostered' | 'all';
 
 const PAGE = 100;
 /** Rows in the first paint, before the rest of the page renders in idle time (#436). */
@@ -371,7 +371,10 @@ export default function Board() {
       .filter(({ row }) => !rookiesOnly || row.is_rookie === true)
       .filter(({ row }) => !movedOnly || row.is_new_team === true)
       .filter(({ row }) => !watchOnly || watched.has(row.player_id))
-      .filter(({ row }) => show === 'all' || (show === 'mine' ? owner.get(row.player_id) === setup.mine : !owner.has(row.player_id)))
+      .filter(({ row }) =>
+        show === 'all' ||
+        (show === 'mine' ? owner.get(row.player_id) === setup.mine : show === 'rostered' ? owner.has(row.player_id) : !owner.has(row.player_id)),
+      )
       .filter(({ row }) => !q || (row.full_name ?? '').toLowerCase().includes(q))
       .filter(({ value }) => view === 'value' || value !== null);
     const get = (s: (typeof filtered)[number]): number | string | null => {
@@ -701,6 +704,7 @@ export default function Board() {
             options={[
               { id: 'available', label: 'Available' },
               { id: 'mine', label: 'My team' },
+              { id: 'rostered', label: 'Rostered' },
               { id: 'all', label: 'Everyone' },
             ]}
             onChange={setShowChoice}
