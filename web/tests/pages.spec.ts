@@ -1233,6 +1233,26 @@ test('with punts set, the Trade page lists the chips the league ranks above the 
   await expect(page.locator('#chips')).toHaveCount(0);
 });
 
+test("in a head-to-head league with this week's opponent set, the trade verdict shows the week's matchup before and after (#674)", async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { full_name: string; team_abbreviation: string; position: string; games_this_week: number | null }[];
+  await page.route('**/board/nba.json', (route) => route.fulfill({ json: board.map((r) => ({ ...r, games_this_week: 3 })) }));
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/?league=nba');
+  await page.getByLabel('Format').selectOption('h2h');
+  await page.getByLabel('Roster spots').fill('6');
+  for (const [team, picked] of [[1, [0, 5, 9]], [2, [1, 2, 7]], [3, [3, 4, 8]]] as const) {
+    for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
+  }
+  await page.goto('/?league=nba');
+  await page.getByTestId('matchup').getByLabel("This week's opponent").selectOption({ label: 'Team 3' });
+  await page.goto('/trade/?league=nba');
+  await page.getByTestId('roster-give').getByRole('checkbox').first().check();
+  await page.getByTestId('roster-get').getByRole('checkbox').first().check();
+  const week = page.getByTestId('trade-week-matchup');
+  await expect(week).toContainText('This week against Team 3');
+  await expect(week).toContainText(/\d+–\d+.* → \d+–\d+/);
+});
+
 test('the League page sets the league the board values for, and points leagues score fantasy points', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
