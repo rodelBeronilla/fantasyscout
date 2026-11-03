@@ -64,7 +64,7 @@ select = ["E", "F", "I", "B", "UP", "N", "W", "SIM", "RUF"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["ingest", "export", "ops", "tests"]
+packages = ["ingest", "export", "ops", "ai", "tests"]
 
 [[tool.mypy.overrides]]
 module = ["pyarrow", "pyarrow.*"]

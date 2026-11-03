@@ -15,7 +15,7 @@
 > | The scoring blend (last season 0.55, the season before 0.15, current 0.30 rising to 0.8) | Board value as ADR 0009 defines it | [ADR 0009](docs/adr/0009-board-value.md) |
 > | `fct_player_tracking_season`, player × season × measure | `fct_player_tracking`, player × game, NBA only | [ADR 0004](docs/adr/0004-stats-api-request-economy.md) addenda |
 > | `fct_availability`, player × day | One row per injury listing, at the report it was last seen in; `is_current` marks the latest | [ADR 0003](docs/adr/0003-gold-modelling.md), availability addendum |
-> | `/notes`, the weekly scouting notes | Not built: phase 7 waits for the go-ahead | [The phase table](docs/architecture.md#phase-status) |
+> | `/notes`, the weekly scouting notes | Built with a local model instead of the hosted API (ADR 0017); the model writes words only and the validator derives each claim from the text | [ADR 0017](docs/adr/0017-local-language-model.md) |
 > | `/about`, how it's built | `/pipeline/` (the stages and diagrams), `/schema/` (every model) and `/sources/` (every source and its terms) | [docs/architecture.md](docs/architecture.md) |
 > | The product table's pages | Also `/trade/` (trade values and suggestions) and `/league/` (a manager's league, settings and the Yahoo import) | [ADR 0007](docs/adr/0007-yahoo-league-import.md) for the import |
 > | `make local` (phase 8) | `uv run fs-dev check`, and `--all` for the web and Worker suites | [README](README.md#run-it-locally), [CONTRIBUTING.md](CONTRIBUTING.md) |
@@ -265,7 +265,7 @@ fantasyscout/
   .github/workflows/ # ci.yml, ingest.yml, backfill.yml, build.yml, deploy-web.yml, notes.yml
 ```
 
-> **Superseded in part.** The extract lives in `tableau/`, the data dictionary is the site's Schema page (generated from the models' yml), and the workflows are ci, deploy-web, ingest, backfill, build, export, notebooks, probe, query and watchdog (`notes.yml` waits for phase 7). The README's layout table is the current one.
+> **Superseded in part.** The extract lives in `tableau/`, the data dictionary is the site's Schema page (generated from the models' yml), and the workflows are ci, deploy-web, ingest, backfill, build, export, notebooks, probe, query and watchdog, and `notes.yml` for phase 7. The README's layout table is the current one.
 
 ```
 ```

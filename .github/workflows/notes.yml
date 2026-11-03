@@ -1,0 +1,99 @@
+name: Scouting notes
+
+# The weekly AI-drafted scouting notes (SPEC.md, "AI usage"; ADR 0017), in three jobs that each
+# run where they belong: the players are picked from the published build on a GitHub-hosted
+# runner, the local model drafts the notes on the home runner (the only place it is), and the
+# validator re-checks every number against the picked inputs and publishes the notes that pass
+# on a GitHub-hosted runner, which holds the R2 credentials. No number comes from the model: a
+# note with a number that is not the build's is rejected and logged, never published.
+
+on:
+  schedule:
+    # Mondays, after the morning build
+    - cron: "30 14 * * 1"
+  workflow_dispatch:
+    inputs:
+      eval_dates:
+        description: Earlier daily snapshots to draft notes for, as the eval (SPEC.md, "Eval")
+        type: string
+        default: "6"
+      publish:
+        description: Publish the notes (off, a dry run that keeps them as an artifact)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notes
+  cancel-in-progress: false
+
+jobs:
+  inputs:
+    name: Pick the players from the build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # it holds the CI reader key for the build's tables (#429)
+    environment: lakehouse
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - name: Pick the players
+        env:
+          FS_NOTEBOOK_SOURCE: published
+          FS_READER_KEY: ${{ secrets.CI_READER_KEY }}
+          EVAL_DATES: ${{ inputs.eval_dates || '6' }}
+        run: uv run python -m ai.notes inputs --source published --eval-dates "$EVAL_DATES" --out inputs.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: notes-inputs
+          path: inputs.json
+          retention-days: 14
+
+  draft:
+    name: Draft the notes with the local model
+    needs: inputs
+    # the home runner: the model runs beside it (infra/runner/compose.yml, the ai service)
+    runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: notes-inputs
+      - name: Draft one note per player
+        run: uv run python -m ai.notes draft --inputs inputs.json --out draft.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: notes-draft
+          path: draft.json
+          retention-days: 14
+
+  publish:
+    name: Validate and publish
+    needs: [inputs, draft]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: lakehouse
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: notes-*
+          merge-multiple: true
+      - name: Validate every note and publish the ones that pass
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STORE: ${{ (github.event_name == 'schedule' || inputs.publish) && 'r2' || 'local' }}
+        run: uv run python -m ai.notes publish --inputs inputs.json --draft draft.json --store "$STORE" --out _notes
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: notes-published
+          path: _notes/
+          retention-days: 14
+          if-no-files-found: ignore
