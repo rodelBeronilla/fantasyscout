@@ -3,7 +3,7 @@
  * manager's team changes category by category, and a verdict. Players come from the league's
  * rosters when the League page has them, or from a search over the whole board.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORY_LABELS, fmt, pct } from '../lib/format';
@@ -15,6 +15,7 @@ import { matchup, weekTotals } from '../lib/matchup';
 import { type LeagueState, leagueStandings, meaningful, objective, rostersAfter, teamNeeds, tradeImpact } from '../lib/trade-impact';
 import { median, ranks, tradeChips, tradeTargets } from '../lib/punt-chips';
 import { rivals } from '../lib/standings';
+import { judge, lens, LIMITS, marketValues } from '../lib/trade-fairness';
 import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { describeSettings } from './LeagueParts';
@@ -160,6 +161,33 @@ export default function TradeAnalyzer() {
     };
   }, [rows, points, hasRosters, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner, catWeight]);
   const standings = useMemo(() => (state ? leagueStandings(state, setup.mine) : null), [state, setup.mine]);
+  // The market's price of each player (#692): his ESPN rank, priced at the rest-of-season value the
+  // board's player of that rank has, so it reads on the same scale as the projected value.
+  const marketMap = useMemo(() => (rows ? marketValues(rows, (id) => worth.get(id)?.rest ?? 0) : new Map<string, number>()), [rows, worth]);
+  /** A trade's value and market lenses for the manager, the roster spots settled (#692). */
+  const lensesFor = useCallback(
+    (partnerIdx: number, g: string[], r: string[]) => {
+      const settled = state && partnerIdx >= 0 ? rostersAfter(state, setup.mine, partnerIdx, g, r).mine : null;
+      const outgoing = [...g, ...(settled?.dropped ?? [])];
+      const incoming = [...r, ...(settled?.added ?? [])];
+      const value = lens(outgoing, incoming, (id) => {
+        const w = worth.get(id);
+        return w ? (week ? w.week : w.rest) : 0;
+      });
+      const ranked = [...g, ...r].some((id) => typeof byId.get(id)?.market_rank === 'number');
+      const market = ranked ? lens(outgoing, incoming, (id) => marketMap.get(id) ?? 0) : null;
+      return { value, market, settled };
+    },
+    [state, setup.mine, worth, week, byId, marketMap],
+  );
+  /** Not a bad trade for the manager on value or market: what suggestions and the finder keep (#692). */
+  const acceptableFor = useCallback(
+    (partnerIdx: number, g: string[], r: string[]) => {
+      const { value, market } = lensesFor(partnerIdx, g, r);
+      return value.share > LIMITS.value.bad && (!market || market.share > LIMITS.market.bad);
+    },
+    [lensesFor],
+  );
 
   // Trade chips and targets for a punt build (#671): where each player ranks on rest-of-season value
   // over every category the league counts (roughly where other managers see him) against where he
@@ -200,9 +228,10 @@ export default function TradeAnalyzer() {
       },
       minGain: meaningful(state, setup.mine),
       winWin,
+      acceptable: acceptableFor,
       position: (id) => byId.get(id)?.position,
     });
-  }, [finding, state, standings, worth, week, setup.mine, byId, winWin]);
+  }, [finding, state, standings, worth, week, setup.mine, byId, winWin, acceptableFor]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="the board" />;
@@ -240,7 +269,6 @@ export default function TradeAnalyzer() {
   const getting = sideOf(get);
   const net = getting.value - giving.value;
   const scale = Math.max(Math.abs(giving.value), Math.abs(getting.value), 1);
-  const verdict = Math.abs(net) < 0.05 * scale ? 'even' : net > 0 ? 'you' : 'partner';
   const spots = getting.players.length - giving.players.length;
 
   // The manager's team before and after, with its rank in each category among the league's teams.
@@ -286,6 +314,11 @@ export default function TradeAnalyzer() {
   const threshold = state ? meaningful(state, setup.mine) : 0;
   const h2h = setup.format === 'h2h';
   const partnerName = setup.names[partnerTeam] ?? 'Your partner';
+  // Is it even? (#692) Projected value with the roster spots settled, the market, and the categories:
+  // even only when they agree; a warning when any says the trade is bad for the manager.
+  const lenses = ready ? lensesFor(hasRosters ? partnerTeam : -1, give, get) : null;
+  const fair = lenses ? judge(lenses.value, lenses.market, impact ? impact.mine.weightedGain : null, threshold) : null;
+  const settledNote = lenses?.settled && (lenses.settled.dropped.length > 0 || lenses.settled.added.length > 0);
   // Both sides in the same depth (#682): each team's needs from the standings, and the trade
   // judged by both teams' change in expected categories.
   const needs = impact && state && standings ? { mine: teamNeeds(state, standings, setup.mine), partner: teamNeeds(state, standings, partnerTeam) } : null;
@@ -329,6 +362,7 @@ export default function TradeAnalyzer() {
               : undefined,
           minGain: threshold || undefined,
           winWin,
+          acceptable: (g, r) => acceptableFor(partnerTeam, g, r),
           position: (id) => byId.get(id)?.position,
         })
       : [];
@@ -690,6 +724,22 @@ export default function TradeAnalyzer() {
             </div>
           )}
           <div className="grid gap-2 text-sm" data-testid="trade-verdict">
+            {fair && fair.severity !== 'fine' && (
+              <div
+                role="alert"
+                data-testid="trade-warning"
+                className={`rounded-lg border-2 p-3 ${fair.severity === 'terrible' ? 'border-bad' : 'border-warn'}`}
+              >
+                <p className={`text-base font-semibold ${fair.severity === 'terrible' ? 'text-bad' : 'text-warn'}`}>
+                  {fair.severity === 'terrible' ? '⚠ Stop: this looks like a terrible trade for you' : '⚠ Careful: this looks like a bad trade for you'}
+                </p>
+                <ul className="mt-1 list-disc pl-5">
+                  {fair.reasons.map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {impact && (
               <div className="grid gap-1" data-testid="trade-category-verdict">
                 <p className="text-base">
@@ -838,17 +888,55 @@ export default function TradeAnalyzer() {
                 )}
               </div>
             )}
+            {fair && (
+              <div className="grid gap-0.5 rounded border border-line p-2" data-testid="trade-fairness">
+                <p className="font-medium">
+                  {fair.even
+                    ? 'Even: projected value, the market and your categories all agree.'
+                    : fair.disagree
+                      ? 'Not clearly even: our projections and the market point opposite ways.'
+                      : 'Not even.'}
+                </p>
+                <p>
+                  <span className="text-muted">Projected value{settledNote ? ', roster spots counted' : ''}: </span>
+                  you give <Signed value={fair.value.give} digits={1} />, get <Signed value={fair.value.get} digits={1} /> (
+                  {fair.value.net >= 0 ? 'you +' : 'partner +'}
+                  {Math.round(Math.abs(fair.value.share) * 100)}%)
+                </p>
+                {fair.market && (
+                  <p data-testid="trade-fairness-market">
+                    <span className="text-muted">The market (ESPN ranks, priced on this board): </span>
+                    you give <Signed value={fair.market.give} digits={1} />, get <Signed value={fair.market.get} digits={1} /> (
+                    {fair.market.net >= 0 ? 'you +' : 'partner +'}
+                    {Math.round(Math.abs(fair.market.share) * 100)}%)
+                  </p>
+                )}
+                {fair.disagree && (
+                  <p className="text-muted" data-testid="trade-fairness-disagree">
+                    Our projections favour {fair.value.net >= 0 ? 'you' : partnerName}; the market favours {fair.market && fair.market.net >= 0 ? 'you' : partnerName}.
+                    The market pays for stars and for names, the projections for production and games played: a trade between them is a bet that the
+                    projections are right, and most managers will judge it the market&apos;s way.
+                  </p>
+                )}
+                {settledNote && lenses?.settled && (
+                  <p className="text-muted">
+                    {lenses.settled.dropped.length > 0 && <>Your drop to make room ({nameList(lenses.settled.dropped)}) counts as given. </>}
+                    {lenses.settled.added.length > 0 && <>The free agent you would pick up ({nameList(lenses.settled.added)}) counts as received.</>}
+                  </p>
+                )}
+              </div>
+            )}
             <p className={impact ? 'text-muted' : 'text-base'}>
               {impact ? 'In value: ' : ''}
-              {verdict === 'even' ? (
-                <>About even: the two sides are within 5% of each other for the {REST}.</>
-              ) : verdict === 'you' ? (
+              {fair?.even ? (
+                <>About even for the {REST}.</>
+              ) : (fair?.value.net ?? net) > 0 ? (
                 <>
-                  Favours you by <Signed value={net} digits={1} /> for the {REST}.
+                  Favours you by <Signed value={fair?.value.net ?? net} digits={1} /> for the {REST}.
                 </>
               ) : (
                 <>
-                  Favours your partner by <Signed value={-net} digits={1} /> for the {REST}.
+                  Favours your partner by <Signed value={-(fair?.value.net ?? net)} digits={1} /> for the {REST}.
                 </>
               )}
             </p>
