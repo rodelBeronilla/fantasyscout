@@ -2359,6 +2359,24 @@ test('a trade the market calls lopsided is not called even: the lenses are shown
   await expect(page.getByTestId('trade-verdict')).not.toContainText('About even');
 });
 
+for (const league of ['wnba', 'nba']) {
+  test(`on a phone the ${league} board's largest paint is its static intro, not a later card (#704, #717)`, async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'mobile project only');
+    await page.addInitScript(() => {
+      const w = window as unknown as { lcp: (Element | null)[] };
+      w.lcp = [];
+      new PerformanceObserver((list) => {
+        for (const e of list.getEntries() as (PerformanceEntry & { element?: Element })[]) w.lcp.push(e.element ?? null);
+      }).observe({ type: 'largest-contentful-paint', buffered: true });
+    });
+    await page.goto(`/?league=${league}`);
+    await page.getByTestId('board').locator('tbody tr').first().waitFor();
+    await page.waitForTimeout(1000);
+    // a card React paints later and larger than the intro would hold the LCP over the 2 s budget
+    expect(await page.evaluate(() => (window as unknown as { lcp: (Element | null)[] }).lcp.at(-1)?.getAttribute('data-testid'))).toBe('intro');
+  });
+}
+
 test('UI polish: a phone sees each value beside the name, a day without games has no Today card, and the footer reads cleanly (#696)', async ({ page }) => {
   await page.goto('/');
   const first = page.getByTestId('board').locator('tbody tr[data-player]').first();
