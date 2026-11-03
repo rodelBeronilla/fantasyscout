@@ -32,6 +32,8 @@ export interface SuggestInput {
   effect?: (give: string[], get: string[]) => CategoryEffect;
   /** The least category gain a suggestion must bring the manager. */
   minGain?: number;
+  /** Only packages that raise the partner's expected categories too (#682). */
+  winWin?: boolean;
   /** The most players a suggestion adds to a side. */
   maxAdd?: number;
   /** How much value the partner may give up (or, without the category model, how far apart the sides may be), as a share of the larger side. */
@@ -102,7 +104,7 @@ export function suggestTrades(input: SuggestInput): Suggestion[] {
       // little value, or their categories rise too.
       const e = effect(g, r);
       if (e.gain < minGain) continue;
-      if (net > tolerance * scale && e.partnerGain < 0) continue;
+      if (input.winWin ? e.partnerGain <= 0 : net > tolerance * scale && e.partnerGain < 0) continue;
       out.push({ give: g, get: r, net, effect: e });
     } else {
       if (Math.abs(net) > tolerance * scale) continue;
@@ -142,6 +144,8 @@ export interface FinderInput {
   effect: (partner: number, give: string[], get: string[]) => CategoryEffect;
   /** The least category gain a trade must bring the manager. */
   minGain: number;
+  /** Only trades that raise the partner's expected categories too (#682). */
+  winWin?: boolean;
   /** How many of each roster's most valuable players are tried. */
   candidates?: number;
   /** The most trades listed with one partner, so the list is not one team's. */
@@ -185,7 +189,7 @@ export function findTrades(input: FinderInput): FoundTrade[] {
           if (input.position && !keepsPositions(input.mine, [...input.mine.filter((id) => !give.includes(id)), ...get], input.position)) continue;
           const e = effect(team, give, get);
           const net = value(get) - value(give);
-          if (e.gain < minGain || (e.partnerGain <= 0 && net > 0)) continue;
+          if (e.gain < minGain || (e.partnerGain <= 0 && (input.winWin || net > 0))) continue;
           found.push({ partner: team, give, get, net, effect: e });
         }
       }
