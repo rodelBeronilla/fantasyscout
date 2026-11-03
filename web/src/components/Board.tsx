@@ -168,7 +168,6 @@ export default function Board() {
   // them and a copied link reproduces them (#461).
   const [fromUrl] = useState(() => readBoardFilters(window.location.search));
   const [view, setView] = useState<View>(fromUrl.view);
-  const [punts, setPunts] = useState<Set<string>>(fromUrl.punts);
   const [restOfSeason, setRestOfSeason] = useState(fromUrl.restOfSeason);
   const [countGames, setCountGames] = useState(fromUrl.countGames);
   const [team, setTeam] = useState(fromUrl.team);
@@ -179,11 +178,6 @@ export default function Board() {
   const [rookiesOnly, setRookiesOnly] = useState(fromUrl.rookiesOnly);
   const [movedOnly, setMovedOnly] = useState(fromUrl.movedOnly);
   const [watchOnly, setWatchOnly] = useState(fromUrl.watchOnly);
-  useEffect(() => {
-    const filters = { view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly };
-    const qs = writeBoardFilters(window.location.search, filters);
-    if (qs !== window.location.search) window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs}${window.location.hash}`);
-  }, [view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly]);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState('value');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -196,6 +190,23 @@ export default function Board() {
   const [showChoice, setShowChoice] = useState<Show | null>(null);
   const { watched, toggleWatched } = useWatchlist(league);
   const [setup, updateLeague] = useLeague(league);
+  // Punts are the league's (#661): these chips edit the setting the League page does, and the
+  // Trade page, the upgrades and Streamers read it.
+  const punts = useMemo(() => new Set(setup.punts), [setup.punts]);
+  const setPunts = useCallback(
+    (change: Set<string> | ((current: Set<string>) => Set<string>)) =>
+      updateLeague((s) => ({ ...s, punts: [...(typeof change === 'function' ? change(new Set(s.punts)) : change)] })),
+    [updateLeague],
+  );
+  // A link carrying ?punt= applies its punts to the league, so a copied link still reproduces them.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('punt')) setPunts(fromUrl.punts);
+  }, [fromUrl, setPunts]);
+  useEffect(() => {
+    const filters = { view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly };
+    const qs = writeBoardFilters(window.location.search, filters);
+    if (qs !== window.location.search) window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs}${window.location.hash}`);
+  }, [view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly]);
   const owner = useMemo(() => owners(setup), [setup]);
   const hasRosters = owner.size > 0;
   // With rosters in, the board starts on the players still available.

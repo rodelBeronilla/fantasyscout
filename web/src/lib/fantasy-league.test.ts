@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assign, DEFAULT_SETTINGS, draftPick, isDefaultSettings, matchNames, migrate, nameKey, normalize, onTheClock, owners, toggleIl, undoPick } from './fantasy-league';
+import { assign, DEFAULT_SETTINGS, draftPick, isDefaultSettings, keptCategories, matchNames, migrate, nameKey, normalize, onTheClock, owners, toggleIl, undoPick } from './fantasy-league';
 
 const base = normalize({ teams: 4, rosters: [['p1', 'p2'], ['p3'], [], []] }, DEFAULT_SETTINGS.nba);
 
@@ -94,5 +94,17 @@ describe('isDefaultSettings', () => {
     expect(isDefaultSettings({ ...d, scoring: 'points' }, d)).toBe(false);
     expect(isDefaultSettings({ ...d, format: 'h2h' }, d)).toBe(false);
     expect(isDefaultSettings({ ...d, weights: { ...d.weights, points: d.weights.points + 1 } }, d)).toBe(false);
+    expect(isDefaultSettings({ ...d, punts: ['z_points'] }, d)).toBe(false);
+  });
+});
+
+describe('keptCategories', () => {
+  it('drops the punts, turnovers in an 8-category league, and everything in a points league', () => {
+    expect(keptCategories({ scoring: 'cats9', punts: [] })).toHaveLength(9);
+    const punt3 = keptCategories({ scoring: 'cats9', punts: ['z_points', 'z_assists', 'z_three_pointers_made'] });
+    expect(punt3).toEqual(['z_rebounds_total', 'z_steals', 'z_blocks', 'z_field_goal_pct', 'z_free_throw_pct', 'z_turnovers']);
+    expect(keptCategories({ scoring: 'cats8', punts: ['z_points'] })).not.toContain('z_turnovers');
+    expect(keptCategories({ scoring: 'cats8', punts: ['z_points'] })).toHaveLength(7);
+    expect(keptCategories({ scoring: 'points', punts: [] })).toEqual([]);
   });
 });

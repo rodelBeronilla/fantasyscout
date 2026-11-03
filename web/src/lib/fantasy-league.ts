@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import type { League } from './data';
+import { CATEGORIES } from './format';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
 
 export type Scoring = 'cats9' | 'cats8' | 'points';
@@ -48,6 +49,8 @@ export interface LeagueSettings {
   scoring: Scoring;
   weights: PointWeights;
   format: Format;
+  /** Categories the manager gives up on (a categories league): every page values players without them (#661). */
+  punts: string[];
 }
 
 interface Pick {
@@ -71,9 +74,18 @@ export interface LeagueSetup extends LeagueSettings {
 
 /** The league the published values assume (dbt var `fantasy`). */
 export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
-  nba: { teams: 12, rosterSpots: 13, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto' },
-  wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto' },
+  nba: { teams: 12, rosterSpots: 13, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [] },
+  wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [] },
 };
+
+/**
+ * The categories the league's values count: all nine, less turnovers in an 8-category league,
+ * less the manager's punts. Empty for a points league.
+ */
+export function keptCategories(s: { scoring: Scoring; punts: string[] }): string[] {
+  if (s.scoring === 'points') return [];
+  return CATEGORIES.filter((c) => !s.punts.includes(c) && !(s.scoring === 'cats8' && c === 'z_turnovers'));
+}
 
 /** Whether the settings are the league's defaults, the ones the published values assume. */
 export function isDefaultSettings(s: LeagueSettings, d: LeagueSettings): boolean {
@@ -82,6 +94,7 @@ export function isDefaultSettings(s: LeagueSettings, d: LeagueSettings): boolean
     s.rosterSpots === d.rosterSpots &&
     s.scoring === d.scoring &&
     s.format === d.format &&
+    s.punts.length === 0 &&
     JSON.stringify(s.weights) === JSON.stringify(d.weights)
   );
 }
@@ -110,6 +123,8 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
     scoring: raw.scoring ?? fallback.scoring,
     weights: { ...fallback.weights, ...raw.weights },
     format: raw.format === 'h2h' || raw.format === 'roto' ? raw.format : fallback.format,
+    // known categories only, once each, in the board's order
+    punts: CATEGORIES.filter((c) => (Array.isArray(raw.punts) ? raw.punts : fallback.punts).includes(c)),
     names,
     rosters,
     mine,
@@ -169,8 +184,9 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
  *    under their own key and joined the manager's team on first read.
  * 2: the injured list (`il`) and the point-scoring weights.
  * 3: the league format (`format`: roto or head-to-head) and this week's opponent (`opponent`).
+ * 4: the punted categories (`punts`), which until then were a view setting on the board.
  */
-export const SETUP_VERSION = 3;
+export const SETUP_VERSION = 4;
 
 interface StoredSetup extends LeagueSetup {
   version: number;
@@ -199,6 +215,10 @@ export function migrate(raw: unknown, fallback: LeagueSettings, legacy: LegacySt
   if (version <= 2) {
     // 2 -> 3: every league so far was rotisserie, with no opponent to face.
     value = { ...value, format: fallback.format, opponent: null };
+  }
+  if (version <= 3) {
+    // 3 -> 4: no league had punts; the board's own punts stayed in its URL.
+    value = { ...value, punts: [] };
   }
   const setup = normalize(value, fallback);
   if (legacy.marks?.length) {
