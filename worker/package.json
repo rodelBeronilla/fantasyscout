@@ -10,6 +10,7 @@
     "typecheck": "npm run types && tsc --noEmit",
     "test": "npm run types && vitest run",
     "csp": "node scripts/csp-hashes.mjs",
+    "lint": "knip",
     "pretypecheck": "npm run csp",
     "predev": "npm run csp",
     "pretest": "npm run csp",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.4.8",
     "@cloudflare/workers-types": "^5.20261026.1",
+    "knip": "6.42.1",
     "typescript": "^5.9.0",
     "vitest": "^5.0.5",
     "wrangler": "^4.153.0"

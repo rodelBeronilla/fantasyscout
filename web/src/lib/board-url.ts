@@ -6,9 +6,9 @@ import { POSITION_LETTERS, type PositionLetter } from './players';
  * copied link reproduces them. Only what differs from the default is written; other parameters
  * (?league=) are kept. Values that do not parse are dropped, never guessed.
  */
-export const BOARD_VIEWS = ['value', 'season', 'last20', 'recent', 'projected', 'pergame'] as const;
+const BOARD_VIEWS = ['value', 'season', 'last20', 'recent', 'projected', 'pergame'] as const;
 export type BoardView = (typeof BOARD_VIEWS)[number];
-export const AVAILABILITIES = ['all', 'no_out', 'healthy'] as const;
+const AVAILABILITIES = ['all', 'no_out', 'healthy'] as const;
 export type BoardAvailability = (typeof AVAILABILITIES)[number];
 
 export type BoardFilters = {

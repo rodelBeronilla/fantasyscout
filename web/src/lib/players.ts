@@ -13,17 +13,6 @@ export function eligibleAt(position: string | null | undefined, letters: Readonl
     .some((p) => letters.has(p as PositionLetter));
 }
 
-export type InjuryGroup = 'out' | 'doubtful' | 'questionable' | 'probable' | 'day_to_day' | 'other';
-
-export const INJURY_LABEL: Record<InjuryGroup, string> = {
-  out: 'OUT',
-  doubtful: 'DOUBT',
-  questionable: 'Q',
-  probable: 'PROB',
-  day_to_day: 'DTD',
-  other: 'INJ',
-};
-
 export function toggle<T>(set: ReadonlySet<T>, value: T): Set<T> {
   const next = new Set(set);
   if (next.has(value)) next.delete(value);

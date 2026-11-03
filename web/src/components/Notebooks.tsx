@@ -4,7 +4,7 @@ import { buildHref, dataHref, getLatest, type Latest, type League } from '../lib
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { Card, Loading, Problem, Td, Th } from './ui';
 
-export const NOTEBOOKS = [
+const NOTEBOOKS = [
   {
     name: '01_board_backtest',
     title: 'Board backtest',

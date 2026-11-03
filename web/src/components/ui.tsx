@@ -57,7 +57,7 @@ export function Card({ title, children, id }: { title: string; children: ReactNo
 }
 
 /** The sticky-column classes for a cell that names the row (#437): the first pinned cell, or the second beside a narrow first. */
-export const pinClass = (pin?: Pin) => (pin === 'first' ? 'pin' : pin === 'second' ? 'pin pin-second' : '');
+const pinClass = (pin?: Pin) => (pin === 'first' ? 'pin' : pin === 'second' ? 'pin pin-second' : '');
 export type Pin = 'first' | 'second';
 
 export function Th({ children, right = false, pin }: { children: ReactNode; right?: boolean; pin?: Pin }) {

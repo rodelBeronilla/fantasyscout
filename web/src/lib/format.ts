@@ -10,12 +10,6 @@ export function pct(value: number | null | undefined): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-export function signed(value: number | null | undefined, digits = 2): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return '–';
-  const text = value.toFixed(digits);
-  return value > 0 ? `+${text}` : text;
-}
-
 export function int(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '–';
   return Math.round(value).toLocaleString('en-US');

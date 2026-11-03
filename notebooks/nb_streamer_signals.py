@@ -68,7 +68,8 @@ points at the wrong signal, a manager following it loses value every week, quiet
     setup(),
     (
         "code",
-        """import replay as rp
+        """from replay import value_scale
+import replay as rp
 
 SETTINGS = rp.load_settings()
 has_usage = 'usage_percentage' in columns(con, 'fct_player_game')
@@ -102,18 +103,6 @@ SIGNALS = {
 NEW = ['expected_games', 'production_expected', 'board_projection', 'board_projection_expected', 'opportunity_trend']
 OLD = [k for k in SIGNALS if k not in NEW]
 PRIOR = 10  # mart_streamers: last season counts as up to ten games in the baselines
-
-
-def value_scale(rows, lg):
-    \"\"\"Each category's spread over the pool's per-game lines, and the pool's shooting percentages.\"\"\"
-    ln = rp.lines(rows)
-    pool = ln.sort_values('total_minutes', ascending=False).index[: rp.ZSCORE_POOL[lg]]
-    p = ln.loc[pool]
-    scale = {c: p[f'{c}_pg'].std() for c in rp.COUNTING}
-    for name, made, att, att_pg in (('fg', 'fgm', 'fga', 'fga_pg'), ('ft', 'ftm', 'fta', 'fta_pg')):
-        pct = p[made].sum() / p[att].sum()
-        scale[name] = (pct, ((p[made] / p[att].replace(0, np.nan) - pct) * p[att_pg]).std())
-    return scale
 
 
 def contribution(rows, scale):

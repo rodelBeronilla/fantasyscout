@@ -4,7 +4,7 @@
  * guarded; a value under an older key is moved to its current key the first time it is read.
  */
 
-export const NAMESPACE = 'fantasyscout';
+const NAMESPACE = 'fantasyscout';
 
 export function storageKey(...parts: string[]): string {
   return [NAMESPACE, ...parts].join(':');

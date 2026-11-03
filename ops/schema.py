@@ -588,7 +588,7 @@ def build(
 
 def project_vars() -> dict[str, Any]:
     """The `vars` of dbt_project.yml (the dbt group of the environment carries PyYAML)."""
-    import yaml  # type: ignore[import-untyped]
+    import yaml
 
     data = yaml.safe_load((ROOT / "dbt" / "dbt_project.yml").read_text(encoding="utf-8"))
     return dict(data.get("vars", {}))

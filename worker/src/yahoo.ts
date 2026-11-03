@@ -48,7 +48,7 @@ export type Fetcher = (input: string, init?: RequestInit) => Promise<Response>;
 const USER_AGENT = 'FantasyScout/1.0 (+https://fantasyscout.beronilla.rodeo)';
 
 /** What Yahoo said about a failed request: its JSON error description, or the page's text, kept short. */
-export async function yahooError(res: Response): Promise<string> {
+async function yahooError(res: Response): Promise<string> {
   const body = await res.text().catch(() => '');
   try {
     const parsed = JSON.parse(body) as { error?: { description?: string } | string; error_description?: string };
@@ -135,7 +135,7 @@ export async function openTokens(sealed: string | null, secret: string): Promise
 /** The token endpoint's reply, parsed, for callers that need more than the tokens. */
 export type TokenReply = Record<string, unknown> & { access_token: string; refresh_token?: string; expires_in?: number; xoauth_yahoo_guid?: string };
 
-export async function tokenRequest(env: Credentials, body: Record<string, string>, fetcher: Fetcher): Promise<Tokens> {
+async function tokenRequest(env: Credentials, body: Record<string, string>, fetcher: Fetcher): Promise<Tokens> {
   return tokensFrom(await tokenReply(env, body, fetcher), body);
 }
 
@@ -196,7 +196,7 @@ export function simplify(x: unknown): unknown {
 }
 
 /** Every value stored under `key`, anywhere below `x`, outermost first. */
-export function findAll(x: unknown, key: string): unknown[] {
+function findAll(x: unknown, key: string): unknown[] {
   const out: unknown[] = [];
   const walk = (v: unknown) => {
     if (Array.isArray(v)) v.forEach(walk);

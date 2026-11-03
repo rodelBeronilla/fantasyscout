@@ -1,5 +1,5 @@
 /** Base path of the app without a trailing slash: empty at the root, "/sub" if ever mounted under one. */
-export const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 /** Prefix a site-relative path with the base path. */
 export function href(path: string): string {

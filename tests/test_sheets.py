@@ -26,7 +26,7 @@ def test_push_creates_missing_tabs_and_replaces_each_one(tmp_path: Path) -> None
     (tmp_path / "player_value.csv").write_text(
         "league,player,rank\nwnba,A,1\nwnba,B,2\n", encoding="utf-8"
     )
-    seen: list[tuple[str, str, object]] = []
+    seen: list[tuple[str, str, str]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         body = request.read().decode() if request.method in ("POST", "PUT") else ""

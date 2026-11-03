@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
 
-from ingest.http import Throttle, ThrottledClient
+from ingest.http import League, Throttle, ThrottledClient
 from ingest.lineups import LineupsIngestor
 from ingest.run import RunSummary
 from ingest.store import Landing, LocalBackend
@@ -14,7 +15,7 @@ from ingest.store import Landing, LocalBackend
 LINEUPS = (Path(__file__).parent / "fixtures" / "league" / "daily_lineups.json").read_bytes()
 
 
-def client_for(handler) -> ThrottledClient:  # type: ignore[no-untyped-def]
+def client_for(handler: Callable[[httpx.Request], httpx.Response]) -> ThrottledClient:
     return ThrottledClient(
         Throttle(max_retries=0),
         transport=httpx.MockTransport(handler),
@@ -24,10 +25,15 @@ def client_for(handler) -> ThrottledClient:  # type: ignore[no-untyped-def]
     )
 
 
-def run_at(tmp_path: Path, now: datetime, handler, league: str = "nba") -> RunSummary:  # type: ignore[no-untyped-def]
-    summary = RunSummary("league", league, "2026-27", now)  # type: ignore[arg-type]
+def run_at(
+    tmp_path: Path,
+    now: datetime,
+    handler: Callable[[httpx.Request], httpx.Response],
+    league: League = "nba",
+) -> RunSummary:
+    summary = RunSummary("league", league, "2026-27", now)
     landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
-    LineupsIngestor(client_for(handler), landing, league, "2026-27", now=now).land_into(summary)  # type: ignore[arg-type]
+    LineupsIngestor(client_for(handler), landing, league, "2026-27", now=now).land_into(summary)
     landing.flush()
     return summary
 

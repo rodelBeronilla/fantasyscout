@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import json
 import random
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
 
-from ingest.http import Throttle, ThrottledClient
+from ingest.http import League, Throttle, ThrottledClient
 from ingest.referee_assignments import (
     URL,
     RefereeAssignmentsIngestor,
@@ -24,7 +25,7 @@ PAGE = (Path(__file__).parent / "fixtures" / "league" / "referee_assignments.htm
 MORNING = datetime(2026, 10, 30, 15, tzinfo=UTC)
 
 
-def client_for(handler) -> ThrottledClient:  # type: ignore[no-untyped-def]
+def client_for(handler: Callable[[httpx.Request], httpx.Response]) -> ThrottledClient:
     return ThrottledClient(
         Throttle(max_retries=0),
         transport=httpx.MockTransport(handler),
@@ -34,11 +35,16 @@ def client_for(handler) -> ThrottledClient:  # type: ignore[no-untyped-def]
     )
 
 
-def run_at(tmp_path: Path, now: datetime, handler, league: str = "nba") -> RunSummary:  # type: ignore[no-untyped-def]
+def run_at(
+    tmp_path: Path,
+    now: datetime,
+    handler: Callable[[httpx.Request], httpx.Response],
+    league: League = "nba",
+) -> RunSummary:
     season = "2026-27" if league == "nba" else "2026"
-    summary = RunSummary("league", league, season, now)  # type: ignore[arg-type]
+    summary = RunSummary("league", league, season, now)
     landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
-    RefereeAssignmentsIngestor(client_for(handler), landing, league, season, now=now).land_into(  # type: ignore[arg-type]
+    RefereeAssignmentsIngestor(client_for(handler), landing, league, season, now=now).land_into(
         summary
     )
     landing.flush()

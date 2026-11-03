@@ -67,7 +67,7 @@ function jwtClaims(token: string): Record<string, unknown> | null {
  * authenticated with the client secret, so the OpenID token's claims are taken as Yahoo's word
  * without checking its signature (OpenID Connect Core 3.1.3.7 allows this).
  */
-export async function accountOf(reply: TokenReply, fetcher: Fetcher): Promise<string | undefined> {
+async function accountOf(reply: TokenReply, fetcher: Fetcher): Promise<string | undefined> {
   const sub = typeof reply['id_token'] === 'string' ? jwtClaims(reply['id_token'])?.['sub'] : undefined;
   if (typeof sub === 'string' && sub) return sub;
   try {

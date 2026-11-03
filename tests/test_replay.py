@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -29,7 +30,9 @@ TINY = replay.Settings(
 SEASONS = {"2023-24": pd.Timestamp("2023-10-24"), "2024-25": pd.Timestamp("2024-10-22")}
 
 
-def row(season: str, game: int, player: str, team: str, minutes: float, scale: float = 1.0) -> dict:
+def row(
+    season: str, game: int, player: str, team: str, minutes: float, scale: float = 1.0
+) -> dict[str, Any]:
     """One box-score row; production scales with minutes (and ``scale``)."""
     start = SEASONS[season]
     m = minutes * scale / 30
@@ -58,7 +61,7 @@ def row(season: str, game: int, player: str, team: str, minutes: float, scale: f
     }
 
 
-def league(games_per_season: int = 10) -> list[dict]:
+def league(games_per_season: int = 10) -> list[dict[str, Any]]:
     """Eight players over two seasons on two teams, minutes 10 to 38."""
     rows = []
     for season in SEASONS:
@@ -69,7 +72,7 @@ def league(games_per_season: int = 10) -> list[dict]:
     return rows
 
 
-def frame(rows: list[dict]) -> pd.DataFrame:
+def frame(rows: list[dict[str, Any]]) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=list(replay.GAME_COLUMNS))
 
 

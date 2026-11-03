@@ -13,9 +13,15 @@ ROOT = Path(__file__).resolve().parent.parent
 EXPOSURES = yaml.safe_load((ROOT / "dbt" / "models" / "exposures.yml").read_text(encoding="utf-8"))
 
 
+def _ref(depends_on: str) -> str:
+    match = re.fullmatch(r"ref\('([a-z_0-9]+)'\)", depends_on)
+    assert match is not None, depends_on
+    return match.group(1)
+
+
 def _refs(name: str) -> set[str]:
     exposure = next(e for e in EXPOSURES["exposures"] if e["name"] == name)
-    return {re.fullmatch(r"ref\('([a-z_0-9]+)'\)", d).group(1) for d in exposure["depends_on"]}
+    return {_ref(d) for d in exposure["depends_on"]}
 
 
 def _nodes() -> set[str]:

@@ -205,7 +205,7 @@ export function erAreas(): ErArea[] {
 }
 
 /** One subject area as an entity-relationship diagram, in UML class notation with crow's feet. */
-export function erDiagram(area: ErArea): Promise<string> {
+function erDiagram(area: ErArea): Promise<string> {
   const col = new Map<string, number>();
   area.columns.forEach((names, i) => names.forEach((n) => col.set(n, i)));
   const inputs = new Set(area.inputs ?? []);
@@ -266,7 +266,7 @@ export function erDiagram(area: ErArea): Promise<string> {
 }
 
 /** Lineage of every model, by layer, from the landing folders and the seeds. */
-export function lineage(): Promise<string> {
+function lineage(): Promise<string> {
   const seeds = (schema.seeds as { name: string }[]).map((s) => s.name);
   const fill: Record<string, string> = { bronze: T.warnTint, silver: T.bg, gold: T.goodTint, ops: T.accentTint };
   const clusters = layers

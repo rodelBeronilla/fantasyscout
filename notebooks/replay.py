@@ -683,6 +683,42 @@ def baseline(replay: Replay, rows: pd.DataFrame, roster: pd.DataFrame) -> pd.Ser
 # --- metrics ---
 
 
+def value_scale(rows: pd.DataFrame, league: str) -> dict[str, Any]:
+    """Each category's spread over the pool's per-game lines, and the pool's shooting percentages.
+
+    The notebooks that turn a per-game change into board value (streamer signals, teammate
+    absence) divide by these: a counting category's standard deviation over the top
+    ``ZSCORE_POOL`` players by minutes, and for FG% and FT% the pool's percentage with the spread
+    of the attempts-weighted difference from it.
+    """
+    ln = lines(rows)
+    pool = ln.sort_values("total_minutes", ascending=False).index[: ZSCORE_POOL[league]]
+    p = ln.loc[pool]
+    scale: dict[str, Any] = {c: p[f"{c}_pg"].std() for c in COUNTING}
+    for name, made, att, att_pg in (("fg", "fgm", "fga", "fga_pg"), ("ft", "ftm", "fta", "fta_pg")):
+        pct = p[made].sum() / p[att].sum()
+        scale[name] = (pct, ((p[made] / p[att].replace(0, np.nan) - pct) * p[att_pg]).std())
+    return scale
+
+
+def ols(x: np.ndarray, y: np.ndarray, w: np.ndarray | None = None) -> np.ndarray:
+    """Least-squares coefficients, weighted by ``w`` when given (a bootstrap passes resample counts)."""
+    if w is not None:
+        s = np.sqrt(w)
+        x, y = x * s[:, None], y * s
+    return np.linalg.lstsq(x, y, rcond=None)[0]
+
+
+def finished(games: pd.DataFrame) -> list[str]:
+    """The seasons that are over: every one but the latest, and the latest once it has playoff games.
+
+    ``games`` has a ``season`` and a ``regular`` column (false for a playoff game).
+    """
+    seasons = sorted(games["season"].unique())
+    playoffs = set(games.loc[~games["regular"], "season"])
+    return [s for i, s in enumerate(seasons) if s in playoffs or i < len(seasons) - 1]
+
+
 def average_rank(x: np.ndarray) -> np.ndarray:
     """Ranks from 1 with ties averaged (as scipy.stats.rankdata, without scipy)."""
     x = np.asarray(x, dtype=float)

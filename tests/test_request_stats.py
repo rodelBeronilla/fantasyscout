@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import cast
 
 import httpx
 
@@ -81,7 +82,8 @@ def test_the_run_summary_counts_by_endpoint(tmp_path: Path) -> None:
         "boxscoretraditionalv3": {"landed": 1, "failed": 1},
         "summary": {"missing": 1},
     }
-    assert summary.to_dict()["endpoints"]["leaguegamelog"] == {"landed": 1, "unchanged": 1}
+    endpoints = cast(dict[str, dict[str, int]], summary.to_dict()["endpoints"])
+    assert endpoints["leaguegamelog"] == {"landed": 1, "unchanged": 1}
     assert summary.skipped == 1
 
 

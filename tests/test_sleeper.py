@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import random
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -30,10 +31,10 @@ DIRECTORY = {
 }
 
 
-def client_for(handler: object) -> ThrottledClient:
+def client_for(handler: Callable[[httpx.Request], httpx.Response]) -> ThrottledClient:
     return ThrottledClient(
         Throttle(max_retries=0),
-        transport=httpx.MockTransport(handler),  # type: ignore[arg-type]
+        transport=httpx.MockTransport(handler),
         sleep=lambda _: None,
         clock=lambda: 0.0,
         rng=random.Random(0),

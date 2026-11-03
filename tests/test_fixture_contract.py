@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -109,7 +110,9 @@ def test_the_column_wise_copies_are_the_row_files_column_by_column() -> None:
     for name in layout.COLUMNAR_JSON:
         for league in layout.LEAGUES:
             rows = _load(f"{name}/{league}.json")
-            assert _load(f"{name}/{league}.columns.json") == columns_of(rows), (
+            assert _load(f"{name}/{league}.columns.json") == columns_of(
+                cast(list[dict[str, Any]], rows)
+            ), (
                 name,
                 league,
                 REFRESH,

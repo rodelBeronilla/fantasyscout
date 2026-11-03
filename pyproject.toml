@@ -64,10 +64,16 @@ select = ["E", "F", "I", "B", "UP", "N", "W", "SIM", "RUF"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-packages = ["ingest", "export", "ops"]
+packages = ["ingest", "export", "ops", "tests"]
 
 [[tool.mypy.overrides]]
 module = ["pyarrow", "pyarrow.*"]
+ignore_missing_imports = true
+
+# The tests import two script modules by sys.path (notebooks/replay.py, tableau/sheets.py) and two
+# libraries that ship no types (PyYAML, pandas; their stub packages are not dependencies).
+[[tool.mypy.overrides]]
+module = ["replay", "sheets", "yaml", "pandas"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

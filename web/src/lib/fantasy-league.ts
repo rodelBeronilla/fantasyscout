@@ -27,7 +27,7 @@ export const POINT_STATS = [
   { key: 'fta', label: 'FTA', column: 'proj_fta_pg' },
 ] as const;
 
-export type PointKey = (typeof POINT_STATS)[number]['key'];
+type PointKey = (typeof POINT_STATS)[number]['key'];
 export type PointWeights = Record<PointKey, number>;
 
 /** The default points scoring of the two big hosts, as the starting point to edit. */
@@ -50,7 +50,7 @@ export interface LeagueSettings {
   format: Format;
 }
 
-export interface Pick {
+interface Pick {
   team: number;
   player: string;
 }
@@ -172,7 +172,7 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
  */
 export const SETUP_VERSION = 3;
 
-export interface StoredSetup extends LeagueSetup {
+interface StoredSetup extends LeagueSetup {
   version: number;
 }
 

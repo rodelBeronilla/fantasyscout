@@ -28,7 +28,7 @@ export interface TodaySlot<P> {
 }
 
 /** On the report and not expected to play normally: the group a manager checks before lineups lock. */
-export const LISTED = new Set(['out', 'doubtful', 'questionable', 'day_to_day']);
+const LISTED = new Set(['out', 'doubtful', 'questionable', 'day_to_day']);
 
 /** Today's date in Eastern time, as YYYY-MM-DD. */
 export function easternDate(now: Date = new Date()): string {

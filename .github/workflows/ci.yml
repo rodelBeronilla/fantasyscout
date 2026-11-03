@@ -197,6 +197,8 @@ jobs:
           path: web/dist
       - run: npm ci
       - run: npm run typecheck
+      - name: Unused exports (knip)
+        run: npm run lint
       - run: npm test
       - name: Dry-run deploy
         run: npm run check

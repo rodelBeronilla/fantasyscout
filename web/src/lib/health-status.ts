@@ -3,8 +3,8 @@
  * last build end, and which data incidents are open. The SLA is the watchdog's (ops/watchdog.py):
  * 30 hours while a league is playing (or when the season cannot be read), 72 out of season.
  */
-export const IN_SEASON_HOURS = 30;
-export const OFF_SEASON_HOURS = 72;
+const IN_SEASON_HOURS = 30;
+const OFF_SEASON_HOURS = 72;
 
 export interface Freshness {
   hours: number;

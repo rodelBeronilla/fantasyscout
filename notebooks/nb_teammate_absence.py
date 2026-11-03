@@ -72,7 +72,8 @@ and it targets production and usage over the following week, not only minutes.""
     setup(),
     (
         "code",
-        """import replay as rp
+        """from replay import finished, ols, value_scale
+import replay as rp
 
 FP = {'points': 1, 'rebounds_total': 1, 'assists': 2, 'steals': 4, 'blocks': 4, 'three_pointers_made': 1,
       'turnovers': -2, 'fgm': 2, 'fga': -1, 'ftm': 1, 'fta': -1}
@@ -81,18 +82,6 @@ TYPICAL_USAGE = 0.2  # one of five on the floor; stands in where a game has no u
 pcols = columns(con, 'fct_player_game')
 extra = [c for c in ('usage_percentage',) if c in pcols]
 cols = ', '.join((*rp.GAME_COLUMNS, *extra))
-
-
-def value_scale(rows, lg):
-    \"\"\"Each category's spread over the pool's per-game lines, and the pool's shooting percentages.\"\"\"
-    ln = rp.lines(rows)
-    pool = ln.sort_values('total_minutes', ascending=False).index[: rp.ZSCORE_POOL[lg]]
-    p = ln.loc[pool]
-    scale = {c: p[f'{c}_pg'].std() for c in rp.COUNTING}
-    for name, made, att, att_pg in (('fg', 'fgm', 'fga', 'fga_pg'), ('ft', 'ftm', 'fta', 'fta_pg')):
-        pct = p[made].sum() / p[att].sum()
-        scale[name] = (pct, ((p[made] / p[att].replace(0, np.nan) - pct) * p[att_pg]).std())
-    return scale
 
 
 def contribution(rows, scale):
@@ -105,12 +94,6 @@ def contribution(rows, scale):
         pct, sd = scale[name]
         v += (rows[made].fillna(0) - pct * rows[att].fillna(0)) / sd
     return v
-
-
-def finished(g):
-    seasons = sorted(g['season'].unique())
-    playoffs = set(g.loc[~g['regular'], 'season'])
-    return [s for i, s in enumerate(seasons) if s in playoffs or i < len(seasons) - 1]
 
 
 games, done = {}, {}
@@ -325,13 +308,6 @@ def group(r, name):
     if name == 'all':
         return r
     return r[r['role'] == name] if name in ('starter', 'bench') else r[r['pos'] == name]
-
-
-def ols(X, y, w=None):
-    if w is not None:
-        s = np.sqrt(w)
-        X, y = X * s[:, None], y * s
-    return np.linalg.lstsq(X, y, rcond=None)[0]
 
 
 def fit(r, outcome, test_season, reps=100, seed=11):
