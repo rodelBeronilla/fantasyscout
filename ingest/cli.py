@@ -16,7 +16,7 @@ from ingest import land as land_mod
 from ingest import probe as probe_mod
 from ingest.store import Scope, VolumeBackend, reindex
 
-SOURCES = ("stats", "espn", "reports")
+SOURCES = ("stats", "espn", "reports", "bref")
 FAILURE_EXIT = 2
 
 

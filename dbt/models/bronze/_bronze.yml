@@ -1431,3 +1431,26 @@ models:
         description: "Short note"
       - name: long_comment
         description: "Long note"
+
+  - name: bref_salaries
+    description: "Basketball-Reference team payrolls as landed (#772): one row per player per team-season page."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The team code the page was landed under"
+      - name: bref_team
+        description: "Basketball-Reference team code"
+      - name: bref_player_id
+        description: "Basketball-Reference player id"
+      - name: player_name
+        description: "Player name as Basketball-Reference writes it"
+      - name: salary
+        description: "Salary in dollars as text; blank for a ten-day or two-way deal"
+
