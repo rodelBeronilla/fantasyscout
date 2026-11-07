@@ -1262,7 +1262,7 @@ test('with punts set, the Trade page lists the chips the league ranks above the 
     for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
   }
   await page.goto('/trade/');
-  await page.getByTestId('trade-tabs').getByRole('radio', { name: 'Chips & targets' }).click();
+  await page.getByTestId('trade-tabs').getByRole('radio', { name: 'Buy & sell' }).click();
   const chips = page.getByTestId('trade-chips');
   await expect(chips.locator('li').first()).toContainText(/#\d+ on value, #\d+ for you/);
   // the league's best player stays on top for any build: never a chip
@@ -1271,6 +1271,33 @@ test('with punts set, the Trade page lists the chips the league ranks above the 
   await chips.getByRole('button', { name: 'Offer' }).first().click();
   await expect(page.getByTestId('picked-give')).toContainText(first);
   await expect(page.locator('#chips')).toHaveCount(0);
+});
+
+test('Buy & sell lists your hot players to sell and slumping players elsewhere to buy, and loads one into a trade (#739)', async ({ page }) => {
+  type Row = { player_id: string; full_name: string; team_abbreviation: string; position: string; [k: string]: unknown };
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as Row[];
+  const cats = ['z_points', 'z_rebounds_total', 'z_assists', 'z_steals', 'z_blocks', 'z_three_pointers_made', 'z_field_goal_pct', 'z_free_throw_pct', 'z_turnovers'];
+  const hot = board[12]!; // mine, running hot
+  const cold = board[1]!; // Team 2's star, in a slump
+  const shift = (r: Row, by: number) => Object.fromEntries(cats.filter((c) => typeof r[c] === 'number').map((c) => [`recent_${c}`, (r[c] as number) + by]));
+  await page.route('**/board/wnba.json', (route) =>
+    route.fulfill({ json: board.map((r) => (r === hot ? { ...r, ...shift(r, 1) } : r === cold ? { ...r, injury_group: null, ...shift(r, -1) } : r)) }),
+  );
+  const label = (p: Row) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/');
+  await page.getByLabel('Roster spots').fill('6');
+  for (const [team, picked] of [[1, [0, 5, 9, 12]], [2, [1, 2, 7, 13]], [3, [3, 4, 8, 14]]] as const) {
+    for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
+  }
+  await page.goto('/trade/');
+  await page.getByTestId('trade-tabs').getByRole('radio', { name: 'Buy & sell' }).click();
+  await expect(page.getByTestId('sell-high')).toContainText(hot.full_name);
+  const buy = page.getByTestId('buy-low').getByTestId('swing').filter({ hasText: cold.full_name });
+  await expect(buy).toContainText('Team 2');
+  await expect(buy).toContainText(/lately vs .* projected/);
+  await buy.getByRole('button', { name: 'Ask for' }).click();
+  await expect(page.getByTestId('picked-get')).toContainText(cold.full_name);
+  await expect(page.getByLabel('Trade partner')).toHaveValue('1');
 });
 
 test("in a head-to-head league with this week's opponent set, the trade verdict shows the week's matchup before and after (#674)", async ({ page }) => {

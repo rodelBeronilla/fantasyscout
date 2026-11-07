@@ -14,6 +14,7 @@ import { href } from '../lib/site';
 import { matchup, weekTotals } from '../lib/matchup';
 import { type LeagueState, leagueStandings, meaningful, objective, rostersAfter, teamNeeds, tradeImpact } from '../lib/trade-impact';
 import { median, ranks, tradeChips, tradeTargets } from '../lib/punt-chips';
+import { buySell, type FormSwing } from '../lib/buy-sell';
 import { rivals } from '../lib/standings';
 import { judge, lens, LIMITS, marketValues } from '../lib/trade-fairness';
 import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
@@ -74,6 +75,23 @@ const UNIT_TEXT: Record<ValueUnit, string> = { rest: 'rest of season', week: 're
 
 /** The page's three tools (#720): build a trade, find one across the league, or start from the build's chips and targets. */
 type Tab = 'build' | 'find' | 'chips';
+
+/** One line of the Buy & sell lists: the player, the run against the projection, and the action. */
+function SwingRow({ s, name, team, action, onAction }: { s: FormSwing; name: string; team: string | null; action: string; onAction: () => void }) {
+  return (
+    <li className="flex flex-wrap items-center gap-x-2" data-testid="swing">
+      <span className="min-w-0 flex-1 truncate">
+        {name} {team && <span className="text-xs text-muted">{team}</span>}
+      </span>
+      <span className="text-xs text-muted" title="Value per game above replacement: the last ten games against the projection">
+        {fmt(s.recent, 1)} lately vs {fmt(s.projected, 1)} projected
+      </span>
+      <button type="button" className="rounded border border-line px-2 py-1 text-xs hover:bg-bg" onClick={onAction}>
+        {action}
+      </button>
+    </li>
+  );
+}
 
 export default function TradeAnalyzer() {
   const [tab, setTab] = useState<Tab>('build');
@@ -207,6 +225,24 @@ export default function TradeAnalyzer() {
   // Trade chips and targets for a punt build (#671): where each player ranks on rest-of-season value
   // over every category the league counts (roughly where other managers see him) against where he
   // ranks over the kept ones (where the build does). A gap of a round or more counts.
+  // Buy low, sell high (#739): last-ten form against the projection, value per game under the
+  // league's scoring, for every rostered player. Categories leagues only: the form is in z-scores.
+  const swings = useMemo(() => {
+    if (!rows || points || !hasRosters) return null;
+    const form = categoryValues(recentForm(rows, cats), cats, pool, setup.teams);
+    const mine = (setup.rosters[setup.mine] ?? []).filter((id) => !setup.il.includes(id));
+    const projected = (id: string) => worth.get(id)?.perGame ?? 0;
+    return buySell({
+      mine: setup.mine,
+      owner: new Map([...owner].filter(([id]) => !setup.il.includes(id))),
+      projected,
+      recent: (id) => weightedSum(form.get(id), catWeight),
+      healthy: (id) => !['out', 'doubtful'].includes(byId.get(id)?.injury_group ?? ''),
+      // good enough to start for you: at least your median player's projection
+      startLine: median(mine.map(projected)),
+    });
+  }, [rows, points, hasRosters, cats, pool, setup.teams, setup.rosters, setup.mine, setup.il, owner, worth, catWeight, byId]);
+
   const chipsAndTargets = useMemo(() => {
     if (!rows || points || !hasRosters || !punted.length) return null;
     const counted = keptCategories({ scoring: setup.scoring, punts: [] });
@@ -671,10 +707,13 @@ export default function TradeAnalyzer() {
   const chanceTone = (before: number, after: number) => (after - before >= 0.005 ? 'text-good' : before - after >= 0.005 ? 'text-bad' : '');
 
   const hasChips = !!chipsAndTargets && (chipsAndTargets.chips.length > 0 || chipsAndTargets.targets.length > 0);
+  const hasSwings = !!swings && (swings.buyLow.length > 0 || swings.sellHigh.length > 0);
   const tabs: { id: Tab; label: string; title: string }[] = [
     { id: 'build', label: 'Build', title: 'Pick the players each side gives and see the verdict' },
     ...(standings ? [{ id: 'find' as const, label: 'Find', title: 'Trades across your league that win you categories' }] : []),
-    ...(hasChips ? [{ id: 'chips' as const, label: 'Chips & targets', title: 'Players worth more to others, and to you, under your punts' }] : []),
+    ...(hasChips || hasSwings
+      ? [{ id: 'chips' as const, label: 'Buy & sell', title: 'Players to buy low and sell high on form, and the chips and targets your punts make' }]
+      : []),
   ];
   // a tab whose tool has gone (no rival rosters, no punts) falls back to Build
   const current: Tab = tabs.some((x) => x.id === tab) ? tab : 'build';
@@ -772,6 +811,66 @@ export default function TradeAnalyzer() {
               team&apos;s. Biggest gain first, at most three a team, over each roster&apos;s eight most valuable players.
             </p>
           )}
+        </Card>
+      )}
+
+      {current === 'chips' && swings && hasSwings && (
+        <Card title="Buy low, sell high" id="buy-sell">
+          <p className="mb-3 text-sm text-muted">
+            Recent form against the projection, in value per game above replacement under your league&apos;s scoring. Managers price players on the box
+            scores they have just seen: a hot run sells for more than the projection says, a slump buys for less.
+          </p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <h3 className="mb-1 text-sm font-semibold">Sell high: yours, running hot</h3>
+              {swings.sellHigh.length ? (
+                <ul className="grid gap-1 text-sm" data-testid="sell-high">
+                  {swings.sellHigh.map((s) => (
+                    <SwingRow
+                      key={s.id}
+                      s={s}
+                      name={nameOf(s.id)}
+                      team={null}
+                      action="Offer"
+                      onAction={() => {
+                        add('give', s.id);
+                        setTab('build');
+                      }}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">None of your players is running a point or more above the projection.</p>
+              )}
+            </div>
+            <div>
+              <h3 className="mb-1 text-sm font-semibold">Buy low: theirs, in a slump</h3>
+              {swings.buyLow.length ? (
+                <ul className="grid gap-1 text-sm" data-testid="buy-low">
+                  {swings.buyLow.map((s) => (
+                    <SwingRow
+                      key={s.id}
+                      s={s}
+                      name={nameOf(s.id)}
+                      team={setup.names[s.team] ?? null}
+                      action="Ask for"
+                      onAction={() => {
+                        setPartner(s.team);
+                        add('get', s.id);
+                        setTab('build');
+                      }}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">No healthy player elsewhere who would start for you is slumping a point or more below the projection.</p>
+              )}
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Last ten games against the projection; a swing of a point a game or more counts. Buy-low players are healthy (an injury explains a slump and is
+            no discount) and projected at least as high as your median player.
+          </p>
         </Card>
       )}
 
