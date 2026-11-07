@@ -6,7 +6,8 @@ Two sources, landed by the reports run once a day:
   ("Signed C Lawson Lovering to a two-way contract."), the latest hundred.
 - The NBA's player movement feed (stats.nba.com/js/data/playermovement), NBA only: one row per
   move with the league's player and team ids. The file holds every move since 2015, about 4 MB;
-  only the last 180 days are landed (the payload says from when), which is all the site uses.
+  only the last 180 days are landed daily (the payload says from when). A history run
+  (``fs-ingest land movement``) lands the whole file once, for the walk-year flag (#794).
 """
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ from ingest.store import Landing, Scope
 ESPN_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/{league}/transactions"
 MOVEMENT_URL = "https://stats.nba.com/js/data/playermovement/NBA_Player_Movement.json"
 MOVEMENT_DAYS = 180
+# The key of the one landing that keeps every move (#794).
+MOVEMENT_HISTORY_KEY = "history"
 
 
 def trim_movement(body: bytes, since: str) -> bytes:
@@ -97,3 +100,20 @@ class TransactionsIngestor:
             MOVEMENT_URL,
             movement,
         )
+
+    def land_movement_history(self, summary: RunSummary) -> None:
+        """Every move since 2015, landed once (#794); the daily run keeps the last 180 days."""
+        if self.league != "nba":
+            return
+        scope = Scope("league", "player_movement", self.league, self.season)
+        if self.landing.has_landed(scope, MOVEMENT_HISTORY_KEY):
+            summary.record(None)
+            return
+
+        def movement() -> tuple[int, bytes]:
+            response = self.client.get(MOVEMENT_URL, headers=stats_headers("nba"))
+            if response.status_code != 200:
+                return response.status_code, b""
+            return 200, trim_movement(response.content, "")
+
+        self._land(summary, scope, MOVEMENT_HISTORY_KEY, MOVEMENT_URL, movement)

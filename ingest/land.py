@@ -34,7 +34,7 @@ from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, se
 from ingest.store import Backend, Landing, LocalBackend, VolumeBackend, credentials_from_env
 from ingest.transactions import TransactionsIngestor
 
-Source = Literal["stats", "espn", "reports", "bref"]
+Source = Literal["stats", "espn", "reports", "bref", "movement"]
 BackendKind = Literal["local", "volume"]
 Pace = Literal["spec", "adaptive"]
 
@@ -167,6 +167,8 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
                 + ", ".join(f"{r.endpoint} {r.key.split('-', 1)[0]}" for r in day)
             )
         lines.append("  then commonteamroster for every team in the season or the player directory")
+    elif opts.source == "movement":
+        lines.append("  the NBA's whole player movement feed, every move since 2015, once (#794)")
     elif opts.source == "bref":
         lines.append(
             "  Basketball-Reference's payroll page for each of 30 teams, 4 s or more apart"
@@ -279,6 +281,12 @@ def _run_source(
             StatsPlanner(opts.league, season, opts.season_type, opts.shots),
             only=only,
         ).run(since=since, until=until)
+    elif opts.source == "movement":
+        summary = RunSummary("league", opts.league, season, datetime.now(UTC))
+        TransactionsIngestor(client, landing, opts.league, season).land_movement_history(summary)
+        for failure in landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
+        summary.pacing = client.pacing()
     elif opts.source == "bref":
         summary = BrefSalariesIngestor(client, landing, opts.league, season).run()
     elif opts.source == "espn" and opts.history:
