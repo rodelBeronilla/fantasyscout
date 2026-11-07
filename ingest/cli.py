@@ -89,7 +89,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_land.add_argument(
         "--history",
         action="store_true",
-        help="reports only: land the 5 pm official injury report for each day, --since to --until",
+        help=(
+            "reports: land the 5 pm official injury report for each day, --since to --until; "
+            "espn: land the season's fantasy market once, as its preseason ADP (#786)"
+        ),
     )
     p_land.add_argument(
         "--backend",

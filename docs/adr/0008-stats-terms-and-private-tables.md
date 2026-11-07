@@ -67,3 +67,13 @@ If any of the three operators objects, the source is dropped and its landed file
 
 - **Crawlers are asked to stay off the private routes.** `robots.txt` disallows `/sql/` (the owner's console) and `/data/` (#355). It is a request to well-behaved crawlers, not access control: the Parquet tables stay private because the Worker serves them only to the owner.
 - **The dbt docs at `/docs/` come from the CI fixture sample.** They are one of the public surfaces named in the decision. CI generates them on DuckDB from the fixture sample (#67), and the deploy ships them with the site build CI tested (#312; ADR 0001's addendum of 2026-11-02). The Worker serves them with their own Content-Security-Policy, because the docs app is a single page of inline scripts (#67). The models, tests, lineage and column definitions are the lakehouse project's. The column types are DuckDB's and the row counts are the sample's, so the public docs carry no figures from the lakehouse. #350 added a banner at the top of the page that says so, but the deploy inserts it only when it generates the docs itself, on a manual dispatch. The docs CI hands to the deploy do not carry it, and the live `/docs/` had no banner on 2026-11-02. Beyond the models being the same, the PRs do not say why the docs are built from the sample.
+
+## Addendum (2026-11-07): past seasons' ESPN draft positions
+
+The walk-forward harness judges the preseason board against the market (#751, #769), and the market's draft positions begin with this season's daily landings. ESPN's fantasy API still serves each past NBA season's average draft position on the endpoint the daily ingest reads; past WNBA seasons come back empty. The owner approved landing them under the terms the props addendum already set out for ESPN, whose terms restrict automated collection:
+
+- **One polite pass.** `fs-ingest land espn --history` asks once per season (about eight requests for the NBA since 2018-19), through the Backfill workflow's `market` source, and lands the season under its own endpoint (`landing/espn/fantasy_adp`), never where the board reads today's market (#786).
+- **What is kept.** The same trimmed fields as the daily market; the harness reads only the draft position, known from the day before the season's first game. A past season's final ownership is end-of-season knowledge and is not used.
+- **What is published.** Aggregates of the backtest only: how often the board beat the market, never a player's draft position.
+- **On objection** the source is dropped and its landed files are deleted.
+

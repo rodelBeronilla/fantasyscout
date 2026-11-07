@@ -1,0 +1,24 @@
+unit_tests:
+  - name: preseason_adp_is_dated_to_the_first_game_and_ranked
+    description: >
+      A past season's ADP (#786) is known the day before the season's first regular-season game, not
+      the day a history run landed it. A preseason game earlier in the schedule does not count. A
+      draft position of 0 is ESPN's placeholder and is left out; the rank breaks a tie by player id.
+    model: espn_preseason_adp
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2018-19', game_type: preseason, game_date_est: '2018-09-28'}
+          - {league: nba, season: '2018-19', game_type: regular, game_date_est: '2018-10-16'}
+          - {league: nba, season: '2018-19', game_type: regular, game_date_est: '2018-10-17'}
+      - input: ref('espn_fantasy_adp')
+        rows:
+          - {league: nba, season: '2018-19', _ingest_date: '2026-11-07', _source_file: f, espn_player_id: '1', full_name: A, average_draft_position: '1.5'}
+          - {league: nba, season: '2018-19', _ingest_date: '2026-11-07', _source_file: f, espn_player_id: '3', full_name: C, average_draft_position: '7.5'}
+          - {league: nba, season: '2018-19', _ingest_date: '2026-11-07', _source_file: f, espn_player_id: '2', full_name: B, average_draft_position: '7.5'}
+          - {league: nba, season: '2018-19', _ingest_date: '2026-11-07', _source_file: f, espn_player_id: '4', full_name: D, average_draft_position: '0'}
+    expect:
+      rows:
+        - {espn_player_id: '1', average_draft_position: 1.5, adp_rank: 1, known_date: '2018-10-15'}
+        - {espn_player_id: '2', average_draft_position: 7.5, adp_rank: 2, known_date: '2018-10-15'}
+        - {espn_player_id: '3', average_draft_position: 7.5, adp_rank: 3, known_date: '2018-10-15'}

@@ -7,6 +7,11 @@ the platform uses: the player, team and position, the share of ESPN leagues that
 him, the average draft position and auction value, and ESPN's own draft ranks. The written
 outlook (licensed editorial) is never landed. The site publishes ranks and ownership buckets
 derived from these, not ESPN's numbers (ADR 0008).
+
+A history run (#786) lands a past season's market once, under its own endpoint (fantasy_adp), so
+it never becomes the latest market the board reads. The walk-forward harness reads its average
+draft position as the preseason market baseline (ESPN serves past NBA seasons; past WNBA seasons
+come back empty).
 """
 
 from __future__ import annotations
@@ -24,6 +29,9 @@ from ingest.store import Landing, Scope
 URL = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/{game}/seasons/{year}/players"
 GAME = {"nba": "fba", "wnba": "wfba"}
 FILTER = json.dumps({"players": {"limit": 5000}})
+# A past season's market: one landing per season, whenever it is fetched (#786).
+HISTORY_ENDPOINT = "fantasy_adp"
+HISTORY_KEY = "preseason"
 OWNERSHIP_KEYS = (
     "percentOwned",
     "percentStarted",
@@ -68,15 +76,23 @@ class EspnFantasyIngestor:
     league: League
     season: str
     now: datetime | None = None
+    # a past season's market, landed once under fantasy_adp (#786)
+    history: bool = False
 
     def land_into(self, summary: RunSummary) -> None:
         now = self.now or datetime.now(UTC)
-        key = eastern_date(now).isoformat()
+        endpoint = HISTORY_ENDPOINT if self.history else "fantasy_players"
+        key = HISTORY_KEY if self.history else eastern_date(now).isoformat()
         game, year = GAME[self.league], espn_year(self.league, self.season)
         url = URL.format(game=game, year=year)
-        scope = Scope("espn", "fantasy_players", self.league, self.season)
+        scope = Scope("espn", endpoint, self.league, self.season)
         try:
-            if self.landing.already_landed_today(scope, key):
+            landed = (
+                self.landing.has_landed(scope, key)
+                if self.history
+                else self.landing.already_landed_today(scope, key)
+            )
+            if landed:
                 summary.record(None)
                 return
             response = self.client.get(
@@ -86,7 +102,7 @@ class EspnFantasyIngestor:
                 headers={"Accept": "application/json", "X-Fantasy-Filter": FILTER},
             )
             if response.status_code != 200:
-                summary.fail("fantasy_players", key, RuntimeError(f"HTTP {response.status_code}"))
+                summary.fail(endpoint, key, RuntimeError(f"HTTP {response.status_code}"))
                 return
             payload = {"game": game, "season": year, "players": trim_players(response.content)}
             body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -103,4 +119,4 @@ class EspnFantasyIngestor:
         except CircuitOpenError as exc:
             summary.aborted = str(exc)
         except Exception as exc:  # the market never fails the run
-            summary.fail("fantasy_players", key, exc)
+            summary.fail(endpoint, key, exc)
