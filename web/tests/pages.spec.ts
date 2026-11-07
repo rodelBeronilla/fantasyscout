@@ -1813,6 +1813,47 @@ test('the value view groups the board into tiers by pick and round, and ranks pl
   await expect(heads).toHaveCount(0);
 });
 
+test('the League page imports a public ESPN league: settings, lineup, teams and rosters; a private one says how to open it (#745)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { full_name: string }[];
+  const entry = (i: number) => ({ lineupSlotId: 0, playerPoolEntry: { player: { fullName: board[i]!.full_name } } });
+  const league = {
+    settings: {
+      name: 'Hoops Club',
+      size: 4,
+      rosterSettings: { lineupSlotCounts: { '0': 1, '1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '11': 3, '12': 3, '13': 1 } },
+      scoringSettings: { scoringType: 'H2H_MOST_CATEGORIES', scoringItems: [0, 6, 3, 2, 1, 17, 19, 20, 11].map((statId) => ({ statId, points: 0 })) },
+    },
+    teams: [
+      { name: 'Brick City', roster: { entries: [entry(0), entry(1)] } },
+      { location: 'Glass', nickname: 'Cleaners', roster: { entries: [entry(2), { lineupSlotId: 12, playerPoolEntry: { player: { fullName: 'Nobody Atall' } } }] } },
+      { name: 'Third', roster: { entries: [entry(3)] } },
+      { name: 'Fourth', roster: { entries: [entry(4)] } },
+    ],
+  };
+  let asked = '';
+  await page.route('https://lm-api-reads.fantasy.espn.com/**', (route) => {
+    asked = route.request().url();
+    return route.request().url().includes('/leagues/999999') ? route.fulfill({ status: 401, json: { messages: ['not authorized'] } }) : route.fulfill({ json: league });
+  });
+  await page.goto('/league/?league=nba');
+  const card = page.getByTestId('espn-import');
+  await card.getByLabel('ESPN league address or ID').fill('https://fantasy.espn.com/basketball/league?leagueId=123456');
+  await card.getByRole('button', { name: 'Import' }).click();
+  await expect(card.getByTestId('espn-note')).toContainText('Imported Hoops Club: 4 teams, 5 of 6 players matched. Not on the board: Nobody Atall.');
+  expect(asked).toMatch(/\/fba\/seasons\/\d{4}\/segments\/0\/leagues\/123456\?view=mTeam/);
+  await expect(page.getByLabel('Format')).toHaveValue('h2h');
+  await expect(page.getByLabel('Roster spots')).toHaveValue('13');
+  await expect(page.getByLabel('G slots')).toHaveValue('3');
+  await expect(page.getByLabel('Util slots')).toHaveValue('3');
+  await expect(page.getByLabel('Name of team 2')).toHaveValue('Glass Cleaners');
+  await expect(page.getByTestId('team-card').nth(0).getByTestId('roster')).toContainText(board[1]!.full_name);
+  // a private league: the page says how to open it
+  page.once('dialog', (d) => void d.accept());
+  await card.getByLabel('ESPN league address or ID').fill('999999');
+  await card.getByRole('button', { name: 'Import' }).click();
+  await expect(card.getByTestId('espn-note')).toContainText('Make League Viewable to Public');
+});
+
 test('/league/ and /draft/ have no accessibility violations', async ({ page }) => {
   await page.goto('/draft/');
   await page.getByRole('button', { name: 'Start a draft' }).click();

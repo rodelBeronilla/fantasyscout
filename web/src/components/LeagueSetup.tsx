@@ -18,10 +18,12 @@ import { PlayerPicker } from './PlayerPicker';
 import { Card, Loading, Problem } from './ui';
 import AccountBox from './AccountBox';
 import YahooImport from './YahooImport';
+import EspnImport from './EspnImport';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 
 interface PlayerRowFields {
   player_id: string;
+  season: string;
   full_name: string | null;
   position: string | null;
   team_abbreviation: string | null;
@@ -287,6 +289,9 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {yahoo}
+      {league === 'nba' && (
+        <EspnImport season={rows[0]?.season ?? ''} players={rows} hasRosters={rostered > 0} onImport={(next) => update(() => next)} />
+      )}
 
       <Card title="Settings" id="settings">
         <LeagueSettingsForm league={league} setup={setup} onChange={update} />
