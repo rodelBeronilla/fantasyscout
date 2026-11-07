@@ -384,7 +384,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 387,
+ "generic_tests": 393,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -13694,6 +13694,7 @@
       "A side without a real team is left out: the NBA schedules the Cup's knockout-week games with a placeholder team (id 0) until the group stage decides who plays, and counting those put a team \"0\" in the weekly games and a game in every team's week that it may not play (#386)."
      ],
      "read_by": [
+      "fct_injury_spell",
       "fct_team_game_context",
       "fct_team_stakes",
       "fct_team_week_games",
@@ -16801,6 +16802,197 @@
      "checks": [],
      "columns": [
       {
+       "description": "Surrogate key: one row per league, player and first game missed",
+       "meta": {},
+       "name": "injury_spell_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2026 in the WNBA, 2025-26 in the NBA)",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The player's team at the first listing",
+       "meta": {},
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The first listed game the player missed",
+       "meta": {},
+       "name": "first_game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Date of the first listed game missed",
+       "meta": {},
+       "name": "start_date",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "Date of the next regular-season game the player played; null while censored",
+       "meta": {},
+       "name": "return_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "True when the return was seen",
+       "meta": {},
+       "name": "returned",
+       "tests": [
+        "not_null"
+       ],
+       "type": "boolean"
+      },
+      {
+       "description": "null for a spell with a return; ongoing while the team still has regular-season games, season_end when the season ended first",
+       "meta": {},
+       "name": "censored",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The team's regular-season games from the first missed through the last before the return; for a censored spell, the games seen so far",
+       "meta": {},
+       "name": "games_missed",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Days from the first game missed to the return; for a censored spell, to the team's latest game played",
+       "meta": {
+        "unit": "days"
+       },
+       "name": "days_out",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Listings in the spell",
+       "meta": {},
+       "name": "listings",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The first listing's status (Out, Doubtful, Questionable, Probable)",
+       "meta": {},
+       "name": "first_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The most serious status listed during the spell",
+       "meta": {},
+       "name": "worst_status",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The league's reason at the first listing: injury, g_league, rest, personal, suspension, not_with_team or other (a concussion protocol is an injury)",
+       "meta": {},
+       "name": "reason_group",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The first listing's injury detail as the report gives it (Left Ankle; Sprain)",
+       "meta": {},
+       "name": "injury_detail",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "left, right or both, when the report names a side",
+       "meta": {},
+       "name": "side",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The body part, lower case without the side (ankle, hamstring, head for a concussion); null for an absence that is not an injury",
+       "meta": {},
+       "name": "body_part",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "What the report says of it (soreness, sprain, strain, fracture, surgery, concussion); null when it says only injury or repeats the body part",
+       "meta": {},
+       "name": "injury_kind",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Absence spells from the official injury reports, censoring-aware (#768): one row per run of regular-season games a listed player missed, to the next game played. A spell without a return is censored (ongoing, or the season ended first), so its games and days are a lower bound. What the recovery-timeline model (#770) reads.",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "player_id",
+       "first_game_id"
+      ],
+      "key": "injury_spell_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_injury_spell",
+     "notes": [
+      "Absence spells from the official injury reports, censoring-aware (#768, epic #751): one row per run of regular-season games a listed player missed, from the first listed game missed to the next game the player played. It is the input the recovery-timeline survival model (#770) reads.",
+      "- A spell is the listed games a player missed that share the same next played game: listings for consecutive missed games, even with a game between them the report left the player off.",
+      "- games_missed counts the team's regular-season games from the first through the last before the return (fct_official_listing's count for the spell's first listing); days_out the days from the first game missed to the return.",
+      "- A spell with a return is observed. One without is censored, not short: `ongoing` while the team still has regular-season games to play (the spell was running at the cut, and a point-in-time build cuts it as of its date), `season_end` when the season ended first. Either way games_missed and days_out are what was seen, a lower bound on the spell, and a survival model must treat them so; counting them as finished spells understates long injuries.",
+      "- What it was: the first listing's status, the most serious status listed during the spell, and the injury detail of the first listing split into the side (left, right), the body part and the kind (soreness, sprain, strain, fracture, surgery, ...; null when the report says only \"injury\" or repeats the body part). The league's own reason group says whether it was an injury, rest, personal, a suspension or another absence; a concussion protocol listing is an injury to the head."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "fct_official_listing",
+      "fct_player_game",
+      "schedule_team_games"
+     ],
+     "unit_tests": [
+      {
+       "description": "a misses two listed games (Questionable, then Out, a left ankle sprain) and plays the third: one spell of two games, returned. b misses the last two games played so far and the team has games left: censored, ongoing, two games seen. c misses the last game of a finished season: censored at the season's end, not a one-game injury. d is listed and plays: no spell. e is out resting: an absence, with no body part.",
+       "name": "injury_spells_are_censoring_aware"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "Surrogate key: one row per league, injury listing and status run",
        "meta": {},
        "name": "injury_status_sk",
@@ -17195,6 +17387,7 @@
       "- played: whether the player played the listed game."
      ],
      "read_by": [
+      "fct_injury_spell",
       "fct_status_calibration"
      ],
      "read_by_pages": [],
@@ -17692,6 +17885,7 @@
       "Player × game: traditional box score with the advanced line joined, keyed to the dimensions. The usage and misc game logs add the player's share of the team's box score while on the floor and fouls drawn, blocks against and points by situation (null where those logs have not landed). Where ESPN also reports the player-game, source_agreement carries the reconciliation verdict (exact, minor, conflict) and the resolution rule is applied: the league value wins, ESPN's fills in only where the league's is null (ADR 0005). Rows ESPN does not cover are 'unverified'."
      ],
      "read_by": [
+      "fct_injury_spell",
       "fct_official_listing",
       "int_league_season_state",
       "int_player_game_value",
@@ -25775,6 +25969,11 @@
    "description": "Game G1's play-by-play landed on the 20th and was merged without lineups because its box score had not landed; on the 21st other games landed, moving the table's newest landing past G1's. On the 22nd G1's box score and G2's play-by-play land. The next run re-merges G1 (its box score landed on or after the table's newest landing) with its lineups, merges G2 as new, and re-merges G3 unchanged (the newest landing day always is). Keyed on the event's own landing date, G1 would have stayed without lineups until a full refresh.",
    "model": "fct_event",
    "name": "event_late_box_score_fills_in_the_lineups_on_the_next_run"
+  },
+  {
+   "description": "a misses two listed games (Questionable, then Out, a left ankle sprain) and plays the third: one spell of two games, returned. b misses the last two games played so far and the team has games left: censored, ongoing, two games seen. c misses the last game of a finished season: censored at the season's end, not a one-game injury. d is listed and plays: no spell. e is out resting: an absence, with no body part.",
+   "model": "fct_injury_spell",
+   "name": "injury_spells_are_censoring_aware"
   },
   {
    "description": "NBA players are ranked by average draft position. In the WNBA most players share one placeholder position (54.0, as ESPN shows out of season), so none of them gets a market rank, but a WNBA player drafted ahead of the placeholder does. Ownership falls into its bucket at 70, 40, 10 and 1 per cent, and a player with no share is rare.",
