@@ -21,9 +21,9 @@ on:
         type: string
         required: true
       source:
-        description: Which source (both = stats and espn; reports = the official injury reports, one a day; market = each season's ESPN draft positions, once; salaries = Basketball-Reference team payrolls, once)
+        description: Which source (both = stats and espn; reports = the official injury reports, one a day; market = each season's ESPN draft positions, once; salaries = Basketball-Reference team payrolls, once; movement = the NBA's whole player movement feed, once)
         type: choice
-        options: [both, stats, espn, reports, market, salaries]
+        options: [both, stats, espn, reports, market, salaries, movement]
         default: both
 
 permissions:
@@ -279,4 +279,33 @@ jobs:
         with:
           token: ${{ github.token }}
           title: "Backfill failure: salaries ${{ inputs.league }} ${{ matrix.season }}"
+          outcome: ${{ steps.land.outcome }}
+
+  # The NBA's player movement feed in full, once (#794): every move since 2015, for the walk-year
+  # flag; the daily run keeps the last 180 days. One request; the seasons input is ignored.
+  movement:
+    name: Player movement history
+    if: inputs.source == 'movement' && inputs.league == 'nba'
+    runs-on: ubuntu-latest
+    environment: lakehouse
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - name: Land
+        id: land
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
+          uv run fs-ingest land movement --league nba --backend volume 2>&1 | tee land.log
+      - name: Report
+        if: always()
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Backfill failure: movement history"
           outcome: ${{ steps.land.outcome }}
