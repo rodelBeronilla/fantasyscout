@@ -8,7 +8,7 @@ import { assign, owners, toggleIl, useLeague } from '../lib/fantasy-league';
 import { categoryValues, pointValues } from '../lib/league-value';
 import { dropRule, reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
-import { expectedWins, leagueStandings, type LeagueStandings } from '../lib/standings';
+import { expectedWins, leagueStandings, type LeagueStandings, type PowerRank, powerRankings } from '../lib/standings';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
 import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, weekPlan, type WeekPlan } from '../lib/lineup';
@@ -163,6 +163,7 @@ function LeagueTable({
   cats,
   catValue,
   fpts,
+  power,
 }: {
   names: string[];
   mine: number;
@@ -171,6 +172,8 @@ function LeagueTable({
   cats: string[];
   catValue: ((id: string) => Record<string, number> | undefined) | null;
   fpts: ((id: string) => number) | null;
+  /** The standings model's power rankings (#743): the table's order and its projection columns. */
+  power: PowerRank[] | null;
 }) {
   const teams = rosters
     .map((roster, t) => {
@@ -186,18 +189,39 @@ function LeagueTable({
   const rankOf = (get: (x: (typeof teams)[number]) => number, team: number) => 1 + teams.filter((x) => get(x) > get(teams.find((y) => y.team === team)!)).length;
   const tone = (rank: number) => (n < 3 ? '' : rank <= third ? 'text-good' : rank > n - third ? 'text-bad' : '');
   const label = (c: string) => CATEGORY_LABELS[c] ?? c;
+  const projected = new Map((power ?? []).map((p, i) => [p.team, { ...p, place: i + 1 }]));
+  const h2h = !!power?.some((p) => p.matchupWin !== null);
+  // the projection orders the table when it has every team; otherwise the totals do
+  const order = (x: (typeof teams)[number]) => (projected.get(x.team)?.place ?? n + 1) * 1e6 - x.total;
   return (
-    <Tile title="League table" id="league-table" testid="league-table">
+    <Tile title={power ? 'Power rankings' : 'League table'} id="league-table" testid="league-table">
       <p className="mt-1 text-xs text-muted">
         {fpts
           ? 'Each team’s projected fantasy points a game, from its active players.'
-          : 'Each team’s value per game above replacement in every kept category, summed over its active players. Green is the top third, red the bottom third.'}
+          : `${
+              power
+                ? h2h
+                  ? 'Teams ranked by their projected matchup win rate against the rest of the league, with the categories they expect to win a week against an average rival. '
+                  : 'Teams ranked by their expected rotisserie points: one per category, and one more for each team finished ahead of. '
+                : ''
+            }Each category is the team’s value per game above replacement, summed over its active players: green the top third, red the bottom third.`}
       </p>
       <div className="table-scroll mt-2 max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="League table">
         <table className="w-full text-sm" data-testid="team-strength">
           <thead>
             <tr>
+              {power && <Th right>#</Th>}
               <Th>Team</Th>
+              {power && h2h && (
+                <Th right>
+                  <span title="The chance of winning a weekly matchup against a team picked at random from the rest">Win %</span>
+                </Th>
+              )}
+              {power && (
+                <Th right>
+                  <span title={h2h ? 'Categories expected to win a week against an average rival' : 'Expected rotisserie points'}>{h2h ? 'Cats' : 'Roto pts'}</span>
+                </Th>
+              )}
               <Th right>Players</Th>
               {!fpts && cats.map((c) => <Th key={c} right>{label(c)}</Th>)}
               <Th right>{fpts ? 'FPts/G' : 'Total'}</Th>
@@ -205,10 +229,15 @@ function LeagueTable({
           </thead>
           <tbody>
             {[...teams]
-              .sort((a, b) => b.total - a.total)
-              .map((x) => (
-                <tr key={x.team} className={`border-t border-line ${x.team === mine ? 'font-semibold' : ''}`}>
+              .sort((a, b) => order(a) - order(b))
+              .map((x) => {
+                const p = projected.get(x.team);
+                return (
+                <tr key={x.team} className={`border-t border-line ${x.team === mine ? 'font-semibold' : ''}`} data-testid="power-row">
+                  {power && <Td right>{p?.place ?? '–'}</Td>}
                   <Td>{names[x.team]}</Td>
+                  {power && h2h && <Td right>{p?.matchupWin != null ? `${Math.round(p.matchupWin * 100)}%` : '–'}</Td>}
+                  {power && <Td right>{p ? fmt(h2h ? p.expectedCats : (p.rotoPoints ?? 0), 1) : '–'}</Td>}
                   <Td right>{x.size}</Td>
                   {!fpts &&
                     cats.map((c) => {
@@ -225,7 +254,8 @@ function LeagueTable({
                     <span className={tone(rankOf((y) => y.total, x.team))}>{fmt(x.total, 1)}</span>
                   </Td>
                 </tr>
-              ))}
+                );
+              })}
           </tbody>
         </table>
       </div>
@@ -373,6 +403,14 @@ export default function MyTeam() {
     if (!rows || !leagueCats || myTeam.length === 0) return null;
     return leagueStandings(league, setup, activeCats, (id) => leagueCats.get(id), (id) => byId.get(id)?.availability_multiplier ?? 1, remaining);
   }, [rows, leagueCats, myTeam.length, league, setup, activeCats, byId, remaining]);
+  // power rankings (#743): every team with half a roster, by what the standings model projects
+  const power = useMemo(
+    () =>
+      rows && leagueCats
+        ? powerRankings(league, setup, activeCats, (id) => leagueCats.get(id), (id) => byId.get(id)?.availability_multiplier ?? 1, remaining)
+        : null,
+    [rows, leagueCats, league, setup, activeCats, byId, remaining],
+  );
   const myTotals = useMemo(
     () => (leagueCats && myTeam.length ? Object.fromEntries(activeCats.map((c) => [c, myTeam.reduce((s, r) => s + (leagueCats.get(r.player_id)?.[c] ?? 0), 0)])) : null),
     [leagueCats, myTeam, activeCats],
@@ -625,6 +663,7 @@ export default function MyTeam() {
         cats={points ? [] : activeCats}
         catValue={leagueCats ? (id) => leagueCats.get(id) : null}
         fpts={points && leaguePoints ? (id) => leaguePoints.get(id)?.fpts ?? 0 : null}
+        power={power}
       />
     </div>
   );

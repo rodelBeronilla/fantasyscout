@@ -195,3 +195,62 @@ export function leagueStandings(
   const model = standingsModel(league, cats, players, setup.format, gamesLeft);
   return { weights: standingWeights(totals, setup.mine, others, model), chances: winChances(totals, setup.mine, others, model), totals, others };
 }
+
+export interface PowerRank {
+  team: number;
+  /** Expected categories won a week against an average rival (head-to-head) or the share of rivals beaten per category (rotisserie), summed. */
+  expectedCats: number;
+  /** Head-to-head: the chance of winning a matchup against a team picked at random from the rest, a tie counting half. */
+  matchupWin: number | null;
+  /** Rotisserie: expected points, one per category plus one per team finished ahead of. */
+  rotoPoints: number | null;
+}
+
+/**
+ * The chance of winning a head-to-head matchup from each category's win chance: the exact
+ * distribution of categories won, more than half winning and exactly half splitting.
+ */
+export function matchupChance(chances: number[]): number {
+  let dist = [1];
+  for (const p of chances) {
+    const next = new Array<number>(dist.length + 1).fill(0);
+    dist.forEach((q, k) => {
+      next[k] = (next[k] ?? 0) + q * (1 - p);
+      next[k + 1] = (next[k + 1] ?? 0) + q * p;
+    });
+    dist = next;
+  }
+  const n = chances.length;
+  return dist.reduce((s, q, k) => s + (2 * k > n ? q : 2 * k === n ? q / 2 : 0), 0);
+}
+
+/**
+ * Power rankings (#743): every team with half a roster or more, best first, by what it projects to
+ * win under the standings model: in head-to-head, its categories against an average rival and its
+ * matchup win rate against the rest; in rotisserie, its expected points. Null with fewer than two.
+ */
+export function powerRankings(
+  league: League,
+  setup: StandingsLeague,
+  cats: string[],
+  catValue: (id: string) => Record<string, number> | undefined,
+  availability: (id: string) => number,
+  gamesLeft: number,
+): PowerRank[] | null {
+  const teams = rivals(setup.rosters, -1, setup.rosterSpots);
+  if (teams.length < 2 || !cats.length) return null;
+  const active = setup.rosters.map((r) => r.filter((id) => !setup.il.includes(id)));
+  const totals = active.map((r) => teamTotals(r, cats, catValue, availability));
+  const players = teams.reduce((s, t) => s + (active[t] ?? []).reduce((n, id) => n + availability(id), 0), 0) / teams.length;
+  const model = standingsModel(league, cats, players, setup.format, gamesLeft);
+  const h2h = setup.format === 'h2h';
+  const chance = (a: number, b: number, c: string) => normalCdf(((totals[a]?.[c] ?? 0) - (totals[b]?.[c] ?? 0)) / (model.spread[c] ?? 1));
+  const out = teams.map((team) => {
+    const others = teams.filter((t) => t !== team);
+    const expectedCats = expectedWins(winChances(totals, team, others, model));
+    const matchupWin = h2h ? others.reduce((s, o) => s + matchupChance(cats.map((c) => chance(team, o, c))), 0) / others.length : null;
+    const rotoPoints = h2h ? null : cats.reduce((s, c) => s + 1 + others.reduce((n, o) => n + chance(team, o, c), 0), 0);
+    return { team, expectedCats, matchupWin, rotoPoints };
+  });
+  return out.sort((a, b) => (h2h ? (b.matchupWin ?? 0) - (a.matchupWin ?? 0) : (b.rotoPoints ?? 0) - (a.rotoPoints ?? 0)));
+}

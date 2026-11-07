@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { expectedWins, GAME_SPREAD, leagueStandings, normalCdf, rivals, standingsModel, standingWeights, teamTotals, winChances } from './standings';
+import { expectedWins, GAME_SPREAD, leagueStandings, matchupChance, normalCdf, powerRankings, rivals, standingsModel, standingWeights, teamTotals, winChances } from './standings';
 
 const cats = ['z_points', 'z_steals', 'z_blocks'];
 
@@ -89,5 +89,48 @@ describe('leagueStandings (#712)', () => {
     const s = leagueStandings('nba', { ...base, il: ['a'] }, ['z_steals'], (id) => values[id], () => 1, 0)!;
     expect(s.totals[0]?.['z_steals']).toBe(0);
     expect(leagueStandings('nba', { ...base, rosters: [['a'], [], []] }, ['z_steals'], (id) => values[id], () => 1, 0)).toBeNull();
+  });
+});
+
+describe('powerRankings (#743)', () => {
+  // three teams of one player, two categories: a strong at both, b in steals only, c weak
+  const values: Record<string, Record<string, number>> = { a: { z_steals: 3, z_blocks: 3 }, b: { z_steals: 3, z_blocks: -3 }, c: { z_steals: -3, z_blocks: -3 } };
+  const base = { rosters: [['a'], ['b'], ['c']], mine: 0, rosterSpots: 1, il: [] as string[], format: 'h2h' as const };
+  const rank = (format: 'h2h' | 'roto') =>
+    powerRankings('nba', { ...base, format }, ['z_steals', 'z_blocks'], (id) => values[id], () => 1, 60)!;
+
+  it('orders every team with half a roster by what it projects to win', () => {
+    const r = rank('h2h');
+    expect(r.map((x) => x.team)).toEqual([0, 1, 2]);
+    expect(r[0]!.expectedCats).toBeGreaterThan(r[1]!.expectedCats);
+  });
+
+  it('gives each head-to-head team a matchup win rate against the rest, which sum to half the matchups', () => {
+    const r = rank('h2h');
+    expect(r[0]!.matchupWin).toBeGreaterThan(0.5);
+    expect(r[2]!.matchupWin).toBeLessThan(0.5);
+    // every matchup has a winner, a loser or a tie split: the rates average a half
+    expect(r.reduce((s, x) => s + (x.matchupWin ?? 0), 0) / r.length).toBeCloseTo(0.5, 5);
+  });
+
+  it('gives rotisserie teams expected points: one per category plus one per team beaten', () => {
+    const r = rank('roto');
+    expect(r[0]!.rotoPoints).toBeGreaterThan(r[2]!.rotoPoints!);
+    // 3 teams, 2 categories: the points always sum to 2 × (1 + 2 + 3) = 12
+    expect(r.reduce((s, x) => s + (x.rotoPoints ?? 0), 0)).toBeCloseTo(12, 5);
+    expect(r[0]!.matchupWin).toBeNull();
+  });
+
+  it('is null with fewer than two teams in', () => {
+    expect(powerRankings('nba', { ...base, rosters: [['a'], [], []] }, ['z_steals'], (id) => values[id], () => 1, 60)).toBeNull();
+  });
+});
+
+describe('matchupChance (#743)', () => {
+  it('counts more than half the categories a win and exactly half a split', () => {
+    expect(matchupChance([1, 1, 0])).toBe(1);
+    expect(matchupChance([0.5, 0.5])).toBeCloseTo(0.5, 10);
+    // two coin flips and a sure win: win unless both flips lose (0.25), never a tie with three
+    expect(matchupChance([0.5, 0.5, 1])).toBeCloseTo(0.75, 10);
   });
 });
