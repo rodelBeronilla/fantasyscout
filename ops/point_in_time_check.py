@@ -53,6 +53,9 @@ DATED: tuple[tuple[str, str], ...] = (
     ("gold.fct_player_prop", "snapshot_at"),
     ("gold.int_player_game_value", "game_date"),
     ("gold.mart_player_rolling", "game_date"),
+    ("gold.fct_official_listing", "game_date"),
+    ("gold.fct_injury_spell", "start_date"),
+    ("gold.fct_injury_spell", "return_date"),
 )
 # Records of games, cut by the day they were played: everything before the date must survive.
 EVENTS: frozenset[str] = frozenset(
@@ -124,7 +127,11 @@ def dropped(
 
 def idle(full: duckdb.DuckDBPyConnection) -> list[str]:
     """Checked tables the sample leaves empty: they prove nothing either way."""
-    return [t for t, _ in DATED if _count(full, f"select count(*) from {t}") == 0]
+    return [
+        t
+        for t in dict.fromkeys(t for t, _ in DATED)
+        if _count(full, f"select count(*) from {t}") == 0
+    ]
 
 
 def _build(as_of: date, db: Path) -> str | None:
@@ -173,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(
         f"point-in-time builds as of {first} and {after_last}: nothing from on or after the date,"
-        f" every earlier game kept ({len(DATED)} tables checked)"
+        f" every earlier game kept ({len({t for t, _ in DATED})} tables checked)"
     )
     if unexercised:
         print("not exercised by the sample (no rows):", ", ".join(unexercised))

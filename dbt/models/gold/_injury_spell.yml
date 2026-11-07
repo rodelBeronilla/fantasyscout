@@ -1,0 +1,90 @@
+version: 2
+
+models:
+  - name: fct_injury_spell
+    description: "Absence spells from the official injury reports, censoring-aware (#768): one row per run of regular-season games a listed player missed, to the next game played. A spell without a return is censored (ongoing, or the season ended first), so its games and days are a lower bound. What the recovery-timeline model (#770) reads."
+    columns:
+      - name: injury_spell_sk
+        description: "Surrogate key: one row per league, player and first game missed"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+      - name: season
+        description: "Season label (2026 in the WNBA, 2025-26 in the NBA)"
+      - name: player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "The player's team at the first listing"
+      - name: first_game_id
+        description: "The first listed game the player missed"
+      - name: start_date
+        description: "Date of the first listed game missed"
+        data_tests: [not_null]
+      - name: return_date
+        description: "Date of the next regular-season game the player played; null while censored"
+      - name: returned
+        description: "True when the return was seen"
+        data_tests: [not_null]
+      - name: censored
+        description: "null for a spell with a return; ongoing while the team still has regular-season games, season_end when the season ended first"
+        data_tests:
+          - accepted_values:
+              values: [ongoing, season_end]
+      - name: games_missed
+        description: "The team's regular-season games from the first missed through the last before the return; for a censored spell, the games seen so far"
+      - name: days_out
+        meta: {unit: days}
+        description: "Days from the first game missed to the return; for a censored spell, to the team's latest game played"
+      - name: listings
+        description: "Listings in the spell"
+      - name: first_status
+        description: "The first listing's status (Out, Doubtful, Questionable, Probable)"
+      - name: worst_status
+        description: "The most serious status listed during the spell"
+      - name: reason_group
+        description: "The league's reason at the first listing: injury, g_league, rest, personal, suspension, not_with_team or other (a concussion protocol is an injury)"
+      - name: injury_detail
+        description: "The first listing's injury detail as the report gives it (Left Ankle; Sprain)"
+      - name: side
+        description: "left, right or both, when the report names a side"
+      - name: body_part
+        description: "The body part, lower case without the side (ankle, hamstring, head for a concussion); null for an absence that is not an injury"
+      - name: injury_kind
+        description: "What the report says of it (soreness, sprain, strain, fracture, surgery, concussion); null when it says only injury or repeats the body part"
+
+unit_tests:
+  - name: injury_spells_are_censoring_aware
+    description: >
+      a misses two listed games (Questionable, then Out, a left ankle sprain) and plays the third:
+      one spell of two games, returned. b misses the last two games played so far and the team has
+      games left: censored, ongoing, two games seen. c misses the last game of a finished season:
+      censored at the season's end, not a one-game injury. d is listed and plays: no spell. e is
+      out resting: an absence, with no body part.
+    model: fct_injury_spell
+    given:
+      - input: ref('fct_official_listing')
+        rows:
+          - {league: nba, season: '2025-26', game_id: '0022500001', game_date: '2025-11-01', team_id: T1, player_id: a, status: Questionable, reason_group: injury, injury_detail: 'Left Ankle; Sprain', played: false, games_missed: 2}
+          - {league: nba, season: '2025-26', game_id: '0022500002', game_date: '2025-11-03', team_id: T1, player_id: a, status: Out, reason_group: injury, injury_detail: 'Left Ankle; Sprain', played: false, games_missed: 1}
+          - {league: nba, season: '2025-26', game_id: '0022500002', game_date: '2025-11-03', team_id: T1, player_id: b, status: Out, reason_group: injury, injury_detail: 'Right Hamstring; Strain', played: false, games_missed: 2}
+          - {league: nba, season: '2025-26', game_id: '0022500003', game_date: '2025-11-05', team_id: T1, player_id: b, status: Out, reason_group: injury, injury_detail: 'Right Hamstring; Strain', played: false, games_missed: 1}
+          - {league: nba, season: '2024-25', game_id: '0022400082', game_date: '2025-04-13', team_id: T1, player_id: c, status: Out, reason_group: injury, injury_detail: 'Left Knee; Injury', played: false, games_missed: 1}
+          - {league: nba, season: '2025-26', game_id: '0022500003', game_date: '2025-11-05', team_id: T1, player_id: d, status: Questionable, reason_group: injury, injury_detail: 'Left Knee; Soreness', played: true, games_missed: 0}
+          - {league: nba, season: '2025-26', game_id: '0022500001', game_date: '2025-11-01', team_id: T1, player_id: e, status: Out, reason_group: rest, injury_detail: 'Rest', played: false, games_missed: 1}
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2025-26', game_id: '0022500003', game_date: '2025-11-05', player_id: a, played: true}
+          - {league: nba, season: '2025-26', game_id: '0022500002', game_date: '2025-11-03', player_id: e, played: true}
+          - {league: nba, season: '2025-26', game_id: '0022500003', game_date: '2025-11-05', player_id: d, played: true}
+      - input: ref('schedule_team_games')
+        rows:
+          - {league: nba, season: '2025-26', team_id: T1, game_type: regular, game_status: 3, game_date_est: '2025-11-05'}
+          - {league: nba, season: '2025-26', team_id: T1, game_type: regular, game_status: 1, game_date_est: '2025-11-07'}
+          - {league: nba, season: '2024-25', team_id: T1, game_type: regular, game_status: 3, game_date_est: '2025-04-13'}
+    expect:
+      rows:
+        - {player_id: a, start_date: '2025-11-01', return_date: '2025-11-05', returned: true, censored: null, games_missed: 2, days_out: 4, listings: 2, first_status: Questionable, worst_status: Out, reason_group: injury, side: left, body_part: ankle, injury_kind: sprain}
+        - {player_id: b, start_date: '2025-11-03', return_date: null, returned: false, censored: ongoing, games_missed: 2, days_out: 2, listings: 2, first_status: Out, worst_status: Out, reason_group: injury, side: right, body_part: hamstring, injury_kind: strain}
+        - {player_id: c, start_date: '2025-04-13', return_date: null, returned: false, censored: season_end, games_missed: 1, days_out: 0, listings: 1, first_status: Out, worst_status: Out, reason_group: injury, side: left, body_part: knee, injury_kind: null}
+        - {player_id: e, start_date: '2025-11-01', return_date: '2025-11-03', returned: true, censored: null, games_missed: 1, days_out: 2, listings: 1, first_status: Out, worst_status: Out, reason_group: rest, side: null, body_part: null, injury_kind: null}

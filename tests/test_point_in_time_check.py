@@ -16,8 +16,11 @@ def _db(games: list[str], waiver_rows: int = 0) -> duckdb.DuckDBPyConnection:
     con = duckdb.connect(":memory:")
     con.execute("create schema gold")
     con.execute("create schema silver")
+    columns: dict[str, list[str]] = {}
     for table, col in DATED:
-        con.execute(f"create table {table} ({col} date)")
+        columns.setdefault(table, []).append(col)
+    for table, cols in columns.items():
+        con.execute(f"create table {table} ({', '.join(f'{c} date' for c in cols)})")
     for d in games:
         con.execute("insert into gold.fct_player_game values (cast(? as date))", [d])
     con.execute("create table gold.fct_waiver_trend (sleeper_player_id varchar)")
