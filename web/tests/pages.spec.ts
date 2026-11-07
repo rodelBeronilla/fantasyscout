@@ -1800,6 +1800,39 @@ test('Rankings and the Draft page price players for an auction from value above 
   await expect(page.getByTestId('best-available').getByTestId('draft-auction').first()).toHaveText(/^\$\d+$/);
 });
 
+test('Rankings shows each player game range on demand, and the player page the range in the outlook (#747)', async ({ page }) => {
+  await page.route('**/board/wnba*.json', async (route) => {
+    const body = (await (await route.fetch()).json()) as Record<string, unknown>[] | Record<string, unknown[]>;
+    if (Array.isArray(body)) {
+      await route.fulfill({ json: body.map((r, i) => ({ ...r, game_floor: -1 + i * 0.01, game_ceiling: 6 - i * 0.01, game_value_sd: 2 + (i % 5) })) });
+    } else {
+      const n = (Object.values(body)[0] as unknown[]).length;
+      await route.fulfill({
+        json: { ...body, game_floor: Array.from({ length: n }, (_, i) => -1 + i * 0.01), game_ceiling: Array.from({ length: n }, (_, i) => 6 - i * 0.01), game_value_sd: Array.from({ length: n }, (_, i) => 2 + (i % 5)) },
+      });
+    }
+  });
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
+  await expect(board.locator('thead')).not.toContainText('Ceiling');
+  await page.getByTestId('board-options-toggle').click();
+  await page.getByLabel(/Consistency columns/).check();
+  await expect(board.locator('thead')).toContainText('Floor');
+  await expect(board.locator('thead')).toContainText('Spread');
+  await expect(board.locator('tbody tr[data-player]').first().locator('td[data-col="game_ceiling"]')).toHaveText(/^\+\d\.\d$/);
+  // steadiest first: the spread sorts low to high
+  await board.getByRole('button', { name: /^Spread/ }).click();
+  await expect(board.locator('tbody tr[data-player]').first().locator('td[data-col="game_value_sd"]')).toHaveText('2.0');
+  await page.route('**/players/wnba/1628932.json', async (route) => {
+    const file = (await (await route.fetch()).json()) as { board: Record<string, unknown> | null };
+    if (file.board) Object.assign(file.board, { game_floor: 1.5, game_ceiling: 9.25 });
+    await route.fulfill({ json: file });
+  });
+  await page.goto('/p/wnba/1628932/');
+  await expect(page.getByTestId('game-range')).toHaveText('+1.5 to +9.3');
+});
+
 test('the value view groups the board into tiers by pick and round, and ranks players by position', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');

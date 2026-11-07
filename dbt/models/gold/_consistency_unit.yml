@@ -1,0 +1,25 @@
+unit_tests:
+  - name: consistency_values_each_game_on_the_board_scale
+    description: >
+      Each game is valued against the season pool (#747). Three players differ only in points: their
+      averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10,
+      20 and 30 points are worth 0, 1 and 2. The mean is 1 (a's season z-score), the spread 1, and
+      the 20th and 80th percentile games 0.4 and 1.6. Every other category is zero for everyone and
+      adds nothing.
+    model: mart_player_consistency
+    given:
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2025-26', player_id: a, played: true, minutes: 30, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', player_id: a, played: true, minutes: 30, points: 20, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', player_id: a, played: true, minutes: 30, points: 30, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', player_id: b, played: true, minutes: 20, points: 0, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', player_id: b, played: true, minutes: 20, points: 0, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', player_id: c, played: true, minutes: 25, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', player_id: c, played: true, minutes: 25, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', player_id: d, played: false, minutes: null, points: null, rebounds_total: null, assists: null, steals: null, blocks: null, three_pointers_made: null, turnovers: null, field_goals_made: null, field_goals_attempted: null, free_throws_made: null, free_throws_attempted: null}
+    expect:
+      rows:
+        - {player_id: a, games: 3, game_value_mean: 1.0, game_value_sd: 1.0, game_floor: 0.4, game_ceiling: 1.6}
+        - {player_id: b, games: 2, game_value_mean: -1.0, game_value_sd: 0.0, game_floor: -1.0, game_ceiling: -1.0}
+        - {player_id: c, games: 2, game_value_mean: 0.0, game_value_sd: 0.0, game_floor: 0.0, game_ceiling: 0.0}
