@@ -150,8 +150,10 @@ jobs:
           title: "Backfill failure: espn ${{ inputs.league }} ${{ matrix.season }}"
           outcome: ${{ steps.land.outcome }}
 
-  # The leagues keep their official injury reports on the host (the NBA's back to 2023-24, the
-  # WNBA's from 2026): one report a day, the 5 pm Eastern one, for the availability calibration.
+  # The leagues keep their official injury reports on the host (the NBA's back to 2018-12-17, the
+  # WNBA's from 2026): one report a day, the 5 pm Eastern one, for the availability calibration and
+  # the injury spells (#784). An NBA season's window runs to 30 September, so 2019-20's games in
+  # the bubble (July to October 2020) are in it.
   reports:
     name: Injury reports ${{ inputs.league }} ${{ matrix.season }}
     if: inputs.source == 'reports'
@@ -176,7 +178,7 @@ jobs:
           SEASON: ${{ matrix.season }}
         run: |
           if [ "$LEAGUE" = "wnba" ]; then since="$SEASON-05-01"; until="$SEASON-10-31"
-          else y1=${SEASON%-*}; since="$y1-10-01"; until="$((y1 + 1))-06-30"; fi
+          else y1=${SEASON%-*}; since="$y1-10-01"; until="$((y1 + 1))-09-30"; fi
           yesterday=$(date -u -d yesterday +%F)
           [[ "$until" > "$yesterday" ]] && until="$yesterday"
           echo "since=$since" >> "$GITHUB_OUTPUT"; echo "until=$until" >> "$GITHUB_OUTPUT"

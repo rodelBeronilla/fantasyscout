@@ -42,7 +42,8 @@ HEADERS = {
     "Accept": "text/html,application/pdf,*/*",
 }
 # Reports are named for the Eastern time they were published: 05_00PM since the 2025-26 season
-# (every 15 minutes), 05PM before it (hourly). Both stay on the host: the NBA's back to 2023-24.
+# (every 15 minutes), 05PM before it (hourly). Both stay on the host: the NBA's back to 2018-12-17
+# (an earlier day answers 403), in another layout until about 2020 (#784).
 REPORT_NAME = re.compile(r"Injury-Report_(\d{4}-\d{2}-\d{2})_(\d{2})(?:_(\d{2}))?(AM|PM)\.pdf")
 # The report a history run lands for each day: 5 pm Eastern, after teams file for the day's games
 # and before most tip-offs, close to when the evening build reads the newest one.
@@ -70,6 +71,9 @@ HEADER_WORDS = {
     "Player Name": "player",
     "Current Status": "status",
     "Reason": "reason",
+    # The 2018-19 and 2019-20 layout splits the reason in two and adds the previous status (#784).
+    "Category": "category",
+    "Previous Status": "previous_status",
 }
 STATUSES = {"Out", "Doubtful", "Questionable", "Probable", "Available"}
 NOT_SUBMITTED = "NOT YET SUBMITTED"
@@ -186,6 +190,11 @@ def parse_report(pdf: bytes) -> list[dict[str, Any]]:
                     if cells.get(col):
                         carried[col] = " ".join(cells[col])
                 reason = " ".join(cells.get("reason", [])).strip()
+                # The old layout's category ("Injury/Illness", "G League - On Assignment") is the
+                # prefix the newer layout writes into the reason: put it back the newer way.
+                category = " ".join(cells.get("category", [])).strip()
+                if category and category != "-":
+                    reason = f"{category} - {reason}" if reason not in ("", "-") else category
                 player = " ".join(cells.get("player", [])).strip()
                 status = " ".join(cells.get("status", [])).strip()
                 rows.append(
@@ -332,7 +341,7 @@ class InjuryReportIngestor:
 class ReportHistoryIngestor:
     """Lands one official report per day over a date range: the 5 pm Eastern report.
 
-    Each league keeps its reports on the host (the NBA's back to 2023-24, the WNBA's from 2026),
+    Each league keeps its reports on the host (the NBA's back to 2018-12-17, the WNBA's from 2026),
     so the history the availability calibration needs can be landed after the fact. A day with no
     report (no games, or before the archive) answers 403 or 404 and is skipped, not failed.
     """

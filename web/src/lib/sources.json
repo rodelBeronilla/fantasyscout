@@ -49,7 +49,7 @@
       "name": "The leagues' official injury reports",
       "host": "official.nba.com, the WNBA's equivalent",
       "terms": "https://www.nba.com/termsofuse",
-      "feeds": "The official injury report before each game day (the NBA's archive back to 2023-24), 5 pm Eastern and the morning's.",
+      "feeds": "The official injury report before each game day (the NBA's archive back to 17 December 2018), 5 pm Eastern and the morning's.",
       "cadence": "Morning and evening in season; the archive landed once.",
       "published": "Each player's official status and reason for the next game, and the calibration of expected games missed built from past listings (aggregates by status and reason).",
       "retention": "As above."
