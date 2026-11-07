@@ -7,6 +7,7 @@
 import type { League } from './data';
 import type { Format } from './fantasy-league';
 import { expectedWins, rivals, standingsModel, type StandingsModel, standingWeights, teamTotals, winChances } from './standings';
+import { PARAMS } from '../generated/parameters';
 
 export interface LeagueState {
   league: League;
@@ -129,8 +130,8 @@ export function tradeImpact(state: LeagueState, standings: Standings, mine: numb
   const m = change(mine);
   const p = change(partner);
   const moves = (t: TeamChange) => ({
-    up: state.cats.filter((c) => (t.after[c] ?? 0) - (t.before[c] ?? 0) >= 0.02),
-    down: state.cats.filter((c) => (t.before[c] ?? 0) - (t.after[c] ?? 0) >= 0.02),
+    up: state.cats.filter((c) => (t.after[c] ?? 0) - (t.before[c] ?? 0) >= PARAMS['trade.category_change']),
+    down: state.cats.filter((c) => (t.before[c] ?? 0) - (t.after[c] ?? 0) >= PARAMS['trade.category_change']),
   });
   const mm = moves(m);
   const pm = moves(p);
@@ -161,9 +162,9 @@ export function teamNeeds(state: LeagueState, standings: Standings, team: number
   const chances = winChances(standings.totals, team, others, standings.model);
   const weights = standingWeights(standings.totals, team, others, standings.model) ?? {};
   return {
-    swing: [...state.cats].sort((a, b) => (weights[b] ?? 0) - (weights[a] ?? 0)).slice(0, 3),
-    conceding: state.cats.filter((c) => (chances[c] ?? 0.5) < 0.25),
-    locked: state.cats.filter((c) => (chances[c] ?? 0.5) > 0.75),
+    swing: [...state.cats].sort((a, b) => (weights[b] ?? 0) - (weights[a] ?? 0)).slice(0, 3), // display: categories named
+    conceding: state.cats.filter((c) => (chances[c] ?? 0.5) < PARAMS['trade.chance_bands'].conceding), // def: unknown is a coin flip
+    locked: state.cats.filter((c) => (chances[c] ?? 0.5) > PARAMS['trade.chance_bands'].locked), // def: unknown is a coin flip
   };
 }
 
@@ -189,5 +190,6 @@ export function objective(mineGain: number, partnerGain: number, threshold: numb
  * the rivals in rotisserie points.
  */
 export function meaningful(state: LeagueState, team: number): number {
-  return state.format === 'roto' ? 0.05 * Math.max(1, rivals(state.rosters, team, state.rosterSpots).length) : 0.05;
+  const gain: number = PARAMS['trade.meaningful_gain'];
+  return state.format === 'roto' ? gain * Math.max(1, rivals(state.rosters, team, state.rosterSpots).length) : gain;
 }

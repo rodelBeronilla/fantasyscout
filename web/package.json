@@ -10,7 +10,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
-    "lint": "eslint . && knip",
+    "lint": "eslint . && knip && node scripts/check-literals.mjs",
     "test": "playwright test",
     "test:unit": "vitest run",
     "pretest": "node scripts/copy-fixtures.mjs",

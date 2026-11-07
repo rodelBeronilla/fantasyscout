@@ -5,6 +5,7 @@
  * projection good enough to start for you buys low. Values are per game above replacement under
  * the league's scoring: the projection against the last ten games' form, both on the same scale.
  */
+import { PARAMS } from '../generated/parameters';
 export interface FormSwing {
   id: string;
   /** The team that has the player, by index. */
@@ -32,7 +33,9 @@ export interface BuySellInput {
   limit?: number;
 }
 
-export function buySell({ mine, owner, projected, recent, healthy, startLine, minSwing = 1, limit = 6 }: BuySellInput): {
+const SHOWN = 6; // display: rows each list shows
+
+export function buySell({ mine, owner, projected, recent, healthy, startLine, minSwing = PARAMS['buysell.min_swing'], limit = SHOWN }: BuySellInput): {
   buyLow: FormSwing[];
   sellHigh: FormSwing[];
 } {

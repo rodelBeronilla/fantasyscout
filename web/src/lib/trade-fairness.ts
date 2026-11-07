@@ -13,6 +13,7 @@
  *
  * Pure functions, so the Trade page and tests share them.
  */
+import { PARAMS } from '../generated/parameters';
 
 export interface Lens {
   give: number;
@@ -29,7 +30,7 @@ export function lens(give: string[], get: string[], value: (id: string) => numbe
   const g = sum(give);
   const r = sum(get);
   const net = r - g;
-  return { give: g, get: r, net, share: net / Math.max(g, r, 1e-9) };
+  return { give: g, get: r, net, share: net / Math.max(g, r, 1e-9) }; // def: no division by zero
 }
 
 /**
@@ -49,15 +50,15 @@ export function marketValues(players: { player_id: string; market_rank?: number 
 
 /** How far a lens may favour the partner before it is a bad trade, and a terrible one. */
 export const LIMITS = {
-  value: { bad: -0.15, terrible: -0.3 },
-  market: { bad: -0.2, terrible: -0.35 },
+  value: PARAMS['trade.value_limits'],
+  market: PARAMS['trade.market_limits'],
 } as const;
 /** Categories: a loss of this many times the meaningful change is bad, of the second terrible. */
-const CATEGORY_LIMITS = { bad: 2, terrible: 5 } as const;
+const CATEGORY_LIMITS = PARAMS['trade.category_limits'];
 /** Two lenses this far apart (in shares) mean the trade is a bet on one of them. */
-const DISAGREEMENT = 0.35;
+const DISAGREEMENT: number = PARAMS['trade.disagreement'];
 /** Within this share, a lens calls the sides even. */
-const EVEN = { value: 0.1, market: 0.15 } as const;
+const EVEN = PARAMS['trade.even'];
 
 export interface Fairness {
   value: Lens;
@@ -74,7 +75,7 @@ export interface Fairness {
   disagree: boolean;
 }
 
-const pct = (share: number) => `${Math.round(Math.abs(share) * 100)}%`;
+const pct = (share: number) => `${Math.round(Math.abs(share) * 100)}%`; // def: a percentage
 
 export function judge(value: Lens, market: Lens | null, categories: number | null, threshold: number): Fairness {
   const reasons: string[] = [];

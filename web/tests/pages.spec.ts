@@ -92,6 +92,23 @@ test('the sources page names every source with what is published from it, and th
   await expect(page.getByRole('link', { name: 'open an issue' })).toHaveAttribute('href', /github\.com/);
 });
 
+test('the methodology page lists every registered number with how it was set and the issue that tests it', async ({ page }) => {
+  await page.goto('/methodology/');
+  const params = page.getByTestId('parameters').locator('article');
+  expect(await params.count()).toBeGreaterThanOrEqual(30);
+  // A measured projection weight and an assumed trade threshold, each linked to its backtest.
+  const recency = page.locator('[data-param="projection.fantasy_recency"]');
+  await expect(recency).toHaveAttribute('data-status', 'measured');
+  await expect(recency).toContainText('1, 0.25, 0.08');
+  await expect(recency.getByRole('link', { name: '#754' })).toHaveAttribute('href', /\/issues\/754$/);
+  const limits = page.locator('[data-param="trade.value_limits"]');
+  await expect(limits).toHaveAttribute('data-status', 'assumed');
+  await expect(limits.getByRole('link', { name: '#756' })).toBeVisible();
+  // The counts by status add up to the registry.
+  const counts = await page.getByTestId('status-counts').locator('li .font-medium').allTextContents();
+  expect(counts.reduce((n, c) => n + Number.parseInt(c, 10), 0)).toBe(await params.count());
+});
+
 test('every page carries a canonical address without the query, Open Graph tags, and the site has robots and a sitemap', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
   await expect(page.locator('head link[rel="canonical"]')).toHaveAttribute('href', /\/streamers\/$/);
@@ -619,7 +636,7 @@ async function loadSchemaDiagrams(page: Page): Promise<void> {
 }
 
 // Static pages. The schema overview is checked with its diagrams loaded, and a model's own page too.
-for (const path of ['/pipeline/', '/schema/', '/schema/mart_board/', '/schema/category_config/', '/sources/']) {
+for (const path of ['/pipeline/', '/schema/', '/schema/mart_board/', '/schema/category_config/', '/sources/', '/methodology/']) {
   test(`${path} has no accessibility violations`, async ({ page }) => {
     // The lineage drawing is large: axe needs longer than the default.
     test.setTimeout(90_000);
@@ -686,7 +703,7 @@ test('the dashboards page explains the workbook and lists the extract', async ({
   await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
 });
 
-for (const path of ['/', '/team/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notes/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/', '/schema/mart_board/']) {
+for (const path of ['/', '/team/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notes/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/', '/schema/mart_board/', '/methodology/']) {
   test(`${path} has no horizontal scroll on a phone`, async ({ page, isMobile }) => {
     test.skip(!isMobile, 'mobile project only');
     await page.goto(path);

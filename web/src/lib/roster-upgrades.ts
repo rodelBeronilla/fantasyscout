@@ -5,6 +5,7 @@
  * over per-player values, so the Board and the tests share them.
  */
 import { keepsPositions } from './players';
+import { PARAMS } from '../generated/parameters';
 
 export interface UpgradeInput {
   /** The manager's active players (not on the injured list). */
@@ -85,9 +86,9 @@ export function dropRule(
   rest: Map<string, number>,
   week: boolean,
 ): (id: string) => boolean {
-  const starters = league.teams * Math.ceil(league.rosterSpots * 0.6);
+  const starters = league.teams * Math.ceil(league.rosterSpots * PARAMS['roster.starter_share']);
   const byId = new Map(rows.map((r) => [r.player_id, r]));
-  const bench = new Set([...mine].sort((a, b) => (rest.get(a) ?? 0) - (rest.get(b) ?? 0)).slice(0, 2));
+  const bench = new Set([...mine].sort((a, b) => (rest.get(a) ?? 0) - (rest.get(b) ?? 0)).slice(0, PARAMS['roster.bench_size']));
   const ranked = (x: number | null | undefined) => typeof x === 'number' && x <= starters;
   return (id) => {
     const r = byId.get(id);
@@ -107,7 +108,7 @@ export function reviewRoster(input: UpgradeInput): RosterReview {
   const weakest =
     lowest === undefined ? null : { drop: lowest, add: bestAdd, gap: bestAdd ? value(bestAdd) - value(lowest) : -value(lowest) };
   // the players the free agents beat but who stay: the trade chips
-  const minGain = input.minGain ?? 0.5;
+  const minGain = input.minGain ?? PARAMS['roster.min_gain'];
   const chips =
     keep && bestAdd
       ? mine.filter((id) => !keep(id) && value(bestAdd) - value(id) >= minGain)
@@ -127,8 +128,8 @@ const rankOf = (totals: number[], team: number) => 1 + totals.filter((v, t) => t
 
 export function suggestUpgrades(input: UpgradeInput): Upgrade[] {
   const { mine, available, rest, cats, catValue, totals, myTeam } = input;
-  const minGain = input.minGain ?? 0.5;
-  const limit = input.limit ?? 5;
+  const minGain = input.minGain ?? PARAMS['roster.min_gain'];
+  const limit = input.limit ?? 5; // display: swaps listed
   const value = (id: string) => rest.get(id) ?? 0;
   if (!mine.length || !available.length) return [];
 
@@ -136,7 +137,7 @@ export function suggestUpgrades(input: UpgradeInput): Upgrade[] {
   const adds = [...available]
     .filter((id) => value(id) > 0)
     .sort((a, b) => value(b) - value(a))
-    .slice(0, input.candidates ?? 25);
+    .slice(0, input.candidates ?? PARAMS['roster.candidates']);
   const drops = [...mine].filter((id) => !input.droppable || input.droppable(id)).sort((a, b) => value(a) - value(b));
   const before = cats.map((c) => rankOf(totals.map((t) => t[c] ?? 0), myTeam));
 

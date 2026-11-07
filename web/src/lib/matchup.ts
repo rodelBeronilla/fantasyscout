@@ -5,7 +5,8 @@
  * left; a percentage is made over attempted. Turnovers go to the lower total.
  */
 import type { PointWeights } from './fantasy-league';
-import { fantasyPoints } from './league-value';
+import { fantasyPoints, thirdsWeights } from './league-value';
+import { PARAMS } from '../generated/parameters';
 
 type Row = Record<string, unknown>;
 
@@ -83,12 +84,12 @@ export interface WeekMatchup {
 }
 
 /** Category by category against the opponent; a margin within `closeness` of the larger total is too close to call. */
-export function matchup(cats: string[], mine: WeekTotals, theirs: WeekTotals, closeness = 0.05): WeekMatchup {
+export function matchup(cats: string[], mine: WeekTotals, theirs: WeekTotals, closeness: number = PARAMS['matchup.closeness']): WeekMatchup {
   const rows = cats.map((cat): CategoryEdge => {
     const a = mine.cats[cat] ?? 0;
     const b = theirs.cats[cat] ?? 0;
     const edge = LOWER_WINS.has(cat) ? b - a : a - b;
-    const share = Math.abs(edge) / Math.max(Math.abs(a), Math.abs(b), 1e-9);
+    const share = Math.abs(edge) / Math.max(Math.abs(a), Math.abs(b), 1e-9); // def: no division by zero
     return { cat, mine: a, theirs: b, edge, share, result: share <= closeness ? 'close' : edge > 0 ? 'win' : 'loss' };
   });
   return {
@@ -107,7 +108,5 @@ export function matchup(cats: string[], mine: WeekTotals, theirs: WeekTotals, cl
  * same shape as the rotisserie weights, which rank the manager's own categories instead.
  */
 export function matchupWeights(rows: CategoryEdge[]): Record<string, number> {
-  const order = [...rows].sort((a, b) => a.share - b.share).map((r) => r.cat);
-  const third = Math.max(1, Math.round(order.length / 3));
-  return Object.fromEntries(order.map((c, i) => [c, i < third ? 1.5 : i >= order.length - third ? 0.5 : 1]));
+  return thirdsWeights([...rows].sort((a, b) => a.share - b.share).map((r) => r.cat));
 }

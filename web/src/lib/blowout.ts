@@ -4,8 +4,10 @@
  * WNBA (findings of 2026-11-02; ADR 0012 keeps it out of the value). The site flags it, it does not
  * change the value: a starter whose team's next game has a spread of 10 points or more.
  */
-const BLOWOUT_SPREAD = 10;
-const MINUTES_PER_5_POINTS: Record<string, number> = { nba: 0.73, wnba: 0.37 };
+import { PARAMS } from '../generated/parameters';
+
+const BLOWOUT_SPREAD: number = PARAMS['blowout.spread'];
+const MINUTES_PER_5_POINTS: Record<string, number> = PARAMS['blowout.minutes_per_5_points'];
 
 export interface LineGame {
   game_date: string;
@@ -32,5 +34,5 @@ export function blowout(league: string, role: string | null | undefined, next: L
   const spread = Math.abs(next.home_spread);
   if (spread < BLOWOUT_SPREAD) return null;
   const rate = MINUTES_PER_5_POINTS[league] ?? 0;
-  return { spread, minutes: (spread / 5) * rate };
+  return { spread, minutes: (spread / 5) * rate }; // def: the rate is per five points
 }

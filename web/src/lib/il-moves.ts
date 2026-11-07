@@ -4,6 +4,7 @@
  * listed). The threshold is in games the board expects the player to miss, from the calibrated
  * availability (ADR 0010), so it follows the league's own listings rather than the status word.
  */
+import { PARAMS } from '../generated/parameters';
 
 export interface IlCandidate {
   player_id: string;
@@ -19,7 +20,7 @@ export interface IlMoves {
   back: string[];
 }
 
-export const IL_MIN_GAMES = 3;
+export const IL_MIN_GAMES: number = PARAMS['il.min_games'];
 
 const LISTED_OUT = new Set(['out', 'doubtful']);
 
