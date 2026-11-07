@@ -3,8 +3,8 @@
  * season: projected value above replacement over the games the player is expected to play. A
  * head-to-head manager also needs this week: notebook 02 (ADR 0011) found recent production over
  * the games left in the week the best weekly predictor the lakehouse has, so the week unit is each
- * category's last-ten z-score, re-measured against the league's replacement level, over the games
- * left this fantasy week (Monday to Sunday).
+ * category's last-ten value, on the projection's scale and above the league's replacement level
+ * (measured on the projection, ADR 0019), over the games left this fantasy week (Monday to Sunday).
  */
 type Row = Record<string, unknown>;
 
@@ -14,9 +14,10 @@ export type ValueUnit = 'rest' | 'week';
 export const UNIT_LABEL: Record<ValueUnit, string> = { rest: 'rest of season', week: 'this week' };
 
 /**
- * A copy of each row with the last-ten z-score standing in for the projected one, category by
- * category, so the league's category values can be re-measured on recent form. A player without
- * a recent figure (fewer than ten games this season) keeps the projection.
+ * A copy of each row with the last-ten value standing in for the projected one, category by
+ * category, so the league's category values can be measured on recent form. The last ten are a
+ * player's latest regular-season games this season, as few as one; a player with none keeps the
+ * projection.
  */
 export function recentForm(rows: Row[], categories: string[]): Row[] {
   return rows.map((r) => {

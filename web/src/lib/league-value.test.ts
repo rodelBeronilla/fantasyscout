@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SETTINGS } from './fantasy-league';
-import { categoryValues, fantasyPoints, fitWeights, leagueTiers, naturalBreaks, pointValues, primaryPosition, replacementLevel, scaleValue } from './league-value';
+import { categoryReplacement, categoryValues, fantasyPoints, fitWeights, leagueTiers, naturalBreaks, pointValues, primaryPosition, replacementLevel, scaleValue } from './league-value';
 
 const rows = [10, 8, 6, 4, 2].map((v, i) => ({ player_id: `p${i + 1}`, v, w: v / 2 }));
 
@@ -26,6 +26,15 @@ describe('category and point values', () => {
     const values = categoryValues(rows, ['v'], 2, 2);
     expect(values.get('p1')).toEqual({ v: 5 });
     expect(values.get('p5')).toEqual({ v: -3 });
+  });
+
+  it('measure a window from the projection replacement level, not its own (ADR 0019)', () => {
+    // projected v: replacement 5 (ranks 3 and 4); the window's own band would be 1 and 0
+    const window = [9, 7, 3, 1, 0].map((v, i) => ({ player_id: `p${i + 1}`, v }));
+    const values = categoryValues(window, ['v'], 2, 2, rows);
+    expect(values.get('p1')).toEqual({ v: 4 });
+    expect(values.get('p5')).toEqual({ v: -5 });
+    expect(categoryReplacement(rows, ['v'], 2, 2)).toEqual({ v: 5 });
   });
 
   it('score fantasy points with the league weights over the projected line', () => {

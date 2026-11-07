@@ -1,7 +1,7 @@
 {#
-  Game-to-game consistency (#747): the spread of a player's game values this season
-  (int_player_game_value, on the board's z_total scale). The mean equals the season z_total; the
-  floor and ceiling are the 20th and 80th percentile games.
+  Game-to-game consistency (#747): the spread of a player's regular-season game values
+  (int_player_game_value, on the value scale, above replacement: ADR 0019). The mean equals the
+  season z_total; the floor and ceiling are the 20th and 80th percentile games.
 #}
 
 select

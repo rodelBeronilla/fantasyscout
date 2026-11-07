@@ -391,7 +391,7 @@ export default function MyTeam() {
   const restValue = useMemo(() => restValues(rows ?? [], { points, leaguePoints, leagueCats, activeCats }), [rows, points, leaguePoints, leagueCats, activeCats]);
   // last-ten form under the league's scoring: the week unit's per-game value (#466)
   const recentCats = useMemo(
-    () => (rows && !points ? categoryValues(recentForm(rows, activeCats), activeCats, pool, setup.teams) : null),
+    () => (rows && !points ? categoryValues(recentForm(rows, activeCats), activeCats, pool, setup.teams, rows) : null),
     [rows, points, activeCats, pool, setup.teams],
   );
   const perGame = useCallback(

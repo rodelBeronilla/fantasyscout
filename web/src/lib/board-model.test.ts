@@ -51,6 +51,9 @@ describe('board model', () => {
     expect(scoreRows(rows, { ...base, view: 'pergame' }).map((s) => s.value)).toEqual([20, 9]);
     // a window with no z-scores for the player has no value
     expect(scoreRows(rows, { ...base, view: 'season' }).map((s) => s.value)).toEqual([1.5, null]);
+    // a league of another size takes its replacement level from the windowed views too
+    const replacement = Object.fromEntries(base.activeCats.map((c, i) => [c, i === 0 ? 0.5 : 0]));
+    expect(scoreRows(rows, { ...base, view: 'season', replacement }).map((s) => s.value)).toEqual([1, null]);
   });
 
   it('ranks by position and tiers the value view, counting the players on no roster', () => {

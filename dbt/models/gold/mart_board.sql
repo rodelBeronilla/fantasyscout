@@ -2,12 +2,12 @@
   The draft and in-season board: one row per rostered player per league.
 
   Value is scored once, on each player's projected per-game line (mart_player_projection:
-  per-minute production times projected minutes), in two passes. Pass one standardises the nine categories over the pool_size players with
-  the most projected minutes; pass two repeats it over the pool_size players pass one values
-  most, so the means and spreads describe the players a fantasy league actually rosters.
-  Counting categories are z-scores of the projected per-game numbers (turnovers negative);
-  percentages are volume-weighted, (player pct - pool pct) x attempts per game, standardised
-  over the pool.
+  per-minute production times projected minutes), on the season's value scale (int_value_scale,
+  ADR 0019): the pool_size players a league rosters, chosen in two passes over the projected
+  lines, set each category's mean and spread. Counting categories are z-scores of the projected
+  per-game numbers (turnovers negative); percentages are makes above the pool's percentage on
+  the attempts, standardised over the pool. The season, last twenty and last ten columns are on
+  the same scale (mart_category_zscores), so they compare directly with the value.
 
   Every category then has replacement level subtracted: the average category score of the
   next `teams` players after the pool. Zero is a freely available player, so the nine values
@@ -44,100 +44,38 @@
   games_next_7 counts playoff games too.
 #}
 
-{% set cats = ['points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made', 'turnovers'] %}
 {% set zcols = ['z_points', 'z_rebounds_total', 'z_assists', 'z_steals', 'z_blocks', 'z_three_pointers_made', 'z_turnovers', 'z_field_goal_pct', 'z_free_throw_pct'] %}
 {% set pgcols = ['minutes_pg', 'points_pg', 'rebounds_total_pg', 'assists_pg', 'steals_pg', 'blocks_pg', 'three_pointers_made_pg', 'turnovers_pg', 'field_goal_pct', 'free_throw_pct'] %}
 {% set projcols = ['proj_minutes_pg', 'proj_points_pg', 'proj_rebounds_total_pg', 'proj_assists_pg', 'proj_steals_pg', 'proj_blocks_pg', 'proj_three_pointers_made_pg', 'proj_turnovers_pg', 'proj_fgm_pg', 'proj_fga_pg', 'proj_ftm_pg', 'proj_fta_pg', 'proj_field_goal_pct', 'proj_free_throw_pct'] %}
 
 with base as (
 
-    select
-        p.*,
-        count(*) over (partition by p.league) as players,
-        -- the pool, never so large that no one is left to set replacement level
-        least({{ fantasy_setting('pool_size', 'p.league') }}, greatest(count(*) over (partition by p.league) - {{ fantasy_setting('teams', 'p.league') }}, 1)) as pool,
-        {{ fantasy_setting('teams', 'p.league') }} as teams,
-        row_number() over (partition by p.league order by p.proj_minutes_pg desc, p.player_id) as pool_rank_0
+    select p.*
     from {{ ref('mart_player_projection') }} as p
 
 ),
 
-{% for n in [1, 2] %}
-moments_{{ n }} as (
+scored as (
 
+    -- the projected line on the season's value scale: value per game above replacement (ADR 0019)
     select
-        *,
-        {%- for c in cats %}
-        avg(case when pool_rank_{{ n - 1 }} <= pool then proj_{{ c }}_pg end) over (partition by league) as mean_{{ c }}_{{ n }},
-        stddev_samp(case when pool_rank_{{ n - 1 }} <= pool then proj_{{ c }}_pg end) over (partition by league) as sd_{{ c }}_{{ n }},
-        {%- endfor %}
-        sum(case when pool_rank_{{ n - 1 }} <= pool then proj_fgm_pg end) over (partition by league)
-            / nullif(sum(case when pool_rank_{{ n - 1 }} <= pool then proj_fga_pg end) over (partition by league), 0) as pool_fg_{{ n }},
-        sum(case when pool_rank_{{ n - 1 }} <= pool then proj_ftm_pg end) over (partition by league)
-            / nullif(sum(case when pool_rank_{{ n - 1 }} <= pool then proj_fta_pg end) over (partition by league), 0) as pool_ft_{{ n }}
-    from {{ 'base' if n == 1 else 'ranked_1' }}
-
-),
-
-impacts_{{ n }} as (
-
-    select
-        *,
-        coalesce((proj_field_goal_pct - pool_fg_{{ n }}) * proj_fga_pg, 0) as fg_impact_{{ n }},
-        coalesce((proj_free_throw_pct - pool_ft_{{ n }}) * proj_fta_pg, 0) as ft_impact_{{ n }}
-    from moments_{{ n }}
-
-),
-
-scored_{{ n }} as (
-
-    select
-        *,
-        {%- for c in cats %}
-        coalesce({% if c == 'turnovers' %}-{% endif %}(proj_{{ c }}_pg - mean_{{ c }}_{{ n }}) / nullif(sd_{{ c }}_{{ n }}, 0), 0) as z_{{ c }}_{{ n }},
-        {%- endfor %}
-        coalesce(fg_impact_{{ n }} / nullif(stddev_samp(case when pool_rank_{{ n - 1 }} <= pool then fg_impact_{{ n }} end) over (partition by league), 0), 0) as z_field_goal_pct_{{ n }},
-        coalesce(ft_impact_{{ n }} / nullif(stddev_samp(case when pool_rank_{{ n - 1 }} <= pool then ft_impact_{{ n }} end) over (partition by league), 0), 0) as z_free_throw_pct_{{ n }}
-    from impacts_{{ n }}
-
-),
-
-ranked_{{ n }} as (
-
-    select
-        *,
-        row_number() over (
-            partition by league
-            order by {% for z in zcols %}{{ z }}_{{ n }}{{ " + " if not loop.last }}{% endfor %} desc, player_id
-        ) as pool_rank_{{ n }}
-    from scored_{{ n }}
-
-),
-{% endfor %}
-
-replacement as (
-
-    select
-        league,
-        {%- for z in zcols %}
-        avg({{ z }}_2) as repl_{{ z }}{{ "," if not loop.last }}
-        {%- endfor %}
-    from ranked_2
-    where pool_rank_2 > pool and pool_rank_2 <= pool + teams
-    group by league
+        b.*,
+        s.pool,
+        {{ scale_z_columns(pg_stat('b', 'proj_'), 's') }}
+    from base as b
+    join {{ ref('int_value_scale') }} as s on s.league = b.league and s.season = b.season
 
 ),
 
 valued as (
 
     select
-        r.*,
-        r.pool_rank_2 <= r.pool as in_pool,
-        {%- for z in zcols %}
-        r.{{ z }}_2 - coalesce(rp.repl_{{ z }}, 0) as {{ z }}{{ "," if not loop.last }}
-        {%- endfor %}
-    from ranked_2 as r
-    left join replacement as rp on rp.league = r.league
+        *,
+        row_number() over (
+            partition by league
+            order by {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} desc, player_id
+        ) <= pool as in_pool
+    from scored
 
 ),
 

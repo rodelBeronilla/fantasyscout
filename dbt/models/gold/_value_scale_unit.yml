@@ -1,0 +1,113 @@
+unit_tests:
+  - name: value_scale_pool_is_chosen_in_two_passes
+    description: >
+      Thirty projected players in a two-team, five-spot league (pool of ten, replacement level the
+      next two; #767). Only points vary. Minutes equal points except for two players: p05 scores
+      like a pool player but plays five minutes, p11 plays forty but scores like a replacement.
+      Pass one, which pools by minutes, takes p11 and not p05 (a points mean of 19.5); pass two
+      pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out, and the
+      scale's points mean is theirs, 20. A past season's line with no projection is the realized
+      season's own scale; a playoff line never reaches it (int_player_window_lines).
+    model: int_value_scale
+    overrides:
+      vars:
+        fantasy:
+          nba: {teams: 2, roster_spots: 5, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
+    given:
+      - input: ref('mart_player_projection')
+        rows:
+          - {league: nba, season: '2025-26', player_id: p01, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 23.0, proj_minutes_pg: 23.0}
+          - {league: nba, season: '2025-26', player_id: p02, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 23.0, proj_minutes_pg: 23.0}
+          - {league: nba, season: '2025-26', player_id: p03, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p04, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p05, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 5.0}
+          - {league: nba, season: '2025-26', player_id: p06, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p07, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p08, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 20.0}
+          - {league: nba, season: '2025-26', player_id: p09, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 17.0, proj_minutes_pg: 17.0}
+          - {league: nba, season: '2025-26', player_id: p10, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 17.0, proj_minutes_pg: 17.0}
+          - {league: nba, season: '2025-26', player_id: p11, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 15.0, proj_minutes_pg: 40.0}
+          - {league: nba, season: '2025-26', player_id: p12, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 13.0, proj_minutes_pg: 13.0}
+          - {league: nba, season: '2025-26', player_id: p13, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 12.0, proj_minutes_pg: 12.0}
+          - {league: nba, season: '2025-26', player_id: p14, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 11.5, proj_minutes_pg: 11.5}
+          - {league: nba, season: '2025-26', player_id: p15, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 11.0, proj_minutes_pg: 11.0}
+          - {league: nba, season: '2025-26', player_id: p16, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 10.5, proj_minutes_pg: 10.5}
+          - {league: nba, season: '2025-26', player_id: p17, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 10.0, proj_minutes_pg: 10.0}
+          - {league: nba, season: '2025-26', player_id: p18, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 9.5, proj_minutes_pg: 9.5}
+          - {league: nba, season: '2025-26', player_id: p19, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 9.0, proj_minutes_pg: 9.0}
+          - {league: nba, season: '2025-26', player_id: p20, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 8.5, proj_minutes_pg: 8.5}
+          - {league: nba, season: '2025-26', player_id: p21, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 8.0, proj_minutes_pg: 8.0}
+          - {league: nba, season: '2025-26', player_id: p22, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 7.5, proj_minutes_pg: 7.5}
+          - {league: nba, season: '2025-26', player_id: p23, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 7.0, proj_minutes_pg: 7.0}
+          - {league: nba, season: '2025-26', player_id: p24, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 6.5, proj_minutes_pg: 6.5}
+          - {league: nba, season: '2025-26', player_id: p25, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 6.0, proj_minutes_pg: 6.0}
+          - {league: nba, season: '2025-26', player_id: p26, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 5.5, proj_minutes_pg: 5.5}
+          - {league: nba, season: '2025-26', player_id: p27, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 5.0, proj_minutes_pg: 5.0}
+          - {league: nba, season: '2025-26', player_id: p28, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 4.5, proj_minutes_pg: 4.5}
+          - {league: nba, season: '2025-26', player_id: p29, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 4.0, proj_minutes_pg: 4.0}
+          - {league: nba, season: '2025-26', player_id: p30, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 3.5, proj_minutes_pg: 3.5}
+      - input: ref('int_player_window_lines')
+        rows:
+          - {league: nba, season: '2024-25', window_name: season, player_id: q1, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 30.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: q2, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 10.0}
+          - {league: nba, season: '2024-25', window_name: last_10, player_id: q1, games: 10, minutes_pg: 30.0, points_pg: 90.0}
+          - {league: nba, season: '2025-26', window_name: season, player_id: p01, games: 5, minutes_pg: 30.0, points_pg: 99.0}
+    expect:
+      rows:
+        - {league: nba, season: '2025-26', source: projection, pool: 10, teams: 2, players: 30, mean_points: 20.0}
+        - {league: nba, season: '2024-25', source: season, pool: 1, teams: 2, players: 2, mean_points: 30.0}
+
+  - name: every_window_is_on_the_season_scale
+    description: >
+      The season and the last ten games are scored on the same scale, the season's (#767): points
+      mean 20, spread 5, replacement level 0.4. A player at 25 a game over the season and 30 over the
+      last ten is worth 0.6 and 1.6 a game above replacement; their last ten compare directly with
+      the season. Shooting is makes above the pool's percentage on the attempts: 6 of 10 against a
+      pool's 50% is one make over, a spread of 2 makes it 0.5.
+    model: mart_category_zscores
+    given:
+      - input: ref('int_value_scale')
+        rows:
+          - {league: nba, season: '2025-26', mean_points: 20.0, sd_points: 5.0, pool_field_goal_pct: 0.5, sd_fg_impact: 2.0, repl_z_points: 0.4, repl_z_rebounds_total: 0.0, repl_z_assists: 0.0, repl_z_steals: 0.0, repl_z_blocks: 0.0, repl_z_three_pointers_made: 0.0, repl_z_turnovers: 0.0, repl_z_field_goal_pct: 0.0, repl_z_free_throw_pct: 0.0}
+      - input: ref('int_player_window_lines')
+        rows:
+          - {league: nba, season: '2025-26', window_name: season, player_id: a, games: 40, points_pg: 25.0, fgm_pg: 6.0, fga_pg: 10.0, ftm_pg: 0.0, fta_pg: 0.0}
+          - {league: nba, season: '2025-26', window_name: last_10, player_id: a, games: 10, points_pg: 30.0, fgm_pg: 5.0, fga_pg: 10.0, ftm_pg: 0.0, fta_pg: 0.0}
+    expect:
+      rows:
+        - {window_name: season, player_id: a, z_points: 0.6, z_field_goal_pct: 0.5, z_total: 1.1}
+        - {window_name: last_10, player_id: a, z_points: 1.6, z_field_goal_pct: 0.0, z_total: 1.6}
+
+  - name: value_scale_shrinks_a_past_season_before_it_ranks
+    description: >
+      A past season's lines are shrunk by prior_games games at the level of the players just outside
+      the pool by minutes before they rank (#767). Ten regulars play 70 games at 30 down to 12 points;
+      two call-ups play two scoreless games. Pool of four (two teams, two spots). Ranked by season
+      total, the call-ups' two awful games (z about -10 each, -21 in total) would beat the 70 games of
+      a regular a little below the pool mean (-27) and take two pool places, a points mean of 14.5.
+      Shrunk, they sit near the bottom, and the pool is the four best regulars, a mean of 27.
+    model: int_value_scale
+    overrides:
+      vars:
+        fantasy:
+          nba: {teams: 2, roster_spots: 2, prior_games: 3, minutes_recency: [1.0, 0.25, 0.08], durability_games: 10}
+    given:
+      - input: ref('mart_player_projection')
+        rows: []
+      - input: ref('int_player_window_lines')
+        rows:
+          - {league: nba, season: '2024-25', window_name: season, player_id: r01, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 30.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: r02, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 28.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: r03, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 26.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: r04, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 24.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: r05, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 22.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: r06, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 20.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: r07, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 18.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: r08, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 16.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: r09, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 14.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: r10, games: 70, total_minutes: 2100, minutes_pg: 30.0, points_pg: 12.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: c1, games: 2, total_minutes: 20, minutes_pg: 10.0, points_pg: 0.0}
+          - {league: nba, season: '2024-25', window_name: season, player_id: c2, games: 2, total_minutes: 20, minutes_pg: 10.0, points_pg: 0.0}
+    expect:
+      rows:
+        - {league: nba, season: '2024-25', source: season, pool: 4, teams: 2, players: 12, mean_points: 27.0}

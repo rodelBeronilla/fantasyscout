@@ -311,7 +311,7 @@ export function valueActivity(): Promise<string> {
     ${DOT_DEFAULTS}
     rankdir=TB; nodesep=0.3; ranksep=0.22;
     start [shape=circle, label="", width=0.22, fillcolor="${T.fg}", color="${T.fg}"];
-    a1 [${act}, label="Per-season lines for this season and the two before (mart_category_zscores),\\nfor players on their team's latest roster", URL="${href('/schema/#m-mart_category_zscores')}"];
+    a1 [${act}, label="Regular-season lines for this season and the two before (int_player_window_lines),\\nfor players on their team's latest roster", URL="${href('/schema/#m-int_player_window_lines')}"];
     fork [${bar(6)}];
     a3 [${act}, label="Production per minute\\nseasons weighted by\\nminutes × ${fantasy.fantasy_recency.join(' / ')}"];
     a4 [${act}, label="Minutes per game\\ngames × ${nba.minutes_recency.join(' / ')} (NBA)\\ngames × ${wnba.minutes_recency.join(' / ')} (WNBA)\\nanother team's season × ${fantasy.fantasy_team_change}\\nin season, 5+ games for the team:\\n${1 - recent} of this, ${recent} of the last five games\\nback from ${ramp.min_games_missed}+ games missed: cut ${+(ramp.per_game_missed * 100).toFixed(2)}% a game\\nmissed (at most ${+(ramp.max_cut * 100).toFixed(2)}%), gone ${ramp.games_back} games back"];

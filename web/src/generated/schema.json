@@ -105,6 +105,20 @@
    ]
   },
   {
+   "about": "One value scale (#767, ADR 0019). Fails on any of: game_mean     a player's mean regular-season game value is not their season z_total (the scale is linear in a game's numbers, so the two are the same figure) replacement   the board's replacement band (the `teams` players after the pool, by value) does not average zero: value is above replacement level playoff_game  a playoff or play-in game is valued (fantasy windows are the regular season)",
+   "name": "assert_one_value_scale",
+   "reads": [
+    "int_player_game_value",
+    "int_value_scale",
+    "mart_board",
+    "mart_category_zscores"
+   ],
+   "severity": "error",
+   "tags": [
+    "board"
+   ]
+  },
+  {
    "about": "Projected minutes are the season-weighted figure, or in season a blend of it with the last five games (var fantasy_recent_minutes): never outside the two once the return ramp's cut (var fantasy_return_ramp) is taken back out. The ramp keeps between 1 - max_cut and all of them.",
    "name": "assert_projected_minutes_blend",
    "reads": [
@@ -370,7 +384,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 382,
+ "generic_tests": 387,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -17681,7 +17695,7 @@
       "fct_official_listing",
       "int_league_season_state",
       "int_player_game_value",
-      "mart_category_zscores",
+      "int_player_window_lines",
       "mart_player_projection",
       "mart_player_rolling",
       "mart_streamers"
@@ -20549,7 +20563,7 @@
      "notes": [
       "Where each league stands today, in one place. The gold models used to decide \"the current season\" and \"in season\" each in their own way; the definitions now live here, named for what they mean, and each model says which one it reads:",
       "- games_season: the latest season with a game in gold (mart_streamers' season).",
-      "- zscores_season: the latest season with a season line in mart_category_zscores (the projection's season; equal to games_season once a season's first games are in).",
+      "- zscores_season: the latest season with a regular-season line (int_player_window_lines; the projection's season; equal to games_season once a season's first games are in).",
       "- standings_season: the latest season the league has published standings for (fct_team_stakes). In the preseason this can already be the new season while the games season is last year's.",
       "- schedule_season: the latest season on the schedule.",
       "- in_season_window: a scheduled game within three days either side of today (ops.feed_freshness: a quiet feed is expected outside it).",
@@ -20564,14 +20578,16 @@
      "read_by_pages": [],
      "reads": [
       "fct_player_game",
-      "mart_category_zscores",
+      "int_player_window_lines",
       "schedule",
       "standings"
      ],
      "unit_tests": []
     },
     {
-     "checks": [],
+     "checks": [
+      "assert_one_value_scale"
+     ],
      "columns": [
       {
        "description": "wnba or nba",
@@ -20634,33 +20650,34 @@
        "type": "double"
       },
       {
-       "description": "Sum of the game's category z-scores against the season pool; a player's mean over the season is their season z_total",
+       "description": "The game's value above replacement level: the sum of its nine category scores on the season's scale; a player's mean over the season is their season z_total",
        "meta": {},
        "name": "game_value",
        "tests": [],
        "type": "double"
       }
      ],
-     "description": "Every played game valued on the board's z_total scale against the season pool (#747, #749): read by mart_player_consistency.",
+     "description": "Every regular-season game played, valued on the season's value scale above replacement level (#747, #767, ADR 0019): read by mart_player_consistency.",
      "exported_as": [],
      "grain": null,
      "landing": [],
      "materialized": "table",
      "name": "int_player_game_value",
      "notes": [
-      "Every played game valued on the board's own scale (#747, #749): the sum of the game's category z-scores against the season pool, the same pool, means and standard deviations mart_category_zscores uses for the season window (the top 180 NBA or 90 WNBA players by minutes). Counting categories are (stat - pool mean) / pool sd, turnovers negative; the percentages are the game's volume-weighted impact, (makes - pool pct x attempts), over the pool's impact sd. A player's mean game value is their season z_total. mart_player_consistency reads it for a player's spread."
+      "Every regular-season game played, valued on the season's value scale (#747, #767, ADR 0019): the sum of the game's nine category scores against int_value_scale's pool, each less the category's replacement level, the same scale the board's value and the windows use. Counting categories are (stat - pool mean) / pool sd, turnovers negative; the percentages are the game's makes above the pool's percentage on its attempts, over the pool's impact sd. The scale is linear in a game's numbers, so a player's mean game value is their season value per game (mart_category_zscores' season z_total). mart_player_consistency reads it for a player's spread."
      ],
      "read_by": [
       "mart_player_consistency"
      ],
      "read_by_pages": [],
      "reads": [
-      "fct_player_game"
+      "fct_player_game",
+      "int_value_scale"
      ],
      "unit_tests": [
       {
-       "description": "Each game is valued against the season pool (#747). Three players differ only in points: their averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10, 20 and 30 points are worth 0, 1 and 2, b's -1 each and c's 0. Every other category is zero for everyone and adds nothing; a game not played has no value.",
-       "name": "game_value_on_the_board_scale"
+       "description": "Each regular-season game is valued on the season's value scale, less replacement level (#747, #767). The scale has a points mean of 10, a spread of 10 and a points replacement level of 0.5, and no spread in the other categories, so a's games of 10, 20 and 30 points are worth -0.5, 0.5 and 1.5 and b's scoreless game -1.5. A playoff game (third id character 4) and a play-in game (5) are not fantasy games and are left out; a game not played has no value.",
+       "name": "game_value_on_the_value_scale"
       }
      ]
     },
@@ -20723,9 +20740,508 @@
      "unit_tests": []
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "season, last_20 or last_10",
+       "meta": {},
+       "name": "window_name",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2026 in the WNBA, 2025-26 in the NBA)",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Regular-season games played in the window",
+       "meta": {},
+       "name": "games",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Minutes played in the window",
+       "meta": {
+        "unit": "minutes"
+       },
+       "name": "total_minutes",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Minutes per game in the window",
+       "meta": {
+        "unit": "minutes"
+       },
+       "name": "minutes_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points per game in the window",
+       "meta": {},
+       "name": "points_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Rebounds total per game in the window",
+       "meta": {},
+       "name": "rebounds_total_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Assists per game in the window",
+       "meta": {},
+       "name": "assists_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Steals per game in the window",
+       "meta": {},
+       "name": "steals_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Blocks per game in the window",
+       "meta": {},
+       "name": "blocks_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Three pointers made per game in the window",
+       "meta": {},
+       "name": "three_pointers_made_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Turnovers per game in the window",
+       "meta": {},
+       "name": "turnovers_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Field goals made in the window",
+       "meta": {},
+       "name": "fgm",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Field goals attempted in the window",
+       "meta": {},
+       "name": "fga",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Free throws made in the window",
+       "meta": {},
+       "name": "ftm",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Free throws attempted in the window",
+       "meta": {},
+       "name": "fta",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Field goals made per game",
+       "meta": {},
+       "name": "fgm_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Field goals attempted per game",
+       "meta": {},
+       "name": "fga_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Free throws made per game",
+       "meta": {},
+       "name": "ftm_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Free throws attempted per game",
+       "meta": {},
+       "name": "fta_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Field goals made over attempted in the window",
+       "meta": {
+        "unit": "ratio 0 to 1"
+       },
+       "name": "field_goal_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Free throws made over attempted in the window",
+       "meta": {
+        "unit": "ratio 0 to 1"
+       },
+       "name": "free_throw_pct",
+       "tests": [],
+       "type": "double"
+      }
+     ],
+     "description": "Each player's regular-season per-game line over the season, the last twenty and the last ten games played (#767): what mart_category_zscores scores and mart_player_projection projects from.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "int_player_window_lines",
+     "notes": [
+      "Each player's per-game line over a window of a season (#767): the whole season, the last twenty and the last ten games played. Regular-season games only: the games fantasy leagues score, so playoff games never move a player's form or a past season's line. A missing box-score number in a game played counts as zero, as int_player_game_value scores it, so a player's mean game value is exactly their season line's value. Lines only; int_value_scale and mart_category_zscores put them on the value scale, and mart_player_projection reads the season lines."
+     ],
+     "read_by": [
+      "int_league_season_state",
+      "int_value_scale",
+      "mart_category_zscores",
+      "mart_player_projection",
+      "mart_streamers"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "fct_player_game"
+     ],
+     "unit_tests": []
+    },
+    {
+     "checks": [
+      "assert_one_value_scale"
+     ],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league and season",
+       "meta": {},
+       "name": "value_scale_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2026 in the WNBA, 2025-26 in the NBA)",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "projection (the board's season) or season (a season's regular-season lines)",
+       "meta": {},
+       "name": "source",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Players in the pool: teams x roster spots, fewer when that would leave no one to set replacement level",
+       "meta": {},
+       "name": "pool",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Teams in the fantasy league; replacement level is this many players after the pool",
+       "meta": {},
+       "name": "teams",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Players the scale was chosen from",
+       "meta": {},
+       "name": "players",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "The pool's mean points per game",
+       "meta": {},
+       "name": "mean_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's standard deviation of points per game",
+       "meta": {},
+       "name": "sd_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's mean rebounds total per game",
+       "meta": {},
+       "name": "mean_rebounds_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's standard deviation of rebounds total per game",
+       "meta": {},
+       "name": "sd_rebounds_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's mean assists per game",
+       "meta": {},
+       "name": "mean_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's standard deviation of assists per game",
+       "meta": {},
+       "name": "sd_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's mean steals per game",
+       "meta": {},
+       "name": "mean_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's standard deviation of steals per game",
+       "meta": {},
+       "name": "sd_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's mean blocks per game",
+       "meta": {},
+       "name": "mean_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's standard deviation of blocks per game",
+       "meta": {},
+       "name": "sd_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's mean three pointers made per game",
+       "meta": {},
+       "name": "mean_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's standard deviation of three pointers made per game",
+       "meta": {},
+       "name": "sd_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's mean turnovers per game",
+       "meta": {},
+       "name": "mean_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's standard deviation of turnovers per game",
+       "meta": {},
+       "name": "sd_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's field goals made over attempted",
+       "meta": {
+        "unit": "ratio 0 to 1"
+       },
+       "name": "pool_field_goal_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's free throws made over attempted",
+       "meta": {
+        "unit": "ratio 0 to 1"
+       },
+       "name": "pool_free_throw_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's standard deviation of field goals made per game above its percentage on the attempts",
+       "meta": {},
+       "name": "sd_fg_impact",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pool's standard deviation of free throws made per game above its percentage on the attempts",
+       "meta": {},
+       "name": "sd_ft_impact",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Replacement level of points: the average score of the `teams` players after the pool",
+       "meta": {},
+       "name": "repl_z_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Replacement level of rebounds total: the average score of the `teams` players after the pool",
+       "meta": {},
+       "name": "repl_z_rebounds_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Replacement level of assists: the average score of the `teams` players after the pool",
+       "meta": {},
+       "name": "repl_z_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Replacement level of steals: the average score of the `teams` players after the pool",
+       "meta": {},
+       "name": "repl_z_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Replacement level of blocks: the average score of the `teams` players after the pool",
+       "meta": {},
+       "name": "repl_z_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Replacement level of three pointers made: the average score of the `teams` players after the pool",
+       "meta": {},
+       "name": "repl_z_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Replacement level of turnovers: the average score of the `teams` players after the pool",
+       "meta": {},
+       "name": "repl_z_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Replacement level of field goal pct: the average score of the `teams` players after the pool",
+       "meta": {},
+       "name": "repl_z_field_goal_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Replacement level of free throw pct: the average score of the `teams` players after the pool",
+       "meta": {},
+       "name": "repl_z_free_throw_pct",
+       "tests": [],
+       "type": "double"
+      }
+     ],
+     "description": "The value scale (#767, ADR 0019): per league and season, the fantasy league's pool (teams x roster spots, chosen in two passes) and its category means, spreads and replacement level. The board's projection sets it for the season the board values, the regular-season lines for every other season. Every value on the site is scored on it.",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "season"
+      ],
+      "key": "value_scale_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "int_value_scale",
+     "notes": [
+      "The value scale (#767, ADR 0019): one row per league and season with the pool's category means and spreads, its shooting percentages, the spread of the shooting impact, and each category's replacement level. Every value on the site is measured on it (macros/value_scale.sql), so a player's season, last twenty and ten games, single games and projection are all value per game above the league's replacement level, in the same units.",
+      "One pool definition for every season: the fantasy league's pool_size players (teams x roster spots, the `fantasy` var), chosen in two passes. Pass zero orders by minutes; pass one standardises over its pool and ranks by value; pass two standardises over pass one's pool, so the means and spreads describe the players a league actually rosters. Replacement level is the average category score of the next `teams` players. The pool is never so large that no one is left to set replacement level.",
+      "The lines are the board's projection for the season it values (mart_player_projection), and the regular-season lines for every other season (int_player_window_lines). A projection is already a per-game expectation shrunk toward replacement level, so it ranks as it stands. A past season's line is not, so it is shrunk the same way before it ranks or sets replacement level: by prior_games games (the `fantasy` var) at the level of the players just outside the pool by minutes, the line the projection's own prior comes from. A player with a few big or a few awful games then lands near replacement level rather than in the pool or the replacement band. Pass zero orders a projection by minutes per game and a past season by its total minutes."
+     ],
+     "read_by": [
+      "int_player_game_value",
+      "mart_board",
+      "mart_category_zscores",
+      "mart_streamers"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "int_player_window_lines",
+      "mart_player_projection"
+     ],
+     "unit_tests": [
+      {
+       "description": "Thirty projected players in a two-team, five-spot league (pool of ten, replacement level the next two; #767). Only points vary. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05 (a points mean of 19.5); pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out, and the scale's points mean is theirs, 20. A past season's line with no projection is the realized season's own scale; a playoff line never reaches it (int_player_window_lines).",
+       "name": "value_scale_pool_is_chosen_in_two_passes"
+      },
+      {
+       "description": "A past season's lines are shrunk by prior_games games at the level of the players just outside the pool by minutes before they rank (#767). Ten regulars play 70 games at 30 down to 12 points; two call-ups play two scoreless games. Pool of four (two teams, two spots). Ranked by season total, the call-ups' two awful games (z about -10 each, -21 in total) would beat the 70 games of a regular a little below the pool mean (-27) and take two pool places, a points mean of 14.5. Shrunk, they sit near the bottom, and the pool is the four best regulars, a mean of 27.",
+       "name": "value_scale_shrinks_a_past_season_before_it_ranks"
+      }
+     ]
+    },
+    {
      "checks": [
       "assert_board_rostered",
-      "assert_board_values_sane"
+      "assert_board_values_sane",
+      "assert_one_value_scale"
      ],
      "columns": [
       {
@@ -21712,7 +22228,7 @@
      "name": "mart_board",
      "notes": [
       "The draft and in-season board: one row per rostered player per league.",
-      "Value is scored once, on each player's projected per-game line (mart_player_projection: per-minute production times projected minutes), in two passes. Pass one standardises the nine categories over the pool_size players with the most projected minutes; pass two repeats it over the pool_size players pass one values most, so the means and spreads describe the players a fantasy league actually rosters. Counting categories are z-scores of the projected per-game numbers (turnovers negative); percentages are volume-weighted, (player pct - pool pct) x attempts per game, standardised over the pool.",
+      "Value is scored once, on each player's projected per-game line (mart_player_projection: per-minute production times projected minutes), on the season's value scale (int_value_scale, ADR 0019): the pool_size players a league rosters, chosen in two passes over the projected lines, set each category's mean and spread. Counting categories are z-scores of the projected per-game numbers (turnovers negative); percentages are makes above the pool's percentage on the attempts, standardised over the pool. The season, last twenty and last ten columns are on the same scale (mart_category_zscores), so they compare directly with the value.",
       "Every category then has replacement level subtracted: the average category score of the next `teams` players after the pool. Zero is a freely available player, so the nine values sum to value per game above replacement (value_per_game) and a punt build is the sum without the punted columns. value_total counts games: value per game times the projected share of team games the player plays (games_share), since a missed game is filled by a replacement-level player; a value below replacement is left as it is.",
       "Alongside the value the row carries the current season's z-scores over the whole season and the last twenty and ten games, the per-game line, the projected line itself, and the player's age and rookie status from the roster, so the app can rank on recent form or raw production too and filter the way a fantasy manager does.",
       "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current status. The games a listed player is expected to miss are calibrated on history (fct_official_listing): the average, over past injury listings with the same status, of the games the player then missed, capped at the games the team has left, with the same reason (an official Out for rest is averaged over rest listings, not injuries). The status is the official report's for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable); the history is fct_status_calibration's histogram, the league's own listings once it has 300 for the status and reason, else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the games before it instead, and a note that the player is out for the season counts them all. Without any history the old charges apply (out: every game; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. A regular (fantasy_rest_risk.min_minutes projected) on a team with nothing left to play for (fct_team_stakes.rest_risk) is expected to sit out fantasy_rest_risk.extra_sit_out more of the games left, measured point in time in notebook 03 (#494): the multiplier keeps the rest. games_next_7 counts playoff games too."
@@ -21737,6 +22253,7 @@
       "fct_status_calibration",
       "fct_team_stakes",
       "int_player_news_latest",
+      "int_value_scale",
       "mart_category_zscores",
       "mart_player_consistency",
       "mart_player_projection",
@@ -21754,13 +22271,15 @@
        "name": "board_counts_a_fixed_season_length_where_the_schedule_cannot"
       },
       {
-       "description": "Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level the next two). Only points vary, so value is the points z-score. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out. rank_total follows value, equal points broken by player id. The numbers themselves (a z-score is a square root) are pinned by board_availability_follows_the_status, where they are exact.",
+       "description": "Thirty players on one team in a two-team, five-spot league (pool of ten). The board scores each projected line on the season's value scale (int_value_scale, whose two-pass pool is pinned by value_scale_pool_is_chosen_in_two_passes): only points vary, so value is the points z-score, and the pool is the ten the scale values most, p05 (five minutes) in and p11 (forty minutes, a replacement's points) out. rank_total follows value, equal points broken by player id.",
        "name": "board_pool_is_chosen_in_two_passes"
       }
      ]
     },
     {
-     "checks": [],
+     "checks": [
+      "assert_one_value_scale"
+     ],
      "columns": [
       {
        "description": "Surrogate key: one row per window, league, season and player",
@@ -21773,7 +22292,7 @@
        "type": "varchar"
       },
       {
-       "description": "season (every played game), last_10 or last_20 (the player's latest played games that season)",
+       "description": "season (every regular-season game played), last_10 or last_20 (the player's latest regular-season games played that season)",
        "meta": {},
        "name": "window_name",
        "tests": [
@@ -21817,13 +22336,6 @@
        "name": "minutes_pg",
        "tests": [],
        "type": "double"
-      },
-      {
-       "description": "True for the pool: the top 180 NBA or 90 WNBA players by total minutes in the window",
-       "meta": {},
-       "name": "in_pool",
-       "tests": [],
-       "type": "boolean"
       },
       {
        "description": "Average points per game in the window",
@@ -21907,81 +22419,77 @@
        "type": "double"
       },
       {
-       "description": "Points per game z-score against the pool's mean and standard deviation",
+       "description": "Points per game z-score against the pool's mean and standard deviation, less replacement level",
        "meta": {},
        "name": "z_points",
        "tests": [],
        "type": "double"
       },
       {
-       "description": "Rebounds per game z-score against the pool's mean and standard deviation",
+       "description": "Rebounds per game z-score against the pool's mean and standard deviation, less replacement level",
        "meta": {},
        "name": "z_rebounds_total",
        "tests": [],
        "type": "double"
       },
       {
-       "description": "Assists per game z-score against the pool's mean and standard deviation",
+       "description": "Assists per game z-score against the pool's mean and standard deviation, less replacement level",
        "meta": {},
        "name": "z_assists",
        "tests": [],
        "type": "double"
       },
       {
-       "description": "Steals per game z-score against the pool's mean and standard deviation",
+       "description": "Steals per game z-score against the pool's mean and standard deviation, less replacement level",
        "meta": {},
        "name": "z_steals",
        "tests": [],
        "type": "double"
       },
       {
-       "description": "Blocks per game z-score against the pool's mean and standard deviation",
+       "description": "Blocks per game z-score against the pool's mean and standard deviation, less replacement level",
        "meta": {},
        "name": "z_blocks",
        "tests": [],
        "type": "double"
       },
       {
-       "description": "Three-pointers made per game z-score against the pool's mean and standard deviation",
+       "description": "Three-pointers made per game z-score against the pool's mean and standard deviation, less replacement level",
        "meta": {},
        "name": "z_three_pointers_made",
        "tests": [],
        "type": "double"
       },
       {
-       "description": "Turnovers per game z-score against the pool, negated so fewer turnovers score higher",
+       "description": "Turnovers per game z-score against the pool, negated so fewer turnovers score higher, less replacement level",
        "meta": {},
        "name": "z_turnovers",
        "tests": [],
        "type": "double"
       },
       {
-       "description": "Field goal impact z-score: (player pct - pool pct) x field goal attempts per game, standardised over the pool",
-       "meta": {
-        "unit": "ratio 0 to 1"
-       },
+       "description": "Field goal impact: makes per game above the pool's percentage on the attempts, over the pool's spread of that impact, less replacement level",
+       "meta": {},
        "name": "z_field_goal_pct",
        "tests": [],
        "type": "double"
       },
       {
-       "description": "Free throw impact z-score: (player pct - pool pct) x free throw attempts per game, standardised over the pool",
-       "meta": {
-        "unit": "ratio 0 to 1"
-       },
+       "description": "Free throw impact: makes per game above the pool's percentage on the attempts, over the pool's spread of that impact, less replacement level",
+       "meta": {},
        "name": "z_free_throw_pct",
        "tests": [],
        "type": "double"
       },
       {
-       "description": "Sum of the nine category z-scores, a missing one counting as 0",
+       "description": "Value per game above replacement level: the sum of the nine category values, a missing one counting as 0",
        "meta": {},
        "name": "z_total",
        "tests": [],
        "type": "double"
       }
      ],
-     "description": "Category z-scores per window, league, season and player against a pool of the top 180 NBA or 90 WNBA players by minutes in the window.",
+     "description": "Category values per window, league, season and player, every window on the season's value scale (int_value_scale, ADR 0019): z-scores against the pool less the replacement level, regular-season games only.",
      "exported_as": [
       "mart_category_zscores.parquet",
       "players/<league>/<player_id>.json"
@@ -21999,22 +22507,26 @@
      "materialized": "table",
      "name": "mart_category_zscores",
      "notes": [
-      "Per-league, per-season, per-window z-scores for the nine categories.",
-      "The pool is the top 180 NBA or top 90 WNBA players by total minutes in the window; means and standard deviations come from the pool only. Counting categories use per-game averages. Percentages use a volume-weighted impact: (player pct - pool pct) x player attempts per game, standardised over the pool. Turnovers count negative."
+      "Per-league, per-season, per-window category values for the nine categories (#767, ADR 0019).",
+      "Each window's regular-season per-game line (int_player_window_lines: the season, the last twenty and the last ten games) is scored on the season's value scale (int_value_scale): the same pool, means, spreads and replacement level for every window, the board's for the season it values. So z_total is value per game above the league's replacement level whichever the window, and a player's last ten games compare directly with their season and their projection. Counting categories are (per game - pool mean) / pool sd, turnovers negative; percentages are makes above the pool's percentage on the attempts, over the pool's spread of that impact."
      ],
      "read_by": [
-      "int_league_season_state",
       "mart_board",
-      "mart_player_projection",
       "mart_streamers"
      ],
      "read_by_pages": [
       "/p/"
      ],
      "reads": [
-      "fct_player_game"
+      "int_player_window_lines",
+      "int_value_scale"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "The season and the last ten games are scored on the same scale, the season's (#767): points mean 20, spread 5, replacement level 0.4. A player at 25 a game over the season and 30 over the last ten is worth 0.6 and 1.6 a game above replacement; their last ten compare directly with the season. Shooting is makes above the pool's percentage on the attempts: 6 of 10 against a pool's 50% is one make over, a spread of 2 makes it 0.5.",
+       "name": "every_window_is_on_the_season_scale"
+      }
+     ]
     },
     {
      "checks": [],
@@ -22088,7 +22600,7 @@
        "type": "double"
       }
      ],
-     "description": "Game-to-game consistency (#747): every played game this season valued on the board's z_total scale against the season pool, and per player the mean, spread, floor and ceiling of those values.",
+     "description": "Game-to-game consistency (#747): every regular-season game valued on the season's value scale above replacement level (ADR 0019), and per player the mean, spread, floor and ceiling of those values.",
      "exported_as": [],
      "grain": {
       "columns": [
@@ -22102,7 +22614,7 @@
      "materialized": "table",
      "name": "mart_player_consistency",
      "notes": [
-      "Game-to-game consistency (#747): the spread of a player's game values this season (int_player_game_value, on the board's z_total scale). The mean equals the season z_total; the floor and ceiling are the 20th and 80th percentile games."
+      "Game-to-game consistency (#747): the spread of a player's regular-season game values (int_player_game_value, on the value scale, above replacement: ADR 0019). The mean equals the season z_total; the floor and ceiling are the 20th and 80th percentile games."
      ],
      "read_by": [
       "mart_board"
@@ -22477,19 +22989,21 @@
       "- Return ramp: in season, for a player with five or more games this season who is still out, or just back, after three or more straight games of the current team missed, minutes per game are cut by 1% per game of that absence (at most 50%) while the player is out, half that after the first game back and none from the second (var fantasy_return_ramp). Players come back on reduced minutes, and the last five games only show it once they have been played. The team's games count from the player's first game for it this season, or from its first game when it was their main team last season, so an injury carried over from last season counts.",
       "- Production per minute: each season's totals over its minutes, counted by minutes played times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of 60 games at 8 minutes counts for far less than 60 games at 34.",
       "- Per-game line: production per minute times projected minutes.",
+      "- Seasons are regular-season lines (int_player_window_lines, #767): playoff games are not fantasy games and do not move a player's minutes or production.",
       "- Games share (durability): the share of their team's regular-season games a player played in the seasons they appeared in, by the same recency, regressed toward a typical share by durability_games games (var fantasy.<league>.durability_games, fantasy_durability). Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out.",
       "Every projection also starts from prior_games games of a replacement-level player (var fantasy: 3 NBA, 5 WNBA), at that player's minutes and per-minute production, so a short sample moves a projection only part of the way and a missing season adds nothing. All settings were chosen by backtest (ADR 0003).",
       "The replacement-level line is the average line of the players just outside a fantasy league's rosters by total minutes (ranks pool_size + 1 to pool_size + teams) in the league's latest complete regular season.",
       "Current roster: the player is on their team's latest roster landing for the league's latest roster season. A player waived or released drops off with the next landing, and a retired player is on no roster at all, so neither is projected. Only players with at least one game in the three seasons are projected."
      ],
      "read_by": [
+      "int_value_scale",
       "mart_board"
      ],
      "read_by_pages": [],
      "reads": [
       "fct_player_game",
       "int_league_season_state",
-      "mart_category_zscores",
+      "int_player_window_lines",
       "rosters",
       "schedule"
      ],
@@ -23822,6 +24336,8 @@
       "fct_waiver_trend",
       "int_league_season_state",
       "int_player_news_latest",
+      "int_player_window_lines",
+      "int_value_scale",
       "mart_board",
       "mart_category_zscores",
       "mart_player_rolling",
@@ -25351,9 +25867,19 @@
    "name": "ingest_endpoint_volume_flags_one_endpoint"
   },
   {
-   "description": "Each game is valued against the season pool (#747). Three players differ only in points: their averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10, 20 and 30 points are worth 0, 1 and 2, b's -1 each and c's 0. Every other category is zero for everyone and adds nothing; a game not played has no value.",
+   "description": "Each regular-season game is valued on the season's value scale, less replacement level (#747, #767). The scale has a points mean of 10, a spread of 10 and a points replacement level of 0.5, and no spread in the other categories, so a's games of 10, 20 and 30 points are worth -0.5, 0.5 and 1.5 and b's scoreless game -1.5. A playoff game (third id character 4) and a play-in game (5) are not fantasy games and are left out; a game not played has no value.",
    "model": "int_player_game_value",
-   "name": "game_value_on_the_board_scale"
+   "name": "game_value_on_the_value_scale"
+  },
+  {
+   "description": "Thirty projected players in a two-team, five-spot league (pool of ten, replacement level the next two; #767). Only points vary. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05 (a points mean of 19.5); pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out, and the scale's points mean is theirs, 20. A past season's line with no projection is the realized season's own scale; a playoff line never reaches it (int_player_window_lines).",
+   "model": "int_value_scale",
+   "name": "value_scale_pool_is_chosen_in_two_passes"
+  },
+  {
+   "description": "A past season's lines are shrunk by prior_games games at the level of the players just outside the pool by minutes before they rank (#767). Ten regulars play 70 games at 30 down to 12 points; two call-ups play two scoreless games. Pool of four (two teams, two spots). Ranked by season total, the call-ups' two awful games (z about -10 each, -21 in total) would beat the 70 games of a regular a little below the pool mean (-27) and take two pool places, a points mean of 14.5. Shrunk, they sit near the bottom, and the pool is the four best regulars, a mean of 27.",
+   "model": "int_value_scale",
+   "name": "value_scale_shrinks_a_past_season_before_it_ranks"
   },
   {
    "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0; j (officially available after a rest listing, still day-to-day on ESPN) reads as probable for rest, whose one past listing cost no games, 1.0 and no status shown, as Streamers shows it (#388); k (no status, a regular of 30 projected minutes on team A, which has nothing left to play for) sits out 0.29 more of the games left, 0.71 (#494), while the other team A players, projected at no minutes, are not regulars. b (listed out) and e (not listed) both have a projected share of 0.6 that is 0.9 without the absence they are on: b's share is 0.9, because his availability already charges that absence, and e's stays 0.6 (#690). Every projected line is zero, so value is zero and the factors are exact.",
@@ -25366,9 +25892,14 @@
    "name": "board_counts_a_fixed_season_length_where_the_schedule_cannot"
   },
   {
-   "description": "Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level the next two). Only points vary, so value is the points z-score. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out. rank_total follows value, equal points broken by player id. The numbers themselves (a z-score is a square root) are pinned by board_availability_follows_the_status, where they are exact.",
+   "description": "Thirty players on one team in a two-team, five-spot league (pool of ten). The board scores each projected line on the season's value scale (int_value_scale, whose two-pass pool is pinned by value_scale_pool_is_chosen_in_two_passes): only points vary, so value is the points z-score, and the pool is the ten the scale values most, p05 (five minutes) in and p11 (forty minutes, a replacement's points) out. rank_total follows value, equal points broken by player id.",
    "model": "mart_board",
    "name": "board_pool_is_chosen_in_two_passes"
+  },
+  {
+   "description": "The season and the last ten games are scored on the same scale, the season's (#767): points mean 20, spread 5, replacement level 0.4. A player at 25 a game over the season and 30 over the last ten is worth 0.6 and 1.6 a game above replacement; their last ten compare directly with the season. Shooting is makes above the pool's percentage on the attempts: 6 of 10 against a pool's 50% is one make over, a spread of 2 makes it 0.5.",
+   "model": "mart_category_zscores",
+   "name": "every_window_is_on_the_season_scale"
   },
   {
    "description": "A player's games worth 0, 1 and 2 have a mean of 1, a spread of 1, and 20th and 80th percentile games of 0.4 and 1.6 (#747); a player with one game has no spread.",

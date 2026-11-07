@@ -35,10 +35,12 @@ with current_season as (
 previous_season as (
 
     -- the player's latest earlier season with games: last season, or the one before for a
-    -- player who missed last season
-    select z.league, z.player_id, z.games, z.minutes_pg, z.z_total
-    from {{ ref('mart_category_zscores') }} as z
+    -- player who missed last season, its line valued on this season's scale (ADR 0019) so the
+    -- trend compares like with like
+    select z.league, z.player_id, z.games, z.minutes_pg, {{ scale_total(pg_stat('z'), 's') }} as z_total
+    from {{ ref('int_player_window_lines') }} as z
     join current_season as c on c.league = z.league and z.season < c.season
+    join {{ ref('int_value_scale') }} as s on s.league = c.league and s.season = c.season
     where z.window_name = 'season' and z.games > 0
     qualify row_number() over (partition by z.league, z.player_id order by z.season desc) = 1
 
@@ -97,8 +99,8 @@ recent_value as (
 
 ),
 
--- What a game adds to a week's category totals, in units of each category's spread over the
--- season's pool (the players with the most minutes): counting stats add, turnovers subtract,
+-- What a game adds to a week's category totals, in units of each category's spread on the
+-- season's value scale (int_value_scale, ADR 0019): counting stats add, turnovers subtract,
 -- shooting adds its makes above the pool's percentage on its attempts. Unlike a z-score it is not
 -- measured from the pool's average, so more games always add (the streamer signals notebook:
 -- last-ten production times games found about twice as many of the week's best pickups as the
@@ -106,34 +108,22 @@ recent_value as (
 pool_scale as (
 
     select
-        z.league,
-        stddev_samp(z.points_pg) as sd_points,
-        stddev_samp(z.rebounds_total_pg) as sd_rebounds_total,
-        stddev_samp(z.assists_pg) as sd_assists,
-        stddev_samp(z.steals_pg) as sd_steals,
-        stddev_samp(z.blocks_pg) as sd_blocks,
-        stddev_samp(z.three_pointers_made_pg) as sd_three_pointers_made,
-        stddev_samp(z.turnovers_pg) as sd_turnovers,
-        sum(z.field_goal_pct * z.fga_pg * z.games) / nullif(sum(case when z.field_goal_pct is not null then z.fga_pg * z.games end), 0) as pool_fg_pct,
-        sum(z.free_throw_pct * z.fta_pg * z.games) / nullif(sum(case when z.free_throw_pct is not null then z.fta_pg * z.games end), 0) as pool_ft_pct
-    from {{ ref('mart_category_zscores') }} as z
-    join current_season as cs on cs.league = z.league and cs.season = z.season
-    where z.window_name = 'season' and z.in_pool
-    group by z.league
+        s.league,
+        {%- for c in cats if c not in ['field_goal_pct', 'free_throw_pct'] %}
+        s.sd_{{ c }},
+        {%- endfor %}
+        s.pool_field_goal_pct as pool_fg_pct,
+        s.pool_free_throw_pct as pool_ft_pct
+    from {{ ref('int_value_scale') }} as s
+    join current_season as cs on cs.league = s.league and cs.season = s.season
 
 ),
 
 pool_shooting_scale as (
 
-    select
-        z.league,
-        stddev_samp(coalesce((z.field_goal_pct - s.pool_fg_pct) * z.fga_pg, 0)) as sd_fg_impact,
-        stddev_samp(coalesce((z.free_throw_pct - s.pool_ft_pct) * z.fta_pg, 0)) as sd_ft_impact
-    from {{ ref('mart_category_zscores') }} as z
-    join current_season as cs on cs.league = z.league and cs.season = z.season
-    join pool_scale as s on s.league = z.league
-    where z.window_name = 'season' and z.in_pool
-    group by z.league
+    select s.league, s.sd_fg_impact, s.sd_ft_impact
+    from {{ ref('int_value_scale') }} as s
+    join current_season as cs on cs.league = s.league and cs.season = s.season
 
 ),
 

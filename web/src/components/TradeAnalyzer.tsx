@@ -143,7 +143,7 @@ export default function TradeAnalyzer() {
   const complete = !!rows?.length && rows.every((r) => r.season_complete);
   const REST = week ? UNIT_TEXT.week : complete ? 'next season' : UNIT_TEXT.rest;
   const recentCats = useMemo(
-    () => (rows && !points && week ? categoryValues(recentForm(rows, cats), cats, pool, setup.teams) : null),
+    () => (rows && !points && week ? categoryValues(recentForm(rows, cats), cats, pool, setup.teams, rows) : null),
     [rows, points, week, cats, pool, setup.teams],
   );
 
@@ -229,7 +229,7 @@ export default function TradeAnalyzer() {
   // league's scoring, for every rostered player. Categories leagues only: the form is in z-scores.
   const swings = useMemo(() => {
     if (!rows || points || !hasRosters) return null;
-    const form = categoryValues(recentForm(rows, cats), cats, pool, setup.teams);
+    const form = categoryValues(recentForm(rows, cats), cats, pool, setup.teams, rows);
     const mine = (setup.rosters[setup.mine] ?? []).filter((id) => !setup.il.includes(id));
     const projected = (id: string) => worth.get(id)?.perGame ?? 0;
     return buySell({

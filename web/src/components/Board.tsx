@@ -10,7 +10,7 @@ import { href } from '../lib/site';
 import { type BoardAvailability, type BoardView, readBoardFilters, writeBoardFilters } from '../lib/board-url';
 import { useWatchlist } from '../lib/watchlist';
 import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
-import { categoryValues, fitWeights, pointValues, type Tier } from '../lib/league-value';
+import { categoryReplacement, categoryValues, fitWeights, pointValues, type Tier } from '../lib/league-value';
 import { leagueStandings } from '../lib/standings';
 import { DraftBar, LeagueBar } from './LeagueParts';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag, Unvalidated } from './ui';
@@ -265,6 +265,11 @@ export default function Board() {
     () => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null),
     [rows, points, setup.weights, pool, setup.teams],
   );
+  // The same replacement level for the season, last-twenty and last-ten views (ADR 0019).
+  const replacement = useMemo(
+    () => (rows && !points ? categoryReplacement(rows, activeCats, pool, setup.teams) : null),
+    [rows, points, activeCats, pool, setup.teams],
+  );
 
   // The manager's team: its category totals set how much each category counts in Fit.
   // The manager's team, without players parked on the injured list.
@@ -288,8 +293,8 @@ export default function Board() {
   const weights = standings?.weights ?? rotoWeights;
 
   const scored = useMemo(
-    () => scoreRows(rows ?? [], { view, points, activeCats, countGames, restOfSeason, leagueCats, leaguePoints, weights }),
-    [rows, view, points, activeCats, restOfSeason, countGames, leagueCats, leaguePoints, weights],
+    () => scoreRows(rows ?? [], { view, points, activeCats, countGames, restOfSeason, leagueCats, leaguePoints, weights, replacement }),
+    [rows, view, points, activeCats, restOfSeason, countGames, leagueCats, leaguePoints, weights, replacement],
   );
 
   // Position ranks and tiers, over every player in the current value order.
@@ -969,12 +974,12 @@ export default function Board() {
                 </SortTh>
               )}
               {rangeCols && (
-                <SortTh right active={sortKey === 'game_floor'} dir={sortDir} onClick={() => sortBy('game_floor')} title="A bad game: the player's 20th-percentile game this season, on the nine-category z-score scale">
+                <SortTh right active={sortKey === 'game_floor'} dir={sortDir} onClick={() => sortBy('game_floor')} title="A bad game: the player's 20th-percentile game this season, on the value scale, above replacement level">
                   Floor
                 </SortTh>
               )}
               {rangeCols && (
-                <SortTh right active={sortKey === 'game_ceiling'} dir={sortDir} onClick={() => sortBy('game_ceiling')} title="A good game: the player's 80th-percentile game this season, on the nine-category z-score scale">
+                <SortTh right active={sortKey === 'game_ceiling'} dir={sortDir} onClick={() => sortBy('game_ceiling')} title="A good game: the player's 80th-percentile game this season, on the value scale, above replacement level">
                   Ceiling
                 </SortTh>
               )}

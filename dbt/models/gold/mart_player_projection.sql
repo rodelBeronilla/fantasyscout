@@ -21,6 +21,8 @@
     times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of
     60 games at 8 minutes counts for far less than 60 games at 34.
   - Per-game line: production per minute times projected minutes.
+  - Seasons are regular-season lines (int_player_window_lines, #767): playoff games are not
+    fantasy games and do not move a player's minutes or production.
   - Games share (durability): the share of their team's regular-season games a player played
     in the seasons they appeared in, by the same recency, regressed toward a typical share by
     durability_games games (var fantasy.<league>.durability_games, fantasy_durability).
@@ -122,7 +124,7 @@ seasons as (
         fga_pg,
         coalesce(free_throw_pct, 0) * fta_pg as ftm_pg,
         fta_pg
-    from {{ ref('mart_category_zscores') }} as z
+    from {{ ref('int_player_window_lines') }} as z
     left join regular_games as rg on rg.league = z.league and rg.season = z.season and rg.player_id = z.player_id
     left join team_regular_games as tg on tg.league = z.league and tg.season = z.season
     where z.window_name = 'season'

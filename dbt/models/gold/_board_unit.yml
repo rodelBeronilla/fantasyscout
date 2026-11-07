@@ -1,14 +1,12 @@
 unit_tests:
   - name: board_pool_is_chosen_in_two_passes
     description: >
-      Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level
-      the next two). Only points vary, so value is the points z-score. Minutes equal points
-      except for two players: p05 scores like a pool player but plays five minutes, p11 plays
-      forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not
-      p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and
-      p11 out. rank_total follows value, equal points broken by player id. The numbers
-      themselves (a z-score is a square root) are pinned by board_availability_follows_the_status,
-      where they are exact.
+      Thirty players on one team in a two-team, five-spot league (pool of ten). The board scores
+      each projected line on the season's value scale (int_value_scale, whose two-pass pool is
+      pinned by value_scale_pool_is_chosen_in_two_passes): only points vary, so value is the
+      points z-score, and the pool is the ten the scale values most, p05 (five minutes) in and
+      p11 (forty minutes, a replacement's points) out. rank_total follows value, equal points
+      broken by player id.
     model: mart_board
     overrides:
       vars:
@@ -48,6 +46,9 @@ unit_tests:
           - {league: nba, season: '2025-26', player_id: p28, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 4.5, proj_minutes_pg: 4.5}
           - {league: nba, season: '2025-26', player_id: p29, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 4.0, proj_minutes_pg: 4.0}
           - {league: nba, season: '2025-26', player_id: p30, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 3.5, proj_minutes_pg: 3.5}
+      - input: ref('int_value_scale')
+        rows:
+          - {league: nba, season: '2025-26', pool: 10, teams: 2, mean_points: 20.0, sd_points: 4.0, repl_z_points: 0.0, repl_z_rebounds_total: 0.0, repl_z_assists: 0.0, repl_z_steals: 0.0, repl_z_blocks: 0.0, repl_z_three_pointers_made: 0.0, repl_z_turnovers: 0.0, repl_z_field_goal_pct: 0.0, repl_z_free_throw_pct: 0.0}
       - input: ref('mart_category_zscores')
         rows: []
       - input: ref('schedule_team_games')
@@ -171,6 +172,10 @@ unit_tests:
           - {league: nba, status: Questionable, reason_group: injury, games_missed: 3, listings: 1}
           - {league: nba, status: Probable, reason_group: injury, games_missed: 10, listings: 1}
           - {league: nba, status: Probable, reason_group: rest, games_missed: 0, listings: 1}
+      - input: ref('int_value_scale')
+        rows:
+          - {league: nba, season: '2025-26', pool: 156, teams: 2, repl_z_points: 0.0, repl_z_rebounds_total: 0.0, repl_z_assists: 0.0, repl_z_steals: 0.0, repl_z_blocks: 0.0, repl_z_three_pointers_made: 0.0, repl_z_turnovers: 0.0, repl_z_field_goal_pct: 0.0, repl_z_free_throw_pct: 0.0}
+          - {league: wnba, season: '2025', pool: 100, teams: 2, repl_z_points: 0.0, repl_z_rebounds_total: 0.0, repl_z_assists: 0.0, repl_z_steals: 0.0, repl_z_blocks: 0.0, repl_z_three_pointers_made: 0.0, repl_z_turnovers: 0.0, repl_z_field_goal_pct: 0.0, repl_z_free_throw_pct: 0.0}
       - input: ref('mart_category_zscores')
         rows: []
       - input: ref('int_player_news_latest')
@@ -246,6 +251,10 @@ unit_tests:
         rows: []
       - input: ref('fct_status_calibration')
         rows: []
+      - input: ref('int_value_scale')
+        rows:
+          - {league: nba, season: '2025-26', pool: 156, teams: 2, repl_z_points: 0.0, repl_z_rebounds_total: 0.0, repl_z_assists: 0.0, repl_z_steals: 0.0, repl_z_blocks: 0.0, repl_z_three_pointers_made: 0.0, repl_z_turnovers: 0.0, repl_z_field_goal_pct: 0.0, repl_z_free_throw_pct: 0.0}
+          - {league: wnba, season: '2025', pool: 100, teams: 2, repl_z_points: 0.0, repl_z_rebounds_total: 0.0, repl_z_assists: 0.0, repl_z_steals: 0.0, repl_z_blocks: 0.0, repl_z_three_pointers_made: 0.0, repl_z_turnovers: 0.0, repl_z_field_goal_pct: 0.0, repl_z_free_throw_pct: 0.0}
       - input: ref('mart_category_zscores')
         rows: []
       - input: ref('int_player_news_latest')
