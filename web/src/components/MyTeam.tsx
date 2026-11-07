@@ -15,7 +15,7 @@ import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, weekPlan, t
 import { easternDate, type TodayGame } from '../lib/today';
 import { type ModelRow, restValues } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Matchup, Today, type TodayRow, Upgrades } from './LeagueParts';
-import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th } from './ui';
+import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Unvalidated } from './ui';
 
 interface TeamRow extends ModelRow {
   full_name: string | null;
@@ -40,11 +40,12 @@ interface TeamRow extends ModelRow {
 const button = 'rounded border border-line px-2 py-0.5 text-xs hover:bg-bg';
 
 /** A card on the page: a heading, and what it holds. */
-function Tile({ title, id, children, testid }: { title: string; id: string; children: ReactNode; testid?: string }) {
+function Tile({ title, id, children, testid, issue }: { title: string; id: string; children: ReactNode; testid?: string; issue?: number }) {
   return (
     <section className="min-w-0 rounded-lg border border-line bg-card p-3" aria-labelledby={`${id}-h`} data-testid={testid}>
       <h2 id={`${id}-h`} className="text-sm font-medium tracking-wide text-muted uppercase">
         {title}
+        {issue && <Unvalidated issue={issue} what={title} />}
       </h2>
       {children}
     </section>
@@ -81,7 +82,7 @@ function Categories({
   );
   if (!standings) {
     return (
-      <Tile title="Your categories" id="cats" testid="my-categories">
+      <Tile title="Your categories" id="cats" testid="my-categories" issue={755}>
         <p className="mt-1 text-sm text-muted" data-testid="cats-summary">
           Your team&apos;s value above replacement in each category. Add the other teams&apos; rosters on the{' '}
           <a href={href('/league/')} className="underline underline-offset-4">
@@ -103,7 +104,7 @@ function Categories({
   const wins = expectedWins(standings.chances);
   const order = cats.filter((c) => c in standings.chances);
   return (
-    <Tile title="Your categories" id="cats" testid="my-categories">
+    <Tile title="Your categories" id="cats" testid="my-categories" issue={755}>
       <p className="mt-1 text-sm" data-testid="cats-summary">
         {h2h ? (
           <>
@@ -194,7 +195,7 @@ function LeagueTable({
   // the projection orders the table when it has every team; otherwise the totals do
   const order = (x: (typeof teams)[number]) => (projected.get(x.team)?.place ?? n + 1) * 1e6 - x.total;
   return (
-    <Tile title={power ? 'Power rankings' : 'League table'} id="league-table" testid="league-table">
+    <Tile title={power ? 'Power rankings' : 'League table'} id="league-table" testid="league-table" issue={power ? 755 : undefined}>
       <p className="mt-1 text-xs text-muted">
         {fpts
           ? 'Each team’s projected fantasy points a game, from its active players.'
@@ -292,7 +293,7 @@ function LineupTile({
   const openDays = plan.days.filter((d) => d.open.length > 0).map((d) => d.date);
   const pickups = href(`/streamers/?league=${league}&window=week&open=${openDays.join(',')}`);
   return (
-    <Tile title="This week's lineup" id="lineup" testid="lineup-plan">
+    <Tile title="This week's lineup" id="lineup" testid="lineup-plan" issue={759}>
       <p className="mt-1 text-sm" data-testid="lineup-summary">
         You can start <strong>{plan.started} games</strong> over the {plan.days.length} {plan.days.length === 1 ? 'day' : 'days'} left
         {theirs && opponent ? (

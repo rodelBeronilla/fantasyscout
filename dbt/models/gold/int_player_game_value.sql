@@ -5,7 +5,7 @@
   minutes). Counting categories are (stat - pool mean) / pool sd, turnovers negative; the
   percentages are the game's volume-weighted impact, (makes - pool pct x attempts), over the
   pool's impact sd. A player's mean game value is their season z_total. mart_player_consistency
-  reads it for a player's spread, mart_defense_vs_position for what a defence gives up.
+  reads it for a player's spread.
 #}
 
 {% set counting = ['points', 'rebounds_total', 'assists', 'steals', 'blocks', 'three_pointers_made', 'turnovers'] %}

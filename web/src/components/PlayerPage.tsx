@@ -8,7 +8,7 @@ import { href } from '../lib/site';
 import { assign, owners, useLeague } from '../lib/fantasy-league';
 import ShotChart from './ShotChart';
 import TrendChart from './TrendChart';
-import { Badge, Card, Loading, Problem, Signed, Td, Th } from './ui';
+import { Badge, Card, Loading, Problem, Signed, Td, Th, Unvalidated } from './ui';
 import type { ExportedRow, PlayerBoardColumn, PlayerRollingColumn, PlayerZscoreColumn } from '../generated/columns';
 
 interface Season {
@@ -202,7 +202,7 @@ function OutlookCard({ board, league, season, status }: { board: NonNullable<Pla
   const today =
     board.lineup_role === 'starter' ? 'Starting' : board.lineup_role === 'inactive' ? 'Inactive' : 'Bench';
   return (
-    <Card title="Fantasy outlook" id="outlook">
+    <Card title="Fantasy outlook" id="outlook" badge={<Unvalidated issue={754} what="The projection" />}>
       {status}
       {/* After the last game the week, the stakes and the ownership no longer apply (#450). */}
       {board.season_complete && season && (

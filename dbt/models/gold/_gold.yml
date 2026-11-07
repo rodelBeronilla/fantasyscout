@@ -923,7 +923,7 @@ models:
         description: "Ingest date of the latest landing of the listing"
 
   - name: int_player_game_value
-    description: "Every played game valued on the board's z_total scale against the season pool (#747, #749): read by mart_player_consistency and mart_defense_vs_position."
+    description: "Every played game valued on the board's z_total scale against the season pool (#747, #749): read by mart_player_consistency."
     columns:
       - name: league
         description: "wnba or nba"
@@ -945,37 +945,6 @@ models:
         description: "Minutes played"
       - name: game_value
         description: "Sum of the game's category z-scores against the season pool; a player's mean over the season is their season z_total"
-
-  - name: mart_defense_vs_position
-    description: "Defense vs position (#749): per league, season, team and position letter, the average game value the team's opponents produced at that position in games of ten minutes or more, and the same less the league's average."
-    columns:
-      - name: dvp_sk
-        description: "Surrogate key: one row per league, season, team and position"
-        data_tests: [unique, not_null]
-      - name: league
-        description: "wnba or nba"
-      - name: season
-        description: "Season label"
-      - name: team_id
-        description: "The defending team"
-        data_tests: [not_null]
-      - name: team_abbreviation
-        description: "The defending team's abbreviation"
-      - name: position
-        description: "G, F or C: the first letter of the opposing player's listed position"
-        data_tests:
-          - accepted_values:
-              values: [G, F, C]
-      - name: games
-        description: "Games the team played with an opponent at the position counted"
-      - name: player_games
-        description: "Opponent games of ten minutes or more at the position"
-      - name: value_allowed
-        description: "Average game value (z_total scale) of those opponent games"
-      - name: vs_average
-        description: "value_allowed less the league's average for the position: positive is a soft matchup"
-      - name: rank_allowed
-        description: "Rank by value_allowed within the league, season and position: 1 gives up the most"
 
   - name: mart_player_consistency
     description: "Game-to-game consistency (#747): every played game this season valued on the board's z_total scale against the season pool, and per player the mean, spread, floor and ceiling of those values."

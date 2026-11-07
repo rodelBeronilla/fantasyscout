@@ -15,7 +15,7 @@ import { href } from '../lib/site';
 import { auctionValues } from '../lib/auction';
 import { DraftBar, LeagueSettingsForm, describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
-import { Card, Loading, Problem } from './ui';
+import { Card, Loading, Problem, Unvalidated } from './ui';
 import AccountBox from './AccountBox';
 import YahooImport from './YahooImport';
 import EspnImport from './EspnImport';
@@ -155,7 +155,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   const lastPick = setup.picks.at(-1);
 
   const draftCard = (
-    <Card title="Draft" id="draft">
+    <Card title="Draft" id="draft" badge={<Unvalidated issue={760} what="The values and auction prices" />}>
       <div className="grid gap-3 text-sm" data-testid="draft-panel">
         {setup.drafting ? (
           <>
