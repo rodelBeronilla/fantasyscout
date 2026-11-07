@@ -11,6 +11,7 @@ import { matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { expectedWins, leagueStandings, type LeagueStandings } from '../lib/standings';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
+import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, weekPlan, type WeekPlan } from '../lib/lineup';
 import { easternDate, type TodayGame } from '../lib/today';
 import { type ModelRow, restValues } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Matchup, Today, type TodayRow, Upgrades } from './LeagueParts';
@@ -232,6 +233,94 @@ function LeagueTable({
   );
 }
 
+const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
+const dayName = (iso: string) => DAY.format(new Date(`${iso}T12:00:00Z`));
+/** Open slots counted by kind, "3 G · 2 C · 2 Util": short enough for a phone's column. */
+const openText = (open: Slot[]) =>
+  SLOT_KEYS.map((k) => [k, open.filter((s) => s === k).length] as const)
+    .filter(([, n]) => n > 0)
+    .map(([k, n]) => `${n} ${SLOT_LABEL[k]}`)
+    .join(' · ');
+
+/**
+ * The week's lineup (#735): day by day, who starts under the league's slots, who sits because the
+ * lineup is full, and the slots left open to stream into; and the games each side can start.
+ */
+function LineupTile({
+  plan,
+  theirs,
+  opponent,
+  nameOf,
+  league,
+}: {
+  plan: WeekPlan;
+  theirs: WeekPlan | null;
+  opponent: string | null;
+  nameOf: (id: string) => string;
+  league: League;
+}) {
+  const openDays = plan.days.filter((d) => d.open.length > 0).map((d) => d.date);
+  const pickups = href(`/streamers/?league=${league}&window=week&open=${openDays.join(',')}`);
+  return (
+    <Tile title="This week's lineup" id="lineup" testid="lineup-plan">
+      <p className="mt-1 text-sm" data-testid="lineup-summary">
+        You can start <strong>{plan.started} games</strong> over the {plan.days.length} {plan.days.length === 1 ? 'day' : 'days'} left
+        {theirs && opponent ? (
+          <>
+            , against {opponent}&apos;s <strong>{theirs.started}</strong>
+          </>
+        ) : null}
+        .{' '}
+        {plan.lost > 0 ? (
+          <span className="text-warn">{plan.lost} lost to a full lineup.</span>
+        ) : (
+          <span className="text-muted">No game lost to a full lineup.</span>
+        )}{' '}
+        {plan.openSlots > 0 && (
+          <>
+            {plan.openSlots} open {plan.openSlots === 1 ? 'slot' : 'slots'} to stream into:{' '}
+            <a href={pickups} className="font-medium text-accent underline-offset-4 hover:underline" data-testid="lineup-pickups">
+              pickups for those days →
+            </a>
+          </>
+        )}
+      </p>
+      <div className="table-scroll mt-2 overflow-auto" tabIndex={0} role="region" aria-label="This week's lineup, day by day">
+        <table className="w-full text-sm" data-testid="lineup-days">
+          <thead>
+            <tr>
+              <Th>Day</Th>
+              <Th right>Start</Th>
+              <Th>Open</Th>
+              <Th>Sits (lineup full)</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {plan.days.map((d) => (
+              <tr key={d.date} className="border-t border-line" data-date={d.date}>
+                <Td>{dayName(d.date)}</Td>
+                <Td right>{d.started.size}</Td>
+                <Td>
+                  <span className={d.open.length ? '' : 'text-muted'} data-testid="open-slots">
+                    {d.open.length ? openText(d.open) : '–'}
+                  </span>
+                </Td>
+                <Td>
+                  <span className={d.benched.length ? 'text-warn' : 'text-muted'}>{d.benched.length ? d.benched.map(nameOf).join(', ') : '–'}</span>
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-2 text-xs text-muted">
+        Each day starts your most valuable players with a game that the slots can hold, moving a player with two positions to make room; a player
+        listed out or doubtful sits. Positions are G, F and C: PG and SG count as G, SF and PF as F.
+      </p>
+    </Tile>
+  );
+}
+
 export default function MyTeam() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<TeamRow[] | null>(null);
@@ -305,6 +394,27 @@ export default function MyTeam() {
     const scoring = points ? setup.weights : undefined;
     return matchup(points ? [] : activeCats, weekTotals(myTeam, activeCats, scoring), weekTotals(theirs, activeCats, scoring));
   }, [h2h, setup.opponent, setup.weights, setup.il, weekAvailable, myTeam, rows, owner, points, activeCats]);
+
+  // the week's lineup (#735): the days left, who plays each, and the slots they fill
+  const lineupPlans = useMemo(() => {
+    if (!games || !rows || myTeam.length === 0) return null;
+    const dates = daysLeftInWeek(easternDate());
+    const playing = new Map<string, Set<string>>();
+    for (const g of games) {
+      if (!dates.includes(g.game_date)) continue;
+      for (const t of [g.home_team_id, g.away_team_id]) playing.set(`${g.game_date}|${t}`, new Set());
+    }
+    if (playing.size === 0) return null;
+    const plays = (id: string, date: string) => {
+      const r = byId.get(id);
+      return !!r && !['out', 'doubtful'].includes(r.injury_group ?? '') && playing.has(`${date}|${r.team_id}`);
+    };
+    const slots = slotList(setup.lineup);
+    const plan = (team: TeamRow[]) => weekPlan(team.map((r) => ({ id: r.player_id, position: r.position, value: perGame(r.player_id) })), dates, plays, slots);
+    const theirs =
+      !h2h || setup.opponent === null ? null : rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
+    return { mine: plan(myTeam), theirs: theirs && theirs.length ? plan(theirs) : null };
+  }, [games, rows, myTeam, byId, setup.lineup, setup.opponent, setup.il, owner, perGame, h2h]);
 
   const review = useMemo<RosterReview | null>(() => {
     if (!rows || myTeam.length === 0 || setup.drafting) return null;
@@ -381,6 +491,16 @@ export default function MyTeam() {
         {showMatchup && <Matchup setup={setup} match={match} points={points} onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))} />}
         {!points && <Categories standings={standings} mine={setup.mine} cats={activeCats} punted={punted} h2h={h2h} totals={myTotals} />}
       </div>
+
+      {lineupPlans && !setup.drafting && (
+        <LineupTile
+          plan={lineupPlans.mine}
+          theirs={lineupPlans.theirs}
+          opponent={setup.opponent === null ? null : (setup.names[setup.opponent] ?? null)}
+          nameOf={name}
+          league={league}
+        />
+      )}
 
       <Tile title="Roster" id="roster" testid="my-roster">
         {(moves.toIl.length > 0 || moves.back.length > 0) && (

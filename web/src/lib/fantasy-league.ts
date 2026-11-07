@@ -4,6 +4,7 @@
  * (the league the published values assume) apply.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { normalizeSlots, type Slots } from './lineup';
 
 import { accountStatus, loadSaved, saveSoon } from './account';
 import type { League } from './data';
@@ -52,6 +53,8 @@ export interface LeagueSettings {
   format: Format;
   /** Categories the manager gives up on (a categories league): every page values players without them (#661). */
   punts: string[];
+  /** The starting lineup's slots (#735): what the weekly planner fills each day. */
+  lineup: Slots;
 }
 
 interface Pick {
@@ -75,8 +78,9 @@ export interface LeagueSetup extends LeagueSettings {
 
 /** The league the published values assume (dbt var `fantasy`). */
 export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
-  nba: { teams: 12, rosterSpots: 13, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [] },
-  wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [] },
+  // Yahoo's standard NBA lineup (PG, SG, G, SF, PF, F, C, C, Util, Util) folded into G, F, C and Util
+  nba: { teams: 12, rosterSpots: 13, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [], lineup: { G: 3, F: 3, C: 2, UTIL: 2 } },
+  wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [], lineup: { G: 2, F: 2, C: 1, UTIL: 2 } },
 };
 
 /**
@@ -139,6 +143,7 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
     format: raw.format === 'h2h' || raw.format === 'roto' ? raw.format : fallback.format,
     // known categories only, once each, in the board's order
     punts: CATEGORIES.filter((c) => (Array.isArray(raw.punts) ? raw.punts : fallback.punts).includes(c)),
+    lineup: normalizeSlots(raw.lineup, fallback.lineup),
     names,
     rosters,
     mine,

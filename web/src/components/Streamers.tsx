@@ -522,7 +522,7 @@ export default function Streamers() {
   const [weeks, setWeeks] = useState<TeamWeek[]>([]);
   const [start, setStart] = useState<string>(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState<unknown>(null);
-  const [horizonChoice, setHorizonChoice] = useState<number | 'week'>(7);
+  const [horizonChoice, setHorizonChoice] = useState<number | 'week'>(() => (new URLSearchParams(window.location.search).get('window') === 'week' ? 'week' : 7));
   const [period, setPeriod] = useState<Period | null>(() => periodFromUrl());
   // Days from the grid's first day to the end of the fantasy week (Sunday).
   const weekDays = useMemo(() => {
@@ -530,7 +530,10 @@ export default function Streamers() {
     return d === 0 ? 1 : 8 - d;
   }, [start]);
   const horizon = horizonChoice === 'week' ? weekDays : horizonChoice;
-  const [pickedDays, setPickedDays] = useState<Set<string>>(new Set());
+  // the lineup planner's link (#735): ?open=<days> picks the open days
+  const [pickedDays, setPickedDays] = useState<Set<string>>(
+    () => new Set((new URLSearchParams(window.location.search).get('open') ?? '').split(',').filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))),
+  );
   const [needs, setNeeds] = useState<Set<string>>(new Set());
   const [positions, setPositions] = useState<Set<PositionLetter>>(new Set());
   const [team, setTeam] = useState('');
@@ -593,6 +596,9 @@ export default function Streamers() {
     () => (period ? daysBetween(period.from, period.to) : Array.from({ length: horizon }, (_, i) => addDays(start, i))),
     [start, horizon, period],
   );
+  // only the picked days inside the window count: a link's day the window does not hold (the
+  // lineup planner's clock running ahead of the build) must not filter every row out (#735)
+  const activePicked = useMemo(() => new Set([...pickedDays].filter((d) => days.includes(d))), [pickedDays, days]);
   const lastScheduled = useMemo(() => games.reduce((m, g) => (g.game_date > m ? g.game_date : m), ''), [games]);
   const pickPeriod = (p: Period | null) => {
     const next = p && ISO_DAY.test(p.from) && ISO_DAY.test(p.to) ? { from: p.from, to: p.to < p.from ? p.from : p.to } : null;
@@ -690,7 +696,7 @@ export default function Streamers() {
         return {
           ...r,
           games_window: dates.size,
-          games_picked: [...pickedDays].filter((d) => dates.has(d)).length,
+          games_picked: [...activePicked].filter((d) => dates.has(d)).length,
           fit: needs.size && parts.length ? parts.reduce((s, v) => s + v, 0) : null,
           matchup: mus.length ? muSum / mus.length : null,
           implied_points: pts.length ? pts.reduce((s, v) => s + v, 0) / pts.length : null,
@@ -701,7 +707,7 @@ export default function Streamers() {
           sleeper_net: r.waiver_trend ? (r.sleeper_adds ?? 0) - (r.sleeper_drops ?? 0) : null,
         };
       }),
-    [rows, teamDates, teamMatchups, teamImplied, pickedDays, needs, value10, production10, points],
+    [rows, teamDates, teamMatchups, teamImplied, activePicked, needs, value10, production10, points],
   );
 
   const hasHeat = (rows ?? []).some((r) => r.waiver_trend);
@@ -720,7 +726,7 @@ export default function Streamers() {
             ? !['most', 'many', 'some'].includes(r.ownership_bucket ?? '')
             : !rostered || r.rank_total === null || r.rank_total > rostered,
       )
-      .filter((r) => pickedDays.size === 0 || r.games_picked > 0)
+      .filter((r) => activePicked.size === 0 || r.games_picked > 0)
       .filter((r) => !watchOnly || watched.has(r.player_id))
       .filter((r) => !startersOnly || r.lineup_role === 'starter')
       .filter((r) => !addingOnly || (hasHeat ? r.waiver_trend === 'adding' : r.ownership_trend === 'rising'));
@@ -729,7 +735,7 @@ export default function Streamers() {
       const v = r[sortKey];
       return typeof v === 'number' ? v : null;
     }, sortDir);
-  }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, pickedDays, watchOnly, watched, startersOnly, addingOnly, hasHeat, sortKey, sortDir]);
+  }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, activePicked, watchOnly, watched, startersOnly, addingOnly, hasHeat, sortKey, sortDir]);
 
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="streamers" />;
@@ -1008,7 +1014,7 @@ export default function Streamers() {
                 {moreCols && col('free_throw_pct_5', 'FT% (5)', 'Free-throw percentage over the last five games')}
                 {moreCols && col('turnovers_avg_5', 'TO (5)', 'Turnovers per game, last five games')}
                 {needs.size > 0 && col('fit', 'Need fit', 'Last-ten z-score summed over the categories you need')}
-                {pickedDays.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
+                {activePicked.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
                 {hasTrend && (
                   <Th right>
                     <span title="Rising or falling across ESPN leagues (ownership up or down a point or more)">ESPN</span>
@@ -1077,9 +1083,9 @@ export default function Streamers() {
                       <Signed value={r.fit} />
                     </Td>
                   )}
-                  {pickedDays.size > 0 && (
+                  {activePicked.size > 0 && (
                     <Td right>
-                      {r.games_picked}/{pickedDays.size}
+                      {r.games_picked}/{activePicked.size}
                     </Td>
                   )}
                   {hasTrend && (
@@ -1144,7 +1150,7 @@ export default function Streamers() {
           )}
           {inWeek && (
             <div className={`mt-3 ${shownSchedule === 'window' ? '' : 'hidden'}`}>
-              <WeekGrid games={games} teams={teams} days={days} picked={pickedDays} />
+              <WeekGrid games={games} teams={teams} days={days} picked={activePicked} />
             </div>
           )}
           {weeksLeft && (
