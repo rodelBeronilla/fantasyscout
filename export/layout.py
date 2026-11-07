@@ -450,6 +450,18 @@ from gold.fct_team_week_games
 order by league, week_start, team_abbreviation, team_id
 """
 
+# Defense vs position this season (mart_defense_vs_position, #749): what each team gives up to
+# guards, forwards and centers, for the Pickups schedule.
+DVP_SQL = """
+select d.league, d.season, d.team_id, d.team_abbreviation, d.position, d.games, d.player_games,
+    d.value_allowed, d.vs_average, d.rank_allowed
+from gold.mart_defense_vs_position as d
+where d.season = (
+    select max(s.season) from gold.mart_defense_vs_position as s where s.league = d.league
+)
+order by d.league, d.position, d.rank_allowed, d.team_abbreviation
+"""
+
 # The per-league files the pages read first also go out column-wise, `<name>/<league>.columns.json`
 # ({column: [values]}), a third of the size; the row files stay for every other reader (#535).
 COLUMNAR_JSON = ("board", "streamers")
@@ -460,6 +472,7 @@ PER_LEAGUE_JSON = (
     ("schedule", SCHEDULE_SQL),
     ("transactions", TRANSACTIONS_SQL),
     ("team_weeks", TEAM_WEEKS_SQL),
+    ("dvp", DVP_SQL),
 )
 # Three decimals: the pages show a percentage to a tenth of a point and values to two places, and
 # the board file is a fifth smaller compressed than at four (108 KB to 87 KB gzipped for the NBA,
