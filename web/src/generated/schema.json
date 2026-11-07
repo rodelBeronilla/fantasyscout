@@ -384,19 +384,13 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 393,
+ "generic_tests": 395,
  "landing": [
   {
    "path": "_ops/ingest_log",
    "read_by": [
     "fetch_failures",
     "ingest_log"
-   ]
-  },
-  {
-   "path": "espn/fantasy_players",
-   "read_by": [
-    "espn_fantasy_players"
    ]
   },
   {
@@ -608,6 +602,138 @@
        "type": "date"
       },
       {
+       "description": "preseason: the one landing a season has",
+       "meta": {},
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN athlete id",
+       "meta": {},
+       "name": "espn_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Player name",
+       "meta": {},
+       "name": "full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN team id (0 for a free agent)",
+       "meta": {},
+       "name": "espn_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's default position id",
+       "meta": {},
+       "name": "position_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Share of ESPN leagues rostering the player",
+       "meta": {},
+       "name": "percent_owned",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Share of ESPN leagues starting the player",
+       "meta": {},
+       "name": "percent_started",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Average pick in ESPN drafts",
+       "meta": {},
+       "name": "average_draft_position",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Average auction price in ESPN auction drafts",
+       "meta": {},
+       "name": "auction_value_average",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Change in the rostered share over the last week",
+       "meta": {},
+       "name": "percent_owned_change",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's own draft rank for points leagues",
+       "meta": {},
+       "name": "espn_rank_standard",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN's own draft rank for category leagues",
+       "meta": {},
+       "name": "espn_rank_roto",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "A past season's ESPN fantasy market, landed once by a history run under fantasy_adp (#786): one row per player. The preseason market baseline of the walk-forward harness, never the board's market.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "incremental",
+     "name": "espn_fantasy_adp",
+     "notes": [
+      "A past season's ESPN fantasy market as landed once by a history run (#786): one row per player, with the season's average draft position. The preseason market baseline of the walk-forward harness; never the board's market. Values stay text until silver."
+     ],
+     "read_by": [
+      "espn_preseason_adp"
+     ],
+     "read_by_pages": [],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "meta": {},
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "meta": {},
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
        "description": "The day the market was landed",
        "meta": {},
        "name": "request_key",
@@ -695,9 +821,7 @@
      "description": "ESPN fantasy's market as landed: one row per player per landing (the fields the platform uses; ESPN's written outlooks are not landed).",
      "exported_as": [],
      "grain": null,
-     "landing": [
-      "espn/fantasy_players"
-     ],
+     "landing": [],
      "materialized": "incremental",
      "name": "espn_fantasy_players",
      "notes": [
@@ -9089,6 +9213,101 @@
      "checks": [],
      "columns": [
       {
+       "description": "league:season:espn_player_id",
+       "meta": {},
+       "name": "preseason_adp_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba (ESPN serves no past WNBA season)",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN athlete id",
+       "meta": {},
+       "name": "espn_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Player name",
+       "meta": {},
+       "name": "full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "ESPN team id (0 for a free agent)",
+       "meta": {},
+       "name": "espn_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Average pick in ESPN drafts that season, above 0",
+       "meta": {},
+       "name": "average_draft_position",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Rank by average draft position within the league and season, ties broken by player id",
+       "meta": {},
+       "name": "adp_rank",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The day before the season's first regular-season game: when a point-in-time build first sees it",
+       "meta": {},
+       "name": "known_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "Each past season's preseason market (#786): ESPN fantasy's average draft position per player and the player's rank by it, known the day before the season's first regular-season game. The walk-forward harness's market baseline (#769). Final ownership is left out: it is end-of-season knowledge.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "espn_preseason_adp",
+     "notes": [
+      "Each past season's preseason market (#786): ESPN fantasy's average draft position per player, as a history run landed it once (bronze.espn_fantasy_adp), with the player's rank by it. The walk-forward harness judges the preseason board against it (#769).",
+      "- Known the day before the season's first regular-season game: draft position comes from the drafts, which are done by tip-off, so a point-in-time build sees a season's draft position from then on, whenever the history run landed it. The schedule is identity data and is not cut, so the date is there for a season not yet played.",
+      "- Only a real draft position counts: ESPN gives some players 0. The rank breaks ties by player.",
+      "- The final ownership ESPN shows for a past season is end-of-season knowledge and is left out."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "espn_fantasy_adp",
+      "schedule"
+     ],
+     "unit_tests": [
+      {
+       "description": "A past season's ADP (#786) is known the day before the season's first regular-season game, not the day a history run landed it. A preseason game earlier in the schedule does not count. A draft position of 0 is ESPN's placeholder and is left out; the rank breaks a tie by player id.",
+       "name": "preseason_adp_is_dated_to_the_first_game_and_ranked"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "wnba or nba",
        "meta": {},
        "name": "league",
@@ -13582,6 +13801,7 @@
      ],
      "read_by": [
       "dim_game",
+      "espn_preseason_adp",
       "game_officials",
       "int_league_season_state",
       "mart_player_projection",
@@ -25868,7 +26088,6 @@
   {
    "cadence": "daily, morning and evening (ingest.yml)",
    "folders": [
-    "espn/fantasy_players",
     "espn/injuries",
     "espn/news",
     "espn/prop_bets",
@@ -25954,6 +26173,11 @@
    "description": "P1 played two games for team A; the latest roster, landed later, lists P1 on team B and a rookie P2 on team B with no appearance. P1 gets a second stint on B from the roster date and the A stint closes the day before; P2 gets a first stint on B. P3, rostered where they last played, keeps one stint. When P1 then plays for B, the roster start and the first game for B are one stint (the collapse is covered by the lag over the unioned starts).",
    "model": "dim_player",
    "name": "player_current_stint_follows_the_roster"
+  },
+  {
+   "description": "A past season's ADP (#786) is known the day before the season's first regular-season game, not the day a history run landed it. A preseason game earlier in the schedule does not count. A draft position of 0 is ESPN's placeholder and is left out; the rank breaks a tie by player id.",
+   "model": "espn_preseason_adp",
+   "name": "preseason_adp_is_dated_to_the_first_game_and_ranked"
   },
   {
    "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it. The row's _ingest_date is the newer of the play-by-play's and the box score's landing.",

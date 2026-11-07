@@ -21,9 +21,9 @@ on:
         type: string
         required: true
       source:
-        description: Which source (both = stats and espn; reports = the official injury reports, one a day)
+        description: Which source (both = stats and espn; reports = the official injury reports, one a day; market = each season's ESPN draft positions, once)
         type: choice
-        options: [both, stats, espn, reports]
+        options: [both, stats, espn, reports, market]
         default: both
 
 permissions:
@@ -202,4 +202,40 @@ jobs:
         with:
           token: ${{ github.token }}
           title: "Backfill failure: reports ${{ inputs.league }} ${{ matrix.season }}"
+          outcome: ${{ steps.land.outcome }}
+
+  # Each past season's ESPN fantasy market, once (#786): the preseason market baseline of the
+  # walk-forward harness, landed under espn/fantasy_adp, one request a season (ADR 0008).
+  market:
+    name: ESPN market ${{ inputs.league }} ${{ matrix.season }}
+    if: inputs.source == 'market'
+    runs-on: ubuntu-latest
+    environment: lakehouse
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        season: ${{ fromJSON(inputs.seasons) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - name: Land
+        id: land
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASON: ${{ matrix.season }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
+          uv run fs-ingest land espn --history --league "$LEAGUE" --season "$SEASON" --backend volume 2>&1 | tee land.log
+      - name: Report
+        if: always()
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Backfill failure: market ${{ inputs.league }} ${{ matrix.season }}"
           outcome: ${{ steps.land.outcome }}

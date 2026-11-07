@@ -63,3 +63,36 @@ def test_the_market_lands_once_a_day_with_every_player_asked_for(tmp_path: Path)
     body = landed.read_text(encoding="utf-8")
     assert "Licensed editorial" not in body
     assert json.loads(body)["players"][0]["fullName"] == "Nikola Jokic"
+
+
+def test_a_past_seasons_market_lands_once_under_its_own_endpoint(tmp_path: Path) -> None:
+    # #786: a history run must never land where the board reads the latest market, and a second
+    # run, even on another day, asks for nothing.
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=json.dumps([FULL_PLAYER]).encode())
+
+    client = ThrottledClient(
+        Throttle(max_retries=0),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+        clock=lambda: 0.0,
+        rng=random.Random(0),
+    )
+    for day in (7, 8):
+        now = datetime(2026, 11, day, 9, tzinfo=UTC)
+        summary = RunSummary("espn", "nba", "2018-19", now)
+        landing = Landing(LocalBackend(tmp_path), ingest_date=now.date())
+        EspnFantasyIngestor(client, landing, "nba", "2018-19", now=now, history=True).land_into(
+            summary
+        )
+        landing.flush()
+    assert len(seen) == 1, "once per season"
+    assert seen[0].url.path == "/apis/v3/games/fba/seasons/2019/players"
+    assert not (tmp_path / "landing/espn/fantasy_players").exists()
+    [landed] = (tmp_path / "landing/espn/fantasy_adp/nba/2018-19").rglob("preseason.json")
+    assert (
+        json.loads(landed.read_text(encoding="utf-8"))["players"][0]["fullName"] == "Nikola Jokic"
+    )

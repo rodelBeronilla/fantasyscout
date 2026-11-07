@@ -22,7 +22,7 @@
       "name": "ESPN",
       "host": "site.api.espn.com, site.web.api.espn.com",
       "terms": "https://disneytermsofuse.com/",
-      "feeds": "Scoreboard and game summaries (box scores, betting lines), team rosters, injuries, transactions, news headlines, the fantasy market (average draft position and ownership), player prop lines.",
+      "feeds": "Scoreboard and game summaries (box scores, betting lines), team rosters, injuries, transactions, news headlines, the fantasy market (average draft position and ownership, and each past NBA season's draft positions, landed once for the backtests), player prop lines.",
       "cadence": "Daily, morning and evening, from GitHub Actions.",
       "published": "Reconciliation against the league box scores, injury status and the expected-return note, schedules with the closing line as context, headline flags and the headline, the market's rank and ownership bucket, the transaction log. Prop lines: never (a private model input).",
       "retention": "As above: landed payloads kept, seven published builds."

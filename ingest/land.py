@@ -63,6 +63,7 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
         "injuries",
         "transactions",
         "fantasy_players",
+        "fantasy_adp",
         "news",
         "prop_bets",
     ),
@@ -162,6 +163,8 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
                 + ", ".join(f"{r.endpoint} {r.key.split('-', 1)[0]}" for r in day)
             )
         lines.append("  then commonteamroster for every team in the season or the player directory")
+    elif opts.source == "espn" and opts.history:
+        lines.append("  ESPN fantasy's market for the season, once, under fantasy_adp (#786)")
     elif opts.source == "reports" and opts.history:
         days = (until - since).days + 1
         lines.append(f"  the 5 pm Eastern official injury report for each of {days} day(s), parsed")
@@ -268,6 +271,12 @@ def _run_source(
             StatsPlanner(opts.league, season, opts.season_type, opts.shots),
             only=only,
         ).run(since=since, until=until)
+    elif opts.source == "espn" and opts.history:
+        summary = RunSummary("espn", opts.league, season, datetime.now(UTC))
+        EspnFantasyIngestor(client, landing, opts.league, season, history=True).land_into(summary)
+        for failure in landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
+        summary.pacing = client.pacing()
     elif opts.source == "reports" and opts.history:
         summary = ReportHistoryIngestor(
             client, landing, opts.league, season, since=since, until=until

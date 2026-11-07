@@ -902,6 +902,29 @@ models:
           - accepted_values:
               values: [same_day, adjacent_day]
 
+  - name: espn_preseason_adp
+    description: "Each past season's preseason market (#786): ESPN fantasy's average draft position per player and the player's rank by it, known the day before the season's first regular-season game. The walk-forward harness's market baseline (#769). Final ownership is left out: it is end-of-season knowledge."
+    columns:
+      - name: preseason_adp_key
+        description: "league:season:espn_player_id"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba (ESPN serves no past WNBA season)"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: espn_player_id
+        description: "ESPN athlete id"
+      - name: full_name
+        description: "Player name"
+      - name: espn_team_id
+        description: "ESPN team id (0 for a free agent)"
+      - name: average_draft_position
+        description: "Average pick in ESPN drafts that season, above 0"
+      - name: adp_rank
+        description: "Rank by average draft position within the league and season, ties broken by player id"
+      - name: known_date
+        description: "The day before the season's first regular-season game: when a point-in-time build first sees it"
+
   - name: espn_fantasy_market
     description: "ESPN fantasy's market per player from the latest landing per league, typed."
     columns:
