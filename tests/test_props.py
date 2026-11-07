@@ -169,11 +169,14 @@ def test_wnba_props_use_the_wnba_feed_and_land_even_without_totals(tmp_path: Pat
     landing.flush()
     assert "/apis/site/v2/sports/basketball/wnba/scoreboard" in paths
     assert any("/leagues/wnba/events/401857215/" in p for p in paths)
-    doc = json.loads(
-        next((tmp_path / "landing/espn/prop_bets/wnba/2026").rglob("401857215-*.json")).read_text(
-            "utf-8"
-        )
+    # the pattern also matches the landing's .meta.json sidecar, and rglob's order is the
+    # filesystem's: take the payload by name, never whichever comes first (#737)
+    payload = next(
+        p
+        for p in (tmp_path / "landing/espn/prop_bets/wnba/2026").rglob("401857215-*.json")
+        if not p.name.endswith(".meta.json")
     )
+    doc = json.loads(payload.read_text("utf-8"))
     assert doc["items_at_source"] == 8 and doc["props"] == []  # milestones and game lines only
 
 
