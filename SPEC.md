@@ -95,7 +95,7 @@ The primary source is the league stats API behind stats.wnba.com and stats.nba.c
 | Official NBA injury report | Daily PDF during the NBA season | Player-day | Availability; parse with `pdfplumber` |
 | Seeds (in repo) | Team metadata incl. Toronto Tempo, ID overrides, category config | Static | Reference data |
 
-> **Superseded in part.** Sources added since, each with its own terms check (ADR 0008 and its addenda, ADR 0003's addenda): Sleeper's player directory and waiver trends; The Odds API's and ESPN's player prop lines (private model inputs, never published); ESPN's transactions, news headlines and fantasy market; the leagues' official injury reports from their own hosts (the NBA's back to 2023-24); NBA.com's referee assignments; the stats API's `playergamelogs` usage and misc measure sets, player tracking and hustle (ADR 0004 addenda). `synergyplaytypes` was not taken up.
+> **Superseded in part.** Sources added since, each with its own terms check (ADR 0008 and its addenda, ADR 0003's addenda): Sleeper's player directory and waiver trends; The Odds API's and ESPN's player prop lines (private model inputs, never published); ESPN's transactions, news headlines and fantasy market; the leagues' official injury reports from their own hosts (the NBA's back to 2018-12-17); NBA.com's referee assignments; the stats API's `playergamelogs` usage and misc measure sets, player tracking and hustle (ADR 0004 addenda). `synergyplaytypes` was not taken up.
 
 **Backfill scope:** WNBA 2018 to 2026 and NBA 2023-24 to current. That is roughly a few million play-by-play events, enough to make incremental loading and partitioning matter.
 

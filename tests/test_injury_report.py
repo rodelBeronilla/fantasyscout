@@ -24,6 +24,7 @@ from ingest.store import Landing, LocalBackend
 FIXTURES = Path(__file__).parent / "fixtures" / "league"
 NBA_PDF = (FIXTURES / "nba_injury_report.pdf").read_bytes()
 WNBA_PDF = (FIXTURES / "wnba_injury_report.pdf").read_bytes()
+NBA_PDF_2018 = (FIXTURES / "nba_injury_report_2018.pdf").read_bytes()
 
 
 def client_for(handler: Callable[[httpx.Request], httpx.Response]) -> ThrottledClient:
@@ -90,6 +91,33 @@ def test_an_nba_report_parses_into_players_with_wrapped_reasons_put_back_togethe
         "Probable",
         "Available",
     }
+
+
+def test_a_2018_report_in_the_old_layout_parses_like_a_new_one() -> None:
+    # Category and Previous Status columns (#784): the category goes back in front of the reason,
+    # the previous status stays out of the status and the player's name.
+    rows = parse_report(NBA_PDF_2018)
+    by_name = {r["player_name"]: r for r in rows if r["player_name"]}
+    assert by_name["Henry Ellenson"] == {
+        "game_date": "12/17/2018",
+        "game_time_et": "07:00",
+        "matchup": "MIL@DET",
+        "team": "Detroit Pistons",
+        "player_name": "Henry Ellenson",
+        "player_name_listed": "Ellenson, Henry",
+        "status": "Out",
+        "reason": "Injury/Illness - Left Ankle Sprain",
+        "not_submitted": False,
+    }
+    assert by_name["Zaza Pachulia"]["status"] == "Questionable"
+    assert {r["status"] for r in rows if r["status"]} <= {
+        "Out",
+        "Doubtful",
+        "Questionable",
+        "Probable",
+        "Available",
+    }
+    assert not any("Injury/Illness" in (r["player_name"] or "") for r in rows)
 
 
 def test_a_wnba_report_parses_the_same_way_across_pages() -> None:

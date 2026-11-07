@@ -19,7 +19,7 @@ The board's rest-of-season value scales by an availability multiplier: the share
 
 The game context notebook found that players who miss a game go on to miss 3 to 5 more on average, so these charges were never checked against outcomes.
 
-The leagues keep every official injury report on their host, the NBA's back to 2023-24, and `fs-ingest land reports --history` lands the 5 pm Eastern report for each past day. `gold.fct_official_listing` links each listing before a regular-season game to the game and the player, and counts the team's games until the player next played. NBA 2024-25, injury listings only:
+The leagues keep every official injury report on their host, the NBA's back to 2018-12-17 (until about 2020 in a layout with separate category and previous-status columns, which the parser reads, #784), and `fs-ingest land reports --history` lands the 5 pm Eastern report for each past day. `gold.fct_official_listing` links each listing before a regular-season game to the game and the player, and counts the team's games until the player next played. NBA 2024-25, injury listings only:
 
 | Status | Listings | Missed the game | Games missed, mean | Median | Old charge |
 |---|---|---|---|---|---|
