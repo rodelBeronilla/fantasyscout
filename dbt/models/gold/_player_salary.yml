@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: fct_player_salary
+    description: "Each NBA player's salary per season and team payroll (#772), from Basketball-Reference's team pages (terms: ADR 0008's addendum of 2026-11-07), linked to the stats player by name within the league-season. Private: an input to the contract-year study, never published per player."
+    columns:
+      - name: player_salary_sk
+        description: "league:season:team:Basketball-Reference player id"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba (Basketball-Reference has no WNBA payrolls)"
+      - name: season
+        description: "Season label (2025-26)"
+      - name: bref_team
+        description: "Basketball-Reference team code of the payroll"
+      - name: bref_player_id
+        description: "Basketball-Reference player id"
+        data_tests: [not_null]
+      - name: player_name
+        description: "Player name as Basketball-Reference writes it"
+      - name: player_id
+        description: "League stats API player id; null when the name matches no player, or two, that season"
+      - name: salary
+        meta: {unit: dollars}
+        description: "Salary that season on this team's payroll; null for a blank (ten-day or two-way deal)"
+
+unit_tests:
+  - name: salaries_link_to_the_season_player_by_name
+    description: >
+      A payroll row links to the stats player of that season with the same name, accents and
+      punctuation aside (#772). A name two players share that season is left unlinked rather than
+      guessed, and a blank salary stays null.
+    model: fct_player_salary
+    given:
+      - input: ref('bref_salaries')
+        rows:
+          - {league: nba, season: '2018-19', bref_team: BOS, bref_player_id: haywago01, player_name: Gordon Hayward, salary: '31214295', _ingest_date: '2026-11-07', _source_file: f}
+          - {league: nba, season: '2018-19', bref_team: BOS, bref_player_id: doejo01, player_name: João Doe, salary: null, _ingest_date: '2026-11-07', _source_file: f}
+          - {league: nba, season: '2018-19', bref_team: LAL, bref_player_id: smithja01, player_name: Jay Smith, salary: '900000', _ingest_date: '2026-11-07', _source_file: f}
+      - input: ref('rosters')
+        rows:
+          - {league: nba, season: '2018-19', player_id: '202330', player_name: Gordon Hayward}
+          - {league: nba, season: '2018-19', player_id: '1', player_name: Joao Doe}
+          - {league: nba, season: '2018-19', player_id: '2', player_name: Jay Smith}
+          - {league: nba, season: '2018-19', player_id: '3', player_name: Jay Smith}
+      - input: ref('fct_player_game')
+        rows: []
+      - input: ref('dim_player')
+        rows: []
+    expect:
+      rows:
+        - {bref_player_id: haywago01, player_id: '202330', salary: 31214295}
+        - {bref_player_id: doejo01, player_id: '1', salary: null}
+        - {bref_player_id: smithja01, player_id: null, salary: 900000}

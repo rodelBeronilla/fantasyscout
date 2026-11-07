@@ -21,9 +21,9 @@ on:
         type: string
         required: true
       source:
-        description: Which source (both = stats and espn; reports = the official injury reports, one a day; market = each season's ESPN draft positions, once)
+        description: Which source (both = stats and espn; reports = the official injury reports, one a day; market = each season's ESPN draft positions, once; salaries = Basketball-Reference team payrolls, once)
         type: choice
-        options: [both, stats, espn, reports, market]
+        options: [both, stats, espn, reports, market, salaries]
         default: both
 
 permissions:
@@ -240,4 +240,43 @@ jobs:
         with:
           token: ${{ github.token }}
           title: "Backfill failure: market ${{ inputs.league }} ${{ matrix.season }}"
+          outcome: ${{ steps.land.outcome }}
+
+  # NBA team payrolls from Basketball-Reference, once per season (#772): 30 pages, at least four
+  # seconds apart, from an identified crawler (ADR 0008's addendum of 2026-11-07).
+  salaries:
+    name: Payrolls ${{ inputs.league }} ${{ matrix.season }}
+    if: inputs.source == 'salaries'
+    runs-on: ubuntu-latest
+    environment: lakehouse
+    timeout-minutes: 30
+    concurrency:
+      group: bref
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        season: ${{ fromJSON(inputs.seasons) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - name: Land
+        id: land
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASON: ${{ matrix.season }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
+          uv run fs-ingest land bref --league "$LEAGUE" --season "$SEASON" --backend volume 2>&1 | tee land.log
+      - name: Report
+        if: always()
+        uses: ./.github/actions/incident
+        with:
+          token: ${{ github.token }}
+          title: "Backfill failure: salaries ${{ inputs.league }} ${{ matrix.season }}"
           outcome: ${{ steps.land.outcome }}

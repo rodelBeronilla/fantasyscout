@@ -384,13 +384,19 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 395,
+ "generic_tests": 398,
  "landing": [
   {
    "path": "_ops/ingest_log",
    "read_by": [
     "fetch_failures",
     "ingest_log"
+   ]
+  },
+  {
+   "path": "bref/salaries",
+   "read_by": [
+    "bref_salaries"
    ]
   },
   {
@@ -570,6 +576,91 @@
  "layers": [
   {
    "models": [
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "meta": {},
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "nba, from the landing path",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "meta": {},
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The team code the page was landed under",
+       "meta": {},
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Basketball-Reference team code",
+       "meta": {},
+       "name": "bref_team",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Basketball-Reference player id",
+       "meta": {},
+       "name": "bref_player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Player name as Basketball-Reference writes it",
+       "meta": {},
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Salary in dollars as text; blank for a ten-day or two-way deal",
+       "meta": {},
+       "name": "salary",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Basketball-Reference team payrolls as landed (#772): one row per player per team-season page.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "bref/salaries"
+     ],
+     "materialized": "incremental",
+     "name": "bref_salaries",
+     "notes": [
+      "Basketball-Reference team payrolls as landed (#772): one row per player per team-season page, the player's Basketball-Reference id, name and salary. Values stay text until silver."
+     ],
+     "read_by": [
+      "fct_player_salary"
+     ],
+     "read_by_pages": [],
+     "reads": [],
+     "unit_tests": []
+    },
     {
      "checks": [],
      "columns": [
@@ -13549,6 +13640,7 @@
      "read_by": [
       "dim_player",
       "fct_official_listing",
+      "fct_player_salary",
       "mart_player_projection",
       "player_xwalk"
      ],
@@ -15728,6 +15820,7 @@
       "fct_availability",
       "fct_official_listing",
       "fct_player_game",
+      "fct_player_salary",
       "fct_player_status",
       "fct_player_tracking",
       "fct_waiver_trend",
@@ -18107,6 +18200,7 @@
      "read_by": [
       "fct_injury_spell",
       "fct_official_listing",
+      "fct_player_salary",
       "int_league_season_state",
       "int_player_game_value",
       "int_player_window_lines",
@@ -18474,6 +18568,98 @@
       {
        "description": "Each source and bookmaker keeps its last line before the start; a snapshot after the start and a quote without a league player are left out. The consensus averages the bookmakers' lines and vig-free over probabilities, counting DraftKings once although both sources carry it (The Odds API's quote on a tie).",
        "name": "player_prop_keeps_the_latest_pre_game_line_and_a_consensus_per_bookmaker"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "league:season:team:Basketball-Reference player id",
+       "meta": {},
+       "name": "player_salary_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba (Basketball-Reference has no WNBA payrolls)",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2025-26)",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Basketball-Reference team code of the payroll",
+       "meta": {},
+       "name": "bref_team",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Basketball-Reference player id",
+       "meta": {},
+       "name": "bref_player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Player name as Basketball-Reference writes it",
+       "meta": {},
+       "name": "player_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id; null when the name matches no player, or two, that season",
+       "meta": {},
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Salary that season on this team's payroll; null for a blank (ten-day or two-way deal)",
+       "meta": {
+        "unit": "dollars"
+       },
+       "name": "salary",
+       "tests": [],
+       "type": "bigint"
+      }
+     ],
+     "description": "Each NBA player's salary per season and team payroll (#772), from Basketball-Reference's team pages (terms: ADR 0008's addendum of 2026-11-07), linked to the stats player by name within the league-season. Private: an input to the contract-year study, never published per player.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_player_salary",
+     "notes": [
+      "Each NBA player's salary per season (#772), from the team payrolls Basketball-Reference publishes (bronze.bref_salaries; the terms are ADR 0008's addendum of 2026-11-07). One row per player, season and team page: a player traded mid-season is on both teams' payrolls.",
+      "The stats player id is found by name among the players of that league-season (rosters and game logs), as fct_official_listing finds a listed player; a name two players share that season is left unlinked. A blank salary (a player on a ten-day or two-way deal) stays null."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "bref_salaries",
+      "dim_player",
+      "fct_player_game",
+      "rosters"
+     ],
+     "unit_tests": [
+      {
+       "description": "A payroll row links to the stats player of that season with the same name, accents and punctuation aside (#772). A name two players share that season is left unlinked rather than guessed, and a blank salary stays null.",
+       "name": "salaries_link_to_the_season_player_by_name"
       }
      ]
     },
@@ -26086,6 +26272,17 @@
    "runner": "wherever the run ran"
   },
   {
+   "cadence": "",
+   "folders": [
+    "bref/salaries"
+   ],
+   "host": "",
+   "key": "bref",
+   "module": "",
+   "name": "bref",
+   "runner": ""
+  },
+  {
    "cadence": "daily, morning and evening (ingest.yml)",
    "folders": [
     "espn/injuries",
@@ -26228,6 +26425,11 @@
    "description": "Each source and bookmaker keeps its last line before the start; a snapshot after the start and a quote without a league player are left out. The consensus averages the bookmakers' lines and vig-free over probabilities, counting DraftKings once although both sources carry it (The Odds API's quote on a tie).",
    "model": "fct_player_prop",
    "name": "player_prop_keeps_the_latest_pre_game_line_and_a_consensus_per_bookmaker"
+  },
+  {
+   "description": "A payroll row links to the stats player of that season with the same name, accents and punctuation aside (#772). A name two players share that season is left unlinked rather than guessed, and a blank salary stays null.",
+   "model": "fct_player_salary",
+   "name": "salaries_link_to_the_season_player_by_name"
   },
   {
    "description": "Two regular-season games make the league-season's average game: 38 fouls, 45 free-throw attempts, pace 98 and 210 points. An official who worked only the first, as crew chief, sits 2 fouls, 5 attempts, 2 possessions and 10 points above it; one who worked both sits on it. A preseason game, and an alternate who did not work, count for nothing.",

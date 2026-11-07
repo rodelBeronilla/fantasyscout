@@ -28,6 +28,15 @@
       "retention": "As above: landed payloads kept, seven published builds."
     },
     {
+      "name": "Basketball-Reference",
+      "host": "www.basketball-reference.com",
+      "terms": "https://www.sports-reference.com/termsofuse.html",
+      "feeds": "NBA team payrolls by season (each player's salary), for the contract-year study.",
+      "cadence": "Once per season: one page per team, at least four seconds apart, from an identified crawler that keeps to robots.txt.",
+      "published": "Never per player: only the contract-year study's aggregates. Salaries are a private model input.",
+      "retention": "Landed payloads kept; removed with the source if Sports-Reference objects."
+    },
+    {
       "name": "Sleeper",
       "host": "api.sleeper.app",
       "terms": "https://sleeper.com/terms",

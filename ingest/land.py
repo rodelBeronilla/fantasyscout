@@ -17,6 +17,8 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
+from ingest.bref import THROTTLE as BREF_THROTTLE
+from ingest.bref import BrefSalariesIngestor
 from ingest.espn import EspnIngestor, EspnPlanner
 from ingest.espn_fantasy import EspnFantasyIngestor
 from ingest.espn_news import EspnNewsIngestor
@@ -32,7 +34,7 @@ from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, se
 from ingest.store import Backend, Landing, LocalBackend, VolumeBackend, credentials_from_env
 from ingest.transactions import TransactionsIngestor
 
-Source = Literal["stats", "espn", "reports"]
+Source = Literal["stats", "espn", "reports", "bref"]
 BackendKind = Literal["local", "volume"]
 Pace = Literal["spec", "adaptive"]
 
@@ -70,6 +72,7 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
     "league": ("injury_report", "daily_lineups", "player_movement", "referee_assignments"),
     "sleeper": ("players", "trending"),
     "odds_api": ("player_props",),
+    "bref": ("salaries",),
 }
 
 
@@ -163,6 +166,10 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
                 + ", ".join(f"{r.endpoint} {r.key.split('-', 1)[0]}" for r in day)
             )
         lines.append("  then commonteamroster for every team in the season or the player directory")
+    elif opts.source == "bref":
+        lines.append(
+            "  Basketball-Reference's payroll page for each of 30 teams, 4 s or more apart"
+        )
     elif opts.source == "espn" and opts.history:
         lines.append("  ESPN fantasy's market for the season, once, under fantasy_adp (#786)")
     elif opts.source == "reports" and opts.history:
@@ -271,6 +278,8 @@ def _run_source(
             StatsPlanner(opts.league, season, opts.season_type, opts.shots),
             only=only,
         ).run(since=since, until=until)
+    elif opts.source == "bref":
+        summary = BrefSalariesIngestor(client, landing, opts.league, season).run()
     elif opts.source == "espn" and opts.history:
         summary = RunSummary("espn", opts.league, season, datetime.now(UTC))
         EspnFantasyIngestor(client, landing, opts.league, season, history=True).land_into(summary)
@@ -343,6 +352,8 @@ def land(
     if only:
         print("replay: only " + ", ".join(only.specs()))
     throttle = Throttle.adaptive() if opts.pace == "adaptive" else Throttle.spec()
+    if opts.source == "bref":
+        throttle = BREF_THROTTLE  # its own, slower pace (ingest/bref.py)
     try:
         with (
             StoppingOnSigterm(),

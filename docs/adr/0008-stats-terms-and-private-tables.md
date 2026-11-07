@@ -77,3 +77,12 @@ The walk-forward harness judges the preseason board against the market (#751, #7
 - **What is published.** Aggregates of the backtest only: how often the board beat the market, never a player's draft position.
 - **On objection** the source is dropped and its landed files are deleted.
 
+## Addendum (2026-11-07): Basketball-Reference team payrolls
+
+The contract-year study (#772) needs each player's salary by season. No salary source permits automated collection. Sports-Reference's terms ask that its pages not be scraped and that no site be built on data scraped from it; it does welcome use of what its pages show, with credit. Spotrac, Pro Sports Transactions and HoopsHype block automated clients outright. The owner chose to collect Basketball-Reference's team payrolls anyway, on these terms:
+
+- **Slow and identified.** One page per team and season (`/teams/<code>/<year>.html`, which robots.txt allows), at least four seconds apart, inside the site's three-second crawl delay and well under its 20-a-minute bot limit. The User-Agent names FantasyScout and links the Sources page. Thirty requests a season, once (`fs-ingest land bref`, the Backfill workflow's `salaries` source). Only the payroll table is kept.
+- **Private.** `gold.fct_player_salary` is an input to the study. No page shows a player's salary; only the study's aggregates are published, with credit to Basketball-Reference on the Sources page.
+- **On objection** the source is dropped and its landed files are deleted.
+- **No way past a block.** Sites that refuse automated clients (a Cloudflare challenge, Turnstile, a robots.txt that names the client) are not collected from by any automated means, and no challenge is answered on anyone's behalf. Pages the owner saves while browsing them can come in through a manual import instead (#772).
+
