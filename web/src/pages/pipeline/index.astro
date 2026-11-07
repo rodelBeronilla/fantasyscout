@@ -580,7 +580,7 @@ const deployLegend =
         <li><strong>Export data:</strong> build (after checking the latest gate), roll back (pinning), unpin, or list builds.</li>
         <li><strong>Run the notebooks:</strong> a branch's notebooks against the published build; findings in the log, pages as a three-day artefact.</li>
         <li><strong>Query the lakehouse:</strong> read-only; prints any table, filtered and ordered, into the job log.</li>
-        <li><strong>Publish watchdog</strong>, every six hours: reads the live pointer and opens a data incident when the build the site serves is older than the publish SLA allows, or an in-season core feed is stale; the next fresh check closes it.</li>
+        <li><strong>Publish watchdog</strong>, every six hours: reads the live pointer and opens a data incident when the build the site serves is older than the publish SLA allows, or an in-season core feed is stale; the next fresh check closes it. When the site is stale and the warehouse answers, it starts a new build itself.</li>
         <li><strong>Release</strong>, by hand: tags <code>main</code>, publishes the release notes from the pull requests' labels with the data build being served, and opens the version bump.</li>
         <li><strong>Quarterly secret review:</strong> opens an issue that walks the runbook's secret inventory.</li>
         <li><strong>Databricks job:</strong> the Asset Bundle declares a scheduled Databricks job of the same dbt project, deployed paused as the fallback for an Actions outage, on a dispatch of the Build workflow only (ADR 0013).</li>

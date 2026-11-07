@@ -15,6 +15,8 @@ on:
 permissions:
   contents: read
   issues: write
+  # to dispatch Build lakehouse when the live build is stale and the warehouse answers (#782)
+  actions: write
 
 concurrency:
   group: publish-watchdog
@@ -24,7 +26,7 @@ jobs:
   watchdog:
     name: Live build age
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     # the warehouse probe reads the lakehouse secrets, which live in this environment
     environment: lakehouse
     steps:
@@ -32,6 +34,8 @@ jobs:
       - uses: ./.github/actions/setup-uv
       - name: Check the live build
         id: check
+        # a stale build must not skip the warehouse probe and the rebuild below
+        continue-on-error: true
         env:
           SITE: https://fantasyscout.beronilla.rodeo
         run: |
@@ -50,16 +54,43 @@ jobs:
           host: ${{ secrets.DATABRICKS_HOST }}
           token: ${{ secrets.DATABRICKS_TOKEN }}
           warehouse-id: ${{ vars.DATABRICKS_WAREHOUSE_ID }}
-      - name: Probe the warehouse
-        id: warehouse
+      # A stopped warehouse is started first, as the build does, so the probe tests whether it
+      # can come up, not whether it happened to be running (#782).
+      - name: Start the SQL warehouse and wait for it
+        id: start
         if: steps.context.outcome == 'success'
         continue-on-error: true
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: |
           set -o pipefail
+          uv run python -m ops.warehouse start --wait 600 2>&1 | tee warehouse.log
+      - name: Probe the warehouse
+        id: warehouse
+        if: steps.start.outcome == 'success'
+        continue-on-error: true
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
           uv run python -m ops.summary --engine databricks --strict --table ops.publish_gate \
-            --columns "run_id, run_at, passed" --order-by "run_at desc" --limit 1 2>&1 | tee warehouse.log
+            --columns "run_id, run_at, passed" --order-by "run_at desc" --limit 1 2>&1 | tee -a warehouse.log
+      # A stale site rebuilds itself once the warehouse answers again, instead of waiting for the
+      # next ingest (up to about seven hours): Build lakehouse is dispatched unless one is already
+      # queued or running (#782).
+      - name: Rebuild a stale site
+        if: steps.check.outcome == 'failure' && steps.warehouse.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          active=$(gh run list --workflow build.yml --limit 20 --json status \
+            -q '[.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting")] | length')
+          if [ "$active" != "0" ]; then
+            echo "Build lakehouse already has $active run(s) queued or running; not dispatching another"
+          else
+            gh workflow run build.yml --ref main
+            echo "::notice::the live build is stale and the warehouse answers: dispatched Build lakehouse"
+          fi
       - name: Report the warehouse
         if: always() && steps.context.outcome != 'skipped'
         uses: ./.github/actions/incident
@@ -67,7 +98,7 @@ jobs:
           token: ${{ github.token }}
           title: "Warehouse refuses statements: the lakehouse did not answer the watchdog"
           log: warehouse.log
-          outcome: ${{ (steps.context.outcome == 'failure' || steps.warehouse.outcome == 'failure') && 'failure' || 'success' }}
+          outcome: ${{ (steps.context.outcome == 'failure' || steps.start.outcome == 'failure' || steps.warehouse.outcome == 'failure') && 'failure' || 'success' }}
           detail: "The watchdog ran one statement against the SQL warehouse (ops.publish_gate, latest row) and it did not run. Builds, hand exports and queries will fail the same way until the warehouse answers: open the workspace's SQL Warehouses page, start or recreate the warehouse, and set the repository variable DATABRICKS_WAREHOUSE_ID. The next passing probe closes this."
       - name: Report
         if: always()
@@ -77,3 +108,8 @@ jobs:
           title: "Publish stale: the live build is older than the SLA allows"
           outcome: ${{ steps.check.outcome }}
           detail: "The watchdog reads the site's /data/latest.json on its own schedule. A stale build means no Build lakehouse run promoted a build in time: check the Ingest and Build runs, the home runners (infra/runner) and whether the schedules fired."
+      - name: Fail on a stale site
+        if: steps.check.outcome == 'failure'
+        run: |
+          echo "::error::the live build is older than the publish SLA allows"
+          exit 1
