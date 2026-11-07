@@ -13,7 +13,7 @@ import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryValues, fitWeights, pointValues, type Tier } from '../lib/league-value';
 import { leagueStandings } from '../lib/standings';
 import { DraftBar, LeagueBar } from './LeagueParts';
-import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
+import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag, Unvalidated } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 import { isLine, num, rankAndTier, scoreRows, zKey } from '../lib/board-model';
 import { AUCTION_BUDGET, auctionValues } from '../lib/auction';
@@ -654,6 +654,15 @@ export default function Board() {
           {/* the value view: what value is, then what the switch counts, in one line */}
           {view === 'value' ? `Value above a replacement-level pickup in your league. ${BASIS_HELP[basis]}` : VIEWS.find((v) => v.id === view)?.help}
         </p>
+        {view === 'value' && (
+          <p className="text-xs text-muted" data-testid="validation-status">
+            <span className="text-warn">Not yet validated</span> out of sample, each until its test passes:
+            <Unvalidated issue={754} what="The value" label="value" />
+            <Unvalidated issue={755} what="Fit" label="Fit" />
+            <Unvalidated issue={760} what="The auction value" label="$" />
+            <Unvalidated issue={761} what="Consistency" label="consistency" />
+          </p>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2" data-testid="board-filters">

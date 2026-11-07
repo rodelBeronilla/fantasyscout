@@ -23,7 +23,7 @@ import { describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
 import ExplainTrade from './ExplainTrade';
 import { TradeScorecard } from './TradeScorecard';
-import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th } from './ui';
+import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th, Unvalidated } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 
 interface PlayerRowFields {
@@ -745,7 +745,7 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'find' && standings && (
-        <Card title="Trades across your league" id="finder">
+        <Card title="Trades across your league" id="finder" badge={<Unvalidated issue={756} what="The trade finder" />}>
           <label className="mb-2 flex items-center gap-2 text-sm" title="Both teams' expected categories must rise">
             <input type="checkbox" checked={winWin} onChange={(e) => setWinWin(e.target.checked)} data-testid="win-win" />
             Win-win only
@@ -815,7 +815,7 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'chips' && swings && hasSwings && (
-        <Card title="Buy low, sell high" id="buy-sell">
+        <Card title="Buy low, sell high" id="buy-sell" badge={<Unvalidated issue={758} what="Buy low, sell high" />}>
           <p className="mb-3 text-sm text-muted">
             Recent form against the projection, in value per game above replacement under your league&apos;s scoring. Managers price players on the box
             scores they have just seen: a hot run sells for more than the projection says, a slump buys for less.
@@ -949,7 +949,7 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'build' && ready && (
-        <Card title="Verdict" id="verdict">
+        <Card title="Verdict" id="verdict" badge={<Unvalidated issue={756} what="The trade verdict" />}>
           {weekAvailable && (
             <div className="mb-2">
               <Segmented
@@ -1234,7 +1234,7 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'build' && ready && hasRosters && (
-        <Card title="Suggested trades" id="suggestions">
+        <Card title="Suggested trades" id="suggestions" badge={<Unvalidated issue={756} what="The suggestions" />}>
           {standings && (
             <label className="mb-2 flex items-center gap-2 text-sm" title="Both teams' expected categories must rise">
               <input type="checkbox" checked={winWin} onChange={(e) => setWinWin(e.target.checked)} data-testid="win-win" />

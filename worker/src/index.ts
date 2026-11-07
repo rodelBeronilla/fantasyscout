@@ -47,7 +47,7 @@ function isMutable(key: string): boolean {
  * beside latest.json instead of after it. Served like a pointer, for a minute; nothing else (no
  * private table, no player file) is reachable this way.
  */
-const CURRENT_PATH = /^current\/((?:(?:board|streamers|schedule|transactions|team_weeks|dvp)\/(?:wnba|nba)(?:\.columns)?|dim_team)\.json)$/;
+const CURRENT_PATH = /^current\/((?:(?:board|streamers|schedule|transactions|team_weeks)\/(?:wnba|nba)(?:\.columns)?|dim_team)\.json)$/;
 
 /** The cache-control a data file is served with: a minute for the mutable keys, a year for the rest. */
 function clientCache(key: string, isPrivate = false): string {

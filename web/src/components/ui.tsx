@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { DataUnavailableError, NoBuildError } from '../lib/data';
 import { day, easternClock } from '../lib/format';
 import { easternDate } from '../lib/today';
+import { REPO_URL } from '../lib/site';
 
 export function Loading({ what }: { what: string }) {
   return (
@@ -46,11 +47,31 @@ export function Problem({ error }: { error: unknown }) {
   );
 }
 
-export function Card({ title, children, id }: { title: string; children: ReactNode; id?: string }) {
+/**
+ * A feature not yet backtested out of sample (#751): it links to the issue that will validate it,
+ * and comes off when the feature passes, or the feature does when it fails.
+ */
+export function Unvalidated({ issue, what, label = 'Not yet validated' }: { issue: number; what?: string; label?: string }) {
+  return (
+    <a
+      href={`${REPO_URL}/issues/${issue}`}
+      target="_blank"
+      rel="noopener"
+      className="ml-2 inline-block rounded border border-warn px-1 align-middle text-[10px] font-medium tracking-normal text-warn normal-case hover:underline"
+      title={`${what ?? 'This'} has not yet been backtested out of sample. The issue says how it will be tested; until then, treat it as a guide.`}
+      data-testid="unvalidated"
+    >
+      {label}
+    </a>
+  );
+}
+
+export function Card({ title, children, id, badge }: { title: string; children: ReactNode; id?: string; badge?: ReactNode }) {
   return (
     <section id={id} className="min-w-0 rounded-lg border border-line bg-card p-4" aria-labelledby={id ? `${id}-h` : undefined}>
       <h2 id={id ? `${id}-h` : undefined} className="text-sm font-medium tracking-wide text-muted uppercase">
         {title}
+        {badge}
       </h2>
       <div className="mt-3">{children}</div>
     </section>

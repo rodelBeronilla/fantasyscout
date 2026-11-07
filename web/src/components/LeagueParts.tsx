@@ -19,7 +19,7 @@ import { href } from '../lib/site';
 import { isRatio, type WeekMatchup } from '../lib/matchup';
 import { type TodayGame, todayGroups, type TodaySlot } from '../lib/today';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
-import { Chip, InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Td, Th } from './ui';
+import { Chip, InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Td, Th, Unvalidated } from './ui';
 
 const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
 
@@ -325,6 +325,7 @@ export function Upgrades({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
           Moves
+          <Unvalidated issue={757} what="The roster review" />
         </h2>
         {onUnit && (
           <Segmented
@@ -446,6 +447,7 @@ export function Matchup({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="matchup-h" className="text-sm font-medium tracking-wide text-muted uppercase">
           This week&apos;s matchup
+          <Unvalidated issue={754} what="The weekly projection" />
         </h2>
         <label className="flex items-center gap-2 text-sm">
           <span className="text-muted">Opponent</span>

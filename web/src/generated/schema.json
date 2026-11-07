@@ -370,7 +370,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 386,
+ "generic_tests": 382,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -15497,7 +15497,6 @@
       "fct_player_tracking",
       "fct_waiver_trend",
       "mart_board",
-      "mart_defense_vs_position",
       "mart_streamers"
      ],
      "read_by_pages": [
@@ -19743,7 +19742,6 @@
      "read_by": [
       "fct_official_listing",
       "fct_referee_tendency",
-      "mart_defense_vs_position",
       "mart_schedule_upcoming"
      ],
      "read_by_pages": [],
@@ -20643,17 +20641,16 @@
        "type": "double"
       }
      ],
-     "description": "Every played game valued on the board's z_total scale against the season pool (#747, #749): read by mart_player_consistency and mart_defense_vs_position.",
+     "description": "Every played game valued on the board's z_total scale against the season pool (#747, #749): read by mart_player_consistency.",
      "exported_as": [],
      "grain": null,
      "landing": [],
      "materialized": "table",
      "name": "int_player_game_value",
      "notes": [
-      "Every played game valued on the board's own scale (#747, #749): the sum of the game's category z-scores against the season pool, the same pool, means and standard deviations mart_category_zscores uses for the season window (the top 180 NBA or 90 WNBA players by minutes). Counting categories are (stat - pool mean) / pool sd, turnovers negative; the percentages are the game's volume-weighted impact, (makes - pool pct x attempts), over the pool's impact sd. A player's mean game value is their season z_total. mart_player_consistency reads it for a player's spread, mart_defense_vs_position for what a defence gives up."
+      "Every played game valued on the board's own scale (#747, #749): the sum of the game's category z-scores against the season pool, the same pool, means and standard deviations mart_category_zscores uses for the season window (the top 180 NBA or 90 WNBA players by minutes). Counting categories are (stat - pool mean) / pool sd, turnovers negative; the percentages are the game's volume-weighted impact, (makes - pool pct x attempts), over the pool's impact sd. A player's mean game value is their season z_total. mart_player_consistency reads it for a player's spread."
      ],
      "read_by": [
-      "mart_defense_vs_position",
       "mart_player_consistency"
      ],
      "read_by_pages": [],
@@ -22018,129 +22015,6 @@
       "fct_player_game"
      ],
      "unit_tests": []
-    },
-    {
-     "checks": [],
-     "columns": [
-      {
-       "description": "Surrogate key: one row per league, season, team and position",
-       "meta": {},
-       "name": "dvp_sk",
-       "tests": [
-        "not_null",
-        "unique"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "wnba or nba",
-       "meta": {},
-       "name": "league",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Season label",
-       "meta": {},
-       "name": "season",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The defending team",
-       "meta": {},
-       "name": "team_id",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The defending team's abbreviation",
-       "meta": {},
-       "name": "team_abbreviation",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "G, F or C: the first letter of the opposing player's listed position",
-       "meta": {},
-       "name": "position",
-       "tests": [
-        "accepted_values"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "Games the team played with an opponent at the position counted",
-       "meta": {},
-       "name": "games",
-       "tests": [],
-       "type": "bigint"
-      },
-      {
-       "description": "Opponent games of ten minutes or more at the position",
-       "meta": {},
-       "name": "player_games",
-       "tests": [],
-       "type": "bigint"
-      },
-      {
-       "description": "Average game value (z_total scale) of those opponent games",
-       "meta": {},
-       "name": "value_allowed",
-       "tests": [],
-       "type": "double"
-      },
-      {
-       "description": "value_allowed less the league's average for the position: positive is a soft matchup",
-       "meta": {},
-       "name": "vs_average",
-       "tests": [],
-       "type": "double"
-      },
-      {
-       "description": "Rank by value_allowed within the league, season and position: 1 gives up the most",
-       "meta": {},
-       "name": "rank_allowed",
-       "tests": [],
-       "type": "bigint"
-      }
-     ],
-     "description": "Defense vs position (#749): per league, season, team and position letter, the average game value the team's opponents produced at that position in games of ten minutes or more, and the same less the league's average.",
-     "exported_as": [
-      "dvp/<league>.json"
-     ],
-     "grain": {
-      "columns": [
-       "league",
-       "season",
-       "team_id",
-       "position"
-      ],
-      "key": "dvp_sk"
-     },
-     "landing": [],
-     "materialized": "table",
-     "name": "mart_defense_vs_position",
-     "notes": [
-      "Defense vs position (#749): what each team gives up to guards, forwards and centers. Every game of ten minutes or more an opponent played against the team, valued on the board's z_total scale (int_player_game_value), averaged per position: the first letter of the player's listed position (a G-F counts as a guard). vs_average is that less the league's average for the position, so a positive figure is a soft matchup; rank 1 gives up the most."
-     ],
-     "read_by": [],
-     "read_by_pages": [
-      "/streamers/"
-     ],
-     "reads": [
-      "dim_player",
-      "fct_team_game",
-      "int_player_game_value"
-     ],
-     "unit_tests": [
-      {
-       "description": "Team T1 faces guards worth 2 and 4 and a center worth 1; T2 faces guards worth 0 (#749). T1 gives up 3 a guard game against a league guard average of 2 (vs +1, rank 1), T2 gives up 0 (vs -2, rank 2). A five-minute game does not count, and a G-F counts as a guard.",
-       "name": "dvp_averages_what_each_defence_gives_up_by_position"
-      }
-     ]
     },
     {
      "checks": [],
@@ -24905,7 +24779,6 @@
   {
    "reads": [
     "dim_team",
-    "dvp",
     "schedule",
     "streamers",
     "team_weeks",
@@ -25496,11 +25369,6 @@
    "description": "Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level the next two). Only points vary, so value is the points z-score. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out. rank_total follows value, equal points broken by player id. The numbers themselves (a z-score is a square root) are pinned by board_availability_follows_the_status, where they are exact.",
    "model": "mart_board",
    "name": "board_pool_is_chosen_in_two_passes"
-  },
-  {
-   "description": "Team T1 faces guards worth 2 and 4 and a center worth 1; T2 faces guards worth 0 (#749). T1 gives up 3 a guard game against a league guard average of 2 (vs +1, rank 1), T2 gives up 0 (vs -2, rank 2). A five-minute game does not count, and a G-F counts as a guard.",
-   "model": "mart_defense_vs_position",
-   "name": "dvp_averages_what_each_defence_gives_up_by_position"
   },
   {
    "description": "A player's games worth 0, 1 and 2 have a mean of 1, a spread of 1, and 20th and 80th percentile games of 0.4 and 1.6 (#747); a player with one game has no spread.",

@@ -65,7 +65,7 @@ test('the board and streamers read their column-wise files from the stable addre
   await page.goto('/streamers/?league=nba');
   await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
   // Streamers preloads every file it reads from the head and reads them all at the stable address (#562).
-  for (const file of ['streamers/nba.columns.json', 'schedule/nba.json', 'dim_team.json', 'transactions/nba.json', 'team_weeks/nba.json', 'dvp/nba.json']) {
+  for (const file of ['streamers/nba.columns.json', 'schedule/nba.json', 'dim_team.json', 'transactions/nba.json', 'team_weeks/nba.json']) {
     await expect(page.locator(`head link[rel="preload"][href$="/data/current/${file}"]`), file).toHaveCount(1);
   }
   expect(builds).toEqual([]);
@@ -2839,26 +2839,22 @@ test("streamers tags a candidate whose team's top-usage teammate is out", async 
 
 // The dbt docs have their own chrome and no way back, so the nav opens them in a new tab; a betting
 // line says who posted it and when (#462).
-test('Pickups shows defense vs position: what each team gives up to guards, forwards and centers (#749)', async ({ page }) => {
-  const teams = ['ATL', 'BOS', 'CHA', 'DEN', 'LAL'];
-  const rows = teams.flatMap((team, i) =>
-    (['G', 'F', 'C'] as const).map((position) => ({ team_abbreviation: team, position, games: 5, value_allowed: 1 - i * 0.5, vs_average: 1 - i * 0.5, rank_allowed: i + 1 })),
-  );
-  await page.route('**/dvp/nba.json', (route) => route.fulfill({ json: rows }));
+test('every feature not yet backtested says so and links the issue that will validate it (#764)', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
+  const status = page.getByTestId('validation-status');
+  await expect(status.getByTestId('unvalidated')).toHaveCount(4);
+  for (const [issue, label] of [[754, 'value'], [755, 'Fit'], [760, '$'], [761, 'consistency']] as const) {
+    await expect(status.locator(`a[href$="/issues/${issue}"]`)).toHaveText(label);
+  }
+  await page.goto('/streamers/');
+  await expect(page.locator('#trending').getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/762$/);
+  await page.goto('/p/wnba/1628932/');
+  await expect(page.locator('#outlook').getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/754$/);
+  // and defense vs position is gone: an earlier study found positional defence is noise (ADR 0012)
   await page.goto('/streamers/?league=nba');
   await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
-  const card = page.getByTestId('schedule-card');
-  await expect(card.locator('summary')).toContainText('defense vs position');
-  await card.locator('summary').click();
-  await card.getByRole('radio', { name: 'Defense vs position' }).click();
-  const table = card.getByTestId('dvp');
-  await expect(table).toBeVisible();
-  await expect(table.locator('tbody tr')).toHaveCount(5);
-  const atl = table.locator('tr[data-team="ATL"]');
-  await expect(atl.getByTestId('dvp-G')).toHaveText('+1.00');
-  // the softest fifth (1 of 5) is bold
-  await expect(atl.getByTestId('dvp-C')).toHaveClass(/font-semibold/);
-  await expect(table.locator('tr[data-team="LAL"]').getByTestId('dvp-F')).toHaveText('-1.00');
+  await expect(page.locator('main')).not.toContainText('Defense vs position');
 });
 
 test('the docs open in a new tab and the line cells name their provider and date', async ({ page }) => {

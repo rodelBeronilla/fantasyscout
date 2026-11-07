@@ -14,7 +14,7 @@ import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
 import { keptCategories, owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
-import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, lineupDay, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag } from './ui';
+import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, lineupDay, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag, Unvalidated } from './ui';
 import type { StreamerColumn, ExportedRow } from '../generated/columns';
 
 interface StreamerRowFields {
@@ -218,58 +218,6 @@ interface TeamWeek {
   games_left: number;
   games_if_necessary: number;
   game_dates: string | null;
-}
-
-/** Defense vs position this season (mart_defense_vs_position, #749). */
-interface Dvp {
-  team_abbreviation: string | null;
-  position: 'G' | 'F' | 'C';
-  games: number;
-  value_allowed: number;
-  vs_average: number;
-  rank_allowed: number;
-}
-
-/** Each team's game value given up to guards, forwards and centers against the league's average. */
-function DvpTable({ rows }: { rows: Dvp[] }) {
-  const teams = [...new Set(rows.map((r) => r.team_abbreviation ?? '–'))].sort();
-  const n = teams.length;
-  const cell = (team: string, pos: Dvp['position']) => rows.find((r) => (r.team_abbreviation ?? '–') === team && r.position === pos);
-  return (
-    <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Defense vs position">
-      <table className="w-full text-sm" data-testid="dvp">
-        <thead>
-          <tr>
-            <Th>Team</Th>
-            {(['G', 'F', 'C'] as const).map((p) => (
-              <Th key={p} right>
-                <span title={`Game value a ${p === 'G' ? 'guard' : p === 'F' ? 'forward' : 'center'} produces against the team, against the league's average`}>vs {p}</span>
-              </Th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {teams.map((team) => (
-            <tr key={team} className="border-t border-line" data-team={team}>
-              <Td>{team}</Td>
-              {(['G', 'F', 'C'] as const).map((p) => {
-                const c = cell(team, p);
-                // the softest and toughest fifth of the league, by what the team gives up
-                const tone = !c ? '' : c.rank_allowed <= Math.max(1, Math.round(n / 5)) ? 'font-semibold' : '';
-                return (
-                  <Td key={p} right>
-                    <span className={tone} title={c ? `Rank ${c.rank_allowed} of ${n} for value given up to ${p}, over ${c.games} games` : undefined} data-testid={`dvp-${p}`}>
-                      {c ? <Signed value={c.vs_average} digits={2} /> : '–'}
-                    </span>
-                  </Td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
 }
 
 /** A streamer row with what the page works out from the schedule and the picked needs. */
@@ -561,8 +509,7 @@ function part(r: StreamerRow, key: string): number {
 export default function Streamers() {
   // the box-score and identity columns, and which schedule grid shows (#722)
   const [moreCols, setMoreCols] = useState(false);
-  const [scheduleView, setScheduleView] = useState<'window' | 'weeks' | 'dvp'>('window');
-  const [dvp, setDvp] = useState<Dvp[]>([]);
+  const [scheduleView, setScheduleView] = useState<'window' | 'weeks'>('window');
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<StreamerRow[] | null>(null);
   // each player's minutes before the last five games: whether a waiver opens a rotation spot (#722)
@@ -623,12 +570,9 @@ export default function Streamers() {
       // Older builds have no transactions or team-weeks file.
       fetchCurrentJson<Move[]>(`transactions/${league}.json`).catch(() => [] as Move[]),
       fetchCurrentJson<TeamWeek[]>(`team_weeks/${league}.json`).catch(() => [] as TeamWeek[]),
-      // older builds have no defense-vs-position file (#749)
-      fetchCurrentJson<Dvp[]>(`dvp/${league}.json`).catch(() => [] as Dvp[]),
     ])
-      .then(([s, g, t, latest, mv, tw, dv]) => {
+      .then(([s, g, t, latest, mv, tw]) => {
         if (!live) return;
-        setDvp(dv);
         setRows(withRankTotal(s));
         setGames(g);
         setMoves(mv);
@@ -829,11 +773,10 @@ export default function Streamers() {
 
   // the weeks to the end of the season, while any are left; the only grid when the window has no games (#450, #722)
   const weeksLeft = weeks.length > 0 && !complete;
-  // the schedule card's views: the window's grid, the weeks to the end, defense vs position (#749)
+  // the schedule card's views: the window's grid and the weeks to the end
   const scheduleViews = [
     ...(inWeek ? [{ id: 'window' as const, label: 'This window' }] : []),
     ...(weeksLeft ? [{ id: 'weeks' as const, label: 'Weeks to the end' }] : []),
-    ...(dvp.length ? [{ id: 'dvp' as const, label: 'Defense vs position' }] : []),
   ];
   const shownSchedule = scheduleViews.some((v) => v.id === scheduleView) ? scheduleView : (scheduleViews[0]?.id ?? 'window');
 
@@ -857,7 +800,11 @@ export default function Streamers() {
         </Note>
       ) : null}
 
-      <Card title={scheduleError ? 'Trending up' : complete || !inWeek ? 'Finished strong' : 'Best pickups this window'} id="trending">
+      <Card
+        title={scheduleError ? 'Trending up' : complete || !inWeek ? 'Finished strong' : 'Best pickups this window'}
+        id="trending"
+        badge={<Unvalidated issue={762} what="The window value" />}
+      >
         {inWeek && (
           <div data-testid="window-controls">
             <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -1196,7 +1143,6 @@ export default function Streamers() {
             {[
               inWeek ? (periodTitle ?? (horizonChoice === 'week' ? 'games left this fantasy week' : `games in the next ${horizon} days`)) : null,
               weeksLeft ? 'games per week to the end of the season' : null,
-              dvp.length ? 'defense vs position' : null,
             ]
               .filter(Boolean)
               .join(', ')}
@@ -1218,16 +1164,6 @@ export default function Streamers() {
                 spot that week; two is a week to look elsewhere. &ldquo;+1&rdquo; is an if-necessary playoff game.
               </p>
               <WeeksGrid weeks={weeks} />
-            </div>
-          )}
-          {dvp.length > 0 && (
-            <div className={`mt-3 ${shownSchedule === 'dvp' ? '' : 'hidden'}`} id="dvp">
-              <p className="mb-3 text-sm text-muted">
-                What each team gives up this season to guards, forwards and centers: the average game an opponent at the position played against it
-                (ten minutes or more), in value above the league&apos;s average for the position. Positive is a soft matchup; the bold fifth gives up
-                the most.
-              </p>
-              <DvpTable rows={dvp} />
             </div>
           )}
         </details>
