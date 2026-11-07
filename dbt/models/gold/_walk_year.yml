@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: fct_walk_year
+    description: "Who was playing out his contract (#790, for #772): one row per NBA player per regular season he played. A season is a walk year when he signed a standard contract, with a new team or his own, in the offseason after it (the official movement feed). Hindsight: right for measuring the contract-year effect, not known inside the season."
+    columns:
+      - name: walk_year_sk
+        description: "Surrogate key: one row per league, season and player"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba (the movement feed is the NBA's)"
+      - name: season
+        description: "Season label (2025-26)"
+      - name: player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: walk_year
+        description: "True when he signed a standard contract between this season's last regular-season game and the next season's first"
+        data_tests: [not_null]
+      - name: signed_on
+        description: "Date of that signing"
+      - name: re_signed
+        description: "True when he re-signed with his own team, false for a new team"
+      - name: signing_team_id
+        description: "The team he signed with"
+
+unit_tests:
+  - name: a_walk_year_is_a_standard_signing_in_the_offseason_after
+    description: >
+      a re-signs with his team in July after 2018-19: a walk year. b signs a two-way deal and c an
+      extension that summer: neither says a contract ran out. d signs a standard contract during
+      the season and e only after the next season began: not this season's walk year. f did not
+      play the season and gets no row.
+    model: fct_walk_year
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2018-19', game_type: regular, game_date_est: '2018-10-16'}
+          - {league: nba, season: '2018-19', game_type: regular, game_date_est: '2019-04-10'}
+          - {league: nba, season: '2019-20', game_type: regular, game_date_est: '2019-10-22'}
+          - {league: nba, season: '2019-20', game_type: regular, game_date_est: '2020-08-14'}
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2018-19', game_id: '0021800001', player_id: a, played: true}
+          - {league: nba, season: '2018-19', game_id: '0021800001', player_id: b, played: true}
+          - {league: nba, season: '2018-19', game_id: '0021800001', player_id: c, played: true}
+          - {league: nba, season: '2018-19', game_id: '0021800001', player_id: d, played: true}
+          - {league: nba, season: '2018-19', game_id: '0021800001', player_id: e, played: true}
+          - {league: nba, season: '2018-19', game_id: '0041800001', player_id: f, played: true}
+      - input: ref('transactions')
+        rows:
+          - {league: nba, source: nba, transaction_type: Signing, player_id: a, team_id: T1, transaction_date: '2019-07-06', description: 'Boston Celtics re-signed guard A to a Contract.'}
+          - {league: nba, source: nba, transaction_type: Signing, player_id: b, team_id: T1, transaction_date: '2019-07-06', description: 'Boston Celtics signed guard B to a Two-Way Contract.'}
+          - {league: nba, source: nba, transaction_type: Signing, player_id: c, team_id: T1, transaction_date: '2019-07-06', description: 'Boston Celtics re-signed guard C to a Veteran Extension.'}
+          - {league: nba, source: nba, transaction_type: Signing, player_id: d, team_id: T2, transaction_date: '2019-01-15', description: 'Utah Jazz signed guard D to a Contract.'}
+          - {league: nba, source: nba, transaction_type: Signing, player_id: e, team_id: T2, transaction_date: '2019-11-01', description: 'Utah Jazz signed guard E to a Contract.'}
+          - {league: nba, source: nba, transaction_type: Signing, player_id: f, team_id: T2, transaction_date: '2019-07-08', description: 'Utah Jazz signed guard F to a Contract.'}
+    expect:
+      rows:
+        - {player_id: a, walk_year: true, signed_on: '2019-07-06', re_signed: true, signing_team_id: T1}
+        - {player_id: b, walk_year: false, signed_on: null, re_signed: null, signing_team_id: null}
+        - {player_id: c, walk_year: false, signed_on: null, re_signed: null, signing_team_id: null}
+        - {player_id: d, walk_year: false, signed_on: null, re_signed: null, signing_team_id: null}
+        - {player_id: e, walk_year: false, signed_on: null, re_signed: null, signing_team_id: null}

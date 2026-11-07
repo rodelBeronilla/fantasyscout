@@ -384,7 +384,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 398,
+ "generic_tests": 402,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -13894,6 +13894,7 @@
      "read_by": [
       "dim_game",
       "espn_preseason_adp",
+      "fct_walk_year",
       "game_officials",
       "int_league_season_state",
       "mart_player_projection",
@@ -15191,7 +15192,8 @@
       "ESPN's lines carry no player id, so each is linked to the players it names: a player of the league whose full name (letters only, suffix kept) appears in the line, when no other player of the league has that name and it is at least eight letters long. A line naming two players gives two rows; a line naming none keeps one row without a player."
      ],
      "read_by": [
-      "fct_transaction"
+      "fct_transaction",
+      "fct_walk_year"
      ],
      "read_by_pages": [],
      "reads": [
@@ -18201,6 +18203,7 @@
       "fct_injury_spell",
       "fct_official_listing",
       "fct_player_salary",
+      "fct_walk_year",
       "int_league_season_state",
       "int_player_game_value",
       "int_player_window_lines",
@@ -21088,6 +21091,105 @@
       {
        "description": "Sleeper's ASCII search name keeps a suffix and folds accents (kristapsporzingis, jimmybutleriii), so it matches the league name with its suffix kept. A plain name match covers a suffix one side leaves off. Between two namesakes the birth date decides, then the team; namesakes neither tells apart stay unlinked, as does a name with no match.",
        "name": "waiver_trend_links_sleeper_players_by_name_birth_date_and_team"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, season and player",
+       "meta": {},
+       "name": "walk_year_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba (the movement feed is the NBA's)",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2025-26)",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "True when he signed a standard contract between this season's last regular-season game and the next season's first",
+       "meta": {},
+       "name": "walk_year",
+       "tests": [
+        "not_null"
+       ],
+       "type": "boolean"
+      },
+      {
+       "description": "Date of that signing",
+       "meta": {},
+       "name": "signed_on",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "True when he re-signed with his own team, false for a new team",
+       "meta": {},
+       "name": "re_signed",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "The team he signed with",
+       "meta": {},
+       "name": "signing_team_id",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Who was playing out his contract (#790, for #772): one row per NBA player per regular season he played. A season is a walk year when he signed a standard contract, with a new team or his own, in the offseason after it (the official movement feed). Hindsight: right for measuring the contract-year effect, not known inside the season.",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "season",
+       "player_id"
+      ],
+      "key": "walk_year_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_walk_year",
+     "notes": [
+      "Who was playing out his contract (#790, for the contract-year study #772): one row per NBA player per regular season he played, with whether it was his walk year.",
+      "A season Y was a player's walk year when, between Y's last regular-season game and the next season's first, he signed a standard contract, with a new team or re-signing with his own, in the league's official movement feed (silver.transactions, source nba). Ten-day, two-way, rest-of-season and substitute deals, rookie-scale contracts and extensions do not count: none says a contract ran out.",
+      "The flag is hindsight. It rebuilds what was public during Y, an expiring contract, from what happened after it. That is right for measuring the effect, and a point-in-time build cannot know it inside the season, since its transactions stop at the cut. A live flag would need current contract lengths and is built only if the study finds an effect. Noise it does not remove: player options, a free agent who signs only after the next season starts, and a player waived and re-signed in the offseason."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "fct_player_game",
+      "schedule",
+      "transactions"
+     ],
+     "unit_tests": [
+      {
+       "description": "a re-signs with his team in July after 2018-19: a walk year. b signs a two-way deal and c an extension that summer: neither says a contract ran out. d signs a standard contract during the season and e only after the next season began: not this season's walk year. f did not play the season and gets no row.",
+       "name": "a_walk_year_is_a_standard_signing_in_the_offseason_after"
       }
      ]
     },
@@ -26470,6 +26572,11 @@
    "description": "Sleeper's ASCII search name keeps a suffix and folds accents (kristapsporzingis, jimmybutleriii), so it matches the league name with its suffix kept. A plain name match covers a suffix one side leaves off. Between two namesakes the birth date decides, then the team; namesakes neither tells apart stay unlinked, as does a name with no match.",
    "model": "fct_waiver_trend",
    "name": "waiver_trend_links_sleeper_players_by_name_birth_date_and_team"
+  },
+  {
+   "description": "a re-signs with his team in July after 2018-19: a walk year. b signs a two-way deal and c an extension that summer: neither says a contract ran out. d signs a standard contract during the season and e only after the next season began: not this season's walk year. f did not play the season and gets no row.",
+   "model": "fct_walk_year",
+   "name": "a_walk_year_is_a_standard_signing_in_the_offseason_after"
   },
   {
    "description": "The five statuses (#397): landed within the allowance is fresh, past it stale while the league plays, any age off_season when it does not, never landed never, and never landed for an optional feed (a key not set yet) unconfigured. Today is pinned to 2026-11-02 with the NBA in season and the WNBA not.",
