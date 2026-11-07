@@ -18,6 +18,7 @@ with reports as (
         cast(_ingest_date as date) as report_date
     from {{ ref('espn_injuries') }}
     where injury_id is not null
+        and {{ known_before('cast(_ingest_date as date)') }}
     qualify row_number() over (partition by league, injury_id, _ingest_date order by _source_file desc) = 1
 
 ),

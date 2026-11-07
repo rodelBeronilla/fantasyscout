@@ -21,6 +21,6 @@ select
     coalesce(try_cast(clinched_play_in as integer), 0) = 1 as clinched_play_in,
     coalesce(try_cast(eliminated as integer), 0) = 1 as eliminated,
     cast(_ingest_date as date) as observed_date
-from ({{ latest_snapshot(ref('stats_leaguestandingsv3')) }}) as newest_stats_leaguestandingsv3
+from ({{ latest_snapshot(ref('stats_leaguestandingsv3'), observed=true) }}) as newest_stats_leaguestandingsv3
 where team_id is not null
 {{ latest_landing(['league', 'season', 'team_id']) }}

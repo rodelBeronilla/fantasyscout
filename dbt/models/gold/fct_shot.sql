@@ -47,3 +47,4 @@ select
     s._ingest_date
 from {{ ref('shots') }} as s
 where {{ only_changed_games([ref('shots')]) }}
+    and {{ known_before('s.game_date') }}

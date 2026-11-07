@@ -121,6 +121,7 @@ select
     source_team_abbreviation,
     source
 from moves
+where {{ known_before('transaction_date') }}
 qualify row_number() over (
     partition by league, source, transaction_date, coalesce(team_id, '-'), coalesce(player_id, '-'), description
     order by _ingest_date desc, _source_file desc

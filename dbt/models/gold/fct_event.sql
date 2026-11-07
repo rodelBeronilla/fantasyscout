@@ -76,3 +76,4 @@ left join {{ ref('event_lineups') }} as l
 inner join changed as c
     on c.league = e.league and c.game_id = e.game_id
 {% endif %}
+where {{ known_before('g.game_date') }}

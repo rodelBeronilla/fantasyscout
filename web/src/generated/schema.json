@@ -17703,6 +17703,14 @@
       {
        "description": "A player who did not play has no box score (#389): the league writes zeros with no minutes, kept as null. A played line keeps its zeros, and a row whose minutes are missing keeps any number it does carry (here five points); only its zeros are nulled.",
        "name": "player_game_dnp_box_is_null"
+      },
+      {
+       "description": "A point-in-time build (#752) sees only games played before its date: as of 2026-01-10, the game of 2026-01-09 is in and the games of the 10th (that day) and the 11th are not.",
+       "name": "player_game_point_in_time_keeps_only_games_before_as_of"
+      },
+      {
+       "description": "as_of alone pins the run's date and cuts nothing (#752): the same games all stay.",
+       "name": "player_game_without_point_in_time_keeps_every_game"
       }
      ]
     },
@@ -25393,6 +25401,16 @@
    "description": "A player who did not play has no box score (#389): the league writes zeros with no minutes, kept as null. A played line keeps its zeros, and a row whose minutes are missing keeps any number it does carry (here five points); only its zeros are nulled.",
    "model": "fct_player_game",
    "name": "player_game_dnp_box_is_null"
+  },
+  {
+   "description": "A point-in-time build (#752) sees only games played before its date: as of 2026-01-10, the game of 2026-01-09 is in and the games of the 10th (that day) and the 11th are not.",
+   "model": "fct_player_game",
+   "name": "player_game_point_in_time_keeps_only_games_before_as_of"
+  },
+  {
+   "description": "as_of alone pins the run's date and cuts nothing (#752): the same games all stay.",
+   "model": "fct_player_game",
+   "name": "player_game_without_point_in_time_keeps_every_game"
   },
   {
    "description": "Each source and bookmaker keeps its last line before the start; a snapshot after the start and a quote without a league player are left out. The consensus averages the bookmakers' lines and vig-free over probabilities, counting DraftKings once although both sources carry it (The Odds API's quote on a tie).",

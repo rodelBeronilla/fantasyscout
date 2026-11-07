@@ -10,6 +10,7 @@
 with tracking as (
 
     select * from {{ ref('player_day_tracking') }}
+    where {{ known_before('game_date') }}
 
 ),
 
@@ -19,6 +20,7 @@ box as (
     from {{ ref('player_game_box') }} as b
     inner join {{ ref('games') }} as g
         on g.league = b.league and g.game_id = b.game_id
+    where {{ known_before('g.game_date') }}
 
 ),
 

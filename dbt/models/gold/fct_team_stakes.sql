@@ -21,7 +21,7 @@ remaining as (
 
     select league, season, team_id, count(*) as games_left
     from {{ ref('schedule_team_games') }}
-    where game_type = 'regular' and game_status <> 3 and game_date_est >= {{ eastern_today() }}
+    where game_type = 'regular' and not {{ is_final('game_status', 'game_date_est') }} and game_date_est >= {{ eastern_today() }}
     group by league, season, team_id
 
 )

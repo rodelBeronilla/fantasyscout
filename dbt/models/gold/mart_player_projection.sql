@@ -140,7 +140,7 @@ current_season as (
 
 regular_seasons as (
 
-    select league, season, sum(case when game_status <> 3 then 1 else 0 end) as games_left, count(*) as games
+    select league, season, sum(case when not {{ is_final('game_status', 'game_date_est') }} then 1 else 0 end) as games_left, count(*) as games
     from {{ ref('schedule') }}
     where game_type = 'regular'
     group by league, season

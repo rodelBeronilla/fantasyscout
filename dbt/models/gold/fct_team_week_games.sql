@@ -40,7 +40,7 @@ select
     {{ add_days('w.week_start', 6) }} as week_end,
     w.week_start = {{ week_start(as_of_date()) }} as is_current_week,
     cast(sum(case when not s.if_necessary then 1 else 0 end) as integer) as games,
-    cast(sum(case when not s.if_necessary and s.game_status <> 3 and s.game_date_est >= {{ as_of_date() }} then 1 else 0 end) as integer) as games_left,
+    cast(sum(case when not s.if_necessary and not {{ is_final('s.game_status', 's.game_date_est') }} and s.game_date_est >= {{ as_of_date() }} then 1 else 0 end) as integer) as games_left,
     cast(sum(case when s.if_necessary then 1 else 0 end) as integer) as games_if_necessary,
     {{ sorted_join('cast(s.game_date_est as string)') }} as game_dates
 from sides as s

@@ -21,6 +21,7 @@ with appearances as (
     from {{ ref('player_game_box') }} as b
     join {{ ref('games') }} as g
         on g.league = b.league and g.game_id = b.game_id
+    where {{ known_before('g.game_date') }}
 
 ),
 

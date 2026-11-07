@@ -21,4 +21,5 @@ select
     _source_file
 from {{ ref('espn_injuries') }}
 where injury_id is not null
+    and {{ known_before('cast(_ingest_date as date)') }}
 {{ latest_landing(['league', 'injury_id']) }}

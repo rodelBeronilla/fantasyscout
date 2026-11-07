@@ -29,3 +29,68 @@ unit_tests:
         - {player_id: p1, played: true, points: 0, field_goals_made: 0, rebounds_offensive: 2, plus_minus: -4}
         - {player_id: p2, played: null, points: null, field_goals_made: null, rebounds_offensive: null, plus_minus: null}
         - {player_id: p3, played: null, points: 5, field_goals_made: null, rebounds_offensive: null, plus_minus: null}
+
+  - name: player_game_point_in_time_keeps_only_games_before_as_of
+    description: >
+      A point-in-time build (#752) sees only games played before its date: as of 2026-01-10, the
+      game of 2026-01-09 is in and the games of the 10th (that day) and the 11th are not.
+    model: fct_player_game
+    overrides:
+      vars:
+        as_of: '2026-01-10'
+        point_in_time: true
+    given:
+      - input: ref('player_game_box')
+        rows:
+          - {league: nba, season: '2025-26', game_id: g9, player_id: p1, player_game_key: g9-p1, team_id: t1, minutes: 30, points: 10}
+          - {league: nba, season: '2025-26', game_id: g10, player_id: p1, player_game_key: g10-p1, team_id: t1, minutes: 30, points: 20}
+          - {league: nba, season: '2025-26', game_id: g11, player_id: p1, player_game_key: g11-p1, team_id: t1, minutes: 30, points: 30}
+      - input: ref('games')
+        rows:
+          - {league: nba, game_id: g9, game_date: 2026-01-09}
+          - {league: nba, game_id: g10, game_date: 2026-01-10}
+          - {league: nba, game_id: g11, game_date: 2026-01-11}
+      - input: ref('player_game_advanced')
+        rows: []
+      - input: ref('player_game_usage')
+        rows: []
+      - input: ref('player_game_misc')
+        rows: []
+      - input: ref('dim_player')
+        rows: []
+      - input: ref('player_game_reconciliation')
+        rows: []
+    expect:
+      rows:
+        - {game_id: g9, points: 10}
+
+  - name: player_game_without_point_in_time_keeps_every_game
+    description: >
+      as_of alone pins the run's date and cuts nothing (#752): the same games all stay.
+    model: fct_player_game
+    overrides:
+      vars:
+        as_of: '2026-01-10'
+    given:
+      - input: ref('player_game_box')
+        rows:
+          - {league: nba, season: '2025-26', game_id: g9, player_id: p1, player_game_key: g9-p1, team_id: t1, minutes: 30, points: 10}
+          - {league: nba, season: '2025-26', game_id: g11, player_id: p1, player_game_key: g11-p1, team_id: t1, minutes: 30, points: 30}
+      - input: ref('games')
+        rows:
+          - {league: nba, game_id: g9, game_date: 2026-01-09}
+          - {league: nba, game_id: g11, game_date: 2026-01-11}
+      - input: ref('player_game_advanced')
+        rows: []
+      - input: ref('player_game_usage')
+        rows: []
+      - input: ref('player_game_misc')
+        rows: []
+      - input: ref('dim_player')
+        rows: []
+      - input: ref('player_game_reconciliation')
+        rows: []
+    expect:
+      rows:
+        - {game_id: g9, points: 10}
+        - {game_id: g11, points: 30}

@@ -23,6 +23,6 @@ select
     how_acquired,
     _ingest_date,
     _source_file
-from ({{ latest_snapshot(ref('stats_commonteamroster')) }}) as newest_stats_commonteamroster
+from ({{ latest_snapshot(ref('stats_commonteamroster'), observed=true) }}) as newest_stats_commonteamroster
 where team_id is not null and player_id is not null
 {{ latest_landing(['league', 'season', 'team_id', 'player_id']) }}

@@ -34,4 +34,5 @@ select
     _source_file
 from ({{ latest_snapshot(ref('stats_leaguegamelog')) }}) as newest_stats_leaguegamelog
 where game_id is not null and team_id is not null
+    and {{ known_before('cast(game_date as date)') }}
 {{ latest_landing(['league', 'game_id', 'team_id']) }}
