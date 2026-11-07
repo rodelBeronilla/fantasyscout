@@ -2,6 +2,7 @@
 
 fs-ingest probe                  reachability of every source from this machine
 fs-ingest land <source> ...      fetch and land raw payloads for one league-season
+fs-ingest import FILE... ...      land tables the owner saved while browsing (tools/save-tables)
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from datetime import date
 from pathlib import Path
 
 from ingest import land as land_mod
+from ingest import manual as manual_mod
 from ingest import probe as probe_mod
 from ingest.store import Scope, VolumeBackend, reindex
 
@@ -51,6 +53,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_reindex.add_argument(
         "--root", type=Path, default=Path("."), help="root for the local backend"
     )
+    p_import = sub.add_parser(
+        "import", help="land the tables saved with the Save tables bookmarklet (tools/save-tables)"
+    )
+    p_import.add_argument("files", nargs="+", type=Path, help="the saved JSON files")
+    p_import.add_argument(
+        "--source", required=True, help="where the pages came from, lower case (spotrac, pst)"
+    )
+    p_import.add_argument("--league", choices=("wnba", "nba"), required=True)
+    p_import.add_argument("--season", required=True, help="the season the pages describe")
+    p_import.add_argument("--backend", choices=("local", "volume"), default="local")
+    p_import.add_argument("--root", type=Path, default=Path("."), help="root for the local backend")
+
     p_land = sub.add_parser("land", help="fetch and land raw payloads")
     p_land.add_argument("source", choices=SOURCES, help="which provider to pull from")
     p_land.add_argument("--league", choices=("wnba", "nba"), default="wnba")
@@ -184,6 +198,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         count = land_mod.ensure_landing_dirs(backend)
         print(f"ensured {count} landing directories ({args.backend})")
         return 0
+    if args.command == "import":
+        backend = land_mod.make_backend(args.backend, args.root)
+        result = manual_mod.import_files(
+            backend, args.files, source=args.source, league=args.league, season=args.season
+        )
+        print(f"imported: {result.landed} landed, {result.unchanged} already there")
+        for reason in result.rejected:
+            print(f"  rejected {reason}")
+        return FAILURE_EXIT if result.rejected else 0
     return _run_land(args)
 
 

@@ -477,6 +477,12 @@
    ]
   },
   {
+   "path": "manual/saved_tables",
+   "read_by": [
+    "manual_tables"
+   ]
+  },
+  {
    "path": "odds_api/player_props",
    "read_by": [
     "odds_api_player_props"
@@ -3153,6 +3159,103 @@
       "feed_freshness",
       "game_officials"
      ],
+     "read_by_pages": [],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "meta": {},
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label the import was given",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Day the file was imported",
+       "meta": {},
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "<source>-<content hash> of the saved file",
+       "meta": {},
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The site the page came from, as the import named it (spotrac, pst)",
+       "meta": {},
+       "name": "saved_from",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Address of the page the table was saved from",
+       "meta": {},
+       "name": "page_url",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the owner saved the page (UTC, ISO 8601)",
+       "meta": {},
+       "name": "saved_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The table's caption or nearest heading",
+       "meta": {},
+       "name": "table_label",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The table's header row, as a JSON array of text",
+       "meta": {},
+       "name": "headers",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The row's cells, as a JSON array of {text, href}",
+       "meta": {},
+       "name": "cells",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "Tables the owner saved while browsing with the Save tables bookmarklet (#792), as `fs-ingest import` landed them: one row per saved table row. No request was sent for them; source-specific models read them.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "manual/saved_tables"
+     ],
+     "materialized": "incremental",
+     "name": "manual_tables",
+     "notes": [
+      "The tables the owner saved while browsing with the Save tables bookmarklet (#792), as landed by `fs-ingest import`: one row per saved table row, with the site it came from, the page's address, the table's heading and header row, and the row's cells as JSON (each cell's text and link). Source-specific models read it once a source's pages show their shape."
+     ],
+     "read_by": [],
      "read_by_pages": [],
      "reads": [],
      "unit_tests": []
@@ -26415,6 +26518,17 @@
    "module": "ingest/injury_report.py, lineups.py, referee_assignments.py, transactions.py",
    "name": "The leagues' own sites",
    "runner": "GitHub-hosted"
+  },
+  {
+   "cadence": "",
+   "folders": [
+    "manual/saved_tables"
+   ],
+   "host": "",
+   "key": "manual",
+   "module": "",
+   "name": "manual",
+   "runner": ""
   },
   {
    "cadence": "twice daily, behind ODDS_API_KEY (ingest.yml)",

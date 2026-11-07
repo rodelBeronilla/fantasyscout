@@ -1454,3 +1454,29 @@ models:
       - name: salary
         description: "Salary in dollars as text; blank for a ten-day or two-way deal"
 
+  - name: manual_tables
+    description: "Tables the owner saved while browsing with the Save tables bookmarklet (#792), as `fs-ingest import` landed them: one row per saved table row. No request was sent for them; source-specific models read them."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label the import was given"
+      - name: _ingest_date
+        description: "Day the file was imported"
+      - name: request_key
+        description: "<source>-<content hash> of the saved file"
+      - name: saved_from
+        description: "The site the page came from, as the import named it (spotrac, pst)"
+      - name: page_url
+        description: "Address of the page the table was saved from"
+      - name: saved_at
+        description: "When the owner saved the page (UTC, ISO 8601)"
+      - name: table_label
+        description: "The table's caption or nearest heading"
+      - name: headers
+        description: "The table's header row, as a JSON array of text"
+      - name: cells
+        description: "The row's cells, as a JSON array of {text, href}"
+

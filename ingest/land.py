@@ -73,6 +73,7 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
     "sleeper": ("players", "trending"),
     "odds_api": ("player_props",),
     "bref": ("salaries",),
+    "manual": ("saved_tables",),
 }
 
 
