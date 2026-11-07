@@ -17,6 +17,7 @@ with pre_game as (
     select *
     from {{ ref('player_props') }}
     where is_pre_game and game_id is not null and player_id is not null
+        and {{ known_before('snapshot_at') }}
 
 ),
 

@@ -127,3 +127,5 @@ left join stint as s
     and g.game_date >= s.valid_from and (s.valid_to is null or g.game_date <= s.valid_to)
 left join recon as r
     on r.player_game_key = b.player_game_key
+-- played before the as_of date (#752)
+where {{ known_before('g.game_date') }}

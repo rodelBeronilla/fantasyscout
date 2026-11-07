@@ -19,3 +19,5 @@ select
     listed_order,
     source
 from {{ ref('game_officials') }}
+-- a crew is named on the day of the game (#752)
+where {{ known_before('game_date') }}

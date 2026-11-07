@@ -87,6 +87,10 @@ jobs:
         env:
           DBT_PROFILES_DIR: .
         run: uv run dbt build --target duckdb --exclude tag:quality
+      # A backtest rebuilds the lakehouse at a past date and must see nothing after it (#752): the
+      # sample is rebuilt from scratch as of its first game day, and every dated table is checked.
+      - name: Point-in-time build leaks nothing from after its date
+        run: uv run python -m ops.point_in_time_check
       # The quality checks do not run on the sample, but a SQL mistake in one must not first show
       # up as a blocked nightly gate (#395): each compiled check is planned (EXPLAIN) against the
       # built sample, which parses it and binds its tables and columns without running it.

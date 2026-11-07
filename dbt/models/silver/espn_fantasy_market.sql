@@ -9,6 +9,7 @@ with latest as (
     select *
     from {{ ref('espn_fantasy_players') }}
     where espn_player_id is not null
+        and {{ known_before('cast(_ingest_date as date)') }}
     qualify _ingest_date = max(_ingest_date) over (partition by league)
 
 )

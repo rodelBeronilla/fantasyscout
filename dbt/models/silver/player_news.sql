@@ -17,6 +17,7 @@ with latest as (
     select *
     from {{ ref('espn_news') }}
     where article_id is not null and espn_player_id is not null and headline is not null
+        and {{ known_before('cast(_ingest_date as date)') }}
     qualify row_number() over (
         partition by league, article_id, espn_player_id order by _ingest_date desc, _source_file desc
     ) = 1

@@ -162,14 +162,14 @@ remaining_scheduled as (
         s.league,
         s.season,
         s.team_id,
-        sum(case when s.game_type = 'regular' and s.game_date_est >= {{ as_of_date() }} and s.game_status <> 3 then 1 else 0 end) as games_remaining,
+        sum(case when s.game_type = 'regular' and s.game_date_est >= {{ as_of_date() }} and not {{ is_final('s.game_status', 's.game_date_est') }} then 1 else 0 end) as games_remaining,
         sum(case when s.game_date_est >= {{ as_of_date() }} and s.game_date_est < {{ add_days(as_of_date(), 7) }}
-                  and s.game_status <> 3 and not coalesce(s.if_necessary, false) then 1 else 0 end) as games_next_7,
+                  and not {{ is_final('s.game_status', 's.game_date_est') }} and not coalesce(s.if_necessary, false) then 1 else 0 end) as games_next_7,
         -- the fantasy week runs Monday to Sunday
         sum(case when s.game_date_est >= {{ as_of_date() }} and s.game_date_est < {{ add_days(week_start(as_of_date()), 7) }}
-                  and s.game_status <> 3 and not coalesce(s.if_necessary, false) then 1 else 0 end) as games_this_week,
+                  and not {{ is_final('s.game_status', 's.game_date_est') }} and not coalesce(s.if_necessary, false) then 1 else 0 end) as games_this_week,
         sum(case when s.game_type = 'regular' then 1 else 0 end) as games_scheduled,
-        sum(case when s.game_type = 'regular' and s.game_status = 3 then 1 else 0 end) as games_final
+        sum(case when s.game_type = 'regular' and {{ is_final('s.game_status', 's.game_date_est') }} then 1 else 0 end) as games_final
     from schedule_sides as s
     join (select distinct league, season from base) as cs on cs.league = s.league and cs.season = s.season
     -- games remaining count the regular season; the next seven days and the week count every game
@@ -252,7 +252,7 @@ games_before_return as (
     join schedule_sides as s
         on s.league = b.league and s.season = b.season and s.team_id = b.team_id
     where i.espn_status_group = 'out' and i.expected_return is not null
-        and s.game_type = 'regular' and s.game_status <> 3
+        and s.game_type = 'regular' and not {{ is_final('s.game_status', 's.game_date_est') }}
         and s.game_date_est >= {{ as_of_date() }} and s.game_date_est < i.expected_return
     group by i.league, i.stats_player_id
 

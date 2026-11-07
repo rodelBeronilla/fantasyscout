@@ -12,6 +12,7 @@ with listed as (
         cast(substr(request_key, 1, 10) as date) as game_date
     from {{ ref('league_daily_lineups') }}
     where player_id is not null
+        and {{ known_before('cast(substr(request_key, 1, 10) as date)') }}
 
 ),
 

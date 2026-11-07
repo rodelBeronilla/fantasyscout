@@ -10,12 +10,14 @@ with lines as (
     select league, season, event_id, _ingest_date, _source_file, provider, details, spread, over_under,
         home_moneyline, away_moneyline, 1 as source_rank
     from {{ ref('espn_summary_odds') }}
-    where spread is not null or over_under is not null
+    where (spread is not null or over_under is not null)
+        and {{ known_before('cast(_ingest_date as date)') }}
     union all
     select league, season, event_id, _ingest_date, _source_file, provider, details, spread, over_under,
         home_moneyline, away_moneyline, 2 as source_rank
     from {{ ref('espn_scoreboard_odds') }}
-    where spread is not null or over_under is not null
+    where (spread is not null or over_under is not null)
+        and {{ known_before('cast(_ingest_date as date)') }}
 
 ),
 

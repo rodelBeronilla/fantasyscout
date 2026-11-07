@@ -96,6 +96,10 @@ vars:
     wnba: {defense: 0.14, pace: 0.06}
     prior_games: 10
 
+# A point-in-time build (#752) must be on DuckDB, from scratch, with as_of: checked once per run.
+on-run-start:
+  - "{{ guard_point_in_time() }}"
+
 models:
   fantasyscout:
     +persist_docs:

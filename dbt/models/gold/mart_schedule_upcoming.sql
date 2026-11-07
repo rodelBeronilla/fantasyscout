@@ -44,7 +44,7 @@ with upcoming as (
         s.away_team_tricode,
         s.game_datetime_utc
     from {{ ref('schedule') }} as s
-    where s.game_status <> 3
+    where not {{ is_final('s.game_status', 's.game_date_est') }}
         and s.game_type in ('regular', 'play_in', 'playoffs')
         and not coalesce(s.if_necessary, false)
         and s.game_date_est >= {{ as_of_date() }}

@@ -11,6 +11,8 @@
 with trending as (
 
     select * from {{ ref('waiver_trending') }}
+    -- Sleeper's trending list keeps only its newest file: nothing about earlier days (#752)
+    where {{ current_only() }}
 
 ),
 

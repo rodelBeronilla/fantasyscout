@@ -146,7 +146,14 @@
 qualify row_number() over (partition by {{ keys | join(', ') }} order by _ingest_date desc, _source_file desc) = 1
 {%- endmacro %}
 
-{% macro latest_snapshot(relation, keys=['league', 'season', 'request_key']) -%}
+{#
+  observed: the landing is a snapshot of the world as it stood (a roster, the standings), not a
+  record of games: under the as_of var only snapshots landed before it count (#752). A game log is
+  cut by its games' dates instead, since a backfill lands old games today.
+#}
+{% macro latest_snapshot(relation, keys=['league', 'season', 'request_key'], observed=false) -%}
 select * from {{ relation }}
+{% if observed %}where {{ known_before('cast(_ingest_date as date)') }}
+{% endif -%}
 qualify dense_rank() over (partition by {{ keys | join(', ') }} order by _ingest_date desc, _source_file desc) = 1
 {%- endmacro %}

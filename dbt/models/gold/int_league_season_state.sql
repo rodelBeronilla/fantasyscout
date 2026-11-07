@@ -60,7 +60,7 @@ regular_left as (
     select s.league, true as regular_games_left
     from {{ ref('schedule') }} as s
     join zscores as z on z.league = s.league and z.zscores_season = s.season
-    where s.game_type = 'regular' and s.game_status <> 3 and s.game_date_est >= {{ as_of_date() }}
+    where s.game_type = 'regular' and not {{ is_final('s.game_status', 's.game_date_est') }} and s.game_date_est >= {{ as_of_date() }}
     group by s.league
 
 )
