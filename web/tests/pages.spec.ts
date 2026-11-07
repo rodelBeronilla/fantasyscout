@@ -1618,6 +1618,52 @@ test('My Team shows the chance of beating the league in each kept category, and 
   expect(results.violations).toEqual([]);
 });
 
+test('My Team plans the week lineup under the league slots: starts, games lost to a full lineup, and open slots to stream (#735)', async ({ page }) => {
+  type Row = { player_id: string; full_name: string | null; team_id: string | null; team_abbreviation: string; position: string; injury_group: string | null };
+  type Game = { game_date: string; days_ahead: number; home_team_id: string; away_team_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const games = (await (await page.request.get('/data/builds/fixture/schedule/nba.json')).json()) as Game[];
+  // the fixture's own "today" (days ahead 0): the day Pickups counts its window from, too
+  const day = games.find((g) => g.days_ahead === 0)?.game_date ?? '';
+  test.skip(!day, 'the fixture has no game today');
+  await page.clock.setFixedTime(new Date(`${day}T16:00:00Z`));
+  const playing = new Set(games.filter((g) => g.game_date === day).flatMap((g) => [g.home_team_id, g.away_team_id]));
+  // four healthy guards who all play today: a one-guard, one-utility lineup must sit two of them
+  const guards = board.filter((r) => r.full_name && r.team_id && playing.has(r.team_id) && !r.injury_group && r.position === 'G').slice(0, 4);
+  test.skip(guards.length < 4, 'the fixture has too few guards playing on its busiest day');
+  const label = (p: Row) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/?league=nba');
+  await page.getByLabel('Format').selectOption('h2h');
+  for (const [k, n] of [['G', '1'], ['F', '1'], ['C', '1'], ['Util', '1']] as const) await page.getByLabel(`${k} slots`).fill(n);
+  for (const g of guards) await page.getByLabel('Add a player to Team 1', { exact: true }).fill(label(g));
+  await page.goto('/team/?league=nba');
+  const tile = page.getByTestId('lineup-plan');
+  await expect(tile.getByTestId('lineup-summary')).toContainText('You can start');
+  const today = tile.locator(`tr[data-date="${day}"]`);
+  // G and Util take two guards today; the other two sit, and F and C stay open
+  await expect(today.locator('td').nth(1)).toHaveText('2');
+  await expect(today.getByTestId('open-slots')).toHaveText('1 F · 1 C');
+  await expect(today.locator('td').nth(3)).toContainText(',');
+  await expect(tile.getByTestId('lineup-summary')).toContainText('lost to a full lineup');
+  // the open days go to Pickups, this week's window with those days picked
+  await tile.getByTestId('lineup-pickups').click();
+  await expect(page).toHaveURL(new RegExp(`/streamers/\\?league=nba&window=week&open=[^&]*${day}`));
+  await expect(page.getByRole('radio', { name: /^This week/ })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByLabel(`Open on ${day}`)).toBeChecked();
+});
+
+test('the lineup setting resets with the rest, and a Pickups link with a day outside its window still lists players (#735)', async ({ page }) => {
+  await page.goto('/league/?league=nba');
+  await expect(page.getByRole('button', { name: 'Reset settings' })).toHaveCount(0);
+  await page.getByLabel('G slots').fill('1');
+  await page.getByRole('button', { name: 'Reset settings' }).click();
+  await expect(page.getByLabel('G slots')).toHaveValue('3');
+  // a day long past is not in the window: it picks nothing and filters nothing
+  await page.goto('/streamers/?league=nba&window=week&open=2001-01-01');
+  await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
+  await expect(page.getByTestId('trending').locator('thead')).not.toContainText('Open days');
+});
+
 test('My Team suggests IL moves from the board availability and applies them', async ({ page }) => {
   const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
     full_name: string | null;

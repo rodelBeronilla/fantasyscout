@@ -1,5 +1,6 @@
 /** League pieces shared by the League page and the board: settings, the summary bar, the draft bar, a team's profile. */
 import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
+import { normalizeSlots, SLOT_KEYS, SLOT_LABEL } from '../lib/lineup';
 import {
   DEFAULT_SETTINGS,
   type Format,
@@ -45,6 +46,8 @@ export function LeagueSettingsForm({
 }) {
   const d = DEFAULT_SETTINGS[league];
   const isDefault = isDefaultSettings(setup, d);
+  // the lineup does not change values (so not part of isDefaultSettings), but Reset puts it back too
+  const lineupDefault = SLOT_KEYS.every((k) => setup.lineup[k] === d.lineup[k]);
   return (
     <div className="grid gap-3 text-sm" data-testid="league-settings">
       <div className="flex flex-wrap items-end gap-3">
@@ -110,16 +113,38 @@ export function LeagueSettingsForm({
             <option value="h2h">Head-to-head: weekly matchups</option>
           </select>
         </label>
-        {!isDefault && (
+        {(!isDefault || !lineupDefault) && (
           <button
             type="button"
-            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts }))}
+            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts, lineup: d.lineup }))}
             className="rounded border border-line px-2 py-1 text-xs hover:bg-bg"
           >
             Reset settings
           </button>
         )}
       </div>
+      <fieldset className="flex flex-wrap items-end gap-3" data-testid="league-lineup">
+        <legend className="mb-1 text-xs text-muted">
+          Starting lineup: the slots you fill each day. PG and SG count as G, SF and PF as F; the weekly lineup planner on My Team uses them.
+        </legend>
+        {SLOT_KEYS.map((k) => (
+          <label key={k} className="grid gap-1">
+            <span className="text-xs text-muted">{SLOT_LABEL[k]}</span>
+            <input
+              type="number"
+              min={0}
+              max={6}
+              value={setup.lineup[k]}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (Number.isFinite(n)) onChange((s) => ({ ...s, lineup: normalizeSlots({ ...s.lineup, [k]: n }, s.lineup) }));
+              }}
+              className={`${field} w-16`}
+              aria-label={`${SLOT_LABEL[k]} slots`}
+            />
+          </label>
+        ))}
+      </fieldset>
       {setup.scoring !== 'points' && (
         <fieldset className="grid gap-2" data-testid="league-punts">
           <legend className="text-xs text-muted">
