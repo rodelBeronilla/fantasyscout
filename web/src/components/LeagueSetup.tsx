@@ -12,6 +12,7 @@ import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup 
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { href } from '../lib/site';
+import { auctionValues } from '../lib/auction';
 import { DraftBar, LeagueSettingsForm, describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
 import { Card, Loading, Problem } from './ui';
@@ -136,6 +137,9 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
     return out;
   }, [rows, points, pointVals, catValues, catWeight]);
 
+  // auction prices (#741) over the whole board's values, for a league this size
+  const prices = useMemo(() => auctionValues(valueOf, { teams: setup.teams, rosterSpots: setup.rosterSpots }), [valueOf, setup.teams, setup.rosterSpots]);
+
   const available = useMemo(
     () => (rows ?? []).filter((r) => !owner.has(r.player_id)).sort((a, b) => (valueOf.get(b.player_id) ?? 0) - (valueOf.get(a.player_id) ?? 0)),
     [rows, owner, valueOf],
@@ -176,7 +180,9 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
                         {p.full_name} <span className="text-xs text-muted">{p.position} {p.team_abbreviation}</span>
                       </span>
                       <span className="flex items-center gap-2">
-                        <span className="text-xs tabular-nums text-muted">{fmt(valueOf.get(p.player_id) ?? null, 1)}</span>
+                        <span className="text-xs tabular-nums text-muted" title="Value, and the auction price for a league this size">
+                          {fmt(valueOf.get(p.player_id) ?? null, 1)} · <span data-testid="draft-auction">${Math.round(prices.get(p.player_id) ?? 0)}</span>
+                        </span>
                         <button
                           type="button"
                           onClick={() => update((s) => draftPick(s, p.player_id))}
