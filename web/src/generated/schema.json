@@ -370,7 +370,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 381,
+ "generic_tests": 386,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -15497,6 +15497,7 @@
       "fct_player_tracking",
       "fct_waiver_trend",
       "mart_board",
+      "mart_defense_vs_position",
       "mart_streamers"
      ],
      "read_by_pages": [
@@ -17680,8 +17681,8 @@
      "read_by": [
       "fct_official_listing",
       "int_league_season_state",
+      "int_player_game_value",
       "mart_category_zscores",
-      "mart_player_consistency",
       "mart_player_projection",
       "mart_player_rolling",
       "mart_streamers"
@@ -19734,6 +19735,7 @@
      "read_by": [
       "fct_official_listing",
       "fct_referee_tendency",
+      "mart_defense_vs_position",
       "mart_schedule_upcoming"
      ],
      "read_by_pages": [],
@@ -20561,6 +20563,101 @@
       "standings"
      ],
      "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2026 in the WNBA, 2025-26 in the NBA)",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API game id",
+       "meta": {},
+       "name": "game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Game date",
+       "meta": {},
+       "name": "game_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The player's team in the game",
+       "meta": {},
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Stint the game falls in (dim_player)",
+       "meta": {},
+       "name": "player_sk",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Minutes played",
+       "meta": {
+        "unit": "minutes"
+       },
+       "name": "minutes",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Sum of the game's category z-scores against the season pool; a player's mean over the season is their season z_total",
+       "meta": {},
+       "name": "game_value",
+       "tests": [],
+       "type": "double"
+      }
+     ],
+     "description": "Every played game valued on the board's z_total scale against the season pool (#747, #749): read by mart_player_consistency and mart_defense_vs_position.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "int_player_game_value",
+     "notes": [
+      "Every played game valued on the board's own scale (#747, #749): the sum of the game's category z-scores against the season pool, the same pool, means and standard deviations mart_category_zscores uses for the season window (the top 180 NBA or 90 WNBA players by minutes). Counting categories are (stat - pool mean) / pool sd, turnovers negative; the percentages are the game's volume-weighted impact, (makes - pool pct x attempts), over the pool's impact sd. A player's mean game value is their season z_total. mart_player_consistency reads it for a player's spread, mart_defense_vs_position for what a defence gives up."
+     ],
+     "read_by": [
+      "mart_defense_vs_position",
+      "mart_player_consistency"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "fct_player_game"
+     ],
+     "unit_tests": [
+      {
+       "description": "Each game is valued against the season pool (#747). Three players differ only in points: their averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10, 20 and 30 points are worth 0, 1 and 2, b's -1 each and c's 0. Every other category is zero for everyone and adds nothing; a game not played has no value.",
+       "name": "game_value_on_the_board_scale"
+      }
+     ]
     },
     {
      "checks": [],
@@ -21918,6 +22015,129 @@
      "checks": [],
      "columns": [
       {
+       "description": "Surrogate key: one row per league, season, team and position",
+       "meta": {},
+       "name": "dvp_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The defending team",
+       "meta": {},
+       "name": "team_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The defending team's abbreviation",
+       "meta": {},
+       "name": "team_abbreviation",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "G, F or C: the first letter of the opposing player's listed position",
+       "meta": {},
+       "name": "position",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Games the team played with an opponent at the position counted",
+       "meta": {},
+       "name": "games",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Opponent games of ten minutes or more at the position",
+       "meta": {},
+       "name": "player_games",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Average game value (z_total scale) of those opponent games",
+       "meta": {},
+       "name": "value_allowed",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "value_allowed less the league's average for the position: positive is a soft matchup",
+       "meta": {},
+       "name": "vs_average",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Rank by value_allowed within the league, season and position: 1 gives up the most",
+       "meta": {},
+       "name": "rank_allowed",
+       "tests": [],
+       "type": "bigint"
+      }
+     ],
+     "description": "Defense vs position (#749): per league, season, team and position letter, the average game value the team's opponents produced at that position in games of ten minutes or more, and the same less the league's average.",
+     "exported_as": [
+      "dvp/<league>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "season",
+       "team_id",
+       "position"
+      ],
+      "key": "dvp_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "mart_defense_vs_position",
+     "notes": [
+      "Defense vs position (#749): what each team gives up to guards, forwards and centers. Every game of ten minutes or more an opponent played against the team, valued on the board's z_total scale (int_player_game_value), averaged per position: the first letter of the player's listed position (a G-F counts as a guard). vs_average is that less the league's average for the position, so a positive figure is a soft matchup; rank 1 gives up the most."
+     ],
+     "read_by": [],
+     "read_by_pages": [
+      "/streamers/"
+     ],
+     "reads": [
+      "dim_player",
+      "fct_team_game",
+      "int_player_game_value"
+     ],
+     "unit_tests": [
+      {
+       "description": "Team T1 faces guards worth 2 and 4 and a center worth 1; T2 faces guards worth 0 (#749). T1 gives up 3 a guard game against a league guard average of 2 (vs +1, rank 1), T2 gives up 0 (vs -2, rank 2). A five-minute game does not count, and a G-F counts as a guard.",
+       "name": "dvp_averages_what_each_defence_gives_up_by_position"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "Surrogate key: one row per league, season and player",
        "meta": {},
        "name": "consistency_sk",
@@ -22000,20 +22220,19 @@
      "materialized": "table",
      "name": "mart_player_consistency",
      "notes": [
-      "Game-to-game consistency (#747): every game a player played this season, valued on the board's own scale, and the spread of those values.",
-      "A game's value is the sum of its category z-scores against the season pool, the same pool and the same means and standard deviations mart_category_zscores uses for the season window (the top 180 NBA or 90 WNBA players by minutes): counting categories as (stat - pool mean) / pool sd, turnovers negative, and the percentages as the game's volume-weighted impact, (makes - pool pct x attempts), over the pool's impact sd. The mean of a player's game values is then close to their season z_total; the floor and ceiling are the 20th and 80th percentile games."
+      "Game-to-game consistency (#747): the spread of a player's game values this season (int_player_game_value, on the board's z_total scale). The mean equals the season z_total; the floor and ceiling are the 20th and 80th percentile games."
      ],
      "read_by": [
       "mart_board"
      ],
      "read_by_pages": [],
      "reads": [
-      "fct_player_game"
+      "int_player_game_value"
      ],
      "unit_tests": [
       {
-       "description": "Each game is valued against the season pool (#747). Three players differ only in points: their averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10, 20 and 30 points are worth 0, 1 and 2. The mean is 1 (a's season z-score), the spread 1, and the 20th and 80th percentile games 0.4 and 1.6. Every other category is zero for everyone and adds nothing.",
-       "name": "consistency_values_each_game_on_the_board_scale"
+       "description": "A player's games worth 0, 1 and 2 have a mean of 1, a spread of 1, and 20th and 80th percentile games of 0.4 and 1.6 (#747); a player with one game has no spread.",
+       "name": "consistency_spread_floor_and_ceiling"
       }
      ]
     },
@@ -24678,6 +24897,7 @@
   {
    "reads": [
     "dim_team",
+    "dvp",
     "schedule",
     "streamers",
     "team_weeks",
@@ -25240,6 +25460,11 @@
    "name": "ingest_endpoint_volume_flags_one_endpoint"
   },
   {
+   "description": "Each game is valued against the season pool (#747). Three players differ only in points: their averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10, 20 and 30 points are worth 0, 1 and 2, b's -1 each and c's 0. Every other category is zero for everyone and adds nothing; a game not played has no value.",
+   "model": "int_player_game_value",
+   "name": "game_value_on_the_board_scale"
+  },
+  {
    "description": "Team A has four regular-season games left; team B has played its last. One player per branch of the availability multiplier: a (team B, nothing left) 1.0 and a rest-of-season factor of 0, the team's season being over; b (out, back on the 13th) misses the one game before that date, 0.75; c (out for the season) 0; d (officially questionable with an injury, two past questionable listings that cost one and three games) the calibrated average of two games, 0.5; e (no status) 1.0; f (out, no return date, no history) 0; g (doubtful, no history) the old charge of 0.75 of a game, 0.8125; h (officially questionable for rest, a reason with no history) the old charge of half a game, 0.875; i (officially probable, whose one past listing cost ten games) the calibrated games capped at the four the team has left, 0; j (officially available after a rest listing, still day-to-day on ESPN) reads as probable for rest, whose one past listing cost no games, 1.0 and no status shown, as Streamers shows it (#388); k (no status, a regular of 30 projected minutes on team A, which has nothing left to play for) sits out 0.29 more of the games left, 0.71 (#494), while the other team A players, projected at no minutes, are not regulars. b (listed out) and e (not listed) both have a projected share of 0.6 that is 0.9 without the absence they are on: b's share is 0.9, because his availability already charges that absence, and e's stays 0.6 (#690). Every projected line is zero, so value is zero and the factors are exact.",
    "model": "mart_board",
    "name": "board_availability_follows_the_status"
@@ -25255,9 +25480,14 @@
    "name": "board_pool_is_chosen_in_two_passes"
   },
   {
-   "description": "Each game is valued against the season pool (#747). Three players differ only in points: their averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10, 20 and 30 points are worth 0, 1 and 2. The mean is 1 (a's season z-score), the spread 1, and the 20th and 80th percentile games 0.4 and 1.6. Every other category is zero for everyone and adds nothing.",
+   "description": "Team T1 faces guards worth 2 and 4 and a center worth 1; T2 faces guards worth 0 (#749). T1 gives up 3 a guard game against a league guard average of 2 (vs +1, rank 1), T2 gives up 0 (vs -2, rank 2). A five-minute game does not count, and a G-F counts as a guard.",
+   "model": "mart_defense_vs_position",
+   "name": "dvp_averages_what_each_defence_gives_up_by_position"
+  },
+  {
+   "description": "A player's games worth 0, 1 and 2 have a mean of 1, a spread of 1, and 20th and 80th percentile games of 0.4 and 1.6 (#747); a player with one game has no spread.",
    "model": "mart_player_consistency",
-   "name": "consistency_values_each_game_on_the_board_scale"
+   "name": "consistency_spread_floor_and_ceiling"
   },
   {
    "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",

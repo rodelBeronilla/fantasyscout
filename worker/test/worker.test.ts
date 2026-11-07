@@ -400,7 +400,8 @@ describe('data', () => {
       // the other files Streamers reads (#562)
       await env.DATA.put('builds/test/dim_team.json', '[]', { httpMetadata: { contentType: 'application/json' } });
       await env.DATA.put('builds/test/team_weeks/wnba.json', '[]', { httpMetadata: { contentType: 'application/json' } });
-      for (const path of ['current/dim_team.json', 'current/team_weeks/wnba.json']) {
+      await env.DATA.put('builds/test/dvp/wnba.json', '[]', { httpMetadata: { contentType: 'application/json' } });
+      for (const path of ['current/dim_team.json', 'current/team_weeks/wnba.json', 'current/dvp/wnba.json']) {
         const res = await SELF.fetch(`${ORIGIN}/data/${path}`);
         expect(res.status, path).toBe(200);
         expect(res.headers.get('x-build-id')).toBe('test');
