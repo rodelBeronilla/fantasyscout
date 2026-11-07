@@ -15,6 +15,24 @@
 # on a numeric literal in a decision module that is neither here nor marked as a definition.
 
 parameters:
+  # ---- the value scale (dbt vars; ADR 0019): the league every value is measured above
+  - id: scale.teams
+    value: {nba: 12, wnba: 10}
+    dbt: fantasy.*.teams
+    kind: model
+    status: convention
+    what: "Teams in the default league: replacement level is this many players after the pool. A league's own setup replaces it in the browser."
+    evidence: "the common platform default"
+    validation: 754
+  - id: scale.roster_spots
+    value: {nba: 13, wnba: 10}
+    dbt: fantasy.*.roster_spots
+    kind: model
+    status: convention
+    what: "Roster spots per team in the default league: the pool is teams x roster spots."
+    evidence: "the common platform default"
+    validation: 754
+
   # ---- the projection (dbt vars; ADR 0009 holds the backtests)
   - id: projection.fantasy_recency
     value: [1.0, 0.25, 0.08]
@@ -29,7 +47,7 @@ parameters:
     dbt: fantasy.*.prior_games
     kind: model
     status: measured
-    what: "Games of a replacement-level player every projection starts from."
+    what: "Games of a replacement-level player every projection starts from; a past season's line is shrunk by the same before it sets that season's value scale (ADR 0019)."
     evidence: "ADR 0009"
     validation: 754
   - id: projection.minutes_recency

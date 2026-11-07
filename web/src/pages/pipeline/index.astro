@@ -354,10 +354,13 @@ const deployLegend =
         <p class="mt-2">The marts:</p>
         <ul class="mt-2 list-disc space-y-1 pl-5">
           <li>
-            <strong>Category z-scores</strong> (<a href={m('mart_category_zscores')} class={link}>mart_category_zscores</a>)
-            for each season and the last 10 and 20 games, against the 180 NBA or 90 WNBA players with the most minutes in the
-            window: per-game counting stats, turnovers negative, percentages volume-weighted as (player % − pool %) ×
-            attempts per game. <a href={m('mart_player_rolling')} class={link}>mart_player_rolling</a> keeps 5, 10 and
+            <strong>Category values</strong> (<a href={m('mart_category_zscores')} class={link}>mart_category_zscores</a>)
+            for each season and the last 10 and 20 regular-season games, every window on the season's one value scale (<a
+              href={m('int_value_scale')}
+              class={link}>int_value_scale</a
+            >): the fantasy league's pool, chosen in two passes, sets each category's mean and spread, and every value is per
+            game above replacement level. Counting stats per game, turnovers negative, shooting as makes above the pool's
+            percentage on the attempts. <a href={m('mart_player_rolling')} class={link}>mart_player_rolling</a> keeps 5, 10 and
             20-game averages.
           </li>
           <li>

@@ -922,8 +922,146 @@ models:
       - name: _ingest_date
         description: "Ingest date of the latest landing of the listing"
 
+  - name: int_player_window_lines
+    description: "Each player's regular-season per-game line over the season, the last twenty and the last ten games played (#767): what mart_category_zscores scores and mart_player_projection projects from."
+    columns:
+      - name: window_name
+        description: "season, last_20 or last_10"
+        data_tests:
+          - accepted_values:
+              values: [season, last_10, last_20]
+      - name: league
+        description: "wnba or nba"
+      - name: season
+        description: "Season label (2026 in the WNBA, 2025-26 in the NBA)"
+      - name: player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: games
+        description: "Regular-season games played in the window"
+      - name: total_minutes
+        meta: {unit: minutes}
+        description: "Minutes played in the window"
+      - name: minutes_pg
+        meta: {unit: minutes}
+        description: "Minutes per game in the window"
+      - name: points_pg
+        description: "Points per game in the window"
+      - name: rebounds_total_pg
+        description: "Rebounds total per game in the window"
+      - name: assists_pg
+        description: "Assists per game in the window"
+      - name: steals_pg
+        description: "Steals per game in the window"
+      - name: blocks_pg
+        description: "Blocks per game in the window"
+      - name: three_pointers_made_pg
+        description: "Three pointers made per game in the window"
+      - name: turnovers_pg
+        description: "Turnovers per game in the window"
+      - name: fgm
+        description: "Field goals made in the window"
+      - name: fga
+        description: "Field goals attempted in the window"
+      - name: ftm
+        description: "Free throws made in the window"
+      - name: fta
+        description: "Free throws attempted in the window"
+      - name: fgm_pg
+        description: "Field goals made per game"
+      - name: fga_pg
+        description: "Field goals attempted per game"
+      - name: ftm_pg
+        description: "Free throws made per game"
+      - name: fta_pg
+        description: "Free throws attempted per game"
+      - name: field_goal_pct
+        meta: {unit: ratio 0 to 1}
+        description: "Field goals made over attempted in the window"
+      - name: free_throw_pct
+        meta: {unit: ratio 0 to 1}
+        description: "Free throws made over attempted in the window"
+
+  - name: int_value_scale
+    description: "The value scale (#767, ADR 0019): per league and season, the fantasy league's pool (teams x roster spots, chosen in two passes) and its category means, spreads and replacement level. The board's projection sets it for the season the board values, the regular-season lines for every other season. Every value on the site is scored on it."
+    columns:
+      - name: value_scale_sk
+        description: "Surrogate key: one row per league and season"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "wnba or nba"
+      - name: season
+        description: "Season label (2026 in the WNBA, 2025-26 in the NBA)"
+      - name: source
+        description: "projection (the board's season) or season (a season's regular-season lines)"
+        data_tests:
+          - accepted_values:
+              values: [projection, season]
+      - name: pool
+        description: "Players in the pool: teams x roster spots, fewer when that would leave no one to set replacement level"
+      - name: teams
+        description: "Teams in the fantasy league; replacement level is this many players after the pool"
+      - name: players
+        description: "Players the scale was chosen from"
+      - name: mean_points
+        description: "The pool's mean points per game"
+      - name: sd_points
+        description: "The pool's standard deviation of points per game"
+      - name: mean_rebounds_total
+        description: "The pool's mean rebounds total per game"
+      - name: sd_rebounds_total
+        description: "The pool's standard deviation of rebounds total per game"
+      - name: mean_assists
+        description: "The pool's mean assists per game"
+      - name: sd_assists
+        description: "The pool's standard deviation of assists per game"
+      - name: mean_steals
+        description: "The pool's mean steals per game"
+      - name: sd_steals
+        description: "The pool's standard deviation of steals per game"
+      - name: mean_blocks
+        description: "The pool's mean blocks per game"
+      - name: sd_blocks
+        description: "The pool's standard deviation of blocks per game"
+      - name: mean_three_pointers_made
+        description: "The pool's mean three pointers made per game"
+      - name: sd_three_pointers_made
+        description: "The pool's standard deviation of three pointers made per game"
+      - name: mean_turnovers
+        description: "The pool's mean turnovers per game"
+      - name: sd_turnovers
+        description: "The pool's standard deviation of turnovers per game"
+      - name: pool_field_goal_pct
+        meta: {unit: ratio 0 to 1}
+        description: "The pool's field goals made over attempted"
+      - name: pool_free_throw_pct
+        meta: {unit: ratio 0 to 1}
+        description: "The pool's free throws made over attempted"
+      - name: sd_fg_impact
+        description: "The pool's standard deviation of field goals made per game above its percentage on the attempts"
+      - name: sd_ft_impact
+        description: "The pool's standard deviation of free throws made per game above its percentage on the attempts"
+      - name: repl_z_points
+        description: "Replacement level of points: the average score of the `teams` players after the pool"
+      - name: repl_z_rebounds_total
+        description: "Replacement level of rebounds total: the average score of the `teams` players after the pool"
+      - name: repl_z_assists
+        description: "Replacement level of assists: the average score of the `teams` players after the pool"
+      - name: repl_z_steals
+        description: "Replacement level of steals: the average score of the `teams` players after the pool"
+      - name: repl_z_blocks
+        description: "Replacement level of blocks: the average score of the `teams` players after the pool"
+      - name: repl_z_three_pointers_made
+        description: "Replacement level of three pointers made: the average score of the `teams` players after the pool"
+      - name: repl_z_turnovers
+        description: "Replacement level of turnovers: the average score of the `teams` players after the pool"
+      - name: repl_z_field_goal_pct
+        description: "Replacement level of field goal pct: the average score of the `teams` players after the pool"
+      - name: repl_z_free_throw_pct
+        description: "Replacement level of free throw pct: the average score of the `teams` players after the pool"
+
   - name: int_player_game_value
-    description: "Every played game valued on the board's z_total scale against the season pool (#747, #749): read by mart_player_consistency."
+    description: "Every regular-season game played, valued on the season's value scale above replacement level (#747, #767, ADR 0019): read by mart_player_consistency."
     columns:
       - name: league
         description: "wnba or nba"
@@ -944,10 +1082,10 @@ models:
         meta: {unit: minutes}
         description: "Minutes played"
       - name: game_value
-        description: "Sum of the game's category z-scores against the season pool; a player's mean over the season is their season z_total"
+        description: "The game's value above replacement level: the sum of its nine category scores on the season's scale; a player's mean over the season is their season z_total"
 
   - name: mart_player_consistency
-    description: "Game-to-game consistency (#747): every played game this season valued on the board's z_total scale against the season pool, and per player the mean, spread, floor and ceiling of those values."
+    description: "Game-to-game consistency (#747): every regular-season game valued on the season's value scale above replacement level (ADR 0019), and per player the mean, spread, floor and ceiling of those values."
     columns:
       - name: consistency_sk
         description: "Surrogate key: one row per league, season and player"
@@ -1062,13 +1200,13 @@ models:
         description: "Games in the window: 20, or fewer early in the season"
 
   - name: mart_category_zscores
-    description: "Category z-scores per window, league, season and player against a pool of the top 180 NBA or 90 WNBA players by minutes in the window."
+    description: "Category values per window, league, season and player, every window on the season's value scale (int_value_scale, ADR 0019): z-scores against the pool less the replacement level, regular-season games only."
     columns:
       - name: zscore_sk
         description: "Surrogate key: one row per window, league, season and player"
         data_tests: [unique, not_null]
       - name: window_name
-        description: "season (every played game), last_10 or last_20 (the player's latest played games that season)"
+        description: "season (every regular-season game played), last_10 or last_20 (the player's latest regular-season games played that season)"
         data_tests:
           - accepted_values:
               values: [season, last_10, last_20]
@@ -1083,8 +1221,6 @@ models:
       - name: minutes_pg
         meta: {unit: minutes}
         description: "Minutes per game in the window"
-      - name: in_pool
-        description: "True for the pool: the top 180 NBA or 90 WNBA players by total minutes in the window"
       - name: points_pg
         description: "Average points per game in the window"
       - name: rebounds_total_pg
@@ -1110,27 +1246,25 @@ models:
       - name: fta_pg
         description: "Free throws attempted per game in the window"
       - name: z_points
-        description: "Points per game z-score against the pool's mean and standard deviation"
+        description: "Points per game z-score against the pool's mean and standard deviation, less replacement level"
       - name: z_rebounds_total
-        description: "Rebounds per game z-score against the pool's mean and standard deviation"
+        description: "Rebounds per game z-score against the pool's mean and standard deviation, less replacement level"
       - name: z_assists
-        description: "Assists per game z-score against the pool's mean and standard deviation"
+        description: "Assists per game z-score against the pool's mean and standard deviation, less replacement level"
       - name: z_steals
-        description: "Steals per game z-score against the pool's mean and standard deviation"
+        description: "Steals per game z-score against the pool's mean and standard deviation, less replacement level"
       - name: z_blocks
-        description: "Blocks per game z-score against the pool's mean and standard deviation"
+        description: "Blocks per game z-score against the pool's mean and standard deviation, less replacement level"
       - name: z_three_pointers_made
-        description: "Three-pointers made per game z-score against the pool's mean and standard deviation"
+        description: "Three-pointers made per game z-score against the pool's mean and standard deviation, less replacement level"
       - name: z_turnovers
-        description: "Turnovers per game z-score against the pool, negated so fewer turnovers score higher"
+        description: "Turnovers per game z-score against the pool, negated so fewer turnovers score higher, less replacement level"
       - name: z_field_goal_pct
-        meta: {unit: ratio 0 to 1}
-        description: "Field goal impact z-score: (player pct - pool pct) x field goal attempts per game, standardised over the pool"
+        description: "Field goal impact: makes per game above the pool's percentage on the attempts, over the pool's spread of that impact, less replacement level"
       - name: z_free_throw_pct
-        meta: {unit: ratio 0 to 1}
-        description: "Free throw impact z-score: (player pct - pool pct) x free throw attempts per game, standardised over the pool"
+        description: "Free throw impact: makes per game above the pool's percentage on the attempts, over the pool's spread of that impact, less replacement level"
       - name: z_total
-        description: "Sum of the nine category z-scores, a missing one counting as 0"
+        description: "Value per game above replacement level: the sum of the nine category values, a missing one counting as 0"
 
   - name: mart_player_projection
     description: "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes) and are cut for a player still out or just back from an absence (fantasy_return_ramp)."

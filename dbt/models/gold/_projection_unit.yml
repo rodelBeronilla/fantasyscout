@@ -62,7 +62,7 @@ unit_tests:
           - {league: nba, season: '2024-25', game_id: '0022400001', game_date: 2025-01-10, player_id: p1, team_id: A, played: true, minutes: 30}
           - {league: nba, season: '2024-25', game_id: '0022400001', game_date: 2025-01-10, player_id: p4, team_id: A, played: true, minutes: 30}
           - {league: nba, season: '2024-25', game_id: '0022400001', game_date: 2025-01-10, player_id: p5, team_id: B, played: true, minutes: 30}
-      - input: ref('mart_category_zscores')
+      - input: ref('int_player_window_lines')
         rows:
           - {league: nba, season: '2025-26', window_name: season, player_id: p1, games: 5, minutes_pg: 30, points_pg: 15}
           - {league: nba, season: '2025-26', window_name: season, player_id: p2, games: 7, minutes_pg: 30, points_pg: 15}

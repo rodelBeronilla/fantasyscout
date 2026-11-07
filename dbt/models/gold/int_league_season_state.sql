@@ -4,7 +4,7 @@
   they mean, and each model says which one it reads:
 
   - games_season: the latest season with a game in gold (mart_streamers' season).
-  - zscores_season: the latest season with a season line in mart_category_zscores (the
+  - zscores_season: the latest season with a regular-season line (int_player_window_lines; the
     projection's season; equal to games_season once a season's first games are in).
   - standings_season: the latest season the league has published standings for (fct_team_stakes).
     In the preseason this can already be the new season while the games season is last year's.
@@ -29,7 +29,7 @@ games as (
 
 zscores as (
 
-    select league, max(season) as zscores_season from {{ ref('mart_category_zscores') }} group by league
+    select league, max(season) as zscores_season from {{ ref('int_player_window_lines') }} group by league
 
 ),
 

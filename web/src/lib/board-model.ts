@@ -35,6 +35,8 @@ export interface LeagueValues {
   leaguePoints: Map<string, { fpts: number; value: number }> | null;
   leagueCats: Map<string, Record<string, number>> | null;
   activeCats: string[];
+  /** This league's replacement level per category on the published scale, taken from the windowed views too (ADR 0019). */
+  replacement?: Record<string, number> | null;
 }
 
 /** Rest-of-season value under the league's scoring, per player: the scale the Trade page uses. */
@@ -51,7 +53,7 @@ export function restValues(rows: ModelRow[], { points, leaguePoints, leagueCats,
 
 export interface Scored<R> {
   row: R;
-  /** The value shown in the view: league value, a stat line's points, or the z-score sum; null when the view has none. */
+  /** The value shown in the view: league value, a stat line's points, or the window's value above this league's replacement level; null when the view has none. */
   value: number | null;
   /** League value weighted by the manager's category needs (the value view of a categories league with weights). */
   fit: number | null;
@@ -77,7 +79,8 @@ export function scoreRows<R extends ModelRow>(
       if (weights) fit = scale(r, activeCats.reduce((s, c) => s + (weights[c] ?? 1) * (cats[c] ?? 0), 0));
     } else {
       const parts = activeCats.map((c) => num(r, zKey(view, c)));
-      value = parts.every((p) => p === null) ? null : parts.reduce<number>((s, p) => s + (p ?? 0), 0);
+      const repl = opts.replacement ?? {};
+      value = parts.every((p) => p === null) ? null : parts.reduce<number>((s, p, i) => s + (p ?? 0) - (repl[activeCats[i] ?? ''] ?? 0), 0);
     }
     return { row: r, value, fit };
   });

@@ -2,6 +2,14 @@
 
 /** Every registered parameter's value, by id. */
 export const PARAMS = {
+  "scale.teams": {
+    "nba": 12,
+    "wnba": 10
+  },
+  "scale.roster_spots": {
+    "nba": 13,
+    "wnba": 10
+  },
   "projection.fantasy_recency": [
     1.0,
     0.25,
@@ -149,6 +157,32 @@ export const PARAMS = {
 /** Every registered parameter, for the Methodology page. */
 export const PARAMETERS = [
   {
+    "id": "scale.teams",
+    "kind": "model",
+    "status": "convention",
+    "what": "Teams in the default league: replacement level is this many players after the pool. A league's own setup replaces it in the browser.",
+    "evidence": "the common platform default",
+    "validation": 754,
+    "dbt": "fantasy.*.teams",
+    "value": {
+      "nba": 12,
+      "wnba": 10
+    }
+  },
+  {
+    "id": "scale.roster_spots",
+    "kind": "model",
+    "status": "convention",
+    "what": "Roster spots per team in the default league: the pool is teams x roster spots.",
+    "evidence": "the common platform default",
+    "validation": 754,
+    "dbt": "fantasy.*.roster_spots",
+    "value": {
+      "nba": 13,
+      "wnba": 10
+    }
+  },
+  {
     "id": "projection.fantasy_recency",
     "kind": "model",
     "status": "measured",
@@ -166,7 +200,7 @@ export const PARAMETERS = [
     "id": "projection.prior_games",
     "kind": "model",
     "status": "measured",
-    "what": "Games of a replacement-level player every projection starts from.",
+    "what": "Games of a replacement-level player every projection starts from; a past season's line is shrunk by the same before it sets that season's value scale (ADR 0019).",
     "evidence": "ADR 0009",
     "validation": 754,
     "dbt": "fantasy.*.prior_games",

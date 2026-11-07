@@ -4,7 +4,9 @@
  * Categories: each category's value per game is re-measured against the replacement level of
  * this league (the average of the players ranked just outside teams x roster spots, the same
  * definition the lakehouse uses), so at the default league size it equals the published value
- * exactly. Points: fantasy points per game from the projected line with the league's weights,
+ * exactly. The replacement level is measured once, on the projection, and the same offset is
+ * taken from every window (the last ten games, the season), so they stay on the projection's
+ * scale (ADR 0019). Points: fantasy points per game from the projected line with the league's weights,
  * minus the replacement level's. Either way, value above replacement is then counted over the
  * projected share of games played.
  */
@@ -27,10 +29,28 @@ export function replacementLevel(rows: Row[], keys: string[], score: (row: Row) 
   return out;
 }
 
-/** Category values above this league's replacement level, per player id. */
-export function categoryValues(rows: Row[], categories: string[], pool: number, teams: number): Map<string, Record<string, number>> {
+/**
+ * This league's replacement level per category on the published scale, measured on `basis` (the
+ * board's projected values): zero at the default league size, the offset for any other.
+ */
+export function categoryReplacement(basis: Row[], categories: string[], pool: number, teams: number): Record<string, number> {
   const total = (r: Row) => categories.reduce((s, c) => s + n(r, c), 0);
-  const repl = replacementLevel(rows, categories, total, pool, teams);
+  return replacementLevel(basis, categories, total, pool, teams);
+}
+
+/**
+ * Category values above this league's replacement level, per player id. The level is measured
+ * on `basis`, the projection, whichever window `rows` holds, so a window's values are on the
+ * projection's scale rather than re-centred on their own.
+ */
+export function categoryValues(
+  rows: Row[],
+  categories: string[],
+  pool: number,
+  teams: number,
+  basis: Row[] = rows,
+): Map<string, Record<string, number>> {
+  const repl = categoryReplacement(basis, categories, pool, teams);
   return new Map(rows.map((r) => [String(r['player_id']), Object.fromEntries(categories.map((c) => [c, n(r, c) - (repl[c] ?? 0)]))]));
 }
 

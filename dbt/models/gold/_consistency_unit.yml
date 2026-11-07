@@ -1,31 +1,31 @@
 unit_tests:
-  - name: game_value_on_the_board_scale
+  - name: game_value_on_the_value_scale
     description: >
-      Each game is valued against the season pool (#747). Three players differ only in points: their
-      averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10,
-      20 and 30 points are worth 0, 1 and 2, b's -1 each and c's 0. Every other category is zero for
-      everyone and adds nothing; a game not played has no value.
+      Each regular-season game is valued on the season's value scale, less replacement level
+      (#747, #767). The scale has a points mean of 10, a spread of 10 and a points replacement
+      level of 0.5, and no spread in the other categories, so a's games of 10, 20 and 30 points are
+      worth -0.5, 0.5 and 1.5 and b's scoreless game -1.5. A playoff game (third id character 4)
+      and a play-in game (5) are not fantasy games and are left out; a game not played has no value.
     model: int_player_game_value
     given:
+      - input: ref('int_value_scale')
+        rows:
+          - {repl_z_points: 0.5, repl_z_rebounds_total: 0.0, repl_z_assists: 0.0, repl_z_steals: 0.0, repl_z_blocks: 0.0, repl_z_three_pointers_made: 0.0, repl_z_turnovers: 0.0, repl_z_field_goal_pct: 0.0, repl_z_free_throw_pct: 0.0, league: nba, season: '2025-26', mean_points: 10, sd_points: 10}
       - input: ref('fct_player_game')
         rows:
-          - {league: nba, season: '2025-26', game_id: g1, player_id: a, played: true, minutes: 30, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
-          - {league: nba, season: '2025-26', game_id: g2, player_id: a, played: true, minutes: 30, points: 20, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
-          - {league: nba, season: '2025-26', game_id: g3, player_id: a, played: true, minutes: 30, points: 30, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
-          - {league: nba, season: '2025-26', game_id: g1, player_id: b, played: true, minutes: 20, points: 0, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
-          - {league: nba, season: '2025-26', game_id: g2, player_id: b, played: true, minutes: 20, points: 0, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
-          - {league: nba, season: '2025-26', game_id: g1, player_id: c, played: true, minutes: 25, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
-          - {league: nba, season: '2025-26', game_id: g2, player_id: c, played: true, minutes: 25, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
-          - {league: nba, season: '2025-26', game_id: g3, player_id: d, played: false, minutes: null, points: null, rebounds_total: null, assists: null, steals: null, blocks: null, three_pointers_made: null, turnovers: null, field_goals_made: null, field_goals_attempted: null, free_throws_made: null, free_throws_attempted: null}
+          - {league: nba, season: '2025-26', game_id: '0022500001', player_id: a, played: true, minutes: 30, points: 10, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', game_id: '0022500002', player_id: a, played: true, minutes: 30, points: 20, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', game_id: '0022500003', player_id: a, played: true, minutes: 30, points: 30, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', game_id: '0022500001', player_id: b, played: true, minutes: 30, points: 0, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', game_id: '0042500001', player_id: a, played: true, minutes: 30, points: 50, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', game_id: '0052500001', player_id: b, played: true, minutes: 30, points: 40, rebounds_total: 0, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', game_id: '0022500003', player_id: d, played: false, minutes: null, points: null, rebounds_total: null, assists: null, steals: null, blocks: null, three_pointers_made: null, turnovers: null, field_goals_made: null, field_goals_attempted: null, free_throws_made: null, free_throws_attempted: null}
     expect:
       rows:
-        - {game_id: g1, player_id: a, game_value: 0.0}
-        - {game_id: g2, player_id: a, game_value: 1.0}
-        - {game_id: g3, player_id: a, game_value: 2.0}
-        - {game_id: g1, player_id: b, game_value: -1.0}
-        - {game_id: g2, player_id: b, game_value: -1.0}
-        - {game_id: g1, player_id: c, game_value: 0.0}
-        - {game_id: g2, player_id: c, game_value: 0.0}
+        - {game_id: '0022500001', player_id: a, game_value: -0.5}
+        - {game_id: '0022500002', player_id: a, game_value: 0.5}
+        - {game_id: '0022500003', player_id: a, game_value: 1.5}
+        - {game_id: '0022500001', player_id: b, game_value: -1.5}
 
   - name: consistency_spread_floor_and_ceiling
     description: >
