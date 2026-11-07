@@ -1,0 +1,84 @@
+name: Backtest
+
+# The walk-forward harness (#769, epic #751), first stage: mirror some league-seasons of the
+# landing volume onto the runner and build them on DuckDB, where point-in-time builds run
+# (ADR 0018). It reads the volume through the Files API and builds on the runner, so it spends no
+# SQL warehouse time. The checks tagged quality run too: assert_one_value_scale (ADR 0019) on real
+# seasons, not only the sample.
+
+on:
+  workflow_dispatch:
+    inputs:
+      league:
+        description: League
+        type: choice
+        options: [nba, wnba]
+        default: nba
+      seasons:
+        description: Seasons to mirror and build, space separated (a checkpoint needs its season and the two before)
+        type: string
+        default: "2022-23 2023-24 2024-25"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backtest-${{ inputs.league }}
+  cancel-in-progress: false
+
+jobs:
+  mirror-and-build:
+    name: Mirror and build ${{ inputs.league }} ${{ inputs.seasons }}
+    runs-on: ubuntu-latest
+    environment: lakehouse
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+        with:
+          groups: "dbt"
+      - name: Mirror the landing volume
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
+          LEAGUE: ${{ inputs.league }}
+          SEASONS: ${{ inputs.seasons }}
+        run: |
+          args=()
+          for s in $SEASONS; do args+=(--season "$s"); done
+          uv run python -m ops.landing_sync --league "$LEAGUE" "${args[@]}" --out "$RUNNER_TEMP/landing" --workers 16
+          du -sh "$RUNNER_TEMP/landing"
+          df -h "$RUNNER_TEMP"
+      - name: Build on DuckDB
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+          FS_LANDING_ROOT: ${{ runner.temp }}/landing
+        run: |
+          set -o pipefail
+          uv run dbt build --target duckdb --exclude tag:quality 2>&1 | tail -40
+      - name: The quality checks on real seasons
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+          FS_LANDING_ROOT: ${{ runner.temp }}/landing
+        run: uv run dbt test --target duckdb --select assert_one_value_scale assert_board_values_sane assert_board_rostered
+      - name: What was built
+        env:
+          LEAGUE: ${{ inputs.league }}
+        run: |
+          uv run python - <<'EOF'
+          import os
+          import duckdb
+          con = duckdb.connect("dbt/fantasyscout.duckdb", read_only=True)
+          league = os.environ["LEAGUE"]
+          for sql in (
+              "select season, count(*) as player_games from gold.fct_player_game where league = ? group by 1 order by 1",
+              "select season, source, pool, teams, players, round(repl_z_points, 3) as repl_points from gold.int_value_scale where league = ? order by 1",
+              "select count(*) as board_rows, sum(in_pool::int) as in_pool from gold.mart_board where league = ?",
+              "select returned, censored, count(*) as spells from gold.fct_injury_spell where league = ? group by all order by all",
+          ):
+              print(con.execute(sql, [league]).fetchdf().to_string(index=False), end="\n\n")
+          EOF

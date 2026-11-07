@@ -169,6 +169,15 @@ class LocalBackend:
             if p.is_file()
         )
 
+    def list_directory(self, directory: PurePosixPath) -> list[tuple[PurePosixPath, bool]]:
+        """The directory's own entries (not recursive), each with whether it is a directory."""
+        base = self._resolve(directory)
+        if not base.is_dir():
+            return []
+        return sorted(
+            (PurePosixPath(p.relative_to(self.root).as_posix()), p.is_dir()) for p in base.iterdir()
+        )
+
     def ensure_directory(self, path: PurePosixPath) -> None:
         self._resolve(path).mkdir(parents=True, exist_ok=True)
 
@@ -281,9 +290,18 @@ class VolumeBackend:
     def _files_url(self, path: PurePosixPath) -> str:
         return f"{self.host}/api/2.0/fs/files{self._volume_path(path)}"
 
+    def list_directory(self, directory: PurePosixPath) -> list[tuple[PurePosixPath, bool]]:
+        """The directory's own entries (not recursive), each with whether it is a directory."""
+        return self._walk(directory, recursive=False)
+
     def list_files(self, directory: PurePosixPath) -> list[PurePosixPath]:
         """Every file under the directory, recursively (the Files API directory listing)."""
-        out: list[PurePosixPath] = []
+        return [p for p, is_dir in self._walk(directory, recursive=True) if not is_dir]
+
+    def _walk(
+        self, directory: PurePosixPath, *, recursive: bool
+    ) -> list[tuple[PurePosixPath, bool]]:
+        out: list[tuple[PurePosixPath, bool]] = []
         pending = [directory]
         prefix = self.root + "/"
         while pending:
@@ -312,10 +330,11 @@ class VolumeBackend:
                     relative = PurePosixPath(
                         full[len(prefix) :] if full.startswith(prefix) else full
                     )
-                    if item.get("is_directory"):
+                    is_dir = bool(item.get("is_directory"))
+                    if is_dir and recursive:
                         pending.append(relative)
                     else:
-                        out.append(relative)
+                        out.append((relative, is_dir))
                 token = body.get("next_page_token") or None
                 if not token:
                     break
