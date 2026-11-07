@@ -9,6 +9,7 @@
  */
 import type { League } from './data';
 import type { Format } from './fantasy-league';
+import { PARAMS } from '../generated/parameters';
 
 /**
  * One game's standard deviation of a player's output in each category, in the z units the board
@@ -18,40 +19,17 @@ import type { Format } from './fantasy-league';
  * season. A steal or a shooting night swings far more than the gaps between players; points,
  * rebounds and assists about as much.
  */
-export const GAME_SPREAD: Record<League, Record<string, number>> = {
-  nba: {
-    z_points: 1.14,
-    z_rebounds_total: 1.1,
-    z_assists: 1.03,
-    z_steals: 3.12,
-    z_blocks: 1.77,
-    z_three_pointers_made: 1.61,
-    z_turnovers: 1.63,
-    z_field_goal_pct: 2.85,
-    z_free_throw_pct: 2.67,
-  },
-  wnba: {
-    z_points: 1.13,
-    z_rebounds_total: 1.05,
-    z_assists: 1.07,
-    z_steals: 2.47,
-    z_blocks: 1.62,
-    z_three_pointers_made: 1.43,
-    z_turnovers: 1.82,
-    z_field_goal_pct: 2.69,
-    z_free_throw_pct: 2.83,
-  },
-};
+export const GAME_SPREAD: Record<League, Record<string, number>> = PARAMS['standings.game_spread'];
 
 /** Games a player's team plays in a fantasy week on average: a regular season's games over its weeks. */
-const GAMES_PER_WEEK: Record<League, number> = { nba: 3.3, wnba: 2.6 };
+const GAMES_PER_WEEK: Record<League, number> = PARAMS['standings.games_per_week'];
 
 /**
  * The error of a projected per-game z-score against what the player goes on to produce, per
  * category: a rotisserie season's uncertainty beyond its games' own spread. An assumption, not a
  * measurement; a weekly head-to-head matchup is dominated by the games' spread and leaves it out.
  */
-const PROJECTION_SPREAD = 0.3;
+const PROJECTION_SPREAD: number = PARAMS['standings.projection_spread'];
 
 export interface StandingsModel {
   cats: string[];
@@ -70,8 +48,8 @@ export function standingsModel(league: League, cats: string[], players: number, 
   const spread: Record<string, number> = {};
   for (const c of cats) {
     const game = GAME_SPREAD[league][c] ?? 1;
-    const projection = format === 'roto' ? PROJECTION_SPREAD * PROJECTION_SPREAD * 2 * n : 0;
-    spread[c] = Math.sqrt((game * game * 2 * n) / games + projection);
+    const projection = format === 'roto' ? PROJECTION_SPREAD * PROJECTION_SPREAD * 2 * n : 0; // def: the gap between two teams
+    spread[c] = Math.sqrt((game * game * 2 * n) / games + projection); // def: the gap between two teams
   }
   return { cats, spread };
 }
@@ -79,13 +57,13 @@ export function standingsModel(league: League, cats: string[], players: number, 
 /** The standard normal distribution function (Abramowitz and Stegun 7.1.26, error below 1e-7). */
 export function normalCdf(x: number): number {
   const z = Math.abs(x) / Math.SQRT2;
-  const t = 1 / (1 + 0.3275911 * z);
-  const poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+  const t = 1 / (1 + 0.3275911 * z); // def: Abramowitz and Stegun 7.1.26
+  const poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429)))); // def: A&S 7.1.26
   const erf = 1 - poly * Math.exp(-z * z);
-  return x >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
+  return x >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf); // def: the normal distribution
 }
 
-const normalPdf = (x: number) => Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+const normalPdf = (x: number) => Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI); // def: the normal density
 
 /**
  * A team's category totals: each active player's per-game value above replacement in the
@@ -117,7 +95,7 @@ export function winChances(totals: Record<string, number>[], team: number, other
   for (const c of model.cats) {
     const mine = totals[team]?.[c] ?? 0;
     const s = model.spread[c] ?? 1;
-    out[c] = others.length ? others.reduce((sum, t) => sum + normalCdf((mine - (totals[t]?.[c] ?? 0)) / s), 0) / others.length : 0.5;
+    out[c] = others.length ? others.reduce((sum, t) => sum + normalCdf((mine - (totals[t]?.[c] ?? 0)) / s), 0) / others.length : 0.5; // def: no rival is a coin flip
   }
   return out;
 }
@@ -149,7 +127,7 @@ export function standingWeights(totals: Record<string, number>[], team: number, 
  * the manager has only started to fill in does not read as an easy win.
  */
 export function rivals(rosters: string[][], team: number, rosterSpots: number): number[] {
-  const least = Math.max(1, Math.ceil(rosterSpots / 2));
+  const least = Math.max(1, Math.ceil(rosterSpots * PARAMS['standings.rival_min_share']));
   return rosters.map((r, t) => (t !== team && r.length >= least ? t : -1)).filter((t) => t >= 0);
 }
 
@@ -221,7 +199,7 @@ export function matchupChance(chances: number[]): number {
     dist = next;
   }
   const n = chances.length;
-  return dist.reduce((s, q, k) => s + (2 * k > n ? q : 2 * k === n ? q / 2 : 0), 0);
+  return dist.reduce((s, q, k) => s + (2 * k > n ? q : 2 * k === n ? q / 2 : 0), 0); // def: more than half wins, half splits
 }
 
 /**
@@ -238,7 +216,7 @@ export function powerRankings(
   gamesLeft: number,
 ): PowerRank[] | null {
   const teams = rivals(setup.rosters, -1, setup.rosterSpots);
-  if (teams.length < 2 || !cats.length) return null;
+  if (teams.length < 2 || !cats.length) return null; // def: a ranking needs two teams
   const active = setup.rosters.map((r) => r.filter((id) => !setup.il.includes(id)));
   const totals = active.map((r) => teamTotals(r, cats, catValue, availability));
   const players = teams.reduce((s, t) => s + (active[t] ?? []).reduce((n, id) => n + availability(id), 0), 0) / teams.length;

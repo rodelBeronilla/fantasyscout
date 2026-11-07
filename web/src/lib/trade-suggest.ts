@@ -7,6 +7,7 @@
  * Pure functions over per-player values, so the Trade page and tests share them.
  */
 import { keepsPositions } from './players';
+import { PARAMS } from '../generated/parameters';
 
 /** What a package does to both teams' categories, from the standings model (trade-impact.ts). */
 export interface CategoryEffect {
@@ -76,10 +77,10 @@ export function openSide(give: string[], get: string[], rest: Map<string, number
 
 export function suggestTrades(input: SuggestInput): Suggestion[] {
   const { give, get, rest, effect } = input;
-  const maxAdd = input.maxAdd ?? 3;
-  const tolerance = input.tolerance ?? 0.15;
-  const limit = input.limit ?? 8;
-  const minGain = input.minGain ?? 0.05;
+  const maxAdd = input.maxAdd ?? PARAMS['trade.search'].max_add;
+  const tolerance = input.tolerance ?? PARAMS['trade.suggest'].tolerance;
+  const limit = input.limit ?? 8; // display: suggestions listed
+  const minGain = input.minGain ?? PARAMS['trade.suggest'].min_gain;
   if (!give.length && !get.length) return [];
   const value = (ids: string[]) => ids.reduce((s, id) => s + Math.max(0, rest.get(id) ?? 0), 0);
 
@@ -91,8 +92,8 @@ export function suggestTrades(input: SuggestInput): Suggestion[] {
   const candidates = [...roster]
     .filter((id) => (rest.get(id) ?? 0) > 0)
     .sort((a, b) => (rest.get(b) ?? 0) - (rest.get(a) ?? 0))
-    .slice(0, 16);
-  const add = give.length && get.length ? Math.min(maxAdd, 2) : maxAdd;
+    .slice(0, PARAMS['trade.search'].pool);
+  const add = give.length && get.length ? Math.min(maxAdd, PARAMS['trade.search'].max_add_both) : maxAdd;
 
   const out: Suggestion[] = [];
   for (const combo of combinations(candidates, add)) {
@@ -126,7 +127,7 @@ export function suggestTrades(input: SuggestInput): Suggestion[] {
 }
 
 /** Players worth about the same as the given ones for the rest of the season, nearest first. */
-export function nearestInValue(target: string[], rest: Map<string, number>, exclude: string[], limit = 8): { id: string; diff: number }[] {
+export function nearestInValue(target: string[], rest: Map<string, number>, exclude: string[], limit = 8): { id: string; diff: number }[] { // display: players listed
   const want = target.reduce((s, id) => s + (rest.get(id) ?? 0), 0);
   const skip = new Set([...target, ...exclude]);
   return [...rest]
@@ -171,7 +172,7 @@ export interface FoundTrade extends Suggestion {
  */
 export function findTrades(input: FinderInput): FoundTrade[] {
   const { rest, effect, minGain } = input;
-  const n = input.candidates ?? 8;
+  const n = input.candidates ?? PARAMS['trade.search'].candidates;
   const value = (ids: string[]) => ids.reduce((s, id) => s + Math.max(0, rest.get(id) ?? 0), 0);
   const top = (roster: string[]) =>
     [...roster]
@@ -185,8 +186,8 @@ export function findTrades(input: FinderInput): FoundTrade[] {
     const found: FoundTrade[] = [];
     const shapes: [string[][], string[][]][] = [
       [combinations(mine, 1), combinations(theirs, 1)],
-      [combinations(mine, 2).filter((c) => c.length === 2), combinations(theirs, 1)],
-      [combinations(mine, 1), combinations(theirs, 2).filter((c) => c.length === 2)],
+      [combinations(mine, 2).filter((c) => c.length === 2), combinations(theirs, 1)], // def: the finder's shapes, two for one
+      [combinations(mine, 1), combinations(theirs, 2).filter((c) => c.length === 2)], // def: and one for two
     ];
     for (const [gives, gets] of shapes) {
       for (const give of gives) {
@@ -201,8 +202,8 @@ export function findTrades(input: FinderInput): FoundTrade[] {
       }
     }
     found.sort((a, b) => b.effect.gain - a.effect.gain || b.effect.partnerGain - a.effect.partnerGain);
-    out.push(...found.slice(0, input.perPartner ?? 3));
+    out.push(...found.slice(0, input.perPartner ?? PARAMS['trade.search'].per_partner));
   }
   out.sort((a, b) => b.effect.gain - a.effect.gain || b.effect.partnerGain - a.effect.partnerGain);
-  return out.slice(0, input.limit ?? 10);
+  return out.slice(0, input.limit ?? 10); // display: trades listed
 }

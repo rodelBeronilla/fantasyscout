@@ -27,7 +27,7 @@ export function tradeChips(
   mine: string[],
   league: Map<string, number>,
   build: Map<string, number>,
-  { pool, minGap, limit = 5 }: { pool: number; minGap: number; limit?: number },
+  { pool, minGap, limit = 5 }: { pool: number; minGap: number; limit?: number }, // display: chips shown
 ): BuildRank[] {
   return mine
     .map((id) => ({ id, league: league.get(id) ?? Infinity, build: build.get(id) ?? Infinity }))
@@ -45,7 +45,7 @@ export function tradeTargets(
   others: string[],
   league: Map<string, number>,
   build: Map<string, number>,
-  { ceiling, minGap, limit = 8 }: { ceiling: number; minGap: number; limit?: number },
+  { ceiling, minGap, limit = 8 }: { ceiling: number; minGap: number; limit?: number }, // display: targets shown
 ): BuildRank[] {
   return others
     .map((id) => ({ id, league: league.get(id) ?? Infinity, build: build.get(id) ?? Infinity }))
@@ -58,6 +58,6 @@ export function tradeTargets(
 export function median(values: number[]): number {
   if (!values.length) return 0;
   const s = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? (s[mid] ?? 0) : ((s[mid - 1] ?? 0) + (s[mid] ?? 0)) / 2;
+  const mid = Math.floor(s.length / 2); // def: a median
+  return s.length % 2 ? (s[mid] ?? 0) : ((s[mid - 1] ?? 0) + (s[mid] ?? 0)) / 2; // def: a median
 }

@@ -1,0 +1,316 @@
+# Every number the site's models and decisions use (#765, epic #751).
+#
+# Each entry says what the number does, how it was set and what will test it:
+#   status   measured    fitted or backtested on data (evidence names where)
+#            assumed     chosen without a measurement: a candidate for the walk-forward harness
+#            convention  a fantasy-platform default (an auction budget), not a model choice
+#            arithmetic  derived from the schedule or the definitions, not chosen
+#   kind     model       shapes a projection or a probability
+#            threshold   turns a number into a call (even, bad, worth a move)
+#            search      how far a search looks (candidates tried); changes results, not values
+#   validation  the issue that will backtest it out of sample (#754-#763)
+#
+# The web reads these through web/src/generated/parameters.ts (uv run python -m ops.parameters);
+# the dbt entries name the var they mirror (dbt:<path>) and a test holds the two equal. CI fails
+# on a numeric literal in a decision module that is neither here nor marked as a definition.
+
+parameters:
+  # ---- the projection (dbt vars; ADR 0009 holds the backtests)
+  - id: projection.fantasy_recency
+    value: [1.0, 0.25, 0.08]
+    dbt: fantasy_recency
+    kind: model
+    status: measured
+    what: "Weights of the current season and the two before it in per-minute production."
+    evidence: "ADR 0009: in-sample grid; out of sample [1, 0.5, 0.25] made no difference"
+    validation: 754
+  - id: projection.prior_games
+    value: {nba: 3, wnba: 5}
+    dbt: fantasy.*.prior_games
+    kind: model
+    status: measured
+    what: "Games of a replacement-level player every projection starts from."
+    evidence: "ADR 0009"
+    validation: 754
+  - id: projection.minutes_recency
+    value: {nba: [1.0, 0.25, 0.08], wnba: [1.0, 0.06, 0.02]}
+    dbt: fantasy.*.minutes_recency
+    kind: model
+    status: measured
+    what: "Weights of the current season and the two before it in minutes per game."
+    evidence: "ADR 0009"
+    validation: 754
+  - id: projection.durability_games
+    value: {nba: 10, wnba: 60}
+    dbt: fantasy.*.durability_games
+    kind: model
+    status: measured
+    what: "Games that regress the share of team games played toward typical_share."
+    evidence: "ADR 0009 (WNBA: every value from 5 to 120 scored within a tenth)"
+    validation: 754
+  - id: projection.typical_share
+    value: 0.8
+    dbt: fantasy_durability.typical_share
+    kind: model
+    status: assumed
+    what: "The share of team games a player is regressed toward."
+    evidence: "none: no fit shown"
+    validation: 754
+  - id: projection.team_change
+    value: 0.25
+    dbt: fantasy_team_change
+    kind: model
+    status: measured
+    what: "The share of its minutes weight a past season spent mostly on another team keeps."
+    evidence: "ADR 0009"
+    validation: 754
+  - id: projection.recent_minutes
+    value: 0.5
+    dbt: fantasy_recent_minutes
+    kind: model
+    status: measured
+    what: "Weight of the last five games in projected minutes, in season."
+    evidence: "ADR 0009 (next-ten-game minutes error 3.98 to 3.44 NBA)"
+    validation: 754
+  - id: projection.return_ramp
+    value: {min_games_missed: 3, per_game_missed: 0.01, max_cut: 0.5, games_back: 2}
+    dbt: fantasy_return_ramp
+    kind: model
+    status: measured
+    what: "Minutes cut for a player back from three or more straight games missed."
+    evidence: "ADR 0009 (grid, out of sample)"
+    validation: 754
+  - id: projection.rest_risk
+    value: {nba: {extra_sit_out: 0.29, min_minutes: 28}, wnba: {extra_sit_out: 0.0, min_minutes: 28}}
+    dbt: fantasy_rest_risk
+    kind: model
+    status: measured
+    what: "Extra share of games a regular sits on a team with nothing to play for."
+    evidence: "ADR 0010, notebook 03 (NBA +29 points, 22 to 36). The 28-minute cut was not optimised"
+    validation: 754
+  - id: projection.calibration_min_listings
+    value: 300
+    dbt: calibration_min_listings
+    kind: model
+    status: assumed
+    what: "Listings a league needs before its own injury history replaces the NBA's."
+    evidence: "none"
+    validation: 763
+  - id: projection.regular_season_games
+    value: {nba: 82}
+    dbt: regular_season_games
+    kind: model
+    status: arithmetic
+    what: "Regular-season games per NBA team while the schedule lists Cup placeholders."
+    evidence: "the league's format"
+    validation: 754
+
+  # ---- matchups (dbt vars)
+  - id: matchup.weights
+    value: {nba: {defense: 0.21, pace: 0.08}, wnba: {defense: 0.14, pace: 0.06}, prior_games: 10}
+    dbt: fantasy_matchup
+    kind: model
+    status: measured
+    what: "Value per game per standard deviation of the opponent's defence and the pace."
+    evidence: "ADR 0009 (replay); notebook 03 re-checks against the betting line"
+    validation: 762
+
+  # ---- the standings model (web/src/lib/standings.ts; ADR 0015)
+  - id: standings.game_spread
+    value:
+      nba: {z_points: 1.14, z_rebounds_total: 1.1, z_assists: 1.03, z_steals: 3.12, z_blocks: 1.77, z_three_pointers_made: 1.61, z_turnovers: 1.63, z_field_goal_pct: 2.85, z_free_throw_pct: 2.67}
+      wnba: {z_points: 1.13, z_rebounds_total: 1.05, z_assists: 1.07, z_steals: 2.47, z_blocks: 1.62, z_three_pointers_made: 1.43, z_turnovers: 1.82, z_field_goal_pct: 2.69, z_free_throw_pct: 2.83}
+    kind: model
+    status: measured
+    what: "One game's standard deviation of a player's output per category, in board z units."
+    evidence: "ADR 0015 (an ad hoc lakehouse query; no notebook reproduces it yet)"
+    validation: 755
+  - id: standings.games_per_week
+    value: {nba: 3.3, wnba: 2.6}
+    kind: model
+    status: arithmetic
+    what: "Games a team plays in a fantasy week: a season's games over its weeks."
+    evidence: "the schedules"
+    validation: 755
+  - id: standings.rival_min_share
+    value: 0.5
+    kind: threshold
+    status: assumed
+    what: "Share of a roster a team needs entered before it counts as a rival in the standings."
+    evidence: "none"
+    validation: 755
+  - id: standings.projection_spread
+    value: 0.3
+    kind: model
+    status: assumed
+    what: "A projection's own error per category, added to a rotisserie season's spread."
+    evidence: "none (ADR 0015 says so)"
+    validation: 755
+
+  # ---- Fit weights before the standings model applies (web/src/lib/league-value.ts, matchup.ts)
+  - id: fit.thirds
+    value: {weak: 1.5, middle: 1.0, strong: 0.5}
+    kind: model
+    status: assumed
+    what: "Category weights for the weakest, middle and strongest thirds, when no rival roster is in."
+    evidence: "none"
+    validation: 755
+  - id: matchup.closeness
+    value: 0.05
+    kind: threshold
+    status: assumed
+    what: "A weekly category within this share is called too close."
+    evidence: "none"
+    validation: 755
+
+  # ---- trade verdicts (web/src/lib/trade-fairness.ts, trade-impact.ts, trade-suggest.ts)
+  - id: trade.value_limits
+    value: {bad: -0.15, terrible: -0.3}
+    kind: threshold
+    status: assumed
+    what: "Value lens: the share given away that makes a trade bad or terrible."
+    evidence: "none (one anecdote, #692)"
+    validation: 756
+  - id: trade.market_limits
+    value: {bad: -0.2, terrible: -0.35}
+    kind: threshold
+    status: assumed
+    what: "Market lens: the share given away that makes a trade bad or terrible."
+    evidence: "none"
+    validation: 756
+  - id: trade.category_limits
+    value: {bad: 2, terrible: 5}
+    kind: threshold
+    status: assumed
+    what: "Category lens: expected categories lost that make a trade bad or terrible."
+    evidence: "none"
+    validation: 756
+  - id: trade.disagreement
+    value: 0.35
+    kind: threshold
+    status: assumed
+    what: "Gap between the value and market lenses that is called a disagreement."
+    evidence: "none"
+    validation: 756
+  - id: trade.even
+    value: {value: 0.1, market: 0.15}
+    kind: threshold
+    status: assumed
+    what: "The band within which each lens calls a trade even."
+    evidence: "none"
+    validation: 756
+  - id: trade.category_change
+    value: 0.02
+    kind: threshold
+    status: assumed
+    what: "A category's win chance must move this much to be listed as up or down."
+    evidence: "none"
+    validation: 756
+  - id: trade.chance_bands
+    value: {conceding: 0.25, locked: 0.75}
+    kind: threshold
+    status: assumed
+    what: "Win chances below or above which a category is conceded or locked."
+    evidence: "none"
+    validation: 756
+  - id: trade.meaningful_gain
+    value: 0.05
+    kind: threshold
+    status: assumed
+    what: "Expected categories a trade must add to count (per rival in rotisserie)."
+    evidence: "none"
+    validation: 756
+  - id: trade.suggest
+    value: {tolerance: 0.15, min_gain: 0.05}
+    kind: threshold
+    status: assumed
+    what: "Suggestions: how far from even a package may be, and the least it must gain."
+    evidence: "none"
+    validation: 756
+  - id: trade.search
+    value: {max_add: 3, max_add_both: 2, candidates: 8, pool: 16, per_partner: 3}
+    kind: search
+    status: assumed
+    what: "How many players a suggestion adds (fewer when both sides are already set), and how many it and the finder try."
+    evidence: "none"
+    validation: 756
+
+  # ---- roster review (web/src/lib/roster-upgrades.ts)
+  - id: roster.starter_share
+    value: 0.6
+    kind: threshold
+    status: assumed
+    what: "Share of roster spots counted as starters: a player ranked inside teams x this is never dropped."
+    evidence: "none"
+    validation: 757
+  - id: roster.bench_size
+    value: 2
+    kind: threshold
+    status: assumed
+    what: "The lowest-valued players a week's form may drop."
+    evidence: "none"
+    validation: 757
+  - id: roster.min_gain
+    value: 0.5
+    kind: threshold
+    status: assumed
+    what: "Value a swap must gain. Applied to week and rest-of-season values, which are in different units."
+    evidence: "none"
+    validation: 757
+  - id: roster.candidates
+    value: 25
+    kind: search
+    status: assumed
+    what: "Free agents, best first, a review considers."
+    evidence: "none"
+    validation: 757
+
+  # ---- buy low / sell high (web/src/lib/buy-sell.ts)
+  - id: buysell.min_swing
+    value: 1
+    kind: threshold
+    status: assumed
+    what: "Value per game between last-ten form and the projection that counts as a swing."
+    evidence: "none (and the two sides are on different pools, #767)"
+    validation: 758
+
+  # ---- injuries (web/src/lib/il-moves.ts)
+  - id: il.min_games
+    value: 3
+    kind: threshold
+    status: assumed
+    what: "Games a player is expected to miss before an IL move is suggested."
+    evidence: "none (its input is calibrated, ADR 0010)"
+    validation: 763
+
+  # ---- context flags (web/src/lib/blowout.ts)
+  - id: blowout.spread
+    value: 10
+    kind: threshold
+    status: assumed
+    what: "Point spread from which a starter's next game is flagged lopsided."
+    evidence: "none"
+    validation: 762
+  - id: blowout.minutes_per_5_points
+    value: {nba: 0.73, wnba: 0.37}
+    kind: model
+    status: measured
+    what: "Minutes a starter loses per five points of spread."
+    evidence: "ADR 0012, notebook 03"
+    validation: 762
+
+  # ---- auctions (web/src/lib/auction.ts)
+  - id: auction.budget
+    value: 200
+    kind: model
+    status: convention
+    what: "Dollars per team: the Yahoo and ESPN default."
+    evidence: "platform default"
+    validation: 760
+  - id: auction.min_bid
+    value: 1
+    kind: model
+    status: convention
+    what: "The least a roster spot costs."
+    evidence: "platform default"
+    validation: 760

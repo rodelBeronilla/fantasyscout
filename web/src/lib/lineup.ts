@@ -27,7 +27,7 @@ export const SLOT_LABEL: Record<Slot, string> = { G: 'G', F: 'F', C: 'C', UTIL: 
 export function normalizeSlots(raw: Partial<Slots> | undefined, fallback: Slots): Slots {
   const one = (k: Slot) => {
     const v = raw?.[k];
-    return typeof v === 'number' && Number.isFinite(v) ? Math.min(6, Math.max(0, Math.round(v))) : fallback[k];
+    return typeof v === 'number' && Number.isFinite(v) ? Math.min(6, Math.max(0, Math.round(v))) : fallback[k]; // def: a lineup's input bound
   };
   return { G: one('G'), F: one('F'), C: one('C'), UTIL: one('UTIL') };
 }
@@ -109,6 +109,6 @@ export function weekPlan(players: LineupPlayer[], dates: string[], plays: (id: s
 /** The fantasy week's days from `today` to its Sunday (Monday-to-Sunday weeks), as ISO dates. */
 export function daysLeftInWeek(today: string): string[] {
   const d = new Date(`${today}T12:00:00Z`);
-  const left = (7 - d.getUTCDay()) % 7; // Sunday is 0: no days after it
-  return Array.from({ length: left + 1 }, (_, i) => new Date(d.getTime() + i * 86_400_000).toISOString().slice(0, 10));
+  const left = (7 - d.getUTCDay()) % 7; // def: a week; Sunday is 0, with no days after it
+  return Array.from({ length: left + 1 }, (_, i) => new Date(d.getTime() + i * 86_400_000).toISOString().slice(0, 10)); // def: a day in ms
 }

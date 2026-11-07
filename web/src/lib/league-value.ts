@@ -9,6 +9,7 @@
  * projected share of games played.
  */
 import { POINT_STATS, type PointWeights } from './fantasy-league';
+import { PARAMS } from '../generated/parameters';
 
 type Row = Record<string, unknown>;
 
@@ -124,9 +125,17 @@ export function leagueTiers(values: number[], teams: number, rosterSpots: number
  * weak category wins more weeks than piling onto a strong one).
  */
 export function fitWeights(teamTotals: Record<string, number>): Record<string, number> {
-  const order = Object.entries(teamTotals).sort((a, b) => a[1] - b[1]).map(([c]) => c);
-  const third = Math.max(1, Math.round(order.length / 3));
-  return Object.fromEntries(order.map((c, i) => [c, i < third ? 1.5 : i >= order.length - third ? 0.5 : 1]));
+  return thirdsWeights(Object.entries(teamTotals).sort((a, b) => a[1] - b[1]).map(([c]) => c));
+}
+
+/**
+ * Weights by thirds of an ordered list of categories, most in need first (fit.thirds): the first
+ * third, the middle and the last. Fit's fallback before a rival roster is in, and the week's.
+ */
+export function thirdsWeights(order: string[]): Record<string, number> {
+  const w = PARAMS['fit.thirds'];
+  const third = Math.max(1, Math.round(order.length / 3)); // def: a third of the categories
+  return Object.fromEntries(order.map((c, i) => [c, i < third ? w.weak : i >= order.length - third ? w.strong : w.middle]));
 }
 
 /** The first letter of a player's listed position ("G-F" is a G). */

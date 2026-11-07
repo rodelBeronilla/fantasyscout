@@ -5,11 +5,12 @@
  * value above replacement. A player below replacement who still makes the pool is a minimum bid;
  * a player outside it is worth nothing.
  */
-export const AUCTION_BUDGET = 200;
+import { PARAMS } from '../generated/parameters';
+export const AUCTION_BUDGET: number = PARAMS['auction.budget'];
 
 export function auctionValues(
   values: Map<string, number>,
-  { teams, rosterSpots, budget = AUCTION_BUDGET, minBid = 1 }: { teams: number; rosterSpots: number; budget?: number; minBid?: number },
+  { teams, rosterSpots, budget = AUCTION_BUDGET, minBid = PARAMS['auction.min_bid'] }: { teams: number; rosterSpots: number; budget?: number; minBid?: number },
 ): Map<string, number> {
   const pool = teams * rosterSpots;
   const ranked = [...values].sort((a, b) => b[1] - a[1]);

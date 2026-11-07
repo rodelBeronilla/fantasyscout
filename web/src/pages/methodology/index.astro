@@ -1,0 +1,112 @@
+---
+import Base from '../../layouts/Base.astro';
+import { PARAMETERS } from '../../generated/parameters';
+import { REPO_URL } from '../../lib/site';
+
+// Every number the models and the calls use, from methodology/parameters.yml (#765). The page is
+// built from the generated module, so it cannot drift from what the site runs on.
+type Value = number | string | readonly Value[] | { readonly [k: string]: Value };
+const show = (v: Value): string => {
+  if (Array.isArray(v)) return v.map(show).join(', ');
+  if (v !== null && typeof v === 'object') {
+    return Object.entries(v)
+      .map(([k, x]) => (typeof x === 'object' ? `${k}: (${show(x)})` : `${k}: ${show(x)}`))
+      .join('; ');
+  }
+  return String(v);
+};
+
+const AREAS: [string, string][] = [
+  ['projection', 'The projection'],
+  ['matchup', 'Matchups'],
+  ['standings', 'The standings model'],
+  ['fit', 'Fit'],
+  ['trade', 'Trade verdicts and suggestions'],
+  ['roster', 'Roster review'],
+  ['buysell', 'Buy low, sell high'],
+  ['il', 'Injured-list moves'],
+  ['blowout', 'Blowout risk'],
+  ['auction', 'Auction values'],
+];
+const STATUS_HELP: Record<string, string> = {
+  measured: 'fitted or backtested on data',
+  assumed: 'chosen without a measurement, waiting for its backtest',
+  convention: 'a platform default, not a model choice',
+  arithmetic: 'derived from the schedule or the definitions',
+};
+const area = (id: string) => id.split('.')[0];
+const groups = AREAS.map(([key, label]) => ({ key, label, params: PARAMETERS.filter((p) => area(p.id) === key) })).filter((g) => g.params.length);
+const count = (status: string) => PARAMETERS.filter((p) => p.status === status).length;
+const link = 'underline underline-offset-4';
+---
+
+<Base
+  title="Methodology"
+  description="Every number FantasyScout's projections and calls use: what it does, how it was set, the evidence and the issue that will backtest it out of sample."
+>
+  <h1 class="text-2xl font-semibold">Methodology: every number and where it came from</h1>
+  <p class="mt-2 max-w-3xl text-sm text-muted">
+    A projection or a call is only as good as the numbers inside it. Each one the site uses is registered below with what it does, how it was set and the
+    issue that will test it on seasons it has not seen. A number that fails its backtest is removed, and a feature that is not yet validated says so where it
+    is shown. The registry is
+    <a href={`${REPO_URL}/blob/main/methodology/parameters.yml`} class={link} rel="noopener">methodology/parameters.yml</a>; the build fails on a number in a
+    decision module that is not in it.
+  </p>
+
+  <section class="mt-6 max-w-3xl" aria-labelledby="status-h">
+    <h2 id="status-h" class="text-sm font-medium tracking-wide text-muted uppercase">How each was set</h2>
+    <ul class="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="status-counts">
+      {
+        Object.entries(STATUS_HELP).map(([s, help]) => (
+          <li data-status={s}>
+            <span class="font-medium">{count(s)} {s}</span>: {help}
+          </li>
+        ))
+      }
+    </ul>
+    <p class="mt-2 text-sm text-muted">
+      The backtests follow the plan in <a href={`${REPO_URL}/issues/751`} class={link} rel="noopener">#751</a>: walk-forward on past seasons, with the latest
+      season of each league held back and judged once, against a manager who goes by the season so far.
+    </p>
+  </section>
+
+  <div class="mt-8 grid gap-8" data-testid="parameters">
+    {
+      groups.map((g) => (
+        <section aria-labelledby={`${g.key}-h`} data-area={g.key}>
+          <h2 id={`${g.key}-h`} class="text-sm font-medium tracking-wide text-muted uppercase">
+            {g.label}
+          </h2>
+          <div class="mt-3 grid gap-3">
+            {g.params.map((p) => (
+              <article class="min-w-0 rounded-lg border border-line bg-card p-4" data-param={p.id} data-status={p.status}>
+                <h3 class="font-mono text-sm break-words">{p.id}</h3>
+                <p class="mt-1 text-sm">{p.what}</p>
+                <dl class="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[7rem_minmax(0,1fr)]">
+                  <dt class="text-muted">Value</dt>
+                  <dd class="font-mono break-words">{show(p.value as Value)}</dd>
+                  <dt class="text-muted">Set by</dt>
+                  <dd class={p.status === 'assumed' ? 'text-warn' : undefined}>{p.status}</dd>
+                  <dt class="text-muted">Evidence</dt>
+                  <dd class="break-words">{p.evidence}</dd>
+                  <dt class="text-muted">Tested in</dt>
+                  <dd>
+                    <a href={`${REPO_URL}/issues/${p.validation}`} class={link} rel="noopener">
+                      #{p.validation}
+                    </a>
+                  </dd>
+                  {'dbt' in p && (
+                    <>
+                      <dt class="text-muted">dbt var</dt>
+                      <dd class="font-mono break-words">{p.dbt}</dd>
+                    </>
+                  )}
+                </dl>
+              </article>
+            ))}
+          </div>
+        </section>
+      ))
+    }
+  </div>
+</Base>
