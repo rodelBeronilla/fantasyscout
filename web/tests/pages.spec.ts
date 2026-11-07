@@ -1691,6 +1691,32 @@ test('the lineup setting resets with the rest, and a Pickups link with a day out
   await expect(page.getByTestId('trending').locator('thead')).not.toContainText('Open days');
 });
 
+test('My Team ranks every team by projection: matchup win rates in head-to-head, roto points in rotisserie (#743)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/');
+  await page.getByLabel('Format').selectOption('h2h');
+  await page.getByLabel('Teams in the league').fill('4');
+  await page.getByLabel('Roster spots').fill('6');
+  for (let i = 0; i < 24; i += 1) await page.getByLabel(`Add a player to Team ${(i % 4) + 1}`, { exact: true }).fill(label(board[i]!));
+  await page.goto('/team/');
+  const table = page.getByTestId('league-table');
+  await expect(table).toContainText('Power rankings');
+  const rows = table.getByTestId('power-row');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.first().locator('td').first()).toHaveText('1');
+  // every matchup has a winner: the rates average one half
+  const rates = (await rows.locator('td:nth-child(3)').allInnerTexts()).map((s) => Number(s.replace('%', '')));
+  expect(rates.reduce((s, r) => s + r, 0) / rates.length).toBeGreaterThanOrEqual(48);
+  expect(rates.reduce((s, r) => s + r, 0) / rates.length).toBeLessThanOrEqual(52);
+  expect(rates[0]).toBeGreaterThanOrEqual(rates[3]!);
+  await page.goto('/league/');
+  await page.getByLabel('Format').selectOption('roto');
+  await page.goto('/team/');
+  await expect(table.locator('thead')).toContainText('Roto pts');
+  await expect(table.locator('thead')).not.toContainText('Win %');
+});
+
 test('My Team suggests IL moves from the board availability and applies them', async ({ page }) => {
   const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
     full_name: string | null;
