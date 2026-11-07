@@ -1756,6 +1756,24 @@ test('a draft on the Draft page snakes pick by pick, here and on the board, with
   await expect(page.getByTestId('draft-bar')).toHaveCount(0);
 });
 
+test('Rankings and the Draft page price players for an auction from value above replacement (#741)', async ({ page }) => {
+  await page.goto('/');
+  const board = page.getByTestId('board');
+  const rows = board.locator('tbody tr[data-player]');
+  await expect(rows.first()).toBeVisible();
+  await expect(board.locator('thead th').nth(3)).toHaveText('$');
+  const top = Number((await rows.first().getByTestId('auction').innerText()).replace('$', ''));
+  const tenth = Number((await rows.nth(9).getByTestId('auction').innerText()).replace('$', ''));
+  expect(top).toBeGreaterThan(tenth);
+  expect(tenth).toBeGreaterThanOrEqual(1);
+  // the stat lines carry no price
+  await page.getByRole('radio', { name: 'Season line' }).click();
+  await expect(board.getByTestId('auction')).toHaveCount(0);
+  await page.goto('/draft/');
+  await page.getByRole('button', { name: 'Start a draft' }).click();
+  await expect(page.getByTestId('best-available').getByTestId('draft-auction').first()).toHaveText(/^\$\d+$/);
+});
+
 test('the value view groups the board into tiers by pick and round, and ranks players by position', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');

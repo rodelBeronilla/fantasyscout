@@ -16,6 +16,7 @@ import { DraftBar, LeagueBar } from './LeagueParts';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 import { isLine, num, rankAndTier, scoreRows, zKey } from '../lib/board-model';
+import { AUCTION_BUDGET, auctionValues } from '../lib/auction';
 
 interface BoardRowFields {
   player_id: string;
@@ -378,7 +379,15 @@ export default function Board() {
   // position, which left a column of dashes (#451). Its trend arrow then sits with the name tags.
   const showMarket = view === 'value' && rows.some((r) => r.market_rank != null);
   const scheduleCount = scheduleCols ? 2 + (view === 'value' ? 1 : 0) + (showNext7 ? 2 : 0) : 0;
-  const columns = 2 + (isLine(view) ? 0 : 1) + (showMarket ? 2 : 0) + (showFit ? 1 : 0) + categoryColumns.length + scheduleCount + 1;
+  // auction dollars (#741): the value view's values, spread over a league this size's budget
+  const dollars =
+    view === 'value'
+      ? auctionValues(new Map(scored.filter((s) => s.value !== null).map((s) => [s.row.player_id, s.value as number])), {
+          teams: setup.teams,
+          rosterSpots: setup.rosterSpots,
+        })
+      : null;
+  const columns = 2 + (isLine(view) ? 0 : 1) + (dollars ? 1 : 0) + (showMarket ? 2 : 0) + (showFit ? 1 : 0) + categoryColumns.length + scheduleCount + 1;
   const lastPick = setup.picks.at(-1);
   const ownerName = (id: string) => {
     const t = owner.get(id);
@@ -400,6 +409,7 @@ export default function Board() {
   const exportCsv = () => {
     const header = ['rank', 'player', 'team', 'position', 'age', 'rookie', 'new_team_from', 'games', 'games_share', ...categoryColumns.map((c) => c.label)];
     if (!isLine(view)) header.push('total');
+    if (dollars) header.push('auction_dollars');
     header.push('tier', 'fantasy_team');
     const body = ranked.map(({ row, value }, i) => {
       const cells: (string | number | boolean | null)[] = [
@@ -417,6 +427,7 @@ export default function Board() {
         ),
       ];
       if (!isLine(view)) cells.push(value);
+      if (dollars) cells.push(Math.round(dollars.get(row.player_id) ?? 0));
       const t = owner.get(row.player_id);
       cells.push(tiers?.of.get(row.player_id) ?? null, t === undefined ? null : (setup.names[t] ?? null));
       return cells;
@@ -512,6 +523,13 @@ export default function Board() {
         {!isLine(view) && (
           <Td right col="value">
             <strong data-testid="value">{fmt(value, 2)}</strong>
+          </Td>
+        )}
+        {dollars && (
+          <Td right col="auction">
+            <span data-testid="auction" className={(dollars.get(row.player_id) ?? 0) > 0 ? '' : 'text-muted'}>
+              ${Math.round(dollars.get(row.player_id) ?? 0)}
+            </span>
           </Td>
         )}
         {showMarket && (
@@ -845,6 +863,13 @@ export default function Board() {
                 <SortTh right active={sortKey === 'value'} dir={sortDir} onClick={() => sortBy('value')} title={BASIS_HELP[basis]}>
                   Value
                 </SortTh>
+              )}
+              {dollars && (
+                <Th right>
+                  <span title={`Auction value: the league's $${AUCTION_BUDGET} a team, less $1 a roster spot, spread over the ${setup.teams * setup.rosterSpots} players a league this size rosters by value above replacement`}>
+                    $
+                  </span>
+                </Th>
               )}
               {showMarket && (
                 <SortTh
