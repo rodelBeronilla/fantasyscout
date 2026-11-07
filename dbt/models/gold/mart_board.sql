@@ -395,6 +395,9 @@ assembled as (
             else 1.0
         end as availability_multiplier,
         em.games_missed as expected_games_missed,
+        cn.game_floor,
+        cn.game_ceiling,
+        cn.game_value_sd,
         {%- for c in pgcols %}
         sl.{{ c }} as cur_{{ c }},
         {%- endfor %}
@@ -420,6 +423,7 @@ assembled as (
     left join season_lines as sl on sl.league = v.league and sl.player_id = v.player_id and sl.window_name = 'season'
     left join season_lines as rc on rc.league = v.league and rc.player_id = v.player_id and rc.window_name = 'last_10'
     left join season_lines as l20 on l20.league = v.league and l20.player_id = v.player_id and l20.window_name = 'last_20'
+    left join {{ ref('mart_player_consistency') }} as cn on cn.league = v.league and cn.season = v.season and cn.player_id = v.player_id
 
 ),
 
@@ -499,6 +503,9 @@ select
     lineup_confirmed,
     lineup_date,
     market_rank,
+    game_floor,
+    game_ceiling,
+    game_value_sd,
     ownership_bucket,
     ownership_trend,
     team_stakes,

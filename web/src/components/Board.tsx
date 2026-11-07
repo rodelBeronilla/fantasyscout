@@ -72,6 +72,10 @@ interface BoardRowFields {
   is_new_team: boolean | null;
   prev_team_abbreviation: string | null;
   proj_minutes_pg: number | null;
+  /** The player's 20th- and 80th-percentile games this season and their spread, on the z_total scale (#747). */
+  game_floor?: number | null;
+  game_ceiling?: number | null;
+  game_value_sd?: number | null;
   [key: string]: unknown;
 }
 // Only columns the export ships (export/layout.py): a field it does not ship fails the type check (#479).
@@ -195,6 +199,8 @@ export default function Board() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   // Age, games played, games share and the schedule: an optional column set (#714)
   const [scheduleCols, setScheduleCols] = useState(false);
+  // each player's game range this season (#747): an optional column set
+  const [rangeCols, setRangeCols] = useState(false);
   const [showChoice, setShowChoice] = useState<Show | null>(null);
   const { watched, toggleWatched } = useWatchlist(league);
   const [setup, updateLeague] = useLeague(league);
@@ -378,7 +384,7 @@ export default function Board() {
   // The market columns only when the market ranks someone: the WNBA has ownership but no draft
   // position, which left a column of dashes (#451). Its trend arrow then sits with the name tags.
   const showMarket = view === 'value' && rows.some((r) => r.market_rank != null);
-  const scheduleCount = scheduleCols ? 2 + (view === 'value' ? 1 : 0) + (showNext7 ? 2 : 0) : 0;
+  const scheduleCount = (scheduleCols ? 2 + (view === 'value' ? 1 : 0) + (showNext7 ? 2 : 0) : 0) + (rangeCols ? 3 : 0);
   // auction dollars (#741): the value view's values, spread over a league this size's budget
   const dollars =
     view === 'value'
@@ -570,6 +576,17 @@ export default function Board() {
         {scheduleCols && view === 'value' && <Td right>{pct(row.games_share)}</Td>}
         {scheduleCols && showNext7 && <Td right>{row.games_next_7 ?? 0}</Td>}
         {scheduleCols && showNext7 && <Td right>{row.games_this_week ?? 0}</Td>}
+        {rangeCols && (
+          <Td right col="game_floor">
+            <Signed value={row.game_floor ?? null} digits={1} />
+          </Td>
+        )}
+        {rangeCols && (
+          <Td right col="game_ceiling">
+            <Signed value={row.game_ceiling ?? null} digits={1} />
+          </Td>
+        )}
+        {rangeCols && <Td right col="game_value_sd">{fmt(row.game_value_sd ?? null, 1)}</Td>}
         <Td>
           {/* The label pads the box to a 24 by 24 target (#457). */}
           <label className="-m-1 inline-flex cursor-pointer p-1">
@@ -765,6 +782,10 @@ export default function Board() {
                 <input type="checkbox" checked={scheduleCols} onChange={(e) => setScheduleCols(e.target.checked)} />
                 Schedule and health columns (age, games played{showNext7 ? ', games in the next 7 days and this week' : ''})
               </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={rangeCols} onChange={(e) => setRangeCols(e.target.checked)} />
+                Consistency columns (a bad game, a good game, and the spread between games)
+              </label>
               <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-bg" data-testid="board-csv">
                 Export what the board shows as CSV
               </button>
@@ -936,6 +957,21 @@ export default function Board() {
               {scheduleCols && showNext7 && (
                 <SortTh right active={sortKey === 'games_this_week'} dir={sortDir} onClick={() => sortBy('games_this_week')} title="Team games left this fantasy week (Monday to Sunday)">
                   Wk
+                </SortTh>
+              )}
+              {rangeCols && (
+                <SortTh right active={sortKey === 'game_floor'} dir={sortDir} onClick={() => sortBy('game_floor')} title="A bad game: the player's 20th-percentile game this season, on the nine-category z-score scale">
+                  Floor
+                </SortTh>
+              )}
+              {rangeCols && (
+                <SortTh right active={sortKey === 'game_ceiling'} dir={sortDir} onClick={() => sortBy('game_ceiling')} title="A good game: the player's 80th-percentile game this season, on the nine-category z-score scale">
+                  Ceiling
+                </SortTh>
+              )}
+              {rangeCols && (
+                <SortTh right active={sortKey === 'game_value_sd'} dir={sortDir} onClick={() => sortBy('game_value_sd', 'asc')} title="How much one game differs from the next (standard deviation): low is steady, high is boom or bust">
+                  Spread
                 </SortTh>
               )}
               <Th>Cmp</Th>

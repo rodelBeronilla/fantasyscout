@@ -370,7 +370,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 378,
+ "generic_tests": 381,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -17681,6 +17681,7 @@
       "fct_official_listing",
       "int_league_season_state",
       "mart_category_zscores",
+      "mart_player_consistency",
       "mart_player_projection",
       "mart_player_rolling",
       "mart_streamers"
@@ -21430,6 +21431,27 @@
        "type": "bigint"
       },
       {
+       "description": "The player's 20th-percentile game this season, valued on the z_total scale (mart_player_consistency); null before a game",
+       "meta": {},
+       "name": "game_floor",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The player's 80th-percentile game this season, valued on the z_total scale (mart_player_consistency); null before a game",
+       "meta": {},
+       "name": "game_ceiling",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Standard deviation of the player's game values this season (mart_player_consistency): how much one game differs from the next",
+       "meta": {},
+       "name": "game_value_sd",
+       "tests": [],
+       "type": "double"
+      },
+      {
        "description": "How widely ESPN leagues roster the player: most, many, some, few or rare",
        "meta": {},
        "name": "ownership_bucket",
@@ -21614,6 +21636,7 @@
       "fct_team_stakes",
       "int_player_news_latest",
       "mart_category_zscores",
+      "mart_player_consistency",
       "mart_player_projection",
       "schedule_team_games",
       "team_current",
@@ -21890,6 +21913,109 @@
       "fct_player_game"
      ],
      "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, season and player",
+       "meta": {},
+       "name": "consistency_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2026 in the WNBA, 2025-26 in the NBA)",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Played games this season",
+       "meta": {},
+       "name": "games",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "Mean game value: the sum of the game's category z-scores against the season pool; equals the season z_total",
+       "meta": {},
+       "name": "game_value_mean",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Sample standard deviation of the game values; null with one game",
+       "meta": {},
+       "name": "game_value_sd",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "20th-percentile game value (interpolated)",
+       "meta": {},
+       "name": "game_floor",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "80th-percentile game value (interpolated)",
+       "meta": {},
+       "name": "game_ceiling",
+       "tests": [],
+       "type": "double"
+      }
+     ],
+     "description": "Game-to-game consistency (#747): every played game this season valued on the board's z_total scale against the season pool, and per player the mean, spread, floor and ceiling of those values.",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "season",
+       "player_id"
+      ],
+      "key": "consistency_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "mart_player_consistency",
+     "notes": [
+      "Game-to-game consistency (#747): every game a player played this season, valued on the board's own scale, and the spread of those values.",
+      "A game's value is the sum of its category z-scores against the season pool, the same pool and the same means and standard deviations mart_category_zscores uses for the season window (the top 180 NBA or 90 WNBA players by minutes): counting categories as (stat - pool mean) / pool sd, turnovers negative, and the percentages as the game's volume-weighted impact, (makes - pool pct x attempts), over the pool's impact sd. The mean of a player's game values is then close to their season z_total; the floor and ceiling are the 20th and 80th percentile games."
+     ],
+     "read_by": [
+      "mart_board"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "fct_player_game"
+     ],
+     "unit_tests": [
+      {
+       "description": "Each game is valued against the season pool (#747). Three players differ only in points: their averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10, 20 and 30 points are worth 0, 1 and 2. The mean is 1 (a's season z-score), the spread 1, and the 20th and 80th percentile games 0.4 and 1.6. Every other category is zero for everyone and adds nothing.",
+       "name": "consistency_values_each_game_on_the_board_scale"
+      }
+     ]
     },
     {
      "checks": [
@@ -25127,6 +25253,11 @@
    "description": "Thirty players on one team in a two-team, five-spot league (pool of ten, replacement level the next two). Only points vary, so value is the points z-score. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05; pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out. rank_total follows value, equal points broken by player id. The numbers themselves (a z-score is a square root) are pinned by board_availability_follows_the_status, where they are exact.",
    "model": "mart_board",
    "name": "board_pool_is_chosen_in_two_passes"
+  },
+  {
+   "description": "Each game is valued against the season pool (#747). Three players differ only in points: their averages 20, 0 and 10 give a pool mean of 10 and a standard deviation of 10, so a's games of 10, 20 and 30 points are worth 0, 1 and 2. The mean is 1 (a's season z-score), the spread 1, and the 20th and 80th percentile games 0.4 and 1.6. Every other category is zero for everyone and adds nothing.",
+   "model": "mart_player_consistency",
+   "name": "consistency_values_each_game_on_the_board_scale"
   },
   {
    "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",

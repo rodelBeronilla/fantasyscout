@@ -76,6 +76,8 @@ interface PlayerBoardFields {
   value_total: number | null;
   value_rest_of_season: number | null;
   value_per_game?: number | null;
+  game_floor?: number | null;
+  game_ceiling?: number | null;
   games_share?: number | null;
   availability_multiplier?: number | null;
   expected_games_missed?: number | null;
@@ -229,6 +231,17 @@ function OutlookCard({ board, league, season, status }: { board: NonNullable<Pla
             />
           )}
           <Fact label="Projected games share" value={pct(board.games_share)} hint="Share of regular-season games the player is projected to play" />
+          {typeof board.game_floor === 'number' && typeof board.game_ceiling === 'number' && (
+            <Fact
+              label="Game range"
+              value={
+                <span data-testid="game-range">
+                  <Signed value={board.game_floor} digits={1} /> to <Signed value={board.game_ceiling} digits={1} />
+                </span>
+              }
+              hint="A bad game to a good one this season (the 20th to the 80th percentile), on the nine-category z-score scale; a narrow range is a steady player"
+            />
+          )}
           {typeof board.availability_multiplier === 'number' && board.availability_multiplier < 1 && (
             <Fact
               label="Available for"

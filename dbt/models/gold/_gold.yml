@@ -922,6 +922,30 @@ models:
       - name: _ingest_date
         description: "Ingest date of the latest landing of the listing"
 
+  - name: mart_player_consistency
+    description: "Game-to-game consistency (#747): every played game this season valued on the board's z_total scale against the season pool, and per player the mean, spread, floor and ceiling of those values."
+    columns:
+      - name: consistency_sk
+        description: "Surrogate key: one row per league, season and player"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "wnba or nba"
+      - name: season
+        description: "Season label (2026 in the WNBA, 2025-26 in the NBA)"
+      - name: player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: games
+        description: "Played games this season"
+      - name: game_value_mean
+        description: "Mean game value: the sum of the game's category z-scores against the season pool; equals the season z_total"
+      - name: game_value_sd
+        description: "Sample standard deviation of the game values; null with one game"
+      - name: game_floor
+        description: "20th-percentile game value (interpolated)"
+      - name: game_ceiling
+        description: "80th-percentile game value (interpolated)"
+
   - name: mart_player_rolling
     description: "Player × game with rolling 5, 10 and 20-game category averages; windows restart each season, and percentages are volume-weighted."
     columns:
@@ -1488,6 +1512,12 @@ models:
         data_tests: [not_null]
       - name: market_gap
         description: "market_rank minus rank_total: positive when the market drafts the player later than the board ranks the player"
+      - name: game_floor
+        description: "The player's 20th-percentile game this season, valued on the z_total scale (mart_player_consistency); null before a game"
+      - name: game_ceiling
+        description: "The player's 80th-percentile game this season, valued on the z_total scale (mart_player_consistency); null before a game"
+      - name: game_value_sd
+        description: "Standard deviation of the player's game values this season (mart_player_consistency): how much one game differs from the next"
 
   - name: mart_schedule_upcoming
     description: "Regular-season and playoff games not yet final in the next fourteen days, unconfirmed if-necessary games left out, with matchup values, betting lines, rest and travel."
