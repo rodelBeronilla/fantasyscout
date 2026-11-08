@@ -707,7 +707,7 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'find' && standings && (
-        <Card title="Trades across your league" id="finder" badge={<Unvalidated issue={756} what="The trade finder" />}>
+        <Card title="Trades across your league" id="finder" badge={<Unvalidated issue={888} what="The trade finder" />}>
           <label className="mb-2 flex items-center gap-2 text-sm" title="Both teams' expected categories must rise">
             <input type="checkbox" checked={winWin} onChange={(e) => setWinWin(e.target.checked)} data-testid="win-win" />
             Win-win only
@@ -911,7 +911,7 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'build' && ready && (
-        <Card title="Verdict" id="verdict" badge={<Unvalidated issue={756} what="The trade verdict" />}>
+        <Card title="Verdict" id="verdict" badge={<Unvalidated issue={886} what="The trade verdict" />}>
           {weekAvailable && (
             <div className="mb-2">
               <Segmented
@@ -1196,7 +1196,7 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'build' && ready && hasRosters && (
-        <Card title="Suggested trades" id="suggestions" badge={<Unvalidated issue={756} what="The suggestions" />}>
+        <Card title="Suggested trades" id="suggestions" badge={<Unvalidated issue={887} what="The suggestions" />}>
           {standings && (
             <label className="mb-2 flex items-center gap-2 text-sm" title="Both teams' expected categories must rise">
               <input type="checkbox" checked={winWin} onChange={(e) => setWinWin(e.target.checked)} data-testid="win-win" />

@@ -68,12 +68,12 @@ ESPN points leagues score as "other leagues" in jobs 2 and 8: no score so far an
    - **Other leagues:** these get only the projected table, whose order is the failed power rankings. That leaves them behind every platform that shows the real standings. The hosts show them to the same manager, and Basketball Monster and League Winner show them through a sync.
 7. **Your own team: ahead of Basketball Monster and Hashtag (was at par).**
    - A head-to-head league's category win chances passed their backtest (ADR 0021). The tile lost its badge. None of the other platforms publishes a test of its team analysis.
-   - Rotisserie chances keep theirs (#866). So do:
+   - Rotisserie chances keep theirs: a projection spread by the games left did not fix the first game day (#866, ADR 0022; next #898). So do:
      - the week's lineup (#759);
      - the roster review and Build your team (#757).
 8. **Playoff push: ahead of Hashtag and League Winner for an ESPN category league (was behind).**
    - My Team leads with the odds of making the playoffs, your games in the playoff weeks, and one target (#859).
-   - The odds are not yet validated (#872). League Winner's free odds give the same kind of answer.
+   - The odds beat the current standings out of sample but are not yet calibrated (#872, ADR 0025; next #900). League Winner's free odds give the same kind of answer.
    - The playoff-week plan is factual and League Winner has none. Hashtag's free playoff schedule counts each NBA team's games, not your roster's in your league's weeks.
    - **Other leagues:**
      - The odds start every team level.

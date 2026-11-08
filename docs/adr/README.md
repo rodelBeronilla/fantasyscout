@@ -24,6 +24,9 @@ One record per real decision, written when the decision is made. Numbered; a lat
 | [0019](0019-one-value-scale.md) | One value scale | 2026-11-07 | Accepted | 0003's pool rule |  |
 | [0020](0020-preseason-market-prior.md) | A preseason prior from the market's draft order | 2026-11-08 | Accepted |  |  |
 | [0021](0021-standings-model-validated.md) | The standings model, judged on simulated leagues | 2026-11-08 | Accepted | 0015's spreads |  |
+| [0022](0022-rotisserie-spread-by-horizon-rejected.md) | A rotisserie projection spread by the games left, tried and rejected | 2026-11-08 | Accepted |  |  |
+| [0023](0023-trade-page-judged.md) | The Trade page, judged on simulated leagues | 2026-11-08 | Accepted |  |  |
+| [0025](0025-playoff-odds-judged.md) | The playoff odds, judged on simulated leagues | 2026-11-08 | Accepted |  |  |
 ## Addenda
 A record is not edited after acceptance, but it may grow **addenda**: dated sections that add evidence, record a measurement, or note what happened when the decision met real data. An addendum may not change the decision; a changed decision is a new record that says what it supersedes, and the old record gets a one-line pointer where the superseded text stands (in italics, so the original reads as written). When a record's addenda become a subject of their own, they move to a new record with the text unchanged and a pointer left behind; the new record's header says `Moved from:` instead of `Supersedes:`, because a move changes no decision. ADR 0003 did this on 2026-11-01 (0009 to 0012).
 Template:
