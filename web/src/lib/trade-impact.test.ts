@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type LeagueState, leagueStandings, objective, rostersAfter, teamNeeds, tradeImpact } from './trade-impact';
+import { type LeagueState, leagueStandings, objective, rostersAfter, scoreWith, teamNeeds, tradeImpact } from './trade-impact';
 
 const values: Record<string, Record<string, number>> = {
   // the manager: a scorer who does nothing for the kept categories, and two bigs
@@ -71,6 +71,13 @@ describe('tradeImpact', () => {
     expect(impact.mine.scoreBefore).toBeGreaterThanOrEqual(2);
     expect(impact.mine.scoreBefore).toBeLessThanOrEqual(6);
     expect(impact.mine.gain).toBeCloseTo(0, 9);
+  });
+  it('scores a roster in place of the team on the same scale as a trade (#809)', () => {
+    const before = tradeImpact(state, standings, 0, 1, [], []).mine.scoreBefore;
+    expect(scoreWith(state, standings, 0, state.rosters[0]!).score).toBeCloseTo(before, 9);
+    // the scorer's spot left open: a little better in these categories, since he hurts them
+    expect(scoreWith(state, standings, 0, ['big1', 'big2']).score).toBeGreaterThan(before);
+    expect(scoreWith(state, standings, 0, ['scorer']).score).toBeLessThan(before);
   });
   it('is not judged without a rival roster', () => {
     expect(leagueStandings({ ...state, rosters: [['scorer'], [], []] }, 0)).toBeNull();

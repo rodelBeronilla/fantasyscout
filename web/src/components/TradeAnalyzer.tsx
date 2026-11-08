@@ -10,15 +10,16 @@ import { CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague } from '../lib/league';
 import { categoryWeights, DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague, weightedSum } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
+import { acceptable, type FairnessModel, leagueState, marketMap, playerWorth, tradeLenses, type Worth } from '../lib/league-model';
 import { href } from '../lib/site';
 import { matchup, weekTotals } from '../lib/matchup';
 import { type LeagueState, leagueStandings, meaningful, objective, rostersAfter, teamNeeds, tradeImpact } from '../lib/trade-impact';
 import { median, ranks, tradeChips, tradeTargets } from '../lib/punt-chips';
 import { buySell, type FormSwing } from '../lib/buy-sell';
 import { rivals } from '../lib/standings';
-import { judge, lens, LIMITS, marketValues } from '../lib/trade-fairness';
+import { judge } from '../lib/trade-fairness';
 import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
-import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
+import { hasWeekGames, recentForm, type ValueUnit } from '../lib/week-value';
 import { describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
 import ExplainTrade from './ExplainTrade';
@@ -52,15 +53,8 @@ interface PlayerRowFields {
 // Only columns the export ships (export/layout.py): a field it does not ship fails the type check (#479).
 type PlayerRow = ExportedRow<BoardColumn, PlayerRowFields>;
 
-/** A player's worth under the league's settings: per game, over the season, for the rest of it, and for this fantasy week. */
-interface Value {
-  perGame: number;
-  season: number;
-  rest: number;
-  week: number;
-  cats: Record<string, number>;
-  fpts: number | null;
-}
+/** A player's worth under the league's settings (league-model.ts). */
+type Value = Worth;
 
 type Side = 'give' | 'get';
 
@@ -150,77 +144,40 @@ export default function TradeAnalyzer() {
   // The partner defaults to the first team that is not the manager's.
   const partnerTeam = partner ?? setup.names.findIndex((_, i) => i !== setup.mine);
 
-  const worth = useMemo(() => {
-    const out = new Map<string, Value>();
-    for (const r of rows ?? []) {
-      const c: Record<string, number> = {};
-      if (catValues) for (const k of cats) c[k] = catValues.get(r.player_id)?.[k] ?? 0;
-      const pv = pointVals?.get(r.player_id);
-      const perGame = points ? (pv?.value ?? 0) : weightedSum(c, catWeight);
-      const season = scaleValue(perGame, r, { restOfSeason: false });
-      const rest = scaleValue(perGame, r);
-      const recent = points ? perGame : weightedSum(recentCats?.get(r.player_id), catWeight);
-      out.set(r.player_id, { perGame, season, rest, week: weekValue(recent, r.games_this_week), cats: c, fpts: pv ? pv.fpts : null });
-    }
-    return out;
-  }, [rows, catValues, pointVals, points, cats, recentCats, catWeight]);
+  const worth = useMemo(
+    () => playerWorth(rows ?? [], { points, cats, catWeight, catValues, pointValues: pointVals, recentCats }),
+    [rows, catValues, pointVals, points, cats, recentCats, catWeight],
+  );
 
   const options = useMemo(() => new Map((rows ?? []).map((p) => [optionLabel(p), p.player_id])), [rows]);
 
-  // The league as the standings model reads it (#663, ADR 0015): active rosters, free agents best
-  // first, each player's category values and the share of the games left he is expected to play.
-  // A categories league with rosters in only; the standings also need a rival roster.
-  const state = useMemo<LeagueState | null>(() => {
-    if (!rows || points || !hasRosters) return null;
-    const availability = new Map(rows.map((r) => [r.player_id, r.availability_multiplier ?? 1]));
-    const value = (id: string) => {
-      const w = worth.get(id);
-      return w ? (week ? w.week : w.rest) : 0;
-    };
-    return {
-      league,
-      format: setup.format,
-      cats,
-      rosters: setup.rosters.map((r) => r.filter((id) => !setup.il.includes(id))),
-      rosterSpots: setup.rosterSpots,
-      freeAgents: rows
-        .filter((r) => !owner.has(r.player_id))
-        .map((r) => r.player_id)
-        .sort((a, b) => value(b) - value(a)),
-      rest: value,
-      catValue: (id) => worth.get(id)?.cats,
-      availability: (id) => availability.get(id) ?? 1,
-      gamesLeft: rows.reduce((m, r) => Math.max(m, r.games_remaining ?? 0), 0),
-    };
-  }, [rows, points, hasRosters, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner]);
+  // The league as the standings model reads it (league-model.ts); the standings also need a rival roster.
+  const state = useMemo<LeagueState | null>(
+    () =>
+      rows
+        ? leagueState(rows, { league, format: setup.format, points, cats, rosters: setup.rosters, il: setup.il, rosterSpots: setup.rosterSpots, owner, worth, week })
+        : null,
+    [rows, points, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner],
+  );
   const standings = useMemo(() => (state ? leagueStandings(state, setup.mine) : null), [state, setup.mine]);
-  // The market's price of each player (#692): his ESPN rank, priced at the rest-of-season value the
-  // board's player of that rank has, so it reads on the same scale as the projected value.
-  const marketMap = useMemo(() => (rows ? marketValues(rows, (id) => worth.get(id)?.rest ?? 0) : new Map<string, number>()), [rows, worth]);
-  /** A trade's value and market lenses for the manager, the roster spots settled (#692). */
-  const lensesFor = useCallback(
-    (partnerIdx: number, g: string[], r: string[]) => {
-      const settled = state && partnerIdx >= 0 ? rostersAfter(state, setup.mine, partnerIdx, g, r).mine : null;
-      const outgoing = [...g, ...(settled?.dropped ?? [])];
-      const incoming = [...r, ...(settled?.added ?? [])];
-      const value = lens(outgoing, incoming, (id) => {
+  const marketPrices = useMemo(() => (rows ? marketMap(rows, worth) : new Map<string, number>()), [rows, worth]);
+  const fairness = useMemo<FairnessModel>(
+    () => ({
+      state,
+      mine: setup.mine,
+      value: (id) => {
         const w = worth.get(id);
         return w ? (week ? w.week : w.rest) : 0;
-      });
-      const ranked = [...g, ...r].some((id) => typeof byId.get(id)?.market_rank === 'number');
-      const market = ranked ? lens(outgoing, incoming, (id) => marketMap.get(id) ?? 0) : null;
-      return { value, market, settled };
-    },
-    [state, setup.mine, worth, week, byId, marketMap],
+      },
+      market: marketPrices,
+      ranked: (id) => typeof byId.get(id)?.market_rank === 'number',
+    }),
+    [state, setup.mine, worth, week, byId, marketPrices],
   );
+  /** A trade's value and market lenses for the manager, the roster spots settled (#692). */
+  const lensesFor = useCallback((partnerIdx: number, g: string[], r: string[]) => tradeLenses(fairness, partnerIdx, g, r), [fairness]);
   /** Not a bad trade for the manager on value or market: what suggestions and the finder keep (#692). */
-  const acceptableFor = useCallback(
-    (partnerIdx: number, g: string[], r: string[]) => {
-      const { value, market } = lensesFor(partnerIdx, g, r);
-      return value.share > LIMITS.value.bad && (!market || market.share > LIMITS.market.bad);
-    },
-    [lensesFor],
-  );
+  const acceptableFor = useCallback((partnerIdx: number, g: string[], r: string[]) => acceptable(fairness, partnerIdx, g, r), [fairness]);
 
   // Trade chips and targets for a punt build (#671): where each player ranks on rest-of-season value
   // over every category the league counts (roughly where other managers see him) against where he

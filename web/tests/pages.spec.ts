@@ -1662,6 +1662,78 @@ test('My Team shows the chance of beating the league in each kept category, and 
   expect(results.violations).toEqual([]);
 });
 
+test('Build your team lists targets and players to let go, each with a move and a link to the Trade page prefilled (#809)', async ({ page, isMobile }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/');
+  await page.getByLabel('Roster spots').fill('6');
+  for (const [team, picked] of [[1, [0, 5, 9, 12]], [2, [1, 2, 7, 13]], [3, [3, 4, 8, 14]]] as const) {
+    for (const i of picked) await page.getByLabel(`Add a player to Team ${team}`, { exact: true }).fill(label(board[i]!));
+  }
+  await page.goto('/team/');
+  const tile = page.getByTestId('build-plan');
+  await expect(tile).toBeVisible();
+  await expect(tile.getByTestId('unvalidated')).toBeVisible();
+  // the default league is rotisserie: the plan reads its expected points
+  await expect(tile.getByTestId('build-summary')).toContainText('expected rotisserie points against the league');
+  await expect(tile.getByTestId('build-import')).toHaveCount(0);
+  // the category picture: every kept category with its place among the three teams
+  await expect(tile.getByTestId('build-cat')).toHaveCount(9);
+  await expect(tile.getByTestId('build-cat').first()).toContainText(/(1st|2nd|3rd) of 3 · \d+%/);
+  // targets, and the two let-go lists of the four players on the roster
+  await expect(tile.getByTestId('build-targets').getByTestId('build-row').first()).toBeVisible();
+  await expect(tile.getByTestId('build-surplus').getByTestId('build-row')).toHaveCount(4);
+  await expect(tile.getByTestId('build-lowest').getByTestId('build-row')).toHaveCount(4);
+  // every free-agent target comes with its swap, and a link to Pickups
+  for (const row of await tile.getByTestId('build-targets').getByTestId('build-row').all()) {
+    const link = row.getByTestId('build-link');
+    if ((await link.innerText()).includes('Pickups')) {
+      await expect(row.getByTestId('build-move')).toHaveAttribute('data-kind', 'pickup');
+      await expect(link).toHaveAttribute('href', /\/streamers\/\?league=wnba$/);
+    } else {
+      await expect(row.getByTestId('build-move')).toHaveAttribute('data-kind', 'trade');
+      await expect(link).toHaveAttribute('href', new RegExp(`/trade/\\?league=wnba(&give=\\d+)+&get=${await row.getAttribute('data-player')}$`));
+    }
+  }
+  // a player let go opens the Trade page with that player on the give side
+  const spare = tile.getByTestId('build-surplus').getByTestId('build-row').first();
+  const id = (await spare.getAttribute('data-player'))!;
+  const name = await spare.locator('a').first().innerText();
+  const more = spare.getByRole('link', { name: 'more on Trade →' });
+  await expect(more).toHaveAttribute('href', new RegExp(`/trade/\\?league=wnba&give=${id}(&|$)`));
+  const results = await new AxeBuilder({ page }).include('[data-testid="build-plan"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+  expect(results.violations).toEqual([]);
+  if (isMobile) expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+  await more.click();
+  await expect(page).toHaveURL(/\/trade\//);
+  await expect(page.getByTestId('picked-give')).toContainText(name);
+});
+
+test('without rival rosters Build your team ranks targets by need-weighted value and says importing adds the deals; a points league has none (#809)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
+  const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  await page.goto('/league/');
+  for (const i of [0, 5, 9]) await page.getByLabel('Add a player to Team 1', { exact: true }).fill(label(board[i]!));
+  await page.getByLabel('Punt PTS').check({ force: true });
+  await page.goto('/team/');
+  const tile = page.getByTestId('build-plan');
+  await expect(tile.getByTestId('build-import')).toContainText('Import your league to see swaps and trades');
+  await expect(tile.getByTestId('build-targets').getByTestId('build-row')).toHaveCount(5);
+  await expect(tile.getByTestId('build-move')).toHaveCount(0);
+  await expect(tile.getByTestId('build-surplus').getByTestId('build-row')).toHaveCount(3);
+  // the punt: out of the picture, and named as counting for nothing
+  await expect(tile.getByTestId('build-cat')).toHaveCount(8);
+  await expect(tile.locator('[data-cat="z_points"]')).toHaveCount(0);
+  await expect(tile).toContainText('Punted, counting for nothing: PTS');
+  const first = tile.getByTestId('build-targets').getByTestId('build-row').first();
+  await expect(first.getByTestId('build-link')).toHaveAttribute('href', new RegExp(`/trade/\\?league=wnba&get=${await first.getAttribute('data-player')}$`));
+  await page.goto('/league/');
+  await page.getByLabel('Scoring').selectOption('points');
+  await page.goto('/team/');
+  await expect(page.getByTestId('roster-table')).toBeVisible();
+  await expect(page.getByTestId('build-plan')).toHaveCount(0);
+});
+
 test('My Team plans the week lineup under the league slots: starts, games lost to a full lineup, and open slots to stream (#735)', async ({ page }) => {
   type Row = { player_id: string; full_name: string | null; team_id: string | null; team_abbreviation: string; position: string; injury_group: string | null };
   type Game = { game_date: string; days_ahead: number; home_team_id: string; away_team_id: string };

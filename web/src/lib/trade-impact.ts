@@ -113,6 +113,18 @@ function score(state: LeagueState, chances: Record<string, number>, rivalCount: 
   return state.format === 'roto' ? Object.keys(chances).length + wins * rivalCount : wins;
 }
 
+/**
+ * The team's chances and score with `roster` in place of its own, every other team as it stands: a
+ * pickup or a drop judged on the same scale as a trade (#809).
+ */
+export function scoreWith(state: LeagueState, standings: Standings, team: number, roster: string[]): { chances: Record<string, number>; score: number } {
+  const totals = [...standings.totals];
+  totals[team] = teamTotals(roster, state.cats, state.catValue, state.availability);
+  const others = rivals(state.rosters, team, state.rosterSpots);
+  const chances = winChances(totals, team, others, standings.model);
+  return { chances, score: score(state, chances, others.length) };
+}
+
 /** What the trade does to both teams' rosters and standings. */
 export function tradeImpact(state: LeagueState, standings: Standings, mine: number, partner: number, give: string[], get: string[]): TradeImpact {
   const sides = rostersAfter(state, mine, partner, give, get);
