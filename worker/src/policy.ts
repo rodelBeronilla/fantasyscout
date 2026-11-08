@@ -26,8 +26,9 @@ export function pagePolicy(hashes: InlineHashes): string {
     "font-src 'self'",
     // DuckDB-WASM fetches its Parquet reader as an extension from the DuckDB extension repository;
     // Data Health reads the open data-incident issues from GitHub's public API (#418); the League
-    // page imports a public ESPN league from ESPN's league API (#745).
-    "connect-src 'self' blob: https://cloudflareinsights.com https://extensions.duckdb.org https://api.github.com https://lm-api-reads.fantasy.espn.com",
+    // page imports a public ESPN league from ESPN's league API (#745), and reads ESPN's public NBA
+    // scoreboard with it, for which of today's games the score so far holds (#875).
+    "connect-src 'self' blob: https://cloudflareinsights.com https://extensions.duckdb.org https://api.github.com https://lm-api-reads.fantasy.espn.com https://site.api.espn.com",
     "worker-src 'self' blob:",
     'frame-src https://public.tableau.com',
     "frame-ancestors 'none'",

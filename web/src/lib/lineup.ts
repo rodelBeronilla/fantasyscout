@@ -106,10 +106,14 @@ export function weekPlan(players: LineupPlayer[], dates: string[], plays: (id: s
   return { days, started, lost, openSlots: days.reduce((s, d) => s + d.open.length, 0), games: started + lost };
 }
 
-/** Each player's started games over the plan: what a head-to-head week counts (#817). */
-export function startsByPlayer(plan: WeekPlan): Map<string, number> {
+/**
+ * Each player's started games over the plan: what a head-to-head week counts (#817). `toCome`
+ * gives the share of a start still to play: today's game, once it has tipped, is partly or wholly
+ * in the score so far already (#875).
+ */
+export function startsByPlayer(plan: WeekPlan, toCome: (id: string, date: string) => number = () => 1): Map<string, number> {
   const out = new Map<string, number>();
-  for (const day of plan.days) for (const id of day.started.keys()) out.set(id, (out.get(id) ?? 0) + 1);
+  for (const day of plan.days) for (const id of day.started.keys()) out.set(id, (out.get(id) ?? 0) + toCome(id, day.date));
   return out;
 }
 

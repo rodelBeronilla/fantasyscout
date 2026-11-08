@@ -128,6 +128,7 @@ export const PARAMS = {
     "strong": 0.5
   },
   "matchup.closeness": 0.05,
+  "sync.every_minutes": 15,
   "trade.value_limits": {
     "bad": -0.15,
     "terrible": -0.3
@@ -536,6 +537,15 @@ export const PARAMETERS = [
     "evidence": "none; the week's matchup card, which #755's simulated leagues do not exercise",
     "validation": 869,
     "value": 0.05
+  },
+  {
+    "id": "sync.every_minutes",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Minutes an ESPN league's copy stands before a visit, or a page left open and in view, reads the league and today's scoreboard again.",
+    "evidence": "none; a balance of a live score against ESPN's load: ESPN caches the league for 5 minutes (Cache-Control max-age=300), so a shorter wait gains little",
+    "validation": 875,
+    "value": 15
   },
   {
     "id": "trade.value_limits",
