@@ -32,3 +32,13 @@
   {%- endfor %}
   end
 {%- endmacro %}
+
+{# A per-league setting of the projection's advanced-stat features (var projection_features, #771). #}
+{% macro projection_feature(key, league_col='league') -%}
+  {%- set settings = var('projection_features') -%}
+  cast(case {{ league_col }}
+  {%- for league, s in settings.items() %}
+    when '{{ league }}' then {{ s[key] }}
+  {%- endfor %}
+  end as double)
+{%- endmacro %}

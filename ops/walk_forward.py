@@ -115,19 +115,42 @@ def _season_span(full: duckdb.DuckDBPyConnection, league: str, season: str) -> t
     return row[0], row[1]
 
 
-def _vars(as_of: date, prior: dict[str, Any] | None = None) -> str:
+def _vars(
+    as_of: date, prior: dict[str, Any] | None = None, features: dict[str, Any] | None = None
+) -> str:
     out: dict[str, Any] = {"as_of": as_of.isoformat(), "point_in_time": True}
     if prior is not None:
         out["market_prior"] = prior
+    if features is not None:
+        out["projection_features"] = features
     return json.dumps(out)
 
 
-def _build(as_of: date, db: Path, prior: dict[str, Any] | None = None) -> None:
-    """A checkpoint's point-in-time build: the market prior as the project has it, or ``prior``."""
+def _build(
+    as_of: date,
+    db: Path,
+    prior: dict[str, Any] | None = None,
+    features: dict[str, Any] | None = None,
+) -> None:
+    """A checkpoint's point-in-time build: the market prior and the projection's features as the
+    project has them, or ``prior`` and ``features``."""
     cmd = [
         "dbt", "build", "--target", "duckdb", "--full-refresh", "--exclude", "tag:quality",
         "--exclude-resource-type", "unit_test", "--exclude-resource-type", "test",
-        "--vars", _vars(as_of, prior),
+        "--vars", _vars(as_of, prior, features),
+    ]  # fmt: skip
+    _dbt(cmd, db, as_of)
+
+
+def _rebuild_projection(
+    as_of: date, db: Path, prior: dict[str, Any] | None, features: dict[str, Any]
+) -> None:
+    """Rebuild the projection and what scores it in a copy of a checkpoint's build, with the
+    projection's features given (#771): its parts are the same, so nothing upstream moves."""
+    cmd = [
+        "dbt", "run", "--target", "duckdb", "--full-refresh", "--select",
+        "mart_player_projection", "int_value_scale", "mart_category_zscores", "mart_board",
+        "--vars", _vars(as_of, prior, features),
     ]  # fmt: skip
     _dbt(cmd, db, as_of)
 
@@ -210,6 +233,67 @@ def frame(cut: duckdb.DuckDBPyConnection, league: str, season: str, as_of: date)
         left join naive_line as n on n.player_id = b.player_id
         left join realized_line as r on r.player_id = b.player_id
         left join market as m on m.player_id = b.player_id
+    """
+    params = {"league": league, "season": season, "as_of": as_of}
+    return cut.execute(sql, params).fetchdf()
+
+
+def features_frame(cut: duckdb.DuckDBPyConnection, league: str, season: str, as_of: date) -> Any:
+    """Per board player, what ops.projection_features scores the projection's features on (#771):
+    the projection's parts and line, the board's own value, the scale's columns (``scale_``), the
+    realized per-game line (``real_``) and games, and each of the three seasons' lines (``s1_``
+    the current, ``s2_``, ``s3_``) for the challenger. ``cut`` has the full build as ``whole``."""
+    from ops import projection_features as pf
+
+    own = " + ".join(f"b.z_{c}" for c in pf.CATEGORIES)
+    proj = ", ".join(f"m.proj_{c}_pg" for c in pf.PRODUCTION)
+    scale = ", ".join(f"s.{c} as scale_{c}" for c in pf.SCALE_COLUMNS)
+    real = ", ".join(
+        [f"avg(coalesce({c}, 0)) as real_{c}_pg" for c in COUNTING]
+        + [
+            "avg(coalesce(field_goals_made, 0)) as real_fgm_pg",
+            "avg(coalesce(field_goals_attempted, 0)) as real_fga_pg",
+            "avg(coalesce(free_throws_made, 0)) as real_ftm_pg",
+            "avg(coalesce(free_throws_attempted, 0)) as real_fta_pg",
+        ]
+    )
+    stats = ["games", "minutes_pg", *(f"{c}_pg" for c in pf.PRODUCTION)]
+    seasons = ", ".join(f"l{k}.{c} as s{k}_{c}" for k in (1, 2, 3) for c in stats)
+    joins = "\n".join(
+        f"left join ranked_lines as l{k} on l{k}.player_id = p.player_id and l{k}.season_rank = {k}"
+        for k in (1, 2, 3)
+    )
+    sql = f"""
+        with ranked_lines as (
+            select l.*, dense_rank() over (order by l.season desc) as season_rank
+            from gold.int_player_window_lines as l
+            join (select distinct season from gold.mart_player_projection where league = $league)
+                as cs on l.season <= cs.season
+            where l.league = $league and l.window_name = 'season'
+        ),
+        realized as (
+            select player_id, count(*) as realized_games, {real}
+            from whole.gold.fct_player_game
+            where league = $league and season = $season and played
+                and substr(game_id, 3, 1) = '2' and game_date >= $as_of
+            group by player_id
+        )
+        select
+            p.* rename (season as projection_season),
+            {proj},
+            b.z_total as board_value,
+            {own} as own_value,
+            {scale},
+            coalesce(r.realized_games, 0) as realized_games,
+            r.* exclude (player_id, realized_games),
+            {seasons}
+        from gold.int_player_projection_parts as p
+        join gold.mart_player_projection as m on m.league = p.league and m.player_id = p.player_id
+        join gold.mart_board as b on b.league = p.league and b.player_id = p.player_id
+        join gold.int_value_scale as s on s.league = p.league and s.season = p.season
+        left join realized as r on r.player_id = p.player_id
+        {joins}
+        where p.league = $league
     """
     params = {"league": league, "season": season, "as_of": as_of}
     return cut.execute(sql, params).fetchdf()
@@ -439,6 +523,13 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="add ops.buy_sell_backtest's inputs to the --standings-out folder (#758)",
     )
+    parser.add_argument(
+        "--features-out", type=Path, help="ops.projection_features' inputs, as CSV (#771)"
+    )
+    parser.add_argument(
+        "--features",
+        help="judge the board with these projection features (JSON) off and on (#771)",
+    )
     args = parser.parse_args(argv)
     if LOCKED.get(args.league) == args.season and not args.judge_locked:
         print(
@@ -457,9 +548,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     # judged off and on, the first build is the board without the prior
     without = None if prior is None else {**prior, "leagues": []}
+    feats = _feature_settings(p, args.league, args.features)
     results: list[Checkpoint] = []
     prior_results: list[PriorCheckpoint] = []
+    feature_results: list[PriorCheckpoint] = []
     players: list[Any] = []
+    feature_rows: list[Any] = []
 
     cuts = checkpoints(first, last, fractions)
     if args.standings_out is not None:
@@ -482,8 +576,24 @@ def main(argv: list[str] | None = None) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         for fraction, as_of in zip(fractions, cuts, strict=True):
             db = Path(tmp) / f"wf-{as_of.isoformat()}.duckdb"
-            _build(as_of, db, without)
+            _build(as_of, db, without, feats.off_var)
             df = board_frame(db, as_of)
+            if args.features_out is not None or feats.on_var is not None:
+                feature_rows.append(
+                    feats.export(db, args.full_db, args.league, args.season, as_of, fraction)
+                )
+            if feats.on_var is not None:
+                db_on = Path(tmp) / f"wf-{as_of.isoformat()}-features.duckdb"
+                shutil.copyfile(db, db_on)
+                _rebuild_projection(as_of, db_on, without, feats.on_var)
+                feats.export(
+                    db_on, args.full_db, args.league, args.season, as_of, fraction, on=True
+                )
+                fc = judge_prior(
+                    df, board_frame(db_on, as_of), as_of, min_games=min_games, resamples=resamples
+                )
+                feature_results.append(fc)
+                print(_prior_line(fc).replace("market prior", "features"))
             if args.standings_out is not None:
                 with duckdb.connect(str(db), read_only=True) as cut:
                     standings_backtest.export_checkpoint(
@@ -530,10 +640,74 @@ def main(argv: list[str] | None = None) -> int:
     }
     if prior is not None:
         out["market_prior"] = {**prior, "checkpoints": [asdict(c) for c in prior_results]}
+    if feats.on is not None:
+        out["features"] = {
+            "on": feats.on,
+            "checkpoints": [asdict(c) for c in feature_results],
+        }
     args.out.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
     if args.players_out is not None:
         pd.concat(players).to_csv(args.players_out, index=False)
+    if args.features_out is not None and feature_rows:
+        pd.concat(feature_rows).to_csv(args.features_out, index=False)
     return 0
+
+
+@dataclass(frozen=True)
+class _Features:
+    """The projection's features in a run (#771): the setting the first build has (``off``, the
+    project's unless judged), and with ``--features`` the setting it is judged against."""
+
+    league: str
+    off: dict[str, float]
+    on: dict[str, float] | None
+    off_var: dict[str, Any] | None
+    on_var: dict[str, Any] | None
+
+    def export(
+        self,
+        db: Path,
+        full_db: Path,
+        league: str,
+        season: str,
+        as_of: date,
+        fraction: float,
+        *,
+        on: bool = False,
+    ) -> Any:
+        """The checkpoint's features frame, checked against ops.projection_features' formulas."""
+        from ops import projection_features
+
+        with duckdb.connect(str(db)) as cut:
+            cut.execute(f"attach '{full_db.as_posix()}' as whole (read_only)")
+            ff = features_frame(cut, league, season, as_of)
+        setting = self.on if on and self.on is not None else self.off
+        projection_features.check_parity(ff, setting, f"as of {as_of}{' (on)' if on else ''}")
+        return ff.assign(league=league, season=season, as_of=as_of, checkpoint=fraction)
+
+
+def _feature_settings(p: dict[str, Any], league: str, given: str | None) -> _Features:
+    """The project's feature setting per league, from the registry; with ``given`` (a JSON object
+    of feature keys), off is every feature neutral in ``league`` and on is ``given`` over that."""
+    from ops.projection_features import NEUTRAL
+
+    project = {
+        lg: {k: p[f"projection.features.{k}"][lg] for k in NEUTRAL} for lg in ("nba", "wnba")
+    }
+    if not given:
+        return _Features(league, dict(project[league]), None, None, None)
+    extra = json.loads(given)
+    if unknown := set(extra) - set(NEUTRAL):
+        msg = f"unknown projection features: {sorted(unknown)}"
+        raise SystemExit(msg)
+    on = {**NEUTRAL, **extra}
+    return _Features(
+        league,
+        dict(NEUTRAL),
+        on,
+        {**project, league: dict(NEUTRAL)},
+        {**project, league: on},
+    )
 
 
 def _prior_line(pc: PriorCheckpoint) -> str:

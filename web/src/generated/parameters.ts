@@ -61,6 +61,26 @@ export const PARAMS = {
     "weight": 0.45,
     "fade_games": 20
   },
+  "projection.features.pace": {
+    "nba": 0.0,
+    "wnba": 0.0
+  },
+  "projection.features.usage_weight": {
+    "nba": 1.0,
+    "wnba": 1.0
+  },
+  "projection.features.fg_shrink": {
+    "nba": 0,
+    "wnba": 0
+  },
+  "projection.features.ft_shrink": {
+    "nba": 0,
+    "wnba": 0
+  },
+  "projection.features.other_team_production": {
+    "nba": 1.0,
+    "wnba": 1.0
+  },
   "projection.calibration_min_listings": 300,
   "projection.regular_season_games": {
     "nba": 82
@@ -416,6 +436,71 @@ export const PARAMETERS = [
       ],
       "weight": 0.45,
       "fade_games": 20
+    }
+  },
+  {
+    "id": "projection.features.pace",
+    "kind": "model",
+    "status": "assumed",
+    "what": "The pace feature: each per-minute counting rate is multiplied by (the current team's expected pace / the pace of the games the rates were made in) to this power. 0 is off.",
+    "evidence": "off until judged walk-forward (#771)",
+    "validation": 771,
+    "dbt": "projection_features.*.pace",
+    "value": {
+      "nba": 0.0,
+      "wnba": 0.0
+    }
+  },
+  {
+    "id": "projection.features.usage_weight",
+    "kind": "model",
+    "status": "assumed",
+    "what": "The usage feature: the current season's usage rate counts this many times its production weight, and the volume categories (points, threes, turnovers, shots, free throws) move with the ratio of that usage to the production-weighted one. 1 is off.",
+    "evidence": "off until judged walk-forward (#771)",
+    "validation": 771,
+    "dbt": "projection_features.*.usage_weight",
+    "value": {
+      "nba": 1.0,
+      "wnba": 1.0
+    }
+  },
+  {
+    "id": "projection.features.fg_shrink",
+    "kind": "model",
+    "status": "assumed",
+    "what": "The efficiency feature, field goals: attempts at the league's percentage added to a player's weighted makes and attempts. 0 is off.",
+    "evidence": "off until judged walk-forward (#771)",
+    "validation": 771,
+    "dbt": "projection_features.*.fg_shrink",
+    "value": {
+      "nba": 0,
+      "wnba": 0
+    }
+  },
+  {
+    "id": "projection.features.ft_shrink",
+    "kind": "model",
+    "status": "assumed",
+    "what": "The efficiency feature, free throws: attempts at the league's percentage added to a player's weighted makes and attempts. 0 is off.",
+    "evidence": "off until judged walk-forward (#771)",
+    "validation": 771,
+    "dbt": "projection_features.*.ft_shrink",
+    "value": {
+      "nba": 0,
+      "wnba": 0
+    }
+  },
+  {
+    "id": "projection.features.other_team_production",
+    "kind": "model",
+    "status": "assumed",
+    "what": "The role-change feature: the share of its production weight a past season spent mostly on another team keeps. 1 is off.",
+    "evidence": "off until judged walk-forward (#771)",
+    "validation": 771,
+    "dbt": "projection_features.*.other_team_production",
+    "value": {
+      "nba": 1.0,
+      "wnba": 1.0
     }
   },
   {
