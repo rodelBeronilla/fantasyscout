@@ -56,6 +56,8 @@ DATED: tuple[tuple[str, str], ...] = (
     ("gold.fct_official_listing", "game_date"),
     ("gold.fct_injury_spell", "start_date"),
     ("gold.fct_injury_spell", "return_date"),
+    ("gold.fct_absence_spell", "start_date"),
+    ("gold.fct_absence_spell", "return_date"),
 )
 # Records of games, cut by the day they were played: everything before the date must survive.
 EVENTS: frozenset[str] = frozenset(
