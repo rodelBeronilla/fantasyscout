@@ -1,8 +1,13 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { POINT_PRESETS } from './fantasy-league';
 import { CATEGORY_WORDS } from './format';
-import { liveWeek, matchup, matchupCall, matchupWeights, swingCategory, usableScore, weekTotals } from './matchup';
+import { categoryChance, closeBand, liveWeek, matchup, matchupCall, matchupWeights, swingCategory, usableScore, type WeekTotals, weekTotals } from './matchup';
+import { normalCdf } from './standings';
+import { PARAMS } from '../generated/parameters';
 
 const cats = ['z_points', 'z_turnovers', 'z_field_goal_pct'];
 const mine = [
@@ -32,7 +37,7 @@ describe('the head-to-head week', () => {
   });
 
   it('calls each category won, lost or too close, turnovers to the lower total', () => {
-    const m = matchup(cats, weekTotals(mine, cats), weekTotals(theirs, cats));
+    const m = matchup('nba', cats, weekTotals(mine, cats), weekTotals(theirs, cats), 0); // no band: the call is the projected leader
     expect(m.cats.map((r) => [r.cat, r.result])).toEqual([
       ['z_points', 'win'], // 80 to 75
       ['z_turnovers', 'loss'], // 11 to 6: more turnovers
@@ -40,7 +45,29 @@ describe('the head-to-head week', () => {
     ]);
     expect([m.wins, m.losses, m.close]).toEqual([2, 1, 0]);
     expect(m.cats[1]!.edge).toBe(-5);
-    expect(matchup(['z_points'], { cats: { z_points: 100 }, games: 0, fpts: 0 }, { cats: { z_points: 97 }, games: 0, fpts: 0 }).close).toBe(1);
+    // 100 to 97 with games to come is a coin flip near enough; with none left it is won (#869)
+    const side = (points: number, games: number) => ({ cats: { z_points: points }, games, fpts: 0 });
+    const near = matchup('nba', ['z_points'], side(100, 10), side(97, 10), 0.1);
+    expect(near.cats[0]!.chance).toBeGreaterThan(0.5);
+    expect(near.close).toBe(1);
+    expect(matchup('nba', ['z_points'], side(100, 0), side(97, 0), 0.1).cats[0]!.result).toBe('win');
+  });
+
+  it("gives each category a chance from the week's spread: Φ(margin ÷ σ√games), a percentage's settling with the shots (#869)", () => {
+    const sigma: Record<string, number> = PARAMS['matchup.game_spread']['nba'];
+    const side = (points: number, made: number, attempted: number, games: number) => ({
+      cats: { z_points: points, z_field_goal_pct: made / attempted },
+      games,
+      fpts: 0,
+      shots: { z_field_goal_pct: [made, attempted] as [number, number] },
+    });
+    const m = matchup('nba', ['z_points', 'z_field_goal_pct'], side(110, 50, 100, 12), side(100, 45, 100, 8));
+    expect(m.cats[0]!.chance).toBeCloseTo(normalCdf(10 / (sigma['z_points']! * Math.sqrt(20))), 12);
+    const s = sigma['z_field_goal_pct']! * Math.sqrt(12 / 100 ** 2 + 8 / 100 ** 2);
+    expect(m.cats[1]!.chance).toBeCloseTo(normalCdf(0.05 / s), 12);
+    // the same percentages over twice the shots are surer
+    const more = matchup('nba', ['z_field_goal_pct'], side(110, 100, 200, 12), side(100, 90, 200, 8));
+    expect(more.cats[0]!.chance).toBeGreaterThan(m.cats[1]!.chance);
   });
 
   it('starts from the score so far: counting totals add, percentages add the shots (#817)', () => {
@@ -61,8 +88,10 @@ describe('the head-to-head week', () => {
     expect(live.theirs.cats['z_field_goal_pct']).toBeCloseTo((45 + 24) / (90 + 60), 6);
     // the games left stay the games left
     expect(live.mine.games).toBe(5);
-    const m = matchup(cats, live.mine, live.theirs);
-    expect(m.cats.map((r) => r.result)).toEqual(['win', 'loss', 'close']);
+    const m = matchup('nba', cats, live.mine, live.theirs, 0);
+    expect(m.cats.map((r) => r.result)).toEqual(['win', 'loss', 'win']);
+    // a percentage's spread reads the shots so far and to come, over the games left
+    expect(m.cats[2]!.chance).toBeCloseTo(categoryChance('nba', 'z_field_goal_pct', live.mine, live.theirs, m.cats[2]!.edge), 12);
   });
 
   it('projects a category the score lacks on either side, for both sides (#817)', () => {
@@ -94,20 +123,61 @@ describe('the head-to-head week', () => {
     expect(usableScore({ ...soFar, theirs: { totals: {}, shots: {} } }, false)).not.toBe('no-score');
   });
 
-  it('leads with the call: the count and the swing category, the closest by share (#817)', () => {
-    const totals = (c: Record<string, number>) => ({ cats: c, games: 0, fpts: 0 });
+  it('leads with the call: the count and the swing category, the chance nearest even (#817, #869)', () => {
+    const totals = (c: Record<string, number>) => ({ cats: c, games: 10, fpts: 0 });
     const four = ['z_points', 'z_steals', 'z_blocks', 'z_turnovers'];
-    // points won by 10%, steals lost by 4% (too close), blocks lost by 50%, turnovers won by 2%
-    const m = matchup(four, totals({ z_points: 100, z_steals: 24, z_blocks: 5, z_turnovers: 49 }), totals({ z_points: 90, z_steals: 25, z_blocks: 10, z_turnovers: 50 }));
+    // margins in each category's own spread over the 20 games: points ahead by half of it, steals
+    // behind by a fifth, blocks behind by two, turnovers ahead by a tenth (fewer is better)
+    const spread: Record<string, number> = PARAMS['matchup.game_spread']['nba'];
+    const s = (c: string) => spread[c]! * Math.sqrt(20);
+    const m = matchup(
+      'nba',
+      four,
+      totals({ z_points: 100, z_steals: 20, z_blocks: 10, z_turnovers: 40 }),
+      totals({ z_points: 100 - 0.5 * s('z_points'), z_steals: 20 + 0.2 * s('z_steals'), z_blocks: 10 + 2 * s('z_blocks'), z_turnovers: 40 + 0.1 * s('z_turnovers') }),
+      0.1,
+    );
     expect(swingCategory(m)).toBe('z_turnovers');
     expect(matchupCall(m, (c) => CATEGORY_WORDS[c] ?? c)).toBe('Winning 1, losing 1, 2 too close: turnovers is the swing category');
-    const clear = matchup(['z_points'], totals({ z_points: 100 }), totals({ z_points: 50 }));
+    expect(closeBand('nba', 0.1)).toBe('40% to 60%');
+    const clear = matchup('nba', ['z_points'], totals({ z_points: 100 }), totals({ z_points: 50 }));
     expect(matchupCall(clear, (c) => CATEGORY_WORDS[c] ?? c)).toBe('Winning 1, losing 0: points is the swing category');
-    expect(swingCategory(matchup([], totals({}), totals({})))).toBeNull();
+    expect(swingCategory(matchup('nba', [], totals({}), totals({})))).toBeNull();
   });
 
   it('weights the closest third of the categories most and the blowouts least', () => {
-    const rows = ['a', 'b', 'c', 'd', 'e', 'f'].map((cat, i) => ({ cat, mine: 0, theirs: 0, edge: 0, share: i / 10, result: 'win' as const }));
+    const rows = ['a', 'b', 'c', 'd', 'e', 'f'].map((cat, i) => ({ cat, mine: 0, theirs: 0, edge: 0, share: i / 10, chance: 0.5 + i / 20, result: 'win' as const }));
     expect(matchupWeights(rows)).toEqual({ a: 1.5, b: 1.5, c: 1, d: 1, e: 0.5, f: 0.5 });
+  });
+});
+
+interface MatchupFixture {
+  cases: { league: 'nba' | 'wnba'; cats: string[]; mine: WeekTotals; theirs: WeekTotals; closeness?: number }[];
+  expected?: unknown;
+}
+
+// The Python reference (ops/matchup.py) runs the backtest (#869); both are checked against the
+// same figures. UPDATE_MATCHUP_PARITY=1 rewrites them from this module after a deliberate change.
+describe('parity with ops/matchup.py (#869)', () => {
+  const path = fileURLToPath(new URL('../../../tests/fixtures/matchup_parity.json', import.meta.url));
+  const fixture = JSON.parse(readFileSync(path, 'utf8')) as MatchupFixture;
+  const computed = {
+    cases: fixture.cases.map((c) => {
+      const m = matchup(c.league, c.cats, { ...c.mine, fpts: 0 }, { ...c.theirs, fpts: 0 }, c.closeness);
+      return { cats: m.cats.map((r) => ({ cat: r.cat, edge: r.edge, share: r.share, chance: r.chance, result: r.result })), wins: m.wins, losses: m.losses, close: m.close };
+    }),
+  };
+  if (process.env['UPDATE_MATCHUP_PARITY']) writeFileSync(path, `${JSON.stringify({ ...fixture, expected: computed }, null, 1)}\n`);
+
+  it('gives the figures the Python reference is checked against', () => {
+    expect(fixture.expected).toBeDefined();
+    const close = (a: unknown, b: unknown): void => {
+      if (typeof a === 'number' && typeof b === 'number') expect(a).toBeCloseTo(b, 12);
+      else if (a && typeof a === 'object' && b && typeof b === 'object') {
+        expect(Object.keys(a)).toEqual(Object.keys(b));
+        for (const k of Object.keys(a)) close((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]);
+      } else expect(a).toEqual(b);
+    };
+    close(computed, fixture.expected);
   });
 });

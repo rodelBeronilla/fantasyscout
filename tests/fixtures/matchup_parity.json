@@ -1,0 +1,283 @@
+{
+ "_": "The matchup card's parity cases (#869). The web's test writes expected (UPDATE_MATCHUP_PARITY=1) and checks it; tests/test_matchup.py checks ops/matchup.py against the same figures.",
+ "cases": [
+  {
+   "name": "nba, nine categories, a full week from Monday",
+   "league": "nba",
+   "cats": [
+    "z_points",
+    "z_rebounds_total",
+    "z_assists",
+    "z_steals",
+    "z_blocks",
+    "z_three_pointers_made",
+    "z_turnovers",
+    "z_field_goal_pct",
+    "z_free_throw_pct"
+   ],
+   "mine": {
+    "cats": {
+     "z_points": 1180,
+     "z_rebounds_total": 470,
+     "z_assists": 262,
+     "z_steals": 80,
+     "z_blocks": 51,
+     "z_three_pointers_made": 133,
+     "z_turnovers": 140,
+     "z_field_goal_pct": 0.4712,
+     "z_free_throw_pct": 0.791
+    },
+    "games": 44,
+    "shots": {
+     "z_field_goal_pct": [
+      430,
+      912.6
+     ],
+     "z_free_throw_pct": [
+      190,
+      240.2
+     ]
+    }
+   },
+   "theirs": {
+    "cats": {
+     "z_points": 1150,
+     "z_rebounds_total": 498,
+     "z_assists": 259,
+     "z_steals": 77,
+     "z_blocks": 60,
+     "z_three_pointers_made": 140,
+     "z_turnovers": 131,
+     "z_field_goal_pct": 0.465,
+     "z_free_throw_pct": 0.802
+    },
+    "games": 41,
+    "shots": {
+     "z_field_goal_pct": [
+      410,
+      881.7
+     ],
+     "z_free_throw_pct": [
+      181,
+      225.7
+     ]
+    }
+   }
+  },
+  {
+   "name": "wnba, a live week late on: few games left, the shots so far in the totals",
+   "league": "wnba",
+   "cats": [
+    "z_points",
+    "z_steals",
+    "z_turnovers",
+    "z_field_goal_pct"
+   ],
+   "mine": {
+    "cats": {
+     "z_points": 620,
+     "z_steals": 31,
+     "z_turnovers": 55,
+     "z_field_goal_pct": 0.452
+    },
+    "games": 4,
+    "shots": {
+     "z_field_goal_pct": [
+      226,
+      500
+     ]
+    }
+   },
+   "theirs": {
+    "cats": {
+     "z_points": 611,
+     "z_steals": 31,
+     "z_turnovers": 61,
+     "z_field_goal_pct": 0.449
+    },
+    "games": 3,
+    "shots": {
+     "z_field_goal_pct": [
+      215.5,
+      480
+     ]
+    }
+   },
+   "closeness": 0.15
+  },
+  {
+   "name": "no games left on either side: the margin is the result",
+   "league": "nba",
+   "cats": [
+    "z_points",
+    "z_assists",
+    "z_field_goal_pct"
+   ],
+   "mine": {
+    "cats": {
+     "z_points": 900,
+     "z_assists": 200,
+     "z_field_goal_pct": 0.48
+    },
+    "games": 0,
+    "shots": {
+     "z_field_goal_pct": [
+      400,
+      833.3
+     ]
+    }
+   },
+   "theirs": {
+    "cats": {
+     "z_points": 905,
+     "z_assists": 200,
+     "z_field_goal_pct": 0.47
+    },
+    "games": 0,
+    "shots": {
+     "z_field_goal_pct": [
+      380,
+      808.5
+     ]
+    }
+   }
+  }
+ ],
+ "expected": {
+  "cases": [
+   {
+    "cats": [
+     {
+      "cat": "z_points",
+      "edge": 30,
+      "share": 0.025423728813559324,
+      "chance": 0.5745032988525995,
+      "result": "win"
+     },
+     {
+      "cat": "z_rebounds_total",
+      "edge": -28,
+      "share": 0.05622489959839357,
+      "chance": 0.2925559017738156,
+      "result": "loss"
+     },
+     {
+      "cat": "z_assists",
+      "edge": 3,
+      "share": 0.011450381679389313,
+      "chance": 0.5305865731562069,
+      "result": "close"
+     },
+     {
+      "cat": "z_steals",
+      "edge": 3,
+      "share": 0.0375,
+      "chance": 0.5722441293070326,
+      "result": "win"
+     },
+     {
+      "cat": "z_blocks",
+      "edge": -9,
+      "share": 0.15,
+      "chance": 0.21996835030261097,
+      "result": "loss"
+     },
+     {
+      "cat": "z_three_pointers_made",
+      "edge": -7,
+      "share": 0.05,
+      "chance": 0.36680739286865693,
+      "result": "loss"
+     },
+     {
+      "cat": "z_turnovers",
+      "edge": -9,
+      "share": 0.06428571428571428,
+      "chance": 0.34228435069388535,
+      "result": "loss"
+     },
+     {
+      "cat": "z_field_goal_pct",
+      "edge": 0.006199999999999983,
+      "share": 0.01315789473684207,
+      "chance": 0.6091784512400649,
+      "result": "win"
+     },
+     {
+      "cat": "z_free_throw_pct",
+      "edge": -0.01100000000000001,
+      "share": 0.013715710723192031,
+      "chance": 0.3865915730187338,
+      "result": "loss"
+     }
+    ],
+    "wins": 3,
+    "losses": 5,
+    "close": 1
+   },
+   {
+    "cats": [
+     {
+      "cat": "z_points",
+      "edge": 9,
+      "share": 0.014516129032258065,
+      "chance": 0.6525001473446026,
+      "result": "win"
+     },
+     {
+      "cat": "z_steals",
+      "edge": 0,
+      "share": 0,
+      "chance": 0.5000000005,
+      "result": "close"
+     },
+     {
+      "cat": "z_turnovers",
+      "edge": 6,
+      "share": 0.09836065573770492,
+      "chance": 0.9088967380672397,
+      "result": "win"
+     },
+     {
+      "cat": "z_field_goal_pct",
+      "edge": 0.0030000000000000027,
+      "share": 0.006637168141592926,
+      "chance": 0.6283853129710656,
+      "result": "close"
+     }
+    ],
+    "wins": 2,
+    "losses": 0,
+    "close": 2
+   },
+   {
+    "cats": [
+     {
+      "cat": "z_points",
+      "edge": -5,
+      "share": 0.0055248618784530384,
+      "chance": 0,
+      "result": "loss"
+     },
+     {
+      "cat": "z_assists",
+      "edge": 0,
+      "share": 0,
+      "chance": 0.5,
+      "result": "close"
+     },
+     {
+      "cat": "z_field_goal_pct",
+      "edge": 0.010000000000000009,
+      "share": 0.020833333333333353,
+      "chance": 1,
+      "result": "win"
+     }
+    ],
+    "wins": 1,
+    "losses": 1,
+    "close": 1
+   }
+  ]
+ }
+}
