@@ -149,7 +149,7 @@ parameters:
     kind: model
     status: measured
     what: "One game's standard deviation of a player's output per category, in board z units."
-    evidence: "ADR 0015 (an ad hoc lakehouse query; no notebook reproduces it yet)"
+    evidence: "ADR 0015 (an ad hoc lakehouse query). With standings.spread_scale, the head-to-head chances it sets passed out of sample in #755 (ADR 0021)"
     validation: 755
   - id: standings.games_per_week
     value: {nba: 3.3, wnba: 2.6}
@@ -163,7 +163,7 @@ parameters:
     kind: threshold
     status: assumed
     what: "Share of a roster a team needs entered before it counts as a rival in the standings."
-    evidence: "none"
+    evidence: "none: a rule for a league still being entered, which #755's full simulated leagues cannot test"
     validation: 755
   - id: standings.spread_scale
     value: {nba: 2.0, wnba: 2.0}
@@ -177,8 +177,8 @@ parameters:
     kind: model
     status: measured
     what: "A projection's own error per category and player, added to a rotisserie season's spread."
-    evidence: "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565"
-    validation: 755
+    evidence: "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed"
+    validation: 866
 
   # ---- Fit weights before the standings model applies (web/src/lib/league-value.ts, matchup.ts)
   - id: fit.thirds
@@ -186,15 +186,15 @@ parameters:
     kind: model
     status: assumed
     what: "Category weights for the weakest, middle and strongest thirds, when no rival roster is in."
-    evidence: "none"
-    validation: 755
+    evidence: "an arm of #755's decision replay (ADR 0021): neither it nor the standings weights reliably beat equal weights"
+    validation: 868
   - id: matchup.closeness
     value: 0.05
     kind: threshold
     status: assumed
     what: "A weekly category within this share is called too close."
-    evidence: "none"
-    validation: 755
+    evidence: "none; the week's matchup card, which #755's simulated leagues do not exercise"
+    validation: 869
 
   # ---- trade verdicts (web/src/lib/trade-fairness.ts, trade-impact.ts, trade-suggest.ts)
   - id: trade.value_limits

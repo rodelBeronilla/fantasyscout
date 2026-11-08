@@ -399,7 +399,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "One game's standard deviation of a player's output per category, in board z units.",
-    "evidence": "ADR 0015 (an ad hoc lakehouse query; no notebook reproduces it yet)",
+    "evidence": "ADR 0015 (an ad hoc lakehouse query). With standings.spread_scale, the head-to-head chances it sets passed out of sample in #755 (ADR 0021)",
     "validation": 755,
     "value": {
       "nba": {
@@ -443,7 +443,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Share of a roster a team needs entered before it counts as a rival in the standings.",
-    "evidence": "none",
+    "evidence": "none: a rule for a league still being entered, which #755's full simulated leagues cannot test",
     "validation": 755,
     "value": 0.5
   },
@@ -464,8 +464,8 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "A projection's own error per category and player, added to a rotisserie season's spread.",
-    "evidence": "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565",
-    "validation": 755,
+    "evidence": "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed",
+    "validation": 866,
     "value": {
       "nba": 0.8,
       "wnba": 0.8
@@ -476,8 +476,8 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "assumed",
     "what": "Category weights for the weakest, middle and strongest thirds, when no rival roster is in.",
-    "evidence": "none",
-    "validation": 755,
+    "evidence": "an arm of #755's decision replay (ADR 0021): neither it nor the standings weights reliably beat equal weights",
+    "validation": 868,
     "value": {
       "weak": 1.5,
       "middle": 1.0,
@@ -489,8 +489,8 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "A weekly category within this share is called too close.",
-    "evidence": "none",
-    "validation": 755,
+    "evidence": "none; the week's matchup card, which #755's simulated leagues do not exercise",
+    "validation": 869,
     "value": 0.05
   },
   {

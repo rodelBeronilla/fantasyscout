@@ -5,7 +5,7 @@ import { type LeagueState, leagueStandings, meaningful } from './trade-impact';
 import { PARAMS } from '../generated/parameters';
 
 // A manager punting points: rebounds and assists are strengths, blocks the need. The scorer's
-// value is all in points, so he does nothing for this build. The values are in units of the
+// value is all in points, so the scorer does nothing for this build. The values are in units of the
 // standings model's spread scale, so the chances read the same whatever its fitted value.
 const unscaled: Record<string, Record<string, number>> = {
   star: { z_rebounds_total: 3, z_blocks: 0, z_assists: 3 },

@@ -76,7 +76,7 @@ function Categories({
   );
   if (!standings) {
     return (
-      <Tile title="Your categories" id="cats" testid="my-categories" issue={755}>
+      <Tile title="Your categories" id="cats" testid="my-categories" issue={h2h ? undefined : 866}>
         <p className="mt-1 text-sm text-muted" data-testid="cats-summary">
           Your team&apos;s value above replacement in each category. Add the other teams&apos; rosters on the{' '}
           <a href={href('/league/')} className="underline underline-offset-4">
@@ -98,7 +98,7 @@ function Categories({
   const wins = expectedWins(standings.chances);
   const order = cats.filter((c) => c in standings.chances);
   return (
-    <Tile title="Your categories" id="cats" testid="my-categories" issue={755}>
+    <Tile title="Your categories" id="cats" testid="my-categories" issue={h2h ? undefined : 866}>
       <p className="mt-1 text-sm" data-testid="cats-summary">
         {h2h ? (
           <>
@@ -189,7 +189,7 @@ function LeagueTable({
   // the projection orders the table when it has every team; otherwise the totals do
   const order = (x: (typeof teams)[number]) => (projected.get(x.team)?.place ?? n + 1) * 1e6 - x.total;
   return (
-    <Tile title={power ? 'Power rankings' : 'League table'} id="league-table" testid="league-table" issue={power ? 755 : undefined}>
+    <Tile title={power ? 'Power rankings' : 'League table'} id="league-table" testid="league-table" issue={power ? 867 : undefined}>
       <p className="mt-1 text-xs text-muted">
         {fpts
           ? 'Each team’s projected fantasy points a game, from its active players.'
