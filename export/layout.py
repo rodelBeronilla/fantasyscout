@@ -160,6 +160,9 @@ BOARD_COLUMNS = (
     "lineup_date",
     "market_rank",
     "market_gap",
+    # the market prior's weight and price (ADR 0020): the league-scaled values add its shift (#848)
+    "market_prior_weight",
+    "market_prior_value",
     "game_floor",
     "game_ceiling",
     "game_value_sd",

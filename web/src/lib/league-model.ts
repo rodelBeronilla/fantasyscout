@@ -7,7 +7,7 @@
  */
 import type { League } from './data';
 import { type Format, weightedSum } from './fantasy-league';
-import { scaleValue, type ScaleRow } from './league-value';
+import { marketPriorShift, type PriorRow, scaleValue, type ScaleRow } from './league-value';
 import { type LeagueState, rostersAfter } from './trade-impact';
 import { type Lens, lens, LIMITS, marketValues } from './trade-fairness';
 import { weekValue } from './week-value';
@@ -23,7 +23,7 @@ export interface Worth {
 }
 
 /** What the worth reads of a board row. */
-export interface WorthRow extends ScaleRow {
+export interface WorthRow extends ScaleRow, PriorRow {
   player_id: string;
   games_this_week?: number | null;
 }
@@ -51,7 +51,8 @@ export function playerWorth(rows: WorthRow[], input: WorthInput): Map<string, Wo
     const c: Record<string, number> = {};
     if (catValues) for (const k of cats) c[k] = catValues.get(r.player_id)?.[k] ?? 0;
     const pv = pointValues?.get(r.player_id);
-    const perGame = points ? (pv?.value ?? 0) : weightedSum(c, catWeight);
+    // a categories league's projected value carries the market prior's shift, as the board's (#848)
+    const perGame = points ? (pv?.value ?? 0) : weightedSum(c, catWeight) + marketPriorShift(r);
     const season = scaleValue(perGame, r, { restOfSeason: false });
     const rest = scaleValue(perGame, r);
     const recent = points ? perGame : weightedSum(recentCats?.get(r.player_id), catWeight);
