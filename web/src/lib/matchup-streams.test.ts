@@ -14,7 +14,7 @@ const line = (pts: number, stl: number, blk: number, fgm: number, fga: number) =
 // the manager wins points by a lot, trails steals by one, is level on blocks, loses FG% a little
 const mine = weekTotals([{ ...line(100, 9, 5, 40, 90), games_this_week: 1 }], cats);
 const theirs = weekTotals([{ ...line(60, 10, 5, 45, 90), games_this_week: 1 }], cats);
-const week = matchup('nba', cats, mine, theirs);
+const week = matchup('nba', cats, mine, theirs, 0.1);
 
 const row = (id: string, over: Partial<StreamRow> = {}): StreamRow => ({ player_id: id, position: 'G', injury_group: null, ...line(10, 0.5, 0.2, 4, 9), ...over });
 

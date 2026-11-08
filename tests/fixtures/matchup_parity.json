@@ -151,63 +151,63 @@
       "cat": "z_points",
       "edge": 30,
       "share": 0.025423728813559324,
-      "chance": 0.6789808943957825,
+      "chance": 0.5745032988525995,
       "result": "win"
      },
      {
       "cat": "z_rebounds_total",
       "edge": -28,
       "share": 0.05622489959839357,
-      "chance": 0.1556872618863004,
+      "chance": 0.2925559017738156,
       "result": "loss"
      },
      {
       "cat": "z_assists",
       "edge": 3,
       "share": 0.011450381679389313,
-      "chance": 0.5587919886346336,
+      "chance": 0.5305865731562069,
       "result": "win"
      },
      {
       "cat": "z_steals",
       "edge": 3,
       "share": 0.0375,
-      "chance": 0.6411560554382647,
+      "chance": 0.5722441293070326,
       "result": "win"
      },
      {
       "cat": "z_blocks",
       "edge": -9,
       "share": 0.15,
-      "chance": 0.1111881906590948,
+      "chance": 0.21996835030261097,
       "result": "loss"
      },
      {
       "cat": "z_three_pointers_made",
       "edge": -7,
       "share": 0.05,
-      "chance": 0.2795954674834737,
+      "chance": 0.36680739286865693,
       "result": "loss"
      },
      {
       "cat": "z_turnovers",
       "edge": -9,
       "share": 0.06428571428571428,
-      "chance": 0.20796875627208183,
+      "chance": 0.34228435069388535,
       "result": "loss"
      },
      {
       "cat": "z_field_goal_pct",
       "edge": 0.006199999999999983,
       "share": 0.01315789473684207,
-      "chance": 0.6469637233357591,
+      "chance": 0.6091784512400649,
       "result": "win"
      },
      {
       "cat": "z_free_throw_pct",
       "edge": -0.01100000000000001,
       "share": 0.013715710723192031,
-      "chance": 0.39056834918095346,
+      "chance": 0.3865915730187338,
       "result": "loss"
      }
     ],
@@ -221,7 +221,7 @@
       "cat": "z_points",
       "edge": 9,
       "share": 0.014516129032258065,
-      "chance": 0.7146248407377764,
+      "chance": 0.6525001473446026,
       "result": "win"
      },
      {
@@ -235,20 +235,20 @@
       "cat": "z_turnovers",
       "edge": 6,
       "share": 0.09836065573770492,
-      "chance": 0.980378311381187,
+      "chance": 0.9088967380672397,
       "result": "win"
      },
      {
       "cat": "z_field_goal_pct",
       "edge": 0.0030000000000000027,
       "share": 0.006637168141592926,
-      "chance": 0.6546021947363011,
-      "result": "win"
+      "chance": 0.6283853129710656,
+      "result": "close"
      }
     ],
-    "wins": 3,
+    "wins": 2,
     "losses": 0,
-    "close": 1
+    "close": 2
    },
    {
     "cats": [
