@@ -13744,7 +13744,7 @@
       "dim_player",
       "fct_official_listing",
       "fct_player_salary",
-      "mart_player_projection",
+      "int_known_roster",
       "player_xwalk"
      ],
      "read_by_pages": [],
@@ -13999,6 +13999,7 @@
       "espn_preseason_adp",
       "fct_walk_year",
       "game_officials",
+      "int_known_roster",
       "int_league_season_state",
       "mart_player_projection",
       "mart_schedule_upcoming",
@@ -15297,7 +15298,8 @@
      ],
      "read_by": [
       "fct_transaction",
-      "fct_walk_year"
+      "fct_walk_year",
+      "int_known_roster"
      ],
      "read_by_pages": [],
      "reads": [
@@ -18449,6 +18451,7 @@
       "fct_official_listing",
       "fct_player_salary",
       "fct_walk_year",
+      "int_known_roster",
       "int_league_season_state",
       "int_player_game_value",
       "int_player_window_lines",
@@ -21564,6 +21567,84 @@
      "checks": [],
      "columns": [
       {
+       "description": "",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "roster_season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "age",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "is_rookie",
+       "tests": [],
+       "type": "boolean"
+      }
+     ],
+     "description": "",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "int_known_roster",
+     "notes": [
+      "Who is on which team, as the build knows it (#796): what mart_player_projection projects.",
+      "A normal build reads the official rosters: each league's latest roster season, each team's latest landing, and for a player on two teams' latest landings the newer one, with the age and rookie flag the roster gives.",
+      "A point-in-time build cannot. Rosters count as known only from the day they were landed (ADR 0018), and every past season's were landed by a backfill long after it, so a backtest of a past date would project nobody. It rebuilds the roster from what was known before the cut instead: each player's latest event among the games he played (this season and the last) and the league's official signings, trades (the receiving team) and waiver claims. A player whose latest event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from games alone. The roster season is the newest season on the schedule that starts within about six months of the cut, so an offseason date projects the coming season. Age and the rookie flag are unknown here; mart_board takes the age from the birth date."
+     ],
+     "read_by": [
+      "mart_player_projection"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "fct_player_game",
+      "rosters",
+      "schedule",
+      "transactions"
+     ],
+     "unit_tests": [
+      {
+       "description": "Without a point-in-time cut the roster is the latest roster season's latest landings; a player on two teams' latest landings belongs to the newer one, and R marks a rookie.",
+       "name": "a_normal_build_reads_the_official_rosters"
+      },
+      {
+       "description": "As of 2024-01-15 no roster landing is known (#796). The roster is each player's latest event before the cut: a plays for A, then is traded to B (B receives him), so he is on B; b's last game is for A, so he is on A; c is waived and on no roster; d signs with C in the offseason before playing; e last played two seasons before the cut, outside the window, so he is on no roster. The roster season is 2023-24, the season under way.",
+       "name": "a_point_in_time_roster_is_rebuilt_from_what_was_known"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "nba or wnba",
        "meta": {},
        "name": "league",
@@ -24062,7 +24143,7 @@
       "- Games share (durability): the share of their team's regular-season games a player played in the seasons they appeared in, by the same recency, regressed toward a typical share by durability_games games (var fantasy.<league>.durability_games, fantasy_durability). Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out.",
       "Every projection also starts from prior_games games of a replacement-level player (var fantasy: 3 NBA, 5 WNBA), at that player's minutes and per-minute production, so a short sample moves a projection only part of the way and a missing season adds nothing. All settings were chosen by backtest (ADR 0003).",
       "The replacement-level line is the average line of the players just outside a fantasy league's rosters by total minutes (ranks pool_size + 1 to pool_size + teams) in the league's latest complete regular season.",
-      "Current roster: the player is on their team's latest roster landing for the league's latest roster season. A player waived or released drops off with the next landing, and a retired player is on no roster at all, so neither is projected. Only players with at least one game in the three seasons are projected."
+      "Current roster: the player is on their team's latest roster landing for the league's latest roster season (int_known_roster; a point-in-time build rebuilds it from what was known before its cut). A player waived or released drops off with the next landing, and a retired player is on no roster at all, so neither is projected. Only players with at least one game in the three seasons are projected."
      ],
      "read_by": [
       "int_value_scale",
@@ -24071,9 +24152,9 @@
      "read_by_pages": [],
      "reads": [
       "fct_player_game",
+      "int_known_roster",
       "int_league_season_state",
       "int_player_window_lines",
-      "rosters",
       "schedule"
      ],
      "unit_tests": [
@@ -27091,6 +27172,16 @@
    "description": "Seven one-day runs: one endpoint lands 100 payloads every run, the other 50 until the latest run lands none. The run's total falls by a third, but only the endpoint that stopped is an anomaly (#398). A backfill window over 10 days is left out of the comparison.",
    "model": "ingest_endpoint_volume",
    "name": "ingest_endpoint_volume_flags_one_endpoint"
+  },
+  {
+   "description": "Without a point-in-time cut the roster is the latest roster season's latest landings; a player on two teams' latest landings belongs to the newer one, and R marks a rookie.",
+   "model": "int_known_roster",
+   "name": "a_normal_build_reads_the_official_rosters"
+  },
+  {
+   "description": "As of 2024-01-15 no roster landing is known (#796). The roster is each player's latest event before the cut: a plays for A, then is traded to B (B receives him), so he is on B; b's last game is for A, so he is on A; c is waived and on no roster; d signs with C in the offseason before playing; e last played two seasons before the cut, outside the window, so he is on no roster. The roster season is 2023-24, the season under way.",
+   "model": "int_known_roster",
+   "name": "a_point_in_time_roster_is_rebuilt_from_what_was_known"
   },
   {
    "description": "Each regular-season game is valued on the season's value scale, less replacement level (#747, #767). The scale has a points mean of 10, a spread of 10 and a points replacement level of 0.5, and no spread in the other categories, so a's games of 10, 20 and 30 points are worth -0.5, 0.5 and 1.5 and b's scoreless game -1.5. A playoff game (third id character 4) and a play-in game (5) are not fantasy games and are left out; a game not played has no value.",

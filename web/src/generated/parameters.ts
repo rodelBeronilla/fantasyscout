@@ -156,7 +156,15 @@ export const PARAMS = {
     "wnba": 0.37
   },
   "auction.budget": 200,
-  "auction.min_bid": 1
+  "auction.min_bid": 1,
+  "backtest.checkpoints": [
+    0.0,
+    0.1,
+    0.25,
+    0.5
+  ],
+  "backtest.min_games": 10,
+  "backtest.bootstrap": 1000
 } as const;
 
 /** Every registered parameter, for the Methodology page. */
@@ -667,5 +675,37 @@ export const PARAMETERS = [
     "evidence": "platform default",
     "validation": 760,
     "value": 1
+  },
+  {
+    "id": "backtest.checkpoints",
+    "kind": "search",
+    "status": "convention",
+    "what": "Where a season is cut for a backtest: the first game day and these shares of the way to the last.",
+    "evidence": "ADR 0003's checkpoints (before a season, a tenth, a quarter and half way in)",
+    "validation": 769,
+    "value": [
+      0.0,
+      0.1,
+      0.25,
+      0.5
+    ]
+  },
+  {
+    "id": "backtest.min_games",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Games a player must play after a checkpoint to be judged: fewer and the realized value is mostly noise.",
+    "evidence": "none; an evaluation choice, not a model one",
+    "validation": 769,
+    "value": 10
+  },
+  {
+    "id": "backtest.bootstrap",
+    "kind": "search",
+    "status": "convention",
+    "what": "Resamples of players behind the interval of the board's error minus the naive manager's.",
+    "evidence": "a common size for a 95% percentile interval",
+    "validation": 769,
+    "value": 1000
   }
 ] as const;

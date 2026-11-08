@@ -39,7 +39,8 @@
   league's latest complete regular season.
 
   Current roster: the player is on their team's latest roster landing for the league's latest
-  roster season. A player waived or released drops off with the next landing, and a retired
+  roster season (int_known_roster; a point-in-time build rebuilds it from what was known before
+  its cut). A player waived or released drops off with the next landing, and a retired
   player is on no roster at all, so neither is projected. Only players with at least one game
   in the three seasons are projected.
 #}
@@ -183,23 +184,12 @@ replacement_line as (
 
 ),
 
-latest_landing as (
-
-    select league, season, team_id, player_id, age, experience, _ingest_date
-    from {{ ref('rosters') }}
-    qualify season = max(season) over (partition by league)
-        and _ingest_date = max(_ingest_date) over (partition by league, season, team_id)
-
-),
-
 current_roster as (
 
-    -- A player on two teams' latest landings (traded between them) belongs to the newer one.
-    select league, season as roster_season, team_id, player_id, age,
-        -- the league lists a rookie's experience as R
-        upper(trim(experience)) = 'R' as is_rookie
-    from latest_landing
-    qualify row_number() over (partition by league, player_id order by _ingest_date desc, team_id) = 1
+    -- who is on which team as the build knows it: the official rosters, or in a point-in-time
+    -- build the roster rebuilt from games and moves before the cut (int_known_roster, #796)
+    select league, roster_season, team_id, player_id, age, is_rookie
+    from {{ ref('int_known_roster') }}
 
 ),
 
