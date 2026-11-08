@@ -90,6 +90,25 @@ def test_the_secret_scan_catches_the_key_kinds_the_project_holds() -> None:
     assert not scan.search("a PRIVATE KEY is mentioned in prose")
 
 
+def test_the_claims_workflow_uploads_no_source_text() -> None:
+    """The claims' inputs and claims hold source text and stay on the home runner (#861).
+
+    A workflow artifact on this public repository can be downloaded by any GitHub account, so
+    the claims workflow uploads nothing, runs every job on the home runner and removes its
+    inputs from the runner's disk whatever the outcome.
+    """
+    document = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "claims.yml").read_text(encoding="utf-8")
+    )
+    uses = [str(s.get("uses", "")) for s in _steps(document)]
+    assert not [u for u in uses if "upload-artifact" in u or "download-artifact" in u]
+    for name, job in document["jobs"].items():
+        assert "self-hosted" in str(job["runs-on"]), f"{name} runs off the home runner"
+    steps = document["jobs"]["claims"]["steps"]
+    cleanup = [s for s in steps if 'rm -rf "$RUNNER_TEMP/claims"' in str(s.get("run", ""))]
+    assert cleanup and cleanup[0].get("if") == "always()" and cleanup[0] is steps[-1]
+
+
 def test_no_workflow_passes_the_owner_id_as_a_plain_variable() -> None:
     deploy = (ROOT / ".github" / "workflows" / "deploy-web.yml").read_text(encoding="utf-8")
     assert "vars.OWNER_YAHOO_GUID" not in deploy
