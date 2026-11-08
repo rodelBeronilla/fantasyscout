@@ -29,6 +29,7 @@ function compute(c: BuySellCase) {
     startLine,
     lists: c.minSwings.map((minSwing) =>
       buySell({
+        league: 'nba',
         mine: c.mine,
         owner,
         projected,

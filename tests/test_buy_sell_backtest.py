@@ -74,6 +74,7 @@ def test_the_array_lists_are_the_webs(season: tuple[Path, Path]) -> None:
     for t in range(len(rost)):
         line = buy_sell.median([float(board.projected[int(i)]) for i in rost[t]])
         out = buy_sell.buy_sell(
+            "nba",
             t,
             owner,
             lambda i: float(board.projected[int(i)]),

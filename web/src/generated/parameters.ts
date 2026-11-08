@@ -170,7 +170,10 @@ export const PARAMS = {
   "roster.bench_size": 2,
   "roster.min_gain": 0.5,
   "roster.candidates": 25,
-  "buysell.min_swing": 1,
+  "buysell.min_swing": {
+    "nba": 2.1,
+    "wnba": 5.9
+  },
   "il.min_games": 3,
   "injury.box_score_regular": {
     "min_minutes": 20,
@@ -730,11 +733,14 @@ export const PARAMETERS = [
   {
     "id": "buysell.min_swing",
     "kind": "threshold",
-    "status": "assumed",
+    "status": "measured",
     "what": "Value per game between last-ten form and the projection that counts as a swing.",
     "evidence": "none (and the two sides are on different pools, #767)",
     "validation": 758,
-    "value": 1
+    "value": {
+      "nba": 2.1,
+      "wnba": 5.9
+    }
   },
   {
     "id": "il.min_games",

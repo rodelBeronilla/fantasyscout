@@ -42,6 +42,7 @@ def test_the_lists_match_the_web(i: int) -> None:
         "startLine": line,
         "lists": [
             buy_sell.buy_sell(
+                "nba",
                 c["mine"],
                 owner,
                 lambda pid: float(c["projected"].get(pid, 0)),

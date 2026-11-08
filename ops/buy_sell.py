@@ -23,6 +23,7 @@ def median(values: Sequence[float]) -> float:
 
 
 def buy_sell(
+    league: str,
     mine: int,
     owner: Sequence[tuple[str, int]],
     projected: Callable[[str], float],
@@ -37,7 +38,8 @@ def buy_sell(
     """buySell: the manager's players running a swing above their projection (sell high), and
     healthy players elsewhere slumping a swing below a projection good enough to start for the
     manager (buy low). ``owner`` is the web's Map in its order."""
-    swing = float(p["buysell.min_swing"]) if min_swing is None else min_swing
+    reg = p["buysell.min_swing"]
+    swing = float(reg[league] if isinstance(reg, dict) else reg) if min_swing is None else min_swing
     swings: list[dict[str, Any]] = []
     for pid, team in owner:
         pr, r = projected(pid), recent(pid)

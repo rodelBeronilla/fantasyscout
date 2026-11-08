@@ -355,9 +355,9 @@ parameters:
 
   # ---- buy low / sell high (web/src/lib/buy-sell.ts)
   - id: buysell.min_swing
-    value: 1
+    value: {nba: 2.1, wnba: 5.9}
     kind: threshold
-    status: assumed
+    status: measured
     what: "Value per game between last-ten form and the projection that counts as a swing."
     evidence: "none (and the two sides are on different pools, #767)"
     validation: 758

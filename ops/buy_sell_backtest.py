@@ -188,7 +188,8 @@ def _weighted(f: Flagged, field: str, w: np.ndarray) -> np.ndarray:
 def judge(
     season: Season, bds: list[Board], p: dict[str, Any], *, seed: int = 0
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    swing = float(p["buysell.min_swing"])
+    reg = p["buysell.min_swing"]
+    swing = float(reg[season.league] if isinstance(reg, dict) else reg)
     n = int(max(b.player.max() for b in bds)) + 1
     rng = np.random.default_rng(seed)
     resamples = int(p["backtest.bootstrap"])
