@@ -12,9 +12,20 @@ inputs:
 runs:
   using: composite
   steps:
+    # One cache per set of groups (#855): the cache key otherwise ignores the groups, so a job
+    # that syncs none could save the shared cache first, and every dbt job then restored a cache
+    # without the dbt parser's wheel and downloaded it from GitHub releases again.
+    - id: suffix
+      shell: bash
+      env:
+        SYNC_GROUPS: ${{ inputs.groups }}
+      run: |
+        suffix=$(tr -s ' ' '\n' <<< "$SYNC_GROUPS" | sed '/^$/d' | sort | paste -sd- -)
+        echo "value=${suffix:-base}" >> "$GITHUB_OUTPUT"
     - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       with:
         enable-cache: true
+        cache-suffix: ${{ steps.suffix.outputs.value }}
     - shell: bash
       env:
         GROUPS: ${{ inputs.groups }}
