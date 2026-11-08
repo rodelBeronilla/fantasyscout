@@ -1,7 +1,8 @@
 /**
  * Playoff odds (#821): the standings model (standings.ts) played forward over the regular season's
  * matchups still to come, many seasons over. Each week each category of each matchup goes to one
- * side with the model's chance of winning it, as the matchup chance assumes; the records start from
+ * side with the model's chance of winning it, part of each team's edge drawn once a season so a
+ * projection's miss lasts all season (#872, ADR 0025); the records start from
  * ESPN's at the last sync, or level for a league entered by hand, and the top teams by winning share
  * make the playoffs. The draws are seeded, so the page shows the same odds on every visit and the
  * tests can pin them. A points league plays each week out on fantasy points instead (#877).

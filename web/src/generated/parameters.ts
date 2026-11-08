@@ -528,8 +528,8 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "The playoff odds (#872): the share of a week's category spread that lasts all season (a projection's miss repeats every week). Each simulated season draws one shift per team and category from it; 0 draws every week independently.",
-    "evidence": "ops.playoff_backtest fit on the tuning seasons (the #755 runs' inputs), grid 0 to 0.8, the lowest mean log loss of the odds over the checkpoints and both tallies: NBA 0.6057 at 0 to 0.5961, WNBA 0.5585 to 0.5552. At 0 the tuning slopes were 0.31 to 1.13, mostly under 0.8: independent weeks made the odds too sure",
-    "validation": 872,
+    "evidence": "ops.playoff_backtest fit on the tuning seasons (the #755 runs' inputs), grid 0 to 0.8, the lowest mean log loss of the odds over the checkpoints and both tallies: NBA 0.6057 at 0 to 0.5961, WNBA 0.5585 to 0.5552. At 0 the tuning slopes were 0.31 to 1.13, mostly under 0.8: independent weeks made the odds too sure. Judged (ADR 0025, runs 42498681135, 42498686229, 42498692099, 42498697513): the odds beat the coin and the naive manager everywhere, but the matchups tally is too timid in three of four seasons (slopes up to 1.41) and the categories tally too sure in WNBA 2025 (0.75)",
+    "validation": 900,
     "value": {
       "nba": 0.3,
       "wnba": 0.2
