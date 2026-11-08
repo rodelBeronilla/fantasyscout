@@ -136,6 +136,22 @@ function fixtureWeeks(league: ImportedLeague, teamIds: (number | null)[]): [numb
   return [...byPeriod.entries()].sort((x, y) => x[0] - y[0]).map(([, week]) => week);
 }
 
+/** The board players in ESPN's IR slot (#878), each only on the team that rosters him. */
+function espnIr(league: ImportedLeague, rosters: string[][], players: Players): string[] {
+  return league.teams.flatMap((t, i) => matchNames(t.ir.join('\n'), players).matched.filter((id) => rosters[i]?.includes(id)));
+}
+
+/**
+ * The injured list after a read (#878): every player in ESPN's IR slot, and the manager's own
+ * entries kept. A player the previous read found on ESPN's IR and this one does not has been
+ * activated there, so he comes off the list too.
+ */
+function injuredList(previous: LeagueSetup | null, ir: string[]): string[] {
+  const wasIr = new Set(previous?.source?.host === 'espn' ? (previous.source.ir ?? []) : []);
+  const kept = (previous?.il ?? []).filter((id) => !wasIr.has(id) || ir.includes(id));
+  return [...new Set([...kept, ...ir])];
+}
+
 export interface EspnSync {
   setup: LeagueSetup;
   name: string;
@@ -149,7 +165,8 @@ export interface EspnSync {
 /**
  * The league from an ESPN import. A first import (no previous copy) starts fresh; a re-import keeps
  * the manager's own choices (their team, matched by ESPN's team id, the punts and the injured list)
- * and takes everything else from ESPN, this week's opponent included when the schedule has one.
+ * and takes everything else from ESPN, this week's opponent included when the schedule has one, and
+ * ESPN's IR slot into the injured list (#878).
  */
 export function espnSetup(
   league: ImportedLeague,
@@ -177,9 +194,11 @@ export function espnSetup(
     return at >= 0 ? at : null;
   });
   const playoffWeeks = espnPlayoffWeeks(league, at.now);
+  const ir = espnIr(league, rosters, players);
   const setup = normalize(
     {
-      ...(previous ? { punts: previous.punts, il: previous.il, playoffs: previous.playoffs, standings: previous.standings } : {}),
+      ...(previous ? { punts: previous.punts, playoffs: previous.playoffs, standings: previous.standings } : {}),
+      il: injuredList(previous, ir),
       // ESPN's playoff field and the Monday-to-Sunday weeks its playoff days cover, from their first (#821, #874)
       ...(league.playoffs
         ? {
@@ -215,6 +234,8 @@ export function espnSetup(
     rosters: setup.rosters,
     teamIds,
     changes,
+    // the players in ESPN's IR slot at this read (#878), so the next one can tell who came off it
+    ir,
     opponents,
     // this week's score so far in a category league, for the matchup to start from (#817)
     ...(league.scores.size > 0 ? { scores: teamIds.map((id) => (id === null ? null : (league.scores.get(id) ?? null))) } : {}),

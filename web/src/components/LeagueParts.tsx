@@ -514,7 +514,7 @@ export function Today({
             <strong>
               {plays.length} of your {players.length} active players play today
             </strong>
-            {listed.length ? `, and ${listed.length} more ${listed.length === 1 ? 'is' : 'are'} on the injury report` : ''}.
+            {listed.length ? `, and ${listed.length} more ${listed.length === 1 ? 'is' : 'are'} on the injury report or inactive` : ''}.
             {idle.length ? ` ${idle.length} ${idle.length === 1 ? 'has' : 'have'} no game.` : ''}
           </>
         )}
@@ -611,6 +611,12 @@ function TodayCalls({
               <span key={r.id} data-player={r.id}>
                 {i ? ', ' : ''}
                 {who(r.id)}
+                {r.inactive && (
+                  <span className="text-muted" data-testid="out-inactive">
+                    {' '}
+                    (inactive on the team&apos;s lineup)
+                  </span>
+                )}
                 {minutes && <> · {minutes}</>}
               </span>
             );

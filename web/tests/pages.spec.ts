@@ -1778,6 +1778,72 @@ test('the Today card groups the active roster by plays, listed and no game, on M
   }
 });
 
+test("Today's call sends a player his team lists inactive to Out, though the injury report misses him, and starts the next one (#878)", async ({ page }) => {
+  type Row = { player_id: string; full_name: string | null; team_id: string | null; position: string | null; injury_group: string | null };
+  type Game = { game_date: string; home_team_id: string; away_team_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const games = (await (await page.request.get('/data/builds/fixture/schedule/nba.json')).json()) as Game[];
+  const counts = new Map<string, number>();
+  for (const g of games) counts.set(g.game_date, (counts.get(g.game_date) ?? 0) + 1);
+  const day = [...counts].sort((a, b) => b[1] - a[1])[0]![0];
+  await page.clock.setFixedTime(new Date(`${day}T16:00:00Z`));
+  const playing = new Set(games.filter((g) => g.game_date === day).flatMap((g) => [g.home_team_id, g.away_team_id]));
+  // two healthy players with a game today; the first, on the board's order the better, is scratched on the lineup
+  const [scratched, next] = board.filter((r) => r.full_name && r.team_id && playing.has(r.team_id) && !r.injury_group);
+  if (!scratched || !next) {
+    test.skip(true, 'the fixture has too few healthy players with a game');
+    return;
+  }
+  await page.route('**/board/nba.json', (route) =>
+    route.fulfill({ json: board.map((r) => (r.player_id === scratched.player_id ? { ...r, lineup_role: 'inactive', lineup_confirmed: true, lineup_date: day } : r)) }),
+  );
+  await page.goto('/league/?league=nba');
+  // one Util slot: only one of the two can start
+  for (const k of ['G', 'F', 'C']) await page.getByLabel(`${k} slots`).fill('0');
+  await page.getByLabel('Util slots').fill('1');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${scratched.full_name}\n${next.full_name}`);
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  await page.goto('/team/?league=nba');
+  const calls = page.getByTestId('today').getByTestId('today-calls');
+  await expect(calls.getByTestId('today-start').locator(`[data-player="${next.player_id}"]`)).toBeVisible();
+  await expect(calls.getByTestId('today-start').locator(`[data-player="${scratched.player_id}"]`)).toHaveCount(0);
+  const out = calls.getByTestId('today-out').locator(`[data-player="${scratched.player_id}"]`);
+  await expect(out).toContainText(`${scratched.full_name} (inactive on the team's lineup)`);
+  await expect(page.getByTestId('today-summary')).toContainText('1 of your 2 active players play today, and 1 more is on the injury report or inactive');
+});
+
+test("an ESPN import puts the players in ESPN's IR slot on the injured list (#878)", async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { full_name: string }[];
+  const entry = (i: number, slot = 0) => ({ lineupSlotId: slot, playerPoolEntry: { player: { fullName: board[i]!.full_name } } });
+  const league = {
+    settings: {
+      name: 'Hoops Club',
+      size: 4,
+      rosterSettings: { lineupSlotCounts: { '0': 1, '1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '11': 3, '12': 3, '13': 1 } },
+      scoringSettings: { scoringType: 'H2H_MOST_CATEGORIES', scoringItems: [0, 6, 3, 2, 1, 17, 19, 20, 11].map((statId) => ({ statId, points: 0 })) },
+    },
+    teams: [
+      { name: 'Brick City', roster: { entries: [entry(0), entry(1, 13)] } },
+      { name: 'Second', roster: { entries: [entry(2), entry(3, 12)] } },
+      { name: 'Third', roster: { entries: [entry(4)] } },
+      { name: 'Fourth', roster: { entries: [entry(5)] } },
+    ],
+  };
+  await page.route('https://lm-api-reads.fantasy.espn.com/**', (route) => route.fulfill({ json: league }));
+  await page.route('https://site.api.espn.com/**', (route) => route.fulfill({ json: { events: [] } }));
+  await page.goto('/league/?league=nba');
+  const card = page.getByTestId('espn-import');
+  await card.getByLabel('ESPN league address or ID').fill('123456');
+  await card.getByRole('button', { name: 'Import' }).click();
+  await expect(card.getByTestId('espn-note')).toContainText("1 on ESPN's IR, so on the injured list here.");
+  await expect(page.getByLabel(`Injured list: ${board[1]!.full_name}`)).toHaveAttribute('aria-pressed', 'true');
+  // the bench (slot 12) is not IR
+  await expect(page.getByLabel(`Injured list: ${board[3]!.full_name}`)).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('a roster of the two best players is told it is optimized as is', async ({ page }) => {
   await page.goto('/');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');

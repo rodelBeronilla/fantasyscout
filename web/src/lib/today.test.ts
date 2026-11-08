@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { easternDate, todayGroups, todayVerdict } from './today';
+import { easternDate, sitsOut, todayGroups, todayVerdict } from './today';
 
 const games = [
   { game_date: '2026-11-02', game_datetime_utc: '2026-11-03T00:30:00Z', home_team_id: 'BOS', away_team_id: 'NYK', home_team_tricode: 'BOS', away_team_tricode: 'NYK' },
@@ -54,5 +54,35 @@ describe('the game day', () => {
     expect(v.check.map((r) => r.id)).toEqual(['h']);
     expect(v.out.map((r) => r.id)).toEqual(['f']);
     expect(v.open).toEqual([]);
+  });
+
+  it("sends a player his team lists inactive today to Out, though the report misses him, and fills his slot (#878)", () => {
+    const players = [
+      { player_id: 'a', team_id: 'BOS', injury_group: null, lineup_role: 'inactive', lineup_date: '2026-11-02' }, // G, best: G League stint
+      { player_id: 'b', team_id: 'MIA', injury_group: null, lineup_role: 'starter', lineup_date: '2026-11-02' }, // G
+      { player_id: 'g', team_id: 'ORL', injury_group: null }, // G, third: takes the slot
+      { player_id: 'c', team_id: 'NYK', injury_group: 'questionable', lineup_role: 'inactive', lineup_date: '2026-11-02' }, // C: scratched
+      { player_id: 'x', team_id: 'NYK', injury_group: null, lineup_role: 'inactive', lineup_date: '2026-11-01' }, // C: yesterday's lineup
+      { player_id: 'f', team_id: 'ORL', injury_group: 'out', lineup_role: 'inactive', lineup_date: '2026-11-02' }, // F: out on both
+    ];
+    const pos: Record<string, string> = { a: 'G', b: 'G', g: 'G', c: 'C', x: 'C', f: 'F' };
+    const value: Record<string, number> = { a: 9, b: 4, g: 1, c: 8, x: 2, f: 9 };
+    const groups = todayGroups(players, games, '2026-11-02');
+    expect(groups.plays.map((s) => s.player.player_id).sort()).toEqual(['b', 'g', 'x']);
+    expect(groups.listed.map((s) => s.player.player_id).sort()).toEqual(['a', 'c', 'f']);
+    const v = todayVerdict(groups, ['G', 'G', 'C'], (id) => value[id] ?? 0, (id) => pos[id]);
+    expect(v.start.map((r) => [r.id, r.slot]).sort()).toEqual([['b', 'G'], ['g', 'G'], ['x', 'C']]);
+    expect(v.out.map((r) => [r.id, r.inactive]).sort()).toEqual([['a', true], ['c', true], ['f', false]]);
+    expect(v.out.every((r) => r.checkBy === null)).toBe(true);
+    expect(v.check).toEqual([]);
+    expect(v.bench).toEqual([]);
+  });
+
+  it('keeps an inactive player out of the day in the week plan too', () => {
+    const p = { player_id: 'a', team_id: 'BOS', injury_group: null, lineup_role: 'inactive', lineup_date: '2026-11-02' };
+    expect(sitsOut(p, '2026-11-02')).toBe(true);
+    expect(sitsOut(p, '2026-11-03')).toBe(false);
+    expect(sitsOut({ ...p, lineup_role: 'bench' }, '2026-11-02')).toBe(false);
+    expect(sitsOut({ ...p, lineup_role: null, injury_group: 'doubtful' }, '2026-11-03')).toBe(true);
   });
 });
