@@ -50,6 +50,13 @@ GOLD: tuple[TableSpec, ...] = (
     # The outlets' feed items and the players they name: Parquet only, which the Worker serves to
     # the owner alone, read by the claims extractor's inputs (ai/claims.py). No page shows them.
     TableSpec("gold.fct_player_rss_item", "league, published_date desc, item_id, stats_player_id"),
+    # The YouTube channels' items and the players they name: a video's title and description, and
+    # for each 30 seconds of a transcript only whom it names, never its words (ADR 0008, the
+    # YouTube addendum). Parquet only, which the Worker serves to the owner alone, read by the
+    # claims extractor's inputs. No page shows them.
+    TableSpec(
+        "gold.fct_player_youtube_item", "league, published_date desc, item_id, stats_player_id"
+    ),
     TableSpec("gold.fct_team_game_context", "league, season, game_date, game_id, team_id"),
     TableSpec("gold.fct_market_value", "league, market_rank, stats_player_id"),
     TableSpec("gold.fct_waiver_trend", "league, add_rank, drop_rank, sleeper_player_id"),

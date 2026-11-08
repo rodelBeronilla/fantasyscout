@@ -1,0 +1,53 @@
+unit_tests:
+  - name: youtube_videos_are_one_row_per_video_dated_by_the_earlier_of_published_and_first_seen
+    description: >
+      A video in two days' feeds is one row with the newest title, first seen on the first day. A
+      video dated in the future is dated by when the feed first carried it, and an untitled one
+      is dropped.
+    model: youtube_videos
+    given:
+      - input: ref('youtube_video_items')
+        rows:
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-07', _source_file: a, channel: talk, channel_name: Talk, channel_id: UCexampleChannel0000001A, fetched_at: '2026-11-07T14:00:00+00:00', video_id: vid00000001, title: 'Old title', description: 'About Avery Example', link: 'https://www.youtube.com/watch?v=vid00000001', published_at: '2026-11-07T12:00:00+00:00'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-08', _source_file: b, channel: talk, channel_name: Talk, channel_id: UCexampleChannel0000001A, fetched_at: '2026-11-08T14:00:00+00:00', video_id: vid00000001, title: 'New title', description: 'About Avery Example', link: 'https://www.youtube.com/watch?v=vid00000001', published_at: '2026-11-07T12:00:00+00:00'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-08', _source_file: b, channel: talk, channel_name: Talk, channel_id: UCexampleChannel0000001A, fetched_at: '2026-11-08T14:00:00+00:00', video_id: vid00000002, title: 'Premieres next week', description: null, link: 'https://www.youtube.com/watch?v=vid00000002', published_at: '2026-11-15T12:00:00+00:00'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-08', _source_file: b, channel: talk, channel_name: Talk, channel_id: UCexampleChannel0000001A, fetched_at: '2026-11-08T14:00:00+00:00', video_id: vid00000003, title: null, description: null, link: null, published_at: '2026-11-08T12:00:00+00:00'}
+    expect:
+      rows:
+        - {video_id: vid00000001, title: 'New title', first_seen_at: '2026-11-07T14:00:00+00:00', published_date: '2026-11-07'}
+        - {video_id: vid00000002, title: 'Premieres next week', first_seen_at: '2026-11-08T14:00:00+00:00', published_date: '2026-11-08'}
+
+  - name: youtube_videos_point_in_time_keeps_the_videos_published_before_its_date
+    model: youtube_videos
+    overrides:
+      vars: {as_of: '2026-11-08', point_in_time: true}
+    given:
+      - input: ref('youtube_video_items')
+        rows:
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-09', _source_file: a, channel: talk, fetched_at: '2026-11-09T14:00:00+00:00', video_id: vid00000001, title: 'Earlier', published_at: '2026-11-07T12:00:00+00:00'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-09', _source_file: a, channel: talk, fetched_at: '2026-11-09T14:00:00+00:00', video_id: vid00000002, title: 'On the day', published_at: '2026-11-08T15:00:00+00:00'}
+    expect:
+      rows:
+        - {video_id: vid00000001, published_date: '2026-11-07'}
+
+  - name: youtube_transcripts_are_the_newest_captions_chunks_dated_by_their_video
+    description: >
+      The newest landing of a video's captions wins, one row per chunk, each linking to the
+      moment it starts and dated by its video, however much later the captions were fetched. An
+      empty chunk is dropped, and a transcript of a video no feed landed has no row.
+    model: youtube_transcripts
+    given:
+      - input: ref('youtube_transcript_chunks')
+        rows:
+          - {league: nba, video_id: vid00000001, _ingest_date: '2026-11-07', _source_file: old, caption_kind: automatic, fetched_at: '2026-11-07T15:00:00+00:00', chunk_start: '1', chunk_end: '3.0', chunk_text: 'an older fetch'}
+          - {league: nba, video_id: vid00000001, _ingest_date: '2026-11-09', _source_file: new, caption_kind: automatic, fetched_at: '2026-11-09T15:00:00+00:00', chunk_start: '1', chunk_end: '7.5', chunk_text: 'so avery example is starting tonight '}
+          - {league: nba, video_id: vid00000001, _ingest_date: '2026-11-09', _source_file: new, caption_kind: automatic, fetched_at: '2026-11-09T15:00:00+00:00', chunk_start: '31', chunk_end: '33.5', chunk_text: 'and jordan sample loses minutes'}
+          - {league: nba, video_id: vid00000001, _ingest_date: '2026-11-09', _source_file: new, caption_kind: automatic, fetched_at: '2026-11-09T15:00:00+00:00', chunk_start: '60', chunk_end: '62.0', chunk_text: ' '}
+          - {league: nba, video_id: vid00000009, _ingest_date: '2026-11-09', _source_file: stray, caption_kind: automatic, fetched_at: '2026-11-09T15:00:00+00:00', chunk_start: '0', chunk_end: '2.0', chunk_text: 'no video for this one'}
+      - input: ref('youtube_videos')
+        rows:
+          - {league: nba, season: '2026-27', channel: talk, channel_name: Talk, video_id: vid00000001, title: 'A video', link: 'https://www.youtube.com/watch?v=vid00000001', published_at: '2026-11-07T12:00:00+00:00', published_date: '2026-11-07'}
+    expect:
+      rows:
+        - {chunk_id: vid00000001-t1, start_seconds: 1, end_seconds: 7.5, text: 'so avery example is starting tonight', link: 'https://www.youtube.com/watch?v=vid00000001&t=1s', published_date: '2026-11-07'}
+        - {chunk_id: vid00000001-t31, start_seconds: 31, end_seconds: 33.5, text: 'and jordan sample loses minutes', link: 'https://www.youtube.com/watch?v=vid00000001&t=31s', published_date: '2026-11-07'}

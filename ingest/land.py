@@ -34,8 +34,9 @@ from ingest.sleeper import SleeperIngestor
 from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
 from ingest.store import Backend, Landing, LocalBackend, VolumeBackend, credentials_from_env
 from ingest.transactions import TransactionsIngestor
+from ingest.youtube import land_channels
 
-Source = Literal["stats", "espn", "reports", "bref", "movement", "rss"]
+Source = Literal["stats", "espn", "reports", "bref", "movement", "rss", "youtube"]
 BackendKind = Literal["local", "volume"]
 Pace = Literal["spec", "adaptive"]
 
@@ -76,6 +77,8 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
     "bref": ("salaries",),
     "manual": ("saved_tables",),
     "rss": ("items",),
+    # channels' videos and, from the home runner, their transcripts (ingest/youtube.py)
+    "youtube": ("videos", "transcripts"),
     # the local model's claims from the news (ai/claims.py)
     "ai": ("claims",),
 }
@@ -175,6 +178,13 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         lines.append("  the NBA's whole player movement feed, every move since 2015, once (#794)")
     elif opts.source == "rss":
         lines.append("  each of the league's feeds in ingest/rss_feeds.toml, once, conditionally")
+    elif opts.source == "youtube":
+        lines.append(
+            "  each of the league's channels in ingest/youtube_channels.toml: its video feed"
+        )
+        lines.append(
+            "  then the captions of its new videos, one at a time, stopping at any bot check"
+        )
     elif opts.source == "bref":
         lines.append(
             "  Basketball-Reference's payroll page for each of 30 teams, 4 s or more apart"
@@ -297,6 +307,11 @@ def _run_source(
     elif opts.source == "rss":
         summary = RunSummary("rss", opts.league, season, datetime.now(UTC))
         land_feeds(landing, opts.league, season, summary)
+        for failure in landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
+    elif opts.source == "youtube":
+        summary = RunSummary("youtube", opts.league, season, datetime.now(UTC))
+        land_channels(landing, opts.league, season, summary, env)
         for failure in landing.flush():
             summary.fail(failure.endpoint, failure.key, failure.error)
     elif opts.source == "bref":

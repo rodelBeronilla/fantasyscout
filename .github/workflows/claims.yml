@@ -10,6 +10,14 @@ name: News claims
 # The claims are not shown on the site and change no number: they are stored for the backtest.
 # The model is there only while the home server is, so when it is not, the run says so and exits
 # 0, and opens nothing: the items wait for the next run.
+#
+# The YouTube channels (#851, ingest/youtube_channels.toml) land here too, in their own job on the
+# home runner each morning, before the morning ingest whose build models them for the afternoon's
+# claims: each channel's video feed, then the captions of its new videos, one at a time, from the
+# home address only, stopping at any bot check or block (ADR 0008, the YouTube addendum). A block
+# lands nothing for the video and exits 0; nothing is retried or worked around. The transcripts
+# stay in the volume: the inputs carry only which players each chunk names, and the extract job,
+# on the home runner, reads each chunk's words from the landing.
 
 on:
   schedule:
@@ -17,8 +25,15 @@ on:
     # hours late on busy days; a run that reads yesterday's build loses nothing, since the window
     # is three days and a landed item is never asked twice)
     - cron: "40 16 * * *"
+    # the YouTube channels, before the 09:27 ingest and its build
+    - cron: "50 8 * * *"
   workflow_dispatch:
     inputs:
+      only:
+        description: "Which part: all, youtube (land the channels) or claims (read and extract)"
+        type: choice
+        options: [all, youtube, claims]
+        default: all
       days:
         description: Headlines published this many days back
         type: string
@@ -36,8 +51,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  youtube:
+    name: Land the YouTube channels
+    if: >-
+      vars.STATS_RUNNER_LABEL != '' &&
+      (github.event.schedule == '50 8 * * *' ||
+       (github.event_name == 'workflow_dispatch' && inputs.only != 'claims'))
+    # the home runner only: YouTube is asked from the home address, never a GitHub-hosted runner
+    # (ingest/youtube.py also refuses to ask for a transcript there)
+    runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    timeout-minutes: 30
+    environment: lakehouse
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - name: Land the channels' videos and new transcripts
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
+        # A block, a channel's outage or an unreachable host is "missing" in the run log and exits
+        # 0; only a failed write to the volume fails the job.
+        run: |
+          set -o pipefail
+          uv run fs-ingest land youtube --league nba --backend volume 2>&1 | tee land.log
+          if grep -q "blocked" land.log; then
+            echo "::warning::YouTube checked or refused the client: no transcript landed this run (see the log; nothing is retried)"
+          fi
+          {
+            echo "## YouTube channels"
+            echo
+            echo '```'
+            grep -E "^youtube|^  (missing|failed|pacing)" land.log || echo "(no summary line)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   inputs:
     name: Read the news from the build
+    if: github.event.schedule != '50 8 * * *' && inputs.only != 'youtube'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # it holds the CI reader key for the build's tables (#429)
@@ -60,7 +112,7 @@ jobs:
   extract:
     name: Extract and land the claims
     needs: inputs
-    if: vars.STATS_RUNNER_LABEL != ''
+    if: vars.STATS_RUNNER_LABEL != '' && needs.inputs.result == 'success'
     # the home runner: the model runs beside it (infra/runner/compose.yml, the ai service), and
     # it reaches the volume through the egress proxy
     runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}

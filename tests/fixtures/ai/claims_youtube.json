@@ -1,0 +1,40 @@
+{
+ "claims": [
+  {
+   "cap_reasons": [
+    "source youtube:sample-channel, spoken (a transcript)"
+   ],
+   "confidence": 0.6,
+   "confidence_cap": 0.6,
+   "direction": 1,
+   "kind": "injury_return",
+   "league": "wnba",
+   "model_confidence": 0.7,
+   "player_id": "1629498",
+   "published_at": "2026-10-26T20:00:00Z",
+   "published_date": "2026-10-26",
+   "quote": "jackie young is expected to return",
+   "quote_start": 0,
+   "season": "2026",
+   "source": "youtube:sample-channel",
+   "source_id": "vidSAMPLE01-t31"
+  }
+ ],
+ "extracted_at": "2026-10-27T16:40:00+00:00",
+ "league": "wnba",
+ "model": "qwen3:8b",
+ "players": [
+  {
+   "name": "Jackie Young",
+   "player_id": "1629498"
+  }
+ ],
+ "prompt": "0123456789ab",
+ "published_at": "2026-10-26T20:00:00+00:00",
+ "published_date": "2026-10-26",
+ "rejected": [],
+ "season": "2026",
+ "source": "youtube:sample-channel",
+ "source_id": "vidSAMPLE01-t31",
+ "text": "jackie young is expected to return from the knee injury next week"
+}

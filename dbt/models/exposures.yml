@@ -23,6 +23,7 @@ exposures:
       - ref('fct_transaction')
       - ref('fct_player_news')
       - ref('fct_player_rss_item')
+      - ref('fct_player_youtube_item')
       - ref('fct_team_game_context')
       - ref('fct_market_value')
       - ref('fct_waiver_trend')

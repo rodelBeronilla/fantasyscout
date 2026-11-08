@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: fct_player_youtube_item
+    description: "The league players each YouTube item names, one row per item and player, for the claims extractor. An item is a video's title and description, or 30 seconds of its transcript. A player is named when his full name's words appear whole in the item's text, the name is one only he carries in the league, and he was seen in the league within 400 days. Not shown on the site, and a transcript chunk's words are not in it: only which players the chunk names."
+    columns:
+      - name: player_youtube_item_sk
+        description: "Surrogate key: one row per league, item and league player"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "The league the channel covers: wnba or nba"
+      - name: season
+        description: "Season label of the video's newest landing"
+      - name: stats_player_id
+        description: "League player id of the player the item names"
+        data_tests: [not_null]
+      - name: full_name
+        description: "The player's name as dim_player has it, the words found in the item"
+      - name: item_id
+        description: "The video id for its title and description, or <video_id>-t<seconds> for a transcript chunk: the claims' source_id"
+        data_tests: [not_null]
+      - name: video_id
+        description: "YouTube's video id"
+      - name: channel
+        description: "The channel's id in ingest/youtube_channels.toml; the claims' source is youtube:<channel>"
+      - name: channel_name
+        description: "The channel's name, credited on the Sources page"
+      - name: part
+        description: "video (the title and description) or transcript (30 seconds of the captions)"
+        data_tests:
+          - accepted_values:
+              values: [video, transcript]
+      - name: start_seconds
+        description: "Whole seconds into the video a transcript chunk starts; null for the title and description"
+      - name: title
+        description: "The video's title"
+      - name: text
+        description: "What the model reads of a video: its title and description on two lines. Null for a transcript chunk, whose words never leave the lakehouse (the extractor reads them from the landed transcript)"
+      - name: link
+        description: "The video's watch address, at the chunk's start for a transcript chunk"
+      - name: published_at
+        meta: {tz: UTC}
+        description: "When the channel published the video (UTC)"
+      - name: first_seen_at
+        meta: {tz: UTC}
+        description: "When a landed feed first carried the video (UTC)"
+      - name: published_date
+        description: "The Eastern day the video was published, or first seen when that is earlier; a point-in-time build keeps the items before its date"
+      - name: players_named
+        description: "How many league players the item names"

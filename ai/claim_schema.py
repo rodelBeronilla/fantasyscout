@@ -1,7 +1,8 @@
 """The shape of a claim from the news (#812, #833): what the model extracts from one source item,
 and what is landed once the claim is checked.
 
-The model reads one item (an ESPN headline, or an ESPN injury note) and says, for each player
+The model reads one item (an ESPN headline or injury note, an outlet's feed item, a YouTube
+video's title and description or half a minute of its transcript) and says, for each player
 the item names, what the text claims about the player's role, minutes or injury. A claim keeps
 the exact span of the text it rests on, so anyone can audit it against its source, and the date
 the source said it, so a backtest can score it against what happened next.
@@ -29,7 +30,11 @@ Kind = Literal[
 Source = Literal["espn_news", "espn_injury_note"]
 # An outlet's feed is a source of its own, by its id in ingest/rss_feeds.toml: rss:<feed_id>.
 RSS_PREFIX = "rss:"
-SOURCE_PATTERN = r"^(espn_news|espn_injury_note|rss:[a-z0-9]+(-[a-z0-9]+)*)$"
+# So is a YouTube channel, by its id in ingest/youtube_channels.toml: youtube:<channel>.
+YOUTUBE_PREFIX = "youtube:"
+SOURCE_PATTERN = (
+    r"^(espn_news|espn_injury_note|rss:[a-z0-9]+(-[a-z0-9]+)*|youtube:[a-z0-9]+(-[a-z0-9]+)*)$"
+)
 KINDS: tuple[str, ...] = get_args(Kind)
 SOURCES: tuple[str, ...] = get_args(Source)
 

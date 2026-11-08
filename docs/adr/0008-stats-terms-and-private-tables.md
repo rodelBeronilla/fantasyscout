@@ -155,3 +155,31 @@ Disney's terms, which cover ESPN, now bar using its content with AI tools ("prom
 - **On objection** ESPN is dropped from the model's inputs, and its claims are deleted.
 - **Not extended.** The RSS feeds whose terms bar AI use stay out of the model (the RSS addendum above); the owner's choice covers ESPN only.
 
+## Addendum (2026-11-08): YouTube channels
+
+The qualitative-signals epic (#812) adds analysts' YouTube videos, starting with the channel Sporting Logically (#851). Two sets of rules bear on them:
+
+- **YouTube's Terms of Service** bar accessing the service "using any automated means (such as robots, botnets or scrapers)" except as a public search engine keeping to robots.txt, or with YouTube's written permission.
+- **robots.txt** disallows `/feeds/videos.xml` (the channel feeds) and `/api/` (where the captions are served) to every crawler.
+
+So both the channel's video feed and its transcripts are read against the letter of YouTube's terms, unlike the RSS feeds above, which pass only where robots.txt allows them. The Data API would give the metadata within the terms, but it needs a key only the owner can set, and it serves no third-party captions. The owner chose to read the channel anyway, as with Basketball-Reference, on these rules:
+
+- **Metadata, no key.** The channel's public Atom feed, once a day: each video's id, title, description (at most 2,000 characters) and publish time. View counts and ratings are not kept.
+- **Transcripts, from the home runner only.** For each video of the last seven days whose transcript has not landed, at most five a run, newest first: the watch page for its caption list, then the English captions (the uploader's before the automatic ones).
+  - One video at a time, five to ten seconds apart, no retry, no redirect followed, no cookie kept.
+  - A User-Agent that names FantasyScout and links the Sources page; nothing else is set but `Accept-Language`.
+  - Never from a GitHub-hosted runner (the ingest refuses when `RUNNER_ENVIRONMENT` says so).
+  - Never through a proxy that changes who asks. The home runner's egress proxy (`infra/runner/squid.conf`) is an allow-list that forwards from the home address; it gains `www.youtube.com` alone.
+- **Stop at any check.** The transcripts stop for the run at the first sign that YouTube is checking or refusing the client: HTTP 429 or 403, a redirect (a consent, captcha or sign-in page), a page without the player, "Sign in to confirm you're not a bot" (`LOGIN_REQUIRED`), or captions that ask for a proof-of-origin token (`exp=xpe`) or come back empty. Nothing lands for that video and no later video is asked. The reason is logged as missing, and the run exits 0. Nothing is tried to get past it: no token generated, no cookie or account, no other client's identity, no proxy service. The next day's run asks once more, one watch page, and stops the same way.
+- **Private.** Transcripts land in the volume (`landing/youtube/transcripts`), with the timed lines and the same lines in half-minute chunks. They are modelled in `silver.youtube_transcripts` and never exported. `gold.fct_player_youtube_item` is the one YouTube table that leaves the lakehouse, as owner-only Parquet. It carries a video's title and description and, for a transcript chunk, only which players it names. The claims' inputs, a workflow artifact, carry no transcript words; the extractor reads each chunk's words from the landing on the home runner. A claim keeps its quote (at most 300 characters) and its source, `youtube:<channel>`, and is not shown.
+- **Confidence.** A claim from a video's title and description is capped at 0.7, the packaging of an analyst's take, not reporting. One from its transcript is capped at 0.6: spoken analysis, often in automatic captions that can mishear. Both sit under a headline's 0.8 (`ai/claim_check.py`).
+- **Credit.** The Sources page names the channel and YouTube.
+
+**What the first runs found** (2026-11-08):
+
+- **The home runner.** The dispatch on the branch reached no one. The egress proxy refused `www.youtube.com` (`TCP_DENIED`, `ProxyError: 403`), because the allow-list entry arrives with this change. The run recorded the feed as missing and exited 0.
+- **The home connection.** A smoke run from the same address, into a scratch folder, landed the feed: 15 videos, 2026-10-20 to 2026-11-07. Every caption track of the newest video, the automatic English among them, asked for a proof-of-origin token (`exp=xpe`). The transcripts stopped there, after two requests, without asking for the captions.
+- **So, metadata only for now.** Until YouTube serves captions without that token to an identified client, no transcript lands, and the claims read the titles and descriptions alone. The transcript path stays in place, costing one watch page a day, so captions that come back without the token are read on the same rules.
+
+**On objection** by the channel or by YouTube, the channel is removed from `ingest/youtube_channels.toml` (every channel, and the `youtube` job, if YouTube objects). Its landed videos, transcripts and claims are deleted (runbook, "Remove a source on request").
+

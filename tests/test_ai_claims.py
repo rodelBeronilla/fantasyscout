@@ -4,7 +4,7 @@ dedup, and idempotent landing, with the local model faked by a mock transport.""
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +16,7 @@ from pydantic import ValidationError
 from ai import claims, client
 from ai.claim_check import cap, locate, review
 from ai.claim_schema import KINDS, Extraction, SourceClaim, extraction_schema
-from ingest.store import Landing, LocalBackend
+from ingest.store import Landing, LocalBackend, Scope
 
 ROOT = Path(__file__).resolve().parent.parent
 CURLY = chr(0x2019)  # the right single quote ESPN writes for an apostrophe
@@ -520,11 +520,141 @@ def test_an_rss_claim_passes_the_same_checks_and_takes_the_headline_cap() -> Non
     ]
 
 
-@pytest.mark.parametrize("source", ["rss:", "rss:Bad Id", "reddit", "rss:a--b"])
+@pytest.mark.parametrize(
+    "source", ["rss:", "rss:Bad Id", "reddit", "rss:a--b", "youtube:", "youtube:Sporting Logically"]
+)
 def test_a_claim_from_an_unknown_source_is_refused(source: str) -> None:
     [c] = review(NEWS, {"claims": [claim()]})[0]
     with pytest.raises(ValidationError):
         SourceClaim.model_validate({**c.model_dump(), "source": source})
+
+
+# the YouTube channels (#851)
+
+
+def _youtube_con() -> duckdb.DuckDBPyConnection:
+    con = duckdb.connect()
+    con.execute(
+        "create table fct_player_youtube_item (league varchar, season varchar, item_id varchar,"
+        " video_id varchar, channel varchar, channel_name varchar, part varchar,"
+        " start_seconds integer, text varchar, published_at timestamptz,"
+        " first_seen_at timestamptz, published_date date, stats_player_id varchar,"
+        " full_name varchar)"
+    )
+    con.execute(
+        "insert into fct_player_youtube_item values"
+        # a video's title and description, naming two players
+        " ('nba', '2026-27', 'vid00000001', 'vid00000001', 'talk', 'Talk', 'video', null,"
+        "  'One takes over' || chr(10) || 'And Two loses minutes.', '2026-11-07 12:00:00+00',"
+        "  '2026-11-07 14:00:00+00', '2026-11-07', 'p1', 'Player One'),"
+        " ('nba', '2026-27', 'vid00000001', 'vid00000001', 'talk', 'Talk', 'video', null,"
+        "  'One takes over' || chr(10) || 'And Two loses minutes.', '2026-11-07 12:00:00+00',"
+        "  '2026-11-07 14:00:00+00', '2026-11-07', 'p2', 'Player Two'),"
+        # 30 seconds of its transcript: whom it names, never its words
+        " ('nba', '2026-27', 'vid00000001-t31', 'vid00000001', 'talk', 'Talk', 'transcript', 31,"
+        "  null, '2026-11-07 12:00:00+00', '2026-11-07 14:00:00+00', '2026-11-07', 'p1',"
+        "  'Player One'),"
+        # too old for the window
+        " ('nba', '2026-27', 'vid00000000', 'vid00000000', 'talk', 'Talk', 'video', null, 'Old',"
+        "  '2026-10-01 12:00:00+00', '2026-10-01 14:00:00+00', '2026-10-01', 'p1', 'Player One')"
+    )
+    return con
+
+
+def test_youtube_inputs_are_videos_and_transcript_chunks_without_their_words() -> None:
+    video, chunk = claims.youtube_items(_youtube_con(), date(2026, 11, 1))
+    assert video["source"] == chunk["source"] == "youtube:talk"
+    assert (video["source_id"], video["part"]) == ("vid00000001", "video")
+    assert video["text"] == "One takes over\nAnd Two loses minutes."
+    assert [p["player_id"] for p in video["players"]] == ["p1", "p2"]
+    assert video["published_at"].startswith("2026-11-07T12:00:00")
+    assert (chunk["source_id"], chunk["part"], chunk["start_seconds"]) == (
+        "vid00000001-t31",
+        "transcript",
+        31,
+    )
+    assert chunk["text"] is None, "a transcript's words are not in the inputs"
+    assert claims.item_key(chunk) == "youtube:talk-vid00000001-t31"
+
+
+def test_a_build_without_the_youtube_table_gives_no_youtube_inputs() -> None:
+    assert claims.youtube_items(_con(), date(2026, 11, 1)) == []
+
+
+def test_the_model_is_told_whose_video_and_where_in_it_it_reads() -> None:
+    video, chunk = claims.youtube_items(_youtube_con(), date(2026, 11, 1))
+    assert (
+        claims.model_view(video)["source"] == "the title and description of a YouTube video by Talk"
+    )
+    assert claims.model_view({**chunk, "text": "x"})["source"] == (
+        "about 30 seconds of the transcript of a YouTube video by Talk, from 0:31"
+    )
+
+
+def _land_transcript(root: Path, chunks: list[dict[str, Any]]) -> None:
+    landing = Landing(LocalBackend(root), ingest_date=date(2026, 11, 8))
+    landing.land(
+        Scope("youtube", "transcripts", "nba", "2026-27"),
+        "talk.vid00000001",
+        json.dumps({"video": {"id": "vid00000001"}, "lines": [], "chunks": chunks}).encode(),
+        url="https://www.youtube.com/watch?v=vid00000001",
+        params={},
+        status=200,
+        fetched_at=datetime(2026, 11, 8, 13, tzinfo=UTC),
+    )
+    assert landing.flush() == []
+
+
+def test_a_transcript_chunk_is_read_from_the_landing_and_takes_the_spoken_cap(
+    tmp_path: Path,
+) -> None:
+    words = "i think player one is starting tonight"
+    _land_transcript(tmp_path, [{"start": 2, "text": "hello"}, {"start": 31, "text": words}])
+    [_, chunk] = claims.youtube_items(_youtube_con(), date(2026, 11, 1))
+    landing = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 11, 8))
+    assert claims.transcript_text(landing, chunk) == words
+    answer = {
+        "claims": [
+            claim(
+                player_id="p1", kind="role_up", direction=1, quote="player one is starting tonight"
+            )
+        ]
+    }
+    seen: list[str] = []
+    counts = claims.extract(
+        {"items": [chunk]}, landing, http=_model({words: answer}, seen), log=lambda _: None
+    )
+    assert landing.flush() == []
+    assert seen == [words] and counts["claims"] == 1
+    [path] = [p for p in _landed(tmp_path) if not p.name.endswith(".meta.json")]
+    assert path.name == "youtube-talk-vid00000001-t31.json"
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    assert doc["text"] == words
+    [c] = doc["claims"]
+    assert (c["confidence"], c["confidence_cap"]) == (0.6, 0.6)
+    assert c["cap_reasons"] == ["source youtube:talk, spoken (a transcript)"]
+    assert c["source_id"] == "vid00000001-t31" and c["quote_start"] == 8
+
+
+def test_a_chunk_whose_transcript_is_not_landed_is_left_for_the_next_run(tmp_path: Path) -> None:
+    [_, chunk] = claims.youtube_items(_youtube_con(), date(2026, 11, 1))
+    seen: list[str] = []
+    landing = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 11, 8))
+    counts = claims.extract({"items": [chunk]}, landing, http=_model({}, seen), log=lambda _: None)
+    assert counts["transcript not found"] == 1 and counts["items"] == 0 and not seen
+    _land_transcript(tmp_path, [{"start": 2, "text": "another chunk"}])
+    landing = Landing(LocalBackend(tmp_path), ingest_date=date(2026, 11, 8))
+    assert claims.transcript_text(landing, chunk) is None, "the chunk is not in the transcript"
+
+
+def test_a_youtube_videos_title_and_description_take_the_videos_cap() -> None:
+    [video, _] = claims.youtube_items(_youtube_con(), date(2026, 11, 1))
+    kept, _ = review(
+        video,
+        {"claims": [claim(player_id="p2", kind="minutes_down", quote="Two loses minutes")]},
+    )
+    [c] = kept
+    assert c.confidence == 0.7 and "source youtube:talk" in c.cap_reasons
 
 
 # the dbt sample's claims are the extractor's own output

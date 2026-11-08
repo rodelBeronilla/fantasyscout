@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: fct_player_claim
-    description: "What the news claims about each player: one row per claim the local model read from an ESPN headline or injury note, or an outlet's feed item, with its kind, direction, capped confidence, exact quote and the date the source said it. Not shown on the site and read by no number: stored so the walk-forward harness can score each source's track record before any claim may tune a projection."
+    description: "What the news claims about each player: one row per claim the local model read from an ESPN headline or injury note, an outlet's feed item, or a YouTube video's title and description or transcript, with its kind, direction, capped confidence, exact quote and the date the source said it. Not shown on the site and read by no number: stored so the walk-forward harness can score each source's track record before any claim may tune a projection."
     columns:
       - name: player_claim_sk
         description: "Surrogate key: one row per league, source item, league player and kind"
@@ -15,9 +15,9 @@ models:
         description: "League player id the claim is about"
         data_tests: [not_null]
       - name: source
-        description: "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note) or rss:<feed_id> (an outlet's feed item)"
+        description: "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note), rss:<feed_id> (an outlet's feed item) or youtube:<channel> (a YouTube video's title and description, or 30 seconds of its transcript)"
       - name: source_id
-        description: "The ESPN article id, the injury listing id and a hash of the note's text, or the feed item's id (silver.rss_feed_items)"
+        description: "The ESPN article id, the injury listing id and a hash of the note's text, the feed item's id (silver.rss_feed_items), or a YouTube item's: the video id, or <video_id>-t<seconds> for a transcript chunk (gold.fct_player_youtube_item)"
       - name: kind
         description: "role_up, role_down, minutes_up, minutes_down, injury_out, injury_return, injury_worse, injury_better, trade_rumor or other"
       - name: direction
