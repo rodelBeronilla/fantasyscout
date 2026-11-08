@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { POINT_PRESETS } from './fantasy-league';
-import { matchup, matchupWeights, weekTotals } from './matchup';
+import { CATEGORY_WORDS } from './format';
+import { liveWeek, matchup, matchupCall, matchupWeights, swingCategory, weekTotals } from './matchup';
 
 const cats = ['z_points', 'z_turnovers', 'z_field_goal_pct'];
 const mine = [
@@ -40,6 +41,53 @@ describe('the head-to-head week', () => {
     expect([m.wins, m.losses, m.close]).toEqual([2, 1, 0]);
     expect(m.cats[1]!.edge).toBe(-5);
     expect(matchup(['z_points'], { cats: { z_points: 100 }, games: 0, fpts: 0 }, { cats: { z_points: 97 }, games: 0, fpts: 0 }).close).toBe(1);
+  });
+
+  it('starts from the score so far: counting totals add, percentages add the shots (#817)', () => {
+    const rest = { mine: weekTotals(mine, cats), theirs: weekTotals(theirs, cats) };
+    // so far: 300 points to 200, 20 turnovers to 10, 48 of 100 from the field to 45 of 90
+    const live = liveWeek(
+      cats,
+      {
+        mine: { totals: { z_points: 300, z_turnovers: 20 }, shots: { z_field_goal_pct: [48, 100] } },
+        theirs: { totals: { z_points: 200, z_turnovers: 10 }, shots: { z_field_goal_pct: [45, 90] } },
+      },
+      rest,
+    );
+    expect(live.projectedOnly).toEqual([]);
+    expect(live.mine.cats['z_points']).toBe(380); // 300 so far + 80 to come
+    expect(live.theirs.cats['z_turnovers']).toBe(16);
+    expect(live.mine.cats['z_field_goal_pct']).toBeCloseTo((48 + 32) / (100 + 68), 6);
+    expect(live.theirs.cats['z_field_goal_pct']).toBeCloseTo((45 + 24) / (90 + 60), 6);
+    // the games left stay the games left
+    expect(live.mine.games).toBe(5);
+    const m = matchup(cats, live.mine, live.theirs);
+    expect(m.cats.map((r) => r.result)).toEqual(['win', 'loss', 'close']);
+  });
+
+  it('projects a category the score lacks on either side, for both sides (#817)', () => {
+    const rest = { mine: weekTotals(mine, cats), theirs: weekTotals(theirs, cats) };
+    const live = liveWeek(
+      cats,
+      { mine: { totals: { z_points: 300, z_turnovers: 20 }, shots: { z_field_goal_pct: [40, 100] } }, theirs: { totals: { z_points: 200 }, shots: {} } },
+      rest,
+    );
+    expect(live.projectedOnly).toEqual(['z_turnovers', 'z_field_goal_pct']);
+    expect(live.mine.cats['z_turnovers']).toBe(11);
+    expect(live.mine.cats['z_field_goal_pct']).toBeCloseTo(32 / 68, 6);
+    expect(live.mine.cats['z_points']).toBe(380);
+  });
+
+  it('leads with the call: the count and the swing category, the closest by share (#817)', () => {
+    const totals = (c: Record<string, number>) => ({ cats: c, games: 0, fpts: 0 });
+    const four = ['z_points', 'z_steals', 'z_blocks', 'z_turnovers'];
+    // points won by 10%, steals lost by 4% (too close), blocks lost by 50%, turnovers won by 2%
+    const m = matchup(four, totals({ z_points: 100, z_steals: 24, z_blocks: 5, z_turnovers: 49 }), totals({ z_points: 90, z_steals: 25, z_blocks: 10, z_turnovers: 50 }));
+    expect(swingCategory(m)).toBe('z_turnovers');
+    expect(matchupCall(m, (c) => CATEGORY_WORDS[c] ?? c)).toBe('Winning 1, losing 1, 2 too close: turnovers is the swing category');
+    const clear = matchup(['z_points'], totals({ z_points: 100 }), totals({ z_points: 50 }));
+    expect(matchupCall(clear, (c) => CATEGORY_WORDS[c] ?? c)).toBe('Winning 1, losing 0: points is the swing category');
+    expect(swingCategory(matchup([], totals({}), totals({})))).toBeNull();
   });
 
   it('weights the closest third of the categories most and the blowouts least', () => {

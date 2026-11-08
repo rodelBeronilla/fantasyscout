@@ -5,6 +5,7 @@
  * counted: on My Team his started games from the week's lineup plan, which fills the league's
  * slots and leaves out and doubtful players out (#817), so a bench player's games and an injured
  * player's do not count; a percentage is made over attempted. Turnovers go to the lower total.
+ * An ESPN category league adds the week's score so far, so the totals are projected finals.
  */
 import type { PointWeights } from './fantasy-league';
 import { fantasyPoints, thirdsWeights } from './league-value';
@@ -42,6 +43,8 @@ export interface WeekTotals {
   games: number;
   /** Fantasy points for the week under the league's weights, when given. */
   fpts: number;
+  /** Made and attempted behind each percentage category, which a score so far adds to (#817). */
+  shots?: Record<string, [number, number]>;
 }
 
 /** A team's projected totals for the games left this week, from the rows of its active players. */
@@ -50,6 +53,7 @@ export function weekTotals(rows: Row[], cats: string[], weights?: PointWeights, 
   // else every game his team has left this week
   const games = gamesOf ?? ((r: Row) => n(r, 'games_this_week'));
   const out: Record<string, number> = {};
+  const shots: Record<string, [number, number]> = {};
   for (const c of cats) {
     const counting = COUNTING[c];
     const ratio = RATIO[c];
@@ -58,13 +62,57 @@ export function weekTotals(rows: Row[], cats: string[], weights?: PointWeights, 
       const made = rows.reduce((s, r) => s + n(r, ratio[0]) * games(r), 0);
       const attempted = rows.reduce((s, r) => s + n(r, ratio[1]) * games(r), 0);
       out[c] = attempted > 0 ? made / attempted : 0;
+      shots[c] = [made, attempted];
     } else out[c] = 0;
   }
   return {
     cats: out,
     games: rows.reduce((s, r) => s + games(r), 0),
     fpts: weights ? rows.reduce((s, r) => s + fantasyPoints(r, weights) * games(r), 0) : 0,
+    shots,
   };
+}
+
+/** A team's totals so far in this week's matchup, as its host reports them (#817). */
+export interface ScoreSoFar {
+  /** Each counting category's total so far. */
+  totals: Record<string, number>;
+  /** Made and attempted so far behind each percentage category, where the host's numbers tell them. */
+  shots: Record<string, [number, number]>;
+}
+
+export interface LiveWeek {
+  mine: WeekTotals;
+  theirs: WeekTotals;
+  /** The categories the score so far does not give for both sides: these are projected only. */
+  projectedOnly: string[];
+}
+
+/**
+ * The week's projected final from the score so far (#817): each side's totals to date plus the
+ * games its lineup starts from today. A percentage adds the shots, made over attempted across
+ * both. A category goes from the score only when both sides have it; otherwise both project it.
+ */
+export function liveWeek(cats: string[], soFar: { mine: ScoreSoFar; theirs: ScoreSoFar }, rest: { mine: WeekTotals; theirs: WeekTotals }): LiveWeek {
+  const has = (s: ScoreSoFar, c: string) => (isRatio(c) ? c in s.shots : c in s.totals);
+  const projectedOnly = cats.filter((c) => !has(soFar.mine, c) || !has(soFar.theirs, c));
+  const final = (s: ScoreSoFar, t: WeekTotals): WeekTotals => {
+    const out: Record<string, number> = { ...t.cats };
+    const shots: Record<string, [number, number]> = { ...t.shots };
+    for (const c of cats) {
+      if (projectedOnly.includes(c)) continue;
+      if (!isRatio(c)) {
+        out[c] = (s.totals[c] ?? 0) + (t.cats[c] ?? 0);
+        continue;
+      }
+      const [made, attempted] = s.shots[c] ?? [0, 0];
+      const [restMade, restAttempted] = t.shots?.[c] ?? [0, 0];
+      shots[c] = [made + restMade, attempted + restAttempted];
+      out[c] = attempted + restAttempted > 0 ? (made + restMade) / (attempted + restAttempted) : 0;
+    }
+    return { ...t, cats: out, shots };
+  };
+  return { mine: final(soFar.mine, rest.mine), theirs: final(soFar.theirs, rest.theirs), projectedOnly };
 }
 
 export interface CategoryEdge {
@@ -104,6 +152,17 @@ export function matchup(cats: string[], mine: WeekTotals, theirs: WeekTotals, cl
     mine,
     theirs,
   };
+}
+
+/** The category closest to turning either way, by share: where the week's moves count most (#817). */
+export function swingCategory(m: WeekMatchup): string | null {
+  return m.cats.reduce<CategoryEdge | null>((best, r) => (best === null || r.share < best.share ? r : best), null)?.cat ?? null;
+}
+
+/** The week's call, e.g. "Winning 5, losing 3, 1 too close: steals is the swing category" (#817). */
+export function matchupCall(m: WeekMatchup, name: (cat: string) => string): string {
+  const swing = swingCategory(m);
+  return `Winning ${m.wins}, losing ${m.losses}${m.close ? `, ${m.close} too close` : ''}${swing ? `: ${name(swing)} is the swing category` : ''}`;
 }
 
 /**

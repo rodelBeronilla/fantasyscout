@@ -10,16 +10,18 @@ import { acceptable, type FairnessModel, leagueState, marketMap, playerWorth } f
 import { type BuildPlan, buildPlan } from '../lib/build-plan';
 import { leagueStandings as tradeStandings } from '../lib/trade-impact';
 import { dropRule, reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
-import { matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
+import { liveWeek, matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { expectedWins, leagueStandings, type LeagueStandings, type PowerRank, powerRankings } from '../lib/standings';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
 import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, startsByPlayer, weekPlan, type WeekPlan } from '../lib/lineup';
 import { easternDate, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
 import { type ModelRow, restValues } from '../lib/board-model';
-import { CategoryProfile, LeagueBar, Matchup, Today, type TodayRow, Upgrades } from './LeagueParts';
+import { CategoryProfile, LeagueBar, Today, type TodayRow, Upgrades } from './LeagueParts';
+import { Matchup, type MatchupBasis } from './MatchupCard';
 import { BuildYourTeam } from './BuildYourTeam';
 import { SyncLine, useEspnSync } from './LeagueSync';
+import { weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
 
 interface TeamRow extends ModelRow {
@@ -441,8 +443,9 @@ export default function MyTeam() {
     return { mine: plan(myTeam), theirs: theirs && theirs.length ? plan(theirs) : null };
   }, [games, rows, myTeam, byId, setup.lineup, setup.opponent, setup.il, owner, perGame, h2h]);
   // The week's matchup: each side's projected totals over the games its lineup will start (#817),
-  // from the lineup plans above, so benched and out players' games no longer count.
-  const match = useMemo<WeekMatchup | null>(() => {
+  // from the lineup plans above, so benched and out players' games no longer count. An ESPN
+  // category league read today starts from the score so far.
+  const weekMatch = useMemo<{ match: WeekMatchup; basis: MatchupBasis } | null>(() => {
     if (!h2h || setup.opponent === null || !weekAvailable || myTeam.length === 0 || !rows) return null;
     const theirs = rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
     const scoring = points ? setup.weights : undefined;
@@ -451,12 +454,16 @@ export default function MyTeam() {
       const starts = startsByPlayer(plan);
       return (r: Record<string, unknown>) => starts.get(String(r['player_id'])) ?? 0;
     };
-    return matchup(
-      points ? [] : activeCats,
-      weekTotals(myTeam, activeCats, scoring, counted(lineupPlans?.mine)),
-      weekTotals(theirs, activeCats, scoring, counted(lineupPlans?.theirs)),
-    );
-  }, [h2h, setup.opponent, setup.weights, setup.il, weekAvailable, myTeam, rows, owner, points, activeCats, lineupPlans]);
+    const rest = {
+      mine: weekTotals(myTeam, activeCats, scoring, counted(lineupPlans?.mine)),
+      theirs: weekTotals(theirs, activeCats, scoring, counted(lineupPlans?.theirs)),
+    };
+    const cats = points ? [] : activeCats;
+    const score = points ? 'no-score' : weekScore(setup, easternDate(), (ms) => easternDate(new Date(ms)));
+    if (typeof score === 'string') return { match: matchup(cats, rest.mine, rest.theirs), basis: { live: false, reason: score } };
+    const live = liveWeek(cats, score, rest);
+    return { match: matchup(cats, live.mine, live.theirs), basis: { live: true, projectedOnly: live.projectedOnly } };
+  }, [h2h, setup, weekAvailable, myTeam, rows, owner, points, activeCats, lineupPlans]);
   // Today's start and sit (#816): the best lineup the slots hold from today's players, by the same
   // per-game values the week's plan uses.
   const verdict = useMemo(() => {
@@ -590,7 +597,17 @@ export default function MyTeam() {
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
       <div className={`grid items-start gap-3 ${showMatchup && !points ? 'lg:grid-cols-2' : ''}`}>
-        {showMatchup && <Matchup setup={setup} match={match} points={points} onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))} />}
+        {showMatchup && (
+          <Matchup
+            setup={setup}
+            match={weekMatch?.match ?? null}
+            basis={weekMatch?.basis ?? null}
+            points={points}
+            league={league}
+            openDays={lineupPlans?.mine.days.filter((d) => d.open.length > 0).map((d) => d.date) ?? []}
+            onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))}
+          />
+        )}
         {!points && <Categories standings={standings} mine={setup.mine} cats={activeCats} punted={punted} h2h={h2h} totals={myTotals} />}
       </div>
 

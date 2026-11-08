@@ -9,6 +9,7 @@ import { normalizeSlots, type Slots } from './lineup';
 import { accountStatus, loadSaved, saveSoon } from './account';
 import type { League } from './data';
 import { CATEGORIES } from './format';
+import type { ScoreSoFar } from './matchup';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
 
 export type Scoring = 'cats9' | 'cats8' | 'points';
@@ -81,6 +82,8 @@ export interface LeagueSource {
   changes: number | null;
   /** Each team's opponent this week from ESPN's schedule, by index; null on a bye or with no schedule. */
   opponents?: (number | null)[];
+  /** Each team's score so far in this week's matchup at `syncedAt`, by index; null without one (#817). */
+  scores?: (ScoreSoFar | null)[];
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -148,6 +151,19 @@ const defaultName = (i: number) => `Team ${i + 1}`;
 const isIds = (x: unknown): x is string[] => Array.isArray(x) && x.every((id) => typeof id === 'string');
 const isTeamIndex = (x: unknown): x is number | null => x === null || (typeof x === 'number' && Number.isInteger(x) && x >= 0);
 
+const isTotals = (x: unknown): x is Record<string, number> =>
+  !!x && typeof x === 'object' && !Array.isArray(x) && Object.values(x).every((v) => typeof v === 'number' && Number.isFinite(v));
+const isShots = (x: unknown): x is Record<string, [number, number]> =>
+  !!x &&
+  typeof x === 'object' &&
+  !Array.isArray(x) &&
+  Object.values(x).every((v) => Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0));
+/** A stored score so far, or null when it is missing or malformed. */
+const cleanScore = (raw: unknown): ScoreSoFar | null => {
+  const s = raw as Partial<ScoreSoFar> | null;
+  return s && isTotals(s.totals) && isShots(s.shots) ? { totals: s.totals, shots: s.shots } : null;
+};
+
 /** A stored source as this build reads it, or undefined when it is missing or malformed. */
 function cleanSource(raw: unknown): LeagueSource | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
@@ -163,6 +179,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     ...(Array.isArray(s.teamIds) ? { teamIds: s.teamIds.map((id) => (typeof id === 'number' ? id : null)) } : {}),
     changes: typeof s.changes === 'number' && s.changes >= 0 ? s.changes : null,
     ...(Array.isArray(s.opponents) ? { opponents: s.opponents.map((o) => (isTeamIndex(o) ? o : null)) } : {}),
+    ...(Array.isArray(s.scores) ? { scores: s.scores.map(cleanScore) } : {}),
   };
 }
 
