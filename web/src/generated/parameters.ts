@@ -113,6 +113,10 @@ export const PARAMS = {
     "nba": 0.8,
     "wnba": 0.8
   },
+  "standings.projection_spread_games": {
+    "nba": 0.0,
+    "wnba": 0.0
+  },
   "playoffs.teams": {
     "nba": 6,
     "wnba": 4
@@ -484,6 +488,18 @@ export const PARAMETERS = [
     "value": {
       "nba": 0.8,
       "wnba": 0.8
+    }
+  },
+  {
+    "id": "standings.projection_spread_games",
+    "kind": "model",
+    "status": "assumed",
+    "what": "The part of a rotisserie projection's error that averages out over the games left: its variance over the games left is added to standings.projection_spread's (#866).",
+    "evidence": "none yet: 0 is the constant spread #755 judged; to be fitted by ops.roto_backtest",
+    "validation": 866,
+    "value": {
+      "nba": 0.0,
+      "wnba": 0.0
     }
   },
   {

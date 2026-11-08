@@ -62,20 +62,28 @@ def spreads(
     *,
     scale: float | None = None,
     projection: float | None = None,
+    projection_games: float | None = None,
 ) -> Any:
     """The standard deviation of the gap between two teams' totals per category (standingsModel).
 
     ``players`` may be an array (one league each): the result then has a last axis of ``cats``.
-    ``scale`` and ``projection`` override the registry's, for the fit's grid.
+    ``scale``, ``projection`` and ``projection_games`` override the registry's, for the fits'
+    grids. A rotisserie projection's error has a part that lasts (``projection``) and one whose
+    variance falls with the games left (``projection_games``, #866).
     """
     p = registry() if p is None else p
     k = float(p["standings.spread_scale"][league]) if scale is None else scale
     proj = float(p["standings.projection_spread"][league]) if projection is None else projection
+    passing = (
+        float(p["standings.projection_spread_games"][league])
+        if projection_games is None
+        else projection_games
+    )
     gpw = float(p["standings.games_per_week"][league])
     n = np.maximum(np.asarray(players, dtype=float), 1)[..., None]
     games = gpw if fmt == "h2h" else max(games_left, gpw)
     game = np.array([float(p["standings.game_spread"][league].get(c, 1)) for c in cats])
-    extra = proj * proj * 2 * n if fmt == "roto" else 0
+    extra = (proj * proj + passing * passing / games) * 2 * n if fmt == "roto" else 0
     return np.sqrt((k * game) ** 2 * 2 * n / games + extra)
 
 
