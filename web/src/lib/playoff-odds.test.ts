@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { playoffOdds, roundRobin, seededRandom, simulateOdds } from './playoff-odds';
+import { playoffOdds, pointsPlayoffOdds, roundRobin, seededRandom, simulateOdds } from './playoff-odds';
 
 const cats = ['z_points', 'z_rebounds_total', 'z_assists'];
 const spread = { z_points: 1, z_rebounds_total: 1, z_assists: 1 };
@@ -96,5 +96,37 @@ describe('playoffOdds', () => {
     expect(playoffOdds('nba', { ...setup, format: 'roto' }, cats, value, () => 1, schedule)).toBeNull();
     expect(playoffOdds('nba', setup, [], value, () => 1, schedule)).toBeNull();
     expect(playoffOdds('nba', { ...setup, rosters: [...rosters.slice(0, 3), []] }, cats, value, () => 1, schedule)).toBeNull();
+  });
+});
+
+describe('pointsPlayoffOdds (#877)', () => {
+  const rosters = [['a1', 'a2'], ['b1', 'b2'], ['c1', 'c2'], ['d1', 'd2']];
+  const setup = { rosters, il: [], rosterSpots: 2, format: 'h2h' as const, playoffs: { teams: 2 } };
+  const schedule = { weeks: roundRobin(4, 6), records: [] };
+
+  it('plays each week out on fantasy points: the higher-scoring roster is the likelier in, level rosters split the spots', () => {
+    const fpts = (id: string) => (id.startsWith('a') ? 40 : 30);
+    const odds = pointsPlayoffOdds(setup, fpts, () => 1, schedule, 400)!;
+    expect(odds.odds[0]).toBeGreaterThan(Math.max(...odds.odds.slice(1)));
+    expect(odds.odds.reduce((s, p) => s + p, 0)).toBeCloseTo(2, 6);
+    // one result a week: six weeks, six games each
+    expect(odds.wins[0]! + odds.losses[0]!).toBeCloseTo(6, 6);
+    const level = pointsPlayoffOdds(setup, () => 30, () => 1, schedule, 2000)!;
+    for (const p of level.odds) expect(p).toBeCloseTo(0.5, 1);
+  });
+
+  it("counts a player by his share of the games, leaves the IL out, and starts from the records", () => {
+    const fpts = () => 30;
+    // team a's players are expected to miss most games, and one is on the IL
+    const hurt = pointsPlayoffOdds({ ...setup, il: ['a2'] }, fpts, (id) => (id.startsWith('a') ? 0.2 : 1), schedule, 400)!;
+    expect(hurt.odds[0]).toBeLessThan(Math.min(...hurt.odds.slice(1)));
+    const settled = pointsPlayoffOdds(setup, fpts, () => 1, { weeks: [], records: [null, { wins: 9, losses: 1, ties: 0, seed: null }, { wins: 8, losses: 2, ties: 0, seed: null }, null] }, 50)!;
+    expect(settled.odds).toEqual([0, 1, 1, 0]);
+  });
+
+  it('has none outside a head-to-head league, until every team has half a roster in, or without projections', () => {
+    expect(pointsPlayoffOdds({ ...setup, format: 'roto' }, () => 30, () => 1, schedule)).toBeNull();
+    expect(pointsPlayoffOdds({ ...setup, rosters: [...rosters.slice(0, 3), []] }, () => 30, () => 1, schedule)).toBeNull();
+    expect(pointsPlayoffOdds(setup, () => 0, () => 1, schedule)).toBeNull();
   });
 });

@@ -233,6 +233,7 @@ export type PlayerBoardColumn =
   | 'proj_free_throw_pct'
   | 'lineup_role'
   | 'lineup_confirmed'
+  | 'lineup_date'
   | 'market_rank'
   | 'ownership_bucket'
   | 'team_stakes'
@@ -245,7 +246,9 @@ export type PlayerBoardColumn =
   | 'injury_news'
   | 'injury_since'
   | 'injury_source'
-  | 'official_game_date';
+  | 'official_game_date'
+  | 'news_flag'
+  | 'news_date';
 
 /** The columns of the player file's rolling section (PLAYER_ROLLING_COLUMNS). */
 export type PlayerRollingColumn =

@@ -202,6 +202,13 @@ parameters:
     what: "Seasons the playoff odds play out: the odds' sampling error is at most 1.1 points (the binomial standard error at 50%)."
     evidence: "sqrt(0.25 / 2000) = 0.011"
     validation: 872
+  - id: playoffs.points_spread_share
+    value: 0.17
+    kind: model
+    status: assumed
+    what: "A points league's playoff odds (#877): the standard deviation of a week's fantasy-points margin between two teams, as a share of the league's average team."
+    evidence: "an unmeasured prior: a game's fantasy points vary by about a third of the player's mean, so over about 35 started games a week the margin varies by sqrt(2) x 0.35 / sqrt(35) = 0.084 of a team's week; doubled for what the projection misses, as the category model needed (standings.spread_scale 2.0, ADR 0021)"
+    validation: 891
 
   # ---- Fit weights before the standings model applies (web/src/lib/league-value.ts, matchup.ts)
   - id: fit.thirds
@@ -227,6 +234,22 @@ parameters:
     what: "Minutes an ESPN league's copy stands before a visit, or a page left open and in view, reads the league and today's scoreboard again."
     evidence: "none; a balance of a live score against ESPN's load: ESPN caches the league for 5 minutes (Cache-Control max-age=300), so a shorter wait gains little"
     validation: 875
+
+  # ---- the one-line player notes (web/src/lib/player-notes.ts, #879)
+  - id: notes.stand_days
+    value: 1
+    kind: threshold
+    status: assumed
+    what: "Days after the day a player's note was written (Eastern) that the pages still show it, marked with when it was written: the daily run replaces it, so a day's grace covers one run the model missed."
+    evidence: "none; the daily cadence of the player-notes workflow"
+    validation: 879
+  - id: notes.late_hours
+    value: 30
+    kind: threshold
+    status: assumed
+    what: "Hours since the last daily run drafted the player notes before Data Health says they were not drafted."
+    evidence: "none; a day between daily runs, plus GitHub's schedule lag (runs observed up to about three hours late, ingest.yml) and the run itself"
+    validation: 879
 
   # ---- trade verdicts (web/src/lib/trade-fairness.ts, trade-impact.ts, trade-suggest.ts)
   - id: trade.value_limits

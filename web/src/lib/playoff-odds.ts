@@ -4,7 +4,7 @@
  * side with the model's chance of winning it, as the matchup chance assumes; the records start from
  * ESPN's at the last sync, or level for a league entered by hand, and the top teams by winning share
  * make the playoffs. The draws are seeded, so the page shows the same odds on every visit and the
- * tests can pin them.
+ * tests can pin them. A points league plays each week out on fantasy points instead (#877).
  */
 import type { League } from './data';
 import type { Format } from './fantasy-league';
@@ -177,6 +177,45 @@ export function playoffOdds(
     records: schedule.records,
     weeks: schedule.weeks,
     tally: schedule.tally,
+    spots: Math.min(setup.playoffs.teams, teams),
+    sims,
+  });
+}
+
+/** The one "category" a points league's week is decided on. */
+const POINTS = 'fpts';
+
+/**
+ * A points league's playoff odds (#877): each team's projected fantasy points per game summed over
+ * its active players, each counted by the share of games he is expected to play. A week's margin
+ * between two teams is drawn normal around the gap between them, with a spread of
+ * `playoffs.points_spread_share` of the league's average team; one result a week. That spread is a
+ * prior nobody has measured yet (#891). Every team plays the same games a week here, so the games
+ * a week scale both the gap and the spread alike and drop out. Null outside a head-to-head league,
+ * until every team has half a roster in, or when no player has a projection.
+ */
+export function pointsPlayoffOdds(
+  setup: OddsLeague,
+  fpts: (id: string) => number,
+  availability: (id: string) => number,
+  schedule: { weeks: Week[]; records: (TeamRecord | null | undefined)[] },
+  sims?: number,
+): Odds | null {
+  if (setup.format !== 'h2h') return null;
+  const teams = setup.rosters.length;
+  if (rivals(setup.rosters, -1, setup.rosterSpots).length !== teams) return null;
+  const totals = setup.rosters.map((r) => ({
+    [POINTS]: r.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + fpts(id) * availability(id), 0),
+  }));
+  const average = totals.reduce((s, t) => s + (t[POINTS] ?? 0), 0) / teams;
+  if (!(average > 0)) return null;
+  return simulateOdds({
+    totals,
+    spread: { [POINTS]: PARAMS['playoffs.points_spread_share'] * average },
+    cats: [POINTS],
+    records: schedule.records,
+    weeks: schedule.weeks,
+    tally: 'matchups',
     spots: Math.min(setup.playoffs.teams, teams),
     sims,
   });

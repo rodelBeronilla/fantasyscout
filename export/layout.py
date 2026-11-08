@@ -413,6 +413,8 @@ PLAYER_BOARD_COLUMNS = (
     "proj_free_throw_pct",
     "lineup_role",
     "lineup_confirmed",
+    # the day the lineup role is for, and the flagged headline: the player note's check (#879)
+    "lineup_date",
     "market_rank",
     "ownership_bucket",
     "team_stakes",
@@ -426,6 +428,8 @@ PLAYER_BOARD_COLUMNS = (
     "injury_since",
     "injury_source",
     "official_game_date",
+    "news_flag",
+    "news_date",
 )
 
 SCHEDULE_SQL = """

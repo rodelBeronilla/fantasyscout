@@ -122,6 +122,7 @@ export const PARAMS = {
     "wnba": 2
   },
   "playoffs.simulations": 2000,
+  "playoffs.points_spread_share": 0.17,
   "fit.thirds": {
     "weak": 1.5,
     "middle": 1.0,
@@ -129,6 +130,8 @@ export const PARAMS = {
   },
   "matchup.closeness": 0.05,
   "sync.every_minutes": 15,
+  "notes.stand_days": 1,
+  "notes.late_hours": 30,
   "trade.value_limits": {
     "bad": -0.15,
     "terrible": -0.3
@@ -523,6 +526,15 @@ export const PARAMETERS = [
     "value": 2000
   },
   {
+    "id": "playoffs.points_spread_share",
+    "kind": "model",
+    "status": "assumed",
+    "what": "A points league's playoff odds (#877): the standard deviation of a week's fantasy-points margin between two teams, as a share of the league's average team.",
+    "evidence": "an unmeasured prior: a game's fantasy points vary by about a third of the player's mean, so over about 35 started games a week the margin varies by sqrt(2) x 0.35 / sqrt(35) = 0.084 of a team's week; doubled for what the projection misses, as the category model needed (standings.spread_scale 2.0, ADR 0021)",
+    "validation": 891,
+    "value": 0.17
+  },
+  {
     "id": "fit.thirds",
     "kind": "model",
     "status": "assumed",
@@ -552,6 +564,24 @@ export const PARAMETERS = [
     "evidence": "none; a balance of a live score against ESPN's load: ESPN caches the league for 5 minutes (Cache-Control max-age=300), so a shorter wait gains little",
     "validation": 875,
     "value": 15
+  },
+  {
+    "id": "notes.stand_days",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Days after the day a player's note was written (Eastern) that the pages still show it, marked with when it was written: the daily run replaces it, so a day's grace covers one run the model missed.",
+    "evidence": "none; the daily cadence of the player-notes workflow",
+    "validation": 879,
+    "value": 1
+  },
+  {
+    "id": "notes.late_hours",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Hours since the last daily run drafted the player notes before Data Health says they were not drafted.",
+    "evidence": "none; a day between daily runs, plus GitHub's schedule lag (runs observed up to about three hours late, ingest.yml) and the run itself",
+    "validation": 879,
+    "value": 30
   },
   {
     "id": "trade.value_limits",

@@ -2,7 +2,7 @@
 the home runner (.github/workflows/player-notes.yml), passing their files on its disk: the inputs
 and drafts hold source text, which never leaves the lakehouse and the owner-only storage.
 
-    uv run python -m ai.player_notes inputs --out inputs.json
+    uv run python -m ai.player_notes inputs --mode daily --out inputs.json
     uv run python -m ai.player_notes draft --inputs inputs.json --out draft.json
     uv run python -m ai.player_notes publish --inputs inputs.json --draft draft.json --store r2
 
@@ -11,10 +11,16 @@ injury listing (My Team's roster, Today, Pickups) or a flagged ESPN headline (th
 within the ranks a deep league rosters. Each comes with the numbers a line may use, rounded as it
 should write them, and the texts it may draw on: the injury note, the flagged headline, and the
 recent claims the local model read from the news (fct_player_claim) and the outlets' feed items
-that name him (fct_player_rss_item), each with its row. ``draft`` asks the local model for one
-line each; when the model is not there it says so and drafts nothing. ``publish`` checks every
-line (player_note_check.py) and publishes the ones that pass to ``notes/players/<league>.json``,
-with the rejections and their reasons.
+that name him (fct_player_rss_item), each with its row. The daily run picks every flagged player;
+a ``changed`` run (after each build, the evening report runs' among them, #879) only those whose
+listing or flagged headline is not the one his published line was written on, or who have none.
+``draft`` asks the local model for a call and one line each; when the model is not there it says
+so and drafts nothing. ``publish`` checks every line (player_note_check.py) and merges the ones
+that pass into ``notes/players/<league>.json``: a new line replaces the player's old one, a player
+not redrafted keeps his (the page judges it against his listing now), and the daily run drops the
+lines of players it no longer flags. Each line keeps what it was written on (the listing, the
+headline's day, the side of playing it takes) for the page's check, and the file says when the
+lines were last drafted and how its last run went, for Data Health.
 """
 
 from __future__ import annotations
@@ -24,16 +30,18 @@ import json
 import re
 import sys
 import time
+import urllib.error
+import urllib.request
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from ai import client
 from ai.claim_schema import RSS_PREFIX
 from ai.inputs import MAX_RANK, connect
-from ai.notes import LEAGUES, build_id
-from ai.player_note_check import check, line_schema
+from ai.notes import LEAGUES, SITE, build_id
+from ai.player_note_check import PlayerNote, check, line_schema
 from ingest.landing import eastern_today
 
 PROMPT = Path(__file__).resolve().parent / "prompts" / "player_notes.md"
@@ -82,6 +90,15 @@ KINDS = {
     "trade_rumor": "trade rumor",
     "other": "other",
 }
+# the daily run picks every flagged player; a changed run, those whose line no longer holds
+MODES = ("daily", "changed")
+# the side of playing a listing puts a player on: out or doubtful sits, healthy or probable plays,
+# questionable and day-to-day are a toss-up
+SITS = frozenset({"out", "doubtful"})
+PLAYS = frozenset({"healthy", "probable"})
+# the claims' kinds that say the other way: a line citing one does not take the listing's side
+SAYS_SITS = frozenset({"injury_out", "injury_worse"})
+SAYS_PLAYS = frozenset({"injury_return", "injury_better"})
 
 
 def _rows(con: Any, sql: str, params: list[Any]) -> list[dict[str, Any]]:
@@ -156,6 +173,8 @@ def claim_texts(con: Any, league: str, since: date) -> dict[str, list[dict[str, 
                 "date": str(r["published_date"]),
                 "row_ref": f"fct_player_claim/{league}/{r['source']}/{r['source_id']}",
                 "quotable": quotable_claim(str(r["source"]), str(r["source_id"])),
+                # not shown to the model: what the line rests on when it cites this claim
+                "kind": r["kind"],
             }
         )
     return out
@@ -230,15 +249,43 @@ def player_input(
         "name": r["full_name"],
         "team": r["team_abbreviation"] or "",
         "injury_status": r.get("injury_status"),
+        "injury_group": r.get("injury_group"),
         "injury_type": r.get("injury_type"),
         "news_flag": r.get("news_flag"),
+        "news_date": str(r["news_date"]) if r.get("news_date") else None,
         "row_ref": ref,
         "metrics": metrics,
         "texts": texts,
     }
 
 
-def make_inputs(source: str | None, today: date | None = None) -> dict[str, Any]:
+def holds(inp: dict[str, Any], note: dict[str, Any]) -> bool:
+    """Whether a published line was written on the player's listing and flagged headline now."""
+    return all(note.get(k) == inp.get(k) for k in ("injury_status", "injury_group", "news_date"))
+
+
+def published_notes(league: str) -> dict[str, Any] | None:
+    """The league's published notes file, read from the site; None when there is none."""
+    try:
+        with urllib.request.urlopen(f"{SITE}/data/notes/players/{league}.json", timeout=30) as r:
+            data = json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        raise
+    return data if isinstance(data, dict) else None
+
+
+def make_inputs(
+    source: str | None,
+    today: date | None = None,
+    *,
+    mode: str = "daily",
+    published: dict[str, dict[str, Any] | None] | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """The flagged players and their inputs, per league. A changed run keeps only the players whose
+    published line does not hold (``published`` gives the files; read from the site when None)."""
     con = connect(source)
     day = today or eastern_today()
     since = day - timedelta(days=DAYS)
@@ -255,8 +302,20 @@ def make_inputs(source: str | None, today: date | None = None) -> dict[str, Any]
             )
             for r in flagged(con, league)
         ]
-        sets.append({"league": league, "as_of": day.isoformat(), "players": players})
-    return {"build_id": build_id(), "sets": sets}
+        count = len(players)
+        if mode == "changed":
+            file = published[league] if published is not None else published_notes(league)
+            notes = (file or {}).get("notes") or {}
+            players = [
+                p
+                for p in players
+                if p["player_id"] not in notes or not holds(p, notes[p["player_id"]])
+            ]
+        sets.append(
+            {"league": league, "as_of": day.isoformat(), "flagged": count, "players": players}
+        )
+    made_at = (now or datetime.now(UTC)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return {"build_id": build_id(), "mode": mode, "made_at": made_at, "sets": sets}
 
 
 def model_view(inp: dict[str, Any]) -> dict[str, Any]:
@@ -283,7 +342,10 @@ def model_view(inp: dict[str, Any]) -> dict[str, Any]:
 def draft(
     inputs: dict[str, Any], *, url: str | None = None, limit: int | None = None
 ) -> dict[str, Any]:
-    """One line per player; nothing, and the reason, when the model is not there."""
+    """One line per player; nothing, and the reason, when the model is not there. With no player
+    to ask (a changed run that found no change) the model is not asked."""
+    if not any(s["players"] for s in inputs["sets"]):
+        return {"model": client.model_name(), "drafts": []}
     away = client.unavailable(url=url)
     if away:
         print(f"no notes drafted: {away}")
@@ -309,6 +371,19 @@ def draft(
                 print(f"the model did not answer {misses} players in a row: standing down")
                 return {"model": client.model_name(), "drafts": out}
     return {"model": client.model_name(), "drafts": out}
+
+
+def says(inp: dict[str, Any], note: PlayerNote) -> str | None:
+    """The side of playing a line takes: the listing's when it was written ("sits" for out or
+    doubtful, "plays" for healthy or probable, none for a toss-up), and none when it cites a claim
+    that says the other way (a return while he is listed out). A claim never puts a line on a
+    side; it can only take it off one, so a claim alone never withdraws a line."""
+    group = inp.get("injury_group") or "healthy"
+    side = "sits" if group in SITS else "plays" if group in PLAYS else None
+    cited = {s.row_ref for s in note.sources}
+    kinds = {t.get("kind") for t in inp.get("texts", []) if t.get("row_ref") in cited}
+    against = SAYS_PLAYS if side == "sits" else SAYS_SITS if side == "plays" else frozenset()
+    return None if kinds & against else side
 
 
 def review(inputs: dict[str, Any], drafts: dict[str, Any]) -> dict[str, Any]:
@@ -338,11 +413,17 @@ def review(inputs: dict[str, Any], drafts: dict[str, Any]) -> dict[str, Any]:
                 )
                 continue
             published[inp["player_id"]] = {
+                "action": note.action,
                 "line": note.line,
                 "sources": [x.model_dump() for x in note.sources],
-                # the page shows a line only while the player's listing is the one it was written on
+                "written_at": inputs.get("made_at"),
+                # what the line was written on: the page marks it when one has changed since, and
+                # withdraws it when the player is now on the other side of playing
                 "injury_status": inp.get("injury_status"),
+                "injury_group": inp.get("injury_group"),
                 "news_flag": inp.get("news_flag"),
+                "news_date": inp.get("news_date"),
+                "says": says(inp, note),
             }
         if published or rejected:
             leagues[s["league"]] = {
@@ -362,34 +443,82 @@ def review(inputs: dict[str, Any], drafts: dict[str, Any]) -> dict[str, Any]:
     return leagues
 
 
+def merge(
+    old: dict[str, Any] | None,
+    fresh: dict[str, Any] | None,
+    league_set: dict[str, Any],
+    inputs: dict[str, Any],
+    drafts: dict[str, Any],
+) -> dict[str, Any]:
+    """The league's file after a run. The run's lines replace the ones they redraft; a player not
+    redrafted (rejected, not reached, or unchanged) keeps his line, which the page judges against
+    his listing now; and a daily run the model answered drops the lines of players it no longer
+    flags. ``drafted_at`` is the last daily run the model answered; ``run`` is this run."""
+    mode = inputs.get("mode", "daily")
+    away = bool(drafts.get("unavailable"))
+    daily = mode == "daily" and not away
+    kept = (old or {}).get("notes") or {}
+    if daily:
+        picked = {p["player_id"] for p in league_set["players"]}
+        kept = {pid: n for pid, n in kept.items() if pid in picked}
+    notes = {**kept, **((fresh or {}).get("notes") or {})}
+    counts = (fresh or {}).get("counts") or {"drafted": 0, "published": 0, "rejected": 0}
+    return {
+        "league": league_set["league"],
+        "label": LABEL,
+        "model": drafts.get("model") if fresh else (old or {}).get("model", drafts.get("model")),
+        "as_of": league_set["as_of"],
+        "build_id": inputs.get("build_id"),
+        "drafted_at": inputs.get("made_at") if daily else (old or {}).get("drafted_at"),
+        "run": {
+            "at": inputs.get("made_at"),
+            "mode": mode,
+            "flagged": league_set.get("flagged", len(league_set["players"])),
+            "asked": len(league_set["players"]),
+            "model_away": away,
+        },
+        "counts": counts,
+        "notes": notes,
+        "rejected": (fresh or {}).get("rejected") or [],
+    }
+
+
 def publish(
     inputs: dict[str, Any], drafts: dict[str, Any], *, store_kind: str, out: Path
 ) -> dict[str, Any]:
-    """The lines that pass, to notes/players/<league>.json (R2, and a copy under ``out``). A
-    league with nothing drafted (the model was away) keeps the file it had: the page shows a line
-    only while it still holds. The log says the counts and each rejection's reasons, which name
-    numbers and word counts, never a source's words."""
+    """The lines that pass, merged into notes/players/<league>.json (R2, and a copy under
+    ``out``). Every league's file is written, also when the model was away: its lines stand and
+    its run says the model was away, for Data Health. The log says the counts and each
+    rejection's reasons, which name numbers and word counts, never a source's words."""
     from export.cli import make_store
     from export.encode import to_json
     from export.store import LocalStore
 
-    leagues = review(inputs, drafts)
+    reviewed = review(inputs, drafts)
     stores = [make_store(store_kind, out)]
     if store_kind != "local":
         stores.append(LocalStore(out))
-    for league, doc in leagues.items():
+    if drafts.get("unavailable"):
+        print("nothing drafted: the model was away, the published notes stand")
+    leagues: dict[str, Any] = {}
+    for s in inputs["sets"]:
+        league = s["league"]
+        key = f"notes/players/{league}.json"
+        held = stores[0].get(key)
+        old = json.loads(held) if held else None
+        doc = merge(old, reviewed.get(league), s, inputs, drafts)
         body = to_json(doc)
         for store in stores:
-            store.put(f"notes/players/{league}.json", body)
+            store.put(key, body)
+        leagues[league] = doc
         c = doc["counts"]
         print(
-            f"{league}: {c['published']} published, {c['rejected']} rejected"
-            f" of {c['drafted']} drafted"
+            f"{league} ({doc['run']['mode']}): asked {doc['run']['asked']} of"
+            f" {doc['run']['flagged']} flagged; {c['published']} published, {c['rejected']}"
+            f" rejected of {c['drafted']} drafted; {len(doc['notes'])} lines stand"
         )
         for r in doc["rejected"]:
             print(f"  {r['player_id']}: {'; '.join(r['reasons'])}")
-    if not leagues:
-        print("nothing drafted: the published notes stand")
     return leagues
 
 
@@ -408,8 +537,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     p_in = sub.add_parser("inputs", help="pick the flagged players from the published build")
     p_in.add_argument("--source", default=None, help="published (default in CI) or local")
+    p_in.add_argument(
+        "--mode",
+        choices=MODES,
+        default="daily",
+        help="daily: every flagged player; changed: those whose published line no longer holds",
+    )
     p_in.add_argument("--out", required=True)
-    p_dr = sub.add_parser("draft", help="ask the local model for one line per player")
+    p_dr = sub.add_parser("draft", help="ask the local model for a call and a line per player")
     p_dr.add_argument("--inputs", required=True)
     p_dr.add_argument("--out", required=True)
     p_dr.add_argument("--limit", type=int, default=None, help="at most this many per league")
@@ -420,12 +555,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_pu.add_argument("--out", default="_player_notes")
     args = parser.parse_args(argv)
     if args.command == "inputs":
-        data = make_inputs(args.source)
+        data = make_inputs(args.source, mode=args.mode)
         Path(args.out).write_text(
             json.dumps(data, ensure_ascii=False, indent=1, default=str), encoding="utf-8"
         )
         for s in data["sets"]:
-            print(f"{s['league']} {s['as_of']}: {len(s['players'])} flagged players")
+            print(
+                f"{s['league']} {s['as_of']} ({args.mode}): {len(s['players'])} to draft"
+                f" of {s['flagged']} flagged players"
+            )
         return 0
     if args.command == "draft":
         result = draft(_read(args.inputs), limit=args.limit)
