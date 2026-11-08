@@ -69,3 +69,13 @@ At a tenth and a quarter in, the prior still helps or is level. By half way it m
 - **The fade sits at the edge of the grid** (20 games, the slowest tried). A slower fade may fit better. Re-fitting on a wider grid has to use the tuning seasons again and be judged on seasons the fit has not seen. 2023-24 and 2024-25 are spent for this parameter.
 - **The live board needs the season's draft order.** `int_market_prior` reads `silver.espn_preseason_adp`, which holds only the seasons a history run has landed. Until the season being played is landed there, the prior does nothing in production (#847).
 - **The web's league-scaled values do not see the prior yet.** They are rebuilt from the categories: the Board for a reader's own league, My Team and Trade. The Player page's value per game does carry it (#848).
+
+## Addendum (2026-11-08): the web's league values carry the prior
+
+The Board for a reader's own league, My Team and Trade rebuild value from the nine categories, so they missed the prior (#848). They now add its shift as a total, `market_prior_weight * (market_prior_value - own)`, where `own` is the nine categories' sum (`marketPriorShift` in `web/src/lib/league-value.ts`). The board file carries the two columns for it.
+
+- **The scale.** Both terms are on the board's nine-category scale, and the shift is their difference. A league of another size moves every player by the same replacement offset, which cancels in the difference, so the shift is what that league's own curve gives. At the default size with no punts, the league value equals `value_per_game`.
+- **Punts keep the shift whole.** The draft order prices a player's whole game. Repricing his rank on a punt build's curve would pull back in the categories the build gives up.
+- **Not in a points league.** Its value is in fantasy points, and the prior was fitted and judged on the nine-category value only.
+- **Not in the windows.** The last ten, the last twenty and the season do not carry it, nor do the per-category views, as on the board.
+- **Not in the standings.** The standings model reads the categories, so the power rankings (#867) do not see the prior.
