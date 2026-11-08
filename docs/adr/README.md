@@ -26,6 +26,7 @@ One record per real decision, written when the decision is made. Numbered; a lat
 | [0021](0021-standings-model-validated.md) | The standings model, judged on simulated leagues | 2026-11-08 | Accepted | 0015's spreads |  |
 | [0022](0022-rotisserie-spread-by-horizon-rejected.md) | A rotisserie projection spread by the games left, tried and rejected | 2026-11-08 | Accepted |  |  |
 | [0023](0023-trade-page-judged.md) | The Trade page, judged on simulated leagues | 2026-11-08 | Accepted |  |  |
+| [0024](0024-roster-review-judged.md) | My Team's roster review, judged on simulated leagues | 2026-11-08 | Accepted |  |  |
 | [0025](0025-playoff-odds-judged.md) | The playoff odds, judged on simulated leagues | 2026-11-08 | Accepted |  |  |
 | [0027](0027-buy-low-sell-high-judged.md) | Buy low, sell high, judged on simulated leagues | 2026-11-08 | Accepted |  |  |
 ## Addenda

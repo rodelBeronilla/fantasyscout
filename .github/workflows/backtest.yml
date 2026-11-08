@@ -42,6 +42,10 @@ on:
         description: Judge the Trade page's verdict, suggestions and finder on simulated leagues too (#756)
         type: boolean
         default: false
+      roster:
+        description: Judge My Team's roster review on simulated leagues too (#757)
+        type: boolean
+        default: false
       playoffs:
         description: Judge the playoff odds on the same leagues too (#872; needs standings)
         type: boolean
@@ -55,7 +59,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: backtest-${{ inputs.league }}-${{ inputs.judge }}-${{ inputs.seasons }}-${{ inputs.market_prior }}-${{ inputs.standings }}-${{ inputs.playoffs }}-${{ inputs.trades }}-${{ inputs.buy_sell }}
+  group: backtest-${{ inputs.league }}-${{ inputs.judge }}-${{ inputs.seasons }}-${{ inputs.market_prior }}-${{ inputs.standings }}-${{ inputs.playoffs }}-${{ inputs.trades }}-${{ inputs.roster }}-${{ inputs.buy_sell }}
   cancel-in-progress: false
 
 jobs:
@@ -133,6 +137,7 @@ jobs:
           PRIOR_FADE: ${{ inputs.prior_fade }}
           STANDINGS: ${{ inputs.standings }}
           TRADES: ${{ inputs.trades }}
+          ROSTER: ${{ inputs.roster }}
           BUY_SELL: ${{ inputs.buy_sell }}
           FS_LANDING_ROOT: ${{ runner.temp }}/landing
         run: |
@@ -141,7 +146,7 @@ jobs:
           if [ "$MARKET_PRIOR" = "true" ]; then args+=(--market-prior); fi
           if [ -n "$PRIOR_WEIGHT" ]; then args+=(--prior-weight "$PRIOR_WEIGHT"); fi
           if [ -n "$PRIOR_FADE" ]; then args+=(--prior-fade "$PRIOR_FADE"); fi
-          if [ "$STANDINGS" = "true" ] || [ "$TRADES" = "true" ] || [ "$BUY_SELL" = "true" ]; then args+=(--standings-out standings); fi
+          if [ "$STANDINGS" = "true" ] || [ "$TRADES" = "true" ] || [ "$ROSTER" = "true" ] || [ "$BUY_SELL" = "true" ]; then args+=(--standings-out standings); fi
           if [ "$BUY_SELL" = "true" ]; then args+=(--buy-sell); fi
           uv run python -m ops.walk_forward --league "$LEAGUE" --season "$JUDGE" \
             --full-db dbt/fantasyscout.duckdb --out walk_forward.json \
@@ -156,6 +161,11 @@ jobs:
         run: |
           set -o pipefail
           uv run python -m ops.trade_backtest judge standings --out trades.json --cache trades-cache.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Judge the roster review
+        if: inputs.judge != '' && inputs.roster
+        run: |
+          set -o pipefail
+          uv run python -m ops.roster_backtest judge standings --out roster.json --cache roster-cache.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Judge buy low, sell high
         if: inputs.judge != '' && inputs.buy_sell
         run: |
@@ -165,13 +175,15 @@ jobs:
         # kept when the standings judgement fails, so its inputs can be read
         if: always() && inputs.judge != ''
         with:
-          name: walk-forward-${{ inputs.league }}-${{ inputs.judge }}${{ inputs.market_prior && '-prior' || '' }}${{ inputs.standings && '-standings' || '' }}${{ inputs.trades && '-trades' || '' }}${{ inputs.buy_sell && '-buy-sell' || '' }}
+          name: walk-forward-${{ inputs.league }}-${{ inputs.judge }}${{ inputs.market_prior && '-prior' || '' }}${{ inputs.standings && '-standings' || '' }}${{ inputs.trades && '-trades' || '' }}${{ inputs.roster && '-roster' || '' }}${{ inputs.buy_sell && '-buy-sell' || '' }}
           path: |
             walk_forward.json
             walk_forward_players.csv
             standings.json
             trades.json
             trades-cache.json
+            roster.json
+            roster-cache.json
             buy_sell.json
             buy-sell-cache.json
             standings/

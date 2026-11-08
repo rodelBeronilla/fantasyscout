@@ -28,6 +28,7 @@ const totals = [
 describe('roster upgrades', () => {
   it('swap the weakest rostered player for a better available one, biggest gain first, each player once', () => {
     const out = suggestUpgrades({
+      league: 'nba',
       mine: ['star', 'solid', 'weak'],
       available: ['free-good', 'free-ok', 'free-dud', 'free-neg'],
       rest,
@@ -45,6 +46,7 @@ describe('roster upgrades', () => {
 
   it('ignore swaps below the minimum gain and players worth nothing', () => {
     const out = suggestUpgrades({
+      league: 'nba',
       mine: ['solid'],
       available: ['free-ok', 'free-dud', 'free-neg'],
       rest,
@@ -55,6 +57,7 @@ describe('roster upgrades', () => {
     });
     expect(out).toEqual([]);
     const loose = suggestUpgrades({
+      league: 'nba',
       mine: ['weak'],
       available: ['free-ok'],
       rest,
@@ -69,6 +72,7 @@ describe('roster upgrades', () => {
 
   it('score a points league on value alone', () => {
     const out = suggestUpgrades({
+      league: 'nba',
       mine: ['weak', 'solid'],
       available: ['free-good', 'free-ok'],
       rest,
@@ -83,13 +87,13 @@ describe('roster upgrades', () => {
   });
 
   it('answer nothing without a roster or without anyone available', () => {
-    expect(suggestUpgrades({ mine: [], available: ['free-good'], rest, cats: [], catValue, totals, myTeam: 0 })).toEqual([]);
-    expect(suggestUpgrades({ mine: ['weak'], available: [], rest, cats: [], catValue, totals, myTeam: 0 })).toEqual([]);
+    expect(suggestUpgrades({ league: 'nba', mine: [], available: ['free-good'], rest, cats: [], catValue, totals, myTeam: 0 })).toEqual([]);
+    expect(suggestUpgrades({ league: 'nba', mine: ['weak'], available: [], rest, cats: [], catValue, totals, myTeam: 0 })).toEqual([]);
   });
 });
 
 describe('roster review', () => {
-  const base = { rest, cats: [] as string[], catValue, totals: [], myTeam: 0 };
+  const base = { league: 'nba' as const, rest, cats: [] as string[], catValue, totals: [], myTeam: 0 };
 
   it('names the players to replace when the wire beats them', () => {
     const review = reviewRoster({ ...base, mine: ['star', 'weak'], available: ['free-good', 'free-ok'] });
@@ -124,6 +128,7 @@ describe('roster upgrades keep the positions covered (#489)', () => {
   ]);
   const positions: Record<string, string> = { c1: 'C', g1: 'G', f1: 'F', 'g-hi': 'G', 'c-ok': 'F-C' };
   const input = {
+    league: 'nba' as const,
     mine: ['c1', 'g1', 'f1'],
     available: ['g-hi', 'c-ok'],
     rest: values,
@@ -152,6 +157,7 @@ describe('a player other managers value is a trade, not a drop (#710)', () => {
     ['free-fit', 5],
   ]);
   const input = {
+    league: 'nba' as const,
     mine: ['star', 'bench'],
     available: ['free-fit'],
     rest: punted,
@@ -195,11 +201,11 @@ describe('dropRule (#710)', () => {
     ['lower', 0.5],
   ]);
   it('protects a player the board or the market ranks among the starters', () => {
-    const may = dropRule(rows, mine, { teams: 4, rosterSpots: 8 }, rest, false);
+    const may = dropRule(rows, mine, { league: 'nba', teams: 4, rosterSpots: 8 }, rest, false);
     expect(mine.filter(may)).toEqual(['mid', 'low', 'lower']);
   });
   it('judging the week, lets only the two lowest for the rest of the season go', () => {
-    const may = dropRule(rows, mine, { teams: 4, rosterSpots: 8 }, rest, true);
+    const may = dropRule(rows, mine, { league: 'nba', teams: 4, rosterSpots: 8 }, rest, true);
     expect(mine.filter(may)).toEqual(['low', 'lower']);
   });
 });

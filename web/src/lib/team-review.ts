@@ -3,6 +3,7 @@
  * category or point values, each player's rest-of-season value, and the review that names who to
  * drop. Pickups reads the same review, so its top adds drop the player My Team's Moves would.
  */
+import type { League } from './data';
 import { CATEGORIES } from './format';
 import { type LeagueSetup, owners } from './fantasy-league';
 import { categoryValues, marketPriorShift, pointValues } from './league-value';
@@ -60,7 +61,7 @@ export interface TeamReview {
  * The roster review My Team's Moves shows: for the week (last-ten form over the games left) or
  * the rest of the season. Null with no team, or while a draft is under way.
  */
-export function teamReview(rows: ReviewRow[], setup: LeagueSetup, v: TeamValues, week: boolean): TeamReview | null {
+export function teamReview(league: League, rows: ReviewRow[], setup: LeagueSetup, v: TeamValues, week: boolean): TeamReview | null {
   if (setup.drafting) return null;
   const known = new Set(rows.map((r) => r.player_id));
   const mine = (setup.rosters[setup.mine] ?? []).filter((id) => !setup.il.includes(id) && known.has(id));
@@ -73,8 +74,9 @@ export function teamReview(rows: ReviewRow[], setup: LeagueSetup, v: TeamValues,
   );
   const weekValues = new Map(week ? rows.map((r) => [r.player_id, weekValue(v.perGame(r.player_id, true), r.games_this_week)]) : []);
   const rest = week ? weekValues : v.restValue;
-  const droppable = dropRule(rows, mine, setup, v.restValue, week);
+  const droppable = dropRule(rows, mine, { league, teams: setup.teams, rosterSpots: setup.rosterSpots }, v.restValue, week);
   const review = reviewRoster({
+    league,
     position: (id) => position.get(id),
     droppable,
     mine,
