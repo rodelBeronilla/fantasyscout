@@ -70,7 +70,7 @@ const deployLegend =
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">Pipeline</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">
-      End to end, from six source families to this site. Ingest runs twice a day, on a schedule at 09:27 and 22:41 UTC and from the home server at 04:30 and 17:15 Eastern, and lands each
+      End to end, from six source families to this site. Ingest runs four times a day, on a schedule at 09:27 UTC, 22:41 UTC, 23:47 UTC and 02:17 UTC and from the home server at 04:30, 17:15, 18:45 and 21:15 Eastern, and lands each
       response in a Databricks volume. After each run, dbt models what landed on Databricks through bronze, silver and gold,
       and a quality gate decides whether that build is published. A passing build is staged in Cloudflare R2, analysed,
       then promoted, and the Worker serves it to every page. The stages are numbered 1 to 7, the same in the diagrams and
@@ -124,7 +124,7 @@ const deployLegend =
         id="sequence"
         svg={sequence}
         title="UML sequence diagram"
-        caption="Time runs downward. Solid arrows with filled heads are calls, dashed arrows are replies, open heads are messages that do not wait. A fragment marked alt runs only when its condition holds. The schedule starts Ingest twice a day: at 09:27 UTC with every source, at 22:41 UTC with the reports alone (GitHub often starts them late, so a task on the home server also starts each run, at 04:30 and 17:15 Eastern). Each finished Ingest run starts a build, so up to two builds a day go live."
+        caption="Time runs downward. Solid arrows with filled heads are calls, dashed arrows are replies, open heads are messages that do not wait. A fragment marked alt runs only when its condition holds. The schedule starts Ingest four times a day: at 09:27 UTC with every source, at 22:41, 23:47 and 02:17 UTC with the reports alone (GitHub often starts them late, so a task on the home server also starts each run, at 04:30, 17:15, 18:45 and 21:15 Eastern). Each finished Ingest run starts a build, so up to four builds a day go live."
       />
     </section>
 
@@ -187,8 +187,8 @@ const deployLegend =
           The Ingest workflow runs on a schedule and on demand for any league, source or date range. The morning run (09:27 UTC, and 04:30 Eastern from the home server) runs
           three sources for both leagues: <code>stats</code> and <code>espn</code> over the seven days ending that day
           (the stats job makes a regular-season pass and a playoff pass; out of the playoffs the second finds no games),
-          and <code>reports</code>. The evening run (22:41 UTC, and 17:15 Eastern from the home server), after teams file their injury reports (5 pm ET) and
-          before tip-off, runs <code>reports</code> alone, and the build after it is a light one: dbt builds those feeds' models and what reads them, and the notebooks and the Tableau extract are carried from the last full build. The reports run lands seven feeds in order: the official injury
+          and <code>reports</code>. The evening runs (22:41, 23:47 and 02:17 UTC, and 17:15, 18:45 and 21:15 Eastern from the home server), after teams file their injury reports (5 pm ET) and
+          about half an hour before the 7 pm and 10 pm tip-offs, when confirmed lineups and late scratches come out, run <code>reports</code> alone, and the build after it is a light one: dbt builds those feeds' models and what reads them, and the notebooks and the Tableau extract are carried from the last full build. The reports run lands seven feeds in order: the official injury
           report, the starting lineups, the referee assignments, transactions (ESPN's, and the NBA's player movement), ESPN fantasy, ESPN headlines
           and Sleeper. For the WNBA the lineups, player movement and Sleeper have nothing to land.
         </p>

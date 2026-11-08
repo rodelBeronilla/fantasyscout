@@ -246,7 +246,7 @@ export function deploymentPublish(): Promise<string> {
 export function dailyRun(): string {
   return sequenceSvg(
     [
-      { id: 'cron', label: 'Schedule', sub: '09:27 · 22:41 UTC' },
+      { id: 'cron', label: 'Schedule', sub: '09:27 · 22:41 · 23:47 · 02:17 UTC' },
       { id: 'home', label: 'Home runner', sub: 'stats ingest' },
       { id: 'gh', label: 'GitHub runner', sub: 'ESPN, reports' },
       { id: 'src', label: 'Sources', sub: 'six families' },
