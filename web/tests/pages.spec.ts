@@ -1114,7 +1114,8 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   await page.route(/\/nba\/12345\/(\d+)$/, (route) => route.fulfill({ path: `tests/fixtures/data/yahoo/team-${route.request().url().split('/').pop()}.html` }));
   await page.goto('/data/yahoo/league.html');
   await page.evaluate(code.slice('javascript:'.length));
-  await expect(page).toHaveURL(/\/league\/\?league=nba$/);
+  // the bookmark reads the team pages, then the standings, the matchup and the settings, in turn
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
   await expect(page.getByTestId('team-card')).toHaveCount(4);
   await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 12 players matched, 4 on the IL.');
   await expect(page.getByTestId('roster').filter({ hasText: 'Napheesa Collier' })).toHaveCount(0);
@@ -1141,7 +1142,8 @@ test('the Yahoo bookmarklet reads every roster from the Starting Rosters page it
   });
   await page.goto('/data/yahoo/startingrosters.html');
   await page.evaluate(code.slice('javascript:'.length));
-  await expect(page).toHaveURL(/\/league\/\?league=nba$/);
+  // the bookmark reads the team pages, then the standings, the matchup and the settings, in turn
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
   await expect(page.getByTestId('team-card')).toHaveCount(4);
   await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 14 players matched, 2 on the IL.');
   expect(fetched).toBe(0);
@@ -1174,7 +1176,8 @@ test("the Yahoo bookmarklet brings the standings, this week's opponent and score
   });
   await page.goto('/data/yahoo/league.html');
   await page.evaluate(code.slice('javascript:'.length));
-  await expect(page).toHaveURL(/\/league\/\?league=nba$/);
+  // the bookmark reads the team pages, then the standings, the matchup and the settings, in turn
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
   await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo');
   // the matchup asked for is the manager's (Rim Reapers, Yahoo's team 2)
   expect(asked).toEqual(['/nba/12345/', '/nba/12345/matchup?mid1=2', '/nba/12345/settings']);
