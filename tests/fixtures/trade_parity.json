@@ -1,0 +1,5358 @@
+{
+ "_": "The Trade page's parity cases (#756). The web's test writes expected (UPDATE_TRADE_PARITY=1) and checks it; tests/test_trade.py checks ops/trade.py against the same figures.",
+ "cases": [
+  {
+   "name": "nba head-to-head, nine categories",
+   "league": "nba",
+   "format": "h2h",
+   "cats": [
+    "z_points",
+    "z_rebounds_total",
+    "z_assists",
+    "z_steals",
+    "z_blocks",
+    "z_three_pointers_made",
+    "z_turnovers",
+    "z_field_goal_pct",
+    "z_free_throw_pct"
+   ],
+   "rosters": [
+    [
+     "a0",
+     "a1",
+     "a2",
+     "a3"
+    ],
+    [
+     "b0",
+     "b1",
+     "b2",
+     "b3"
+    ],
+    [
+     "c0",
+     "c1",
+     "c2",
+     "c3"
+    ],
+    [
+     "d0",
+     "d1",
+     "d2",
+     "d3"
+    ]
+   ],
+   "rosterSpots": 4,
+   "freeAgents": [
+    "fa2",
+    "fa0",
+    "fa1"
+   ],
+   "mine": 0,
+   "gamesLeft": 57,
+   "values": {
+    "a0": {
+     "z_points": 0.456,
+     "z_rebounds_total": 0.199,
+     "z_assists": 0.945,
+     "z_steals": -0.244,
+     "z_blocks": 0.855,
+     "z_three_pointers_made": 0.591,
+     "z_turnovers": -0.051,
+     "z_field_goal_pct": 0.895,
+     "z_free_throw_pct": 0.638
+    },
+    "a1": {
+     "z_points": -0.334,
+     "z_rebounds_total": 1.124,
+     "z_assists": -0.009,
+     "z_steals": 0.477,
+     "z_blocks": 0.173,
+     "z_three_pointers_made": 0.302,
+     "z_turnovers": 0.796,
+     "z_field_goal_pct": -0.467,
+     "z_free_throw_pct": 1.221
+    },
+    "a2": {
+     "z_points": 1.318,
+     "z_rebounds_total": 0.652,
+     "z_assists": 0.098,
+     "z_steals": -0.56,
+     "z_blocks": 0.101,
+     "z_three_pointers_made": 0.605,
+     "z_turnovers": 0.376,
+     "z_field_goal_pct": 1.067,
+     "z_free_throw_pct": 0.6
+    },
+    "a3": {
+     "z_points": 0.735,
+     "z_rebounds_total": -0.068,
+     "z_assists": 0.473,
+     "z_steals": 1.143,
+     "z_blocks": 0.667,
+     "z_three_pointers_made": 0.538,
+     "z_turnovers": 0.575,
+     "z_field_goal_pct": 0.203,
+     "z_free_throw_pct": 0.34
+    },
+    "b0": {
+     "z_points": 0.82,
+     "z_rebounds_total": 0.528,
+     "z_assists": 0.352,
+     "z_steals": 0.122,
+     "z_blocks": -1,
+     "z_three_pointers_made": 0.323,
+     "z_turnovers": 0.605,
+     "z_field_goal_pct": -0.524,
+     "z_free_throw_pct": -0.404
+    },
+    "b1": {
+     "z_points": 0.146,
+     "z_rebounds_total": 0.838,
+     "z_assists": 0.623,
+     "z_steals": 0.041,
+     "z_blocks": 0.613,
+     "z_three_pointers_made": -0.368,
+     "z_turnovers": 0.725,
+     "z_field_goal_pct": 0.442,
+     "z_free_throw_pct": -0.119
+    },
+    "b2": {
+     "z_points": 0.571,
+     "z_rebounds_total": 0.795,
+     "z_assists": 0.35,
+     "z_steals": 0.357,
+     "z_blocks": 0.661,
+     "z_three_pointers_made": 0.426,
+     "z_turnovers": 0.568,
+     "z_field_goal_pct": 1.591,
+     "z_free_throw_pct": -0.248
+    },
+    "b3": {
+     "z_points": 0.156,
+     "z_rebounds_total": 0.27,
+     "z_assists": 0.134,
+     "z_steals": -0.273,
+     "z_blocks": -0.072,
+     "z_three_pointers_made": 0.198,
+     "z_turnovers": 0.231,
+     "z_field_goal_pct": 0.598,
+     "z_free_throw_pct": 0.75
+    },
+    "c0": {
+     "z_points": 0.82,
+     "z_rebounds_total": 0.014,
+     "z_assists": -0.452,
+     "z_steals": 0.646,
+     "z_blocks": 0.211,
+     "z_three_pointers_made": 0.184,
+     "z_turnovers": -0.328,
+     "z_field_goal_pct": 0.77,
+     "z_free_throw_pct": 1.443
+    },
+    "c1": {
+     "z_points": -0.126,
+     "z_rebounds_total": 1.169,
+     "z_assists": 0.58,
+     "z_steals": -0.44,
+     "z_blocks": 0.4,
+     "z_three_pointers_made": 0.782,
+     "z_turnovers": -0.193,
+     "z_field_goal_pct": 0.468,
+     "z_free_throw_pct": 1.435
+    },
+    "c2": {
+     "z_points": 0.232,
+     "z_rebounds_total": -0.689,
+     "z_assists": -0.662,
+     "z_steals": -0.247,
+     "z_blocks": 0.99,
+     "z_three_pointers_made": 0.928,
+     "z_turnovers": -0.535,
+     "z_field_goal_pct": -0.209,
+     "z_free_throw_pct": -0.151
+    },
+    "c3": {
+     "z_points": 0.128,
+     "z_rebounds_total": -0.395,
+     "z_assists": 0.642,
+     "z_steals": 1.354,
+     "z_blocks": -0.167,
+     "z_three_pointers_made": -0.63,
+     "z_turnovers": 0.693,
+     "z_field_goal_pct": 1.031,
+     "z_free_throw_pct": -0.395
+    },
+    "d0": {
+     "z_points": -0.449,
+     "z_rebounds_total": -0.78,
+     "z_assists": 0.383,
+     "z_steals": 1.541,
+     "z_blocks": 1.023,
+     "z_three_pointers_made": -0.582,
+     "z_turnovers": 0.648,
+     "z_field_goal_pct": 0.031,
+     "z_free_throw_pct": 1.437
+    },
+    "d1": {
+     "z_points": -0.062,
+     "z_rebounds_total": 1.4,
+     "z_assists": -0.501,
+     "z_steals": 0.957,
+     "z_blocks": 1.037,
+     "z_three_pointers_made": 0.672,
+     "z_turnovers": 0.419,
+     "z_field_goal_pct": 0.827,
+     "z_free_throw_pct": -1.192
+    },
+    "d2": {
+     "z_points": 1.365,
+     "z_rebounds_total": -0.27,
+     "z_assists": 1.27,
+     "z_steals": -0.267,
+     "z_blocks": 0.723,
+     "z_three_pointers_made": 1.024,
+     "z_turnovers": 0.317,
+     "z_field_goal_pct": 1.865,
+     "z_free_throw_pct": -0.529
+    },
+    "d3": {
+     "z_points": 1.173,
+     "z_rebounds_total": 0.376,
+     "z_assists": 0.862,
+     "z_steals": -0.242,
+     "z_blocks": 0.083,
+     "z_three_pointers_made": -0.04,
+     "z_turnovers": -0.238,
+     "z_field_goal_pct": -0.021,
+     "z_free_throw_pct": 0.572
+    },
+    "fa0": {
+     "z_points": 0.748,
+     "z_rebounds_total": -1.144,
+     "z_assists": -0.46,
+     "z_steals": 0.528,
+     "z_blocks": 0.206,
+     "z_three_pointers_made": 0.578,
+     "z_turnovers": 0.323,
+     "z_field_goal_pct": 0.968,
+     "z_free_throw_pct": 1.372
+    },
+    "fa1": {
+     "z_points": -0.615,
+     "z_rebounds_total": -0.689,
+     "z_assists": 0.443,
+     "z_steals": -0.034,
+     "z_blocks": 0.23,
+     "z_three_pointers_made": 0.955,
+     "z_turnovers": 0.079,
+     "z_field_goal_pct": -0.19,
+     "z_free_throw_pct": 0.233
+    },
+    "fa2": {
+     "z_points": -0.122,
+     "z_rebounds_total": 0.479,
+     "z_assists": -0.251,
+     "z_steals": 0.959,
+     "z_blocks": -0.112,
+     "z_three_pointers_made": 1.008,
+     "z_turnovers": 0.258,
+     "z_field_goal_pct": 0.167,
+     "z_free_throw_pct": 1.29
+    }
+   },
+   "rest": {
+    "a0": 9.49,
+    "a1": 5.309,
+    "a2": 4.89,
+    "a3": 9.285,
+    "b0": 1.297,
+    "b1": 4.214,
+    "b2": 6.695,
+    "b3": 4.702,
+    "c0": 4.687,
+    "c1": 6.861,
+    "c2": -2.402,
+    "c3": 1.702,
+    "d0": 5.963,
+    "d1": 7.049,
+    "d2": 9.518,
+    "d3": 3.816,
+    "fa0": 3.592,
+    "fa1": -0.667,
+    "fa2": 8.137
+   },
+   "availability": {
+    "c0": 0.823,
+    "c3": 0.736,
+    "d0": 0.647,
+    "fa2": 0.75
+   },
+   "marketRank": {
+    "a1": 6,
+    "a2": 12,
+    "a3": 5,
+    "b0": 15,
+    "b1": 11,
+    "c0": 10,
+    "c1": 9,
+    "c2": 18,
+    "c3": 19,
+    "d1": 8,
+    "d2": 2,
+    "d3": 16,
+    "fa0": 13
+   },
+   "trades": [
+    {
+     "partner": 3,
+     "give": [
+      "a3"
+     ],
+     "get": [
+      "d2"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a2"
+     ],
+     "get": [
+      "d2",
+      "d0"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a2",
+      "a3"
+     ],
+     "get": [
+      "d2",
+      "d1"
+     ]
+    },
+    {
+     "partner": 2,
+     "give": [
+      "a3",
+      "a2"
+     ],
+     "get": [
+      "c3",
+      "c0"
+     ]
+    },
+    {
+     "partner": 1,
+     "give": [
+      "a0"
+     ],
+     "get": [
+      "b0"
+     ]
+    },
+    {
+     "partner": 2,
+     "give": [
+      "a1",
+      "a3"
+     ],
+     "get": [
+      "c2",
+      "c0"
+     ]
+    },
+    {
+     "partner": 1,
+     "give": [
+      "a0"
+     ],
+     "get": [
+      "b0",
+      "b3"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a3",
+      "a2"
+     ],
+     "get": [
+      "d1"
+     ]
+    }
+   ],
+   "suggest": [
+    {
+     "partner": 1,
+     "give": [],
+     "get": [
+      "b0"
+     ]
+    },
+    {
+     "partner": 2,
+     "give": [
+      "a1"
+     ],
+     "get": [
+      "c0"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "nba rotisserie, nine categories",
+   "league": "nba",
+   "format": "roto",
+   "cats": [
+    "z_points",
+    "z_rebounds_total",
+    "z_assists",
+    "z_steals",
+    "z_blocks",
+    "z_three_pointers_made",
+    "z_turnovers",
+    "z_field_goal_pct",
+    "z_free_throw_pct"
+   ],
+   "rosters": [
+    [
+     "a0",
+     "a1",
+     "a2",
+     "a3"
+    ],
+    [
+     "b0",
+     "b1",
+     "b2",
+     "b3"
+    ],
+    [
+     "c0",
+     "c1",
+     "c2",
+     "c3"
+    ],
+    [
+     "d0",
+     "d1",
+     "d2",
+     "d3"
+    ]
+   ],
+   "rosterSpots": 4,
+   "freeAgents": [
+    "fa1",
+    "fa2",
+    "fa0"
+   ],
+   "mine": 0,
+   "gamesLeft": 12,
+   "values": {
+    "a0": {
+     "z_points": -0.173,
+     "z_rebounds_total": 0.729,
+     "z_assists": 0.629,
+     "z_steals": 0.338,
+     "z_blocks": 0.024,
+     "z_three_pointers_made": 1.724,
+     "z_turnovers": -0.438,
+     "z_field_goal_pct": -0.227,
+     "z_free_throw_pct": 0.608
+    },
+    "a1": {
+     "z_points": 1.772,
+     "z_rebounds_total": 1.464,
+     "z_assists": 0.74,
+     "z_steals": 0.494,
+     "z_blocks": -0.236,
+     "z_three_pointers_made": -0.694,
+     "z_turnovers": 0.822,
+     "z_field_goal_pct": 1.369,
+     "z_free_throw_pct": -0.267
+    },
+    "a2": {
+     "z_points": 0.463,
+     "z_rebounds_total": 0.347,
+     "z_assists": 1.349,
+     "z_steals": 0.177,
+     "z_blocks": -0.04,
+     "z_three_pointers_made": 0.629,
+     "z_turnovers": -0.454,
+     "z_field_goal_pct": 0.872,
+     "z_free_throw_pct": 0.511
+    },
+    "a3": {
+     "z_points": 0.517,
+     "z_rebounds_total": -0.961,
+     "z_assists": 0.502,
+     "z_steals": 2.059,
+     "z_blocks": -0.011,
+     "z_three_pointers_made": -0.605,
+     "z_turnovers": -0.803,
+     "z_field_goal_pct": 0.04,
+     "z_free_throw_pct": -0.926
+    },
+    "b0": {
+     "z_points": -0.064,
+     "z_rebounds_total": 0.636,
+     "z_assists": 1.073,
+     "z_steals": -0.004,
+     "z_blocks": 1.046,
+     "z_three_pointers_made": 0.124,
+     "z_turnovers": 0.099,
+     "z_field_goal_pct": 0.416,
+     "z_free_throw_pct": -0.411
+    },
+    "b1": {
+     "z_points": 0.915,
+     "z_rebounds_total": 0.915,
+     "z_assists": -0.542,
+     "z_steals": -0.144,
+     "z_blocks": 0.372,
+     "z_three_pointers_made": 0.416,
+     "z_turnovers": 0.056,
+     "z_field_goal_pct": 0.704,
+     "z_free_throw_pct": 0.051
+    },
+    "b2": {
+     "z_points": 1.141,
+     "z_rebounds_total": -0.226,
+     "z_assists": -0.137,
+     "z_steals": -0.229,
+     "z_blocks": -0.099,
+     "z_three_pointers_made": 0.153,
+     "z_turnovers": -0.21,
+     "z_field_goal_pct": 0.781,
+     "z_free_throw_pct": -0.088
+    },
+    "b3": {
+     "z_points": 0.604,
+     "z_rebounds_total": -0.244,
+     "z_assists": -0.198,
+     "z_steals": 0.281,
+     "z_blocks": 0.306,
+     "z_three_pointers_made": 0.133,
+     "z_turnovers": -1.053,
+     "z_field_goal_pct": 0.131,
+     "z_free_throw_pct": 0.342
+    },
+    "c0": {
+     "z_points": -0.311,
+     "z_rebounds_total": -0.284,
+     "z_assists": 0.25,
+     "z_steals": 0.35,
+     "z_blocks": 0.175,
+     "z_three_pointers_made": -0.024,
+     "z_turnovers": -0.258,
+     "z_field_goal_pct": 0.486,
+     "z_free_throw_pct": 0.927
+    },
+    "c1": {
+     "z_points": -0.047,
+     "z_rebounds_total": -0.813,
+     "z_assists": -0.103,
+     "z_steals": 1.309,
+     "z_blocks": 0.793,
+     "z_three_pointers_made": -0.211,
+     "z_turnovers": 0.423,
+     "z_field_goal_pct": 0.659,
+     "z_free_throw_pct": -0.016
+    },
+    "c2": {
+     "z_points": 0.167,
+     "z_rebounds_total": 1.075,
+     "z_assists": 1.224,
+     "z_steals": -0.49,
+     "z_blocks": 0.291,
+     "z_three_pointers_made": 0.783,
+     "z_turnovers": 0.056,
+     "z_field_goal_pct": 0.622,
+     "z_free_throw_pct": -0.381
+    },
+    "c3": {
+     "z_points": 0.082,
+     "z_rebounds_total": 0.695,
+     "z_assists": 0.615,
+     "z_steals": 0.328,
+     "z_blocks": 0.249,
+     "z_three_pointers_made": 0.02,
+     "z_turnovers": 1.001,
+     "z_field_goal_pct": 0.335,
+     "z_free_throw_pct": 1.265
+    },
+    "d0": {
+     "z_points": 0.484,
+     "z_rebounds_total": 0.175,
+     "z_assists": -0.075,
+     "z_steals": -0.12,
+     "z_blocks": -0.184,
+     "z_three_pointers_made": 0.186,
+     "z_turnovers": 0.437,
+     "z_field_goal_pct": 0.904,
+     "z_free_throw_pct": -0.231
+    },
+    "d1": {
+     "z_points": 0.186,
+     "z_rebounds_total": 0.862,
+     "z_assists": 0.322,
+     "z_steals": 0.426,
+     "z_blocks": 0.414,
+     "z_three_pointers_made": -0.075,
+     "z_turnovers": -0.021,
+     "z_field_goal_pct": 1.418,
+     "z_free_throw_pct": 0.345
+    },
+    "d2": {
+     "z_points": 0.398,
+     "z_rebounds_total": -0.425,
+     "z_assists": 0.703,
+     "z_steals": 0.863,
+     "z_blocks": -0.165,
+     "z_three_pointers_made": 0.611,
+     "z_turnovers": 0.494,
+     "z_field_goal_pct": -0.391,
+     "z_free_throw_pct": -1.422
+    },
+    "d3": {
+     "z_points": 1.513,
+     "z_rebounds_total": -1.303,
+     "z_assists": 0.107,
+     "z_steals": -0.006,
+     "z_blocks": 1.54,
+     "z_three_pointers_made": 0.808,
+     "z_turnovers": -0.522,
+     "z_field_goal_pct": 0.588,
+     "z_free_throw_pct": -0.204
+    },
+    "fa0": {
+     "z_points": -0.14,
+     "z_rebounds_total": 0.922,
+     "z_assists": -0.213,
+     "z_steals": -0.073,
+     "z_blocks": 0.559,
+     "z_three_pointers_made": 1.158,
+     "z_turnovers": 0.371,
+     "z_field_goal_pct": -0.246,
+     "z_free_throw_pct": 0.404
+    },
+    "fa1": {
+     "z_points": -0.233,
+     "z_rebounds_total": 0.793,
+     "z_assists": 0.41,
+     "z_steals": 0.35,
+     "z_blocks": 1.467,
+     "z_three_pointers_made": 0.22,
+     "z_turnovers": 0.952,
+     "z_field_goal_pct": 0.919,
+     "z_free_throw_pct": -0.015
+    },
+    "fa2": {
+     "z_points": 0.174,
+     "z_rebounds_total": 1.102,
+     "z_assists": 0.191,
+     "z_steals": 0.483,
+     "z_blocks": 1.223,
+     "z_three_pointers_made": -1.166,
+     "z_turnovers": 1.404,
+     "z_field_goal_pct": 0.279,
+     "z_free_throw_pct": 0.589
+    }
+   },
+   "rest": {
+    "a0": 7.501,
+    "a1": 8.147,
+    "a2": 6,
+    "a3": 0.699,
+    "b0": 6.827,
+    "b1": 4.659,
+    "b2": 0.947,
+    "b3": 1.243,
+    "c0": 2.948,
+    "c1": 1.32,
+    "c2": 3.936,
+    "c3": 7.87,
+    "d0": 0.937,
+    "d1": 6.594,
+    "d2": 5.085,
+    "d3": 4.478,
+    "fa0": 3.805,
+    "fa1": 7.088,
+    "fa2": 6.086
+   },
+   "availability": {
+    "a0": 0.8,
+    "a2": 0.654,
+    "a3": 0.761,
+    "b1": 0.623,
+    "b2": 0.605,
+    "c1": 0.749,
+    "c2": 0.648,
+    "c3": 0.867,
+    "fa0": 0.664,
+    "fa1": 0.624
+   },
+   "marketRank": {
+    "a1": 1,
+    "a3": 18,
+    "b0": 12,
+    "b1": 11,
+    "b2": 19,
+    "b3": 16,
+    "c0": 13,
+    "c1": 17,
+    "c2": 14,
+    "c3": 2,
+    "d0": 15,
+    "d1": 8,
+    "d2": 7,
+    "d3": 5,
+    "fa2": 4
+   },
+   "trades": [
+    {
+     "partner": 1,
+     "give": [
+      "a0"
+     ],
+     "get": [
+      "b3",
+      "b1"
+     ]
+    },
+    {
+     "partner": 1,
+     "give": [
+      "a1",
+      "a3"
+     ],
+     "get": [
+      "b2"
+     ]
+    },
+    {
+     "partner": 2,
+     "give": [
+      "a2",
+      "a3"
+     ],
+     "get": [
+      "c0",
+      "c2"
+     ]
+    },
+    {
+     "partner": 1,
+     "give": [
+      "a1"
+     ],
+     "get": [
+      "b2",
+      "b3"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a3",
+      "a0"
+     ],
+     "get": [
+      "d0",
+      "d3"
+     ]
+    },
+    {
+     "partner": 1,
+     "give": [
+      "a2"
+     ],
+     "get": [
+      "b1",
+      "b2"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a0",
+      "a3"
+     ],
+     "get": [
+      "d1"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a2"
+     ],
+     "get": [
+      "d3"
+     ]
+    }
+   ],
+   "suggest": [
+    {
+     "partner": 1,
+     "give": [],
+     "get": [
+      "b0"
+     ]
+    },
+    {
+     "partner": 2,
+     "give": [
+      "a1"
+     ],
+     "get": [
+      "c0"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "wnba head-to-head, punting points and threes",
+   "league": "wnba",
+   "format": "h2h",
+   "cats": [
+    "z_rebounds_total",
+    "z_assists",
+    "z_steals",
+    "z_blocks",
+    "z_turnovers",
+    "z_field_goal_pct",
+    "z_free_throw_pct"
+   ],
+   "rosters": [
+    [
+     "a0",
+     "a1",
+     "a2"
+    ],
+    [
+     "b0",
+     "b1",
+     "b2"
+    ],
+    [
+     "c0",
+     "c1",
+     "c2"
+    ],
+    [
+     "d0",
+     "d1",
+     "d2"
+    ],
+    [
+     "e0",
+     "e1",
+     "e2"
+    ]
+   ],
+   "rosterSpots": 3,
+   "freeAgents": [
+    "fa0",
+    "fa1",
+    "fa2"
+   ],
+   "mine": 0,
+   "gamesLeft": 51,
+   "values": {
+    "a0": {
+     "z_points": 0.754,
+     "z_rebounds_total": 0.774,
+     "z_assists": 0.21,
+     "z_steals": 0.531,
+     "z_blocks": 0.615,
+     "z_three_pointers_made": -0.537,
+     "z_turnovers": 0.097,
+     "z_field_goal_pct": 1.103,
+     "z_free_throw_pct": 1.6
+    },
+    "a1": {
+     "z_points": 0.155,
+     "z_rebounds_total": 0.845,
+     "z_assists": -1.071,
+     "z_steals": 1.284,
+     "z_blocks": 0.573,
+     "z_three_pointers_made": 1.12,
+     "z_turnovers": -0.111,
+     "z_field_goal_pct": -0.287,
+     "z_free_throw_pct": 1.123
+    },
+    "a2": {
+     "z_points": 0.423,
+     "z_rebounds_total": -0.337,
+     "z_assists": -0.155,
+     "z_steals": 0.167,
+     "z_blocks": -0.477,
+     "z_three_pointers_made": 0.526,
+     "z_turnovers": -0.025,
+     "z_field_goal_pct": 0.322,
+     "z_free_throw_pct": -0.774
+    },
+    "b0": {
+     "z_points": -0.486,
+     "z_rebounds_total": 0.09,
+     "z_assists": 0.171,
+     "z_steals": 0.511,
+     "z_blocks": 0.781,
+     "z_three_pointers_made": 0.392,
+     "z_turnovers": -0.256,
+     "z_field_goal_pct": 0.804,
+     "z_free_throw_pct": 1.236
+    },
+    "b1": {
+     "z_points": -0.26,
+     "z_rebounds_total": 0.502,
+     "z_assists": 0.817,
+     "z_steals": -0.454,
+     "z_blocks": 0.572,
+     "z_three_pointers_made": 0.481,
+     "z_turnovers": -0.158,
+     "z_field_goal_pct": -0.012,
+     "z_free_throw_pct": 0.277
+    },
+    "b2": {
+     "z_points": 0.406,
+     "z_rebounds_total": 1.57,
+     "z_assists": 0.192,
+     "z_steals": 2.129,
+     "z_blocks": 0.775,
+     "z_three_pointers_made": -0.184,
+     "z_turnovers": -0.861,
+     "z_field_goal_pct": 0.505,
+     "z_free_throw_pct": 0.357
+    },
+    "c0": {
+     "z_points": 0.205,
+     "z_rebounds_total": -0.088,
+     "z_assists": 0.777,
+     "z_steals": -0.464,
+     "z_blocks": 0.092,
+     "z_three_pointers_made": 0.583,
+     "z_turnovers": -0.666,
+     "z_field_goal_pct": 0.821,
+     "z_free_throw_pct": 0.914
+    },
+    "c1": {
+     "z_points": -0.205,
+     "z_rebounds_total": -0.626,
+     "z_assists": -0.014,
+     "z_steals": 0.835,
+     "z_blocks": 0.461,
+     "z_three_pointers_made": 0.492,
+     "z_turnovers": 0.373,
+     "z_field_goal_pct": 0.257,
+     "z_free_throw_pct": -0.636
+    },
+    "c2": {
+     "z_points": 0.292,
+     "z_rebounds_total": -0.235,
+     "z_assists": 0.652,
+     "z_steals": 0.152,
+     "z_blocks": 1.5,
+     "z_three_pointers_made": -0.82,
+     "z_turnovers": -0.081,
+     "z_field_goal_pct": 0.913,
+     "z_free_throw_pct": 0.535
+    },
+    "d0": {
+     "z_points": 1.224,
+     "z_rebounds_total": 0.036,
+     "z_assists": 0.787,
+     "z_steals": 0.36,
+     "z_blocks": 0.368,
+     "z_three_pointers_made": -0.439,
+     "z_turnovers": 1.383,
+     "z_field_goal_pct": 0.097,
+     "z_free_throw_pct": -0.125
+    },
+    "d1": {
+     "z_points": -0.227,
+     "z_rebounds_total": -0.428,
+     "z_assists": 0.707,
+     "z_steals": 0.794,
+     "z_blocks": 1.296,
+     "z_three_pointers_made": -0.071,
+     "z_turnovers": -0.468,
+     "z_field_goal_pct": 0.222,
+     "z_free_throw_pct": -0.177
+    },
+    "d2": {
+     "z_points": -0.01,
+     "z_rebounds_total": 1.089,
+     "z_assists": -0.093,
+     "z_steals": 0.421,
+     "z_blocks": 1.09,
+     "z_three_pointers_made": -0.698,
+     "z_turnovers": -0.179,
+     "z_field_goal_pct": 0.969,
+     "z_free_throw_pct": 0.247
+    },
+    "e0": {
+     "z_points": 0.407,
+     "z_rebounds_total": -1.028,
+     "z_assists": 0.315,
+     "z_steals": 0.085,
+     "z_blocks": 0.199,
+     "z_three_pointers_made": 0.019,
+     "z_turnovers": -0.673,
+     "z_field_goal_pct": 0.598,
+     "z_free_throw_pct": 0.394
+    },
+    "e1": {
+     "z_points": -0.085,
+     "z_rebounds_total": 0.145,
+     "z_assists": -0.182,
+     "z_steals": 1.366,
+     "z_blocks": 1.093,
+     "z_three_pointers_made": 0.576,
+     "z_turnovers": 0.317,
+     "z_field_goal_pct": 1.325,
+     "z_free_throw_pct": 0.512
+    },
+    "e2": {
+     "z_points": 0.23,
+     "z_rebounds_total": -0.227,
+     "z_assists": 0.702,
+     "z_steals": 0.522,
+     "z_blocks": 0.201,
+     "z_three_pointers_made": 0.703,
+     "z_turnovers": -0.413,
+     "z_field_goal_pct": 0.092,
+     "z_free_throw_pct": 0.932
+    },
+    "fa0": {
+     "z_points": 0.478,
+     "z_rebounds_total": 0.495,
+     "z_assists": -0.104,
+     "z_steals": 0.301,
+     "z_blocks": 0.103,
+     "z_three_pointers_made": 0.362,
+     "z_turnovers": 0.684,
+     "z_field_goal_pct": 1.154,
+     "z_free_throw_pct": 0.491
+    },
+    "fa1": {
+     "z_points": 1.821,
+     "z_rebounds_total": 0.297,
+     "z_assists": 0.808,
+     "z_steals": -0.682,
+     "z_blocks": -0.944,
+     "z_three_pointers_made": 0.625,
+     "z_turnovers": 0.413,
+     "z_field_goal_pct": -0.582,
+     "z_free_throw_pct": 0.846
+    },
+    "fa2": {
+     "z_points": -0.68,
+     "z_rebounds_total": -0.022,
+     "z_assists": 1.008,
+     "z_steals": 0.658,
+     "z_blocks": -0.242,
+     "z_three_pointers_made": 0.371,
+     "z_turnovers": 0.25,
+     "z_field_goal_pct": -0.129,
+     "z_free_throw_pct": 0.318
+    }
+   },
+   "rest": {
+    "a0": 9.171,
+    "a1": 5.08,
+    "a2": 2.055,
+    "b0": 5.344,
+    "b1": 2.379,
+    "b2": 5.617,
+    "c0": 6.308,
+    "c1": 2.239,
+    "c2": 5.271,
+    "d0": 6.375,
+    "d1": 1.661,
+    "d2": 7.072,
+    "e0": 2.111,
+    "e1": 5.205,
+    "e2": 3.591,
+    "fa0": 6.381,
+    "fa1": 2.255,
+    "fa2": 2.221
+   },
+   "availability": {
+    "a0": 0.783,
+    "a1": 0.872,
+    "b0": 0.678,
+    "b1": 0.691,
+    "c2": 0.768,
+    "d1": 0.772,
+    "e0": 0.781,
+    "fa0": 0.884,
+    "fa1": 0.624
+   },
+   "marketRank": {
+    "a1": 4,
+    "a2": 18,
+    "b1": 9,
+    "b2": 11,
+    "c0": 14,
+    "c1": 15,
+    "c2": 12,
+    "d1": 6,
+    "d2": 5,
+    "e2": 16,
+    "fa1": 7,
+    "fa2": 17
+   },
+   "trades": [
+    {
+     "partner": 1,
+     "give": [
+      "a0"
+     ],
+     "get": [
+      "b1"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a2"
+     ],
+     "get": [
+      "d1",
+      "d2"
+     ]
+    },
+    {
+     "partner": 4,
+     "give": [
+      "a2",
+      "a0"
+     ],
+     "get": [
+      "e2"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a2"
+     ],
+     "get": [
+      "d1"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a2",
+      "a1"
+     ],
+     "get": [
+      "d2"
+     ]
+    },
+    {
+     "partner": 2,
+     "give": [
+      "a0",
+      "a2"
+     ],
+     "get": [
+      "c2"
+     ]
+    },
+    {
+     "partner": 4,
+     "give": [
+      "a0",
+      "a2"
+     ],
+     "get": [
+      "e2"
+     ]
+    },
+    {
+     "partner": 4,
+     "give": [
+      "a0",
+      "a1"
+     ],
+     "get": [
+      "e1",
+      "e2"
+     ]
+    }
+   ],
+   "suggest": [
+    {
+     "partner": 1,
+     "give": [],
+     "get": [
+      "b0"
+     ]
+    },
+    {
+     "partner": 2,
+     "give": [
+      "a1"
+     ],
+     "get": [
+      "c0"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "wnba rotisserie, eight categories",
+   "league": "wnba",
+   "format": "roto",
+   "cats": [
+    "z_points",
+    "z_rebounds_total",
+    "z_assists",
+    "z_steals",
+    "z_blocks",
+    "z_three_pointers_made",
+    "z_field_goal_pct",
+    "z_free_throw_pct"
+   ],
+   "rosters": [
+    [
+     "a0",
+     "a1",
+     "a2"
+    ],
+    [
+     "b0",
+     "b1",
+     "b2"
+    ],
+    [
+     "c0",
+     "c1",
+     "c2"
+    ],
+    [
+     "d0",
+     "d1",
+     "d2"
+    ]
+   ],
+   "rosterSpots": 3,
+   "freeAgents": [
+    "fa1",
+    "fa2",
+    "fa0"
+   ],
+   "mine": 0,
+   "gamesLeft": 18,
+   "values": {
+    "a0": {
+     "z_points": 1.176,
+     "z_rebounds_total": 0.566,
+     "z_assists": 0.232,
+     "z_steals": 0.161,
+     "z_blocks": 0.714,
+     "z_three_pointers_made": 0.234,
+     "z_turnovers": 0.752,
+     "z_field_goal_pct": 0.972,
+     "z_free_throw_pct": -0.231
+    },
+    "a1": {
+     "z_points": 0.886,
+     "z_rebounds_total": -0.219,
+     "z_assists": 0.919,
+     "z_steals": 0.272,
+     "z_blocks": -0.621,
+     "z_three_pointers_made": 0.206,
+     "z_turnovers": -0.035,
+     "z_field_goal_pct": 0.558,
+     "z_free_throw_pct": -0.531
+    },
+    "a2": {
+     "z_points": 0.714,
+     "z_rebounds_total": -0.143,
+     "z_assists": 0.336,
+     "z_steals": 0.39,
+     "z_blocks": -0.002,
+     "z_three_pointers_made": 0.736,
+     "z_turnovers": 0.436,
+     "z_field_goal_pct": 0.063,
+     "z_free_throw_pct": -0.156
+    },
+    "b0": {
+     "z_points": 0.435,
+     "z_rebounds_total": 1.398,
+     "z_assists": 0.433,
+     "z_steals": -0.58,
+     "z_blocks": -0.318,
+     "z_three_pointers_made": -0.554,
+     "z_turnovers": -0.155,
+     "z_field_goal_pct": 1.282,
+     "z_free_throw_pct": -0.255
+    },
+    "b1": {
+     "z_points": 0.588,
+     "z_rebounds_total": 0.335,
+     "z_assists": 0.163,
+     "z_steals": -0.383,
+     "z_blocks": -0.087,
+     "z_three_pointers_made": -0.04,
+     "z_turnovers": 1.205,
+     "z_field_goal_pct": -0.071,
+     "z_free_throw_pct": 1.003
+    },
+    "b2": {
+     "z_points": 0.144,
+     "z_rebounds_total": 0.246,
+     "z_assists": -0.274,
+     "z_steals": 0.103,
+     "z_blocks": 0.517,
+     "z_three_pointers_made": 1.977,
+     "z_turnovers": 0.656,
+     "z_field_goal_pct": 0.42,
+     "z_free_throw_pct": 0.544
+    },
+    "c0": {
+     "z_points": 0.089,
+     "z_rebounds_total": 0.105,
+     "z_assists": 0.512,
+     "z_steals": 0.36,
+     "z_blocks": 0.481,
+     "z_three_pointers_made": 1.352,
+     "z_turnovers": 0.295,
+     "z_field_goal_pct": 0.237,
+     "z_free_throw_pct": -0.075
+    },
+    "c1": {
+     "z_points": -0.147,
+     "z_rebounds_total": -0.04,
+     "z_assists": 0.869,
+     "z_steals": -0.255,
+     "z_blocks": 1.132,
+     "z_three_pointers_made": -0.193,
+     "z_turnovers": -0.493,
+     "z_field_goal_pct": -0.874,
+     "z_free_throw_pct": 0.872
+    },
+    "c2": {
+     "z_points": 0.03,
+     "z_rebounds_total": 0.734,
+     "z_assists": 0.148,
+     "z_steals": 1.248,
+     "z_blocks": 1.112,
+     "z_three_pointers_made": 0.012,
+     "z_turnovers": 0.478,
+     "z_field_goal_pct": -0.403,
+     "z_free_throw_pct": 0.432
+    },
+    "d0": {
+     "z_points": -0.571,
+     "z_rebounds_total": 0.705,
+     "z_assists": 1.109,
+     "z_steals": 0.642,
+     "z_blocks": -0.253,
+     "z_three_pointers_made": 0.647,
+     "z_turnovers": 0.33,
+     "z_field_goal_pct": -0.4,
+     "z_free_throw_pct": -0.319
+    },
+    "d1": {
+     "z_points": 0.51,
+     "z_rebounds_total": -0.016,
+     "z_assists": 0.889,
+     "z_steals": 0.45,
+     "z_blocks": -0.425,
+     "z_three_pointers_made": -0.198,
+     "z_turnovers": 1.303,
+     "z_field_goal_pct": 0.909,
+     "z_free_throw_pct": 0.211
+    },
+    "d2": {
+     "z_points": -0.105,
+     "z_rebounds_total": 1.194,
+     "z_assists": 0.035,
+     "z_steals": -0.526,
+     "z_blocks": -0.171,
+     "z_three_pointers_made": -0.435,
+     "z_turnovers": 1.034,
+     "z_field_goal_pct": 0.981,
+     "z_free_throw_pct": 0.403
+    },
+    "fa0": {
+     "z_points": 0.434,
+     "z_rebounds_total": -1.354,
+     "z_assists": 0.393,
+     "z_steals": 0.898,
+     "z_blocks": 0.682,
+     "z_three_pointers_made": 0.309,
+     "z_turnovers": 0.236,
+     "z_field_goal_pct": 0.2,
+     "z_free_throw_pct": -0.055
+    },
+    "fa1": {
+     "z_points": 0.402,
+     "z_rebounds_total": -0.012,
+     "z_assists": 0.421,
+     "z_steals": 0.624,
+     "z_blocks": 0.091,
+     "z_three_pointers_made": 0.486,
+     "z_turnovers": 0.661,
+     "z_field_goal_pct": -0.007,
+     "z_free_throw_pct": 0.718
+    },
+    "fa2": {
+     "z_points": -0.404,
+     "z_rebounds_total": 0.059,
+     "z_assists": 0.056,
+     "z_steals": 0.05,
+     "z_blocks": 0.162,
+     "z_three_pointers_made": 1.267,
+     "z_turnovers": 0.264,
+     "z_field_goal_pct": -0.654,
+     "z_free_throw_pct": 0.657
+    }
+   },
+   "rest": {
+    "a0": 7.487,
+    "a1": 2.529,
+    "a2": 2.663,
+    "b0": 1.037,
+    "b1": 2.919,
+    "b2": 6.689,
+    "c0": 4.334,
+    "c1": 0.981,
+    "c2": 4.957,
+    "d0": 2.88,
+    "d1": 6.686,
+    "d2": 3.053,
+    "fa0": 3.396,
+    "fa1": 6.306,
+    "fa2": 4.626
+   },
+   "availability": {
+    "a0": 0.643,
+    "b1": 0.92,
+    "b2": 0.792,
+    "c2": 0.839,
+    "d1": 0.612,
+    "fa1": 0.882,
+    "fa2": 0.716
+   },
+   "marketRank": {
+    "a0": 1,
+    "a1": 10,
+    "a2": 11,
+    "b1": 7,
+    "c1": 13,
+    "c2": 8,
+    "d0": 9,
+    "d1": 3,
+    "d2": 15,
+    "fa0": 12,
+    "fa1": 2,
+    "fa2": 6
+   },
+   "trades": [
+    {
+     "partner": 3,
+     "give": [
+      "a0",
+      "a1"
+     ],
+     "get": [
+      "d0",
+      "d1"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a0"
+     ],
+     "get": [
+      "d1"
+     ]
+    },
+    {
+     "partner": 1,
+     "give": [
+      "a0",
+      "a1"
+     ],
+     "get": [
+      "b0"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a1"
+     ],
+     "get": [
+      "d2"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a1"
+     ],
+     "get": [
+      "d2"
+     ]
+    },
+    {
+     "partner": 1,
+     "give": [
+      "a1"
+     ],
+     "get": [
+      "b0"
+     ]
+    },
+    {
+     "partner": 3,
+     "give": [
+      "a2",
+      "a0"
+     ],
+     "get": [
+      "d0",
+      "d1"
+     ]
+    },
+    {
+     "partner": 1,
+     "give": [
+      "a0"
+     ],
+     "get": [
+      "b2",
+      "b1"
+     ]
+    }
+   ],
+   "suggest": [
+    {
+     "partner": 1,
+     "give": [],
+     "get": [
+      "b0"
+     ]
+    },
+    {
+     "partner": 2,
+     "give": [
+      "a1"
+     ],
+     "get": [
+      "c0"
+     ]
+    }
+   ]
+  }
+ ],
+ "expected": {
+  "cases": [
+   {
+    "spread": {
+     "z_points": 3.460751153355951,
+     "z_rebounds_total": 3.3393212883259182,
+     "z_assists": 3.1268190245233596,
+     "z_steals": 9.471529472342604,
+     "z_blocks": 5.373271527578977,
+     "z_three_pointers_made": 4.887552067458844,
+     "z_turnovers": 4.94826699997386,
+     "z_field_goal_pct": 8.651877883389878,
+     "z_free_throw_pct": 8.105443490754729
+    },
+    "totals": [
+     {
+      "z_points": 2.175,
+      "z_rebounds_total": 1.907,
+      "z_assists": 1.5070000000000001,
+      "z_steals": 0.816,
+      "z_blocks": 1.796,
+      "z_three_pointers_made": 2.036,
+      "z_turnovers": 1.696,
+      "z_field_goal_pct": 1.698,
+      "z_free_throw_pct": 2.799
+     },
+     {
+      "z_points": 1.6929999999999998,
+      "z_rebounds_total": 2.431,
+      "z_assists": 1.459,
+      "z_steals": 0.247,
+      "z_blocks": 0.202,
+      "z_three_pointers_made": 0.579,
+      "z_turnovers": 2.129,
+      "z_field_goal_pct": 2.1069999999999998,
+      "z_free_throw_pct": -0.02100000000000002
+     },
+     {
+      "z_points": 0.8750679999999998,
+      "z_rebounds_total": 0.2008020000000001,
+      "z_assists": 0.01851599999999992,
+      "z_steals": 0.841202,
+      "z_blocks": 1.440741,
+      "z_three_pointers_made": 1.397752,
+      "z_turnovers": -0.4878960000000001,
+      "z_field_goal_pct": 1.651526,
+      "z_free_throw_pct": 2.1808690000000004
+     },
+     {
+      "z_points": 2.185497,
+      "z_rebounds_total": 1.00134,
+      "z_assists": 1.8788010000000002,
+      "z_steals": 1.445027,
+      "z_blocks": 2.504881,
+      "z_three_pointers_made": 1.279446,
+      "z_turnovers": 0.9172560000000001,
+      "z_field_goal_pct": 2.691057,
+      "z_free_throw_pct": -0.21926099999999993
+     }
+    ],
+    "market": {
+     "a0": 9.49,
+     "a1": 6.861,
+     "a2": 4.687,
+     "a3": 7.049,
+     "b0": 3.592,
+     "b1": 4.702,
+     "b2": 6.695,
+     "b3": 4.702,
+     "c0": 4.89,
+     "c1": 5.309,
+     "c2": 0,
+     "c3": 0,
+     "d0": 5.963,
+     "d1": 5.963,
+     "d2": 9.49,
+     "d3": 1.702,
+     "fa2": 8.137,
+     "fa0": 4.214,
+     "fa1": -0.667
+    },
+    "threshold": 0.05,
+    "needs": {
+     "swing": [
+      "z_assists",
+      "z_rebounds_total",
+      "z_points"
+     ],
+     "conceding": [],
+     "locked": []
+    },
+    "trades": [
+     {
+      "mine": {
+       "scoreBefore": 4.9490603276192875,
+       "scoreAfter": 5.136515051641732,
+       "gain": 0.18745472402244445
+      },
+      "partner": {
+       "scoreBefore": 4.679564474881149,
+       "scoreAfter": 4.486495114451305,
+       "gain": -0.19306936042984368
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a1",
+         "a2",
+         "d2"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "d1",
+         "d3",
+         "a3"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_points",
+       "z_assists",
+       "z_three_pointers_made",
+       "z_field_goal_pct"
+      ],
+      "downs": [
+       "z_rebounds_total",
+       "z_steals",
+       "z_turnovers",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_steals",
+       "z_turnovers",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_points",
+       "z_assists",
+       "z_three_pointers_made",
+       "z_field_goal_pct"
+      ],
+      "value": {
+       "give": 9.285,
+       "get": 9.518,
+       "net": 0.23300000000000054,
+       "share": 0.024479932758983036
+      },
+      "market": {
+       "give": 7.049,
+       "get": 9.49,
+       "net": 2.441,
+       "share": 0.257218124341412
+      },
+      "verdict": {
+       "even": false,
+       "severity": "fine",
+       "reasons": 0,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 4.9490603276192875,
+       "scoreAfter": 4.907416209782354,
+       "gain": -0.04164411783693378
+      },
+      "partner": {
+       "scoreBefore": 4.679564474881149,
+       "scoreAfter": 4.657039001176972,
+       "gain": -0.022525473704177124
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a3",
+         "d2",
+         "d0"
+        ],
+        "dropped": [
+         "a1"
+        ],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d1",
+         "d3",
+         "a2",
+         "fa2"
+        ],
+        "dropped": [],
+        "added": [
+         "fa2"
+        ]
+       }
+      },
+      "ups": [
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_field_goal_pct"
+      ],
+      "downs": [
+       "z_rebounds_total",
+       "z_three_pointers_made",
+       "z_turnovers",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_three_pointers_made",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_field_goal_pct"
+      ],
+      "value": {
+       "give": 10.199,
+       "get": 15.481000000000002,
+       "net": 5.282000000000002,
+       "share": 0.34119242942962347
+      },
+      "market": {
+       "give": 11.548,
+       "get": 15.453,
+       "net": 3.9049999999999994,
+       "share": 0.2527017407623115
+      },
+      "verdict": {
+       "even": false,
+       "severity": "fine",
+       "reasons": 0,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "even"
+     },
+     {
+      "mine": {
+       "scoreBefore": 4.9490603276192875,
+       "scoreAfter": 5.0009998252696715,
+       "gain": 0.05193949765038397
+      },
+      "partner": {
+       "scoreBefore": 4.679564474881149,
+       "scoreAfter": 4.622628670584711,
+       "gain": -0.05693580429643763
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a1",
+         "d2",
+         "d1"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "d3",
+         "a2",
+         "a3"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_turnovers",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_turnovers",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct"
+      ],
+      "value": {
+       "give": 14.175,
+       "get": 16.567,
+       "net": 2.3919999999999995,
+       "share": 0.14438341280859537
+      },
+      "market": {
+       "give": 11.736,
+       "get": 15.453,
+       "net": 3.7169999999999987,
+       "share": 0.24053581828771106
+      },
+      "verdict": {
+       "even": false,
+       "severity": "fine",
+       "reasons": 0,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 4.9490603276192875,
+       "scoreAfter": 4.3031180214488005,
+       "gain": -0.645942306170487
+      },
+      "partner": {
+       "scoreBefore": 3.879896416381599,
+       "scoreAfter": 4.515010501908514,
+       "gain": 0.6351140855269151
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a1",
+         "c3",
+         "c0"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 2,
+        "after": [
+         "c1",
+         "c2",
+         "a3",
+         "a2"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_steals"
+      ],
+      "downs": [
+       "z_points",
+       "z_rebounds_total",
+       "z_assists",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_turnovers"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_rebounds_total",
+       "z_assists",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_turnovers"
+      ],
+      "partnerDowns": [
+       "z_steals"
+      ],
+      "value": {
+       "give": 14.175,
+       "get": 6.389,
+       "net": -7.7860000000000005,
+       "share": -0.5492768959435627
+      },
+      "market": {
+       "give": 11.736,
+       "get": 4.89,
+       "net": -6.846000000000001,
+       "share": -0.5833333333333334
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 3,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 4.9490603276192875,
+       "scoreAfter": 4.683646478540289,
+       "gain": -0.2654138490789988
+      },
+      "partner": {
+       "scoreBefore": 4.491478781117963,
+       "scoreAfter": 4.756455902178592,
+       "gain": 0.2649771210606291
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "a2",
+         "a3",
+         "b0"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b1",
+         "b2",
+         "b3",
+         "a0"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_points",
+       "z_rebounds_total",
+       "z_steals",
+       "z_turnovers"
+      ],
+      "downs": [
+       "z_assists",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_assists",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_points",
+       "z_rebounds_total",
+       "z_steals",
+       "z_turnovers"
+      ],
+      "value": {
+       "give": 9.49,
+       "get": 1.297,
+       "net": -8.193,
+       "share": -0.8633298208640674
+      },
+      "market": {
+       "give": 9.49,
+       "get": 3.592,
+       "net": -5.898,
+       "share": -0.6214963119072707
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 3,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 4.9490603276192875,
+       "scoreAfter": 4.2793807529204955,
+       "gain": -0.669679574698792
+      },
+      "partner": {
+       "scoreBefore": 3.879896416381599,
+       "scoreAfter": 4.5519124213354,
+       "gain": 0.6720160049538011
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a2",
+         "c2",
+         "c0"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 2,
+        "after": [
+         "c1",
+         "c3",
+         "a1",
+         "a3"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_points",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct"
+      ],
+      "downs": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_turnovers",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_turnovers",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_points",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct"
+      ],
+      "value": {
+       "give": 14.594000000000001,
+       "get": 4.687,
+       "net": -9.907,
+       "share": -0.6788406194326435
+      },
+      "market": {
+       "give": 13.91,
+       "get": 4.89,
+       "net": -9.02,
+       "share": -0.6484543493889288
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 3,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 4.9490603276192875,
+       "scoreAfter": 4.665808228992533,
+       "gain": -0.2832520986267548
+      },
+      "partner": {
+       "scoreBefore": 4.491478781117963,
+       "scoreAfter": 4.77818011883891,
+       "gain": 0.2867013377209471
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "a2",
+         "a3",
+         "b3"
+        ],
+        "dropped": [
+         "b0"
+        ],
+        "added": []
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b1",
+         "b2",
+         "a0",
+         "fa2"
+        ],
+        "dropped": [],
+        "added": [
+         "fa2"
+        ]
+       }
+      },
+      "ups": [
+       "z_turnovers"
+      ],
+      "downs": [
+       "z_assists",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct"
+      ],
+      "partnerUps": [
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_points",
+       "z_rebounds_total",
+       "z_turnovers"
+      ],
+      "value": {
+       "give": 10.787,
+       "get": 5.999,
+       "net": -4.788000000000001,
+       "share": -0.44386761842959127
+      },
+      "market": {
+       "give": 13.082,
+       "get": 8.294,
+       "net": -4.788,
+       "share": -0.3659990827090659
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 3,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 4.9490603276192875,
+       "scoreAfter": 4.604814588138697,
+       "gain": -0.34424573948059045
+      },
+      "partner": {
+       "scoreBefore": 4.679564474881149,
+       "scoreAfter": 4.935765759176662,
+       "gain": 0.25620128429551325
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a1",
+         "d1",
+         "fa2"
+        ],
+        "dropped": [],
+        "added": [
+         "fa2"
+        ]
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "d2",
+         "a3",
+         "a2"
+        ],
+        "dropped": [
+         "d3"
+        ],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_steals",
+       "z_blocks"
+      ],
+      "downs": [
+       "z_points",
+       "z_assists",
+       "z_turnovers",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_assists",
+       "z_three_pointers_made",
+       "z_turnovers",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_steals",
+       "z_blocks"
+      ],
+      "value": {
+       "give": 14.175,
+       "get": 15.186,
+       "net": 1.0109999999999992,
+       "share": 0.06657447649150529
+      },
+      "market": {
+       "give": 11.736,
+       "get": 14.100000000000001,
+       "net": 2.3640000000000008,
+       "share": 0.16765957446808513
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 1,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "them"
+     }
+    ],
+    "finder": {
+     "winWin": [],
+     "any": [
+      {
+       "partner": 3,
+       "give": [
+        "a3",
+        "a1"
+       ],
+       "get": [
+        "d2"
+       ],
+       "net": -5.0760000000000005,
+       "gain": 0.09563200665217764,
+       "partnerGain": -0.18615716863709597
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a0",
+        "a1"
+       ],
+       "get": [
+        "d2"
+       ],
+       "net": -5.280999999999999,
+       "gain": 0.07312963071673195,
+       "partnerGain": -0.16113529404628046
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "d2"
+       ],
+       "net": -0.6809999999999992,
+       "gain": 0.06370655795445224,
+       "partnerGain": -0.15311274507823391
+      }
+     ]
+    },
+    "suggest": [
+     {
+      "winWin": [],
+      "any": [],
+      "points": []
+     },
+     {
+      "winWin": [],
+      "any": [],
+      "points": []
+     }
+    ]
+   },
+   {
+    "spread": {
+     "z_points": 2.7120428093966367,
+     "z_rebounds_total": 2.6740390797443485,
+     "z_assists": 2.6095720051380074,
+     "z_steals": 5.159891161642851,
+     "z_blocks": 3.3975505956497543,
+     "z_three_pointers_made": 3.210590669954674,
+     "z_turnovers": 3.233562748733972,
+     "z_field_goal_pct": 4.789790313782014,
+     "z_free_throw_pct": 4.546670435604499
+    },
+    "totals": [
+     {
+      "z_points": 2.3298389999999998,
+      "z_rebounds_total": 1.5428170000000003,
+      "z_assists": 2.507468,
+      "z_steals": 2.447057,
+      "z_blocks": -0.251331,
+      "z_three_pointers_made": 0.6361610000000002,
+      "z_turnovers": -0.43639900000000015,
+      "z_field_goal_pct": 1.788128,
+      "z_free_throw_pct": -0.151092
+     },
+     {
+      "z_points": 1.80035,
+      "z_rebounds_total": 0.825315,
+      "z_assists": 0.45444899999999994,
+      "z_steals": 0.048743000000000036,
+      "z_blocks": 1.5238610000000001,
+      "z_three_pointers_made": 0.608733,
+      "z_turnovers": -1.0461619999999998,
+      "z_field_goal_pct": 1.458097,
+      "z_free_throw_pct": -0.09046699999999996
+     },
+     {
+      "z_points": -0.16689299999999996,
+      "z_rebounds_total": 0.40622800000000003,
+      "z_assists": 1.4992100000000002,
+      "z_steals": 1.297297,
+      "z_blocks": 1.173408,
+      "z_three_pointers_made": 0.34268500000000013,
+      "z_turnovers": 0.9629819999999999,
+      "z_field_goal_pct": 1.673092,
+      "z_free_throw_pct": 1.764883
+     },
+     {
+      "z_points": 2.581,
+      "z_rebounds_total": -0.6910000000000001,
+      "z_assists": 1.057,
+      "z_steals": 1.163,
+      "z_blocks": 1.605,
+      "z_three_pointers_made": 1.53,
+      "z_turnovers": 0.3879999999999999,
+      "z_field_goal_pct": 2.519,
+      "z_free_throw_pct": -1.512
+     }
+    ],
+    "market": {
+     "a0": 7.501,
+     "a1": 8.147,
+     "a2": 6,
+     "a3": 0.937,
+     "b0": 3.936,
+     "b1": 4.478,
+     "b2": 0.699,
+     "b3": 1.243,
+     "c0": 3.805,
+     "c1": 0.947,
+     "c2": 2.948,
+     "c3": 7.87,
+     "d0": 1.32,
+     "d1": 6,
+     "d2": 6.086,
+     "d3": 6.827,
+     "fa1": 7.088,
+     "fa2": 7.088,
+     "fa0": 3.805
+    },
+    "threshold": 0.15000000000000002,
+    "needs": {
+     "swing": [
+      "z_points",
+      "z_rebounds_total",
+      "z_assists"
+     ],
+     "conceding": [],
+     "locked": []
+    },
+    "trades": [
+     {
+      "mine": {
+       "scoreBefore": 23.53434365502418,
+       "scoreAfter": 22.85333499454705,
+       "gain": -0.6810086604771293
+      },
+      "partner": {
+       "scoreBefore": 21.36051491221476,
+       "scoreAfter": 22.776775961865585,
+       "gain": 1.4162610496508243
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "a2",
+         "b3",
+         "b1"
+        ],
+        "dropped": [
+         "a3"
+        ],
+        "added": []
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b0",
+         "b2",
+         "a0",
+         "fa1"
+        ],
+        "dropped": [],
+        "added": [
+         "fa1"
+        ]
+       }
+      },
+      "ups": [
+       "z_points",
+       "z_rebounds_total",
+       "z_blocks",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made",
+       "z_turnovers"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_turnovers"
+      ],
+      "partnerDowns": [
+       "z_points",
+       "z_field_goal_pct"
+      ],
+      "value": {
+       "give": 8.200000000000001,
+       "get": 5.902,
+       "net": -2.298000000000001,
+       "share": -0.2802439024390245
+      },
+      "market": {
+       "give": 8.438,
+       "get": 5.721,
+       "net": -2.7170000000000005,
+       "share": -0.3219957335861579
+      },
+      "verdict": {
+       "even": false,
+       "severity": "bad",
+       "reasons": 3,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 23.53434365502418,
+       "scoreAfter": 22.385681342752722,
+       "gain": -1.1486623122714583
+      },
+      "partner": {
+       "scoreBefore": 21.36051491221476,
+       "scoreAfter": 23.231628193558578,
+       "gain": 1.871113281343817
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a2",
+         "b2",
+         "fa1"
+        ],
+        "dropped": [],
+        "added": [
+         "fa1"
+        ]
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b0",
+         "b1",
+         "b3",
+         "a1"
+        ],
+        "dropped": [
+         "a3"
+        ],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_field_goal_pct"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_turnovers",
+       "z_field_goal_pct"
+      ],
+      "partnerDowns": [
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 8.846,
+       "get": 8.035,
+       "net": -0.8109999999999999,
+       "share": -0.09167985530183133
+      },
+      "market": {
+       "give": 9.084,
+       "get": 7.787,
+       "net": -1.2969999999999997,
+       "share": -0.14277851166886832
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 1,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 23.53434365502418,
+       "scoreAfter": 24.056801516082462,
+       "gain": 0.5224578610582817
+      },
+      "partner": {
+       "scoreBefore": 22.44318418059864,
+       "scoreAfter": 21.828898022930456,
+       "gain": -0.6142861576681824
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a1",
+         "c0",
+         "c2"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 2,
+        "after": [
+         "c1",
+         "c3",
+         "a2",
+         "a3"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_turnovers",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_assists",
+       "z_steals"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_assists",
+       "z_steals"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_turnovers",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 6.699,
+       "get": 6.884,
+       "net": 0.1850000000000005,
+       "share": 0.026873910517141268
+      },
+      "market": {
+       "give": 6.937,
+       "get": 6.753,
+       "net": -0.18400000000000016,
+       "share": -0.026524434193455407
+      },
+      "verdict": {
+       "even": false,
+       "severity": "fine",
+       "reasons": 0,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 23.53434365502418,
+       "scoreAfter": 21.14868821398666,
+       "gain": -2.385655441037521
+      },
+      "partner": {
+       "scoreBefore": 21.36051491221476,
+       "scoreAfter": 24.455541697448027,
+       "gain": 3.095026785233266
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a2",
+         "b2",
+         "b3"
+        ],
+        "dropped": [
+         "a3"
+        ],
+        "added": []
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b0",
+         "b1",
+         "a1",
+         "fa1"
+        ],
+        "dropped": [],
+        "added": [
+         "fa1"
+        ]
+       }
+      },
+      "ups": [
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_turnovers",
+       "z_field_goal_pct"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_turnovers",
+       "z_field_goal_pct"
+      ],
+      "partnerDowns": [
+       "z_three_pointers_made",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 8.846,
+       "get": 2.19,
+       "net": -6.656000000000001,
+       "share": -0.7524304770517749
+      },
+      "market": {
+       "give": 9.084,
+       "get": 1.9420000000000002,
+       "net": -7.1419999999999995,
+       "share": -0.7862175253192426
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 3,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 23.53434365502418,
+       "scoreAfter": 24.19754820603687,
+       "gain": 0.66320455101269
+      },
+      "partner": {
+       "scoreBefore": 22.661957252162416,
+       "scoreAfter": 21.86958360970921,
+       "gain": -0.7923736424532066
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "a2",
+         "d0",
+         "d3"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d1",
+         "d2",
+         "a3",
+         "a0"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_points",
+       "z_blocks",
+       "z_turnovers",
+       "z_field_goal_pct"
+      ],
+      "downs": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_points",
+       "z_blocks",
+       "z_turnovers",
+       "z_field_goal_pct"
+      ],
+      "value": {
+       "give": 8.200000000000001,
+       "get": 5.415,
+       "net": -2.785000000000001,
+       "share": -0.3396341463414635
+      },
+      "market": {
+       "give": 8.438,
+       "get": 8.147,
+       "net": -0.29100000000000037,
+       "share": -0.03448684522398677
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 1,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 23.53434365502418,
+       "scoreAfter": 23.210695403264424,
+       "gain": -0.32364825175975653
+      },
+      "partner": {
+       "scoreBefore": 21.36051491221476,
+       "scoreAfter": 22.41155176125853,
+       "gain": 1.0510368490437685
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a1",
+         "b1",
+         "b2"
+        ],
+        "dropped": [
+         "a3"
+        ],
+        "added": []
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b0",
+         "b3",
+         "a2",
+         "fa1"
+        ],
+        "dropped": [],
+        "added": [
+         "fa1"
+        ]
+       }
+      },
+      "ups": [
+       "z_points",
+       "z_rebounds_total",
+       "z_three_pointers_made",
+       "z_turnovers"
+      ],
+      "downs": [
+       "z_assists",
+       "z_steals"
+      ],
+      "partnerUps": [
+       "z_assists",
+       "z_steals",
+       "z_blocks"
+      ],
+      "partnerDowns": [
+       "z_points"
+      ],
+      "value": {
+       "give": 6.699,
+       "get": 5.606,
+       "net": -1.093,
+       "share": -0.1631586804000597
+      },
+      "market": {
+       "give": 6.937,
+       "get": 5.177,
+       "net": -1.7600000000000007,
+       "share": -0.25371197924174727
+      },
+      "verdict": {
+       "even": false,
+       "severity": "bad",
+       "reasons": 3,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 23.53434365502418,
+       "scoreAfter": 24.98531844177119,
+       "gain": 1.450974786747011
+      },
+      "partner": {
+       "scoreBefore": 22.661957252162416,
+       "scoreAfter": 21.91712407363392,
+       "gain": -0.744833178528495
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "a2",
+         "d1",
+         "fa1"
+        ],
+        "dropped": [],
+        "added": [
+         "fa1"
+        ]
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "d2",
+         "d3",
+         "a0"
+        ],
+        "dropped": [
+         "a3"
+        ],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_turnovers",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made"
+      ],
+      "partnerUps": [
+       "z_assists",
+       "z_three_pointers_made"
+      ],
+      "partnerDowns": [
+       "z_points",
+       "z_rebounds_total",
+       "z_blocks",
+       "z_turnovers",
+       "z_field_goal_pct"
+      ],
+      "value": {
+       "give": 8.200000000000001,
+       "get": 13.682,
+       "net": 5.481999999999999,
+       "share": 0.4006724163134044
+      },
+      "market": {
+       "give": 8.438,
+       "get": 13.088000000000001,
+       "net": 4.65,
+       "share": 0.3552872860635697
+      },
+      "verdict": {
+       "even": false,
+       "severity": "fine",
+       "reasons": 0,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 23.53434365502418,
+       "scoreAfter": 23.39481111416451,
+       "gain": -0.13953254085966904
+      },
+      "partner": {
+       "scoreBefore": 22.661957252162416,
+       "scoreAfter": 22.75115633425567,
+       "gain": 0.089199082093252
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a1",
+         "a3",
+         "d3"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "d1",
+         "d2",
+         "a2"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_points",
+       "z_blocks",
+       "z_three_pointers_made"
+      ],
+      "downs": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_turnovers",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_turnovers",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_points",
+       "z_blocks",
+       "z_three_pointers_made"
+      ],
+      "value": {
+       "give": 6,
+       "get": 4.478,
+       "net": -1.5220000000000002,
+       "share": -0.2536666666666667
+      },
+      "market": {
+       "give": 6,
+       "get": 6.827,
+       "net": 0.827,
+       "share": 0.1211366632488648
+      },
+      "verdict": {
+       "even": false,
+       "severity": "bad",
+       "reasons": 1,
+       "disagree": true
+      },
+      "acceptable": false,
+      "objective": "even"
+     }
+    ],
+    "finder": {
+     "winWin": [
+      {
+       "partner": 3,
+       "give": [
+        "a2"
+       ],
+       "get": [
+        "d1",
+        "d2"
+       ],
+       "net": 5.679,
+       "gain": 0.7455367077397703,
+       "partnerGain": 0.047444563748761936
+      },
+      {
+       "partner": 2,
+       "give": [
+        "a0"
+       ],
+       "get": [
+        "c3",
+        "c1"
+       ],
+       "net": 1.6889999999999992,
+       "gain": 0.7415619958977722,
+       "partnerGain": 0.07319742336545687
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a0"
+       ],
+       "get": [
+        "d1",
+        "d2"
+       ],
+       "net": 4.178,
+       "gain": 0.7169058849116183,
+       "partnerGain": 0.04002495448919419
+      },
+      {
+       "partner": 2,
+       "give": [
+        "a2"
+       ],
+       "get": [
+        "c3",
+        "c0"
+       ],
+       "net": 4.818,
+       "gain": 0.7007651754991677,
+       "partnerGain": 0.023025244136714917
+      },
+      {
+       "partner": 2,
+       "give": [
+        "a0"
+       ],
+       "get": [
+        "c3",
+        "c0"
+       ],
+       "net": 3.3169999999999993,
+       "gain": 0.6835503476251503,
+       "partnerGain": 0.09468133678523216
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a0",
+        "a3"
+       ],
+       "get": [
+        "b1"
+       ],
+       "net": -3.5410000000000013,
+       "gain": 0.6582977267708188,
+       "partnerGain": 0.07517432620860731
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a0",
+        "a3"
+       ],
+       "get": [
+        "d0"
+       ],
+       "net": -7.263000000000001,
+       "gain": 0.6537722161420376,
+       "partnerGain": 0.09802750846500174
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a2",
+        "a3"
+       ],
+       "get": [
+        "b1"
+       ],
+       "net": -2.04,
+       "gain": 0.648372362435822,
+       "partnerGain": 0.0429608491877147
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a2",
+        "a3"
+       ],
+       "get": [
+        "b2"
+       ],
+       "net": -5.752,
+       "gain": 0.26839622704389043,
+       "partnerGain": 0.4923500555305722
+      }
+     ],
+     "any": [
+      {
+       "partner": 2,
+       "give": [
+        "a0",
+        "a3"
+       ],
+       "get": [
+        "c3"
+       ],
+       "net": -0.33000000000000096,
+       "gain": 1.5713511760811691,
+       "partnerGain": -0.8611845052700318
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a0",
+        "a3"
+       ],
+       "get": [
+        "d1"
+       ],
+       "net": -1.6060000000000008,
+       "gain": 1.450974786747011,
+       "partnerGain": -0.744833178528495
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a2",
+        "a3"
+       ],
+       "get": [
+        "d1"
+       ],
+       "net": -0.10499999999999954,
+       "gain": 1.3816393446288444,
+       "partnerGain": -0.6426407789268112
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a0",
+        "a3"
+       ],
+       "get": [
+        "b0"
+       ],
+       "net": -1.373000000000001,
+       "gain": 1.3048098837556914,
+       "partnerGain": -0.5799585642257696
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a2",
+        "a3"
+       ],
+       "get": [
+        "d3"
+       ],
+       "net": -2.221,
+       "gain": 1.1384295002551,
+       "partnerGain": -0.325728804142674
+      },
+      {
+       "partner": 2,
+       "give": [
+        "a2",
+        "a3"
+       ],
+       "get": [
+        "c2"
+       ],
+       "net": -2.763,
+       "gain": 1.0346992474023544,
+       "partnerGain": -0.4064800979664476
+      },
+      {
+       "partner": 2,
+       "give": [
+        "a0",
+        "a3"
+       ],
+       "get": [
+        "c2"
+       ],
+       "net": -4.264000000000001,
+       "gain": 1.023165126915238,
+       "partnerGain": -0.3375051005642611
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a0",
+        "a3"
+       ],
+       "get": [
+        "b1"
+       ],
+       "net": -3.5410000000000013,
+       "gain": 0.6582977267708188,
+       "partnerGain": 0.07517432620860731
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a2",
+        "a3"
+       ],
+       "get": [
+        "b1"
+       ],
+       "net": -2.04,
+       "gain": 0.648372362435822,
+       "partnerGain": 0.0429608491877147
+      }
+     ]
+    },
+    "suggest": [
+     {
+      "winWin": [
+       {
+        "give": [
+         "a1",
+         "a2",
+         "a3"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -8.019,
+        "gain": 0.3794795408727296,
+        "partnerGain": 1.0792931572189062
+       },
+       {
+        "give": [
+         "a1",
+         "a0",
+         "a3"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -9.520000000000001,
+        "gain": 0.29534513775389826,
+        "partnerGain": 1.1861064165587507
+       },
+       {
+        "give": [
+         "a0",
+         "a2"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -6.674000000000001,
+        "gain": 0.26294025774858554,
+        "partnerGain": 0.3088246542739732
+       }
+      ],
+      "any": [
+       {
+        "give": [
+         "a0",
+         "a2",
+         "a3"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -7.373000000000001,
+        "gain": 1.552640869660273,
+        "partnerGain": -0.11066818301226533
+       },
+       {
+        "give": [
+         "a2",
+         "a3"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": 0.1280000000000001,
+        "gain": 1.334850636846955,
+        "partnerGain": -0.6563782235711315
+       },
+       {
+        "give": [
+         "a0",
+         "a3"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -1.373000000000001,
+        "gain": 1.3048098837556914,
+        "partnerGain": -0.5799585642257696
+       },
+       {
+        "give": [
+         "a1",
+         "a2",
+         "a3"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -8.019,
+        "gain": 0.3794795408727296,
+        "partnerGain": 1.0792931572189062
+       },
+       {
+        "give": [
+         "a1",
+         "a0",
+         "a3"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -9.520000000000001,
+        "gain": 0.29534513775389826,
+        "partnerGain": 1.1861064165587507
+       },
+       {
+        "give": [
+         "a0",
+         "a2"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -6.674000000000001,
+        "gain": 0.26294025774858554,
+        "partnerGain": 0.3088246542739732
+       }
+      ],
+      "points": [
+       {
+        "give": [
+         "a2",
+         "a3"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": 0.1280000000000001,
+        "gain": null,
+        "partnerGain": null
+       }
+      ]
+     },
+     {
+      "winWin": [],
+      "any": [],
+      "points": []
+     }
+    ]
+   },
+   {
+    "spread": {
+     "z_rebounds_total": 3.0089980443279174,
+     "z_assists": 3.0663122927913062,
+     "z_steals": 7.07830968522853,
+     "z_blocks": 4.642454125534501,
+     "z_turnovers": 5.21559661016839,
+     "z_field_goal_pct": 7.708766418325807,
+     "z_free_throw_pct": 8.109966157569529
+    },
+    "totals": [
+     {
+      "z_rebounds_total": 1.005882,
+      "z_assists": -0.924482,
+      "z_steals": 1.702421,
+      "z_blocks": 0.504201,
+      "z_turnovers": -0.045841,
+      "z_field_goal_pct": 0.9353850000000001,
+      "z_free_throw_pct": 1.458056
+     },
+     {
+      "z_rebounds_total": 1.977902,
+      "z_assists": 0.872485,
+      "z_steals": 2.161744,
+      "z_blocks": 1.69977,
+      "z_turnovers": -1.1437460000000002,
+      "z_field_goal_pct": 1.04182,
+      "z_free_throw_pct": 1.3864150000000002
+     },
+     {
+      "z_rebounds_total": -0.8944799999999999,
+      "z_assists": 1.2637360000000002,
+      "z_steals": 0.48773599999999995,
+      "z_blocks": 1.705,
+      "z_turnovers": -0.355208,
+      "z_field_goal_pct": 1.7791839999999999,
+      "z_free_throw_pct": 0.68888
+     },
+     {
+      "z_rebounds_total": 0.794584,
+      "z_assists": 1.239804,
+      "z_steals": 1.393968,
+      "z_blocks": 2.458512,
+      "z_turnovers": 0.8427039999999999,
+      "z_field_goal_pct": 1.237384,
+      "z_free_throw_pct": -0.01464399999999999
+     },
+     {
+      "z_rebounds_total": -0.884868,
+      "z_assists": 0.766015,
+      "z_steals": 1.954385,
+      "z_blocks": 1.449419,
+      "z_turnovers": -0.621613,
+      "z_field_goal_pct": 1.884038,
+      "z_free_throw_pct": 1.7517140000000002
+     }
+    ],
+    "market": {
+     "a0": 9.171,
+     "a1": 6.375,
+     "a2": 1.661,
+     "b0": 5.344,
+     "b1": 5.205,
+     "b2": 3.591,
+     "c0": 2.239,
+     "c1": 2.221,
+     "c2": 2.379,
+     "d0": 6.375,
+     "d1": 5.617,
+     "d2": 6.308,
+     "e0": 2.111,
+     "e1": 5.205,
+     "e2": 2.111,
+     "fa0": 6.381,
+     "fa1": 5.344,
+     "fa2": 2.055
+    },
+    "threshold": 0.05,
+    "needs": {
+     "swing": [
+      "z_rebounds_total",
+      "z_assists",
+      "z_blocks"
+     ],
+     "conceding": [],
+     "locked": []
+    },
+    "trades": [
+     {
+      "mine": {
+       "scoreBefore": 3.271665938803275,
+       "scoreAfter": 3.0910470913040546,
+       "gain": -0.18061884749922053
+      },
+      "partner": {
+       "scoreBefore": 3.742737379041618,
+       "scoreAfter": 3.9123183250154376,
+       "gain": 0.16958094597381956
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "a2",
+         "b1"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b0",
+         "b2",
+         "a0"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_assists"
+      ],
+      "downs": [
+       "z_rebounds_total",
+       "z_steals",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_steals",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_assists"
+      ],
+      "value": {
+       "give": 9.171,
+       "get": 2.379,
+       "net": -6.792,
+       "share": -0.7405953549231272
+      },
+      "market": {
+       "give": 9.171,
+       "get": 5.205,
+       "net": -3.9659999999999993,
+       "share": -0.4324501144913313
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 3,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 3.271665938803275,
+       "scoreAfter": 3.7319990461443773,
+       "gain": 0.4603331073411021
+      },
+      "partner": {
+       "scoreBefore": 3.76671068081023,
+       "scoreAfter": 3.329187547006954,
+       "gain": -0.4375231338032761
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a1",
+         "d2"
+        ],
+        "dropped": [
+         "d1"
+        ],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "a2",
+         "fa0"
+        ],
+        "dropped": [],
+        "added": [
+         "fa0"
+        ]
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_turnovers"
+      ],
+      "partnerUps": [
+       "z_turnovers"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 3.716,
+       "get": 8.733,
+       "net": 5.017,
+       "share": 0.5744875758616741
+      },
+      "market": {
+       "give": 7.2780000000000005,
+       "get": 11.925,
+       "net": 4.647,
+       "share": 0.389685534591195
+      },
+      "verdict": {
+       "even": false,
+       "severity": "fine",
+       "reasons": 0,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 3.271665938803275,
+       "scoreAfter": 3.382069642796909,
+       "gain": 0.11040370399363386
+      },
+      "partner": {
+       "scoreBefore": 3.3822965369921927,
+       "scoreAfter": 3.483641151011452,
+       "gain": 0.10134461401925954
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "e2",
+         "fa0"
+        ],
+        "dropped": [],
+        "added": [
+         "fa0"
+        ]
+       },
+       "partner": {
+        "team": 4,
+        "after": [
+         "e0",
+         "e1",
+         "a0"
+        ],
+        "dropped": [
+         "a2"
+        ],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_assists",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_rebounds_total"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_turnovers",
+       "z_field_goal_pct"
+      ],
+      "partnerDowns": [
+       "z_assists"
+      ],
+      "value": {
+       "give": 11.225999999999999,
+       "get": 9.972000000000001,
+       "net": -1.2539999999999978,
+       "share": -0.11170497060395491
+      },
+      "market": {
+       "give": 10.831999999999999,
+       "get": 8.492,
+       "net": -2.339999999999998,
+       "share": -0.21602658788773987
+      },
+      "verdict": {
+       "even": false,
+       "severity": "bad",
+       "reasons": 1,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "win-win"
+     },
+     {
+      "mine": {
+       "scoreBefore": 3.271665938803275,
+       "scoreAfter": 3.558136220065104,
+       "gain": 0.28647028126182894
+      },
+      "partner": {
+       "scoreBefore": 3.76671068081023,
+       "scoreAfter": 3.471463483839493,
+       "gain": -0.2952471969707373
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a1",
+         "d1"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "d2",
+         "a2"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_turnovers"
+      ],
+      "partnerUps": [
+       "z_turnovers"
+      ],
+      "partnerDowns": [
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 2.055,
+       "get": 1.661,
+       "net": -0.39400000000000013,
+       "share": -0.19172749391727498
+      },
+      "market": {
+       "give": 1.661,
+       "get": 5.617,
+       "net": 3.956,
+       "share": 0.7042905465551006
+      },
+      "verdict": {
+       "even": false,
+       "severity": "bad",
+       "reasons": 1,
+       "disagree": true
+      },
+      "acceptable": false,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 3.271665938803275,
+       "scoreAfter": 3.832881592515919,
+       "gain": 0.5612156537126438
+      },
+      "partner": {
+       "scoreBefore": 3.76671068081023,
+       "scoreAfter": 3.230709871570998,
+       "gain": -0.5360008092392321
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "d2",
+         "fa0"
+        ],
+        "dropped": [],
+        "added": [
+         "fa0"
+        ]
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "a2",
+         "a1"
+        ],
+        "dropped": [
+         "d1"
+        ],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_blocks",
+       "z_turnovers",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_steals"
+      ],
+      "partnerUps": [
+       "z_steals",
+       "z_turnovers"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_blocks",
+       "z_field_goal_pct"
+      ],
+      "value": {
+       "give": 7.135,
+       "get": 13.453,
+       "net": 6.318,
+       "share": 0.46963502564483756
+      },
+      "market": {
+       "give": 8.036,
+       "get": 12.689,
+       "net": 4.6530000000000005,
+       "share": 0.36669556308613765
+      },
+      "verdict": {
+       "even": false,
+       "severity": "fine",
+       "reasons": 0,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 3.271665938803275,
+       "scoreAfter": 3.4718067895298548,
+       "gain": 0.2001408507265796
+      },
+      "partner": {
+       "scoreBefore": 3.336589464352684,
+       "scoreAfter": 3.3505427392284264,
+       "gain": 0.013953274875742494
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "c2",
+         "fa0"
+        ],
+        "dropped": [],
+        "added": [
+         "fa0"
+        ]
+       },
+       "partner": {
+        "team": 2,
+        "after": [
+         "c0",
+         "c1",
+         "a0"
+        ],
+        "dropped": [
+         "a2"
+        ],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_assists",
+       "z_blocks",
+       "z_turnovers",
+       "z_field_goal_pct"
+      ],
+      "downs": [
+       "z_rebounds_total"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_assists",
+       "z_blocks"
+      ],
+      "value": {
+       "give": 11.225999999999999,
+       "get": 11.652000000000001,
+       "net": 0.42600000000000193,
+       "share": 0.03656024716786834
+      },
+      "market": {
+       "give": 10.831999999999999,
+       "get": 8.76,
+       "net": -2.071999999999999,
+       "share": -0.19128508124076804
+      },
+      "verdict": {
+       "even": false,
+       "severity": "fine",
+       "reasons": 0,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 3.271665938803275,
+       "scoreAfter": 3.382069642796909,
+       "gain": 0.11040370399363386
+      },
+      "partner": {
+       "scoreBefore": 3.3822965369921927,
+       "scoreAfter": 3.483641151011452,
+       "gain": 0.10134461401925954
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "e2",
+         "fa0"
+        ],
+        "dropped": [],
+        "added": [
+         "fa0"
+        ]
+       },
+       "partner": {
+        "team": 4,
+        "after": [
+         "e0",
+         "e1",
+         "a0"
+        ],
+        "dropped": [
+         "a2"
+        ],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_assists",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_rebounds_total"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_turnovers",
+       "z_field_goal_pct"
+      ],
+      "partnerDowns": [
+       "z_assists"
+      ],
+      "value": {
+       "give": 11.225999999999999,
+       "get": 9.972000000000001,
+       "net": -1.2539999999999978,
+       "share": -0.11170497060395491
+      },
+      "market": {
+       "give": 10.831999999999999,
+       "get": 8.492,
+       "net": -2.339999999999998,
+       "share": -0.21602658788773987
+      },
+      "verdict": {
+       "even": false,
+       "severity": "bad",
+       "reasons": 1,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "win-win"
+     },
+     {
+      "mine": {
+       "scoreBefore": 3.271665938803275,
+       "scoreAfter": 3.2993113627185955,
+       "gain": 0.027645423915320322
+      },
+      "partner": {
+       "scoreBefore": 3.3822965369921927,
+       "scoreAfter": 3.3445801840465266,
+       "gain": -0.03771635294566611
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a2",
+         "e1",
+         "e2"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 4,
+        "after": [
+         "e0",
+         "a0",
+         "a1"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_field_goal_pct"
+      ],
+      "downs": [
+       "z_rebounds_total",
+       "z_free_throw_pct"
+      ],
+      "partnerUps": [
+       "z_rebounds_total",
+       "z_free_throw_pct"
+      ],
+      "partnerDowns": [
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_field_goal_pct"
+      ],
+      "value": {
+       "give": 14.251,
+       "get": 8.796,
+       "net": -5.455,
+       "share": -0.38278015577854185
+      },
+      "market": {
+       "give": 15.546,
+       "get": 7.316000000000001,
+       "net": -8.229999999999999,
+       "share": -0.5293966293580341
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 2,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "even"
+     }
+    ],
+    "finder": {
+     "winWin": [
+      {
+       "partner": 2,
+       "give": [
+        "a0",
+        "a2"
+       ],
+       "get": [
+        "c2"
+       ],
+       "net": -5.954999999999999,
+       "gain": 0.2001408507265796,
+       "partnerGain": 0.013953274875742494
+      },
+      {
+       "partner": 2,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "c1"
+       ],
+       "net": -4.896,
+       "gain": 0.17611581318723513,
+       "partnerGain": 0.03283420577037255
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a0",
+        "a2"
+       ],
+       "get": [
+        "b0"
+       ],
+       "net": -5.881999999999999,
+       "gain": 0.13651352477827983,
+       "partnerGain": 0.07235125237119222
+      },
+      {
+       "partner": 4,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "e0"
+       ],
+       "net": -5.023999999999999,
+       "gain": 0.09177934890574413,
+       "partnerGain": 0.11992232221797616
+      }
+     ],
+     "any": [
+      {
+       "partner": 1,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "b2"
+       ],
+       "net": -1.5179999999999998,
+       "gain": 0.6082223255196837,
+       "partnerGain": -0.4097350082446085
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "d2"
+       ],
+       "net": -0.06299999999999972,
+       "gain": 0.5612156537126438,
+       "partnerGain": -0.5360008092392321
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "d0"
+       ],
+       "net": -0.7599999999999998,
+       "gain": 0.5287427601516184,
+       "partnerGain": -0.4909466184138336
+      },
+      {
+       "partner": 4,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "e1"
+       ],
+       "net": -1.9299999999999997,
+       "gain": 0.5077092789985422,
+       "partnerGain": -0.2971313995024496
+      },
+      {
+       "partner": 2,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "c2"
+       ],
+       "net": -1.8639999999999999,
+       "gain": 0.40419736000570783,
+       "partnerGain": -0.19357740248330702
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a0",
+        "a2"
+       ],
+       "get": [
+        "b2"
+       ],
+       "net": -5.608999999999999,
+       "gain": 0.4030612785031935,
+       "partnerGain": -0.20269003079055592
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a0",
+        "a2"
+       ],
+       "get": [
+        "d2"
+       ],
+       "net": -4.153999999999999,
+       "gain": 0.36365259488795365,
+       "partnerGain": -0.33175401797957704
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "b0"
+       ],
+       "net": -1.7909999999999995,
+       "gain": 0.3341421326622167,
+       "partnerGain": -0.1368851656506851
+      },
+      {
+       "partner": 4,
+       "give": [
+        "a0",
+        "a2"
+       ],
+       "get": [
+        "e1"
+       ],
+       "net": -6.020999999999999,
+       "gain": 0.32004748922546167,
+       "partnerGain": -0.09421162887957957
+      },
+      {
+       "partner": 4,
+       "give": [
+        "a1",
+        "a2"
+       ],
+       "get": [
+        "e2"
+       ],
+       "net": -3.5439999999999996,
+       "gain": 0.3144055097906393,
+       "partnerGain": -0.09634213127613167
+      }
+     ]
+    },
+    "suggest": [
+     {
+      "winWin": [
+       {
+        "give": [
+         "a0",
+         "a2"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -5.881999999999999,
+        "gain": 0.13651352477827983,
+        "partnerGain": 0.07235125237119222
+       },
+       {
+        "give": [
+         "a0",
+         "a1",
+         "a2"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -10.962,
+        "gain": 0.07572667268090916,
+        "partnerGain": 0.04944277059725133
+       }
+      ],
+      "any": [
+       {
+        "give": [
+         "a1",
+         "a2"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -1.7909999999999995,
+        "gain": 0.3341421326622167,
+        "partnerGain": -0.1368851656506851
+       },
+       {
+        "give": [
+         "a0",
+         "a2"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -5.881999999999999,
+        "gain": 0.13651352477827983,
+        "partnerGain": 0.07235125237119222
+       },
+       {
+        "give": [
+         "a0",
+         "a1",
+         "a2"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -10.962,
+        "gain": 0.07572667268090916,
+        "partnerGain": 0.04944277059725133
+       }
+      ],
+      "points": [
+       {
+        "give": [
+         "a1"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": 0.26400000000000023,
+        "gain": null,
+        "partnerGain": null
+       }
+      ]
+     },
+     {
+      "winWin": [],
+      "any": [
+       {
+        "give": [
+         "a1",
+         "a2"
+        ],
+        "get": [
+         "c0"
+        ],
+        "net": -0.827,
+        "gain": 0.2911118165914499,
+        "partnerGain": -0.07730173160859888
+       }
+      ],
+      "points": [
+       {
+        "give": [
+         "a1",
+         "a2"
+        ],
+        "get": [
+         "c0"
+        ],
+        "net": -0.827,
+        "gain": null,
+        "partnerGain": null
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "spread": {
+     "z_points": 2.234066083773411,
+     "z_rebounds_total": 2.186699567841911,
+     "z_assists": 2.198309183592396,
+     "z_steals": 3.2837581011193056,
+     "z_blocks": 2.5707877391959064,
+     "z_three_pointers_made": 2.431699666214285,
+     "z_field_goal_pct": 3.4851203805129405,
+     "z_free_throw_pct": 3.615790268622707
+    },
+    "totals": [
+     {
+      "z_points": 2.356168,
+      "z_rebounds_total": 0.0019379999999999953,
+      "z_assists": 1.404176,
+      "z_steals": 0.7655230000000001,
+      "z_blocks": -0.163898,
+      "z_three_pointers_made": 1.092462,
+      "z_field_goal_pct": 1.245996,
+      "z_free_throw_pct": -0.8355330000000001
+     },
+     {
+      "z_points": 1.0900079999999999,
+      "z_rebounds_total": 1.9010319999999998,
+      "z_assists": 0.365952,
+      "z_steals": -0.850784,
+      "z_blocks": 0.011424000000000045,
+      "z_three_pointers_made": 0.9749840000000001,
+      "z_field_goal_pct": 1.54932,
+      "z_free_throw_pct": 1.098608
+     },
+     {
+      "z_points": -0.03283,
+      "z_rebounds_total": 0.6808259999999999,
+      "z_assists": 1.505172,
+      "z_steals": 1.152072,
+      "z_blocks": 2.5459680000000002,
+      "z_three_pointers_made": 1.169068,
+      "z_field_goal_pct": -0.975117,
+      "z_free_throw_pct": 1.159448
+     },
+     {
+      "z_points": -0.3638799999999999,
+      "z_rebounds_total": 1.889208,
+      "z_assists": 1.688068,
+      "z_steals": 0.39139999999999997,
+      "z_blocks": -0.6841,
+      "z_three_pointers_made": 0.09082400000000007,
+      "z_field_goal_pct": 1.137308,
+      "z_free_throw_pct": 0.21313200000000002
+     }
+    ],
+    "market": {
+     "a0": 7.487,
+     "a1": 2.919,
+     "a2": 2.88,
+     "b0": 1.037,
+     "b1": 4.334,
+     "b2": 6.689,
+     "c0": 4.334,
+     "c1": 2.529,
+     "c2": 3.396,
+     "d0": 3.053,
+     "d1": 6.686,
+     "d2": 0.981,
+     "fa1": 6.689,
+     "fa2": 4.626,
+     "fa0": 2.663
+    },
+    "threshold": 0.15000000000000002,
+    "needs": {
+     "swing": [
+      "z_assists",
+      "z_three_pointers_made",
+      "z_rebounds_total"
+     ],
+     "conceding": [],
+     "locked": [
+      "z_points"
+     ]
+    },
+    "trades": [
+     {
+      "mine": {
+       "scoreBefore": 20.0783036823406,
+       "scoreAfter": 19.570178605518667,
+       "gain": -0.5081250768219334
+      },
+      "partner": {
+       "scoreBefore": 19.172228568387666,
+       "scoreAfter": 19.678851861142622,
+       "gain": 0.5066232927549557
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a2",
+         "d0",
+         "d1"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d2",
+         "a0",
+         "a1"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_blocks",
+       "z_field_goal_pct"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_blocks",
+       "z_field_goal_pct"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 10.016,
+       "get": 9.565999999999999,
+       "net": -0.45000000000000107,
+       "share": -0.044928115015974546
+      },
+      "market": {
+       "give": 10.406,
+       "get": 9.739,
+       "net": -0.6669999999999998,
+       "share": -0.06409763597924273
+      },
+      "verdict": {
+       "even": false,
+       "severity": "bad",
+       "reasons": 1,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 20.0783036823406,
+       "scoreAfter": 19.5588747340589,
+       "gain": -0.5194289482816998
+      },
+      "partner": {
+       "scoreBefore": 19.172228568387666,
+       "scoreAfter": 19.729618862530074,
+       "gain": 0.557390294142408
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "a2",
+         "d1"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "d2",
+         "a0"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_assists",
+       "z_steals",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_rebounds_total",
+       "z_blocks",
+       "z_three_pointers_made"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_rebounds_total",
+       "z_blocks",
+       "z_three_pointers_made"
+      ],
+      "partnerDowns": [
+       "z_assists",
+       "z_steals",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 7.487,
+       "get": 6.686,
+       "net": -0.8010000000000002,
+       "share": -0.10698544143181517
+      },
+      "market": {
+       "give": 7.487,
+       "get": 6.686,
+       "net": -0.8010000000000002,
+       "share": -0.10698544143181517
+      },
+      "verdict": {
+       "even": false,
+       "severity": "bad",
+       "reasons": 1,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 20.0783036823406,
+       "scoreAfter": 20.09744786175964,
+       "gain": 0.01914417941904034
+      },
+      "partner": {
+       "scoreBefore": 20.098261293320054,
+       "scoreAfter": 20.275983549487787,
+       "gain": 0.1777222561677334
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a2",
+         "b0",
+         "fa1"
+        ],
+        "dropped": [],
+        "added": [
+         "fa1"
+        ]
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b1",
+         "b2",
+         "a0"
+        ],
+        "dropped": [
+         "a1"
+        ],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_assists",
+       "z_steals",
+       "z_blocks",
+       "z_three_pointers_made"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_steals",
+       "z_blocks",
+       "z_three_pointers_made"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 10.016,
+       "get": 7.343,
+       "net": -2.673,
+       "share": -0.26687300319488816
+      },
+      "market": {
+       "give": 10.406,
+       "get": 7.726,
+       "net": -2.6800000000000006,
+       "share": -0.2575437247741688
+      },
+      "verdict": {
+       "even": false,
+       "severity": "bad",
+       "reasons": 2,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 20.0783036823406,
+       "scoreAfter": 19.92275799738571,
+       "gain": -0.15554568495489107
+      },
+      "partner": {
+       "scoreBefore": 19.172228568387666,
+       "scoreAfter": 19.326055590505153,
+       "gain": 0.15382702211748622
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a2",
+         "d2"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "d1",
+         "a1"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 2.529,
+       "get": 3.053,
+       "net": 0.524,
+       "share": 0.17163445791025222
+      },
+      "market": {
+       "give": 2.919,
+       "get": 0.981,
+       "net": -1.9380000000000002,
+       "share": -0.6639260020554985
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 1,
+       "disagree": true
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 20.0783036823406,
+       "scoreAfter": 19.92275799738571,
+       "gain": -0.15554568495489107
+      },
+      "partner": {
+       "scoreBefore": 19.172228568387666,
+       "scoreAfter": 19.326055590505153,
+       "gain": 0.15382702211748622
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a2",
+         "d2"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d0",
+         "d1",
+         "a1"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 2.529,
+       "get": 3.053,
+       "net": 0.524,
+       "share": 0.17163445791025222
+      },
+      "market": {
+       "give": 2.919,
+       "get": 0.981,
+       "net": -1.9380000000000002,
+       "share": -0.6639260020554985
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 1,
+       "disagree": true
+      },
+      "acceptable": false,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 20.0783036823406,
+       "scoreAfter": 20.279032532034506,
+       "gain": 0.20072884969390614
+      },
+      "partner": {
+       "scoreBefore": 20.098261293320054,
+       "scoreAfter": 19.878433489723733,
+       "gain": -0.2198278035963206
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a0",
+         "a2",
+         "b0"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b1",
+         "b2",
+         "a1"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_assists",
+       "z_steals",
+       "z_three_pointers_made"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_field_goal_pct",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 2.529,
+       "get": 1.037,
+       "net": -1.492,
+       "share": -0.5899565045472519
+      },
+      "market": {
+       "give": 2.919,
+       "get": 1.037,
+       "net": -1.8820000000000001,
+       "share": -0.644741349777321
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 2,
+       "disagree": false
+      },
+      "acceptable": false,
+      "objective": "you"
+     },
+     {
+      "mine": {
+       "scoreBefore": 20.0783036823406,
+       "scoreAfter": 19.326055590505153,
+       "gain": -0.7522480918354475
+      },
+      "partner": {
+       "scoreBefore": 19.172228568387666,
+       "scoreAfter": 19.92275799738571,
+       "gain": 0.7505294289980426
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a1",
+         "d0",
+         "d1"
+        ],
+        "dropped": [],
+        "added": []
+       },
+       "partner": {
+        "team": 3,
+        "after": [
+         "d2",
+         "a2",
+         "a0"
+        ],
+        "dropped": [],
+        "added": []
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals"
+      ],
+      "downs": [
+       "z_points",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_field_goal_pct"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_assists",
+       "z_steals"
+      ],
+      "value": {
+       "give": 10.15,
+       "get": 9.565999999999999,
+       "net": -0.5840000000000014,
+       "share": -0.05753694581280802
+      },
+      "market": {
+       "give": 10.367,
+       "get": 9.739,
+       "net": -0.6280000000000001,
+       "share": -0.060576830326999134
+      },
+      "verdict": {
+       "even": false,
+       "severity": "terrible",
+       "reasons": 1,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "them"
+     },
+     {
+      "mine": {
+       "scoreBefore": 20.0783036823406,
+       "scoreAfter": 19.974413072824436,
+       "gain": -0.10389060951616358
+      },
+      "partner": {
+       "scoreBefore": 20.098261293320054,
+       "scoreAfter": 20.356912015148126,
+       "gain": 0.25865072182807225
+      },
+      "sides": {
+       "mine": {
+        "team": 0,
+        "after": [
+         "a2",
+         "b2",
+         "b1"
+        ],
+        "dropped": [
+         "a1"
+        ],
+        "added": []
+       },
+       "partner": {
+        "team": 1,
+        "after": [
+         "b0",
+         "a0",
+         "fa1"
+        ],
+        "dropped": [],
+        "added": [
+         "fa1"
+        ]
+       }
+      },
+      "ups": [
+       "z_rebounds_total",
+       "z_blocks",
+       "z_three_pointers_made",
+       "z_free_throw_pct"
+      ],
+      "downs": [
+       "z_points",
+       "z_assists",
+       "z_steals",
+       "z_field_goal_pct"
+      ],
+      "partnerUps": [
+       "z_points",
+       "z_assists",
+       "z_steals",
+       "z_field_goal_pct"
+      ],
+      "partnerDowns": [
+       "z_rebounds_total",
+       "z_three_pointers_made",
+       "z_free_throw_pct"
+      ],
+      "value": {
+       "give": 10.016,
+       "get": 9.608,
+       "net": -0.4079999999999995,
+       "share": -0.040734824281150106
+      },
+      "market": {
+       "give": 10.406,
+       "get": 11.023,
+       "net": 0.6169999999999991,
+       "share": 0.05597387281139428
+      },
+      "verdict": {
+       "even": true,
+       "severity": "fine",
+       "reasons": 0,
+       "disagree": false
+      },
+      "acceptable": true,
+      "objective": "them"
+     }
+    ],
+    "finder": {
+     "winWin": [
+      {
+       "partner": 2,
+       "give": [
+        "a2"
+       ],
+       "get": [
+        "c2",
+        "c1"
+       ],
+       "net": 3.275,
+       "gain": 0.2845379072293568,
+       "partnerGain": 0.012810384484065906
+      }
+     ],
+     "any": [
+      {
+       "partner": 2,
+       "give": [
+        "a2",
+        "a1"
+       ],
+       "get": [
+        "c0"
+       ],
+       "net": -0.8580000000000005,
+       "gain": 0.8910915430585327,
+       "partnerGain": -0.5762635557940783
+      },
+      {
+       "partner": 2,
+       "give": [
+        "a0",
+        "a1"
+       ],
+       "get": [
+        "c0"
+       ],
+       "net": -5.682,
+       "gain": 0.5857131580951496,
+       "partnerGain": -0.2883648663817233
+      },
+      {
+       "partner": 2,
+       "give": [
+        "a2",
+        "a1"
+       ],
+       "get": [
+        "c2"
+       ],
+       "net": -0.23500000000000032,
+       "gain": 0.5746033846602323,
+       "partnerGain": -0.26939673098587846
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a0",
+        "a1"
+       ],
+       "get": [
+        "b2"
+       ],
+       "net": -3.327,
+       "gain": 0.4309120260718018,
+       "partnerGain": -0.43566684004042955
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a0",
+        "a2"
+       ],
+       "get": [
+        "b2"
+       ],
+       "net": -3.4610000000000003,
+       "gain": 0.2912475947420141,
+       "partnerGain": -0.24560722388704193
+      },
+      {
+       "partner": 1,
+       "give": [
+        "a2",
+        "a1"
+       ],
+       "get": [
+        "b0"
+       ],
+       "net": -4.155,
+       "gain": 0.2786083328075257,
+       "partnerGain": -0.12384822049561706
+      },
+      {
+       "partner": 3,
+       "give": [
+        "a2",
+        "a1"
+       ],
+       "get": [
+        "d0"
+       ],
+       "net": -2.3120000000000003,
+       "gain": 0.20262304825875432,
+       "partnerGain": -0.05466746533734934
+      }
+     ]
+    },
+    "suggest": [
+     {
+      "winWin": [],
+      "any": [
+       {
+        "give": [
+         "a2",
+         "a1"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -4.155,
+        "gain": 0.2786083328075257,
+        "partnerGain": -0.12384822049561706
+       }
+      ],
+      "points": []
+     },
+     {
+      "winWin": [],
+      "any": [
+       {
+        "give": [
+         "a1",
+         "a2"
+        ],
+        "get": [
+         "c0"
+        ],
+        "net": -0.8580000000000005,
+        "gain": 0.8910915430585327,
+        "partnerGain": -0.5762635557940783
+       },
+       {
+        "give": [
+         "a1",
+         "a0"
+        ],
+        "get": [
+         "c0"
+        ],
+        "net": -5.682,
+        "gain": 0.5857131580951496,
+        "partnerGain": -0.2883648663817233
+       }
+      ],
+      "points": []
+     }
+    ]
+   }
+  ]
+ }
+}

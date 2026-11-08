@@ -191,7 +191,9 @@ export const PARAMS = {
   "backtest.min_games": 10,
   "backtest.bootstrap": 1000,
   "backtest.standings_leagues": 200,
-  "backtest.standings_draft_choice": 5
+  "backtest.standings_draft_choice": 5,
+  "backtest.trade_leagues": 20,
+  "backtest.trade_sample": 200
 } as const;
 
 /** Every registered parameter, for the Methodology page. */
@@ -836,5 +838,23 @@ export const PARAMETERS = [
     "evidence": "an evaluation choice, not a model one",
     "validation": 755,
     "value": 5
+  },
+  {
+    "id": "backtest.trade_leagues",
+    "kind": "search",
+    "status": "convention",
+    "what": "Of each checkpoint's simulated leagues, how many are traded in to judge the Trade page (#756): every team tries every finder trade with every other team.",
+    "evidence": "an evaluation choice that bounds the work (about 68,000 trades a league); the intervals come from resampling the weeks, not the leagues",
+    "validation": 756,
+    "value": 20
+  },
+  {
+    "id": "backtest.trade_sample",
+    "kind": "search",
+    "status": "convention",
+    "what": "Trades drawn at random from each traded league's finder trades to judge the verdict's calibration (#756).",
+    "evidence": "an evaluation choice: 4,000 trades a checkpoint",
+    "validation": 756,
+    "value": 200
   }
 ] as const;
