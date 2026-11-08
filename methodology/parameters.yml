@@ -202,6 +202,13 @@ parameters:
     what: "Seasons the playoff odds play out: the odds' sampling error is at most 1.1 points (the binomial standard error at 50%)."
     evidence: "sqrt(0.25 / 2000) = 0.011"
     validation: 872
+  - id: playoffs.season_share
+    value: {nba: 0.0, wnba: 0.0}
+    kind: model
+    status: assumed
+    what: "The playoff odds (#872): the share of a week's category spread that lasts all season (a projection's miss repeats every week). Each simulated season draws one shift per team and category from it; 0 draws every week independently."
+    evidence: "none yet: to be fitted on the tuning seasons by ops.playoff_backtest fit"
+    validation: 872
   - id: playoffs.points_spread_share
     value: 0.17
     kind: model

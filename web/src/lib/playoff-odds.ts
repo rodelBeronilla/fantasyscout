@@ -72,6 +72,13 @@ export interface OddsInput {
   spots: number;
   sims?: number;
   seed?: number;
+  /**
+   * The share of a week's category spread that lasts all season (`playoffs.season_share`, #872):
+   * a projection's miss is the same every week. Each simulated season draws one shift per team and
+   * category from it, and the weeks draw from the rest, so a week on its own keeps the standings
+   * model's chance. 0 draws every week independently.
+   */
+  seasonShare?: number;
 }
 
 export interface Odds {
@@ -94,9 +101,22 @@ export function simulateOdds(input: OddsInput): Odds {
   const random = seededRandom(input.seed ?? SEED);
   const n = input.cats.length;
   // each pair's chance of taking each category in a week, the first team's side
-  const chance = input.totals.map((a) =>
-    input.totals.map((b) => input.cats.map((c) => normalCdf(((a[c] ?? 0) - (b[c] ?? 0)) / (input.spread[c] ?? 1)))),
-  );
+  const lasting = Math.max(0, input.seasonShare ?? 0);
+  const gapOf = (a: number, b: number, c: string) => (input.totals[a]?.[c] ?? 0) - (input.totals[b]?.[c] ?? 0);
+  const fixed = input.totals.map((_, a) => input.totals.map((_, b) => input.cats.map((c) => normalCdf(gapOf(a, b, c) / (input.spread[c] ?? 1)))));
+  // a season's chances: its own lasting shift of each team in each category, drawn first, and the
+  // rest of the spread for the weeks (Box-Muller, the cosine branch)
+  const seasonChances = (): number[][][] => {
+    const shift = input.totals.map(() => input.cats.map(() => Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random()))); // def: Box-Muller
+    return input.totals.map((_, a) =>
+      input.totals.map((_, b) =>
+        input.cats.map((c, k) => {
+          const s = input.spread[c] ?? 1;
+          return normalCdf((gapOf(a, b, c) + Math.sqrt(lasting / 2) * s * ((shift[a]?.[k] ?? 0) - (shift[b]?.[k] ?? 0))) / (Math.sqrt(1 - lasting) * s)); // def: half the pair's lasting variance per team
+        }),
+      ),
+    );
+  };
   const start = Array.from({ length: teams }, (_, t) => input.records[t] ?? { wins: 0, losses: 0, ties: 0 });
   const made = new Array<number>(teams).fill(0);
   const winSum = new Array<number>(teams).fill(0);
@@ -105,6 +125,7 @@ export function simulateOdds(input: OddsInput): Odds {
     const w = start.map((r) => r.wins);
     const l = start.map((r) => r.losses);
     const t = start.map((r) => r.ties);
+    const chance = lasting > 0 ? seasonChances() : fixed;
     for (const week of input.weeks) {
       for (const [a, b] of week) {
         const p = chance[a]?.[b] ?? [];
@@ -179,6 +200,7 @@ export function playoffOdds(
     tally: schedule.tally,
     spots: Math.min(setup.playoffs.teams, teams),
     sims,
+    seasonShare: PARAMS['playoffs.season_share'][league],
   });
 }
 

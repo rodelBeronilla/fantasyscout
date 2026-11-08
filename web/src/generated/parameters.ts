@@ -122,6 +122,10 @@ export const PARAMS = {
     "wnba": 2
   },
   "playoffs.simulations": 2000,
+  "playoffs.season_share": {
+    "nba": 0.0,
+    "wnba": 0.0
+  },
   "playoffs.points_spread_share": 0.17,
   "fit.thirds": {
     "weak": 1.5,
@@ -518,6 +522,18 @@ export const PARAMETERS = [
     "evidence": "sqrt(0.25 / 2000) = 0.011",
     "validation": 872,
     "value": 2000
+  },
+  {
+    "id": "playoffs.season_share",
+    "kind": "model",
+    "status": "assumed",
+    "what": "The playoff odds (#872): the share of a week's category spread that lasts all season (a projection's miss repeats every week). Each simulated season draws one shift per team and category from it; 0 draws every week independently.",
+    "evidence": "none yet: to be fitted on the tuning seasons by ops.playoff_backtest fit",
+    "validation": 872,
+    "value": {
+      "nba": 0.0,
+      "wnba": 0.0
+    }
   },
   {
     "id": "playoffs.points_spread_share",
