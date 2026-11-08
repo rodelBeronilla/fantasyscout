@@ -24322,6 +24322,34 @@
        "type": "bigint"
       },
       {
+       "description": "The player's rank in ESPN's draft order for the season being played (int_market_prior); null when undrafted, between seasons or when that season's draft order was never landed",
+       "meta": {},
+       "name": "preseason_adp_rank",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The board's own value per game (the sum of the nine categories) of the player at preseason_adp_rank: the market's rank priced on the board's scale; null without a rank or for a rank beyond the board",
+       "meta": {},
+       "name": "market_prior_value",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The player's regular-season games so far in the season being played, which fade the market prior",
+       "meta": {},
+       "name": "market_prior_games",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The weight z_total gives market_prior_value: market_prior.weight falling linearly to 0 by market_prior.fade_games games, and 0 in a league the prior is off for (the WNBA) or without a market value (ADR 0020)",
+       "meta": {},
+       "name": "market_prior_weight",
+       "tests": [],
+       "type": "double"
+      },
+      {
        "description": "The player's 20th-percentile game this season, valued on the z_total scale (mart_player_consistency); null before a game",
        "meta": {},
        "name": "game_floor",
@@ -24480,34 +24508,6 @@
        "name": "market_gap",
        "tests": [],
        "type": "bigint"
-      },
-      {
-       "description": "The player's rank in ESPN's draft order for the season being played (int_market_prior); null when undrafted, between seasons or when that season's draft order was never landed",
-       "meta": {},
-       "name": "preseason_adp_rank",
-       "tests": [],
-       "type": ""
-      },
-      {
-       "description": "The board's own value per game (the sum of the nine categories) of the player at preseason_adp_rank: the market's rank priced on the board's scale; null without a rank or for a rank beyond the board",
-       "meta": {},
-       "name": "market_prior_value",
-       "tests": [],
-       "type": ""
-      },
-      {
-       "description": "The player's regular-season games so far in the season being played, which fade the market prior",
-       "meta": {},
-       "name": "market_prior_games",
-       "tests": [],
-       "type": ""
-      },
-      {
-       "description": "The weight z_total gives market_prior_value: market_prior.weight falling linearly to 0 by market_prior.fade_games games, and 0 in a league the prior is off for (the WNBA) or without a market value (ADR 0020)",
-       "meta": {},
-       "name": "market_prior_weight",
-       "tests": [],
-       "type": ""
       }
      ],
      "description": "The board, one row per rostered player per league: category values above replacement from the projected line, recent form, the per-game line, injury status and rest-of-season scaling.",
