@@ -237,7 +237,7 @@ export function espnSetup(
     // the players in ESPN's IR slot at this read (#878), so the next one can tell who came off it
     ir,
     opponents,
-    // this week's score so far in a category league, for the matchup to start from (#817)
+    // this week's score so far, by stat or in fantasy points, for the matchup to start from (#817, #877)
     ...(league.scores.size > 0 ? { scores: teamIds.map((id) => (id === null ? null : (league.scores.get(id) ?? null))) } : {}),
     // each team's record and place so far, for the standings at the top of My Team (#822)
     ...(league.teams.some((t) => t.record) ? { records: league.teams.map((t) => t.record) } : {}),

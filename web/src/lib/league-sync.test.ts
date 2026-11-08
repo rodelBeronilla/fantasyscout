@@ -181,11 +181,27 @@ describe("this week's score so far from ESPN (#817)", () => {
     expect(weekScore(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), '2026-11-05', day)).toBe('not-espn');
   });
 
-  it('has no score in a points league, nor without a schedule', () => {
-    const points = { ...fixture, settings: { ...fixture.settings, scoringSettings: { ...fixture.settings.scoringSettings, scoringType: 'H2H_POINTS' } } };
-    expect(fromEspnLeague(points).scores.size).toBe(0);
+  it("reads a points league's fantasy points so far, the live total when ESPN gives one (#877), and no score without a schedule", () => {
+    // a points league's sides carry their fantasy points in totalPoints, and no score by stat
+    const sides = (m: (typeof fixture.schedule)[number], home: number, away: number, live?: number) => ({
+      ...m,
+      home: { teamId: m.home.teamId, totalPoints: home },
+      away: { teamId: m.away.teamId, totalPoints: away, ...(live === undefined ? {} : { totalPointsLive: live }) },
+    });
+    const points = {
+      ...fixture,
+      settings: { ...fixture.settings, scoringSettings: { ...fixture.settings.scoringSettings, scoringType: 'H2H_POINTS' } },
+      schedule: fixture.schedule.map((m) => (m.matchupPeriodId !== 2 ? m : m.home.teamId === 3 ? sides(m, 388.5, 412, 430.5) : sides(m, 301, 0))),
+    };
+    const l = fromEspnLeague(points);
+    expect(Object.fromEntries([...l.scores].map(([id, s]) => [id, s.totals]))).toEqual({ 1: { fpts: 430.5 }, 2: { fpts: 301 }, 3: { fpts: 388.5 }, 4: { fpts: 0 } });
+    expect(l.scores.get(1)?.shots).toEqual({});
+    const s = espnSetup(l, players, at, null).setup;
+    expect(s.source?.scores?.map((x) => x?.totals['fpts'])).toEqual([430.5, 301, 388.5, 0]);
+    // it keeps through the stored shape
+    expect(normalize(JSON.parse(JSON.stringify(s)) as LeagueSetup, DEFAULT_SETTINGS.nba).source?.scores).toEqual(s.source?.scores);
     expect(fromEspnLeague({ ...fixture, schedule: undefined }).scores.size).toBe(0);
-    expect(espnSetup(fromEspnLeague(points), players, at, null).setup.source?.scores).toBeUndefined();
+    expect(fromEspnLeague({ ...points, schedule: undefined }).scores.size).toBe(0);
   });
 });
 

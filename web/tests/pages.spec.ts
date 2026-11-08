@@ -2511,17 +2511,19 @@ async function espnLeagueAndCopy(
   then = Date.now() - 2 * 60 * 60 * 1000,
   // ESPN's scoreboard at each read (#875): by default a day with no games
   scoreboard: (read: number) => unknown = () => ({ events: [] }),
+  // the league ESPN answers with, from the recorded one (a points league, #877)
+  shape: (league: Record<string, unknown>) => Record<string, unknown> = (l) => l,
 ) {
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string; full_name: string; season: string }[];
   const made = ['Player Zero', 'Player One', 'Player Two', 'Player Three', 'Player Four', 'Player Five', 'Player Six'];
   const swap = (name: string) => (made.includes(name) ? board[made.indexOf(name)]!.full_name : name);
-  const league = {
+  const league = shape({
     ...espnFixture,
     teams: espnFixture.teams.map((t) => ({
       ...t,
       roster: { entries: t.roster.entries.map((e) => ({ ...e, playerPoolEntry: { player: { fullName: swap(e.playerPoolEntry.player.fullName) } } })) },
     })),
-  };
+  });
   const id = (i: number) => board[i]!.player_id;
   // two hours ago Brick City had board player 5 where ESPN now lists player 6
   const imported = [[id(0), id(1), id(5)], [id(2)], [id(3)], [id(4)]];
@@ -2623,6 +2625,78 @@ test("an ESPN category league's matchup starts from the score so far and leads w
   const points = card.getByTestId('matchup-row').filter({ hasText: 'PTS' });
   expect(Number(await points.locator('td').nth(1).innerText())).toBeGreaterThanOrEqual(1000);
   await expect(points).toContainText('win');
+});
+
+test("an ESPN points league's matchup starts from the fantasy points so far (#877)", async ({ page }) => {
+  const now = new Date('2026-11-02T16:00:00Z').getTime();
+  await page.clock.setFixedTime(now);
+  type Side = { teamId: number };
+  // the recorded league as a points league: each side of this week's matchups has its fantasy points so far
+  const so = new Map([[1, 412], [3, 388], [2, 301], [4, 275]]);
+  const points = (l: Record<string, unknown>) => {
+    const f = l as { settings: Record<string, unknown>; schedule: { matchupPeriodId: number; home: Side; away: Side }[] };
+    const scoringItems = [[0, 1], [6, 1], [3, 2], [2, 4], [1, 4], [11, -2]].map(([statId, value]) => ({ statId, points: value }));
+    const side = (s: Side) => ({ teamId: s.teamId, totalPoints: so.get(s.teamId) });
+    return {
+      ...f,
+      settings: { ...f.settings, scoringSettings: { scoringType: 'H2H_POINTS', scoringItems } },
+      schedule: f.schedule.map((m) => (m.matchupPeriodId === 2 ? { ...m, home: side(m.home), away: side(m.away) } : m)),
+    };
+  };
+  await espnLeagueAndCopy(page, undefined, now - 2 * 60 * 60 * 1000, undefined, points);
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('sync-summary')).toContainText('Synced just now');
+  const card = page.getByTestId('matchup');
+  await expect(card.getByLabel("This week's opponent")).toHaveValue('2');
+  // Brick City has 412 so far to Third's 388: the projected final adds the games each lineup starts
+  const summary = card.getByTestId('matchup-summary');
+  await expect(summary).toContainText("From the score so far, 412 to 388, plus the games each lineup starts, you project");
+  expect(Number((await summary.locator('strong').innerText()).replace(/[^\d]/g, ''))).toBeGreaterThanOrEqual(412);
+  await expect(card.getByTestId('matchup-read')).toContainText('Score so far from ESPN at');
+  await expect(card.getByTestId('matchup-basis')).toHaveCount(0);
+});
+
+test('a head-to-head points league gets playoff odds from its fantasy points, badged as not yet validated (#877)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];
+  await page.clock.setFixedTime(new Date('2026-11-02T16:00:00Z'));
+  // four teams of three, entered by hand: two of them make the playoffs
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const copy = {
+    version: 9,
+    teams: 4,
+    rosterSpots: 6,
+    scoring: 'points',
+    format: 'h2h',
+    punts: [],
+    names: ['Mine', 'Second', 'Third', 'Fourth'],
+    rosters,
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    playoffs: { teams: 2, weeks: 3, start: null },
+    standings: { records: [], tally: 'matchups' },
+  };
+  await page.addInitScript((stored) => {
+    if (sessionStorage.getItem('seeded')) return;
+    localStorage.setItem('fantasyscout:league:nba', stored);
+    sessionStorage.setItem('seeded', '1');
+  }, JSON.stringify(copy));
+  await page.goto('/team/?league=nba');
+  const tile = page.getByTestId('playoffs');
+  await expect(tile.getByTestId('playoff-line')).toHaveText(/^(\d+%|under 1%|over 99%) to make it; \d+ games in the playoff weeks/);
+  // the weekly points spread is a prior: its test is #891
+  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/891$/);
+  const details = tile.getByTestId('playoff-details');
+  await details.locator('summary').click();
+  await expect(details.getByTestId('playoff-basis')).toContainText("each matchup going to a side by its projected fantasy points, with a week's swing that has not yet been measured");
+  const odds = (await details.getByTestId('playoff-row').locator('td:nth-child(2)').allInnerTexts()).map((s) =>
+    s.startsWith('under') ? 0 : s.startsWith('over') ? 100 : Number(s.replace('%', '')),
+  );
+  expect(odds).toHaveLength(4);
+  expect(odds.reduce((s, p) => s + p, 0)).toBeGreaterThanOrEqual(198);
+  expect(odds.reduce((s, p) => s + p, 0)).toBeLessThanOrEqual(202);
 });
 
 test("the evening matchup reads ESPN's scoreboard with the score and says how many of today's games it holds (#875)", async ({ page }) => {

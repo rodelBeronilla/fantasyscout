@@ -13,7 +13,7 @@ import { dropRule, type RosterReview, type Upgrade } from '../lib/roster-upgrade
 import { teamReview, teamValues } from '../lib/team-review';
 import { streamMove, streamTargets } from '../lib/matchup-streams';
 import { tonight } from '../lib/game-state';
-import { liveWeek, matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
+import { liveWeek, matchup, usableScore, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { expectedWins, leagueStandings, type LeagueStandings, powerRankings } from '../lib/standings';
 import { leagueRecords, recordsFromText } from '../lib/league-state';
 import { standingsOf } from '../lib/records';
@@ -348,13 +348,13 @@ export default function MyTeam() {
   }, [games, rows, myTeam, byId, setup.lineup, setup.opponent, setup.il, owner, perGame, h2h]);
   // The week's matchup: each side's projected totals over the games its lineup will start (#817),
   // from the lineup plans above, so benched and out players' games no longer count. An ESPN
-  // category league read today starts from the score so far.
+  // league read today starts from the score so far: by category, or in fantasy points (#877).
   const weekMatch = useMemo<{ match: WeekMatchup; basis: MatchupBasis } | null>(() => {
     if (!h2h || setup.opponent === null || !weekAvailable || myTeam.length === 0 || !rows) return null;
     const theirs = rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
     const scoring = points ? setup.weights : undefined;
     const today = easternDate();
-    const score = points ? 'no-score' : weekScore(setup, today, (ms) => easternDate(new Date(ms)));
+    const score = usableScore(weekScore(setup, today, (ms) => easternDate(new Date(ms))), points);
     // the score so far already holds today's games that had tipped when it was read (#875)
     const source = setup.source;
     const read = typeof score === 'string' || !source ? null : tonight(games ?? [], today, source.games, source.syncedAt);
@@ -411,6 +411,7 @@ export default function MyTeam() {
   }, [weekMatch, points, lineupPlans, games, rows, owner, activeCats, weekReview, byId]);
   // stable for the playoff plan, whose odds play 2,000 seasons only when an input changes (#821)
   const catOf = useMemo(() => (leagueCats ? (id: string) => leagueCats.get(id) : null), [leagueCats]);
+  const fptsOf = useMemo(() => (points && leaguePoints ? (id: string) => leaguePoints.get(id)?.fpts ?? 0 : null), [points, leaguePoints]);
   const owned = useCallback((id: string) => owner.has(id), [owner]);
   const applyUpgrade = useCallback((u: Upgrade) => updateLeague((s) => assign(assign(s, u.drop, null), u.add, s.mine)), [updateLeague]);
 
@@ -510,7 +511,7 @@ export default function MyTeam() {
       il={setup.il}
       cats={points ? [] : activeCats}
       catValue={leagueCats ? (id) => leagueCats.get(id) : null}
-      fpts={points && leaguePoints ? (id) => leaguePoints.get(id)?.fpts ?? 0 : null}
+      fpts={fptsOf}
       power={power}
       inline={!!real}
       note={real ? null : "Import the league from ESPN, run the Yahoo bookmark, or enter each team's record on the League page to show the real standings."}
@@ -546,6 +547,7 @@ export default function MyTeam() {
           teamWeeks={teamWeeks}
           cats={activeCats}
           catValue={catOf}
+          fpts={fptsOf}
           perGame={perGame}
           owned={owned}
           drops={restReview?.drops ?? NONE}
