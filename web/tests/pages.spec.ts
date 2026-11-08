@@ -1871,19 +1871,12 @@ test('a draft on the Draft page snakes pick by pick, here and on the board, with
   await expect(page.getByTestId('draft-bar')).toHaveCount(0);
 });
 
-test('Rankings and the Draft page price players for an auction from value above replacement (#741)', async ({ page }) => {
+test('the Draft page prices players for an auction; Rankings carries no price (#741, #825)', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
-  const rows = board.locator('tbody tr[data-player]');
-  await expect(rows.first()).toBeVisible();
-  await expect(board.locator('thead th').nth(3)).toHaveText('$');
-  const top = Number((await rows.first().getByTestId('auction').innerText()).replace('$', ''));
-  const tenth = Number((await rows.nth(9).getByTestId('auction').innerText()).replace('$', ''));
-  expect(top).toBeGreaterThan(tenth);
-  expect(tenth).toBeGreaterThanOrEqual(1);
-  // the stat lines carry no price
-  await page.getByRole('radio', { name: 'Season line' }).click();
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   await expect(board.getByTestId('auction')).toHaveCount(0);
+  await expect(board.locator('thead th', { hasText: /^\$$/ })).toHaveCount(0);
   await page.goto('/draft/');
   await page.getByRole('button', { name: 'Start a draft' }).click();
   await expect(page.getByTestId('best-available').getByTestId('draft-auction').first()).toHaveText(/^\$\d+$/);
@@ -2932,8 +2925,8 @@ test('every feature not yet backtested says so and links the issue that will val
   await page.goto('/');
   await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
   const status = page.getByTestId('validation-status');
-  await expect(status.getByTestId('unvalidated')).toHaveCount(4);
-  for (const [issue, label] of [[754, 'value'], [755, 'Fit'], [760, '$'], [761, 'consistency']] as const) {
+  await expect(status.getByTestId('unvalidated')).toHaveCount(3);
+  for (const [issue, label] of [[754, 'value'], [755, 'Fit'], [761, 'consistency']] as const) {
     await expect(status.locator(`a[href$="/issues/${issue}"]`)).toHaveText(label);
   }
   await page.goto('/streamers/');

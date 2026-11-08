@@ -6,7 +6,7 @@
  * a player outside it is worth nothing.
  */
 import { PARAMS } from '../generated/parameters';
-export const AUCTION_BUDGET: number = PARAMS['auction.budget'];
+const AUCTION_BUDGET: number = PARAMS['auction.budget'];
 
 export function auctionValues(
   values: Map<string, number>,
