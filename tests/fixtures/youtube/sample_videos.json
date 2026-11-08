@@ -1,0 +1,28 @@
+{
+ "channel": {
+  "id": "sample-channel",
+  "name": "Sample Hoops Channel (made up for the dbt sample)",
+  "channel_id": "UCsampleChannel000000001",
+  "url": "https://www.youtube.com/@SampleHoopsChannel",
+  "league": "wnba",
+  "transcripts": true,
+  "terms": "Made up for the dbt sample: no real channel's feed."
+ },
+ "fetched_at": "2026-10-27T09:15:00+00:00",
+ "videos": [
+  {
+   "id": "vidSAMPLE01",
+   "title": "Jackie Young's return and the rotation",
+   "description": "When Jackie Young is back from the knee, and what it means for Kierstan Bell.",
+   "published": "2026-10-26T20:00:00+00:00",
+   "link": "https://www.youtube.com/watch?v=vidSAMPLE01"
+  },
+  {
+   "id": "vidSAMPLE02",
+   "title": "Offseason mailbag",
+   "description": null,
+   "published": "2026-10-25T18:00:00+00:00",
+   "link": "https://www.youtube.com/watch?v=vidSAMPLE02"
+  }
+ ]
+}

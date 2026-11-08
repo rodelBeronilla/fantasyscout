@@ -5,7 +5,7 @@
     "Raw payloads are never redistributed. What the site publishes is derived: per-game and per-player tables, the board's values and projections, the schedule with context, aggregates in the notebooks.",
     "The Parquet mirror of the gold tables is served to the site's owner alone (ADR 0008); the JSON the pages read is public.",
     "Betting lines are model inputs and analysis aids: the game line is shown as context, player prop lines are never published (ADR 0008 addendum).",
-    "Collection is polite: one request at a time per host with a pacing gap, no retries beyond the shared client's, scheduled runs morning and evening. Outlets' news feeds are read only where their terms allow it, never behind a login, a paywall or a bot check, once per run with a User-Agent that links this page; only the headline, link and date are kept, and the articles are never fetched (ADR 0008 addendum, 2026-11-08).",
+    "Collection is polite: one request at a time per host with a pacing gap, no retries beyond the shared client's, scheduled runs morning and evening. Outlets' news feeds are read only where their terms allow it, never behind a login, a paywall or a bot check, once per run with a User-Agent that links this page; only the headline, link and date are kept, and the articles are never fetched (ADR 0008 addendum, 2026-11-08). A YouTube channel's captions are fetched from the home connection only, one new video at a time, and never past a bot check or a block; the transcripts are never published (ADR 0008 addendum, 2026-11-08).",
     "The site is free, non-commercial and not affiliated with any of the organisations below. If a source objects, the site complies: open an issue or write to the address on the GitHub profile."
   ],
   "sources": [
@@ -98,6 +98,15 @@
       "cadence": "As Yahoo Sports.",
       "published": "Nothing, as Yahoo Sports.",
       "retention": "Landed payloads kept; dropped and deleted if Winsidr objects."
+    },
+    {
+      "name": "Sporting Logically (YouTube)",
+      "host": "www.youtube.com",
+      "terms": "https://www.youtube.com/t/terms",
+      "feeds": "The channel's public video feed (each video's title, description and publish time; no API key) and, from the home connection only, the caption transcripts of its new videos.",
+      "cadence": "Once a day: one request for the feed, then each new video's captions one at a time, seconds apart, from a client that names this page. The fetch stops at any bot check or block and tries no other way.",
+      "published": "Nothing. Transcripts stay private: never shown, never exported. Only the claims the local model derives from them are kept, credited to the channel, for the backtest to score.",
+      "retention": "Landed files kept on the lakehouse volume; dropped and deleted if the channel or YouTube objects."
     },
     {
       "name": "NBA.com referee assignments",

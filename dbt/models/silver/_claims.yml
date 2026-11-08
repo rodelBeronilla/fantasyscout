@@ -13,11 +13,11 @@ models:
       - name: season
         description: "Season label"
       - name: source
-        description: "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note) or rss:<feed_id> (an outlet's feed item, by its id in ingest/rss_feeds.toml); tests/assert_claim_sources_known.sql holds it to those"
+        description: "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note), rss:<feed_id> (an outlet's feed item, by its id in ingest/rss_feeds.toml) or youtube:<channel> (a YouTube channel's video or transcript chunk, by its id in ingest/youtube_channels.toml); tests/assert_claim_sources_known.sql holds it to those"
         data_tests:
           - not_null
       - name: source_id
-        description: "The ESPN article id, the injury listing id and a hash of the note's text, or the feed item's id (silver.rss_feed_items)"
+        description: "The ESPN article id, the injury listing id and a hash of the note's text, the feed item's id (silver.rss_feed_items), or a YouTube item's: the video id, or <video_id>-t<seconds> for a transcript chunk (gold.fct_player_youtube_item)"
         data_tests: [not_null]
       - name: stats_player_id
         description: "League player id the claim is about"

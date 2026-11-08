@@ -66,6 +66,10 @@ DATED: tuple[tuple[str, str], ...] = (
     # the outlets' feed items, cut by the day they were published (never later than first seen)
     ("silver.rss_feed_items", "published_date"),
     ("gold.fct_player_rss_item", "published_date"),
+    # the YouTube channels' videos and transcript chunks, cut by the day the video was published
+    ("silver.youtube_videos", "published_date"),
+    ("silver.youtube_transcripts", "published_date"),
+    ("gold.fct_player_youtube_item", "published_date"),
 )
 # Records of games, cut by the day they were played: everything before the date must survive.
 EVENTS: frozenset[str] = frozenset(

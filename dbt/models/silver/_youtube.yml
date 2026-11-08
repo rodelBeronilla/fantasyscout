@@ -1,0 +1,88 @@
+version: 2
+
+models:
+  - name: youtube_videos
+    description: "The YouTube channels' videos (ingest/youtube_channels.toml), one row per video, with the newest title and description, when a feed first carried it, and the day it was published, never later than the day it was first seen."
+    columns:
+      - name: youtube_video_key
+        description: "League and video id"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "The league the channel covers: wnba or nba"
+      - name: season
+        description: "Season label of the newest landing"
+      - name: channel
+        description: "The channel's id in ingest/youtube_channels.toml"
+        data_tests: [not_null]
+      - name: channel_name
+        description: "The channel's name, credited on the Sources page"
+      - name: channel_id
+        description: "YouTube's channel id"
+      - name: video_id
+        description: "YouTube's video id"
+        data_tests: [not_null]
+      - name: title
+        description: "The video's title, from the newest landing"
+        data_tests: [not_null]
+      - name: description
+        description: "The opening of the video's description, at most 2,000 characters"
+      - name: link
+        description: "The video's watch address"
+      - name: published_at
+        meta: {tz: UTC}
+        description: "When the channel published the video (UTC)"
+      - name: first_seen_at
+        meta: {tz: UTC}
+        description: "When a landed feed first carried the video (UTC)"
+      - name: published_date
+        description: "The Eastern day the video was published, or first seen when that is earlier; a point-in-time build keeps the videos before its date"
+        data_tests: [not_null]
+
+  - name: youtube_transcripts
+    description: "The channels' video transcripts in chunks, one row per video and half minute (the ingest's chunk_lines), from the newest landing of each video's captions: the items the claims extractor reads, each with its start in the video. Dated by the video's publish day. Private: never published or shown, and never exported."
+    columns:
+      - name: youtube_chunk_key
+        description: "League, video id and the chunk's start"
+        data_tests: [unique, not_null]
+      - name: chunk_id
+        description: "The video id and the chunk's start in whole seconds (<video_id>-t<seconds>), the claims' source_id"
+        data_tests: [not_null]
+      - name: league
+        description: "The league the channel covers: wnba or nba"
+      - name: season
+        description: "Season label of the video's newest landing"
+      - name: channel
+        description: "The channel's id in ingest/youtube_channels.toml"
+      - name: channel_name
+        description: "The channel's name"
+      - name: video_id
+        description: "YouTube's video id"
+        data_tests: [not_null]
+      - name: title
+        description: "The video's title"
+      - name: start_seconds
+        description: "Whole seconds into the video the chunk's first line starts"
+        data_tests: [not_null]
+      - name: end_seconds
+        description: "Seconds into the video the chunk's last line ends"
+      - name: text
+        description: "The chunk's words, its lines joined in order"
+        data_tests: [not_null]
+      - name: caption_language
+        description: "The captions' language code"
+      - name: caption_kind
+        description: "uploader (the channel's own captions) or automatic (YouTube's speech recognition)"
+      - name: link
+        description: "The video's watch address at the chunk's start"
+      - name: published_at
+        meta: {tz: UTC}
+        description: "When the channel published the video (UTC)"
+      - name: first_seen_at
+        meta: {tz: UTC}
+        description: "When a landed feed first carried the video (UTC)"
+      - name: fetched_at
+        meta: {tz: UTC}
+        description: "When the captions were fetched (UTC)"
+      - name: published_date
+        description: "The video's published_date (silver.youtube_videos); a point-in-time build keeps the chunks of videos before its date"
+        data_tests: [not_null]

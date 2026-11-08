@@ -1,0 +1,26 @@
+unit_tests:
+  - name: player_youtube_item_links_the_players_a_video_or_a_transcript_chunk_names
+    description: >
+      A video's title and description is one item, each transcript chunk another. A player is
+      named by his whole name in the item's own text, whatever its case: a chunk in lower-case
+      automatic captions names him, a chunk that only says "he" names no one, and the description
+      names a player the title does not. A chunk's row says whom it names, never its words.
+    model: fct_player_youtube_item
+    given:
+      - input: ref('youtube_videos')
+        rows:
+          - {league: nba, season: '2026-27', channel: talk, channel_name: Talk, video_id: vid00000001, title: 'Avery Example is taking over', description: 'And Jordan Sample loses minutes.', link: 'https://www.youtube.com/watch?v=vid00000001', published_date: '2026-11-07'}
+          - {league: nba, season: '2026-27', channel: talk, channel_name: Talk, video_id: vid00000002, title: 'Week 3 waiver wire', description: null, link: 'https://www.youtube.com/watch?v=vid00000002', published_date: '2026-11-07'}
+      - input: ref('youtube_transcripts')
+        rows:
+          - {league: nba, season: '2026-27', channel: talk, channel_name: Talk, video_id: vid00000001, chunk_id: vid00000001-t1, start_seconds: 1, title: 'Avery Example is taking over', text: 'so avery example is starting tonight', link: 'https://www.youtube.com/watch?v=vid00000001&t=1s', published_date: '2026-11-07'}
+          - {league: nba, season: '2026-27', channel: talk, channel_name: Talk, video_id: vid00000001, chunk_id: vid00000001-t31, start_seconds: 31, title: 'Avery Example is taking over', text: 'and he will play big minutes', link: 'https://www.youtube.com/watch?v=vid00000001&t=31s', published_date: '2026-11-07'}
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: '1', full_name: 'Avery Example', is_current: true, last_game_date: '2026-11-05', valid_from: '2024-02-01'}
+          - {league: nba, stats_player_id: '2', full_name: 'Jordan Sample', is_current: true, last_game_date: '2026-11-05', valid_from: '2024-02-01'}
+    expect:
+      rows:
+        - {item_id: vid00000001, stats_player_id: '1', part: video, start_seconds: null, text: "Avery Example is taking over\nAnd Jordan Sample loses minutes.", players_named: 2}
+        - {item_id: vid00000001, stats_player_id: '2', part: video, start_seconds: null, text: "Avery Example is taking over\nAnd Jordan Sample loses minutes.", players_named: 2}
+        - {item_id: vid00000001-t1, stats_player_id: '1', part: transcript, start_seconds: 1, text: null, players_named: 1}

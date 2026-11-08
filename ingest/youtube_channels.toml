@@ -1,0 +1,22 @@
+# The YouTube channels FantasyScout reads (ingest/youtube.py, #812, #851).
+#
+# A channel is listed on the owner's decision recorded in ADR 0008 (addendum of 2026-11-08,
+# "YouTube channels"): its public video feed (titles, descriptions, publish times) is read once a
+# day, and, where transcripts = true, the caption transcript of each new video is fetched from the
+# home runner only, one video at a time, and never past a bot check or a block. Transcripts stay
+# in the landing volume; only the claims derived from them are used, credited to the channel.
+#
+# id is FantasyScout's name for the channel (lower-case words joined by hyphens), and the claims'
+# source is youtube:<id>. channel_id is YouTube's (UC followed by 22 characters), which the feed's
+# address carries. league is the league the channel covers. A channel or YouTube that objects is
+# removed here and its landed files and claims are deleted (docs/runbook.md, "Remove a source on
+# request").
+
+[[channel]]
+id = "sporting-logically"
+name = "Sporting Logically"
+channel_id = "UCR8s3egas481EMmOxr5fBmg"
+url = "https://www.youtube.com/@SportingLogically"
+league = "nba"
+transcripts = true
+terms = "YouTube's terms bar automated access other than search engines keeping to robots.txt, and robots.txt disallows /feeds/videos.xml and /api/ (the captions). The owner chose to read the channel's feed and, from the home runner only, its new videos' captions anyway, politely and never past a block (ADR 0008 addendum of 2026-11-08). Transcripts stay private; only derived claims are used, credited to the channel."

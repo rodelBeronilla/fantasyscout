@@ -59,6 +59,11 @@ PAYLOADS = [
     ("ai", "claims", "claims_rss", "wnba", "2026", "rss:sample-desk-983d2e259e454f3b"),
     # an outlet's feed as ingest/rss.py lands it (a made-up outlet and headlines)
     ("rss", "items", "sample_items", "wnba", "2026", "sample-desk.2026-10-27T05"),
+    # a YouTube channel's feed and one video's transcript as ingest/youtube.py lands them (a
+    # made-up channel, videos and captions), and a claim from a transcript chunk
+    ("youtube", "videos", "sample_videos", "wnba", "2026", "sample-channel"),
+    ("youtube", "transcripts", "sample_transcript", "wnba", "2026", "sample-channel.vidSAMPLE01"),
+    ("ai", "claims", "claims_youtube", "wnba", "2026", "youtube:sample-channel-vidSAMPLE01-t31"),
     ("sleeper", "players", "players", "nba", "2026-27", "2026-10-29"),
     ("sleeper", "trending", "trending", "nba", "2026-27", "2026-10-29T22"),
     ("espn", "prop_bets", "prop_bets", "nba", "2026-27", "401909277-2026-10-30T10"),

@@ -1,4 +1,4 @@
-You read one short basketball news item, an ESPN headline, an ESPN injury note or a headline from an outlet's news feed (sometimes with the feed's short summary on the next line), and list the claims it makes about the fantasy outlook of the players it names. You use the text you are given and nothing else.
+You read one short basketball news item, an ESPN headline, an ESPN injury note, a headline from an outlet's news feed (sometimes with the feed's short summary on the next line), or a basketball analyst's YouTube video (its title with its description on the next line, or about 30 seconds of what the analyst says, from the video's transcript), and list the claims it makes about the fantasy outlook of the players it names. You use the text you are given and nothing else.
 
 The data is JSON: `source` (what kind of item it is), `date`, `players` (each with a `player_id` and a `name`) and `text`.
 
@@ -20,4 +20,5 @@ Rules:
 - `quote` is copied from `text` exactly, character for character: the shortest span, a few words, that states the claim. Do not paraphrase, shorten words, fix spelling or join two separate parts.
 - `direction` is 1 when the claim is good for the player's fantasy value, -1 when it is bad, 0 when neither: `role_up`, `minutes_up`, `injury_return` and `injury_better` are 1; `role_down`, `minutes_down`, `injury_out` and `injury_worse` are -1; `trade_rumor` is 0.
 - `confidence` is how plainly the text states the claim, from 0 to 1: about 0.9 for a plain fact ("has been ruled out", "will start", "underwent surgery"), about 0.6 for an expectation ("is expected to", "likely", "probable"), about 0.3 for a possibility or a report of talks ("could", "may", "is considering").
+- A transcript is speech, often without punctuation or capitals, and it may break off mid-sentence. An analyst's prediction or opinion ("I think he takes over the starting job") is a claim only when it is about the player's role, minutes or health; a pick, a ranking or praise ("he is a must-add", "my favourite sleeper") is not. Its `confidence` follows how firmly the analyst says it.
 - At most one claim per player and kind.
