@@ -1,0 +1,101 @@
+unit_tests:
+  - name: market_prior_reads_the_season_being_played
+    description: >
+      As of 2025-11-01 the 2025-26 season is under way, so its draft order is read and 2024-25's
+      is not. p1 (drafted first) has played two regular-season games: a game he sat out, a
+      preseason game and last season's game do not count. p2 has not played. ESPN's e3 has no
+      league id, so he has no row.
+    model: int_market_prior
+    overrides:
+      vars:
+        as_of: '2025-11-01'
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2024-25', game_type: regular, game_date_est: 2024-10-22}
+          - {league: nba, season: '2024-25', game_type: regular, game_date_est: 2025-04-13}
+          - {league: nba, season: '2025-26', game_type: regular, game_date_est: 2025-10-22}
+          - {league: nba, season: '2025-26', game_type: regular, game_date_est: 2026-04-12}
+      - input: ref('espn_preseason_adp')
+        rows:
+          - {league: nba, season: '2024-25', espn_player_id: e2, adp_rank: 1}
+          - {league: nba, season: '2025-26', espn_player_id: e1, adp_rank: 1}
+          - {league: nba, season: '2025-26', espn_player_id: e2, adp_rank: 2}
+          - {league: nba, season: '2025-26', espn_player_id: e3, adp_rank: 3}
+      - input: ref('player_xwalk')
+        rows:
+          - {league: nba, stats_player_id: p1, espn_player_id: e1}
+          - {league: nba, stats_player_id: p2, espn_player_id: e2}
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2025-26', player_id: p1, game_id: '0022500001', played: true}
+          - {league: nba, season: '2025-26', player_id: p1, game_id: '0022500002', played: true}
+          - {league: nba, season: '2025-26', player_id: p1, game_id: '0022500003', played: false}
+          - {league: nba, season: '2025-26', player_id: p1, game_id: '0012500001', played: true}
+          - {league: nba, season: '2024-25', player_id: p1, game_id: '0022400001', played: true}
+    expect:
+      rows:
+        - {player_id: p1, season: '2025-26', adp_rank: 1, games: 2}
+        - {player_id: p2, season: '2025-26', adp_rank: 2, games: 0}
+
+  - name: market_prior_prices_the_draft_rank_and_fades
+    description: >
+      Five players whose values are 2, 1, 0, -1 and -2 (points only), with the prior on at weight
+      0.5, fading by four games. e (value -2, drafted first, no games) is priced at the board's
+      best value, 2, and blended half way: 0. a (value 2, drafted third, two games) is priced at
+      0 at a quarter weight: 1.5. b (drafted second) has played four games, so the prior has faded
+      and his value stays 1. c is undrafted and d is drafted beyond the board's last player, so
+      neither has a market price and both keep their own values.
+    model: mart_board
+    overrides:
+      vars:
+        as_of: '2026-01-10'
+        market_prior: {enabled: true, weight: 0.5, fade_games: 4}
+    given:
+      - input: ref('mart_player_projection')
+        rows:
+          - {league: nba, season: '2025-26', player_id: a, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 28.0, proj_minutes_pg: 30.0}
+          - {league: nba, season: '2025-26', player_id: b, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 24.0, proj_minutes_pg: 30.0}
+          - {league: nba, season: '2025-26', player_id: c, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 20.0, proj_minutes_pg: 30.0}
+          - {league: nba, season: '2025-26', player_id: d, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 16.0, proj_minutes_pg: 30.0}
+          - {league: nba, season: '2025-26', player_id: e, team_id: A, roster_season: '2025-26', games_share: 1.0, proj_points_pg: 12.0, proj_minutes_pg: 30.0}
+      - input: ref('int_value_scale')
+        rows:
+          - {league: nba, season: '2025-26', pool: 2, teams: 1, mean_points: 20.0, sd_points: 4.0, repl_z_points: 0.0, repl_z_rebounds_total: 0.0, repl_z_assists: 0.0, repl_z_steals: 0.0, repl_z_blocks: 0.0, repl_z_three_pointers_made: 0.0, repl_z_turnovers: 0.0, repl_z_field_goal_pct: 0.0, repl_z_free_throw_pct: 0.0}
+      - input: ref('int_market_prior')
+        rows:
+          - {league: nba, season: '2025-26', player_id: e, adp_rank: 1, games: 0}
+          - {league: nba, season: '2025-26', player_id: b, adp_rank: 2, games: 4}
+          - {league: nba, season: '2025-26', player_id: a, adp_rank: 3, games: 2}
+          - {league: nba, season: '2025-26', player_id: d, adp_rank: 99, games: 0}
+      - input: ref('mart_category_zscores')
+        rows: []
+      - input: ref('schedule_team_games')
+        rows: []
+      - input: ref('fct_player_status')
+        rows: []
+      - input: ref('int_player_news_latest')
+        rows: []
+      - input: ref('fct_status_calibration')
+        rows: []
+      - input: ref('team_current')
+        rows: []
+      - input: ref('dim_player')
+        rows: []
+      - input: ref('teams')
+        rows: []
+      - input: ref('fct_starting_lineup')
+        rows: []
+      - input: ref('fct_market_value')
+        rows: []
+      - input: ref('fct_team_stakes')
+        rows: []
+      - input: ref('mart_player_consistency')
+        rows: []
+    expect:
+      rows:
+        - {player_id: a, z_points: 2.0, preseason_adp_rank: 3, market_prior_value: 0.0, market_prior_weight: 0.25, z_total: 1.5}
+        - {player_id: b, z_points: 1.0, preseason_adp_rank: 2, market_prior_value: 1.0, market_prior_weight: 0.0, z_total: 1.0}
+        - {player_id: c, z_points: 0.0, preseason_adp_rank: null, market_prior_value: null, market_prior_weight: 0.0, z_total: 0.0}
+        - {player_id: d, z_points: -1.0, preseason_adp_rank: 99, market_prior_value: null, market_prior_weight: 0.0, z_total: -1.0}
+        - {player_id: e, z_points: -2.0, preseason_adp_rank: 1, market_prior_value: 2.0, market_prior_weight: 0.5, z_total: 0.0}

@@ -54,6 +54,11 @@ export const PARAMS = {
       "min_minutes": 28
     }
   },
+  "projection.market_prior": {
+    "enabled": false,
+    "weight": 0.5,
+    "fade_games": 5
+  },
   "projection.calibration_min_listings": 300,
   "projection.regular_season_games": {
     "nba": 82
@@ -318,6 +323,20 @@ export const PARAMETERS = [
         "extra_sit_out": 0.0,
         "min_minutes": 28
       }
+    }
+  },
+  {
+    "id": "projection.market_prior",
+    "kind": "model",
+    "status": "assumed",
+    "what": "While on: the weight a player's value per game gives the board's value of his rank in ESPN's draft order, falling linearly to nothing by fade_games games of the season being played.",
+    "evidence": "none yet: to be fitted on NBA 2020-21 to 2022-23 and judged on 2023-24 and 2024-25 by ops.walk_forward (#832)",
+    "validation": 832,
+    "dbt": "market_prior",
+    "value": {
+      "enabled": false,
+      "weight": 0.5,
+      "fade_games": 5
     }
   },
   {

@@ -34,3 +34,19 @@ models:
         description: "The headline"
       - name: news_date
         description: "The headline's publish date (Eastern)"
+  - name: int_market_prior
+    description: "The market's draft order for the season being played, the input of the board's market prior (#832): one row per league and player with an ESPN draft position that season, his rank by it, and his regular-season games so far. A season counts from the day before its first regular-season game through its last, so between seasons there are no rows."
+    columns:
+      - name: market_prior_key
+        description: "Natural key: league and player id"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+      - name: season
+        description: "The season being played"
+      - name: player_id
+        description: "League player id"
+      - name: adp_rank
+        description: "The player's rank by ESPN average draft position that season (silver.espn_preseason_adp)"
+      - name: games
+        description: "Regular-season games the player has played that season so far"

@@ -106,6 +106,14 @@ parameters:
     what: "Extra share of games a regular sits on a team with nothing to play for."
     evidence: "ADR 0010, notebook 03 (NBA +29 points, 22 to 36). The 28-minute cut was not optimised"
     validation: 754
+  - id: projection.market_prior
+    value: {enabled: false, weight: 0.5, fade_games: 5}
+    dbt: market_prior
+    kind: model
+    status: assumed
+    what: "While on: the weight a player's value per game gives the board's value of his rank in ESPN's draft order, falling linearly to nothing by fade_games games of the season being played."
+    evidence: "none yet: to be fitted on NBA 2020-21 to 2022-23 and judged on 2023-24 and 2024-25 by ops.walk_forward (#832)"
+    validation: 832
   - id: projection.calibration_min_listings
     value: 300
     dbt: calibration_min_listings

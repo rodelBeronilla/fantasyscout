@@ -73,6 +73,8 @@ unit_tests:
         rows: []
       - input: ref('mart_player_consistency')
         rows: []
+      - input: ref('int_market_prior')
+        rows: []
     expect:
       rows:
         - {player_id: p01, in_pool: true, rank_total: 1}
@@ -195,6 +197,8 @@ unit_tests:
           - {league: nba, team_id: A, stakes: clinched, rest_risk: true}
       - input: ref('mart_player_consistency')
         rows: []
+      - input: ref('int_market_prior')
+        rows: []
     expect:
       rows:
         - {player_id: a, games_share: 1.0, games_remaining: 0, availability_multiplier: 1.0, expected_games_missed: null, season_complete: false, ros_factor: 0.0, injury_status: null}
@@ -272,6 +276,8 @@ unit_tests:
       - input: ref('fct_team_stakes')
         rows: []
       - input: ref('mart_player_consistency')
+        rows: []
+      - input: ref('int_market_prior')
         rows: []
     expect:
       rows:
