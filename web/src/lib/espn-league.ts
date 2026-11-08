@@ -13,7 +13,7 @@
  */
 import type { Format, PointWeights, Scoring } from './fantasy-league';
 import type { Slots } from './lineup';
-import type { ScoreSoFar } from './matchup';
+import { FPTS, type ScoreSoFar } from './matchup';
 import { espnRecord, type TeamRecord } from './records';
 
 const API = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba';
@@ -71,7 +71,7 @@ export interface ImportedLeague {
   teams: { id: number | null; name: string; players: string[]; ir: string[]; record: TeamRecord | null }[];
   /** This week's pairings: each team's ESPN id to its opponent's, from the schedule (#815). */
   opponents: Map<number, number>;
-  /** This week's score so far in a category league, by ESPN team id; empty without one (#817). */
+  /** This week's score so far by ESPN team id: by stat in a category league (#817), fantasy points in a points league (#877); empty without one. */
   scores: Map<number, ScoreSoFar>;
   /**
    * The playoffs as ESPN sets them (#821): the teams that make them, their first and last matchup
@@ -86,9 +86,15 @@ export interface ImportedLeague {
   tally: 'categories' | 'matchups';
 }
 
-/** One side of a matchup: in a category league, its totals so far, stat by stat. */
+/**
+ * One side of a matchup: in a category league, its totals so far, stat by stat; in a points league,
+ * its fantasy points so far (`totalPoints`, which a category league fills with categories won), and
+ * with games under way the live total when the read carries it (`totalPointsLive`).
+ */
 interface EspnSide {
   teamId?: number;
+  totalPoints?: number;
+  totalPointsLive?: number;
   cumulativeScore?: { scoreByStat?: Record<string, { score?: number } | null> | null };
 }
 
@@ -163,7 +169,7 @@ export function fromEspnLeague(json: unknown): ImportedLeague {
     settings: { teams: data.settings.size ?? teams.length, rosterSpots, scoring, format: type === 'ROTO' ? 'roto' : 'h2h', weights, lineup },
     teams,
     opponents: weekOpponents(data),
-    scores: points ? new Map() : weekScores(data),
+    scores: points ? weekPoints(data) : weekScores(data),
     playoffs: playoffsOf(data, data.settings.size ?? teams.length),
     today: typeof data.scoringPeriodId === 'number' ? data.scoringPeriodId : null,
     fixtures: fixturesLeft(data),
@@ -272,6 +278,26 @@ function weekScores(data: EspnLeague): Map<number, ScoreSoFar> {
     for (const side of [m.home, m.away]) {
       const byStat = side?.cumulativeScore?.scoreByStat;
       if (typeof side?.teamId === 'number' && byStat && typeof byStat === 'object') out.set(side.teamId, scoreSoFar(byStat));
+    }
+  }
+  return out;
+}
+
+const finite = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
+
+/**
+ * Each team's fantasy points so far in this week's matchup of a points league (#877), by ESPN team
+ * id: the live total when ESPN gives one, else its total. A team on a bye has none.
+ */
+function weekPoints(data: EspnLeague): Map<number, ScoreSoFar> {
+  const out = new Map<number, ScoreSoFar>();
+  const period = currentPeriod(data);
+  if (period === null) return out;
+  for (const m of data.schedule ?? []) {
+    if (m.matchupPeriodId !== period) continue;
+    for (const side of [m.home, m.away]) {
+      const total = finite(side?.totalPointsLive) ? side.totalPointsLive : side?.totalPoints;
+      if (typeof side?.teamId === 'number' && finite(total)) out.set(side.teamId, { totals: { [FPTS]: total }, shots: {} });
     }
   }
   return out;

@@ -202,6 +202,13 @@ parameters:
     what: "Seasons the playoff odds play out: the odds' sampling error is at most 1.1 points (the binomial standard error at 50%)."
     evidence: "sqrt(0.25 / 2000) = 0.011"
     validation: 872
+  - id: playoffs.points_spread_share
+    value: 0.17
+    kind: model
+    status: assumed
+    what: "A points league's playoff odds (#877): the standard deviation of a week's fantasy-points margin between two teams, as a share of the league's average team."
+    evidence: "an unmeasured prior: a game's fantasy points vary by about a third of the player's mean, so over about 35 started games a week the margin varies by sqrt(2) x 0.35 / sqrt(35) = 0.084 of a team's week; doubled for what the projection misses, as the category model needed (standings.spread_scale 2.0, ADR 0021)"
+    validation: 891
 
   # ---- Fit weights before the standings model applies (web/src/lib/league-value.ts, matchup.ts)
   - id: fit.thirds

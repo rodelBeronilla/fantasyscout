@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { POINT_PRESETS } from './fantasy-league';
 import { CATEGORY_WORDS } from './format';
-import { liveWeek, matchup, matchupCall, matchupWeights, swingCategory, weekTotals } from './matchup';
+import { liveWeek, matchup, matchupCall, matchupWeights, swingCategory, usableScore, weekTotals } from './matchup';
 
 const cats = ['z_points', 'z_turnovers', 'z_field_goal_pct'];
 const mine = [
@@ -76,6 +76,22 @@ describe('the head-to-head week', () => {
     expect(live.mine.cats['z_turnovers']).toBe(11);
     expect(live.mine.cats['z_field_goal_pct']).toBeCloseTo(32 / 68, 6);
     expect(live.mine.cats['z_points']).toBe(380);
+  });
+
+  it("starts a points league's week from the fantasy points so far, and needs them on both sides (#877)", () => {
+    const rest = { mine: { cats: {}, games: 6, fpts: 210 }, theirs: { cats: {}, games: 4, fpts: 150 } };
+    const soFar = { mine: { totals: { fpts: 300 }, shots: {} }, theirs: { totals: { fpts: 380.5 }, shots: {} } };
+    const live = liveWeek([], soFar, rest);
+    expect([live.mine.fpts, live.theirs.fpts]).toEqual([510, 530.5]);
+    expect(live.projectedOnly).toEqual([]);
+    expect(live.mine.games).toBe(6);
+    // a category league's score carries no fantasy points: its fpts stay the projection
+    expect(liveWeek([], { mine: { totals: { z_points: 1 }, shots: {} }, theirs: { totals: { z_points: 2 }, shots: {} } }, rest).mine.fpts).toBe(210);
+    expect(usableScore(soFar, true)).toBe(soFar);
+    expect(usableScore({ ...soFar, theirs: { totals: { z_points: 2 }, shots: {} } }, true)).toBe('no-score');
+    expect(usableScore('stale', true)).toBe('stale');
+    // a category league takes its score as it comes
+    expect(usableScore({ ...soFar, theirs: { totals: {}, shots: {} } }, false)).not.toBe('no-score');
   });
 
   it('leads with the call: the count and the swing category, the closest by share (#817)', () => {

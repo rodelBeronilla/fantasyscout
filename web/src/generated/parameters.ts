@@ -122,6 +122,7 @@ export const PARAMS = {
     "wnba": 2
   },
   "playoffs.simulations": 2000,
+  "playoffs.points_spread_share": 0.17,
   "fit.thirds": {
     "weak": 1.5,
     "middle": 1.0,
@@ -515,6 +516,15 @@ export const PARAMETERS = [
     "evidence": "sqrt(0.25 / 2000) = 0.011",
     "validation": 872,
     "value": 2000
+  },
+  {
+    "id": "playoffs.points_spread_share",
+    "kind": "model",
+    "status": "assumed",
+    "what": "A points league's playoff odds (#877): the standard deviation of a week's fantasy-points margin between two teams, as a share of the league's average team.",
+    "evidence": "an unmeasured prior: a game's fantasy points vary by about a third of the player's mean, so over about 35 started games a week the margin varies by sqrt(2) x 0.35 / sqrt(35) = 0.084 of a team's week; doubled for what the projection misses, as the category model needed (standings.spread_scale 2.0, ADR 0021)",
+    "validation": 891,
+    "value": 0.17
   },
   {
     "id": "fit.thirds",

@@ -73,9 +73,12 @@ export function weekTotals(rows: Row[], cats: string[], weights?: PointWeights, 
   };
 }
 
+/** The key a points league's score so far keeps its fantasy points under (#877). */
+export const FPTS = 'fpts';
+
 /** A team's totals so far in this week's matchup, as its host reports them (#817). */
 export interface ScoreSoFar {
-  /** Each counting category's total so far. */
+  /** Each counting category's total so far; in a points league, the fantasy points (`FPTS`). */
   totals: Record<string, number>;
   /** Made and attempted so far behind each percentage category, where the host's numbers tell them. */
   shots: Record<string, [number, number]>;
@@ -93,8 +96,10 @@ export interface LiveWeek {
  * games its lineup starts from today, a game of today's that had tipped at the read counted only
  * for what was still to play of it (#875). A percentage adds the shots, made over attempted across
  * both. A category goes from the score only when both sides have it; otherwise both project it.
+ * A points league's fantasy points add up the same way (#877).
  */
 export function liveWeek(cats: string[], soFar: { mine: ScoreSoFar; theirs: ScoreSoFar }, rest: { mine: WeekTotals; theirs: WeekTotals }): LiveWeek {
+  const points = FPTS in soFar.mine.totals && FPTS in soFar.theirs.totals;
   const has = (s: ScoreSoFar, c: string) => (isRatio(c) ? c in s.shots : c in s.totals);
   const projectedOnly = cats.filter((c) => !has(soFar.mine, c) || !has(soFar.theirs, c));
   const final = (s: ScoreSoFar, t: WeekTotals): WeekTotals => {
@@ -111,9 +116,19 @@ export function liveWeek(cats: string[], soFar: { mine: ScoreSoFar; theirs: Scor
       shots[c] = [made + restMade, attempted + restAttempted];
       out[c] = attempted + restAttempted > 0 ? (made + restMade) / (attempted + restAttempted) : 0;
     }
-    return { ...t, cats: out, shots };
+    return { ...t, cats: out, shots, fpts: points ? (s.totals[FPTS] ?? 0) + t.fpts : t.fpts };
   };
   return { mine: final(soFar.mine, rest.mine), theirs: final(soFar.theirs, rest.theirs), projectedOnly };
+}
+
+/**
+ * The score so far a week can start from (#877): a points league's needs both sides' fantasy
+ * points, so a score without them (a host that gave categories only) counts as none.
+ */
+export function usableScore<S extends { mine: ScoreSoFar; theirs: ScoreSoFar } | string>(score: S, points: boolean): S | 'no-score' {
+  if (!points || typeof score === 'string') return score;
+  const both = score as { mine: ScoreSoFar; theirs: ScoreSoFar };
+  return FPTS in both.mine.totals && FPTS in both.theirs.totals ? score : 'no-score';
 }
 
 export interface CategoryEdge {
