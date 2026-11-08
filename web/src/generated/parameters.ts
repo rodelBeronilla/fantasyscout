@@ -207,7 +207,10 @@ export const PARAMS = {
     "wnba": 0.2
   },
   "roster.candidates": 25,
-  "buysell.min_swing": 1,
+  "buysell.min_swing": {
+    "nba": 2.1,
+    "wnba": 5.9
+  },
   "il.min_games": 3,
   "injury.box_score_regular": {
     "min_minutes": 20,
@@ -822,11 +825,14 @@ export const PARAMETERS = [
   {
     "id": "buysell.min_swing",
     "kind": "threshold",
-    "status": "assumed",
+    "status": "measured",
     "what": "Value per game between last-ten form and the projection that counts as a swing.",
-    "evidence": "none (and the two sides are on different pools, #767)",
-    "validation": 758,
-    "value": 1
+    "evidence": "ops.buy_sell_backtest fit on the tuning seasons: the projection's RMSE over the share of a swing that reverses, NBA 2.11 / (1 - 0.016) (runs 42497379530, 42497589265, 42497591494), WNBA 4.10 / (1 - 0.31) (runs 42497382072, 42497384719, 42497593781). Judged (ADR 0027): buy low passed in the NBA; sell high did no better than the naive manager's list, and the WNBA's lists were too thin to judge",
+    "validation": 903,
+    "value": {
+      "nba": 2.1,
+      "wnba": 5.9
+    }
   },
   {
     "id": "il.min_games",

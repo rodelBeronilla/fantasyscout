@@ -434,6 +434,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--standings-out", type=Path, help="a folder for ops.standings_backtest's inputs (#755)"
     )
+    parser.add_argument(
+        "--buy-sell",
+        action="store_true",
+        help="add ops.buy_sell_backtest's inputs to the --standings-out folder (#758)",
+    )
     args = parser.parse_args(argv)
     if LOCKED.get(args.league) == args.season and not args.judge_locked:
         print(
@@ -484,6 +489,12 @@ def main(argv: list[str] | None = None) -> int:
                     standings_backtest.export_checkpoint(
                         cut, args.league, args.season, as_of, args.standings_out
                     )
+                    if args.buy_sell:
+                        from ops import buy_sell_backtest
+
+                        buy_sell_backtest.export_checkpoint(
+                            cut, args.league, as_of, args.standings_out
+                        )
             players.append(
                 df.assign(league=args.league, season=args.season, as_of=as_of, checkpoint=fraction)
             )

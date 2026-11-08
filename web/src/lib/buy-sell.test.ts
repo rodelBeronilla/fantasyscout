@@ -29,6 +29,8 @@ const owner = new Map([
 ]);
 
 const input = {
+  league: 'nba' as const,
+  minSwing: 1,
   mine: 0,
   owner,
   projected: (id: string) => proj.get(id) ?? 0,

@@ -26,6 +26,7 @@ import { PlayerPicker } from './PlayerPicker';
 import ExplainTrade from './ExplainTrade';
 import { TradeScorecard } from './TradeScorecard';
 import { Card, InjuryTag, injuryDetail, Loading, Problem, Segmented, Signed, Td, Th, Unvalidated } from './ui';
+import { PARAMS } from '../generated/parameters';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 
 interface PlayerRowFields {
@@ -193,6 +194,7 @@ export default function TradeAnalyzer() {
     const mine = (setup.rosters[setup.mine] ?? []).filter((id) => !setup.il.includes(id));
     const projected = (id: string) => worth.get(id)?.perGame ?? 0;
     return buySell({
+      league,
       mine: setup.mine,
       owner: new Map([...owner].filter(([id]) => !setup.il.includes(id))),
       projected,
@@ -201,7 +203,7 @@ export default function TradeAnalyzer() {
       // good enough to start for you: at least your median player's projection
       startLine: median(mine.map(projected)),
     });
-  }, [rows, points, hasRosters, cats, pool, setup.teams, setup.rosters, setup.mine, setup.il, owner, worth, catWeight, byId]);
+  }, [league, rows, points, hasRosters, cats, pool, setup.teams, setup.rosters, setup.mine, setup.il, owner, worth, catWeight, byId]);
 
   const chipsAndTargets = useMemo(() => {
     if (!rows || points || !hasRosters || !punted.length) return null;
@@ -776,14 +778,17 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'chips' && swings && hasSwings && (
-        <Card title="Buy low, sell high" id="buy-sell" badge={<Unvalidated issue={758} what="Buy low, sell high" />}>
+        <Card title="Buy low, sell high" id="buy-sell">
           <p className="mb-3 text-sm text-muted">
             Recent form against the projection, in value per game above replacement under your league&apos;s scoring. Managers price players on the box
             scores they have just seen: a hot run sells for more than the projection says, a slump buys for less.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <h3 className="mb-1 text-sm font-semibold">Sell high: yours, running hot</h3>
+              <h3 className="mb-1 text-sm font-semibold">
+                Sell high: yours, running hot
+                <Unvalidated issue={903} what="Sell high" />
+              </h3>
               {swings.sellHigh.length ? (
                 <ul className="grid gap-1 text-sm" data-testid="sell-high">
                   {swings.sellHigh.map((s) => (
@@ -801,11 +806,14 @@ export default function TradeAnalyzer() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted">None of your players is running a point or more above the projection.</p>
+                <p className="text-sm text-muted">None of your players is running {fmt(PARAMS['buysell.min_swing'][league], 1)} a game or more above the projection.</p>
               )}
             </div>
             <div>
-              <h3 className="mb-1 text-sm font-semibold">Buy low: theirs, in a slump</h3>
+              <h3 className="mb-1 text-sm font-semibold">
+                Buy low: theirs, in a slump
+                {league === 'wnba' && <Unvalidated issue={904} what="Buy low in the WNBA" />}
+              </h3>
               {swings.buyLow.length ? (
                 <ul className="grid gap-1 text-sm" data-testid="buy-low">
                   {swings.buyLow.map((s) => (
@@ -824,12 +832,12 @@ export default function TradeAnalyzer() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted">No healthy player elsewhere who would start for you is slumping a point or more below the projection.</p>
+                <p className="text-sm text-muted">No healthy player elsewhere who would start for you is slumping {fmt(PARAMS['buysell.min_swing'][league], 1)} a game or more below the projection.</p>
               )}
             </div>
           </div>
           <p className="mt-2 text-xs text-muted">
-            Last ten games against the projection; a swing of a point a game or more counts. Buy-low players are healthy (an injury explains a slump and is
+            Last ten games against the projection; a swing of {fmt(PARAMS['buysell.min_swing'][league], 1)} a game or more counts. Buy-low players are healthy (an injury explains a slump and is
             no discount) and projected at least as high as your median player.
           </p>
         </Card>
