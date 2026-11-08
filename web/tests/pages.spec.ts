@@ -122,7 +122,7 @@ test('the methodology page lists every registered number with how it was set and
   await expect(recency.getByRole('link', { name: '#754' })).toHaveAttribute('href', /\/issues\/754$/);
   const limits = page.locator('[data-param="trade.value_limits"]');
   await expect(limits).toHaveAttribute('data-status', 'assumed');
-  await expect(limits.getByRole('link', { name: '#756' })).toBeVisible();
+  await expect(limits.getByRole('link', { name: '#886' })).toBeVisible();
   // The counts by status add up to the registry.
   const counts = await page.getByTestId('status-counts').locator('li .font-medium').allTextContents();
   expect(counts.reduce((n, c) => n + Number.parseInt(c, 10), 0)).toBe(await params.count());

@@ -3,6 +3,7 @@ what happened, and keeps to its seasons: the fit reads only the tuning seasons' 
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import Any
 
@@ -65,6 +66,12 @@ def _state(ctx: trade_backtest.Ctx, lg: int, ids: list[str]) -> trade.LeagueStat
     )
 
 
+def _accept(
+    model: trade.FairnessModel, p: dict[str, Any], t: int, g: list[str], r: list[str]
+) -> bool:
+    return trade.acceptable(model, t, g, r, p)
+
+
 def test_the_array_rules_are_the_webs(season: Path) -> None:
     """Every finder trade's settlement, gains, lenses and verdict match ops/trade.py, and the
     finder's top trade is the web's first."""
@@ -103,8 +110,10 @@ def test_the_array_rules_are_the_webs(season: Path) -> None:
             assert pr["partner_gain"][k] == pytest.approx(impact["partner"]["gain"], abs=1e-9)
             sides = impact["sides"]
             pad = len(ids) - 1
-            assert sorted(ids[i] for i in ft.mo[k] if i < pad) == sorted(give + sides["mine"]["dropped"])
-            assert sorted(ids[i] for i in ft.mi[k] if i < pad) == sorted(get + sides["mine"]["added"])
+            out = sorted(ids[i] for i in ft.mo[k] if i < pad)
+            assert out == sorted(give + sides["mine"]["dropped"])
+            inc = sorted(ids[i] for i in ft.mi[k] if i < pad)
+            assert inc == sorted(get + sides["mine"]["added"])
             model_a = trade.FairnessModel(model.state, a, model.value, model.market, model.ranked)
             lz = trade.trade_lenses(model_a, b, give, get)
             assert ln["value_share"][k] == pytest.approx(lz["value"]["share"], abs=1e-12)
@@ -121,7 +130,13 @@ def test_the_array_rules_are_the_webs(season: Path) -> None:
         rest = {i: max(0.0, state.rest(i)) for i in ids[:-1]}
         others = standings.rivals(state.rosters, 0, state.roster_spots, p)
 
-        def effect(partner: int, g: list[str], r: list[str]) -> dict[str, Any]:
+        def effect(
+            partner: int,
+            g: list[str],
+            r: list[str],
+            state: trade.LeagueState = state,
+            st: dict[str, Any] = st,
+        ) -> dict[str, Any]:
             e = trade.trade_impact(state, st, 0, partner, g, r, p)
             return {"gain": e["mine"]["gain"], "partnerGain": e["partner"]["gain"]}
 
@@ -133,7 +148,7 @@ def test_the_array_rules_are_the_webs(season: Path) -> None:
             thr,
             p,
             win_win=True,
-            accept=lambda t, g, r: trade.acceptable(model, t, g, r, p),
+            accept=functools.partial(_accept, model, p),
         )
         win = cl["acceptable"] & (pr["partner_gain"] > 0) & (pr["gain"] >= thr)
         best = trade_backtest._best(ft.a, win, [pr["gain"], pr["partner_gain"]], 12)[0]

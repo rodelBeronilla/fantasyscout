@@ -544,8 +544,8 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Value lens: the share given away that makes a trade bad or terrible.",
-    "evidence": "none (one anecdote, #692)",
-    "validation": 756,
+    "evidence": "judged on #756 (ADR 0022): the declared fit set them from the meaningful gain and collapsed to 0 in the NBA (-0.03 and -0.07 in the WNBA); they failed out of sample, so these assumed values stay. Trades they call bad or terrible lost in every judged season",
+    "validation": 886,
     "value": {
       "bad": -0.15,
       "terrible": -0.3
@@ -556,8 +556,8 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Market lens: the share given away that makes a trade bad or terrible.",
-    "evidence": "none",
-    "validation": 756,
+    "evidence": "judged on #756 (ADR 0022): the declared fit collapsed them to 0 in the NBA and they failed out of sample, so these assumed values stay",
+    "validation": 886,
     "value": {
       "bad": -0.2,
       "terrible": -0.35
@@ -568,8 +568,8 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Category lens: expected categories lost that make a trade bad or terrible.",
-    "evidence": "none",
-    "validation": 756,
+    "evidence": "the scale the lens limits were fitted on in #756 (ADR 0022); trades the lenses call bad or terrible lost in every judged season",
+    "validation": 886,
     "value": {
       "bad": 2,
       "terrible": 5
@@ -580,8 +580,8 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Gap between the value and market lenses that is called a disagreement.",
-    "evidence": "none",
-    "validation": 756,
+    "evidence": "reported in #756 (ADR 0022): what happened went the value lens's way in 38% to 51% of NBA disagreements",
+    "validation": 886,
     "value": 0.35
   },
   {
@@ -589,8 +589,8 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "The band within which each lens calls a trade even.",
-    "evidence": "none",
-    "validation": 756,
+    "evidence": "judged on #756 (ADR 0022): the declared fit called nothing even in the NBA and missed its band in the WNBA. At these assumed values, WNBA even trades were calibrated (reported, not gated)",
+    "validation": 886,
     "value": {
       "value": 0.1,
       "market": 0.15
@@ -601,7 +601,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "A category's win chance must move this much to be listed as up or down.",
-    "evidence": "none",
+    "evidence": "judged on #756 (ADR 0022): a category listed up gained share against the rivals and one listed down lost it, with intervals clear of zero in every judged season",
     "validation": 756,
     "value": 0.02
   },
@@ -610,7 +610,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Win chances below or above which a category is conceded or locked.",
-    "evidence": "none",
+    "evidence": "judged on #756 (ADR 0022): conceded categories were won 15% to 23% of the time and locked ones 76% to 85%, close to their chances, in every judged season",
     "validation": 756,
     "value": {
       "conceding": 0.25,
@@ -622,8 +622,8 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Expected categories a trade must add to count (per rival in rotisserie).",
-    "evidence": "none",
-    "validation": 756,
+    "evidence": "judged on #756 (ADR 0022): the declared replay fit picked 0.00 in the NBA (runs 42478335636, 42478338072, 42478340676) and 0.01 in the WNBA (runs 42478343718, 42478346505, 42478349501), the grid's edge. Judged out of sample, the verdict failed, so this assumed value stays",
+    "validation": 886,
     "value": 0.05
   },
   {
@@ -631,8 +631,8 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Suggestions: how far from even a package may be, and the least it must gain.",
-    "evidence": "none",
-    "validation": 756,
+    "evidence": "judged on #756 (ADR 0022): the suggestions lost to the naive manager's package in NBA 2023-24 and both WNBA seasons",
+    "validation": 887,
     "value": {
       "tolerance": 0.15,
       "min_gain": 0.05
@@ -643,8 +643,8 @@ export const PARAMETERS = [
     "kind": "search",
     "status": "assumed",
     "what": "How many players a suggestion adds (fewer when both sides are already set), and how many it and the finder try.",
-    "evidence": "none",
-    "validation": 756,
+    "evidence": "judged as part of the finder and the suggestions on #756 (ADR 0022)",
+    "validation": 888,
     "value": {
       "max_add": 3,
       "max_add_both": 2,
