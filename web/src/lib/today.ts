@@ -3,6 +3,8 @@
  * plays but is listed on the injury report, and whose team has no game. "Today" is the Eastern
  * date, the day the league schedules and the 5 pm reports use, whatever the viewer's clock says.
  */
+import { bestLineup, type Slot } from './lineup';
+
 export interface TodayGame {
   game_date: string;
   game_datetime_utc?: string | null;
@@ -64,4 +66,64 @@ export function todayGroups<P extends TodayPlayer>(
   plays.sort(byTip);
   listed.sort(byTip);
   return { plays, listed, idle, leagueGames };
+}
+
+/** Listed, but likely to play: started if the slots want them, with a check before tip-off. */
+const MAY_PLAY = new Set(['questionable', 'day_to_day']);
+/** Confirmed lineups come out about half an hour before tip-off: the time to look again. */
+const CHECK_BEFORE_TIP_MS = 30 * 60 * 1000; // def: half an hour, in milliseconds
+
+interface VerdictRow {
+  id: string;
+  /** Tip-off in UTC, when the schedule has it. */
+  tipoff: string | null;
+  /** When to look again before the game (half an hour before tip-off), for a listed starter. */
+  checkBy: string | null;
+}
+
+export interface TodayVerdict {
+  /** The best lineup the slots hold from today's players: a listed starter carries a check time. */
+  start: (VerdictRow & { slot: Slot })[];
+  /** Players with a game and no slot left. */
+  bench: VerdictRow[];
+  /** Doubtful: rarely plays; started only once the report clears him. */
+  check: VerdictRow[];
+  /** Ruled out. */
+  out: VerdictRow[];
+  /** Slots nobody fills today: room to stream. */
+  open: Slot[];
+}
+
+/**
+ * Start and sit for today (#816): the most valuable lineup the league's slots hold from the active
+ * players with a game, never an out or doubtful player. A questionable or day-to-day starter keeps
+ * his slot but says to check the report half an hour before tip-off; doubtful players are left to
+ * check rather than started. Pure, so the Today card and the tests share it.
+ */
+export function todayVerdict<P extends TodayPlayer>(
+  groups: { plays: TodaySlot<P>[]; listed: TodaySlot<P>[] },
+  slots: Slot[],
+  value: (id: string) => number,
+  position: (id: string) => string | null | undefined,
+): TodayVerdict {
+  const row = (s: TodaySlot<P>): VerdictRow => {
+    const listed = MAY_PLAY.has(s.player.injury_group ?? '');
+    const checkBy = listed && s.tipoff ? new Date(Date.parse(s.tipoff) - CHECK_BEFORE_TIP_MS).toISOString() : null;
+    return { id: s.player.player_id, tipoff: s.tipoff, checkBy };
+  };
+  const available = [...groups.plays, ...groups.listed.filter((s) => MAY_PLAY.has(s.player.injury_group ?? ''))];
+  const byId = new Map(available.map((s) => [s.player.player_id, s]));
+  const plan = bestLineup(
+    available.map((s) => ({ id: s.player.player_id, position: position(s.player.player_id), value: value(s.player.player_id) })),
+    slots,
+  );
+  const start = [...plan.started].map(([id, slot]) => ({ ...row(byId.get(id)!), slot }));
+  start.sort((a, b) => (a.tipoff ?? '').localeCompare(b.tipoff ?? ''));
+  return {
+    start,
+    bench: plan.benched.map((id) => row(byId.get(id)!)),
+    check: groups.listed.filter((s) => s.player.injury_group === 'doubtful').map(row),
+    out: groups.listed.filter((s) => s.player.injury_group === 'out').map(row),
+    open: plan.open,
+  };
 }

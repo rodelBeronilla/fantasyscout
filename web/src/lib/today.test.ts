@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { easternDate, todayGroups } from './today';
+import { easternDate, todayGroups, todayVerdict } from './today';
 
 const games = [
   { game_date: '2026-11-02', game_datetime_utc: '2026-11-03T00:30:00Z', home_team_id: 'BOS', away_team_id: 'NYK', home_team_tricode: 'BOS', away_team_tricode: 'NYK' },
@@ -32,5 +32,27 @@ describe('the game day', () => {
     // 03:30 UTC on Nov 3 is still the evening of Nov 2 in New York
     expect(easternDate(new Date('2026-11-03T03:30:00Z'))).toBe('2026-11-02');
     expect(easternDate(new Date('2026-11-03T06:00:00Z'))).toBe('2026-11-03');
+  });
+
+  it('starts the best lineup the slots hold, never an out or doubtful player, and says when to check a listed starter', () => {
+    const players = [
+      { player_id: 'a', team_id: 'BOS', injury_group: null }, // G, best
+      { player_id: 'b', team_id: 'MIA', injury_group: null }, // G, second
+      { player_id: 'c', team_id: 'NYK', injury_group: 'questionable' }, // C, starts with a check
+      { player_id: 'g', team_id: 'ORL', injury_group: null }, // G, third: no guard slot left
+      { player_id: 'h', team_id: 'MIA', injury_group: 'doubtful' },
+      { player_id: 'f', team_id: 'ORL', injury_group: 'out' },
+    ];
+    const pos: Record<string, string> = { a: 'G', b: 'G', c: 'C', g: 'G', h: 'F', f: 'F' };
+    const value: Record<string, number> = { a: 5, b: 4, c: 3, g: 1, h: 6, f: 9 };
+    const v = todayVerdict(todayGroups(players, games, '2026-11-02'), ['G', 'G', 'C'], (id) => value[id] ?? 0, (id) => pos[id]);
+    expect(v.start.map((r) => [r.id, r.slot]).sort()).toEqual([['a', 'G'], ['b', 'G'], ['c', 'C']]);
+    // the questionable center: check half an hour before his 00:30 UTC tip-off
+    expect(v.start.find((r) => r.id === 'c')?.checkBy).toBe('2026-11-03T00:00:00.000Z');
+    expect(v.start.find((r) => r.id === 'a')?.checkBy).toBeNull();
+    expect(v.bench.map((r) => r.id)).toEqual(['g']);
+    expect(v.check.map((r) => r.id)).toEqual(['h']);
+    expect(v.out.map((r) => r.id)).toEqual(['f']);
+    expect(v.open).toEqual([]);
   });
 });
