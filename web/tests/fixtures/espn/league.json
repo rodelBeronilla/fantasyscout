@@ -1,0 +1,64 @@
+{
+  "_comment": "The shape of ESPN's fantasy basketball league API (views mTeam, mRoster, mSettings, mMatchupScore), trimmed to the fields FantasyScout reads; made-up league, teams and players. The tests swap each player's fullName for a board player's.",
+  "id": 123456,
+  "seasonId": 2027,
+  "scoringPeriodId": 9,
+  "status": { "currentMatchupPeriod": 2, "firstScoringPeriod": 1, "finalScoringPeriod": 160, "isActive": true },
+  "settings": {
+    "name": "Hoops Club",
+    "size": 4,
+    "rosterSettings": { "lineupSlotCounts": { "0": 1, "1": 1, "2": 1, "3": 1, "4": 1, "5": 1, "6": 1, "11": 3, "12": 3, "13": 1 } },
+    "scoringSettings": {
+      "scoringType": "H2H_MOST_CATEGORIES",
+      "scoringItems": [
+        { "statId": 0, "points": 0 },
+        { "statId": 6, "points": 0 },
+        { "statId": 3, "points": 0 },
+        { "statId": 2, "points": 0 },
+        { "statId": 1, "points": 0 },
+        { "statId": 17, "points": 0 },
+        { "statId": 19, "points": 0 },
+        { "statId": 20, "points": 0 },
+        { "statId": 11, "points": 0 }
+      ]
+    },
+    "scheduleSettings": {
+      "matchupPeriodCount": 3,
+      "matchupPeriods": { "1": [1, 2, 3, 4, 5, 6, 7], "2": [8, 9, 10, 11, 12, 13, 14], "3": [15, 16, 17, 18, 19, 20, 21] }
+    }
+  },
+  "teams": [
+    {
+      "id": 1,
+      "name": "Brick City",
+      "roster": {
+        "entries": [
+          { "lineupSlotId": 4, "playerPoolEntry": { "player": { "fullName": "Player Zero" } } },
+          { "lineupSlotId": 0, "playerPoolEntry": { "player": { "fullName": "Player One" } } },
+          { "lineupSlotId": 12, "playerPoolEntry": { "player": { "fullName": "Player Six" } } }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "location": "Glass",
+      "nickname": "Cleaners",
+      "roster": {
+        "entries": [
+          { "lineupSlotId": 0, "playerPoolEntry": { "player": { "fullName": "Player Two" } } },
+          { "lineupSlotId": 12, "playerPoolEntry": { "player": { "fullName": "Nobody Atall" } } }
+        ]
+      }
+    },
+    { "id": 3, "name": "Third", "roster": { "entries": [{ "lineupSlotId": 0, "playerPoolEntry": { "player": { "fullName": "Player Three" } } }] } },
+    { "id": 4, "name": "Fourth", "roster": { "entries": [{ "lineupSlotId": 0, "playerPoolEntry": { "player": { "fullName": "Player Four" } } }] } }
+  ],
+  "schedule": [
+    { "id": 1, "matchupPeriodId": 1, "home": { "teamId": 1, "totalPoints": 5 }, "away": { "teamId": 2, "totalPoints": 4 }, "winner": "HOME" },
+    { "id": 2, "matchupPeriodId": 1, "home": { "teamId": 3, "totalPoints": 3 }, "away": { "teamId": 4, "totalPoints": 6 }, "winner": "AWAY" },
+    { "id": 3, "matchupPeriodId": 2, "home": { "teamId": 3, "totalPoints": 0 }, "away": { "teamId": 1, "totalPoints": 0 }, "winner": "UNDECIDED" },
+    { "id": 4, "matchupPeriodId": 2, "home": { "teamId": 2, "totalPoints": 0 }, "away": { "teamId": 4, "totalPoints": 0 }, "winner": "UNDECIDED" },
+    { "id": 5, "matchupPeriodId": 3, "home": { "teamId": 1, "totalPoints": 0 }, "away": { "teamId": 4, "totalPoints": 0 }, "winner": "UNDECIDED" },
+    { "id": 6, "matchupPeriodId": 3, "home": { "teamId": 2, "totalPoints": 0 }, "away": { "teamId": 3, "totalPoints": 0 }, "winner": "UNDECIDED" }
+  ]
+}

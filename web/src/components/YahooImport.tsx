@@ -70,10 +70,14 @@ function fromYahoo(
   return { setup, matched, total: data.teams.reduce((s, t) => s + t.players.length, 0), unmatched };
 }
 
-/** The import's frame: a card while the league is empty; with rosters in, one folded line (#716). */
+/**
+ * The import's frame: a card while the league is empty; with rosters in, one folded line (#716),
+ * open when My Team's "Re-sync" link (/league/#yahoo) brought the manager here (#815).
+ */
 function Shell({ folded, children }: { folded: boolean; children: ReactNode }) {
+  const [asked] = useState(() => typeof window !== 'undefined' && window.location.hash === '#yahoo');
   return folded ? (
-    <details className="rounded-lg border border-line bg-card px-3 py-2" data-testid="yahoo-folded">
+    <details className="rounded-lg border border-line bg-card px-3 py-2" id="yahoo" open={asked || undefined} data-testid="yahoo-folded">
       <summary className="cursor-pointer text-sm font-medium">Re-import from Yahoo</summary>
       <div className="mt-2">{children}</div>
     </details>
