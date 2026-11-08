@@ -320,7 +320,7 @@ export function Upgrades({
   );
   const labels = (cats: string[]) => cats.map((c) => CATEGORY_LABELS[c] ?? c).join(', ');
   return (
-    <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="upgrades-h" data-testid="upgrades">
+    <section id="upgrades" className="rounded-lg border border-line bg-card p-3" aria-labelledby="upgrades-h" data-testid="upgrades">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
           Moves

@@ -2,261 +2,29 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { downloadCsv, toCsv } from '../lib/csv';
 import { withRankTotal } from '../lib/streamer-rows';
-import { movesRotation } from '../lib/rotation-moves';
 import { fetchCurrentJson, fetchPageRows, getLatest, type League } from '../lib/data';
 import { useWarmUp } from '../lib/warm';
-import { blowout, nextGames } from '../lib/blowout';
-import { CATEGORIES, CATEGORY_LABELS, day, fmt, lineSource, pct } from '../lib/format';
+import { nextGames } from '../lib/blowout';
+import { CATEGORIES, CATEGORY_LABELS } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
-import { type CrewFields, crewText } from '../lib/referees';
-import { href } from '../lib/site';
 import { useWatchlist } from '../lib/watchlist';
-import { keptCategories, owners, useLeague } from '../lib/fantasy-league';
+import { assign, keptCategories, owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
-import { BlowoutTag, Card, Chip, InjuryTag, injuryDetail, LineupTag, lineupDay, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TopOutTag, TrendTag, Unvalidated } from './ui';
-import type { StreamerColumn, ExportedRow } from '../generated/columns';
-
-interface StreamerRowFields {
-  player_id: string;
-  /** Today's role from the league's starting lineups (NBA): starter, bench or inactive. */
-  lineup_role?: string | null;
-  lineup_confirmed?: boolean | null;
-  /** How widely ESPN leagues roster the player: most, many, some, few or rare. */
-  ownership_bucket?: string | null;
-  /** The team has nothing left to play for in the last stretch (fct_team_stakes). */
-  rest_risk?: boolean | null;
-  /** Sleeper leagues that added and dropped the player over the last day (NBA; null when not trending). */
-  sleeper_adds?: number | null;
-  sleeper_drops?: number | null;
-  /** adding or dropping across Sleeper leagues over the last day. */
-  waiver_trend?: string | null;
-  /** The team's largest-usage player, when the official report has them out for the next game (#485). */
-  top_teammate_out?: string | null;
-  top_teammate_out_usage?: number | null;
-  /** rising or falling ESPN ownership (both leagues). */
-  ownership_trend?: string | null;
-  /** What the team still plays for (fct_team_stakes), behind the rest-risk tag. */
-  team_stakes?: string | null;
-  /** Team games left this fantasy week, Monday to Sunday. */
-  games_this_week?: number | null;
-  news_flag?: string | null;
-  news_headline?: string | null;
-  news_date?: string | null;
-  lineup_date?: string | null;
-  injury_type?: string | null;
-  expected_return?: string | null;
-  injury_note?: string | null;
-  injury_news?: string | null;
-  injury_since?: string | null;
-  injury_source?: string | null;
-  official_game_date?: string | null;
-  official_report_at?: string | null;
-  full_name: string | null;
-  position: string | null;
-  team_id: string | null;
-  team_abbreviation: string | null;
-  season: string;
-  season_complete: boolean;
-  games_next_7: number;
-  last_game_date: string | null;
-  games_season: number | null;
-  minutes_avg_5: number | null;
-  minutes_trend: number | null;
-  minutes_baseline: number | null;
-  season_z_total: number | null;
-  last_10_z_total: number | null;
-  last_10_points_pg: number | null;
-  last_10_rebounds_total_pg: number | null;
-  last_10_assists_pg: number | null;
-  last_10_steals_pg: number | null;
-  last_10_blocks_pg: number | null;
-  last_10_three_pointers_made_pg: number | null;
-  last_10_turnovers_pg: number | null;
-  last_10_fga_pg: number | null;
-  last_10_fta_pg: number | null;
-  last_10_fgm_pg: number | null;
-  last_10_ftm_pg: number | null;
-  value_trend: number | null;
-  rank_total: number | null;
-  is_new_team: boolean | null;
-  prev_team_abbreviation: string | null;
-  points_avg_5: number | null;
-  rebounds_total_avg_5: number | null;
-  assists_avg_5: number | null;
-  steals_avg_5: number | null;
-  blocks_avg_5: number | null;
-  three_pointers_made_avg_5: number | null;
-  field_goal_pct_5: number | null;
-  free_throw_pct_5: number | null;
-  turnovers_avg_5: number | null;
-  injury_status: string | null;
-  injury_group: string | null;
-  [key: string]: unknown;
-}
-// Only columns the export ships (export/layout.py): a field it does not ship fails the type check (#479).
-type StreamerRow = ExportedRow<StreamerColumn, StreamerRowFields>;
-
-interface Game extends CrewFields {
-  game_id: string;
-  game_date: string;
-  days_ahead: number;
-  game_type: string;
-  home_team_id: string;
-  home_team_tricode: string;
-  away_team_id: string;
-  away_team_tricode: string;
-  home_matchup: number | null;
-  away_matchup: number | null;
-  /** The betting line, where the sportsbooks have posted one (silver game_lines). */
-  home_spread?: number | null;
-  /** Who posted the line and the day it was taken (#462). */
-  line_provider?: string | null;
-  line_as_of?: string | null;
-  over_under?: number | null;
-  home_implied_points?: number | null;
-  away_implied_points?: number | null;
-  /** Rest and travel (fct_team_game_context). */
-  home_back_to_back?: boolean | null;
-  away_back_to_back?: boolean | null;
-  away_miles_travelled?: number | null;
-  at_altitude?: boolean | null;
-}
-
-/** A team's side of a game in the week grid: the opponent, and the points the line implies. */
-interface GridCell {
-  label: string;
-  implied: number | null;
-  line: string | null;
-  /** The second night of a back-to-back for this team. */
-  backToBack: boolean;
-  /** Played 4,000 feet up or more. */
-  altitude: boolean;
-  miles: number | null;
-  /** The referee crew's chief and tendency, once assigned. */
-  crew: string | null;
-}
-
-function lineText(g: Game): string | null {
-  if (typeof g.over_under !== 'number' || typeof g.home_spread !== 'number') return null;
-  const favourite = g.home_spread <= 0 ? g.home_team_tricode : g.away_team_tricode;
-  const spread = g.home_spread === 0 ? 'even' : `${favourite} -${Math.abs(g.home_spread)}`;
-  const source = lineSource(g.line_provider, g.line_as_of);
-  return `Over/under ${g.over_under}, ${spread}${source ? ` (${source})` : ''}`;
-}
-
-/** A signing, waiver, trade or G League move (gold fct_transaction). */
-interface Move {
-  transaction_date: string;
-  team_abbreviation: string | null;
-  player_id: string | null;
-  move_type: string;
-  description: string;
-}
-
-const MOVE_LABEL: Record<string, string> = {
-  signing: 'Signed',
-  waive: 'Waived',
-  trade: 'Trade',
-  g_league: 'G League',
-  recall: 'Recalled',
-  suspension: 'Suspended',
-  other: 'Other',
-};
-
-/** The league's moves of the last two weeks that open or close minutes: ten at most. */
-function RecentMoves({ moves, league, start, minutes }: { moves: Move[]; league: League; start: string; minutes: (id: string) => number | null }) {
-  const since = addDays(start, -14);
-  const recent = moves.filter((m) => m.transaction_date >= since && movesRotation(m, minutes)).slice(0, 10);
-  if (!recent.length) return null;
-  return (
-    <Card title="Moves that change a rotation" id="moves">
-      <p className="mb-2 text-xs text-muted">
-        Trades, standard signings, and players with real minutes waived or suspended, in the last two weeks: a new role on a new team, or minutes opening up
-        behind a player who left.
-      </p>
-      <ul className="grid gap-1 text-sm" data-testid="recent-moves">
-        {recent.map((m) => (
-          <li key={`${m.transaction_date}-${m.team_abbreviation}-${m.description}`} className="flex flex-wrap items-baseline gap-x-2">
-            <span className="w-20 shrink-0 text-xs text-muted">{day(m.transaction_date)}</span>
-            <span className="w-10 shrink-0 font-medium">{m.team_abbreviation ?? '–'}</span>
-            <span className="rounded border border-line px-1 text-[10px] text-muted">{MOVE_LABEL[m.move_type] ?? m.move_type}</span>
-            <span className="min-w-0 flex-1">
-              {m.player_id ? (
-                <a href={href(`/p/${league}/${m.player_id}/`)} className="underline-offset-4 hover:underline">
-                  {m.description}
-                </a>
-              ) : (
-                m.description
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </Card>
-  );
-}
+import { topAdds } from '../lib/pickups-top';
+import { readRaw, storageKey, writeRaw } from '../lib/storage';
+import { type ReviewRow, teamReview, teamValues } from '../lib/team-review';
+import { hasWeekGames } from '../lib/week-value';
+import { addDays, dayLabel, type Game, type Move, RecentMoves, type TeamWeek, weekday, WeekGrid, WeeksGrid } from './PickupsSchedule';
+import { type Candidate, PickupsTable, type StreamerRow } from './PickupsTable';
+import { type ReviewState, TopAdds } from './TopAdds';
+import { Chip, lineupDay, Loading, Note, Problem, Segmented, TagLegend, Unvalidated } from './ui';
 
 interface Team {
   league: string;
   season: string;
   team_id: string;
   abbreviation: string;
-}
-
-/** Games per team per fantasy week for the rest of the season (fct_team_week_games). */
-interface TeamWeek {
-  league: string;
-  season: string;
-  team_id: string;
-  team_abbreviation: string | null;
-  fantasy_week: string;
-  week_start: string;
-  week_end: string;
-  is_current_week: boolean;
-  games: number;
-  games_left: number;
-  games_if_necessary: number;
-  game_dates: string | null;
-}
-
-/** A streamer row with what the page works out from the schedule and the picked needs. */
-interface Candidate extends StreamerRow {
-  games_window: number;
-  games_picked: number;
-  fit: number | null;
-  /** Average matchup over the window's games: value per game the opponents' defence and pace add. */
-  matchup: number | null;
-  /** Points the betting lines imply the team scores, averaged over the window's games with a line. */
-  implied_points: number | null;
-  /** Last-ten value per game over the window's games, plus each game's matchup. */
-  window_value: number | null;
-  /** Sleeper leagues that added the player minus those that dropped the player, over the last day. */
-  sleeper_net: number | null;
-  /** Last-ten value over the league's categories: an 8-category league leaves out turnovers. */
-  value_10: number | null;
-  /** What an average game of the last ten adds to the week's category totals (8 categories: no turnovers). */
-  production_10: number | null;
-}
-
-/** A count of Sleeper leagues, short: 26,552 as 26.6k. */
-function leagues(n: number): string {
-  const a = Math.abs(n);
-  return a >= 1000 ? `${(a / 1000).toFixed(1)}k` : String(a);
-}
-
-/** Net adds across Sleeper leagues over the last day, coloured by direction, with both counts in the tooltip. */
-function WaiverHeat({ row }: { row: Candidate }) {
-  if (row.sleeper_net === null) return <span className="text-muted">–</span>;
-  const n = row.sleeper_net;
-  const cls = n > 0 ? 'text-good' : n < 0 ? 'text-bad' : '';
-  const title = `${(row.sleeper_adds ?? 0).toLocaleString()} Sleeper leagues added the player and ${(row.sleeper_drops ?? 0).toLocaleString()} dropped the player in the last day`;
-  return (
-    <span className={cls} title={title} data-testid="waiver-heat">
-      {n > 0 ? '+' : n < 0 ? '−' : ''}
-      {leagues(n)}
-    </span>
-  );
 }
 
 type Health = 'all' | 'no_out' | 'healthy';
@@ -267,25 +35,8 @@ const FIRST_ROWS = 10;
 const HORIZONS = [3, 7, 14];
 // A league-sized pool on the board (teams x roster spots); players inside it are most likely rostered.
 const ROSTERED = { nba: [0, 100, 156, 200], wnba: [0, 60, 100, 140] } as const;
-
-function addDays(iso: string, n: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-// Built once, as in lib/format.ts (#557).
-const WEEKDAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
-const DAY_LABEL = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' });
-
-function weekday(iso: string): string {
-  return WEEKDAY.format(new Date(`${iso}T00:00:00Z`));
-}
-
-/** "Mon, Nov 9". */
-function dayLabel(iso: string): string {
-  return DAY_LABEL.format(new Date(`${iso}T00:00:00Z`));
-}
+/** Whether this viewer keeps "Explore all players" open (#819): closed until they open it. */
+const EXPLORE_KEY = storageKey('pickups-explore');
 
 /** A period of the manager's own (#523): any start and end day, kept in the URL (?from=&to=) so it can be shared. */
 interface Period {
@@ -327,177 +78,6 @@ function daysBetween(from: string, to: string): string[] {
 function nextMonday(iso: string): string {
   const d = new Date(`${iso}T00:00:00Z`).getUTCDay();
   return addDays(iso, d === 0 ? 1 : 8 - d);
-}
-
-function WeekGrid({ games, teams, days, picked }: { games: Game[]; teams: string[]; days: string[]; picked: Set<string> }) {
-  const inRange = new Set(days);
-  const byTeamDay = new Map<string, GridCell>();
-  const perDay = new Map<string, number>();
-  for (const g of games) {
-    if (!inRange.has(g.game_date)) continue;
-    const line = lineText(g);
-    const altitude = !!g.at_altitude;
-    const crew = crewText(g);
-    byTeamDay.set(`${g.home_team_tricode}|${g.game_date}`, {
-      label: `v ${g.away_team_tricode}`,
-      implied: g.home_implied_points ?? null,
-      line,
-      backToBack: !!g.home_back_to_back,
-      // the home team plays at its own altitude every other night: only the visitor is marked
-      altitude: false,
-      miles: null,
-      crew,
-    });
-    byTeamDay.set(`${g.away_team_tricode}|${g.game_date}`, {
-      label: `@ ${g.home_team_tricode}`,
-      implied: g.away_implied_points ?? null,
-      line,
-      backToBack: !!g.away_back_to_back,
-      altitude,
-      miles: g.away_miles_travelled ?? null,
-      crew,
-    });
-    perDay.set(g.game_date, (perDay.get(g.game_date) ?? 0) + 2);
-  }
-  const counts = new Map(teams.map((t) => [t, days.filter((d) => byTeamDay.has(`${t}|${d}`)).length]));
-  const ordered = [...teams].sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || a.localeCompare(b));
-  const busiest = Math.max(0, ...days.map((d) => perDay.get(d) ?? 0));
-  return (
-    <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Games by day">
-      <table className="w-full text-sm" data-testid="week-grid">
-        <thead>
-          <tr>
-            <Th>Team</Th>
-            <Th right>Games</Th>
-            {days.map((d) => {
-              const n = perDay.get(d) ?? 0;
-              const light = n > 0 && n <= busiest / 2;
-              return (
-                <th
-                  key={d}
-                  scope="col"
-                  className={`px-2 py-1.5 text-center text-xs font-medium whitespace-nowrap ${picked.has(d) ? 'text-accent' : 'text-muted'}`}
-                >
-                  {weekday(d)} {d.slice(5).replace('-', '/')}
-                  <div className={light ? 'font-semibold text-good' : ''} title={light ? 'Light day: fewer teams play, so a streamer fills a lineup spot more easily' : undefined}>
-                    {n} teams{light ? ' · light' : ''}
-                  </div>
-                </th>
-              );
-            })}
-          </tr>
-        </thead>
-        <tbody>
-          {ordered.map((t) => (
-            <tr key={t} className="border-t border-line">
-              <Td>{t}</Td>
-              <Td right>
-                <strong>{counts.get(t) ?? 0}</strong>
-              </Td>
-              {days.map((d) => {
-                const cell = byTeamDay.get(`${t}|${d}`);
-                return (
-                  <td
-                    key={d}
-                    className={`px-2 py-1.5 text-center text-xs whitespace-nowrap ${cell ? 'bg-accent/10 font-medium' : 'text-muted'}`}
-                    title={
-                      cell
-                        ? [
-                            cell.line ? `${cell.line}: ${t} implied ${cell.implied} points` : null,
-                            cell.backToBack ? 'Second night of a back-to-back: rest and minutes risk' : null,
-                            cell.miles ? `${cell.miles} miles from the previous game` : null,
-                            cell.altitude ? 'Visiting at altitude (4,000 ft or more)' : null,
-                            cell.crew,
-                          ]
-                            .filter(Boolean)
-                            .join('. ') || undefined
-                        : undefined
-                    }
-                  >
-                    {cell?.label ?? '·'}
-                    {cell?.backToBack && (
-                      <span className="ml-1 rounded border border-bad bg-card px-0.5 text-[11px] font-semibold text-bad" data-testid="back-to-back">
-                        B2B
-                      </span>
-                    )}
-                    {cell && typeof cell.implied === 'number' && (
-                      <div className="text-[10px] font-normal text-muted" data-testid="implied-points">
-                        {Math.round(cell.implied)} pts
-                      </div>
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/** Games per team per fantasy week, this week to the last scheduled game: busiest teams first. */
-function WeeksGrid({ weeks }: { weeks: TeamWeek[] }) {
-  const columns = [...new Map(weeks.map((w) => [w.fantasy_week, w])).values()].sort((a, b) => a.week_start.localeCompare(b.week_start));
-  const label = (w: TeamWeek) => w.team_abbreviation ?? w.team_id;
-  const teams = [...new Set(weeks.map(label))];
-  const cell = new Map(weeks.map((w) => [`${label(w)}|${w.fantasy_week}`, w]));
-  // In the current week only the games still to come count: a manager picking up today reads what is left.
-  const remaining = (w: TeamWeek | undefined) => (w ? (w.is_current_week ? w.games_left : w.games) : 0);
-  const total = new Map(teams.map((t) => [t, columns.reduce((n, c) => n + remaining(cell.get(`${t}|${c.fantasy_week}`)), 0)]));
-  const ordered = [...teams].sort((a, b) => (total.get(b) ?? 0) - (total.get(a) ?? 0) || a.localeCompare(b));
-  return (
-    <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Games per fantasy week">
-      <table className="w-full text-sm" data-testid="weeks-grid">
-        <thead>
-          <tr>
-            <Th>Team</Th>
-            <Th right>Games</Th>
-            {columns.map((c) => (
-              <th
-                key={c.fantasy_week}
-                scope="col"
-                className={`px-2 py-1.5 text-center text-xs font-medium whitespace-nowrap ${c.is_current_week ? 'text-accent' : 'text-muted'}`}
-                title={`${c.week_start} to ${c.week_end}`}
-              >
-                W{c.fantasy_week.slice(-2)}
-                <div>{c.week_start.slice(5).replace('-', '/')}</div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {ordered.map((t) => (
-            <tr key={t} className="border-t border-line">
-              <Td>{t}</Td>
-              <Td right>{total.get(t) ?? 0}</Td>
-              {columns.map((c) => {
-                const w = cell.get(`${t}|${c.fantasy_week}`);
-                const n = remaining(w);
-                const tone = n >= 4 ? 'font-semibold text-good' : n <= 2 ? 'text-muted' : '';
-                const title =
-                  w && c.is_current_week
-                    ? `${w.games_left} of ${w.games} left this week${w.game_dates ? ` (${w.game_dates})` : ''}`
-                    : (w?.game_dates ?? undefined);
-                return (
-                  <td
-                    key={c.fantasy_week}
-                    className={`px-2 py-1.5 text-center tabular-nums ${tone}`}
-                    title={title}
-                    data-testid={c.is_current_week ? 'week-left' : undefined}
-                  >
-                    {n}
-                    {w && c.is_current_week ? <span className="text-xs text-muted"> of {w.games}</span> : null}
-                    {w && w.games_if_necessary > 0 ? <span className="text-xs text-muted"> +{w.games_if_necessary}</span> : null}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
 }
 
 /** A numeric column of a streamer row, or 0. */
@@ -549,13 +129,15 @@ export default function Streamers() {
   const [sortChoice, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
+  const [exploreOpen, setExploreOpen] = useState(() => readRaw(EXPLORE_KEY) === 'open');
   // The note and the first rows paint first; the rest of the page of rows when the browser is idle (#562).
   const warm = useWarmUp(!!rows);
   const { watched, toggleWatched } = useWatchlist(league);
   // With the league's rosters in, leave out exactly the players on them (-1); otherwise a board-rank cut.
-  const [setup] = useLeague(league);
+  const [setup, updateLeague] = useLeague(league);
   const owner = useMemo(() => owners(setup), [setup]);
   const rostered = rosteredChoice ?? (owner.size ? -1 : 0);
+  const hasRosters = owner.size > 0;
 
   useEffect(() => {
     let live = true;
@@ -588,6 +170,34 @@ export default function Streamers() {
       live = false;
     };
   }, [league]);
+
+  // The board's rows behind the roster review (#819): who to drop for each top add, the player My
+  // Team's moves would let go. Read only once the league's rosters are in.
+  const [boardRows, setBoardRows] = useState<ReviewRow[] | null>(null);
+  const [boardFailed, setBoardFailed] = useState(false);
+  useEffect(() => {
+    if (!hasRosters) return;
+    let live = true;
+    fetchPageRows<ReviewRow>(`board/${league}`)
+      .then((b) => live && setBoardRows(b))
+      .catch(() => live && setBoardFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [league, hasRosters]);
+  const values = useMemo(
+    () =>
+      boardRows
+        ? teamValues(boardRows, { scoring: setup.scoring, punts: setup.punts, weights: setup.weights, teams: setup.teams, rosterSpots: setup.rosterSpots })
+        : null,
+    [boardRows, setup.scoring, setup.punts, setup.weights, setup.teams, setup.rosterSpots],
+  );
+  // the week unit when My Team opens on it: a head-to-head league with games left this week
+  const reviewed = useMemo(
+    () => (boardRows && values ? teamReview(boardRows, setup, values, setup.format === 'h2h' && hasWeekGames(boardRows)) : null),
+    [boardRows, values, setup],
+  );
+  const boardById = useMemo(() => new Map((boardRows ?? []).map((r) => [r.player_id, r])), [boardRows]);
 
   // Each team's next game, for the blowout flag on its starters (#486).
   const nextByTeam = useMemo(() => nextGames(games), [games]);
@@ -657,10 +267,8 @@ export default function Streamers() {
   );
   // The categories the league does not count: its punts (#661), and turnovers in an 8-category
   // league. Their parts come out of the last-ten value and production (#666).
-  const dropped = useMemo(() => {
-    const kept = keptCategories(setup);
-    return points ? [] : CATEGORIES.filter((c) => !kept.includes(c));
-  }, [setup, points]);
+  const kept = useMemo(() => keptCategories(setup), [setup]);
+  const dropped = useMemo(() => (points ? [] : CATEGORIES.filter((c) => !kept.includes(c))), [kept, points]);
   const value10 = useCallback(
     (r: StreamerRow): number | null => {
       if (points) return last10Points(r);
@@ -737,11 +345,32 @@ export default function Streamers() {
     }, sortDir);
   }, [candidates, positions, team, minGames, minMinutes, health, rostered, owner, activePicked, watchOnly, watched, startersOnly, addingOnly, hasHeat, sortKey, sortDir]);
 
+  // The top adds (#819): the window's ranking over the players free in the league (with no rosters,
+  // outside a league-sized pool on the board), each with the drop the roster review names.
+  // only the manager's own roster entered: the rest of the league is unknown, so the board-rank cut stays
+  const rivalsIn = setup.rosters.some((r, t) => t !== setup.mine && r.length > 0);
+  const adds = useMemo(() => {
+    const positionOf = new Map(candidates.map((r) => [r.player_id, r.position]));
+    const outsidePool = (r: Candidate) => r.rank_total === null || r.rank_total > leaguePool;
+    return topAdds({
+      rows: candidates,
+      available: (r) => !owner.has(r.player_id) && (rivalsIn || outsidePool(r)),
+      needs: [...needs],
+      kept,
+      openDays: activePicked.size,
+      drops: reviewed?.drops ?? [],
+      roster: reviewed?.mine ?? [],
+      position: (id) => boardById.get(id)?.position ?? positionOf.get(id),
+    });
+  }, [candidates, rivalsIn, owner, leaguePool, needs, kept, activePicked, reviewed, boardById]);
+
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="streamers" />;
 
   const season = rows[0]?.season ?? '';
   const complete = rows.length > 0 && rows.every((r) => r.season_complete);
+  // the page leads with the top adds while the window has games; else the list is the answer
+  const leads = !scheduleError && inWeek && !complete;
   const teamOptions = [...new Set(rows.map((r) => r.team_abbreviation).filter((t): t is string => !!t))].sort();
   const sortBy = (key: string, dir: SortDir = 'desc') => {
     if (sortKey === key) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
@@ -750,11 +379,6 @@ export default function Streamers() {
       setSortDir(dir);
     }
   };
-  const col = (key: string, label: string, title?: string) => (
-    <SortTh right active={sortKey === key} dir={sortDir} onClick={() => sortBy(key)} title={title}>
-      {label}
-    </SortTh>
-  );
   const toggleNeed = (c: string) => {
     const next = toggle(needs, c);
     setNeeds(next);
@@ -762,6 +386,14 @@ export default function Streamers() {
       setSortKey('fit');
       setSortDir('desc');
     } else if (sortKey === 'fit') setSortKey('minutes_trend');
+  };
+  const rememberExplore = (open: boolean) => {
+    setExploreOpen(open);
+    writeRaw(EXPLORE_KEY, open ? 'open' : 'closed');
+  };
+  const openExplore = () => {
+    rememberExplore(true);
+    window.requestAnimationFrame(() => document.getElementById('trending')?.scrollIntoView({ block: 'start' }));
   };
   const hasTrend = (rows ?? []).some((r) => r.ownership_trend);
   const exportCsv = () => {
@@ -779,6 +411,24 @@ export default function Streamers() {
     ...(weeksLeft ? [{ id: 'weeks' as const, label: 'Weeks to the end' }] : []),
   ];
   const shownSchedule = scheduleViews.some((v) => v.id === scheduleView) ? scheduleView : (scheduleViews[0]?.id ?? 'window');
+
+  // the top adds' window and ranking, in words
+  const windowText = period ? `from ${dayLabel(period.from)} to ${dayLabel(period.to)}` : horizonChoice === 'week' ? 'left this week' : `in the next ${horizon} days`;
+  const needWords = [...needs].map((c) => CATEGORY_LABELS[c] ?? c).join(', ');
+  const openWords = [...activePicked].sort().map(weekday).join(', ');
+  const context = [
+    needs.size ? `Ranked by the last ten games in ${needWords}` : 'Ranked by window value',
+    activePicked.size ? `with a game on your open days (${openWords})` : null,
+    rivalsIn
+      ? 'from the players on no roster in your league'
+      : `from the players outside the board's top ${leaguePool}, likely free in a league of ${setup.teams} × ${setup.rosterSpots}${hasRosters ? ' (add the other teams’ rosters to leave out exactly theirs)' : ''}`,
+  ]
+    .filter(Boolean)
+    .join(', ')
+    .concat('.');
+  const reviewState: ReviewState = !hasRosters ? 'no-rosters' : boardFailed ? 'failed' : !boardRows ? 'loading' : reviewed ? 'ready' : 'no-team';
+  const nameOf = (id: string) => (boardById.get(id)?.full_name as string | null | undefined) ?? rows.find((r) => r.player_id === id)?.full_name ?? id;
+  const detailOf = (id: string) => [boardById.get(id)?.position, boardById.get(id)?.team_abbreviation].filter(Boolean).join(', ');
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
@@ -800,341 +450,265 @@ export default function Streamers() {
         </Note>
       ) : null}
 
-      <Card
-        title={scheduleError ? 'Trending up' : complete || !inWeek ? 'Finished strong' : 'Best pickups this window'}
+      {leads && (
+        <TopAdds
+          adds={adds}
+          league={league}
+          windowText={windowText}
+          context={context}
+          review={reviewState}
+          dropsLeft={(reviewed?.drops.length ?? 0) > 0}
+          nameOf={nameOf}
+          detailOf={detailOf}
+          onApply={(add, drop) => updateLeague((s) => assign(assign(s, drop, null), add, s.mine))}
+          onExplore={openExplore}
+          openDays={activePicked.size > 0}
+        />
+      )}
+
+      <details
+        className="min-w-0 rounded-lg border border-line bg-card p-4"
         id="trending"
-        badge={<Unvalidated issue={762} what="The window value" />}
+        data-testid="explore"
+        open={leads ? exploreOpen : true}
+        onToggle={(e) => {
+          // only a choice counts: the list is always open when there are no top adds to lead with
+          if (leads && e.currentTarget.open !== exploreOpen) rememberExplore(e.currentTarget.open);
+        }}
       >
-        {inWeek && (
-          <div data-testid="window-controls">
-            <div className="mb-3 flex flex-wrap items-center gap-3">
-              <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Window">
-                {[...HORIZONS, 'week' as const].map((h) => (
+        <summary className="cursor-pointer text-sm font-medium tracking-wide text-muted uppercase" data-testid="explore-summary">
+          {leads ? 'Explore all players' : scheduleError ? 'Trending up' : 'Finished strong'}
+          {leads && <span className="ml-2 text-xs font-normal tracking-normal normal-case">the window, open days, needs, filters and the full table ({list.length} players)</span>}
+        </summary>
+        <div className="mt-3">
+          <p className="mb-3 text-xs text-muted">
+            The window value and the ranking on it:
+            <Unvalidated issue={762} what="The window value" />
+          </p>
+          {inWeek && (
+            <div data-testid="window-controls">
+              <div className="mb-3 flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-1" role="radiogroup" aria-label="Window">
+                  {[...HORIZONS, 'week' as const].map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      role="radio"
+                      aria-checked={!period && horizonChoice === h}
+                      onClick={() => {
+                        setHorizonChoice(h);
+                        pickPeriod(null);
+                      }}
+                      title={h === 'week' ? 'The rest of the fantasy week, to Sunday' : undefined}
+                      className={`rounded-full border px-3 py-1 text-sm ${!period && horizonChoice === h ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
+                    >
+                      {h === 'week' ? `This week (${weekDays} ${weekDays === 1 ? 'day' : 'days'})` : `${h} days`}
+                    </button>
+                  ))}
                   <button
-                    key={h}
                     type="button"
                     role="radio"
-                    aria-checked={!period && horizonChoice === h}
-                    onClick={() => {
-                      setHorizonChoice(h);
-                      pickPeriod(null);
-                    }}
-                    title={h === 'week' ? 'The rest of the fantasy week, to Sunday' : undefined}
-                    className={`rounded-full border px-3 py-1 text-sm ${!period && horizonChoice === h ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
+                    aria-checked={!!period}
+                    onClick={() => pickPeriod(period ?? { from: nextMonday(start), to: addDays(nextMonday(start), 6) })}
+                    title="Any start and end day: next week, say, or Monday to Friday"
+                    className={`rounded-full border px-3 py-1 text-sm ${period ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
                   >
-                    {h === 'week' ? `This week (${weekDays} ${weekDays === 1 ? 'day' : 'days'})` : `${h} days`}
+                    Custom
                   </button>
-                ))}
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={!!period}
-                  onClick={() => pickPeriod(period ?? { from: nextMonday(start), to: addDays(nextMonday(start), 6) })}
-                  title="Any start and end day: next week, say, or Monday to Friday"
-                  className={`rounded-full border px-3 py-1 text-sm ${period ? 'border-accent bg-accent text-accent-fg' : 'border-line'}`}
-                >
-                  Custom
-                </button>
-              </div>
-              {period && (
-                <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="period">
-                  <label className="flex items-center gap-1">
-                    <span className="text-muted">From</span>
-                    <input
-                      type="date"
-                      value={period.from}
-                      min={start || undefined}
-                      max={lastScheduled || undefined}
-                      onChange={(e) => pickPeriod({ from: e.target.value, to: period.to })}
-                      aria-label="Period start"
-                      className="rounded border border-line bg-bg px-2 py-1"
-                    />
-                  </label>
-                  <label className="flex items-center gap-1">
-                    <span className="text-muted">To</span>
-                    <input
-                      type="date"
-                      value={period.to}
-                      min={period.from}
-                      max={lastScheduled || undefined}
-                      onChange={(e) => pickPeriod({ from: period.from, to: e.target.value })}
-                      aria-label="Period end"
-                      className="rounded border border-line bg-bg px-2 py-1"
-                    />
-                  </label>
-                  <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 6) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
-                    Next week
-                  </button>
-                  <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 4) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
-                    Next week, Mon to Fri
-                  </button>
-                  {lastScheduled && period.to > lastScheduled && (
-                    <span className="text-xs text-muted" data-testid="period-note">
-                      The schedule is published through {dayLabel(lastScheduled)}; later days show no games yet.
-                    </span>
-                  )}
                 </div>
-              )}
-              <fieldset className="flex flex-wrap items-center gap-1" data-testid="open-days">
-                <legend className="sr-only">Open lineup days</legend>
-                <span className="mr-1 text-xs text-muted">Open days:</span>
-                {days.map((d) => (
-                  <Chip key={d} label={`Open on ${d}`} checked={pickedDays.has(d)} onChange={() => setPickedDays(toggle(pickedDays, d))}>
-                    {weekday(d)} {d.slice(8)}
-                  </Chip>
-                ))}
-              </fieldset>
+                {period && (
+                  <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="period">
+                    <label className="flex items-center gap-1">
+                      <span className="text-muted">From</span>
+                      <input
+                        type="date"
+                        value={period.from}
+                        min={start || undefined}
+                        max={lastScheduled || undefined}
+                        onChange={(e) => pickPeriod({ from: e.target.value, to: period.to })}
+                        aria-label="Period start"
+                        className="rounded border border-line bg-bg px-2 py-1"
+                      />
+                    </label>
+                    <label className="flex items-center gap-1">
+                      <span className="text-muted">To</span>
+                      <input
+                        type="date"
+                        value={period.to}
+                        min={period.from}
+                        max={lastScheduled || undefined}
+                        onChange={(e) => pickPeriod({ from: period.from, to: e.target.value })}
+                        aria-label="Period end"
+                        className="rounded border border-line bg-bg px-2 py-1"
+                      />
+                    </label>
+                    <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 6) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
+                      Next week
+                    </button>
+                    <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 4) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
+                      Next week, Mon to Fri
+                    </button>
+                    {lastScheduled && period.to > lastScheduled && (
+                      <span className="text-xs text-muted" data-testid="period-note">
+                        The schedule is published through {dayLabel(lastScheduled)}; later days show no games yet.
+                      </span>
+                    )}
+                  </div>
+                )}
+                <fieldset className="flex flex-wrap items-center gap-1" data-testid="open-days">
+                  <legend className="sr-only">Open lineup days</legend>
+                  <span className="mr-1 text-xs text-muted">Open days:</span>
+                  {days.map((d) => (
+                    <Chip key={d} label={`Open on ${d}`} checked={pickedDays.has(d)} onChange={() => setPickedDays(toggle(pickedDays, d))}>
+                      {weekday(d)} {d.slice(8)}
+                    </Chip>
+                  ))}
+                </fieldset>
+              </div>
             </div>
-          </div>
-        )}
-        <div className="mb-3 grid gap-3">
-          <fieldset className="flex flex-wrap items-center gap-1" data-testid="needs">
-            <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Categories you need (rank by last-ten value in them)</legend>
-            {CATEGORIES.map((c) => (
-              <Chip key={c} label={`Need ${CATEGORY_LABELS[c]}`} checked={needs.has(c)} onChange={() => toggleNeed(c)}>
-                {CATEGORY_LABELS[c]}
-              </Chip>
-            ))}
-          </fieldset>
-          <div className="flex flex-wrap items-center gap-3" data-testid="streamer-filters">
-            <div className="flex items-center gap-1" role="group" aria-label="Position">
-              {POSITION_LETTERS.map((p) => (
-                <Chip key={p} label={`Position ${p}`} checked={positions.has(p)} onChange={() => setPositions(toggle(positions, p))}>
-                  {p}
+          )}
+          <div className="mb-3 grid gap-3">
+            <fieldset className="flex flex-wrap items-center gap-1" data-testid="needs">
+              <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Categories you need (rank by last-ten value in them)</legend>
+              {CATEGORIES.map((c) => (
+                <Chip key={c} label={`Need ${CATEGORY_LABELS[c]}`} checked={needs.has(c)} onChange={() => toggleNeed(c)}>
+                  {CATEGORY_LABELS[c]}
                 </Chip>
               ))}
-            </div>
-            <label className="text-sm">
-              <span className="sr-only">Team</span>
-              <select value={team} onChange={(e) => setTeam(e.target.value)} className={select}>
-                <option value="">All teams</option>
-                {teamOptions.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
+            </fieldset>
+            <div className="flex flex-wrap items-center gap-3" data-testid="streamer-filters">
+              <div className="flex items-center gap-1" role="group" aria-label="Position">
+                {POSITION_LETTERS.map((p) => (
+                  <Chip key={p} label={`Position ${p}`} checked={positions.has(p)} onChange={() => setPositions(toggle(positions, p))}>
+                    {p}
+                  </Chip>
                 ))}
-              </select>
-            </label>
-            {inWeek && (
+              </div>
               <label className="text-sm">
-                Min games next {horizon}{' '}
-                <select value={minGames} onChange={(e) => setMinGames(Number(e.target.value))} className={select}>
-                  {[0, 1, 2, 3, 4, 5, 6].filter((g) => g <= horizon).map((g) => (
-                    <option key={g} value={g}>
-                      {g}
+                <span className="sr-only">Team</span>
+                <select value={team} onChange={(e) => setTeam(e.target.value)} className={select}>
+                  <option value="">All teams</option>
+                  {teamOptions.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
                     </option>
                   ))}
                 </select>
               </label>
-            )}
-            <label className="text-sm" title="Minutes per game over the last five games">
-              Min MPG (5){' '}
-              <select value={minMinutes} onChange={(e) => setMinMinutes(Number(e.target.value))} className={select}>
-                {[0, 10, 15, 20, 25].map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              <span className="sr-only">Health</span>
-              <select value={health} onChange={(e) => setHealth(e.target.value as Health)} className={select}>
-                <option value="all">Everyone</option>
-                <option value="no_out">Hide players ruled out</option>
-                <option value="healthy">Healthy only</option>
-              </select>
-            </label>
-            <label className="text-sm" title="Leave out players ranked inside this many on the board: in a league that size they are most likely rostered">
-              Likely available{' '}
-              <select value={rostered} onChange={(e) => setRostered(Number(e.target.value))} className={select}>
-                {owner.size > 0 && <option value={-1}>not on a roster in my league</option>}
-                {rows.some((r) => r.ownership_bucket) && <option value={-2}>rostered in under 10% of ESPN leagues</option>}
-                {rosteredCuts.map((n) => (
-                  <option key={n} value={n}>
-                    {n ? `outside the top ${n}${n === leaguePool ? ` (your league: ${setup.teams} × ${setup.rosterSpots})` : ''}` : 'everyone'}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={watchOnly} onChange={(e) => setWatchOnly(e.target.checked)} />
-              Watchlist only ({watched.size})
-            </label>
-            {rows.some((r) => r.lineup_role) && (
-              <label className="flex items-center gap-2 text-sm" title="From the league's starting lineups for the next game day (NBA)">
-                <input type="checkbox" checked={startersOnly} onChange={(e) => setStartersOnly(e.target.checked)} />
-                <span data-testid="starters-label">Starting {lineupDay(rows.find((r) => r.lineup_date)?.lineup_date)}</span>
+              {inWeek && (
+                <label className="text-sm">
+                  Min games next {horizon}{' '}
+                  <select value={minGames} onChange={(e) => setMinGames(Number(e.target.value))} className={select}>
+                    {[0, 1, 2, 3, 4, 5, 6].filter((g) => g <= horizon).map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <label className="text-sm" title="Minutes per game over the last five games">
+                Min MPG (5){' '}
+                <select value={minMinutes} onChange={(e) => setMinMinutes(Number(e.target.value))} className={select}>
+                  {[0, 10, 15, 20, 25].map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
               </label>
-            )}
-            {(hasHeat || hasTrend) && (
-              <label
-                className="flex items-center gap-2 text-sm"
-                title={hasHeat ? 'Players more Sleeper leagues added than dropped in the last day' : 'Players rising in ESPN leagues: rostered in a point or more of them than before'}
-              >
-                <input type="checkbox" checked={addingOnly} onChange={(e) => setAddingOnly(e.target.checked)} />
-                {hasHeat ? 'Being added on Sleeper' : 'Rising in ESPN leagues'}
+              <label className="text-sm">
+                <span className="sr-only">Health</span>
+                <select value={health} onChange={(e) => setHealth(e.target.value as Health)} className={select}>
+                  <option value="all">Everyone</option>
+                  <option value="no_out">Hide players ruled out</option>
+                  <option value="healthy">Healthy only</option>
+                </select>
               </label>
-            )}
-            <label className="flex items-center gap-2 text-sm" title="Team, games played, minutes, the last five games' box score, the board rank and the last game">
-              <input type="checkbox" checked={moreCols} onChange={(e) => setMoreCols(e.target.checked)} />
-              More columns
-            </label>
-            <span className="text-sm text-muted">{list.length} players</span>
-            <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="streamers-csv">
-              Export CSV
-            </button>
+              <label className="text-sm" title="Leave out players ranked inside this many on the board: in a league that size they are most likely rostered">
+                Likely available{' '}
+                <select value={rostered} onChange={(e) => setRostered(Number(e.target.value))} className={select}>
+                  {owner.size > 0 && <option value={-1}>not on a roster in my league</option>}
+                  {rows.some((r) => r.ownership_bucket) && <option value={-2}>rostered in under 10% of ESPN leagues</option>}
+                  {rosteredCuts.map((n) => (
+                    <option key={n} value={n}>
+                      {n ? `outside the top ${n}${n === leaguePool ? ` (your league: ${setup.teams} × ${setup.rosterSpots})` : ''}` : 'everyone'}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={watchOnly} onChange={(e) => setWatchOnly(e.target.checked)} />
+                Watchlist only ({watched.size})
+              </label>
+              {rows.some((r) => r.lineup_role) && (
+                <label className="flex items-center gap-2 text-sm" title="From the league's starting lineups for the next game day (NBA)">
+                  <input type="checkbox" checked={startersOnly} onChange={(e) => setStartersOnly(e.target.checked)} />
+                  <span data-testid="starters-label">Starting {lineupDay(rows.find((r) => r.lineup_date)?.lineup_date)}</span>
+                </label>
+              )}
+              {(hasHeat || hasTrend) && (
+                <label
+                  className="flex items-center gap-2 text-sm"
+                  title={hasHeat ? 'Players more Sleeper leagues added than dropped in the last day' : 'Players rising in ESPN leagues: rostered in a point or more of them than before'}
+                >
+                  <input type="checkbox" checked={addingOnly} onChange={(e) => setAddingOnly(e.target.checked)} />
+                  {hasHeat ? 'Being added on Sleeper' : 'Rising in ESPN leagues'}
+                </label>
+              )}
+              <label className="flex items-center gap-2 text-sm" title="Team, games played, minutes, the last five games' box score, the board rank and the last game">
+                <input type="checkbox" checked={moreCols} onChange={(e) => setMoreCols(e.target.checked)} />
+                More columns
+              </label>
+              <span className="text-sm text-muted">{list.length} players</span>
+              <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="streamers-csv">
+                Export CSV
+              </button>
+            </div>
           </div>
+          <TagLegend />
+          <PickupsTable
+            rows={list.slice(0, warm ? shown : Math.min(shown, FIRST_ROWS))}
+            league={league}
+            nextByTeam={nextByTeam}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            sortBy={sortBy}
+            inWeek={inWeek}
+            moreCols={moreCols}
+            gamesLabel={period ? 'Period' : `Next ${horizon}`}
+            gamesTitle={period ? `Team games from ${dayLabel(period.from)} to ${dayLabel(period.to)}` : `Team games in the next ${horizon} days`}
+            points={points}
+            dropped={dropped}
+            needs={needs.size}
+            openDays={activePicked.size}
+            hasTrend={hasTrend}
+            hasHeat={hasHeat}
+            watched={watched}
+            toggleWatched={toggleWatched}
+          />
+          {list.length > shown && (
+            <button type="button" onClick={() => setShown(shown + PAGE)} className="mt-3 rounded border border-line px-3 py-1 text-sm hover:bg-card">
+              Show {Math.min(PAGE, list.length - shown)} more
+            </button>
+          )}
+          {points && (
+            <p className="mt-2 text-xs text-muted" data-testid="points-note">
+              Your league scores points: FPts (10) and the window value are fantasy points per game over the last ten games under your
+              league&apos;s weights (the matchup adjustment is in category units and is left out).
+            </p>
+          )}
+          {hasHeat && (
+            <p className="mt-2 text-xs text-muted">
+              Waiver heat from{' '}
+              <a href="https://sleeper.com" className="underline underline-offset-4">
+                Sleeper
+              </a>
+              : the players its leagues added and dropped most in the last day.
+            </p>
+          )}
         </div>
-        <TagLegend />
-        <div className="table-scroll max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Streamer candidates">
-          <table className="w-full text-sm" data-testid="trending">
-            <thead>
-              <tr>
-                <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')} pin="first" title="The player, with injury, lineup and news tags">
-                  Player
-                </SortTh>
-                {inWeek && col('window_value', 'Window value', 'What the player adds to the window: last-ten production per game (counting stats and shooting above the pool, turnovers subtracted) times games in the window, plus each game’s matchup. The default sort: it finds the week’s best pickups most often (streamer signals notebook)')}
-                {inWeek && col('games_window', period ? 'Period' : `Next ${horizon}`, period ? `Team games from ${dayLabel(period.from)} to ${dayLabel(period.to)}` : `Team games in the next ${horizon} days`)}
-                {inWeek && col('matchup', 'Matchup', 'Average value per game the opponents add or take away in this window: their defence and the expected pace (small: about 0.2 for one standard deviation of defence)')}
-                {inWeek && moreCols && col('implied_points', 'Team pts', 'Points the betting lines imply the team scores, per game in the window that has a line: a high-scoring game means more counting stats')}
-                {moreCols && col('games_season', 'GP', 'Games played this season: a short sample makes the trends below less sure (#463)')}
-                {moreCols && col('minutes_avg_5', 'Min (5)', 'Minutes per game, last five games')}
-                {moreCols && col('minutes_baseline', 'Min (base)', 'Minutes per game before the last five games, blended with last season')}
-                {col('minutes_trend', 'Min trend', 'Last five games minus the baseline')}
-                {(moreCols || !inWeek) && col(
-                  'value_10',
-                  points ? 'FPts (10)' : 'Value (10)',
-                  points
-                    ? "Fantasy points per game over the last ten games, scored with your league's weights"
-                    : dropped.length
-                      ? `Total category z-score over the last ten games, leaving out ${dropped.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}`
-                      : 'Total category z-score over the last ten games',
-                )}
-                {col('value_trend', 'Value trend', 'Last-ten value minus the baseline (this season blended with last)')}
-                {/* The box-score columns are the last five games, like Min (5) (#456); behind More columns (#722). */}
-                {moreCols && col('points_avg_5', 'PTS (5)', 'Points per game, last five games')}
-                {moreCols && col('rebounds_total_avg_5', 'REB (5)', 'Rebounds per game, last five games')}
-                {moreCols && col('assists_avg_5', 'AST (5)', 'Assists per game, last five games')}
-                {moreCols && col('steals_avg_5', 'STL (5)', 'Steals per game, last five games')}
-                {moreCols && col('blocks_avg_5', 'BLK (5)', 'Blocks per game, last five games')}
-                {moreCols && col('three_pointers_made_avg_5', '3PM (5)', 'Three-pointers made per game, last five games')}
-                {moreCols && col('field_goal_pct_5', 'FG% (5)', 'Field-goal percentage over the last five games')}
-                {moreCols && col('free_throw_pct_5', 'FT% (5)', 'Free-throw percentage over the last five games')}
-                {moreCols && col('turnovers_avg_5', 'TO (5)', 'Turnovers per game, last five games')}
-                {needs.size > 0 && col('fit', 'Need fit', 'Last-ten z-score summed over the categories you need')}
-                {activePicked.size > 0 && col('games_picked', 'Open days', 'Games on the days you have open')}
-                {hasTrend && (
-                  <Th right>
-                    <span title="Rising or falling across ESPN leagues (ownership up or down a point or more)">ESPN</span>
-                  </Th>
-                )}
-                {hasHeat && col('sleeper_net', 'Sleeper', 'Sleeper leagues that added the player minus those that dropped the player, last 24 hours (from Sleeper)')}
-                {moreCols && col('rank_total', 'Board #', 'Rank on the board with the default league settings (12 teams of 13 in the NBA, 10 of 10 in the WNBA); inside a league-sized pool usually means rostered')}
-                {moreCols && (
-                  <Th>
-                    <span title="The date of the player's most recent game">Last game</span>
-                  </Th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {list.slice(0, warm ? shown : Math.min(shown, FIRST_ROWS)).map((r) => (
-                <tr key={r.player_id} className="border-t border-line">
-                  <td className="pin max-w-[11rem] px-2 py-1.5 sm:max-w-none">
-                    <span className="flex flex-wrap items-center gap-1 sm:flex-nowrap">
-                      <Star on={watched.has(r.player_id)} label={r.full_name ?? r.player_id} onToggle={() => toggleWatched(r.player_id)} />
-                      <a href={href(`/p/${league}/${r.player_id}/`)} className="whitespace-nowrap underline-offset-4 hover:underline">
-                        {r.full_name ?? r.player_id}
-                      </a>
-                      {r.is_new_team && <NewTeam from={r.prev_team_abbreviation} />}
-                      <LineupTag role={r.lineup_role} confirmed={r.lineup_confirmed} date={r.lineup_date} injuryGroup={r.injury_group} />
-                      <RestRiskTag risk={r.rest_risk} stakes={r.team_stakes} />
-                      <BlowoutTag risk={blowout(league, r.lineup_role, r.team_id ? nextByTeam.get(r.team_id) : undefined)} />
-                      <TopOutTag name={r.top_teammate_out} usage={r.top_teammate_out_usage} />
-                      <NewsTag flag={r.news_flag} headline={r.news_headline} date={r.news_date} />
-                      <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />
-                    </span>
-                    {/* team and position under the name, as on the board (#722) */}
-                    <span className="block text-[11px] text-muted" data-testid="team-pos">
-                      {r.position ?? '–'} · {r.team_abbreviation ?? '–'}
-                    </span>
-                  </td>
-                  {inWeek && <Td right>{fmt(r.window_value, 2)}</Td>}
-                  {inWeek && <Td right>{r.games_window}</Td>}
-                  {inWeek && (
-                    <Td right>
-                      <Signed value={r.matchup} />
-                    </Td>
-                  )}
-                  {inWeek && moreCols && <Td right>{fmt(r.implied_points, 1)}</Td>}
-                  {moreCols && <Td right>{r.games_season ?? '–'}</Td>}
-                  {moreCols && <Td right>{fmt(r.minutes_avg_5)}</Td>}
-                  {moreCols && <Td right>{fmt(r.minutes_baseline)}</Td>}
-                  <Td right>
-                    <Signed value={r.minutes_trend} digits={1} />
-                  </Td>
-                  {(moreCols || !inWeek) && <Td right>{fmt(r.value_10, 2)}</Td>}
-                  <Td right>
-                    <Signed value={r.value_trend} />
-                  </Td>
-                  {moreCols && <Td right>{fmt(r.points_avg_5)}</Td>}
-                  {moreCols && <Td right>{fmt(r.rebounds_total_avg_5)}</Td>}
-                  {moreCols && <Td right>{fmt(r.assists_avg_5)}</Td>}
-                  {moreCols && <Td right>{fmt(r.steals_avg_5)}</Td>}
-                  {moreCols && <Td right>{fmt(r.blocks_avg_5)}</Td>}
-                  {moreCols && <Td right>{fmt(r.three_pointers_made_avg_5)}</Td>}
-                  {moreCols && <Td right>{pct(r.field_goal_pct_5)}</Td>}
-                  {moreCols && <Td right>{pct(r.free_throw_pct_5)}</Td>}
-                  {moreCols && <Td right>{fmt(r.turnovers_avg_5)}</Td>}
-                  {needs.size > 0 && (
-                    <Td right>
-                      <Signed value={r.fit} />
-                    </Td>
-                  )}
-                  {activePicked.size > 0 && (
-                    <Td right>
-                      {r.games_picked}/{activePicked.size}
-                    </Td>
-                  )}
-                  {hasTrend && (
-                    <Td right>
-                      <TrendTag trend={r.ownership_trend} />
-                    </Td>
-                  )}
-                  {hasHeat && (
-                    <Td right>
-                      <WaiverHeat row={r} />
-                    </Td>
-                  )}
-                  {moreCols && <Td right>{r.rank_total ?? '–'}</Td>}
-                  {moreCols && <Td>{day(r.last_game_date)}</Td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {list.length > shown && (
-          <button type="button" onClick={() => setShown(shown + PAGE)} className="mt-3 rounded border border-line px-3 py-1 text-sm hover:bg-card">
-            Show {Math.min(PAGE, list.length - shown)} more
-          </button>
-        )}
-        {points && (
-          <p className="mt-2 text-xs text-muted" data-testid="points-note">
-            Your league scores points: FPts (10) and the window value are fantasy points per game over the last ten games under your
-            league&apos;s weights (the matchup adjustment is in category units and is left out).
-          </p>
-        )}
-        {hasHeat && (
-          <p className="mt-2 text-xs text-muted">
-            Waiver heat from{' '}
-            <a href="https://sleeper.com" className="underline underline-offset-4">
-              Sleeper
-            </a>
-            : the players its leagues added and dropped most in the last day.
-          </p>
-        )}
-      </Card>
+      </details>
 
       {scheduleViews.length > 0 && (
         <details className="rounded-lg border border-line bg-card p-3" data-testid="schedule-card" id="schedule">
