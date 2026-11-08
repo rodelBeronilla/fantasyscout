@@ -6,6 +6,7 @@
 import { CATEGORY_LABELS, CATEGORY_WORDS, fmt } from '../lib/format';
 import type { League } from '../lib/data';
 import type { LeagueSetup } from '../lib/fantasy-league';
+import { readLine, type ScoreRead } from '../lib/game-state';
 import { isRatio, matchupCall, swingCategory, type WeekMatchup } from '../lib/matchup';
 import { type StreamMove, streamTargets } from '../lib/matchup-streams';
 import { pickupsPath } from '../lib/pickups-url';
@@ -13,7 +14,10 @@ import { href } from '../lib/site';
 import { Signed, Td, Th, Unvalidated } from './ui';
 
 /** Where the week's totals start: ESPN's score so far, or the projection alone and why. */
-export type MatchupBasis = { live: true; projectedOnly: string[] } | { live: false; reason: 'not-espn' | 'no-score' | 'stale' };
+export type MatchupBasis = { live: true; projectedOnly: string[]; read?: ScoreRead } | { live: false; reason: 'not-espn' | 'no-score' | 'stale' };
+
+/** A count of games left, to a tenth when a game under way counts for its minutes left. */
+const gamesLeft = (n: number) => fmt(n, Number.isInteger(Math.round(n * 10) / 10) ? 0 : 1); // def: tenths
 
 const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
 const dayName = (iso: string) => DAY.format(new Date(`${iso}T12:00:00Z`));
@@ -150,9 +154,14 @@ export function Matchup({
               win {match.wins} of {match.cats.length} categories
             </strong>{' '}
             against {them}, lose {match.losses}
-            {match.close ? `, with ${match.close} too close to call (within 5%)` : ''}. Games left this week: you {match.mine.games}, {them}{' '}
-            {match.theirs.games}.
+            {match.close ? `, with ${match.close} too close to call (within 5%)` : ''}. Games left this week: you {gamesLeft(match.mine.games)}, {them}{' '}
+            {gamesLeft(match.theirs.games)}.
           </p>
+          {basis?.live && basis.read && (
+            <p className="mt-1 text-xs text-muted" data-testid="matchup-read">
+              {readLine(basis.read)}
+            </p>
+          )}
           {note && (
             <p className="mt-1 text-xs text-muted" data-testid="matchup-basis">
               {note}

@@ -9,6 +9,7 @@ import { normalizeSlots, type Slots } from './lineup';
 import { accountStatus, loadSaved, saveSoon } from './account';
 import type { League } from './data';
 import { CATEGORIES } from './format';
+import type { GamesRead } from './game-state';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
@@ -105,6 +106,8 @@ export interface LeagueSource {
   fixtures?: [number, number][][];
   /** How ESPN's records count a matchup: each category, or one result a week (#821). */
   tally?: 'categories' | 'matchups';
+  /** Today's games on ESPN's scoreboard when the score so far was read: which it already holds (#875). */
+  games?: GamesRead;
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -224,6 +227,15 @@ const isPair = (x: unknown): x is [number, number] => Array.isArray(x) && x.leng
 const cleanFixtures = (raw: unknown): [number, number][][] | undefined =>
   Array.isArray(raw) && raw.every((w) => Array.isArray(w) && w.every(isPair)) ? (raw as [number, number][][]) : undefined;
 
+const isShare = (v: unknown) => typeof v === 'number' && v >= 0 && v <= 1;
+/** A stored scoreboard read, or undefined when it is missing or malformed. */
+const cleanGames = (raw: unknown): GamesRead | undefined => {
+  const g = raw as Partial<GamesRead> | null;
+  if (!g || !isDay(g.date) || typeof g.scoreAt !== 'number' || !count(g.games) || !count(g.started)) return undefined;
+  if (!g.left || typeof g.left !== 'object' || !Object.values(g.left).every(isShare) || !isIds(g.off)) return undefined;
+  return { date: g.date, scoreAt: g.scoreAt, left: g.left, off: g.off, games: g.games!, started: g.started! };
+};
+
 /** A stored source as this build reads it, or undefined when it is missing or malformed. */
 function cleanSource(raw: unknown): LeagueSource | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
@@ -232,6 +244,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
   if (!Array.isArray(s.rosters) || !s.rosters.every(isIds)) return undefined;
   const playoffWeeks = cleanPlayoffWeeks(s.playoffWeeks);
   const fixtures = cleanFixtures(s.fixtures);
+  const games = cleanGames(s.games);
   return {
     host: s.host,
     leagueId: s.leagueId,
@@ -246,6 +259,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     ...(playoffWeeks ? { playoffWeeks } : {}),
     ...(fixtures ? { fixtures } : {}),
     ...(s.tally === 'categories' || s.tally === 'matchups' ? { tally: s.tally } : {}),
+    ...(games ? { games } : {}),
   };
 }
 

@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { LeagueSetup } from '../lib/fantasy-league';
-import { ago, espnSetup, espnSyncLine, fetchEspnLeague, syncDue, yahooStale } from '../lib/league-sync';
+import { ago, espnSetup, espnSyncLine, readEspn, SYNC_EVERY_MS, syncDue, yahooStale } from '../lib/league-sync';
 import { href } from '../lib/site';
 
 type Players = { player_id: string; full_name: string | null }[];
@@ -17,25 +17,32 @@ export interface SyncState {
   resync: () => void;
 }
 
+/** How often an open page in view checks whether its copy is due; the read itself waits for SYNC_EVERY_MS. */
+const LOOK_EVERY_MS = 60 * 1000; // def: a minute, in ms
+
 /**
  * Re-imports an ESPN league once the board's players are in to match names against, when the copy
  * is more than a quarter hour old and the manager has not edited the rosters since; one request at
- * a time.
+ * a time. A page left open does the same while it is in view, and checks the moment its tab comes
+ * back into view (#875). A failed read waits a full quarter hour before the page asks ESPN again.
  */
 export function useEspnSync(setup: LeagueSetup, update: (change: (current: LeagueSetup) => LeagueSetup) => void, players: Players | null): SyncState {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [tried, setTried] = useState(0);
   const running = useRef(false);
   const source = setup.source;
 
   const run = useCallback(() => {
     if (!players || source?.host !== 'espn' || !source.season || running.current) return;
     running.current = true;
+    setTried(Date.now());
     setBusy(true);
     setError(null);
     const { leagueId, season } = source;
-    fetchEspnLeague(leagueId, season)
-      .then((imported) => update((current) => espnSetup(imported, players, { leagueId, season, now: Date.now() }, current).setup))
+    readEspn(leagueId, season, Date.now())
+      .then(({ league, games }) => update((current) => espnSetup(league, players, { leagueId, season, now: Date.now(), games }, current).setup))
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => {
         running.current = false;
@@ -43,11 +50,23 @@ export function useEspnSync(setup: LeagueSetup, update: (change: (current: Leagu
       });
   }, [players, source, update]);
 
-  const due = syncDue(setup, Date.now()) === 'due';
   useEffect(() => {
-    // once per visit: an error waits for the next one rather than asking again
-    if (due && !error) run();
-  }, [due, error, run]);
+    // a hidden tab asks nothing of ESPN; it looks again when it comes back into view
+    const look = () => {
+      if (document.visibilityState === 'visible') setNow(Date.now());
+    };
+    const tick = window.setInterval(look, LOOK_EVERY_MS);
+    document.addEventListener('visibilitychange', look);
+    return () => {
+      window.clearInterval(tick);
+      document.removeEventListener('visibilitychange', look);
+    };
+  }, []);
+
+  const due = syncDue(setup, now) === 'due' && now - tried >= SYNC_EVERY_MS;
+  useEffect(() => {
+    if (due) run();
+  }, [due, run]);
 
   return { busy, error, resync: run };
 }

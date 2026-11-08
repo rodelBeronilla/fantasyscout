@@ -9,6 +9,10 @@ import { expect, test } from './fixtures';
 const espnFixture = JSON.parse(readFileSync(new URL('./fixtures/espn/league.json', import.meta.url), 'utf8')) as {
   teams: { roster: { entries: { playerPoolEntry: { player: { fullName: string } } }[] } }[];
 };
+/** ESPN's NBA scoreboard for 8 November 2026 at 8:15 pm ET (#875): two games final, three under way, two to come. */
+const scoreboardFixture = JSON.parse(readFileSync(new URL('./fixtures/espn/scoreboard.json', import.meta.url), 'utf8')) as {
+  events: { status: { type: { state: string } } }[];
+};
 
 // The preview server serves the fixture data build (tests/fixtures/data) under /data/.
 
@@ -2299,6 +2303,8 @@ test('the League page imports a public ESPN league: settings, lineup, teams and 
     asked = route.request().url();
     return route.request().url().includes('/leagues/999999') ? route.fulfill({ status: 401, json: { messages: ['not authorized'] } }) : route.fulfill({ json: league });
   });
+  // the import reads ESPN's scoreboard with the league (#875): a day with no games
+  await page.route('https://site.api.espn.com/**', (route) => route.fulfill({ json: { events: [] } }));
   await page.goto('/league/?league=nba');
   const card = page.getByTestId('espn-import');
   await card.getByLabel('ESPN league address or ID').fill('https://fantasy.espn.com/basketball/league?leagueId=123456');
@@ -2326,6 +2332,8 @@ async function espnLeagueAndCopy(
   page: Page,
   edit: (rosters: string[][], id: (i: number) => string) => string[][] = (r) => r,
   then = Date.now() - 2 * 60 * 60 * 1000,
+  // ESPN's scoreboard at each read (#875): by default a day with no games
+  scoreboard: (read: number) => unknown = () => ({ events: [] }),
 ) {
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string; full_name: string; season: string }[];
   const made = ['Player Zero', 'Player One', 'Player Two', 'Player Three', 'Player Four', 'Player Five', 'Player Six'];
@@ -2369,7 +2377,12 @@ async function espnLeagueAndCopy(
     asked.push(route.request().url());
     return route.fulfill({ json: league });
   });
-  return { asked, id };
+  const boards: string[] = [];
+  await page.route('https://site.api.espn.com/**', (route) => {
+    boards.push(route.request().url());
+    return route.fulfill({ json: scoreboard(boards.length) });
+  });
+  return { asked, boards, id };
 }
 
 test("an ESPN league re-syncs on My Team: when it synced, the roster changes, and this week's opponent from ESPN's schedule (#815)", async ({ page }) => {
@@ -2433,6 +2446,60 @@ test("an ESPN category league's matchup starts from the score so far and leads w
   const points = card.getByTestId('matchup-row').filter({ hasText: 'PTS' });
   expect(Number(await points.locator('td').nth(1).innerText())).toBeGreaterThanOrEqual(1000);
   await expect(points).toContainText('win');
+});
+
+test("the evening matchup reads ESPN's scoreboard with the score and says how many of today's games it holds (#875)", async ({ page }) => {
+  // 8:15 pm ET on Sunday 8 November: 01:15 UTC on the 9th
+  const now = new Date('2026-11-09T01:15:00Z').getTime();
+  await page.clock.setFixedTime(now);
+  const { asked, boards } = await espnLeagueAndCopy(page, undefined, now - 2 * 60 * 60 * 1000, () => scoreboardFixture);
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('sync-summary')).toContainText('Synced just now');
+  expect(asked).toHaveLength(1);
+  // the Eastern day's scoreboard, though it is already the 9th in UTC
+  expect(boards).toEqual(['https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261108']);
+  const card = page.getByTestId('matchup');
+  await expect(card.getByTestId('matchup-summary')).toContainText('From the score so far plus the games each lineup starts');
+  await expect(card.getByTestId('matchup-read')).toHaveText(
+    "Score so far from ESPN at 20:15 ET, with 5 of today's 7 games started: the score holds what they have played, so the games left count only the rest.",
+  );
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fantasyscout:league:nba') ?? '{}') as { source: { games: { started: number; left: Record<string, number> } } });
+  expect(stored.source.games.started).toBe(5);
+  expect(stored.source.games.left['CHI']).toBe(0);
+  expect(stored.source.games.left['LAC']).toBeUndefined();
+});
+
+test('an open My Team reads the league again every quarter hour while in view, and when its tab comes back (#875)', async ({ page }) => {
+  const start = new Date('2026-11-09T01:15:00Z').getTime();
+  await page.clock.install({ time: start });
+  // the second read finds every game under way or final
+  const allStarted = { ...scoreboardFixture, events: scoreboardFixture.events.map((e) => ({ ...e, status: { period: 4, clock: 0, type: { state: 'post', completed: true } } })) };
+  const { asked, boards } = await espnLeagueAndCopy(page, undefined, start - 2 * 60 * 60 * 1000, (read) => (read === 1 ? scoreboardFixture : allStarted));
+  await page.goto('/team/?league=nba');
+  const read = page.getByTestId('matchup').getByTestId('matchup-read');
+  await expect(read).toContainText("with 5 of today's 7 games started");
+  expect(asked).toHaveLength(1);
+  // a hidden tab asks nothing of ESPN, however long it waits
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.clock.runFor('01:00:00');
+  expect(asked).toHaveLength(1);
+  // back in view, it reads the league and the scoreboard again at once
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(read).toContainText("with all 7 of today's games started");
+  expect(asked).toHaveLength(2);
+  expect(boards).toHaveLength(2);
+  await expect(read).toContainText('Score so far from ESPN at 21:15 ET');
+  // in view, not again inside the quarter hour, and again once it has passed
+  await page.clock.runFor('10:00');
+  expect(asked).toHaveLength(2);
+  await page.clock.runFor('06:00');
+  await expect.poll(() => asked.length).toBe(3);
 });
 
 test('an ESPN league edited by hand is not re-synced until the manager asks, and then it is (#815)', async ({ page }) => {

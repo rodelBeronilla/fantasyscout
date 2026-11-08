@@ -7,7 +7,7 @@ import { useState } from 'react';
 
 import { espnLeagueId } from '../lib/espn-league';
 import type { LeagueSetup } from '../lib/fantasy-league';
-import { espnSetup, fetchEspnLeague } from '../lib/league-sync';
+import { espnSetup, readEspn } from '../lib/league-sync';
 
 const field = 'rounded border border-line bg-bg px-2 py-1 text-sm';
 const button = 'rounded border border-accent bg-accent px-3 py-1 text-sm text-accent-fg disabled:opacity-50';
@@ -35,8 +35,8 @@ export default function EspnImport({
     setBusy(true);
     setNote(null);
     try {
-      const league = await fetchEspnLeague(id, season);
-      const { setup, matched, total, unmatched } = espnSetup(league, players, { leagueId: id, season, now: Date.now() }, null);
+      const { league, games } = await readEspn(id, season, Date.now());
+      const { setup, matched, total, unmatched } = espnSetup(league, players, { leagueId: id, season, now: Date.now(), games }, null);
       onImport(setup);
       setNote(
         `Imported ${league.name}: ${league.teams.length} teams, ${matched} of ${total} players matched.` +

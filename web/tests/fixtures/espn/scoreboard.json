@@ -1,0 +1,257 @@
+{
+  "_comment": "The shape of ESPN's public NBA scoreboard (site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261108), trimmed to the fields FantasyScout reads: each game's tip-off, teams and status. The games are 8 November 2026's, as the fixture schedule has them; the statuses are made up for a read at 8:15 pm ET (01:15 UTC on the 9th): two final, three under way, two not started.",
+  "events": [
+    {
+      "date": "2026-11-08T20:30Z",
+      "shortName": "PHI @ CHI",
+      "status": {
+        "clock": 0,
+        "displayClock": "0.0",
+        "period": 4,
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final",
+          "shortDetail": "Final"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "team": {
+                "abbreviation": "CHI"
+              }
+            },
+            {
+              "homeAway": "away",
+              "team": {
+                "abbreviation": "PHI"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-11-08T23:00Z",
+      "shortName": "LAL @ DET",
+      "status": {
+        "clock": 0,
+        "displayClock": "0.0",
+        "period": 5,
+        "type": {
+          "id": "3",
+          "name": "STATUS_FINAL",
+          "state": "post",
+          "completed": true,
+          "description": "Final",
+          "detail": "Final/OT",
+          "shortDetail": "Final/OT"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "team": {
+                "abbreviation": "DET"
+              }
+            },
+            {
+              "homeAway": "away",
+              "team": {
+                "abbreviation": "LAL"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-11-09T00:00Z",
+      "shortName": "UTAH @ MIN",
+      "status": {
+        "clock": 312,
+        "displayClock": "5:12",
+        "period": 3,
+        "type": {
+          "id": "2",
+          "name": "STATUS_IN_PROGRESS",
+          "state": "in",
+          "completed": false,
+          "description": "In Progress",
+          "detail": "5:12 - 3rd Quarter",
+          "shortDetail": "5:12 - 3rd"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "team": {
+                "abbreviation": "MIN"
+              }
+            },
+            {
+              "homeAway": "away",
+              "team": {
+                "abbreviation": "UTAH"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-11-09T00:30Z",
+      "shortName": "BKN @ DAL",
+      "status": {
+        "clock": 0,
+        "displayClock": "0.0",
+        "period": 2,
+        "type": {
+          "id": "23",
+          "name": "STATUS_HALFTIME",
+          "state": "in",
+          "completed": false,
+          "description": "Halftime",
+          "detail": "Halftime",
+          "shortDetail": "Halftime"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "team": {
+                "abbreviation": "DAL"
+              }
+            },
+            {
+              "homeAway": "away",
+              "team": {
+                "abbreviation": "BKN"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-11-09T01:00Z",
+      "shortName": "BOS @ MIL",
+      "status": {
+        "clock": 540,
+        "displayClock": "9:00",
+        "period": 1,
+        "type": {
+          "id": "2",
+          "name": "STATUS_IN_PROGRESS",
+          "state": "in",
+          "completed": false,
+          "description": "In Progress",
+          "detail": "9:00 - 1st Quarter",
+          "shortDetail": "9:00 - 1st"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "team": {
+                "abbreviation": "MIL"
+              }
+            },
+            {
+              "homeAway": "away",
+              "team": {
+                "abbreviation": "BOS"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-11-09T02:00Z",
+      "shortName": "NO @ LAC",
+      "status": {
+        "clock": 0,
+        "displayClock": "0.0",
+        "period": 0,
+        "type": {
+          "id": "1",
+          "name": "STATUS_SCHEDULED",
+          "state": "pre",
+          "completed": false,
+          "description": "Scheduled",
+          "detail": "Sun, November 8th at 9:00 PM EST",
+          "shortDetail": "11/8 - 9:00 PM EST"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "team": {
+                "abbreviation": "LAC"
+              }
+            },
+            {
+              "homeAway": "away",
+              "team": {
+                "abbreviation": "NO"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "date": "2026-11-09T02:00Z",
+      "shortName": "MIA @ SAC",
+      "status": {
+        "clock": 0,
+        "displayClock": "0.0",
+        "period": 0,
+        "type": {
+          "id": "1",
+          "name": "STATUS_SCHEDULED",
+          "state": "pre",
+          "completed": false,
+          "description": "Scheduled",
+          "detail": "Sun, November 8th at 9:00 PM EST",
+          "shortDetail": "11/8 - 9:00 PM EST"
+        }
+      },
+      "competitions": [
+        {
+          "competitors": [
+            {
+              "homeAway": "home",
+              "team": {
+                "abbreviation": "SAC"
+              }
+            },
+            {
+              "homeAway": "away",
+              "team": {
+                "abbreviation": "MIA"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

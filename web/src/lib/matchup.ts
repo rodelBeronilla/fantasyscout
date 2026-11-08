@@ -90,7 +90,8 @@ export interface LiveWeek {
 
 /**
  * The week's projected final from the score so far (#817): each side's totals to date plus the
- * games its lineup starts from today. A percentage adds the shots, made over attempted across
+ * games its lineup starts from today, a game of today's that had tipped at the read counted only
+ * for what was still to play of it (#875). A percentage adds the shots, made over attempted across
  * both. A category goes from the score only when both sides have it; otherwise both project it.
  */
 export function liveWeek(cats: string[], soFar: { mine: ScoreSoFar; theirs: ScoreSoFar }, rest: { mine: WeekTotals; theirs: WeekTotals }): LiveWeek {
