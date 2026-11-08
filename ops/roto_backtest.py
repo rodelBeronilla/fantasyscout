@@ -6,7 +6,8 @@
 #755 (ADR 0021) found the rotisserie chances too timid at the first game day, with one projection
 spread for every horizon. The rework splits a projection's error in two (ops.standings.spreads):
 a part that lasts however many games are left (``standings.projection_spread``, a) and one whose
-variance falls with them (``standings.projection_spread_games``, b): p(g)² = a² + b² ÷ g.
+variance falls with them (b, the ``projection_games`` of ops.standings.spreads): p(g)² = a² + b² ÷
+g. It failed (ADR 0022): b came out 0 in every fold, so the web keeps the constant spread.
 
 The seasons #755 judged showed that failure, so they are spent for this parameter; the locked
 seasons stay reserved for the epic's final hold-out. The evidence is therefore cross-validated
@@ -15,7 +16,7 @@ rotisserie chance reads (``standings.spread_scale``, then a and b) on the other 
 league and judging the season held out, against a coin flip, the naive manager and Constant (b =
 0, refitted in the same fold). The leagues, drafts and checkpoints are ops.standings_backtest's.
 Intervals are 95%, from ``backtest.bootstrap`` resamples of the held-out season's weeks, centred
-as there. ``fit`` gives what ships: the same rule on all three tuning seasons.
+as there. ``fit`` is the same rule on all three tuning seasons, what would have shipped.
 """
 
 from __future__ import annotations

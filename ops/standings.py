@@ -67,18 +67,15 @@ def spreads(
     """The standard deviation of the gap between two teams' totals per category (standingsModel).
 
     ``players`` may be an array (one league each): the result then has a last axis of ``cats``.
-    ``scale``, ``projection`` and ``projection_games`` override the registry's, for the fits'
-    grids. A rotisserie projection's error has a part that lasts (``projection``) and one whose
-    variance falls with the games left (``projection_games``, #866).
+    ``scale`` and ``projection`` override the registry's, for the fits' grids.
+    ``projection_games`` is the rework #866 judged and the web does not have: a part of a
+    rotisserie projection's error whose variance falls with the games left. It failed (ADR 0022),
+    so it defaults to none.
     """
     p = registry() if p is None else p
     k = float(p["standings.spread_scale"][league]) if scale is None else scale
     proj = float(p["standings.projection_spread"][league]) if projection is None else projection
-    passing = (
-        float(p["standings.projection_spread_games"][league])
-        if projection_games is None
-        else projection_games
-    )
+    passing = 0.0 if projection_games is None else projection_games
     gpw = float(p["standings.games_per_week"][league])
     n = np.maximum(np.asarray(players, dtype=float), 1)[..., None]
     games = gpw if fmt == "h2h" else max(games_left, gpw)
