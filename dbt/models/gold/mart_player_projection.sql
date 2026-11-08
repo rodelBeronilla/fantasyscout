@@ -209,6 +209,8 @@ weighted as (
         sum({{ fantasy_recency('season_rank') }} * games) as sample_weight,
         sum({{ fantasy_recency('season_rank') }} * games_regular) as regular_games_weight,
         sum(case when games_regular > 0 then {{ fantasy_recency('season_rank') }} * team_games else 0 end) as team_games_weight,
+        -- the current season's team games in that weight: none when he has not played this season
+        sum(case when season_rank = 1 and games_regular > 0 then team_games else 0 end) as team_games_current,
         -- minutes per game: games by minutes recency
         sum({{ fantasy_minutes_recency('season_rank') }} * role_factor * games) as minutes_games_weight,
         sum({{ fantasy_minutes_recency('season_rank') }} * role_factor * games * coalesce(minutes_pg, 0)) as minutes_weighted,
@@ -375,7 +377,10 @@ projected as (
         -- counting its games here too charged the injury twice (#690)
         least(1.0, (w.regular_games_weight + {{ fantasy_setting('durability_games', 'w.league') }} * {{ durability['typical_share'] }})
             / (w.team_games_weight
-                - case when la.games_since_return = 0 then {{ var('fantasy_recency')[0] }} * la.absence_games else 0 end
+                -- only the absence's games the weight holds: the current season's, and none for a
+                -- player who has not played this season (#827), else the share could go negative
+                - case when la.games_since_return = 0
+                    then {{ var('fantasy_recency')[0] }} * least(la.absence_games, w.team_games_current) else 0 end
                 + {{ fantasy_setting('durability_games', 'w.league') }})) as games_share_healthy,
         {%- for s in production %}
         rl.prior_{{ s }}_pg{{ "," if not loop.last }}
