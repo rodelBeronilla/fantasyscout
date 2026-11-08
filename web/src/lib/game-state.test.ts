@@ -5,7 +5,8 @@ import scoreboard from '../../tests/fixtures/espn/scoreboard.json';
 import schedule from '../../tests/fixtures/data/builds/fixture/schedule/nba.json';
 import { DEFAULT_SETTINGS, normalize } from './fantasy-league';
 import { espnAbbrev, fetchGamesRead, parseScoreboard, readLine, shareLeft, tonight } from './game-state';
-import { readEspn } from './league-sync';
+import { readEspn, weekScore } from './league-sync';
+import { applyYahooImport, parseYahooHash } from './yahoo-bookmarklet';
 import { daysLeftInWeek, startsByPlayer, weekPlan } from './lineup';
 import { liveWeek, weekTotals } from './matchup';
 import { easternDate, type TodayGame } from './today';
@@ -197,5 +198,39 @@ describe('the scoreboard is read with the league, for the Eastern day (#875)', (
     expect(normalize({ source: { ...source, games } }, DEFAULT_SETTINGS.nba).source?.games).toEqual(games);
     const bad = { ...games, left: { CHI: 2 } };
     expect(normalize({ source: { ...source, games: bad } } as never, DEFAULT_SETTINGS.nba).source?.games).toBeUndefined();
+  });
+});
+
+describe('a Yahoo score read on an evening with games under way goes by the tip-off times (#874, #875)', () => {
+  // the Yahoo bookmark ran at 8:15 pm ET on Sunday 8 November: five of the seven games had tipped
+  const labels = ['Team', 'FGM/A*', 'FG%', 'FTM/A*', 'FT%', '3PTM', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO', ''];
+  const row = (name: string, pts: string) => [name, '172/369', '.466', '112/159', '.704', '35', pts, '202', '111', '31', '24', '57', '4'];
+  const payload = {
+    v: 3,
+    leagueId: '12345',
+    mine: 1,
+    teams: [1, 2, 3, 4].map((id) => ({ id, name: `Team ${id}`, players: [] })),
+    matchup: { labels, rows: [{ id: 1, cells: row('Team 1', '491') }, { id: 2, cells: row('Team 2', '579') }] },
+  };
+  const parsed = parseYahooHash(`#yahoo=${encodeURIComponent(JSON.stringify(payload))}`)!;
+  const setup = applyYahooImport(normalize({ teams: 4, format: 'h2h' }, DEFAULT_SETTINGS.nba), parsed, [], READ).setup;
+
+  it('starts from the score with no scoreboard read, so the games tipped by the read count as in it', () => {
+    expect(setup.source?.host).toBe('yahoo');
+    expect(setup.source?.games).toBeUndefined();
+    expect(weekScore(setup, SUNDAY, (ms) => easternDate(new Date(ms)))).toMatchObject({ mine: { totals: { z_points: 491 } } });
+    const t = tonight(games, SUNDAY, setup.source?.games, setup.source!.syncedAt);
+    expect(t).toMatchObject({ games: 7, started: 5, byClock: true, at: READ });
+    // Utah tipped at 7 pm ET: none of its game is left to count; New Orleans tips at 9 pm: all of it is
+    expect(t.left.get(teamId('UTA'))).toBe(0);
+    expect(t.left.get(teamId('NOP'))).toBe(1);
+  });
+
+  it('names Yahoo and the read time on the score line', () => {
+    const t = tonight(games, SUNDAY, setup.source?.games, setup.source!.syncedAt);
+    expect(readLine(t, setup.source?.host)).toBe(
+      "Score so far from Yahoo at 20:15 ET, with 5 of today's 7 games started (by the tip-off times: Yahoo sends no game states): the score holds what they have played, so the games left count only the rest.",
+    );
+    expect(readLine(t)).toContain('Score so far from ESPN at 20:15 ET');
   });
 });

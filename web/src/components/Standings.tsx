@@ -5,17 +5,31 @@ import { Td, Th, Tile, Unvalidated } from './ui';
 
 /**
  * The league's real standings at the top of My Team (#822): the manager's place and how far back
- * of the team above and of first, from ESPN's records at the last sync. The whole table, and the
- * projected power rankings, are one click down.
+ * of the team above and of first, from ESPN's or Yahoo's records at the last import, or the records
+ * entered on the League page (#874). The whole table, and the projected power rankings, are one
+ * click down.
  */
-export function Standings({ table, mine, names, power }: { table: Standing[]; mine: number; names: string[]; power: ReactNode }) {
+export function Standings({
+  table,
+  mine,
+  names,
+  power,
+  from,
+}: {
+  table: Standing[];
+  mine: number;
+  names: string[];
+  power: ReactNode;
+  /** Where the records came from, e.g. "from ESPN at the last sync". */
+  from: string;
+}) {
   const line = standingLine(table, mine);
   const me = table.find((s) => s.team === mine);
   return (
     <Tile title="Standings" id="standings" testid="standings">
       {line && me && (
         <p className="mt-1 text-sm" data-testid="standing-line">
-          <strong>{line}</strong> <span className="text-muted">({recordText(me.record)}, from ESPN at the last sync)</span>
+          <strong>{line}</strong> <span className="text-muted">({recordText(me.record)}, {from})</span>
         </p>
       )}
       <details className="mt-2 text-sm" data-testid="standings-all">
@@ -27,7 +41,7 @@ export function Standings({ table, mine, names, power }: { table: Standing[]; mi
                 <Th right>#</Th>
                 <Th>Team</Th>
                 <Th right>
-                  <span title="Won, lost and tied, as ESPN counts them: matchups, or categories in a league that scores each one">W-L-T</span>
+                  <span title="Won, lost and tied, as the league counts them: matchups, or categories in a league that scores each one">W-L-T</span>
                 </Th>
                 <Th right>
                   <span title="Games back of first: half the gap in wins plus half the gap in losses">GB</span>

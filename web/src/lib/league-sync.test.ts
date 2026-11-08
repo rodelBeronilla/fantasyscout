@@ -252,7 +252,7 @@ describe("the playoffs from ESPN's settings and schedule (#821)", () => {
     ]);
     expect(s.source?.tally).toBe('matchups');
     // a Friday to a Thursday spans two Monday-to-Sunday weeks
-    expect(s.playoffs).toEqual({ teams: 2, weeks: 2 });
+    expect(s.playoffs).toEqual({ teams: 2, weeks: 2, start: '2001-09-17' });
     const again = normalize(JSON.parse(JSON.stringify(s)) as LeagueSetup, DEFAULT_SETTINGS.nba);
     expect(again.source?.playoffWeeks).toEqual(s.source?.playoffWeeks);
     expect(again.source?.fixtures).toEqual(s.source?.fixtures);
@@ -266,7 +266,7 @@ describe("the playoffs from ESPN's settings and schedule (#821)", () => {
 
   it("keeps the manager's playoffs when ESPN gives none", () => {
     const plain = { ...fixture, settings: { ...fixture.settings, scheduleSettings: {} } };
-    const previous = { ...imported(), playoffs: { teams: 3, weeks: 2 } };
-    expect(espnSetup(fromEspnLeague(plain), players, at, previous).setup.playoffs).toEqual({ teams: 3, weeks: 2 });
+    const previous = { ...imported(), playoffs: { teams: 3, weeks: 2, start: '2027-03-15' } };
+    expect(espnSetup(fromEspnLeague(plain), players, at, previous).setup.playoffs).toEqual({ teams: 3, weeks: 2, start: '2027-03-15' });
   });
 });

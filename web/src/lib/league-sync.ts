@@ -179,10 +179,16 @@ export function espnSetup(
   const playoffWeeks = espnPlayoffWeeks(league, at.now);
   const setup = normalize(
     {
-      ...(previous ? { punts: previous.punts, il: previous.il, playoffs: previous.playoffs } : {}),
-      // ESPN's playoff field and the Monday-to-Sunday weeks its playoff days cover, when it says (#821)
+      ...(previous ? { punts: previous.punts, il: previous.il, playoffs: previous.playoffs, standings: previous.standings } : {}),
+      // ESPN's playoff field and the Monday-to-Sunday weeks its playoff days cover, from their first (#821, #874)
       ...(league.playoffs
-        ? { playoffs: { teams: league.playoffs.teams, weeks: playoffWeeks ? weeksCovered(playoffWeeks.from, playoffWeeks.to) : league.playoffs.periods[1] - league.playoffs.periods[0] + 1 } }
+        ? {
+            playoffs: {
+              teams: league.playoffs.teams,
+              weeks: playoffWeeks ? weeksCovered(playoffWeeks.from, playoffWeeks.to) : league.playoffs.periods[1] - league.playoffs.periods[0] + 1,
+              start: playoffWeeks?.from ?? previous?.playoffs.start ?? null,
+            },
+          }
         : {}),
       teams: league.teams.length || league.settings.teams,
       rosterSpots: league.settings.rosterSpots || base.rosterSpots,
@@ -233,8 +239,9 @@ export function espnSetup(
 
 /**
  * The score so far for the week's matchup between the manager and the opponent (#817), when the
- * league came from ESPN with one and it was read today: an older score misses the days since, so
- * the week projects from the games left instead. The reason says which.
+ * league came from ESPN or the Yahoo bookmark (#874) with one and it was read today: an older score
+ * misses the days since, so the week projects from the games left instead. The reason says which;
+ * 'not-espn' is a league with no import at all.
  */
 export function weekScore(
   setup: LeagueSetup,
@@ -242,7 +249,7 @@ export function weekScore(
   dateOf: (ms: number) => string,
 ): { mine: ScoreSoFar; theirs: ScoreSoFar } | 'not-espn' | 'no-score' | 'stale' {
   const source = setup.source;
-  if (source?.host !== 'espn') return 'not-espn';
+  if (!source) return 'not-espn';
   const mine = source.scores?.[setup.mine];
   const theirs = setup.opponent === null ? null : source.scores?.[setup.opponent];
   if (!mine || !theirs) return 'no-score';
