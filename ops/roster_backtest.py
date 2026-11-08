@@ -38,7 +38,7 @@ from typing import Any
 
 import numpy as np
 
-from ops import standings
+from ops import roster, standings
 from ops.standings_backtest import (
     TUNING,
     Cut,
@@ -194,7 +194,8 @@ def judge(
         len(season.weeks), np.full(len(season.weeks), 1 / len(season.weeks)), size=resamples
     ).astype(float)
     keep = np.all([draws[:, c.weeks].sum(1) > 0 for c in season.cuts], axis=0)
-    share, least = float(p["roster.starter_share"]), float(p["roster.min_gain"])
+    share = roster.per_league(p, "roster.starter_share", season.league)
+    least = roster.per_league(p, "roster.min_gain", season.league)
     per: dict[str, list[dict[str, Any]]] = {f: [] for f in FORMATS}
     cache: dict[str, Any] = {"league": season.league, "season": season.season, "cuts": []}
     lines = []
@@ -331,7 +332,7 @@ def fit(caches: list[dict[str, Any]], p: dict[str, Any]) -> dict[str, Any]:
             )
         )
 
-    reg = float(p["roster.min_gain"])
+    reg = roster.per_league(p, "roster.min_gain", league)
     by_share = {s: replay(s, reg) for s in SHARE_GRID}
     share = min(SHARE_GRID, key=lambda s: (-round(by_share[s], 12), -s))
     by_gain = {g: replay(share, g) for g in GAIN_GRID}
@@ -343,7 +344,7 @@ def fit(caches: list[dict[str, Any]], p: dict[str, Any]) -> dict[str, Any]:
         "starter_share": share,
         "min_gain": least,
         "replay": {
-            "at_registry": replay(float(p["roster.starter_share"]), reg),
+            "at_registry": replay(roster.per_league(p, "roster.starter_share", league), reg),
             "at_pick": by_gain[least],
         },
         "share_grid": {str(k): v for k, v in by_share.items()},

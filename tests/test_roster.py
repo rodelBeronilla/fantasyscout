@@ -36,10 +36,13 @@ def _close(a: Any, b: Any, where: str = "") -> None:
 def compute(c: dict[str, Any]) -> dict[str, Any]:
     mine = c["rosters"][c["myTeam"]]
     rest = {k: float(v) for k, v in c["rest"].items()}
-    droppable = roster.drop_rule(c["rows"], mine, c["teams"], c["rosterSpots"], rest, c["week"], P)
+    droppable = roster.drop_rule(
+        "nba", c["rows"], mine, c["teams"], c["rosterSpots"], rest, c["week"], P
+    )
 
     def review(min_gain: float, rule: bool) -> dict[str, Any]:
         return roster.review_roster(
+            "nba",
             mine,
             c["available"],
             rest,

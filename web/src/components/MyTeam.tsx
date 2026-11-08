@@ -382,9 +382,9 @@ export default function MyTeam() {
   }, [games, myTeam, setup.lineup, perGame, byId]);
 
   // the roster review, as Pickups' top adds read it (#819); the week's drives the stream line (#818)
-  const weekReview = useMemo(() => (rows && weekAvailable ? teamReview(rows, setup, values, true) : null), [rows, setup, values, weekAvailable]);
+  const weekReview = useMemo(() => (rows && weekAvailable ? teamReview(league, rows, setup, values, true) : null), [league, rows, setup, values, weekAvailable]);
   // the rest of the season's review: the Moves' unit by default, and the drops for the playoff targets (#821)
-  const restReview = useMemo(() => (rows ? teamReview(rows, setup, values, false) : null), [rows, setup, values]);
+  const restReview = useMemo(() => (rows ? teamReview(league, rows, setup, values, false) : null), [league, rows, setup, values]);
   const review = useMemo<RosterReview | null>(() => (week ? (weekReview?.review ?? null) : (restReview?.review ?? null)), [week, weekReview, restReview]);
   // From the matchup to the stream that flips a category (#818): the close and losing categories,
   // and the top add for them on the open days, with the drop the week's review names.
@@ -456,7 +456,7 @@ export default function MyTeam() {
       catValue: (id) => worth.get(id)?.cats,
       scale: (id, perGame) => scaleValue(perGame, byId.get(id) ?? {}),
       position: (id) => byId.get(id)?.position,
-      droppable: dropRule(rows, mine, setup, restValue, false),
+      droppable: dropRule(rows, mine, { league, teams: setup.teams, rosterSpots: setup.rosterSpots }, restValue, false),
       model: state && standings ? { state, standings, acceptable: (partner, give, get) => acceptable(fairness, partner, give, get) } : null,
     });
   }, [rows, points, myTeam, setup, league, activeCats, owner, worth, byId, restValue]);

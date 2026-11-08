@@ -2078,7 +2078,7 @@
    {
     "droppable": {
      "p0": false,
-     "p1": true,
+     "p1": false,
      "p2": true,
      "p3": true,
      "p4": true
@@ -2128,25 +2128,12 @@
           "z_points",
           "z_three_pointers_made"
          ]
-        },
-        {
-         "add": "p24",
-         "drop": "p1",
-         "gain": 0.041999999999999815,
-         "fit": 0,
-         "ups": [
-          "z_assists"
-         ],
-         "downs": [
-          "z_blocks"
-         ]
         }
        ],
        "replace": [
         "p2",
         "p3",
-        "p4",
-        "p1"
+        "p4"
        ],
        "optimized": false,
        "weakest": {
@@ -2155,7 +2142,9 @@
         "gap": 10.274
        },
        "rostered": 5,
-       "chips": []
+       "chips": [
+        "p1"
+       ]
       },
       "anyone": {
        "upgrades": [
@@ -2288,7 +2277,9 @@
         "gap": 10.274
        },
        "rostered": 5,
-       "chips": []
+       "chips": [
+        "p1"
+       ]
       },
       "anyone": {
        "upgrades": [
@@ -2408,7 +2399,9 @@
         "gap": 10.274
        },
        "rostered": 5,
-       "chips": []
+       "chips": [
+        "p1"
+       ]
       },
       "anyone": {
        "upgrades": [
@@ -2474,7 +2467,7 @@
    },
    {
     "droppable": {
-     "p0": true,
+     "p0": false,
      "p1": false,
      "p2": true,
      "p3": false,
@@ -2495,19 +2488,10 @@
          "downs": [
           "z_steals"
          ]
-        },
-        {
-         "add": "p27",
-         "drop": "p0",
-         "gain": 4.861,
-         "fit": 0,
-         "ups": [],
-         "downs": []
         }
        ],
        "replace": [
-        "p2",
-        "p0"
+        "p2"
        ],
        "optimized": false,
        "weakest": {
@@ -2517,6 +2501,7 @@
        },
        "rostered": 5,
        "chips": [
+        "p0",
         "p3",
         "p1",
         "p4"
@@ -2586,19 +2571,10 @@
          "downs": [
           "z_steals"
          ]
-        },
-        {
-         "add": "p27",
-         "drop": "p0",
-         "gain": 4.861,
-         "fit": 0,
-         "ups": [],
-         "downs": []
         }
        ],
        "replace": [
-        "p2",
-        "p0"
+        "p2"
        ],
        "optimized": false,
        "weakest": {
@@ -2608,6 +2584,7 @@
        },
        "rostered": 5,
        "chips": [
+        "p0",
         "p3",
         "p1",
         "p4"
@@ -2664,19 +2641,10 @@
          "downs": [
           "z_steals"
          ]
-        },
-        {
-         "add": "p27",
-         "drop": "p0",
-         "gain": 4.861,
-         "fit": 0,
-         "ups": [],
-         "downs": []
         }
        ],
        "replace": [
-        "p2",
-        "p0"
+        "p2"
        ],
        "optimized": false,
        "weakest": {
@@ -2686,6 +2654,7 @@
        },
        "rostered": 5,
        "chips": [
+        "p0",
         "p3"
        ]
       },

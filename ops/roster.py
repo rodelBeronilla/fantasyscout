@@ -18,7 +18,14 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 
+def per_league(p: dict[str, Any], pid: str, league: str) -> float:
+    """A registry value, the league's own when it is kept per league."""
+    v = p[pid]
+    return float(v[league] if isinstance(v, dict) else v)
+
+
 def drop_rule(
+    league: str,
     rows: Sequence[dict[str, Any]],
     mine: Sequence[str],
     teams: int,
@@ -29,7 +36,7 @@ def drop_rule(
 ) -> Callable[[str], bool]:
     """dropRule: never a player the board or the market ranks among the league's starters; and
     judging the week, only the ``roster.bench_size`` lowest-valued for the rest of the season."""
-    starters = teams * math.ceil(roster_spots * float(p["roster.starter_share"]))
+    starters = teams * math.ceil(roster_spots * per_league(p, "roster.starter_share", league))
     by_id = {r["player_id"]: r for r in rows}
     bench = set(sorted(mine, key=lambda i: rest.get(i, 0))[: int(p["roster.bench_size"])])
 
@@ -50,6 +57,7 @@ def _rank_of(totals: list[float], team: int) -> int:
 
 
 def suggest_upgrades(
+    league: str,
     mine: Sequence[str],
     available: Sequence[str],
     rest: dict[str, float],
@@ -63,7 +71,7 @@ def suggest_upgrades(
     droppable: Callable[[str], bool] | None = None,
     limit: int = 5,
 ) -> list[dict[str, Any]]:
-    min_gain = float(p["roster.min_gain"]) if min_gain is None else min_gain
+    min_gain = per_league(p, "roster.min_gain", league) if min_gain is None else min_gain
 
     def value(i: str) -> float:
         return rest.get(i, 0)
@@ -113,6 +121,7 @@ def suggest_upgrades(
 
 
 def review_roster(
+    league: str,
     mine: Sequence[str],
     available: Sequence[str],
     rest: dict[str, float],
@@ -126,6 +135,7 @@ def review_roster(
     droppable: Callable[[str], bool] | None = None,
 ) -> dict[str, Any]:
     upgrades = suggest_upgrades(
+        league,
         mine,
         available,
         rest,
@@ -156,7 +166,7 @@ def review_roster(
             "gap": value(best_add) - value(lowest) if best_add else -value(lowest),
         }
     )
-    least = float(p["roster.min_gain"]) if min_gain is None else min_gain
+    least = per_league(p, "roster.min_gain", league) if min_gain is None else min_gain
     chips = (
         [i for i in ordered if not droppable(i) and value(best_add) - value(i) >= least]
         if droppable and best_add

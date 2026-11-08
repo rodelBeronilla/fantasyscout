@@ -198,8 +198,8 @@ export default function Streamers() {
   );
   // the week unit when My Team opens on it: a head-to-head league with games left this week
   const reviewed = useMemo(
-    () => (boardRows && values ? teamReview(boardRows, setup, values, setup.format === 'h2h' && hasWeekGames(boardRows)) : null),
-    [boardRows, values, setup],
+    () => (boardRows && values ? teamReview(league, boardRows, setup, values, setup.format === 'h2h' && hasWeekGames(boardRows)) : null),
+    [league, boardRows, values, setup],
   );
   const boardById = useMemo(() => new Map((boardRows ?? []).map((r) => [r.player_id, r])), [boardRows]);
 

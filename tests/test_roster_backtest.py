@@ -46,7 +46,7 @@ def test_the_array_swap_is_the_reviews_first(season: Path) -> None:
     p = _p()
     cut = load(season).cuts[1]
     ctx = prepare(cut, p, "nba", 3)
-    sw = swaps(ctx, float(p["roster.starter_share"]))
+    sw = swaps(ctx, roster.per_league(p, "roster.starter_share", "nba"))
     ids = [f"p{i}" for i in range(len(ctx.rest))]
     rest = {ids[i]: float(v) for i, v in enumerate(ctx.rest)}
     rows = [
@@ -58,9 +58,9 @@ def test_the_array_swap_is_the_reviews_first(season: Path) -> None:
         available = [ids[i] for i in range(len(ids)) if i not in owned]
         for t in range(ctx.teams):
             mine = [ids[int(i)] for i in ctx.rost[lg, t]]
-            rule = roster.drop_rule(rows, mine, ctx.teams, ctx.spots, rest, False, p)
+            rule = roster.drop_rule("nba", rows, mine, ctx.teams, ctx.spots, rest, False, p)
             review = roster.review_roster(
-                mine, available, rest, [], lambda i: None, [], 0, p, droppable=rule
+                "nba", mine, available, rest, [], lambda i: None, [], 0, p, droppable=rule
             )
             ups = review["upgrades"]
             gain = float(sw["gain"][lg, t])
@@ -69,11 +69,12 @@ def test_the_array_swap_is_the_reviews_first(season: Path) -> None:
                 assert ups[0]["drop"] == ids[int(sw["drop"][lg, t])]
                 assert ups[0]["gain"] == pytest.approx(gain)
             else:
-                assert gain < float(p["roster.min_gain"])
+                assert gain < roster.per_league(p, "roster.min_gain", "nba")
             chips = [
                 ids[int(i)]
                 for k, i in enumerate(ctx.rost[lg, t])
-                if sw["keep"][lg, t, k] and sw["chip_gain"][lg, t, k] >= p["roster.min_gain"]
+                if sw["keep"][lg, t, k]
+                and sw["chip_gain"][lg, t, k] >= roster.per_league(p, "roster.min_gain", "nba")
             ]
             assert sorted(chips) == sorted(review["chips"])
 

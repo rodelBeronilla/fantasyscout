@@ -302,7 +302,7 @@ parameters:
 
   # ---- roster review (web/src/lib/roster-upgrades.ts)
   - id: roster.starter_share
-    value: 0.6
+    value: {nba: 0.65, wnba: 0.8}
     kind: threshold
     status: assumed
     what: "Share of roster spots counted as starters: a player ranked inside teams x this is never dropped."
@@ -316,7 +316,7 @@ parameters:
     evidence: "none"
     validation: 757
   - id: roster.min_gain
-    value: 0.5
+    value: {nba: 0.0, wnba: 0.2}
     kind: threshold
     status: assumed
     what: "Value a swap must gain. Applied to week and rest-of-season values, which are in different units."

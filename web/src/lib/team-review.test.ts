@@ -29,7 +29,7 @@ const setup = normalize(
 describe('the team review Pickups and My Team share (#819)', () => {
   it('judges the active roster and never names a ranked starter or a player on the IL to drop', () => {
     const v = teamValues(rows, setup);
-    const out = teamReview(rows, setup, v, false);
+    const out = teamReview('nba', rows, setup, v, false);
     expect(out?.mine).toEqual(['star', 'mid', 'low']);
     expect(out?.review.rostered).toBe(3);
     expect(out?.drops).not.toContain('star');
@@ -41,14 +41,14 @@ describe('the team review Pickups and My Team share (#819)', () => {
 
   it('the week unit drops only from the two lowest for the rest of the season', () => {
     const v = teamValues(rows, setup);
-    const out = teamReview(rows, setup, v, true);
+    const out = teamReview('nba', rows, setup, v, true);
     expect(out?.drops.every((id) => ['low', 'mid'].includes(id))).toBe(true);
   });
 
   it('waits while a draft is under way, and has nothing without a team', () => {
     const v = teamValues(rows, setup);
-    expect(teamReview(rows, { ...setup, drafting: true }, v, false)).toBeNull();
-    expect(teamReview(rows, { ...setup, rosters: setup.rosters.map(() => []) }, v, false)).toBeNull();
+    expect(teamReview('nba', rows, { ...setup, drafting: true }, v, false)).toBeNull();
+    expect(teamReview('nba', rows, { ...setup, rosters: setup.rosters.map(() => []) }, v, false)).toBeNull();
   });
 
   it('a points league values by fantasy points, with no category values', () => {

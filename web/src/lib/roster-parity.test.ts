@@ -29,8 +29,8 @@ interface ParityFixture {
 function compute(c: RosterCase) {
   const mine = c.rosters[c.myTeam] ?? [];
   const rest = new Map(Object.entries(c.rest));
-  const droppable = dropRule(c.rows, mine, { teams: c.teams, rosterSpots: c.rosterSpots }, rest, c.week);
-  const base = { mine, available: c.available, rest, cats: c.cats, catValue: (id: string) => c.values[id], totals: c.totals, myTeam: c.myTeam };
+  const droppable = dropRule(c.rows, mine, { league: 'nba', teams: c.teams, rosterSpots: c.rosterSpots }, rest, c.week);
+  const base = { league: 'nba' as const, mine, available: c.available, rest, cats: c.cats, catValue: (id: string) => c.values[id], totals: c.totals, myTeam: c.myTeam };
   return {
     droppable: Object.fromEntries(mine.map((id) => [id, droppable(id)])),
     reviews: c.minGains.map((minGain) => ({

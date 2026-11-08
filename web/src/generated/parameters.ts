@@ -163,9 +163,15 @@ export const PARAMS = {
     "pool": 16,
     "per_partner": 3
   },
-  "roster.starter_share": 0.6,
+  "roster.starter_share": {
+    "nba": 0.65,
+    "wnba": 0.8
+  },
   "roster.bench_size": 2,
-  "roster.min_gain": 0.5,
+  "roster.min_gain": {
+    "nba": 0.0,
+    "wnba": 0.2
+  },
   "roster.candidates": 25,
   "buysell.min_swing": 1,
   "il.min_games": 3,
@@ -668,7 +674,10 @@ export const PARAMETERS = [
     "what": "Share of roster spots counted as starters: a player ranked inside teams x this is never dropped.",
     "evidence": "none",
     "validation": 757,
-    "value": 0.6
+    "value": {
+      "nba": 0.65,
+      "wnba": 0.8
+    }
   },
   {
     "id": "roster.bench_size",
@@ -686,7 +695,10 @@ export const PARAMETERS = [
     "what": "Value a swap must gain. Applied to week and rest-of-season values, which are in different units.",
     "evidence": "none",
     "validation": 757,
-    "value": 0.5
+    "value": {
+      "nba": 0.0,
+      "wnba": 0.2
+    }
   },
   {
     "id": "roster.candidates",
