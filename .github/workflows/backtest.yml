@@ -18,6 +18,10 @@ on:
         description: Seasons to mirror and build, space separated (a checkpoint needs its season and the two before)
         type: string
         default: "2022-23 2023-24 2024-25"
+      judge:
+        description: Season to walk forward through (ops.walk_forward; empty to only build). It needs the two seasons before it mirrored too
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -83,3 +87,18 @@ jobs:
           ):
               print(con.execute(sql, [league]).fetchdf().to_string(index=False), end="\n\n")
           EOF
+      - name: Walk forward through the season
+        if: inputs.judge != ''
+        env:
+          LEAGUE: ${{ inputs.league }}
+          JUDGE: ${{ inputs.judge }}
+          FS_LANDING_ROOT: ${{ runner.temp }}/landing
+        run: |
+          set -o pipefail
+          uv run python -m ops.walk_forward --league "$LEAGUE" --season "$JUDGE"             --full-db dbt/fantasyscout.duckdb --out walk_forward.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: inputs.judge != ''
+        with:
+          name: walk-forward-${{ inputs.league }}-${{ inputs.judge }}
+          path: walk_forward.json
+          retention-days: 90

@@ -351,3 +351,26 @@ parameters:
     what: "The least a roster spot costs."
     evidence: "platform default"
     validation: 760
+
+  # ---- the walk-forward harness (ops/walk_forward.py; #769)
+  - id: backtest.checkpoints
+    value: [0.0, 0.1, 0.25, 0.5]
+    kind: search
+    status: convention
+    what: "Where a season is cut for a backtest: the first game day and these shares of the way to the last."
+    evidence: "ADR 0003's checkpoints (before a season, a tenth, a quarter and half way in)"
+    validation: 769
+  - id: backtest.min_games
+    value: 10
+    kind: threshold
+    status: assumed
+    what: "Games a player must play after a checkpoint to be judged: fewer and the realized value is mostly noise."
+    evidence: "none; an evaluation choice, not a model one"
+    validation: 769
+  - id: backtest.bootstrap
+    value: 1000
+    kind: search
+    status: convention
+    what: "Resamples of players behind the interval of the board's error minus the naive manager's."
+    evidence: "a common size for a 95% percentile interval"
+    validation: 769

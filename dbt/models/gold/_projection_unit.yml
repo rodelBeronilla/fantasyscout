@@ -73,14 +73,14 @@ unit_tests:
           - {league: nba, season: '2024-25', window_name: season, player_id: p1, games: 1, minutes_pg: 30, points_pg: 15}
           - {league: nba, season: '2024-25', window_name: season, player_id: p4, games: 1, minutes_pg: 30, points_pg: 15}
           - {league: nba, season: '2024-25', window_name: season, player_id: p5, games: 1, minutes_pg: 30, points_pg: 15}
-      - input: ref('rosters')
+      - input: ref('int_known_roster')
         rows:
-          - {league: nba, season: '2025-26', team_id: A, player_id: p1, age: 25, experience: '3', _ingest_date: 2026-01-14}
-          - {league: nba, season: '2025-26', team_id: A, player_id: p2, age: 25, experience: '3', _ingest_date: 2026-01-14}
-          - {league: nba, season: '2025-26', team_id: A, player_id: p3, age: 25, experience: '3', _ingest_date: 2026-01-14}
-          - {league: nba, season: '2025-26', team_id: A, player_id: p4, age: 25, experience: '3', _ingest_date: 2026-01-14}
-          - {league: nba, season: '2025-26', team_id: A, player_id: p5, age: 25, experience: '3', _ingest_date: 2026-01-14}
-          - {league: nba, season: '2025-26', team_id: A, player_id: p6, age: 25, experience: '3', _ingest_date: 2026-01-14}
+          - {league: nba, roster_season: '2025-26', team_id: A, player_id: p1, age: 25, is_rookie: false}
+          - {league: nba, roster_season: '2025-26', team_id: A, player_id: p2, age: 25, is_rookie: false}
+          - {league: nba, roster_season: '2025-26', team_id: A, player_id: p3, age: 25, is_rookie: false}
+          - {league: nba, roster_season: '2025-26', team_id: A, player_id: p4, age: 25, is_rookie: false}
+          - {league: nba, roster_season: '2025-26', team_id: A, player_id: p5, age: 25, is_rookie: false}
+          - {league: nba, roster_season: '2025-26', team_id: A, player_id: p6, age: 25, is_rookie: false}
       - input: ref('schedule')
         rows:
           - {league: nba, season: '2024-25', game_type: regular, game_status: 3, game_date_est: 2025-01-10}

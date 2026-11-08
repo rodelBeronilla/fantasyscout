@@ -1,0 +1,61 @@
+unit_tests:
+  - name: a_point_in_time_roster_is_rebuilt_from_what_was_known
+    description: >
+      As of 2024-01-15 no roster landing is known (#796). The roster is each player's latest event
+      before the cut: a plays for A, then is traded to B (B receives him), so he is on B; b's last
+      game is for A, so he is on A; c is waived and on no roster; d signs with C in the offseason
+      before playing; e last played two seasons before the cut, outside the window, so he is on no
+      roster. The roster season is 2023-24, the season under way.
+    model: int_known_roster
+    overrides:
+      vars:
+        as_of: '2024-01-15'
+        point_in_time: true
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2021-22', game_type: regular, game_date_est: '2021-10-19'}
+          - {league: nba, season: '2022-23', game_type: regular, game_date_est: '2022-10-18'}
+          - {league: nba, season: '2023-24', game_type: regular, game_date_est: '2023-10-24'}
+          - {league: nba, season: '2024-25', game_type: regular, game_date_est: '2024-10-22'}
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, player_id: a, team_id: A, game_date: '2023-12-01', played: true}
+          - {league: nba, player_id: b, team_id: A, game_date: '2024-01-10', played: true}
+          - {league: nba, player_id: c, team_id: A, game_date: '2023-11-01', played: true}
+          - {league: nba, player_id: e, team_id: A, game_date: '2022-03-01', played: true}
+      - input: ref('transactions')
+        rows:
+          - {league: nba, source: nba, player_id: a, team_id: B, transaction_type: Trade, transaction_date: '2023-12-20'}
+          - {league: nba, source: nba, player_id: c, team_id: A, transaction_type: Waive, transaction_date: '2023-12-05'}
+          - {league: nba, source: nba, player_id: d, team_id: C, transaction_type: Signing, transaction_date: '2023-07-10'}
+      - input: ref('rosters')
+        rows: []
+    expect:
+      rows:
+        - {player_id: a, team_id: B, roster_season: '2023-24'}
+        - {player_id: b, team_id: A, roster_season: '2023-24'}
+        - {player_id: d, team_id: C, roster_season: '2023-24'}
+
+  - name: a_normal_build_reads_the_official_rosters
+    description: >
+      Without a point-in-time cut the roster is the latest roster season's latest landings; a player
+      on two teams' latest landings belongs to the newer one, and R marks a rookie.
+    model: int_known_roster
+    given:
+      - input: ref('rosters')
+        rows:
+          - {league: nba, season: '2025-26', team_id: A, player_id: p1, age: 25, experience: '3', _ingest_date: '2026-01-10'}
+          - {league: nba, season: '2025-26', team_id: B, player_id: p1, age: 25, experience: '3', _ingest_date: '2026-01-14'}
+          - {league: nba, season: '2025-26', team_id: A, player_id: p2, age: 19, experience: 'R', _ingest_date: '2026-01-10'}
+          - {league: nba, season: '2024-25', team_id: A, player_id: p3, age: 30, experience: '9', _ingest_date: '2025-01-10'}
+      - input: ref('schedule')
+        rows: []
+      - input: ref('fct_player_game')
+        rows: []
+      - input: ref('transactions')
+        rows: []
+    expect:
+      rows:
+        - {player_id: p1, team_id: B, roster_season: '2025-26', is_rookie: false}
+        - {player_id: p2, team_id: A, roster_season: '2025-26', is_rookie: true}
