@@ -4,15 +4,12 @@
  * player to drop for him, and the categories the swap turns into wins. Pure, for My Team and the
  * tests.
  */
-import { matchup, type WeekMatchup, type WeekTotals, weekTotals } from './matchup';
+import { byCloseness, matchup, type WeekMatchup, type WeekTotals, weekTotals } from './matchup';
 import { topAdds, type AddRow } from './pickups-top';
 
 /** The categories close or being lost, the closest first: the need chips Pickups opens with. */
 export function streamTargets(m: WeekMatchup): string[] {
-  return m.cats
-    .filter((r) => r.result !== 'win')
-    .sort((a, b) => a.share - b.share)
-    .map((r) => r.cat);
+  return byCloseness(m.cats.filter((r) => r.result !== 'win')).map((r) => r.cat);
 }
 
 /**
@@ -42,7 +39,7 @@ export function flippedBy(
     } else next[c] = (m.mine.cats[c] ?? 0) + (plus.cats[c] ?? 0) - (minus?.cats[c] ?? 0);
   }
   const mine: WeekTotals = { ...m.mine, cats: next, shots };
-  const after = matchup(all, mine, m.theirs);
+  const after = matchup(m.league, all, mine, m.theirs);
   const before = new Map(m.cats.map((r) => [r.cat, r.result]));
   return after.cats.filter((r) => cats.includes(r.cat) && r.result === 'win' && before.get(r.cat) !== 'win').map((r) => r.cat);
 }

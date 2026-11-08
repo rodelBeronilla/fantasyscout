@@ -369,10 +369,10 @@ export default function MyTeam() {
       theirs: weekTotals(theirs, activeCats, scoring, counted(lineupPlans?.theirs)),
     };
     const cats = points ? [] : activeCats;
-    if (typeof score === 'string' || !read) return { match: matchup(cats, rest.mine, rest.theirs), basis: { live: false, reason: typeof score === 'string' ? score : 'not-espn' } };
+    if (typeof score === 'string' || !read) return { match: matchup(league, cats, rest.mine, rest.theirs), basis: { live: false, reason: typeof score === 'string' ? score : 'not-espn' } };
     const live = liveWeek(cats, score, rest);
-    return { match: matchup(cats, live.mine, live.theirs), basis: { live: true, projectedOnly: live.projectedOnly, read } };
-  }, [h2h, setup, weekAvailable, myTeam, rows, owner, points, activeCats, lineupPlans, games, byId]);
+    return { match: matchup(league, cats, live.mine, live.theirs), basis: { live: true, projectedOnly: live.projectedOnly, read } };
+  }, [h2h, setup, weekAvailable, myTeam, rows, owner, points, activeCats, lineupPlans, games, byId, league]);
   // Today's start and sit (#816): the best lineup the slots hold from today's players, by the same
   // per-game values the week's plan uses.
   const verdict = useMemo(() => {

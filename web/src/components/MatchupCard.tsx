@@ -8,7 +8,7 @@ import { CATEGORY_LABELS, CATEGORY_WORDS, fmt } from '../lib/format';
 import type { League } from '../lib/data';
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { readLine, type ScoreRead } from '../lib/game-state';
-import { FPTS, isRatio, matchupCall, swingCategory, type WeekMatchup } from '../lib/matchup';
+import { closeBand, FPTS, isRatio, matchupCall, swingCategory, type WeekMatchup } from '../lib/matchup';
 import { type StreamMove, streamTargets } from '../lib/matchup-streams';
 import { pickupsPath } from '../lib/pickups-url';
 import { href } from '../lib/site';
@@ -188,7 +188,7 @@ export function Matchup({
               win {match.wins} of {match.cats.length} categories
             </strong>{' '}
             against {them}, lose {match.losses}
-            {match.close ? `, with ${match.close} too close to call (within 5%)` : ''}. Games left this week: you {gamesLeft(match.mine.games)}, {them}{' '}
+            {match.close ? `, with ${match.close} too close to call (a ${closeBand()} chance)` : ''}. Games left this week: you {gamesLeft(match.mine.games)}, {them}{' '}
             {gamesLeft(match.theirs.games)}.
           </p>
           {basis?.live && basis.read && (

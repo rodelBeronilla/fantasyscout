@@ -343,8 +343,9 @@ export default function TradeAnalyzer() {
     const rowsOf = (ids: string[]) => ids.map((id) => byId.get(id)).filter((p): p is PlayerRow => !!p);
     const sides = rostersAfter(state, setup.mine, partnerTeam, give, get);
     const theirs = state.rosters[opponent] ?? [];
-    const before = matchup(cats, weekTotals(rowsOf(state.rosters[setup.mine] ?? []), cats), weekTotals(rowsOf(theirs), cats));
+    const before = matchup(league, cats, weekTotals(rowsOf(state.rosters[setup.mine] ?? []), cats), weekTotals(rowsOf(theirs), cats));
     const after = matchup(
+      league,
       cats,
       weekTotals(rowsOf(sides.mine.after), cats),
       weekTotals(rowsOf(opponent === partnerTeam ? sides.partner.after : theirs), cats),
