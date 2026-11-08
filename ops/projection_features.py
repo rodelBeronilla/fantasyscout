@@ -285,6 +285,9 @@ def load(paths: Iterable[Path], league: str, min_games: int) -> list[Cut]:
     """The checkpoints in the files for ``league``, over the players who then played enough."""
     df = pd.concat([pd.read_csv(p, dtype={"season": str, "player_id": str}) for p in paths])
     df = df[df["league"] == league]
+    if "build" in df:
+        # a judged run also writes its on build's rows; the features are scored on the off build's
+        df = df[df["build"] == "off"]
     if LOCKED[league] in set(df["season"]):
         msg = f"{league} {LOCKED[league]} is held out (#751): it is judged once, at the end"
         raise SystemExit(msg)

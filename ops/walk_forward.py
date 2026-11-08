@@ -586,8 +586,11 @@ def main(argv: list[str] | None = None) -> int:
                 db_on = Path(tmp) / f"wf-{as_of.isoformat()}-features.duckdb"
                 shutil.copyfile(db, db_on)
                 _rebuild_projection(as_of, db_on, without, feats.on_var)
-                feats.export(
-                    db_on, args.full_db, args.league, args.season, as_of, fraction, on=True
+                # the on build's rows too, with its own scale: what the board as built is judged on
+                feature_rows.append(
+                    feats.export(
+                        db_on, args.full_db, args.league, args.season, as_of, fraction, on=True
+                    )
                 )
                 fc = judge_prior(
                     df, board_frame(db_on, as_of), as_of, min_games=min_games, resamples=resamples
@@ -683,7 +686,13 @@ class _Features:
             ff = features_frame(cut, league, season, as_of)
         setting = self.on if on and self.on is not None else self.off
         projection_features.check_parity(ff, setting, f"as of {as_of}{' (on)' if on else ''}")
-        return ff.assign(league=league, season=season, as_of=as_of, checkpoint=fraction)
+        return ff.assign(
+            league=league,
+            season=season,
+            as_of=as_of,
+            checkpoint=fraction,
+            build="on" if on else "off",
+        )
 
 
 def _feature_settings(p: dict[str, Any], league: str, given: str | None) -> _Features:
