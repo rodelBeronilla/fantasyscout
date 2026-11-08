@@ -1,0 +1,40 @@
+{
+ "claims": [
+  {
+   "cap_reasons": [
+    "source espn_news"
+   ],
+   "confidence": 0.8,
+   "confidence_cap": 0.8,
+   "direction": -1,
+   "kind": "injury_out",
+   "league": "wnba",
+   "model_confidence": 0.9,
+   "player_id": "1629498",
+   "published_at": "2026-09-23T21:05:00Z",
+   "published_date": "2026-09-23",
+   "quote": "ruled out for Game 3",
+   "quote_start": 27,
+   "season": "2026",
+   "source": "espn_news",
+   "source_id": "50300001"
+  }
+ ],
+ "extracted_at": "2026-10-27T16:40:00+00:00",
+ "league": "wnba",
+ "model": "qwen3:8b",
+ "players": [
+  {
+   "name": "Jackie Young",
+   "player_id": "1629498"
+  }
+ ],
+ "prompt": "0123456789ab",
+ "published_at": "2026-09-23T21:05:00+00:00",
+ "published_date": "2026-09-23",
+ "rejected": [],
+ "season": "2026",
+ "source": "espn_news",
+ "source_id": "50300001",
+ "text": "Aces' Jackie Young (ankle) ruled out for Game 3 vs. Mercury"
+}

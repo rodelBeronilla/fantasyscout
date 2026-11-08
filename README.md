@@ -35,7 +35,7 @@ ingest/      Python ingestors, one module per source; CLI: fs-ingest
 export/      gold -> Parquet/JSON -> R2, manifest, latest pointer, the Playwright fixture
 ops/         results recorder, publish gate, build log, watchdog, schema file for the site's data dictionary
 dbt/         dbt project: models/bronze|silver|gold|ops, tests/ (quality checks), seeds/, macros/, sample/
-ai/          the weekly notes: inputs, the local model's client, prompt, validator (phase 7)
+ai/          the weekly notes and the news' claims: inputs, the local model's client, prompts, checks (phase 7)
 notebooks/   01_board_backtest .. 07_teammate_absence as nb_*.py cell sources and committed .ipynb; replay.py
 tableau/     the League Pulse extract (three CSVs) and the Google Sheet push behind the Tableau Public workbook
 web/         Astro app (React islands), Playwright and vitest tests, the committed data fixture

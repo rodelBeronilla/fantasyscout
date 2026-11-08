@@ -74,6 +74,8 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
     "odds_api": ("player_props",),
     "bref": ("salaries",),
     "manual": ("saved_tables",),
+    # the local model's claims from the news (ai/claims.py)
+    "ai": ("claims",),
 }
 
 

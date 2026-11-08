@@ -384,13 +384,19 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 411,
+ "generic_tests": 426,
  "landing": [
   {
    "path": "_ops/ingest_log",
    "read_by": [
     "fetch_failures",
     "ingest_log"
+   ]
+  },
+  {
+   "path": "ai/claims",
+   "read_by": [
+    "ai_claims"
    ]
   },
   {
@@ -582,6 +588,182 @@
  "layers": [
   {
    "models": [
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed file this row was parsed from",
+       "meta": {},
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed file: the Eastern day the claims were extracted",
+       "meta": {},
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The source item the file holds: its source and source id",
+       "meta": {},
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The item's text as the model read it: the headline, or the injury note's short and long comments",
+       "meta": {},
+       "name": "source_text",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The local model that read the item",
+       "meta": {},
+       "name": "model",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Hash of the prompt the model was given (ai/prompts/claims.md)",
+       "meta": {},
+       "name": "prompt_version",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the model read the item (UTC)",
+       "meta": {},
+       "name": "extracted_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "espn_news or espn_injury_note",
+       "meta": {},
+       "name": "source",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The ESPN article id, or the injury listing id and a hash of the note's text",
+       "meta": {},
+       "name": "source_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id the claim is about",
+       "meta": {},
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "What the claim says: role_up, role_down, minutes_up, minutes_down, injury_out, injury_return, injury_worse, injury_better, trade_rumor or other",
+       "meta": {},
+       "name": "kind",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "1 good for the player's fantasy value, -1 bad, 0 neither",
+       "meta": {},
+       "name": "direction",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The model's own confidence, 0-1",
+       "meta": {},
+       "name": "model_confidence",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The most confidence the extractor's rules allow the claim",
+       "meta": {},
+       "name": "confidence_cap",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The confidence kept: the lower of the two",
+       "meta": {},
+       "name": "confidence",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Why the cap is what it is, as a JSON array of text",
+       "meta": {},
+       "name": "cap_reasons",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The span of the source text the claim rests on, as the source writes it",
+       "meta": {},
+       "name": "quote",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Where the quote starts in the source text (0-based character offset)",
+       "meta": {},
+       "name": "quote_start",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the source said it (UTC, ISO 8601)",
+       "meta": {},
+       "name": "published_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The day the source said it",
+       "meta": {},
+       "name": "published_date",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The local model's claims from the news (ai/claims.py): one row per claim per landed file, a file being one ESPN headline or injury note with the text the model read. Values as text.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "ai/claims"
+     ],
+     "materialized": "incremental",
+     "name": "ai_claims",
+     "notes": [
+      "The local model's claims from the news (ai/claims.py, #833): one row per claim per landed file. A file is one source item, an ESPN headline or injury note, with the text the model read and the claims that passed the extractor's checks; an item with no claim has no row. Values stay text until silver."
+     ],
+     "read_by": [
+      "player_claims"
+     ],
+     "read_by_pages": [],
+     "reads": [],
+     "unit_tests": []
+    },
     {
      "checks": [],
      "columns": [
@@ -11027,6 +11209,210 @@
      "checks": [],
      "columns": [
       {
+       "description": "Natural key: league, source, source id, league player id and kind; one row per claim",
+       "meta": {},
+       "name": "player_claim_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "espn_news (an ESPN headline) or espn_injury_note (an ESPN injury note)",
+       "meta": {},
+       "name": "source",
+       "tests": [
+        "accepted_values",
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The ESPN article id, or the injury listing id and a hash of the note's text",
+       "meta": {},
+       "name": "source_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id the claim is about",
+       "meta": {},
+       "name": "stats_player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "What the claim says about the player's role, minutes or injury",
+       "meta": {},
+       "name": "kind",
+       "tests": [
+        "accepted_values",
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "1 good for the player's fantasy value, -1 bad, 0 neither",
+       "meta": {},
+       "name": "direction",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "integer"
+      },
+      {
+       "description": "The confidence kept, 0-1: the model's, capped by the extractor's rules",
+       "meta": {},
+       "name": "confidence",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The model's own confidence, 0-1",
+       "meta": {},
+       "name": "model_confidence",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The most confidence the extractor's rules allow the claim: by source, a headline naming several players, the kind, a short quote, a hedge in the quote's sentence",
+       "meta": {},
+       "name": "confidence_cap",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Why the cap is what it is, as a JSON array of text",
+       "meta": {},
+       "name": "cap_reasons",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The span of the source text the claim rests on, as the source writes it",
+       "meta": {},
+       "name": "quote",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Where the quote starts in the source text (0-based character offset)",
+       "meta": {},
+       "name": "quote_start",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The item's text as the model read it, so the quote can be audited",
+       "meta": {},
+       "name": "source_text",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the source said it (UTC); an injury note is dated by its UTC day only",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "published_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "The day the source said it: the date a point-in-time build cuts on",
+       "meta": {},
+       "name": "published_date",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "When the model read the item (UTC)",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "extracted_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "The local model that read the item",
+       "meta": {},
+       "name": "model",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Hash of the prompt the model was given (ai/prompts/claims.md)",
+       "meta": {},
+       "name": "prompt_version",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed file the claim was read from",
+       "meta": {},
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "Path of the landed file the claim was read from",
+       "meta": {},
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The local model's claims from the news, typed: one row per claim from the newest landing of each source item, cut by the day the source said it in a point-in-time build.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "player_claims",
+     "notes": [
+      "The local model's claims from the news, typed: one row per claim, from the newest landing of each source item. A re-extraction (--full-refresh) lands an item again, and its newest landing replaces every claim of the older one, so a claim the model no longer makes goes too. A point-in- time build keeps the claims whose source said them before its date (published_date), whenever they were extracted."
+     ],
+     "read_by": [
+      "fct_player_claim"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "ai_claims"
+     ],
+     "unit_tests": [
+      {
+       "description": "An item extracted again replaces every claim of its older landing: the role claim the model no longer makes goes with it. The same player and kind twice in one item keeps the more confident one, and a row with no player is dropped. Values are typed.",
+       "name": "player_claims_keep_the_newest_landing_of_each_item_and_one_claim_per_player_and_kind"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "wnba or nba (nba only in practice: the WNBA host serves no tracking)",
        "meta": {},
        "name": "league",
@@ -15927,6 +16313,7 @@
      "read_by": [
       "fct_availability",
       "fct_official_listing",
+      "fct_player_claim",
       "fct_player_game",
       "fct_player_salary",
       "fct_player_status",
@@ -17964,6 +18351,190 @@
       {
        "description": "A player listed Out who returns two games later missed 2; a player listed Questionable who played missed 0; a player listed Out who does not play again missed every game the team had left. A report published after 5 pm Eastern is left out.",
        "name": "official_listing_counts_the_games_missed_after_each_listing"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, source item, league player and kind",
+       "meta": {},
+       "name": "player_claim_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id the claim is about",
+       "meta": {},
+       "name": "stats_player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "espn_news (an ESPN headline) or espn_injury_note (an ESPN injury note)",
+       "meta": {},
+       "name": "source",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The ESPN article id, or the injury listing id and a hash of the note's text",
+       "meta": {},
+       "name": "source_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "role_up, role_down, minutes_up, minutes_down, injury_out, injury_return, injury_worse, injury_better, trade_rumor or other",
+       "meta": {},
+       "name": "kind",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "1 good for the player's fantasy value, -1 bad, 0 neither",
+       "meta": {},
+       "name": "direction",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The confidence kept, 0-1: the model's, capped by the extractor's rules. Not yet a probability: the backtest calibrates it",
+       "meta": {},
+       "name": "confidence",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The model's own confidence, 0-1",
+       "meta": {},
+       "name": "model_confidence",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The most confidence the extractor's rules allow the claim",
+       "meta": {},
+       "name": "confidence_cap",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Why the cap is what it is, as a JSON array of text",
+       "meta": {},
+       "name": "cap_reasons",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The span of the source text the claim rests on, as the source writes it",
+       "meta": {},
+       "name": "quote",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Where the quote starts in the source text (0-based character offset)",
+       "meta": {},
+       "name": "quote_start",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "When the source said it (UTC); an injury note is dated by its UTC day only",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "published_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "The day the source said it: the date a point-in-time build cuts on",
+       "meta": {},
+       "name": "published_date",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "When the model read the item (UTC)",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "extracted_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "The local model that read the item",
+       "meta": {},
+       "name": "model",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Hash of the prompt the model was given (ai/prompts/claims.md)",
+       "meta": {},
+       "name": "prompt_version",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "What the news claims about each player: one row per claim the local model read from an ESPN headline or injury note, with its kind, direction, capped confidence, exact quote and the date the source said it. Not shown on the site and read by no number: stored so the walk-forward harness can score each source's track record before any claim may tune a projection.",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "source",
+       "source_id",
+       "stats_player_id",
+       "kind"
+      ],
+      "key": "player_claim_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_player_claim",
+     "notes": [
+      "What the news claims about each player (#812, #833): one row per claim the local model read from an ESPN headline or injury note, about a league player the item names, with its kind, its direction, its confidence (the model's, capped by rule), the exact quote it rests on and the date the source said it.",
+      "Nothing reads it yet: claims are not shown on the site and change no number. They are kept so the walk-forward harness (#769) can score each source's track record against what happened next, and a claim may tune a projection only once a rule built on that record beats the numbers alone out of sample (the epic's \"tune only when proven\" rule). A point-in-time build keeps the claims said before its date. A claim about a player dim_player does not have is dropped."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "dim_player",
+      "player_claims"
+     ],
+     "unit_tests": [
+      {
+       "description": "One row per claim about a player dim_player has, with its source, quote, dates and confidence as landed. A claim about a player id dim_player does not have is dropped.",
+       "name": "player_claim_keeps_claims_about_league_players_only"
+      },
+      {
+       "description": "A point-in-time build (#752) keeps a claim only when its source said it before the build's date, whenever it was extracted: as of 2026-10-29, the claim said on the 28th stays and the ones said on the 29th and 30th do not.",
+       "name": "player_claim_point_in_time_keeps_only_what_the_source_said_before_as_of"
       }
      ]
     },
@@ -26930,6 +27501,17 @@
   {
    "cadence": "",
    "folders": [
+    "ai/claims"
+   ],
+   "host": "",
+   "key": "ai",
+   "module": "",
+   "name": "ai",
+   "runner": ""
+  },
+  {
+   "cadence": "",
+   "folders": [
     "bref/salaries"
    ],
    "host": "",
@@ -27077,6 +27659,16 @@
    "description": "A player listed Out who returns two games later missed 2; a player listed Questionable who played missed 0; a player listed Out who does not play again missed every game the team had left. A report published after 5 pm Eastern is left out.",
    "model": "fct_official_listing",
    "name": "official_listing_counts_the_games_missed_after_each_listing"
+  },
+  {
+   "description": "One row per claim about a player dim_player has, with its source, quote, dates and confidence as landed. A claim about a player id dim_player does not have is dropped.",
+   "model": "fct_player_claim",
+   "name": "player_claim_keeps_claims_about_league_players_only"
+  },
+  {
+   "description": "A point-in-time build (#752) keeps a claim only when its source said it before the build's date, whenever it was extracted: as of 2026-10-29, the claim said on the 28th stays and the ones said on the 29th and 30th do not.",
+   "model": "fct_player_claim",
+   "name": "player_claim_point_in_time_keeps_only_what_the_source_said_before_as_of"
   },
   {
    "description": "A player who did not play has no box score (#389): the league writes zeros with no minutes, kept as null. A played line keeps its zeros, and a row whose minutes are missing keeps any number it does carry (here five points); only its zeros are nulled.",
@@ -27242,6 +27834,11 @@
    "description": "Tonight's game has its crew from the assignments page. The crew chief worked 20 games this season and last, 2 free-throw attempts and 1 possession above the league's average game, so shrunk as if 20 average games more, 1 and 0.5; the referee worked 60 games last season 4 attempts below and at the average pace (-3 and 0; the season before does not count); the umpire worked 20 games 1 attempt and 2 possessions above (0.5 and 1). The crew sits half an attempt below the average game and half a possession above it. The alternate does not count. A game without a crew yet has none.",
    "model": "mart_schedule_upcoming",
    "name": "schedule_upcoming_crew_tendency"
+  },
+  {
+   "description": "An item extracted again replaces every claim of its older landing: the role claim the model no longer makes goes with it. The same player and kind twice in one item keeps the more confident one, and a row with no player is dropped. Values are typed.",
+   "model": "player_claims",
+   "name": "player_claims_keep_the_newest_landing_of_each_item_and_one_claim_per_player_and_kind"
   },
   {
    "description": "ADR 0005's rules (#397): counts equal and minutes within half a minute is exact, within one minute minor, anything more or any count apart a conflict; a player neither source has on the floor (the league writes zeros, ESPN nothing) is exact.",

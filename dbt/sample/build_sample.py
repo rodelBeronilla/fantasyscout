@@ -52,6 +52,10 @@ PAYLOADS = [
     ("espn", "fantasy_players", "fantasy_players", "wnba", "2026", "2026-10-30"),
     ("espn", "fantasy_players", "fantasy_players_nba", "nba", "2026-27", "2026-10-30"),
     ("espn", "news", "news", "wnba", "2026", "2026-10-29T21"),
+    # the local model's claims (ai/claims.py): one file per source item, written by its checks
+    ("ai", "claims", "claims_news", "wnba", "2026", "espn_news-50300001"),
+    ("ai", "claims", "claims_injury_note", "wnba", "2026", "espn_injury_note-36901-5f1d2a3b4c6e"),
+    ("ai", "claims", "claims_news_shared", "wnba", "2026", "espn_news-50322590"),
     ("sleeper", "players", "players", "nba", "2026-27", "2026-10-29"),
     ("sleeper", "trending", "trending", "nba", "2026-27", "2026-10-29T22"),
     ("espn", "prop_bets", "prop_bets", "nba", "2026-27", "401909277-2026-10-30T10"),
