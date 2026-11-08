@@ -1,6 +1,7 @@
 ---
 import Notebooks from '../../components/Notebooks';
 import Base from '../../layouts/Base.astro';
+import { REPO_URL } from '../../lib/site';
 ---
 
 <Base
@@ -10,10 +11,16 @@ import Base from '../../layouts/Base.astro';
   <section>
     <h1 class="text-2xl font-semibold tracking-tight">Notebooks</h1>
     <p class="mt-1 text-sm text-muted">
-      Six analyses that run on every published build: whether the board and the Streamers sorts
-      pick the right players, what game context, shooting streaks and a teammate's absence are
-      worth, and how far the data can be trusted, re-asked of the newest data. Each opens as a rendered page; the source lives in the repository under <code>notebooks/</code>{' '}
-      and runs locally, against the published build, or against the lakehouse.
+      Five analyses that run on every published build: whether the Streamers sorts pick the right players, what game context, shooting streaks and a
+      teammate's absence are worth, and how far the data can be trusted, re-asked of the newest data. Each opens as a rendered page; the source lives in the
+      repository under <code>notebooks/</code> and runs locally, against the published build, or against the lakehouse.
+    </p>
+    <p class="mt-2 text-sm text-muted">
+      The board itself is judged by the walk-forward backtest, on the lakehouse rebuilt as it stood on past days (<a
+        href={`${REPO_URL}/blob/main/docs/adr/0018-point-in-time-builds.md`}
+        class="underline underline-offset-4"
+        rel="noopener">ADR 0018</a
+      >). The <a href="/methodology/" class="underline underline-offset-4">Methodology</a> page gives the evidence for each of its numbers.
     </p>
     <!-- a screen tall while the island loads, so the footer starts below the fold and nothing shifts (#436) -->
     <div class="mt-6 min-h-screen">

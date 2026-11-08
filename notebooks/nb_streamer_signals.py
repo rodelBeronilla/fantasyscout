@@ -11,10 +11,14 @@ CELLS = [
 with the window value (last-ten production times the team's games in the window, the default
 sort), a minutes trend, a value trend, recent value, games in the next seven days and the
 board's value. A manager adding a player on Monday wants the one who produces most over the
-coming week. Which of those columns, sorted on, puts that player at the top, and do three
-newer signals do better: games the player is expected to play rather than games scheduled,
-the board's projected line instead of the last ten games, and a trend in opportunity (minutes
-times usage)?
+coming week. Which of those columns, sorted on, puts that player at the top, and do two newer
+signals do better: games the player is expected to play rather than games scheduled, and a
+trend in opportunity (minutes times usage)?
+
+The board's value and its projected line are not tested here. They need the board as it stood
+on each Monday, which only a point-in-time build has (ADR 0018), and the walk-forward harness
+(`ops.walk_forward`) judges the board itself on those builds. This notebook used to replay the
+board in pandas for them, on an older value scale; that replay is retired (#776).
 
 **Why it matters.** A streaming slot is filled every week of the season. If the default sort
 points at the wrong signal, a manager following it loses value every week, quietly.""",
@@ -25,17 +29,18 @@ points at the wrong signal, a manager following it loses value every week, quiet
 
 - **Every Monday of every regular season**, using only the games before that day, the candidates
   are built as `mart_streamers` builds them: three or more games this season and a game in the
-  last 30 days, and outside the rostered pool, which is the top `teams x roster spots` players on
-  the board replayed as of that Monday (`replay.py`).
+  last 30 days, and outside the rostered pool, which is the top `teams x roster spots` players by
+  value so far this season (the players a league of the default size has most likely taken).
 - **Signals**, as `mart_streamers` computes them: the minutes trend (last five games against a
   baseline of the games before, blended with last season counted as up to ten games), the value
   trend (last-ten value against a baseline of the season and last season), the last-ten value,
   minutes over the last five, games in the next seven days (the schedule is published in
-  advance), starts in the last five, the old window value (last-ten z-score times games), the
-  board's value, and the default sort: last-ten production times games, the per-game
-  contribution of the last ten games on the season-to-date scale times the team's games in the
-  week.
-- **Three newer signals.**
+  advance), starts in the last five, the old window value (last-ten value times games), and the
+  default sort: last-ten production times games, the per-game contribution of the last ten games
+  times the team's games in the week. Every value is on the season's value scale (ADR 0019),
+  read from the build's scored season lines (`mart_category_zscores`), over regular-season games
+  only, as the lakehouse counts them.
+- **Two newer signals.**
   1. *Expected games.* Each of the team's games in the week is weighted by the chance the
      player plays it. The player's status is the official injury report listing on or before
      the Monday (`fct_official_listing`; NBA from 2023-24, WNBA from 2026), unless the player
@@ -47,15 +52,13 @@ points at the wrong signal, a manager following it loses value every week, quiet
      second night of a back-to-back adds the extra chance of sitting out the games before the
      Monday show (the game context notebook measured about 2.3 points in the NBA). Production
      times expected games replaces production times scheduled games.
-  2. *The board's projected line.* `replay.project` as of the Monday (season-weighted
-     per-minute production times projected minutes), scored on the same contribution scale,
-     times games and times expected games.
-  3. *Opportunity trend.* Minutes times usage percentage over the last five games against the
+  2. *Opportunity trend.* Minutes times usage percentage over the last five games against the
      same kind of baseline as the minutes trend.
 - **Target**: what the player added to a week's nine category totals over the next seven days.
   Each game's counting stats are taken in units of the category's spread over the season's pool
   (turnovers subtract), and its shooting as makes above the pool's percentage on its attempts,
-  in units of that impact's spread: the board's weights, applied to totals rather than averages,
+  in units of that impact's spread, all from the season's value scale: the board's weights,
+  applied to totals rather than averages,
   because a weekly matchup adds up what a roster produces. A game the player did not play adds
   nothing, so games in the week and availability are part of the target.
 - **Measures**: the weekly rank correlation of each signal with the target (mean over weeks, and
@@ -68,18 +71,28 @@ points at the wrong signal, a manager following it loses value every week, quiet
     setup(),
     (
         "code",
-        """from replay import value_scale
-import replay as rp
+        """from boxscore import contribution, line_value, lines, pool_size, spearman, top_hits, value_scale
+import boxscore as bx
 
-SETTINGS = rp.load_settings()
+
+class League:
+    \"\"\"One league's player-game rows, prepared.\"\"\"
+
+    def __init__(self, games):
+        self.games = games
+
+    def seasons(self):
+        return sorted(self.games['season'].unique())
+
+
 has_usage = 'usage_percentage' in columns(con, 'fct_player_game')
-cols = ', '.join([*rp.GAME_COLUMNS, 'usage_percentage' if has_usage else 'null as usage_percentage'])
-replays = {}
+cols = ', '.join([*bx.GAME_COLUMNS, 'usage_percentage' if has_usage else 'null as usage_percentage'])
+data, SCALES, POOL = {}, {}, {}
 for lg in LEAGUES:
     g = con.sql(f"select {cols} from fct_player_game where league = '{lg}'").df()
     if len(g):
         g['usage_percentage'] = pd.to_numeric(g['usage_percentage'], errors='coerce')
-        r = rp.Replay(g, SETTINGS[lg])
+        r = League(bx.prepare(g))
         # opportunity: minutes times the share of the team's plays the player used
         r.games['opportunity'] = (r.games['minutes'] * r.games['usage_percentage']).where(r.games['played'])
         # tracking (NBA only, #488): touches a game, and potential assists per 36 minutes
@@ -94,7 +107,9 @@ for lg in LEAGUES:
             r.games[c] = pd.to_numeric(r.games[c], errors='coerce')
         r.games['touches'] = r.games['touches'].where(r.games['played'])
         r.games['potential_assists_36'] = (36 * r.games['potential_assists'] / r.games['minutes'].where(r.games['minutes'] > 0)).where(r.games['played'])
-        replays[lg] = r
+        data[lg] = r
+        SCALES[lg] = value_scale(con, lg)  # the build's own value scale per season (ADR 0019)
+        POOL[lg] = pool_size(lg)
 
 SIGNALS = {
     'week_projection': 'Last-ten production x games (the default sort)',
@@ -105,42 +120,29 @@ SIGNALS = {
     'games_next_7': 'Games in the next seven days',
     'starts_last_5': 'Starts in the last five games',
     'window_value': 'Old window value (last-ten z-score x games)',
-    'value_total': 'Board value',
     'expected_games': 'Expected games in the next seven days',
     'production_expected': 'Last-ten production x expected games',
-    'board_projection': "Board's projected line x games",
-    'board_projection_expected': "Board's projected line x expected games",
     'opportunity_trend': 'Opportunity trend (minutes x usage)',
     'touches_trend': 'Touches trend (NBA tracking)',
     'potential_assists_trend': 'Potential assists per 36 trend (NBA tracking)',
 }
-NEW = ['expected_games', 'production_expected', 'board_projection', 'board_projection_expected', 'opportunity_trend',
+NEW = ['expected_games', 'production_expected', 'opportunity_trend',
        'touches_trend', 'potential_assists_trend']
 OLD = [k for k in SIGNALS if k not in NEW]
 PRIOR = 10  # mart_streamers: last season counts as up to ten games in the baselines
 
 
-def contribution(rows, scale):
-    \"\"\"What each game adds to a week's category totals, in units of each category's spread.
-
-    Counting stats add to the totals (turnovers subtract); shooting adds its makes above the
-    pool's percentage on its attempts. A game not played adds nothing.
-    \"\"\"
-    v = pd.Series(0.0, index=rows.index)
-    for c in rp.COUNTING:
-        x = rows[c].fillna(0) / scale[c]
-        v += -x if c == 'turnovers' else x
-    for name, made, att in (('fg', 'fgm', 'fga'), ('ft', 'ftm', 'fta')):
-        pct, sd = scale[name]
-        v += (rows[made].fillna(0) - pct * rows[att].fillna(0)) / sd
-    return v
+def scored(rows, scale):
+    \"\"\"Per-game lines over played rows, with their value above replacement on the scale.\"\"\"
+    ln = lines(rows)
+    return ln.assign(z_total=line_value(ln, scale))
 
 
 def season_values(r, lg, season):
     \"\"\"Every played regular-season game of a season, valued on the season's scale.\"\"\"
     g = r.games
     rows = g[(g['season'] == season) & g['regular'] & g['played']].copy()
-    rows['value'] = contribution(rows, value_scale(rows, lg))
+    rows['value'] = contribution(rows, SCALES[lg][season])
     return rows
 
 
@@ -148,9 +150,9 @@ def previous_lines(r, lg, season):
     \"\"\"Each player's latest earlier season with games: games, minutes, opportunity and season value.\"\"\"
     g = r.games
     out = []
-    for s in [x for x in r.seasons() if x < season]:
-        part = g[g['season'] == s]
-        z = rp.category_z(rp.lines(part), rp.ZSCORE_POOL[lg])
+    for s in [x for x in r.seasons() if x < season and x in SCALES[lg]]:
+        part = g[(g['season'] == s) & g['regular']]
+        z = scored(part, SCALES[lg][s])
         means = part[part['played']].groupby('player_id')[['opportunity', 'touches', 'potential_assists_36']].mean()
         out.append(z[['games', 'minutes_pg', 'z_total']].join(means).assign(season=s))
     if not out:
@@ -203,7 +205,7 @@ for c in ['games_missed', 'team_games_left']:
 listings['played'] = listings['played'].astype('boolean').fillna(False).astype(bool)
 
 teams_idx, team_rows, team_games_by_date = {}, {}, {}
-for lg, r in replays.items():
+for lg, r in data.items():
     t = team_index(r)
     teams_idx[lg] = t
     team_rows[lg] = t.set_index(['season', 'team_id'])
@@ -275,7 +277,7 @@ def rotation_rows(r):
     return m[['game_date', 'b2b', 'played']].assign(missed=lambda d: (~d['played']).astype(float))
 
 
-rotation = {lg: rotation_rows(r) for lg, r in replays.items()}
+rotation = {lg: rotation_rows(r) for lg, r in data.items()}
 
 
 def b2b_uplift(lg, m):
@@ -309,7 +311,7 @@ def expected_games(lg, season, m, f):
     own = own[own['player_id'].isin(f.index)].sort_values('game_date').drop_duplicates('player_id', keep='last')
     if own.empty:
         return out, listed_status
-    g = replays[lg].games
+    g = data[lg].games
     played = g[(g['season'] == season) & g['played'] & (g['game_date'] < m)].groupby('player_id')['game_date'].max()
     own = own[own['team_id'].to_numpy() == f.loc[own['player_id'], 'team_id'].to_numpy()]
     # resolved: the player has played since the listing (or played the listed game, before the Monday)
@@ -358,15 +360,15 @@ def baseline(f, recent, n_recent, season_mean, n_season, prev, weight):
         before + weight.where(prev.notna(), 0)).replace(0, np.nan)
 
 
-def week(r, lg, season, monday, values, prev, schedule, earlier):
+def week(r, lg, season, monday, values, prev, schedule):
     g = r.games
-    s = SETTINGS[lg]
-    rows = g[(g['season'] == season) & (g['game_date'] < monday)]
+    scale = SCALES[lg][season]
+    rows = g[(g['season'] == season) & g['regular'] & (g['game_date'] < monday)]
     played = rows[rows['played']].sort_values(['game_date', 'game_id'])
     if played.empty:
         return None
-    season_z = rp.category_z(rp.lines(played), rp.ZSCORE_POOL[lg])
-    last10 = rp.category_z(rp.lines(played.groupby('player_id').tail(10)), rp.ZSCORE_POOL[lg])
+    season_z = scored(played, scale)
+    last10 = scored(played.groupby('player_id').tail(10), scale)
     last5 = played.groupby('player_id').tail(5).groupby('player_id').agg(
         minutes_avg_5=('minutes', 'mean'), games_in_window_5=('minutes', 'size'), starts_last_5=('started', 'sum'),
         opportunity_5=('opportunity', 'mean'), opportunity_n_5=('opportunity', 'count'),
@@ -405,26 +407,14 @@ def week(r, lg, season, monday, values, prev, schedule, earlier):
     f['games_next_7'] = f['team_id'].map(upcoming).fillna(0)
     f['expected_games'], f['listed_status'] = expected_games(lg, season, monday, f)
     f['window_value'] = f['last_10_z_total'] * f['games_next_7']
-    scale = value_scale(played, lg)
     recent = played.groupby('player_id').tail(10)
     per_game = contribution(recent, scale).groupby(recent['player_id']).mean().reindex(f.index)
     f['production_10'] = per_game
     f['week_projection'] = per_game * f['games_next_7']
     f['production_expected'] = per_game * f['expected_games']
-    # outside the rostered pool on the board as of that Monday
-    board = r.board(monday, r.roster_at(season, monday, preseason=False), in_season=True, complete_seasons=earlier)
-    f['rank_total'] = board['rank_total'].reindex(f.index) if len(board) else np.nan
-    f['value_total'] = board['value_total'].reindex(f.index) if len(board) else np.nan
-    if len(board):
-        line = board[[f'proj_{c}_pg' for c in (*rp.COUNTING, 'fgm', 'fga', 'ftm', 'fta')]]
-        line.columns = [*rp.COUNTING, 'fgm', 'fga', 'ftm', 'fta']
-        board_pg = contribution(line, scale).reindex(f.index)
-    else:
-        board_pg = pd.Series(np.nan, index=f.index)
-    f['board_production'] = board_pg
-    f['board_projection'] = board_pg * f['games_next_7']
-    f['board_projection_expected'] = board_pg * f['expected_games']
-    f = f[~(f['rank_total'] <= s.pool_size)]
+    # outside the rostered pool: the top teams x roster spots by value so far this season
+    rank = season_z['z_total'].rank(ascending=False, method='first')
+    f = f[~(rank.reindex(f.index) <= POOL[lg])]
     nxt = values[(values['game_date'] >= monday) & (values['game_date'] < end)]
     f['target'] = nxt.groupby('player_id')['value'].sum().reindex(f.index).fillna(0)
     f['games_played_next_7'] = nxt.groupby('player_id').size().reindex(f.index).fillna(0)
@@ -434,18 +424,17 @@ def week(r, lg, season, monday, values, prev, schedule, earlier):
 
 
 weeks = []
-for lg, r in replays.items():
+for lg, r in data.items():
     g = r.games
     for season in r.seasons():
         ms = mondays(r, season)
-        if not ms:
+        if not ms or season not in SCALES[lg]:
             continue
         values = season_values(r, lg, season)
         prev = previous_lines(r, lg, season)
         schedule = g[(g['season'] == season) & g['regular']][['team_id', 'game_id', 'game_date']].drop_duplicates()
-        earlier = [x for x in r.seasons() if x < season]
         for m in ms:
-            w = week(r, lg, season, m, values, prev, schedule, earlier)
+            w = week(r, lg, season, m, values, prev, schedule)
             if w is not None and len(w) >= 20:
                 weeks.append(w.rename_axis('player_id').reset_index())
 streams = pd.concat(weeks, ignore_index=True) if weeks else pd.DataFrame()
@@ -472,7 +461,7 @@ else:
 
 
 def weekly(part, key):
-    vals = [rp.spearman(w[key].to_numpy(), w['target'].to_numpy()) for _, w in part.groupby('monday')]
+    vals = [spearman(w[key].to_numpy(), w['target'].to_numpy()) for _, w in part.groupby('monday')]
     vals = np.array([v for v in vals if np.isfinite(v)])
     if len(vals) < 2:
         return np.nan, np.nan, len(vals)
@@ -480,7 +469,7 @@ def weekly(part, key):
 
 
 def top10(part, key):
-    hits = [rp.top_hits(w[key].fillna(-np.inf).to_numpy(), w['target'].to_numpy(), 10) for _, w in part.groupby('monday')]
+    hits = [top_hits(w[key].fillna(-np.inf).to_numpy(), w['target'].to_numpy(), 10) for _, w in part.groupby('monday')]
     return float(np.mean(hits)) if hits else np.nan
 
 
@@ -491,8 +480,8 @@ def top10_value(part, key):
 
 def paired(part, key, base='week_projection'):
     \"\"\"Weekly top-10 hits of a sort less the default's: mean and t-statistic over the weeks.\"\"\"
-    d = np.array([rp.top_hits(w[key].fillna(-np.inf).to_numpy(), w['target'].to_numpy(), 10)
-                  - rp.top_hits(w[base].fillna(-np.inf).to_numpy(), w['target'].to_numpy(), 10) for _, w in part.groupby('monday')])
+    d = np.array([top_hits(w[key].fillna(-np.inf).to_numpy(), w['target'].to_numpy(), 10)
+                  - top_hits(w[base].fillna(-np.inf).to_numpy(), w['target'].to_numpy(), 10) for _, w in part.groupby('monday')])
     if len(d) < 2 or d.std(ddof=1) == 0:
         return (float(d.mean()) if len(d) else np.nan), np.nan
     return float(d.mean()), float(d.mean() / (d.std(ddof=1) / np.sqrt(len(d))))
@@ -551,7 +540,7 @@ still beat the default once the filter has done its work?""",
     ),
     (
         "code",
-        """PAGE_SORTS = ['week_projection', 'production_expected', 'board_projection', 'board_projection_expected', 'opportunity_trend', 'blend']
+        """PAGE_SORTS = ['week_projection', 'production_expected', 'opportunity_trend', 'blend']
 page_tables = {}
 for lg, (table, held) in tables.items():
     shown = held[held['listed_status'] != 'Out']
@@ -588,7 +577,7 @@ rises from left to right, and a better one rises more steeply at the top.""",
 deciles = {}
 if tables:
     panels = [('Older signals', ['week_projection', 'minutes_trend', 'value_trend', 'games_next_7', 'starts_last_5']),
-              ('Newer signals against the default', ['week_projection', 'production_expected', 'board_projection_expected', 'expected_games', 'opportunity_trend'])]
+              ('Newer signals against the default', ['week_projection', 'production_expected', 'expected_games', 'opportunity_trend'])]
     fig, axes = plt.subplots(len(panels), len(tables), figsize=(6 * len(tables), 4 * len(panels)), squeeze=False)
     for col, (lg, (table, held)) in enumerate(tables.items()):
         for row, (title, shown) in enumerate(panels):
@@ -614,7 +603,7 @@ if tables:
     if lg not in tables:
         n = int((streams['league'] == lg).sum()) if len(streams) else 0
         findings[lg] = insufficient(
-            f"Not enough history in this build: the {LABEL[lg]} replay needs four or more regular-season Mondays "
+            f"Not enough history in this build: the {LABEL[lg]} backtest needs four or more regular-season Mondays "
             "with a full week after them, and this build has fewer.", n=n, n_label='candidate-weeks')
         continue
     table, held = tables[lg]

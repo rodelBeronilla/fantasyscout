@@ -7,12 +7,6 @@ import { Card, Loading, Problem, Td, Th } from './ui';
 
 const NOTEBOOKS = [
   {
-    name: '01_board_backtest',
-    title: 'Board backtest',
-    blurb:
-      'The board replayed before and during past seasons from the games before each day: how many of its top players finished on top, against last season’s numbers and the season to date.',
-  },
-  {
     name: '02_streamer_signals',
     title: 'Streamer signals',
     blurb: 'Every Monday of past seasons: which Streamers column, sorted on, finds the free agents who produce most over the next seven days.',

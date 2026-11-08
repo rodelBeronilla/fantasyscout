@@ -45,7 +45,7 @@ Unit tests pin both sides of the cut in `fct_player_game`: with `point_in_time` 
 
 ## Consequences
 
-- The walk-forward harness (#751) can rebuild the lakehouse at any checkpoint with dbt itself. The Python replay then becomes a second implementation with a parity check, rather than the only way to backtest.
+- The walk-forward harness (#751) can rebuild the lakehouse at any checkpoint with dbt itself. The Python replay then becomes a second implementation with a parity check, rather than the only way to backtest. **It is retired (#776):** the board backtest notebook that ran on it is gone, and the notebooks that read its helpers read the build's own value scale instead (`notebooks/boxscore.py`).
 - Point-in-time builds of past seasons have no injury statuses, market, lines or standings, because none were observed then. Features that need them can be backtested only from the day ingestion of each began. The Methodology page says so per feature.
 - A new dated source must be cut where it is typed, and added to the check's table list.
 - **Rosters are rebuilt in a point-in-time build (#797).** Rosters count as known only from the day they were landed, and every past season's were landed by a backfill, so a backtest of a past date had nobody to project. `int_known_roster` rebuilds the roster from what was known before the cut. Each player is on the team of his latest game played (this season or the last), official signing, trade (the receiving team) or waiver claim; a waiver takes him off. A normal build still reads the official rosters.

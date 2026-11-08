@@ -72,11 +72,11 @@ packages = ["ingest", "export", "ops", "ai", "tests"]
 module = ["pyarrow", "pyarrow.*"]
 ignore_missing_imports = true
 
-# The tests import script modules by sys.path (notebooks/replay.py, notebooks/fs.py,
+# The tests import script modules by sys.path (notebooks/boxscore.py, notebooks/fs.py,
 # tableau/sheets.py) and two
 # libraries that ship no types (PyYAML, pandas; their stub packages are not dependencies).
 [[tool.mypy.overrides]]
-module = ["replay", "fs", "sheets", "yaml", "pandas"]
+module = ["boxscore", "fs", "sheets", "yaml", "pandas"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -53,16 +53,16 @@ day-to-day listing a quarter of a game, questionable half and doubtful three qua
     setup(),
     (
         "code",
-        """import replay as rp
+        """import boxscore as bx
 
 FP = {'points': 1, 'rebounds_total': 1, 'assists': 2, 'steals': 4, 'blocks': 4, 'three_pointers_made': 1,
       'turnovers': -2, 'fgm': 2, 'fga': -1, 'ftm': 1, 'fta': -1}
-cols = ', '.join((*rp.GAME_COLUMNS, 'comment', 'is_home'))
+cols = ', '.join((*bx.GAME_COLUMNS, 'comment', 'is_home'))
 games = {}
 for lg in LEAGUES:
     g = con.sql(f"select {cols} from fct_player_game where league = '{lg}'").df()
     if len(g):
-        g = rp.prepare(g)
+        g = bx.prepare(g)
         g['fp'] = sum(w * g[c].fillna(0) for c, w in FP.items())
         games[lg] = g
 
@@ -201,7 +201,7 @@ for lg, m in frames.items():
     ),
     (
         "code",
-        """from replay import finished, ols
+        """from boxscore import finished, ols
 REST = {'b2b': 'Second night of a back-to-back', 'three_in_four': 'Third game in four nights',
         'opp_b2b': 'Opponent on a back-to-back', 'home': 'At home',
         'opp_def_z': 'Opponent defence, per SD (higher rating = leakier)', 'pace_z': 'Opponent pace, per SD'}
@@ -720,7 +720,7 @@ if len(line_coverage):
         "code",
         """import yaml
 
-MATCHUP = yaml.safe_load(rp.PROJECT_FILE.read_text(encoding='utf-8'))['vars']['fantasy_matchup']
+MATCHUP = yaml.safe_load(bx.PROJECT_FILE.read_text(encoding='utf-8'))['vars']['fantasy_matchup']
 LINE = {'implied_z': 'Team implied points, per SD', 'blowout_5': 'Absolute spread, per 5 points'}
 BASE = {'opp_def_z': REST['opp_def_z'], 'pace_z': REST['pace_z']}
 ROLES = {'all': 'All regulars', 'starter': 'Started', 'bench': 'Came off the bench'}

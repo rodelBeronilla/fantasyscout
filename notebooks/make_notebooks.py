@@ -23,7 +23,6 @@ import nbformat as nbf
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from nb_board_backtest import CELLS as BOARD_BACKTEST  # noqa: E402
 from nb_data_quality import CELLS as DATA_QUALITY  # noqa: E402
 from nb_game_context import CELLS as GAME_CONTEXT  # noqa: E402
 from nb_prop_lines import CELLS as PROP_LINES  # noqa: E402
@@ -32,7 +31,6 @@ from nb_streamer_signals import CELLS as STREAMER_SIGNALS  # noqa: E402
 from nb_teammate_absence import CELLS as TEAMMATE_ABSENCE  # noqa: E402
 
 NOTEBOOKS: dict[str, list[tuple[str, str]]] = {
-    "01_board_backtest": BOARD_BACKTEST,
     "02_streamer_signals": STREAMER_SIGNALS,
     "03_game_context": GAME_CONTEXT,
     "04_data_quality": DATA_QUALITY,
