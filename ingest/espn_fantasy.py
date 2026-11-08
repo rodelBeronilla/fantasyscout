@@ -12,13 +12,19 @@ A history run (#786) lands a past season's market once, under its own endpoint (
 it never becomes the latest market the board reads. The walk-forward harness reads its average
 draft position as the preseason market baseline (ESPN serves past NBA seasons; past WNBA seasons
 come back empty).
+
+The season being played lands the same way (#847), so the board's market prior (ADR 0020) has
+its draft order: the daily ESPN run lands it once, from the eve of the season's first
+regular-season game, when the drafts are done. Nothing lands it again, not even a full refresh;
+only an explicit history run with --full-refresh replaces it.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from ingest.http import CircuitOpenError, ThrottledClient
@@ -39,6 +45,15 @@ OWNERSHIP_KEYS = (
     "auctionValueAverage",
     "percentChange",
 )
+
+
+def draft_order_due(regular_season_days: Iterable[date], today: date) -> bool:
+    """Whether the daily run lands the season's draft order (#847): a scoreboard it read, up to
+    tomorrow's, has a regular-season game. So it lands on the eve of the first game, when the
+    drafts are done and before any tip-off, or on the first run after it if that one was missed.
+    Preseason games and the months between seasons never make it due."""
+    tomorrow = today + timedelta(days=1)
+    return any(day <= tomorrow for day in regular_season_days)
 
 
 def espn_year(league: League, season: str) -> str:
@@ -78,20 +93,26 @@ class EspnFantasyIngestor:
     now: datetime | None = None
     # a past season's market, landed once under fantasy_adp (#786)
     history: bool = False
+    # the season's draft order as the daily run lands it (#847): once ever, even on a full refresh
+    keep: bool = False
+
+    def _landed(self, scope: Scope, key: str) -> bool:
+        if self.keep:
+            return key in self.landing.entries(scope)
+        if self.history:
+            return self.landing.has_landed(scope, key)
+        return self.landing.already_landed_today(scope, key)
 
     def land_into(self, summary: RunSummary) -> None:
         now = self.now or datetime.now(UTC)
-        endpoint = HISTORY_ENDPOINT if self.history else "fantasy_players"
-        key = HISTORY_KEY if self.history else eastern_date(now).isoformat()
+        history = self.history or self.keep
+        endpoint = HISTORY_ENDPOINT if history else "fantasy_players"
+        key = HISTORY_KEY if history else eastern_date(now).isoformat()
         game, year = GAME[self.league], espn_year(self.league, self.season)
         url = URL.format(game=game, year=year)
         scope = Scope("espn", endpoint, self.league, self.season)
         try:
-            landed = (
-                self.landing.has_landed(scope, key)
-                if self.history
-                else self.landing.already_landed_today(scope, key)
-            )
+            landed = self._landed(scope, key)
             if landed:
                 summary.record(None)
                 return

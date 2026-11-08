@@ -17,6 +17,26 @@ from ingest.store import LocalBackend, VolumeBackend
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
+def espn_client(seen: list[str]) -> ThrottledClient:
+    """ESPN's site API from the fixtures, and its fantasy API's players with one player."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        name = request.url.path.rsplit("/", 1)[-1]
+        seen.append(f"{request.url.host}/{name}")
+        if request.url.host == "lm-api-reads.fantasy.espn.com":
+            player = {"id": 1, "fullName": "A Player", "ownership": {"averageDraftPosition": 1.5}}
+            return httpx.Response(200, content=json.dumps([player]).encode())
+        return httpx.Response(200, content=(FIXTURES / "espn" / f"{name}.json").read_bytes())
+
+    return ThrottledClient(
+        Throttle(max_retries=0),
+        transport=httpx.MockTransport(handler),
+        sleep=lambda _: None,
+        clock=lambda: 0.0,
+        rng=random.Random(0),
+    )
+
+
 def test_default_season_follows_each_league_calendar() -> None:
     assert default_season("wnba", date(2026, 10, 27)) == "2026"
     assert default_season("wnba", date(2027, 2, 1)) == "2026"
@@ -172,22 +192,36 @@ def test_a_late_evening_run_lands_under_the_eastern_date(
     # 02:00 UTC on 2026-09-25 is 22:00 Eastern on the 24th: the ingest date, the window's end
     # and the run log's folder all say the 24th.
     monkeypatch.setattr(land_mod, "eastern_today", lambda: date(2026, 9, 24))
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        name = request.url.path.rsplit("/", 1)[-1]
-        return httpx.Response(200, content=(FIXTURES / "espn" / f"{name}.json").read_bytes())
-
-    monkeypatch.setattr(
-        land_mod,
-        "ThrottledClient",
-        lambda *_, **__: ThrottledClient(
-            Throttle(max_retries=0),
-            transport=httpx.MockTransport(handler),
-            sleep=lambda _: None,
-            clock=lambda: 0.0,
-        ),
-    )
+    monkeypatch.setattr(land_mod, "ThrottledClient", lambda *_, **__: espn_client([]))
     summary = land(LandOptions("espn", "wnba", window_days=1, root=tmp_path), env={})
     assert summary is not None and summary.ok
     assert (tmp_path / "landing/espn/scoreboard/wnba/2026/2026-09-24").is_dir()
     assert next(iter((tmp_path / "landing/_ops/ingest_log").iterdir())).name == "2026-09-24"
+
+
+def test_the_daily_espn_run_lands_the_seasons_draft_order_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #847: a run whose window ends today and whose scoreboards hold a regular-season game lands
+    # the season's draft order under fantasy_adp, once; the next day's run asks for nothing.
+    # A backfill's window in the past and a replay never ask.
+    seen: list[str] = []
+    monkeypatch.setattr(land_mod, "ThrottledClient", lambda *_, **__: espn_client(seen))
+    fantasy = "lm-api-reads.fantasy.espn.com/players"
+    for today in (date(2026, 9, 24), date(2026, 9, 25)):
+        opts = LandOptions("espn", "wnba", window_days=1, ahead_days=0, root=tmp_path)
+        summary = land(opts, today=today, env={})
+        assert summary is not None
+        assert summary.ok, summary.failures
+    assert seen.count(fantasy) == 1
+    [landed] = (tmp_path / "landing/espn/fantasy_adp/wnba/2026").rglob("preseason.json")
+    assert json.loads(landed.read_text(encoding="utf-8"))["players"][0]["fullName"] == "A Player"
+
+    seen.clear()
+    backfill = LandOptions(
+        "espn", "wnba", since=date(2026, 9, 24), until=date(2026, 9, 24), root=tmp_path / "b"
+    )
+    replay = LandOptions("espn", "wnba", window_days=1, only=("scoreboard",), root=tmp_path / "r")
+    land(backfill, today=date(2026, 10, 27), env={})
+    land(replay, today=date(2026, 9, 24), env={})
+    assert fantasy not in seen
