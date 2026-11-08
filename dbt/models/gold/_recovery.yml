@@ -1,0 +1,103 @@
+version: 2
+
+models:
+  - name: fct_recovery_curve
+    description: "How long injuries keep players out (#800, for #770): a Kaplan-Meier curve of games missed per league and body part, and per body part and kind, from the official reports' injury spells. A censored spell counts as at least what was seen. Not yet validated out of sample (#769)."
+    columns:
+      - name: recovery_curve_sk
+        description: "Surrogate key: one row per league, level, body part, kind and count of games"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+      - name: level
+        description: "body_part (every kind together) or body_part_kind"
+        data_tests:
+          - accepted_values:
+              values: [body_part, body_part_kind]
+      - name: body_part
+        description: "The body part, lower case (ankle, hamstring, head for a concussion)"
+      - name: injury_kind
+        description: "The kind (sprain, strain, soreness, ...); null at the body_part level"
+      - name: spells
+        description: "Injury spells in the group (recovery_min_spells at least)"
+      - name: games
+        description: "A count of team games missed at which at least one spell ended or was last seen"
+      - name: at_risk
+        description: "Spells that lasted at least this many games"
+      - name: returned
+        description: "Spells that ended at this count with the player back"
+      - name: censored
+        description: "Spells last seen at this count, still running (ongoing at the cut, or at season's end)"
+      - name: survival
+        meta: {unit: ratio 0 to 1}
+        description: "Kaplan-Meier share of spells still running after this many games"
+
+  - name: mart_recovery_timeline
+    description: "Expected recovery timelines (#800, for #770): per league and body part, and per body part and kind, the 25th percentile, median and 75th percentile of games an injury spell lasts, from its Kaplan-Meier curve. A percentile the curve never reaches is null. Not yet validated out of sample (#769)."
+    columns:
+      - name: recovery_timeline_sk
+        description: "Surrogate key: one row per league, level, body part and kind"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+      - name: level
+        description: "body_part or body_part_kind"
+      - name: body_part
+        description: "The body part"
+      - name: injury_kind
+        description: "The kind; null at the body_part level"
+      - name: spells
+        description: "Injury spells behind the curve"
+      - name: censored
+        description: "Of them, spells still running when last seen"
+      - name: p25_games
+        description: "Games by which a quarter of the spells had ended with the player back"
+      - name: median_games
+        description: "Games by which half had"
+      - name: p75_games
+        description: "Games by which three quarters had; null when too many were still running"
+
+unit_tests:
+  - name: the_recovery_curve_counts_a_censored_spell_as_at_least_what_was_seen
+    description: >
+      Five ankle spells: back after 1, 2 and 3 games, one last seen after 2 games still out and one
+      after 5. Kaplan-Meier: 0.8 still out after 1 game (1 of 5 back), 0.6 after 2 (1 of the 4 at
+      risk back), 0.3 after 3 (1 of 2), and 0.3 after 5 (none of the 1 back). Counting the censored
+      spells as finished would have put everyone back by 5. A body part with fewer spells than the
+      minimum gets no curve.
+    model: fct_recovery_curve
+    overrides:
+      vars:
+        recovery_min_spells: 5
+    given:
+      - input: ref('fct_injury_spell')
+        rows:
+          - {league: nba, reason_group: injury, body_part: ankle, injury_kind: null, games_missed: 1, returned: true}
+          - {league: nba, reason_group: injury, body_part: ankle, injury_kind: null, games_missed: 2, returned: true}
+          - {league: nba, reason_group: injury, body_part: ankle, injury_kind: null, games_missed: 2, returned: false}
+          - {league: nba, reason_group: injury, body_part: ankle, injury_kind: null, games_missed: 3, returned: true}
+          - {league: nba, reason_group: injury, body_part: ankle, injury_kind: null, games_missed: 5, returned: false}
+          - {league: nba, reason_group: injury, body_part: knee, injury_kind: null, games_missed: 4, returned: true}
+          - {league: nba, reason_group: rest, body_part: null, injury_kind: null, games_missed: 1, returned: true}
+    expect:
+      rows:
+        - {body_part: ankle, games: 1, at_risk: 5, returned: 1, censored: 0, survival: 0.8}
+        - {body_part: ankle, games: 2, at_risk: 4, returned: 1, censored: 1, survival: 0.6}
+        - {body_part: ankle, games: 3, at_risk: 2, returned: 1, censored: 0, survival: 0.3}
+        - {body_part: ankle, games: 5, at_risk: 1, returned: 0, censored: 1, survival: 0.3}
+
+  - name: the_timeline_reads_its_percentiles_off_the_curve
+    description: >
+      The curve above: a quarter of the spells had ended by 2 games and half by 3; three quarters
+      never had, so that percentile is null rather than guessed.
+    model: mart_recovery_timeline
+    given:
+      - input: ref('fct_recovery_curve')
+        rows:
+          - {league: nba, level: body_part, body_part: ankle, injury_kind: null, spells: 5, games: 1, censored: 0, survival: 0.8}
+          - {league: nba, level: body_part, body_part: ankle, injury_kind: null, spells: 5, games: 2, censored: 1, survival: 0.6}
+          - {league: nba, level: body_part, body_part: ankle, injury_kind: null, spells: 5, games: 3, censored: 0, survival: 0.3}
+          - {league: nba, level: body_part, body_part: ankle, injury_kind: null, spells: 5, games: 5, censored: 1, survival: 0.3}
+    expect:
+      rows:
+        - {body_part: ankle, spells: 5, censored: 2, p25_games: 2, median_games: 3, p75_games: null}

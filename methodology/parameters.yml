@@ -311,6 +311,15 @@ parameters:
     evidence: "none; a regular rarely sits by the coach's choice"
     validation: 770
 
+  - id: injury.recovery_min_spells
+    value: 30
+    dbt: recovery_min_spells
+    kind: threshold
+    status: assumed
+    what: "Injury spells a body part, or a body part and kind, needs for its own recovery curve."
+    evidence: "none; a common floor for a Kaplan-Meier median that is not one or two spells"
+    validation: 770
+
   # ---- context flags (web/src/lib/blowout.ts)
   - id: blowout.spread
     value: 10

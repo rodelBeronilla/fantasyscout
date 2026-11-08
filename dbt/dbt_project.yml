@@ -70,6 +70,9 @@ vars:
   # a game starts a spell. A regular rarely sits out by the coach's choice, which the box score
   # cannot tell from an injury.
   absence_spells: {min_minutes: 20, recent_games: 10}
+  # Recovery timelines (fct_recovery_curve, mart_recovery_timeline, #800): a body part, or a body
+  # part and kind, gets its own Kaplan-Meier curve once it has this many injury spells.
+  recovery_min_spells: 30
   fantasy_durability: {typical_share: 0.8}
   # A past season spent mostly on another team: the share of its minutes weight it keeps.
   fantasy_team_change: 0.25

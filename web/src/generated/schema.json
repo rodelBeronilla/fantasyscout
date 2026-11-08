@@ -384,7 +384,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 406,
+ "generic_tests": 411,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -17532,7 +17532,9 @@
       "- A spell with a return is observed. One without is censored, not short: `ongoing` while the team still has regular-season games to play (the spell was running at the cut, and a point-in-time build cuts it as of its date), `season_end` when the season ended first. Either way games_missed and days_out are what was seen, a lower bound on the spell, and a survival model must treat them so; counting them as finished spells understates long injuries.",
       "- What it was: the first listing's status, the most serious status listed during the spell, and the injury detail of the first listing split into the side (left, right), the body part and the kind (soreness, sprain, strain, fracture, surgery, ...; null when the report says only \"injury\" or repeats the body part). The league's own reason group says whether it was an injury, rest, personal, a suspension or another absence; a concussion protocol listing is an injury to the head."
      ],
-     "read_by": [],
+     "read_by": [
+      "fct_recovery_curve"
+     ],
      "read_by_pages": [],
      "reads": [
       "fct_official_listing",
@@ -19639,6 +19641,127 @@
       "player_game_box"
      ],
      "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, level, body part, kind and count of games",
+       "meta": {},
+       "name": "recovery_curve_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "body_part (every kind together) or body_part_kind",
+       "meta": {},
+       "name": "level",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The body part, lower case (ankle, hamstring, head for a concussion)",
+       "meta": {},
+       "name": "body_part",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The kind (sprain, strain, soreness, ...); null at the body_part level",
+       "meta": {},
+       "name": "injury_kind",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Injury spells in the group (recovery_min_spells at least)",
+       "meta": {},
+       "name": "spells",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "A count of team games missed at which at least one spell ended or was last seen",
+       "meta": {},
+       "name": "games",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Spells that lasted at least this many games",
+       "meta": {},
+       "name": "at_risk",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Spells that ended at this count with the player back",
+       "meta": {},
+       "name": "returned",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Spells last seen at this count, still running (ongoing at the cut, or at season's end)",
+       "meta": {},
+       "name": "censored",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Kaplan-Meier share of spells still running after this many games",
+       "meta": {
+        "unit": "ratio 0 to 1"
+       },
+       "name": "survival",
+       "tests": [],
+       "type": "double"
+      }
+     ],
+     "description": "How long injuries keep players out (#800, for #770): a Kaplan-Meier curve of games missed per league and body part, and per body part and kind, from the official reports' injury spells. A censored spell counts as at least what was seen. Not yet validated out of sample (#769).",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "level",
+       "body_part",
+       "coalesce(injury_kind, '-')",
+       "games"
+      ],
+      "key": "recovery_curve_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_recovery_curve",
+     "notes": [
+      "How long injuries keep players out (#800, for #770): a Kaplan-Meier curve of games missed per league and body part, and per body part and kind, from the official reports' injury spells (fct_injury_spell, injuries only).",
+      "At each count of games missed, at_risk is the spells that lasted at least that long, returned those that ended there with the player back, censored those still running when last seen (ongoing at the cut, or at season's end). survival is the share still out after that many games: the running product of (1 - returned / at_risk). A censored spell counts as at least what was seen and leaves the risk set after it, never as a short spell that ended. A group needs recovery_min_spells spells."
+     ],
+     "read_by": [
+      "mart_recovery_timeline"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "fct_injury_spell"
+     ],
+     "unit_tests": [
+      {
+       "description": "Five ankle spells: back after 1, 2 and 3 games, one last seen after 2 games still out and one after 5. Kaplan-Meier: 0.8 still out after 1 game (1 of 5 back), 0.6 after 2 (1 of the 4 at risk back), 0.3 after 3 (1 of 2), and 0.3 after 5 (none of the 1 back). Counting the censored spells as finished would have put everyone back by 5. A body part with fewer spells than the minimum gets no curve.",
+       "name": "the_recovery_curve_counts_a_censored_spell_as_at_least_what_was_seen"
+      }
+     ]
     },
     {
      "checks": [],
@@ -24299,6 +24422,112 @@
      "checks": [],
      "columns": [
       {
+       "description": "Surrogate key: one row per league, level, body part and kind",
+       "meta": {},
+       "name": "recovery_timeline_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "body_part or body_part_kind",
+       "meta": {},
+       "name": "level",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The body part",
+       "meta": {},
+       "name": "body_part",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The kind; null at the body_part level",
+       "meta": {},
+       "name": "injury_kind",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Injury spells behind the curve",
+       "meta": {},
+       "name": "spells",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Of them, spells still running when last seen",
+       "meta": {},
+       "name": "censored",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Games by which a quarter of the spells had ended with the player back",
+       "meta": {},
+       "name": "p25_games",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Games by which half had",
+       "meta": {},
+       "name": "median_games",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Games by which three quarters had; null when too many were still running",
+       "meta": {},
+       "name": "p75_games",
+       "tests": [],
+       "type": "integer"
+      }
+     ],
+     "description": "Expected recovery timelines (#800, for #770): per league and body part, and per body part and kind, the 25th percentile, median and 75th percentile of games an injury spell lasts, from its Kaplan-Meier curve. A percentile the curve never reaches is null. Not yet validated out of sample (#769).",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "level",
+       "body_part",
+       "coalesce(injury_kind, '-')"
+      ],
+      "key": "recovery_timeline_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "mart_recovery_timeline",
+     "notes": [
+      "Expected recovery timelines (#800, for #770): per league and body part, and per body part and kind, the games an injury spell lasts, read off its Kaplan-Meier curve (fct_recovery_curve). The median is the first count of games by which half the spells had ended with the player back; the 25th and 75th percentiles likewise. A percentile the curve never reaches, because too many spells were still running when last seen, is null rather than guessed."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "fct_recovery_curve"
+     ],
+     "unit_tests": [
+      {
+       "description": "The curve above: a quarter of the spells had ended by 2 games and half by 3; three quarters never had, so that percentile is null rather than guessed.",
+       "name": "the_timeline_reads_its_percentiles_off_the_curve"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "Surrogate key: one row per league and game",
        "meta": {},
        "name": "upcoming_sk",
@@ -26794,6 +27023,11 @@
    "name": "salaries_link_to_the_season_player_by_name"
   },
   {
+   "description": "Five ankle spells: back after 1, 2 and 3 games, one last seen after 2 games still out and one after 5. Kaplan-Meier: 0.8 still out after 1 game (1 of 5 back), 0.6 after 2 (1 of the 4 at risk back), 0.3 after 3 (1 of 2), and 0.3 after 5 (none of the 1 back). Counting the censored spells as finished would have put everyone back by 5. A body part with fewer spells than the minimum gets no curve.",
+   "model": "fct_recovery_curve",
+   "name": "the_recovery_curve_counts_a_censored_spell_as_at_least_what_was_seen"
+  },
+  {
    "description": "Two regular-season games make the league-season's average game: 38 fouls, 45 free-throw attempts, pace 98 and 210 points. An official who worked only the first, as crew chief, sits 2 fouls, 5 attempts, 2 possessions and 10 points above it; one who worked both sits on it. A preseason game, and an alternate who did not work, count for nothing.",
    "model": "fct_referee_tendency",
    "name": "referee_tendency_against_the_league_season_average"
@@ -26902,6 +27136,11 @@
    "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",
    "model": "mart_player_projection",
    "name": "projection_return_ramp_cuts_minutes_after_an_absence"
+  },
+  {
+   "description": "The curve above: a quarter of the spells had ended by 2 games and half by 3; three quarters never had, so that percentile is null rather than guessed.",
+   "model": "mart_recovery_timeline",
+   "name": "the_timeline_reads_its_percentiles_off_the_curve"
   },
   {
    "description": "The games ahead are every game a team plays (#391): the regular season, the play-in and the playoffs. The preseason and the in-season cup's final, which no fantasy league counts, are left out, as is a game already final.",
