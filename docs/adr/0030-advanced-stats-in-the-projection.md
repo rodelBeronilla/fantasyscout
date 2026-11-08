@@ -42,18 +42,22 @@ The owner also asked whether machine learning should be applied to the tradition
 - **NBA:** 42518215822 (2020-21), 42518217919 (2021-22), 42518220147 (2022-23), 42518222423 (2023-24), 42518225161 (2024-25).
 - **WNBA:** 42518229324 (2021), 42518231473 (2022), 42518233507 (2023), 42518236169 (2024), 42518238385 (2025).
 
-**Results.** Pooled over the 8 judged checkpoints, on minus off, with 95% intervals. The `ops.projection_features judge` output has every checkpoint (in the PR).
+**Results.** Pooled over the 8 judged checkpoints, on minus off, with 95% intervals. Players are put in id order before resampling, so a result does not depend on the order a run wrote its rows. That is a reproducibility fix made after the first judgement; it changed no verdict. The `ops.projection_features judge` output in the PR has every checkpoint.
 
-| League | Step | Feature at its tuning point | Pooled RMSE | Pooled Spearman | Verdict |
-| --- | --- | --- | --- | --- | --- |
-| NBA | 1 | usage, `usage_weight` 8 | 2.204 → 2.200, −0.0042 (−0.0074 to −0.0005) | +0.0006 (−0.0002 to +0.0013) | **enters** |
-| NBA | 2 | efficiency, FG 50 / FT 25 | 2.200 → 2.184, −0.0161 (−0.0218 to −0.0103) | +0.0030 (+0.0017 to +0.0044) | **enters** |
-| NBA | 3 | pace 1.0 | +0.0034 (+0.0005 to +0.0065) | −0.0004 (−0.0011 to +0.0004) | fails |
-| NBA | 4 | role | no grid point lowered the tuning RMSE | | not judged |
-| WNBA | 1 | usage, `usage_weight` 8 | +0.0004 (−0.0095 to +0.0107); +0.018 at 2024's tenth | −0.0015 (−0.0035 to +0.0004) | fails |
-| WNBA | 2 | efficiency, FG 50 / FT 10 | 3.157 → 3.136, −0.0204 (−0.0413 to −0.0019) | +0.0014 (−0.0025 to +0.0055) | **enters** |
-| WNBA | 3 | pace 1.5 | 3.136 → 3.126, −0.0097 (−0.0152 to −0.0046) | +0.0013 (−0.0009 to +0.0033) | **enters** |
-| WNBA | 4 | role | no grid point lowered the tuning RMSE | | not judged |
+The seed check, reported only, re-draws the bootstrap with seeds 0 to 19. It gives the range of the pooled RMSE interval's upper bound, and how often that bound is below zero.
+
+| League | Step | Feature at its tuning point | Pooled RMSE | Pooled Spearman | Seed check | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| NBA | 1 | usage, `usage_weight` 8 | 2.204 → 2.200, −0.0042 (−0.0076 to −0.0007) | +0.0006 (−0.0003 to +0.0013) | −0.0011 to −0.0004; 20 of 20 | **enters** |
+| NBA | 2 | efficiency, FG 50 / FT 25 | 2.200 → 2.184, −0.0161 (−0.0219 to −0.0104) | +0.0030 (+0.0016 to +0.0044) | −0.0105 to −0.0096; 20 of 20 | **enters** |
+| NBA | 3 | pace 1.0 | +0.0034 (+0.0004 to +0.0061) | −0.0004 (−0.0011 to +0.0004) | | fails |
+| NBA | 4 | role | no grid point lowered the tuning RMSE | | | not judged |
+| WNBA | 1 | usage, `usage_weight` 8 | +0.0004 (−0.0099 to +0.0101); +0.018 at 2024's tenth | −0.0015 (−0.0036 to +0.0004) | | fails |
+| WNBA | 2 | efficiency, FG 50 / FT 10 | 3.157 → 3.136, −0.0204 (−0.0397 to −0.0010) | +0.0014 (−0.0029 to +0.0056) | −0.0027 to +0.0003; **18 of 20** | **enters, marginally** |
+| WNBA | 3 | pace 1.5 | 3.136 → 3.126, −0.0097 (−0.0154 to −0.0043) | +0.0013 (−0.0009 to +0.0032) | −0.0048 to −0.0042; 20 of 20 | **enters** |
+| WNBA | 4 | role | no grid point lowered the tuning RMSE | | | not judged |
+
+**WNBA efficiency is marginal.** It passes the declared rule (seed 0, 1,000 resamples). Its upper bound is below zero in only 18 of 20 seeds, so it passes the bar but is the weakest of the four entries.
 
 **On per league where it passed:** NBA `usage_weight` 8, `fg_shrink` 50, `ft_shrink` 25; WNBA `pace` 1.5, `fg_shrink` 50, `ft_shrink` 10. Everything else stays neutral. Each coefficient is registered in `methodology/parameters.yml` with this evidence, and the Methodology page lists it.
 
@@ -70,9 +74,20 @@ The owner also asked whether machine learning should be applied to the tradition
 
   **A small ranking cost on the WNBA board as users see it.** On its own scale the WNBA board ranks what players then did slightly worse with the features on: Spearman −0.0045 (−0.0090 to −0.0002).
 
+  **WNBA efficiency is nearly all of that cost.** Judged alone as built (runs 42531634238, 42531637348), it costs Spearman **−0.0056 (−0.0096 to −0.0014)** and RMSE +0.115 (+0.088 to +0.140), against −0.0204 on the off scale.
+
   This is not only a matter of units. Narrower shooting spreads give FG% and FT% more weight in every realized line's value, so the realized order itself moves.
 
-  The features still pass the declared bar, and they ship on it; the rule is not changed after seeing results. #915 asks whether the scale's spreads should come from lines a projection's features cannot shrink. It is to be judged on the next unspent season.
+  The features still pass the declared bar, and they ship on it; the rule is not changed after seeing results.
+
+  **#915 is what would remove that cost.** It asks whether the scale's spreads should come from lines a projection's features cannot shrink. It names WNBA efficiency as the first thing to re-judge, on the next unspent season.
+
+  **NBA per feature, as built on its own scale.**
+
+  - **Usage alone** (runs 42531627234, 42531630682): own value RMSE −0.0158 (−0.0193 to −0.0118), Spearman +0.0011 (+0.0003 to +0.0020). The board with the market prior: −0.0142 (−0.0176 to −0.0109), Spearman +0.0007 (−0.0000 to +0.0015). On the off scale, dbt reproduces the declared −0.0042 exactly.
+  - **Efficiency given usage**, the combined run minus usage alone (point estimates, since two runs give no paired interval): own value RMSE about +0.023, Spearman about +0.0003.
+
+  So in the NBA too the shrinkage's as-built RMSE is the units effect. Its ranking does not fall.
 
 **ML challenger** (`ops/projection_challenger.py`, the `benchmark` dependency group; reported, not gated):
 

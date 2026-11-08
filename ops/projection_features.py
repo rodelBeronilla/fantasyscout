@@ -294,7 +294,8 @@ def load(paths: Iterable[Path], league: str, min_games: int) -> list[Cut]:
     cuts = []
     for (season, cp), g in df.groupby(["season", "checkpoint"], sort=True):
         scale = scale_of(g)
-        q = g[g["realized_games"] >= min_games].reset_index(drop=True)
+        # players in id order, so the bootstrap draws the same players whatever order a run wrote
+        q = g[g["realized_games"] >= min_games].sort_values("player_id").reset_index(drop=True)
         real = total(score(realized_line(q), scale))
         cuts.append(Cut(str(season), float(cp), q, scale, real, int(scale["pool"])))
     return cuts
@@ -622,7 +623,8 @@ def confirm(
     arrays |= {"own_on": [], "real_on": [], "board_off": [], "board_on": []}
     scales: list[dict[str, Any]] = []
     for (season, cp), g in df.groupby(["season", "checkpoint"], sort=True):
-        off = g[(g["build"] == "off") & (g["realized_games"] >= min_games)].reset_index(drop=True)
+        off = g[(g["build"] == "off") & (g["realized_games"] >= min_games)]
+        off = off.sort_values("player_id").reset_index(drop=True)
         on = off[["player_id"]].merge(g[g["build"] == "on"], on="player_id", how="left")
         scale, scale_on = scale_of(off), scale_of(on)
         cut = Cut(str(season), float(cp), off, scale, total(score(realized_line(off), scale)), 0)
