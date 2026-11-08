@@ -21,6 +21,7 @@ import { judge } from '../lib/trade-fairness';
 import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { hasWeekGames, recentForm, type ValueUnit } from '../lib/week-value';
 import { describeSettings } from './LeagueParts';
+import { useEspnSync } from './LeagueSync';
 import { PlayerPicker } from './PlayerPicker';
 import ExplainTrade from './ExplainTrade';
 import { TradeScorecard } from './TradeScorecard';
@@ -94,7 +95,7 @@ export default function TradeAnalyzer() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<PlayerRow[] | null>(null);
   const [error, setError] = useState<unknown>(null);
-  const [setup] = useLeague(league);
+  const [setup, updateLeague] = useLeague(league);
   // a player page's "Offer" or "Trade for" link puts the player on a side (#726)
   const [fromLink] = useState(() => new URLSearchParams(window.location.search));
   const [give, setGive] = useState<string[]>(() => fromLink.getAll('give'));
@@ -112,6 +113,8 @@ export default function TradeAnalyzer() {
     };
   }, [league]);
 
+  // an ESPN league is read again on a visit, so the trade is judged on current rosters (#815)
+  useEspnSync(setup, updateLeague, rows);
   const owner = useMemo(() => owners(setup), [setup]);
   const hasRosters = owner.size > 0;
   // the partner of a linked trade is the team that has the player asked for

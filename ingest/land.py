@@ -28,13 +28,14 @@ from ingest.landing import League, eastern_date, eastern_today
 from ingest.lineups import LineupsIngestor
 from ingest.props import EspnPropsIngestor, OddsApiIngestor
 from ingest.referee_assignments import RefereeAssignmentsIngestor
+from ingest.rss import land_feeds
 from ingest.run import Only, RunSummary, describe, only_from_run_log
 from ingest.sleeper import SleeperIngestor
 from ingest.stats import SeasonType, ShotsScope, StatsIngestor, StatsPlanner, season_label
 from ingest.store import Backend, Landing, LocalBackend, VolumeBackend, credentials_from_env
 from ingest.transactions import TransactionsIngestor
 
-Source = Literal["stats", "espn", "reports", "bref", "movement"]
+Source = Literal["stats", "espn", "reports", "bref", "movement", "rss"]
 BackendKind = Literal["local", "volume"]
 Pace = Literal["spec", "adaptive"]
 
@@ -74,6 +75,9 @@ ENDPOINT_DIRS: dict[str, tuple[str, ...]] = {
     "odds_api": ("player_props",),
     "bref": ("salaries",),
     "manual": ("saved_tables",),
+    "rss": ("items",),
+    # the local model's claims from the news (ai/claims.py)
+    "ai": ("claims",),
 }
 
 
@@ -169,6 +173,8 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         lines.append("  then commonteamroster for every team in the season or the player directory")
     elif opts.source == "movement":
         lines.append("  the NBA's whole player movement feed, every move since 2015, once (#794)")
+    elif opts.source == "rss":
+        lines.append("  each of the league's feeds in ingest/rss_feeds.toml, once, conditionally")
     elif opts.source == "bref":
         lines.append(
             "  Basketball-Reference's payroll page for each of 30 teams, 4 s or more apart"
@@ -194,6 +200,7 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
             "  and ESPN fantasy's market: draft position and how widely each player is rostered"
         )
         lines.append("  and ESPN's latest 50 headlines, with the players they are about")
+        lines.append("  and the outlets' RSS feeds for the league (ingest/rss_feeds.toml)")
         lines.append("  and prop lines (private): DraftKings via ESPN, The Odds API with a key")
     else:
         days = (until - since).days + 1
@@ -287,6 +294,11 @@ def _run_source(
         for failure in landing.flush():
             summary.fail(failure.endpoint, failure.key, failure.error)
         summary.pacing = client.pacing()
+    elif opts.source == "rss":
+        summary = RunSummary("rss", opts.league, season, datetime.now(UTC))
+        land_feeds(landing, opts.league, season, summary)
+        for failure in landing.flush():
+            summary.fail(failure.endpoint, failure.key, failure.error)
     elif opts.source == "bref":
         summary = BrefSalariesIngestor(client, landing, opts.league, season).run()
     elif opts.source == "espn" and opts.history:
@@ -306,13 +318,14 @@ def _run_source(
         TransactionsIngestor(client, landing, opts.league, season).land_into(summary)
         EspnFantasyIngestor(client, landing, opts.league, season).land_into(summary)
         EspnNewsIngestor(client, landing, opts.league, season).land_into(summary)
+        land_feeds(landing, opts.league, season, summary)
         SleeperIngestor(client, landing, opts.league, season).land_into(summary)
         EspnPropsIngestor(client, landing, opts.league, season).land_into(summary)
         odds_key = env.get("ODDS_API_KEY", "")
         OddsApiIngestor(client, landing, opts.league, season, odds_key).land_into(summary)
         for failure in landing.flush():
             summary.fail(failure.endpoint, failure.key, failure.error)
-        summary.pacing = client.pacing()
+        summary.pacing = {**client.pacing(), **summary.pacing}  # the feeds' own client's too
     else:
         # Only a run that ends today looks ahead; a backfill's window is in the past.
         ahead = opts.ahead_days if until == today else 0

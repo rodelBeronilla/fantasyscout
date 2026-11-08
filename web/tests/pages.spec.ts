@@ -1,7 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 
+import { readFileSync } from 'node:fs';
+
 import { expect, test } from './fixtures';
+
+/** ESPN's league API as recorded for the tests (#815): the views the import asks for, a made-up league. */
+const espnFixture = JSON.parse(readFileSync(new URL('./fixtures/espn/league.json', import.meta.url), 'utf8')) as {
+  teams: { roster: { entries: { playerPoolEntry: { player: { fullName: string } } }[] } }[];
+};
 
 // The preview server serves the fixture data build (tests/fixtures/data) under /data/.
 
@@ -27,6 +34,17 @@ async function leagueInSeason(page: Page): Promise<{ league: FixtureLeague; game
   return null;
 }
 const NO_SEASON = 'no fixture league has a game in the next seven days';
+
+/**
+ * Opens Pickups' "Explore all players" (#819): the filters and the full table sit one click down
+ * while the top adds lead the page; out of season the list is the answer and is open already.
+ */
+async function exploreAll(page: Page): Promise<void> {
+  const explore = page.getByTestId('explore');
+  await expect(explore).toBeAttached();
+  if ((await explore.getAttribute('open')) === null) await page.getByTestId('explore-summary').click();
+  await expect(explore).toHaveAttribute('open', '');
+}
 
 test('the page preloads the build pointer and the board is populated within budget', async ({ page }) => {
   const started = Date.now();
@@ -63,6 +81,7 @@ test('the board and streamers read their column-wise files from the stable addre
     if (/\/data\/builds\//.test(r.url())) builds.push(r.url());
   });
   await page.goto('/streamers/?league=nba');
+  await exploreAll(page);
   await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
   // Streamers preloads every file it reads from the head and reads them all at the stable address (#562).
   for (const file of ['streamers/nba.columns.json', 'schedule/nba.json', 'dim_team.json', 'transactions/nba.json', 'team_weeks/nba.json']) {
@@ -278,6 +297,7 @@ test('streamers shows the week grid and the candidates', async ({ page }) => {
   const season = await leagueInSeason(page);
   test.skip(!season, NO_SEASON);
   await page.goto(`/streamers/?league=${season!.league}`);
+  await exploreAll(page);
   // the pickups lead; the schedule is folded under them (#722)
   await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
   await expect(page.getByTestId('week-grid')).toBeHidden();
@@ -309,6 +329,7 @@ test('streamers can show any period: next week Monday to Friday, from the URL or
   const monday = shift(first, dow === 0 ? 1 : 8 - dow);
   const friday = shift(monday, 4);
   await page.goto(`/streamers/?league=${season!.league}&from=${monday}&to=${friday}`);
+  await exploreAll(page);
   await page.getByTestId('schedule-card').locator('summary').click();
   const grid = page.getByTestId('week-grid');
   await expect(grid).toBeVisible();
@@ -449,6 +470,7 @@ test('in season the sorted column is the first number a streamer sees, on a phon
   for (const width of [390, 1280]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto(`/streamers/?league=${league}`);
+    await exploreAll(page);
     const table = page.getByTestId('trending');
     await expect(table.locator('tbody tr').first()).toBeVisible();
     const sorted = table.locator('th[aria-sort="ascending"], th[aria-sort="descending"]');
@@ -612,6 +634,7 @@ test('streamers with back-to-backs passes axe, best practices included, in both 
     await route.fulfill({ json: games.map((g) => ({ ...g, home_back_to_back: true, away_back_to_back: true })) });
   });
   await page.goto('/streamers/?league=nba');
+  await exploreAll(page);
   await page.getByTestId('schedule-card').locator('summary').click();
   await page.getByLabel('More columns').check();
   await expect(page.getByTestId('back-to-back').first()).toBeVisible();
@@ -1558,6 +1581,11 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
   await matchupCard.getByLabel("This week's opponent").selectOption({ label: 'Team 2' });
   // three of the best against one player far down the board: most categories are won; turnovers go the other way
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText(/win [5-9] of 9 categories against Team 2/);
+  // the call leads (#817): the count and the swing category, then the open days to stream it
+  await expect(matchupCard.getByTestId('matchup-call')).toContainText(/^Winning [5-9], losing \d(, \d too close)?: .+ is the swing category\./);
+  await expect(matchupCard.getByTestId('matchup-stream')).toHaveAttribute('href', /\/streamers\/\?league=nba&window=week&open=2026-11-0\d/);
+  // a league entered here has no score so far
+  await expect(matchupCard.getByTestId('matchup-basis')).toHaveText('Import the league from ESPN to start from the live score.');
   // three players fill three of the ten slots, so each starts every game his team has left
   const mine = names.slice(0, 3).reduce((s, name) => s + gamesFor(name), 0);
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText(`Games left this week: you ${mine}, Team 2 ${gamesFor(names[3] ?? '')}`);
@@ -1785,8 +1813,182 @@ test('My Team plans the week lineup under the league slots: starts, games lost t
   // the open days go to Pickups, this week's window with those days picked
   await tile.getByTestId('lineup-pickups').click();
   await expect(page).toHaveURL(new RegExp(`/streamers/\\?league=nba&window=week&open=[^&]*${day}`));
+  await exploreAll(page);
   await expect(page.getByRole('radio', { name: /^This week/ })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByLabel(`Open on ${day}`)).toBeChecked();
+});
+
+test('Pickups leads with the top three adds for the league, each with why and who to drop; the filters are one click down (#819)', async ({ page }) => {
+  const season = await leagueInSeason(page);
+  test.skip(season?.league !== 'nba', 'the fixture NBA has no game in the next seven days');
+  type Row = { player_id: string; full_name: string | null; team_abbreviation: string; position: string; rank_total: number };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  // six bench-level players across the positions: the drop rule lets any of them go
+  const deep = board.filter((r) => r.full_name && r.rank_total > 150);
+  const mine = (['G', 'F', 'C'] as const).flatMap((p) => deep.filter((r) => r.position === p).slice(0, 2));
+  expect(mine).toHaveLength(6);
+  const names = mine.map((r) => r.full_name!);
+  // the fixture carries the last-ten category columns empty; steals here, for the need chip below
+  await page.route('**/streamers/nba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({ json: rows.map((r, i) => ({ ...r, last_10_z_steals: (i % 7) / 3 + 0.1 })) });
+  });
+
+  // without the league's rosters: the top three, and a note that entering the league names the drops
+  await page.goto('/streamers/?league=nba');
+  const top = page.getByTestId('top-adds');
+  await expect(top.getByTestId('top-add')).toHaveCount(3);
+  await expect(top.getByTestId('top-add-drop')).toHaveCount(0);
+  await expect(top.getByTestId('top-adds-rosters')).toContainText('to see who to drop');
+  await expect(top.getByTestId('top-adds-context')).toContainText("outside the board's top 156");
+
+  await page.goto('/league/?league=nba');
+  const label = (p: Row) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  for (const p of mine) await page.getByLabel('Add a player to Team 1', { exact: true }).fill(label(p));
+  // with only the manager's roster in, the rest of the league is unknown: the board-rank cut stays
+  await page.goto('/streamers/?league=nba');
+  await expect(top.getByTestId('top-adds-context')).toContainText("add the other teams’ rosters");
+  await expect(top.getByTestId('top-add-drop').first()).toContainText('Drop');
+  // a rival's roster in: exactly the players on a roster are left out
+  const rivals = [...board].filter((r) => r.full_name).sort((a, b) => a.rank_total - b.rank_total).slice(0, 3);
+  await page.goto('/league/?league=nba');
+  for (const p of rivals) await page.getByLabel('Add a player to Team 2', { exact: true }).fill(label(p));
+  await page.goto('/streamers/?league=nba');
+  const adds = top.getByTestId('top-add');
+  await expect(adds).toHaveCount(3);
+  for (const name of await adds.evaluateAll((lis) => lis.map((li) => li.querySelector('a')?.textContent?.trim()))) {
+    expect(rivals.map((r) => r.full_name)).not.toContain(name);
+  }
+  await expect(adds).toHaveCount(3);
+  await expect(top).toContainText('Top 3 adds for your league in the next 7 days');
+  await expect(top.getByTestId('top-adds-context')).toContainText('from the players on no roster in your league');
+  for (const add of await adds.all()) {
+    // why: the games in the window, then whatever else the row has (minutes, a teammate out, categories)
+    await expect(add.getByTestId('top-add-why')).toContainText(/^\d+ games? in the next 7 days/);
+    // who to drop: one of the manager's players, never the add himself
+    const drop = add.getByTestId('top-add-drop');
+    await expect(drop).toContainText('Drop');
+    const dropped = (await drop.locator('a').first().innerText()).trim();
+    expect(names).toContain(dropped);
+    expect(names).not.toContain((await add.locator('a').first().innerText()).trim());
+  }
+  await expect(top.getByTestId('top-adds-moves')).toHaveAttribute('href', /\/team\/\?league=nba#upgrades$/);
+
+  // the filters and the full table are one click down, and the choice is remembered
+  const explore = page.getByTestId('explore');
+  await expect(explore).not.toHaveAttribute('open');
+  await expect(page.getByTestId('trending')).toBeHidden();
+  await expect(page.getByTestId('needs')).toBeHidden();
+  await page.getByTestId('explore-summary').click();
+  await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
+  await expect(page.getByTestId('streamer-filters')).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
+
+  // a need chip re-ranks the top adds by the fit in it, and names it first among the categories helped
+  await page.getByLabel('Need STL').check({ force: true });
+  await expect(top.getByTestId('top-adds-context')).toContainText('Ranked by the last ten games in STL');
+  for (const why of await adds.getByTestId('top-add-why').all()) await expect(why).toContainText('helps STL');
+
+  // Apply records the swap in the league kept here
+  const first = adds.first();
+  const added = (await first.locator('a').first().innerText()).trim();
+  const goes = (await first.getByTestId('top-add-drop').locator('a').first().innerText()).trim();
+  await first.getByTestId('top-add-apply').click();
+  await expect(top.getByTestId('top-add-applied')).toContainText(`${added} in, ${goes} out`);
+  // the player added is on the team now, so out of the adds (he may be the next one to drop)
+  await expect(adds.first().locator('a').first()).not.toHaveText(added);
+  expect((await adds.evaluateAll((lis) => lis.map((li) => li.querySelector('a')?.textContent?.trim()))).includes(added)).toBe(false);
+  const results = await new AxeBuilder({ page }).include('[data-testid="top-adds"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+  expect(results.violations).toEqual([]);
+
+  // a phone has no horizontal scroll with the top adds leading
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(adds).toHaveCount(3);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+});
+
+test('Pickups opens with the need chips a link names, and keeps them in the address (#818)', async ({ page }) => {
+  await page.goto('/streamers/?league=nba&window=week&need=z_steals,z_blocks,nonsense');
+  await exploreAll(page);
+  await expect(page.getByLabel('Need STL')).toBeChecked();
+  await expect(page.getByLabel('Need BLK')).toBeChecked();
+  await expect(page.getByLabel('Need AST')).not.toBeChecked();
+  await expect(page.getByRole('radio', { name: /^This week/ })).toHaveAttribute('aria-checked', 'true');
+  // the table ranks by the fit in them, as picking them on the page does
+  const table = page.getByTestId('trending');
+  await expect(table.locator('th[aria-sort="descending"]')).toContainText('Need fit');
+  const top = page.getByTestId('top-adds');
+  if (await top.count()) await expect(top.getByTestId('top-adds-context')).toContainText('Ranked by the last ten games in STL, BLK');
+  // a chip picked or dropped here goes into the address
+  await page.getByLabel('Need BLK').uncheck({ force: true });
+  await expect(page).toHaveURL(/need=z_steals$/);
+  await page.getByLabel('Need AST').check({ force: true });
+  await expect(page).toHaveURL(/need=z_assists,z_steals$/);
+  await page.reload();
+  await expect(page.getByLabel('Need AST')).toBeChecked();
+  await expect(page.getByLabel('Need BLK')).not.toBeChecked();
+});
+
+test('My Team names the stream that flips a losing category, and its links open Pickups with those needs (#818)', async ({ page }) => {
+  type Row = { player_id: string; full_name: string | null; team_abbreviation: string; position: string; rank_total: number; injury_group: string | null };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  // the fixture build's own day, so My Team's week and Pickups' window are the same days
+  const games = (await (await page.request.get('/data/builds/fixture/schedule/nba.json')).json()) as { game_date: string; days_ahead: number }[];
+  const day = games.find((g) => g.days_ahead === 0)?.game_date ?? '';
+  test.skip(!day, 'the fixture has no game on its build day');
+  await page.clock.setFixedTime(new Date(`${day}T16:00:00Z`));
+  // Pickups' last-ten category columns are the board's recent ones (the same ten games); the
+  // fixture carries Pickups' empty, so they are copied here
+  const recent = new Map(board.map((r) => [r.player_id, r as unknown as Record<string, unknown>]));
+  await page.route('**/streamers/nba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({
+      json: rows.map((r) => {
+        const b = recent.get(String(r['player_id'])) ?? {};
+        return { ...r, ...Object.fromEntries(Object.keys(b).filter((k) => k.startsWith('recent_z_')).map((k) => [k.replace('recent_', 'last_10_'), b[k]])) };
+      }),
+    });
+  });
+  const label = (p: Row) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  const healthy = board.filter((r) => r.full_name && !r.injury_group);
+  // six players deep on the board against six of the best: most categories are lost, and the
+  // two lowest of the six may be dropped for a stream
+  const mine = (['G', 'F', 'C'] as const).flatMap((p) => healthy.filter((r) => r.position === p && r.rank_total > 120).slice(0, 2));
+  const theirs = [...healthy].sort((a, b) => a.rank_total - b.rank_total).slice(0, 6);
+  await page.goto('/league/?league=nba');
+  await page.getByLabel('Format').selectOption('h2h');
+  for (const p of mine) await page.getByLabel('Add a player to Team 1', { exact: true }).fill(label(p));
+  for (const p of theirs) await page.getByLabel('Add a player to Team 2', { exact: true }).fill(label(p));
+  await page.goto('/team/?league=nba');
+  const card = page.getByTestId('matchup');
+  await card.getByLabel("This week's opponent").selectOption({ label: 'Team 2' });
+  await expect(card.getByTestId('matchup-call')).toContainText(/losing [1-9]/);
+  // the call's link carries the close and losing categories as needs
+  const stream = card.getByTestId('matchup-stream');
+  await expect(stream).toHaveAttribute('href', new RegExp(`/streamers/\\?league=nba&window=week&open=${day}&need=z_[a-z_]+(,z_[a-z_]+)*$`));
+  // one line under the call: the add, the drop, what it flips (or that it is short), the open-day games
+  const line = card.getByTestId('matchup-stream-move');
+  await expect(line).toHaveText(/^Add .+, drop .+: (flips|best for) .+, \d+ games? on your open days\. Every stream for them →$/);
+  const dropped = (await line.locator('a').nth(1).innerText()).trim();
+  expect(mine.map((r) => r.full_name)).toContain(dropped);
+  const added = (await line.locator('a').first().innerText()).trim();
+  expect([...mine, ...theirs].map((r) => r.full_name)).not.toContain(added);
+  const href = (await card.getByTestId('matchup-streams-link').getAttribute('href')) ?? '';
+  expect(href).toBe(await stream.getAttribute('href'));
+  const needs = new URL(href, 'https://x.test').searchParams.get('need')?.split(',') ?? [];
+  expect(needs.length).toBeGreaterThan(0);
+  // the Today card's open slots link names the same needs
+  const todayLink = page.getByTestId('today-pickups');
+  if (await todayLink.count()) await expect(todayLink).toHaveAttribute('href', new RegExp(`&need=${needs.join(',')}$`));
+  // the table is one click down: Pickups opens with those chips, and leads with the same add
+  await card.getByTestId('matchup-streams-link').click();
+  await expect(page).toHaveURL(/\/streamers\/\?league=nba&window=week/);
+  await expect(page.getByTestId('top-adds').getByTestId('top-add').first().locator('a').first()).toHaveText(added);
+  await exploreAll(page);
+  const words: Record<string, string> = { z_points: 'PTS', z_rebounds_total: 'REB', z_assists: 'AST', z_steals: 'STL', z_blocks: 'BLK', z_three_pointers_made: '3PM', z_turnovers: 'TO', z_field_goal_pct: 'FG%', z_free_throw_pct: 'FT%' };
+  for (const c of needs) await expect(page.getByLabel(`Need ${words[c]}`)).toBeChecked();
 });
 
 test('the lineup setting resets with the rest, and a Pickups link with a day outside its window still lists players (#735)', async ({ page }) => {
@@ -1797,6 +1999,7 @@ test('the lineup setting resets with the rest, and a Pickups link with a day out
   await expect(page.getByLabel('G slots')).toHaveValue('3');
   // a day long past is not in the window: it picks nothing and filters nothing
   await page.goto('/streamers/?league=nba&window=week&open=2001-01-01');
+  await exploreAll(page);
   await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
   await expect(page.getByTestId('trending').locator('thead')).not.toContainText('Open days');
 });
@@ -1990,6 +2193,118 @@ test('the League page imports a public ESPN league: settings, lineup, teams and 
   await expect(card.getByTestId('espn-note')).toContainText('Make League Viewable to Public');
 });
 
+/**
+ * The recorded ESPN league (tests/fixtures/espn/league.json) with board players in place of its
+ * made-up ones, and a stored copy of it from two hours ago, as an ESPN import leaves it (#815).
+ */
+async function espnLeagueAndCopy(
+  page: Page,
+  edit: (rosters: string[][], id: (i: number) => string) => string[][] = (r) => r,
+  then = Date.now() - 2 * 60 * 60 * 1000,
+) {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string; full_name: string; season: string }[];
+  const made = ['Player Zero', 'Player One', 'Player Two', 'Player Three', 'Player Four', 'Player Five', 'Player Six'];
+  const swap = (name: string) => (made.includes(name) ? board[made.indexOf(name)]!.full_name : name);
+  const league = {
+    ...espnFixture,
+    teams: espnFixture.teams.map((t) => ({
+      ...t,
+      roster: { entries: t.roster.entries.map((e) => ({ ...e, playerPoolEntry: { player: { fullName: swap(e.playerPoolEntry.player.fullName) } } })) },
+    })),
+  };
+  const id = (i: number) => board[i]!.player_id;
+  // two hours ago Brick City had board player 5 where ESPN now lists player 6
+  const imported = [[id(0), id(1), id(5)], [id(2)], [id(3)], [id(4)]];
+  const copy = {
+    version: 7,
+    savedAt: then,
+    teams: 4,
+    rosterSpots: 13,
+    scoring: 'cats9',
+    format: 'h2h',
+    punts: [],
+    lineup: { G: 3, F: 3, C: 1, UTIL: 3 },
+    names: ['Brick City', 'Glass Cleaners', 'Third', 'Fourth'],
+    rosters: edit(imported, id),
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    source: { host: 'espn', leagueId: '123456', season: board[0]!.season, syncedAt: then, rosters: imported, teamIds: [1, 2, 3, 4], changes: null, opponents: [1, 0, 3, 2] },
+  };
+  // stored once, before the first page: a reload keeps what the page saved
+  await page.addInitScript((stored) => {
+    if (sessionStorage.getItem('seeded')) return;
+    localStorage.setItem('fantasyscout:league:nba', stored);
+    sessionStorage.setItem('seeded', '1');
+  }, JSON.stringify(copy));
+  const asked: string[] = [];
+  await page.route('https://lm-api-reads.fantasy.espn.com/**', (route) => {
+    asked.push(route.request().url());
+    return route.fulfill({ json: league });
+  });
+  return { asked, id };
+}
+
+test("an ESPN league re-syncs on My Team: when it synced, the roster changes, and this week's opponent from ESPN's schedule (#815)", async ({ page }) => {
+  const { asked, id } = await espnLeagueAndCopy(page);
+  await page.goto('/team/?league=nba');
+  const summary = page.getByTestId('sync-line').getByTestId('sync-summary');
+  // Brick City dropped one player and added another; ESPN's period 2 pairs it with Third
+  await expect(summary).toHaveText('Synced just now · 2 roster changes since your last visit · this week vs Third');
+  expect(asked).toHaveLength(1);
+  expect(asked[0]).toContain('/leagues/123456?');
+  expect(asked[0]).toContain('view=mMatchupScore');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fantasyscout:league:nba') ?? '{}') as { rosters: string[][]; opponent: number });
+  expect(stored.rosters[0]).toContain(id(6));
+  expect(stored.rosters[0]).not.toContain(id(5));
+  expect(stored.opponent).toBe(2);
+  // with this week's games in, the matchup has ESPN's opponent picked
+  if (await page.getByTestId('matchup').count()) await expect(page.getByLabel("This week's opponent")).toHaveValue('2');
+  // inside a quarter hour a visit reads the stored copy, not ESPN
+  await page.reload();
+  await expect(summary).toContainText('Synced just now · 2 roster changes');
+  expect(asked).toHaveLength(1);
+});
+
+test("an ESPN category league's matchup starts from the score so far and leads with the call (#817)", async ({ page }) => {
+  // a Monday of the fixture's schedule, two hours after the stored copy was read
+  const now = new Date('2026-11-02T16:00:00Z').getTime();
+  await page.clock.setFixedTime(now);
+  const { asked } = await espnLeagueAndCopy(page, undefined, now - 2 * 60 * 60 * 1000);
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('sync-summary')).toContainText('Synced just now');
+  expect(asked).toHaveLength(1);
+  const card = page.getByTestId('matchup');
+  await expect(card.getByLabel("This week's opponent")).toHaveValue('2');
+  await expect(card.getByTestId('matchup-call')).toContainText(/^Winning \d, losing \d(, \d too close)?: .+ is the swing category\./);
+  await expect(card.getByTestId('matchup-summary')).toContainText('From the score so far plus the games each lineup starts, you project to win');
+  // ESPN gave made and attempted, so every category starts from the score
+  await expect(card.getByTestId('matchup-basis')).toHaveCount(0);
+  await expect(card.getByTestId('matchup-row')).toHaveCount(9);
+  // Brick City has 1,000 points so far to Third's 100: the projected final adds the games to come
+  const points = card.getByTestId('matchup-row').filter({ hasText: 'PTS' });
+  expect(Number(await points.locator('td').nth(1).innerText())).toBeGreaterThanOrEqual(1000);
+  await expect(points).toContainText('win');
+});
+
+test('an ESPN league edited by hand is not re-synced until the manager asks, and then it is (#815)', async ({ page }) => {
+  // the manager added board player 7 to their team here after the import
+  const { asked } = await espnLeagueAndCopy(page, (r, id) => r.map((roster, t) => (t === 0 ? [...roster, id(7)] : roster)));
+  await page.goto('/team/?league=nba');
+  const line = page.getByTestId('sync-line');
+  await expect(line).toContainText('you have changed the rosters here since');
+  const button = line.getByRole('button', { name: 'Re-sync from ESPN (replaces your edits)' });
+  await expect(button).toBeVisible();
+  expect(asked).toHaveLength(0);
+  await button.click();
+  // the hand-added player and the dropped one go, ESPN's pickup comes in
+  await expect(line.getByTestId('sync-summary')).toHaveText('Synced just now · 3 roster changes since your last visit · this week vs Third');
+  await expect(button).toHaveCount(0);
+  expect(asked).toHaveLength(1);
+});
+
 test('/league/ and /draft/ have no accessibility violations', async ({ page }) => {
   await page.goto('/draft/');
   await page.getByRole('button', { name: 'Start a draft' }).click();
@@ -2102,6 +2417,7 @@ test('streamers show the points the betting lines imply, in the grid and per pla
     await route.fulfill({ json: lined });
   });
   await page.goto(`/streamers/?league=${season!.league}`);
+  await exploreAll(page);
   await page.getByTestId('schedule-card').locator('summary').click();
   await page.getByLabel('More columns').check();
   const grid = page.getByTestId('week-grid');
@@ -2430,6 +2746,7 @@ test('the board and streamers show a fresh headline flag, the fantasy week and t
     });
   });
   await page.goto(`/streamers/?league=${season!.league}`);
+  await exploreAll(page);
   const table = page.getByTestId('trending');
   await expect(table.getByTestId('trend-tag')).toHaveCount(2);
   await expect(table.getByTestId('injury-tag').first()).toHaveAttribute('title', /Ankle/);
@@ -2761,6 +3078,7 @@ test('live AI: a signed-in manager has the trade explained from its own numbers;
 
 test('every Streamers column says what it holds, and the box-score columns are the last five games (#456)', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
+  await exploreAll(page);
   const table = page.getByTestId('trending');
   await expect(table.locator('tbody tr').first()).toBeVisible();
   await page.getByLabel('More columns').check();
@@ -2886,6 +3204,7 @@ test('the player page says where the player stands in your league and takes the 
 
 test('streamers shows games played, and the player page sets recent z-scores beside the season', async ({ page }) => {
   await page.goto('/streamers/?league=nba');
+  await exploreAll(page);
   const table = page.getByTestId('trending');
   await expect(table.locator('tbody tr').first()).toBeVisible();
   await page.getByLabel('More columns').check();
@@ -2909,6 +3228,7 @@ test('streamers flags a starter whose next game is lopsided on the line', async 
     await route.fulfill({ json: rows.map((r) => ({ ...r, lineup_role: 'starter' })) });
   });
   await page.goto('/streamers/?league=nba');
+  await exploreAll(page);
   const table = page.getByTestId('trending');
   await expect(table.locator('tbody tr').first()).toBeVisible();
   const tags = table.getByTestId('blowout');
@@ -2932,6 +3252,7 @@ test("streamers tags a candidate whose team's top-usage teammate is out", async 
     await route.fulfill({ json: rows.map((r) => ({ ...r, top_teammate_out: 'Star Player', top_teammate_out_usage: 0.31 })) });
   });
   await page.goto('/streamers/?league=nba');
+  await exploreAll(page);
   const table = page.getByTestId('trending');
   await expect(table.locator('tbody tr').first()).toBeVisible();
   const tag = table.getByTestId('top-out').first();
@@ -2956,6 +3277,7 @@ test('every feature not yet backtested says so and links the issue that will val
   await expect(page.locator('#outlook').getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/754$/);
   // and defense vs position is gone: an earlier study found positional defence is noise (ADR 0012)
   await page.goto('/streamers/?league=nba');
+  await exploreAll(page);
   await expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible();
   await expect(page.locator('main')).not.toContainText('Defense vs position');
 });

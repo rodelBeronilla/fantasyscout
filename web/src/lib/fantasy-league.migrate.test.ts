@@ -44,6 +44,25 @@ describe('the stored league setup migrates by version', () => {
       { teams: 4, punts: ['z_points'] },
     ],
     [
+      'version 6 (no source, #815): entered by hand',
+      { version: 6, teams: 4, rosters: [['p1'], [], [], []], il: [], mine: 0 },
+      {},
+      { teams: 4, rosters: [['p1'], [], [], []] },
+    ],
+    [
+      'version 7 keeps where the league came from',
+      {
+        version: 7,
+        teams: 4,
+        rosters: [['p1'], [], [], []],
+        il: [],
+        mine: 0,
+        source: { host: 'espn', leagueId: '42', season: '2026-27', syncedAt: 5, rosters: [['p1'], [], [], []], teamIds: [1, 2, 3, 4], changes: 2 },
+      },
+      {},
+      { teams: 4, source: { host: 'espn', leagueId: '42', season: '2026-27', syncedAt: 5, rosters: [['p1'], [], [], []], teamIds: [1, 2, 3, 4], changes: 2 } },
+    ],
+    [
       'a newer build\'s object keeps what this build understands',
       { version: 99, teams: 4, rosters: [['p1'], [], [], []], il: [], mine: 0, future: true },
       {},
@@ -58,7 +77,19 @@ describe('the stored league setup migrates by version', () => {
     expect('focus' in setup).toBe(false);
   });
 
-  it('is at version 6', () => {
-    expect(SETUP_VERSION).toBe(6);
+  it("keeps a source's well-formed scores so far and blanks a malformed one (#817)", () => {
+    const good = { totals: { z_points: 120 }, shots: { z_field_goal_pct: [40, 90] } };
+    const scores = [good, { totals: { z_points: 'lots' }, shots: {} }, { totals: {}, shots: { z_free_throw_pct: [1] } }, null];
+    const setup = migrate({ version: 7, teams: 4, source: { host: 'espn', leagueId: '1', syncedAt: 1, rosters: [], scores } }, nba);
+    expect(setup.source?.scores).toEqual([good, null, null, null]);
+  });
+
+  it('drops a source a version 6 copy could not have written (#815)', () => {
+    const setup = migrate({ version: 6, teams: 4, source: { host: 'espn', leagueId: '1', syncedAt: 1, rosters: [] } }, nba);
+    expect('source' in setup).toBe(false);
+  });
+
+  it('is at version 7', () => {
+    expect(SETUP_VERSION).toBe(7);
   });
 });

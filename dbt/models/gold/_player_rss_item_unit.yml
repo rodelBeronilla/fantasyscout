@@ -1,0 +1,31 @@
+unit_tests:
+  - name: player_rss_item_links_the_players_an_item_names_by_their_whole_name
+    description: >
+      A player is named when his name's words appear whole in the headline or the summary,
+      whatever the accents, case, apostrophes or suffix: "Luka Doncic" names Luka Dončić, "Jaren
+      Jackson" names Jaren Jackson Jr., "D’Angelo" names D'Angelo. "Jalen Greene" does not name
+      Jalen Green, a name two players carry names neither, a player last seen two seasons ago is
+      not named, and an item that names no one has no row.
+    model: fct_player_rss_item
+    given:
+      - input: ref('rss_feed_items')
+        rows:
+          - {league: nba, season: '2026-27', item_id: i1, feed_id: desk-nba, feed_keep: headline+summary, title: 'Luka Doncic (ankle) out; Jaren Jackson to start', summary: "D’Angelo Russell also sits.", published_date: '2026-11-07'}
+          - {league: nba, season: '2026-27', item_id: i2, feed_id: desk-nba, feed_keep: headline, title: 'Jalen Greene signs a two-way deal', summary: null, published_date: '2026-11-07'}
+          - {league: nba, season: '2026-27', item_id: i3, feed_id: desk-nba, feed_keep: headline, title: 'Chris Twin and Old Timer at the gala', summary: null, published_date: '2026-11-07'}
+          - {league: wnba, season: '2026', item_id: i4, feed_id: beat-w, feed_keep: headline, title: 'Luka Doncic watches the Wings', summary: null, published_date: '2026-11-07'}
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: '1', full_name: 'Luka Dončić', is_current: true, last_game_date: '2026-11-05', valid_from: '2024-02-01'}
+          - {league: nba, stats_player_id: '2', full_name: 'Jaren Jackson Jr.', is_current: true, last_game_date: '2026-11-05', valid_from: '2024-02-01'}
+          - {league: nba, stats_player_id: '3', full_name: "D'Angelo Russell", is_current: true, last_game_date: '2026-11-05', valid_from: '2024-02-01'}
+          - {league: nba, stats_player_id: '4', full_name: 'Jalen Green', is_current: true, last_game_date: '2026-11-05', valid_from: '2024-02-01'}
+          - {league: nba, stats_player_id: '5', full_name: 'Chris Twin', is_current: true, last_game_date: '2026-11-05', valid_from: '2024-02-01'}
+          - {league: nba, stats_player_id: '6', full_name: 'Chris Twin', is_current: true, last_game_date: '2026-11-05', valid_from: '2024-02-01'}
+          - {league: nba, stats_player_id: '7', full_name: 'Old Timer', is_current: true, last_game_date: '2024-04-10', valid_from: '2015-02-01'}
+          - {league: nba, stats_player_id: '8', full_name: 'Luka Doncic', is_current: false, last_game_date: '2026-11-05', valid_from: '2020-02-01'}
+    expect:
+      rows:
+        - {league: nba, item_id: i1, stats_player_id: '1', players_named: 3}
+        - {league: nba, item_id: i1, stats_player_id: '2', players_named: 3}
+        - {league: nba, item_id: i1, stats_player_id: '3', players_named: 3}

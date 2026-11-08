@@ -20,6 +20,37 @@ def model_name() -> str:
     return os.environ.get("FS_AI_MODEL", DEFAULT_MODEL)
 
 
+def base_url(url: str | None = None) -> str:
+    return (url or os.environ.get("FS_AI_URL") or DEFAULT_URL).rstrip("/")
+
+
+def unavailable(
+    *,
+    url: str | None = None,
+    model: str | None = None,
+    timeout: float = 10.0,
+    client: httpx.Client | None = None,
+) -> str | None:
+    """Why the model cannot answer now (the service is down or the model is not pulled), or
+    None when it can. A job that needs the model checks this first and stands down quietly: the
+    model is available only while the home server is (ADR 0017)."""
+    name = model or model_name()
+    owned = client is None
+    http = client or httpx.Client(timeout=timeout)
+    try:
+        response = http.get(f"{base_url(url)}/api/tags")
+        response.raise_for_status()
+        pulled = {str(m.get("name")) for m in response.json().get("models") or []}
+    except (httpx.HTTPError, ValueError, AttributeError) as e:
+        return f"the local model's service is not reachable at {base_url(url)} ({type(e).__name__})"
+    finally:
+        if owned:
+            http.close()
+    if name not in pulled:
+        return f"the model {name} is not pulled on the local model's service"
+    return None
+
+
 def chat_json(
     system: str,
     user: str,
@@ -43,7 +74,7 @@ def chat_json(
         "think": False,
         "options": {"temperature": 0.2},
     }
-    base = (url or os.environ.get("FS_AI_URL") or DEFAULT_URL).rstrip("/")
+    base = base_url(url)
     owned = client is None
     http = client or httpx.Client(timeout=timeout)
     try:

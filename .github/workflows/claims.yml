@@ -1,0 +1,87 @@
+name: News claims
+
+# Claims from the news the lakehouse already lands (#812, #833; ADR 0017), in two jobs that each
+# run where they belong: the recent ESPN headlines and injury notes, with the league players the
+# crosswalks linked them to, are read from the published build on a GitHub-hosted runner; the
+# local model reads each new item on the home runner (the only place it is) and the claims that
+# pass the checks land in the volume (landing/ai/claims, both leagues), where the next build
+# models them (fct_player_claim). An item already landed is not asked again.
+#
+# The claims are not shown on the site and change no number: they are stored for the backtest.
+# The model is there only while the home server is, so when it is not, the run says so and exits
+# 0, and opens nothing: the items wait for the next run.
+
+on:
+  schedule:
+    # daily, after the morning ingest, its build and its export (GitHub starts the 09:27 ingest
+    # hours late on busy days; a run that reads yesterday's build loses nothing, since the window
+    # is three days and a landed item is never asked twice)
+    - cron: "40 16 * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: Headlines published this many days back
+        type: string
+        default: "3"
+      full_refresh:
+        description: Ask the model again about items already landed
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: claims
+  cancel-in-progress: false
+
+jobs:
+  inputs:
+    name: Read the news from the build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # it holds the CI reader key for the build's tables (#429)
+    environment: lakehouse
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - name: Read the recent headlines and injury notes
+        env:
+          FS_NOTEBOOK_SOURCE: published
+          FS_READER_KEY: ${{ secrets.CI_READER_KEY }}
+          DAYS: ${{ inputs.days || '3' }}
+        run: uv run python -m ai.claims inputs --source published --days "$DAYS" --out claim-inputs.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: claim-inputs
+          path: claim-inputs.json
+          retention-days: 14
+
+  extract:
+    name: Extract and land the claims
+    needs: inputs
+    if: vars.STATS_RUNNER_LABEL != ''
+    # the home runner: the model runs beside it (infra/runner/compose.yml, the ai service), and
+    # it reaches the volume through the egress proxy
+    runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    timeout-minutes: 120
+    environment: lakehouse
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: claim-inputs
+      - name: Ask the local model and land what passes
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          # The ingest's service principal (runbook, "The ingest's own credential"); the token
+          # is the fallback while the two are unset.
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
+          FULL_REFRESH: ${{ inputs.full_refresh }}
+        run: |
+          args=(extract --inputs claim-inputs.json --backend volume)
+          [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
+          uv run python -m ai.claims "${args[@]}"

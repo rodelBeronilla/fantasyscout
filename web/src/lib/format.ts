@@ -60,6 +60,19 @@ export const CATEGORY_LABELS: Record<string, string> = {
 
 export const CATEGORIES = Object.keys(CATEGORY_LABELS);
 
+/** Each category in a sentence: "steals is the swing category". */
+export const CATEGORY_WORDS: Record<string, string> = {
+  z_points: 'points',
+  z_rebounds_total: 'rebounds',
+  z_assists: 'assists',
+  z_steals: 'steals',
+  z_blocks: 'blocks',
+  z_three_pointers_made: 'threes',
+  z_field_goal_pct: 'FG%',
+  z_free_throw_pct: 'FT%',
+  z_turnovers: 'turnovers',
+};
+
 /** The season after this one: 2026 -> 2027, 2025-26 -> 2026-27. */
 export function nextSeason(season: string | null | undefined): string | null {
   if (!season) return null;

@@ -80,7 +80,15 @@ jobs:
         env:
           DBT_PROFILES_DIR: .
           FS_LANDING_ROOT: ${{ runner.temp }}/landing
-        run: uv run dbt test --target duckdb --select assert_one_value_scale assert_board_values_sane assert_board_rostered
+        run: |
+          set +e
+          uv run dbt test --target duckdb --select assert_one_value_scale assert_board_values_sane assert_board_rostered
+          status=$?
+          # a failing check prints the rows it found, so the cause is in this run's log
+          for t in assert_one_value_scale assert_board_values_sane assert_board_rostered; do
+            uv run python -c "import duckdb, pathlib; sql = pathlib.Path('target/compiled/fantasyscout/tests/$t.sql').read_text(); df = duckdb.connect('fantasyscout.duckdb', read_only=True).execute(sql).fetchdf(); print('== $t:', len(df), 'rows'); print(df.head(20).to_string(index=False)) if len(df) else None"
+          done
+          exit $status
       - name: What was built
         env:
           LEAGUE: ${{ inputs.league }}

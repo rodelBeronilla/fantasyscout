@@ -47,6 +47,7 @@
     {'feed': 'Player movement', 'model': 'league_player_movement', 'leagues': ['nba'], 'days': 3},
     {'feed': 'Sleeper player directory', 'model': 'sleeper_players', 'leagues': ['nba'], 'days': 7},
     {'feed': 'Sleeper trending', 'model': 'sleeper_trending', 'leagues': ['nba'], 'days': 2},
+    {'feed': 'Outlet RSS feeds', 'model': 'rss_items', 'leagues': ['nba', 'wnba'], 'days': 3},
 ] -%}
 
 with expected as (

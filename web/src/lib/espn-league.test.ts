@@ -82,6 +82,32 @@ describe('fromEspnLeague (#745)', () => {
   });
 });
 
+describe("this week's score by stat (#817)", () => {
+  // one matchup in the current period, each side's cumulativeScore.scoreByStat as ESPN sends it
+  const scored = (home: Record<string, number>, away: Record<string, number>) => {
+    const byStat = (s: Record<string, number>) => Object.fromEntries(Object.entries(s).map(([id, score]) => [id, { score, result: null, rank: 0, ineligible: false }]));
+    return fromEspnLeague({
+      ...categories,
+      status: { currentMatchupPeriod: 1 },
+      schedule: [
+        { matchupPeriodId: 1, home: { teamId: 1, cumulativeScore: { wins: 0, losses: 0, ties: 0, scoreByStat: byStat(home) } }, away: { teamId: 2, cumulativeScore: { scoreByStat: byStat(away) } } },
+      ],
+    }).scores;
+  };
+
+  it('weighs a percentage by the attempts, or the makes, when ESPN gives only one of them', () => {
+    const s = scored({ '19': 0.5, '14': 40, '20': 0.8, '15': 16 }, { '13': 10, '14': 25 });
+    expect(s.get(1)!.shots).toEqual({ z_field_goal_pct: [20, 40], z_free_throw_pct: [16, 20] });
+    expect(s.get(2)!.shots).toEqual({ z_field_goal_pct: [10, 25] });
+  });
+
+  it('leaves out a percentage that comes without its shots, and stats outside the categories', () => {
+    const s = scored({ '0': 120, '19': 0.5, '20': 0.75, '4': 9 }, {});
+    expect(s.get(1)).toEqual({ totals: { z_points: 120 }, shots: {} });
+    expect(s.get(2)).toEqual({ totals: {}, shots: {} });
+  });
+});
+
 describe('espnLeagueUrl (#745)', () => {
   it('asks for the teams, rosters and settings of the season the year it ends', () => {
     const url = espnLeagueUrl('123456', '2026-27');
@@ -89,6 +115,8 @@ describe('espnLeagueUrl (#745)', () => {
     expect(url).toContain('view=mTeam');
     expect(url).toContain('view=mRoster');
     expect(url).toContain('view=mSettings');
+    // and the schedule, for this week's opponent (#815)
+    expect(url).toContain('view=mMatchupScore');
   });
 });
 

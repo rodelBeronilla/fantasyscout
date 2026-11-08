@@ -9,6 +9,7 @@ import { normalizeSlots, type Slots } from './lineup';
 import { accountStatus, loadSaved, saveSoon } from './account';
 import type { League } from './data';
 import { CATEGORIES } from './format';
+import type { ScoreSoFar } from './matchup';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
 
 export type Scoring = 'cats9' | 'cats8' | 'points';
@@ -62,6 +63,29 @@ interface Pick {
   player: string;
 }
 
+/**
+ * Where the league came from (#815): an ESPN public league, which the pages re-import on a visit,
+ * or a Yahoo league brought in by the bookmarklet, which only the manager can run again.
+ */
+export interface LeagueSource {
+  host: 'espn' | 'yahoo';
+  leagueId: string;
+  /** The board's season the league was read for (ESPN), e.g. 2026-27. */
+  season?: string;
+  /** When it was last imported (ms since the epoch). */
+  syncedAt: number;
+  /** The rosters as imported: the copy differs from them only where the manager edited it. */
+  rosters: string[][];
+  /** ESPN's id of each team, in the league's order. */
+  teamIds?: (number | null)[];
+  /** The roster adds and drops the latest re-import brought in; null after a first import. */
+  changes: number | null;
+  /** Each team's opponent this week from ESPN's schedule, by index; null on a bye or with no schedule. */
+  opponents?: (number | null)[];
+  /** Each team's score so far in this week's matchup at `syncedAt`, by index; null without one (#817). */
+  scores?: (ScoreSoFar | null)[];
+}
+
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
 export interface LeagueSetup extends LeagueSettings {
   names: string[];
@@ -74,6 +98,8 @@ export interface LeagueSetup extends LeagueSettings {
   picks: Pick[];
   /** The team the manager faces this week in a head-to-head league, by index; null until chosen. */
   opponent: number | null;
+  /** Where the league was imported from, when it was (#815). */
+  source?: LeagueSource;
 }
 
 /** The league the published values assume (dbt var `fantasy`). */
@@ -122,6 +148,41 @@ export const MAX_TEAMS = 20;
 
 const defaultName = (i: number) => `Team ${i + 1}`;
 
+const isIds = (x: unknown): x is string[] => Array.isArray(x) && x.every((id) => typeof id === 'string');
+const isTeamIndex = (x: unknown): x is number | null => x === null || (typeof x === 'number' && Number.isInteger(x) && x >= 0);
+
+const isTotals = (x: unknown): x is Record<string, number> =>
+  !!x && typeof x === 'object' && !Array.isArray(x) && Object.values(x).every((v) => typeof v === 'number' && Number.isFinite(v));
+const isShots = (x: unknown): x is Record<string, [number, number]> =>
+  !!x &&
+  typeof x === 'object' &&
+  !Array.isArray(x) &&
+  Object.values(x).every((v) => Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && Number.isFinite(n) && n >= 0));
+/** A stored score so far, or null when it is missing or malformed. */
+const cleanScore = (raw: unknown): ScoreSoFar | null => {
+  const s = raw as Partial<ScoreSoFar> | null;
+  return s && isTotals(s.totals) && isShots(s.shots) ? { totals: s.totals, shots: s.shots } : null;
+};
+
+/** A stored source as this build reads it, or undefined when it is missing or malformed. */
+function cleanSource(raw: unknown): LeagueSource | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const s = raw as Partial<LeagueSource>;
+  if ((s.host !== 'espn' && s.host !== 'yahoo') || typeof s.leagueId !== 'string' || typeof s.syncedAt !== 'number') return undefined;
+  if (!Array.isArray(s.rosters) || !s.rosters.every(isIds)) return undefined;
+  return {
+    host: s.host,
+    leagueId: s.leagueId,
+    ...(typeof s.season === 'string' ? { season: s.season } : {}),
+    syncedAt: s.syncedAt,
+    rosters: s.rosters,
+    ...(Array.isArray(s.teamIds) ? { teamIds: s.teamIds.map((id) => (typeof id === 'number' ? id : null)) } : {}),
+    changes: typeof s.changes === 'number' && s.changes >= 0 ? s.changes : null,
+    ...(Array.isArray(s.opponents) ? { opponents: s.opponents.map((o) => (isTeamIndex(o) ? o : null)) } : {}),
+    ...(Array.isArray(s.scores) ? { scores: s.scores.map(cleanScore) } : {}),
+  };
+}
+
 /** Sizes the teams, rosters and draft log to the number of teams, keeping what fits. */
 export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): LeagueSetup {
   const teams = Math.min(MAX_TEAMS, Math.max(MIN_TEAMS, Math.round(raw.teams ?? fallback.teams)));
@@ -135,6 +196,7 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
   const picks = (raw.picks ?? []).filter((p) => p.team < teams && rosters[p.team]?.includes(p.player));
   // The opponent is another team in the league, or not chosen.
   const opponent = typeof raw.opponent === 'number' && Number.isInteger(raw.opponent) && raw.opponent >= 0 && raw.opponent < teams && raw.opponent !== mine ? raw.opponent : null;
+  const source = cleanSource(raw.source);
   return {
     teams,
     rosterSpots: Math.min(20, Math.max(6, Math.round(raw.rosterSpots ?? fallback.rosterSpots))),
@@ -151,6 +213,7 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
     drafting: raw.drafting ?? false,
     picks,
     opponent,
+    ...(source ? { source } : {}),
   };
 }
 
@@ -206,8 +269,9 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
  * 4: the punted categories (`punts`), which until then were a view setting on the board.
  * 5: the focus categories (`focus`).
  * 6: focus categories withdrawn (#706); the field is dropped.
+ * 7: where the league was imported from (`source`, #815), which an older copy does not know.
  */
-export const SETUP_VERSION = 6;
+export const SETUP_VERSION = 7;
 
 interface StoredSetup extends LeagueSetup {
   version: number;
@@ -251,6 +315,12 @@ export function migrate(raw: unknown, fallback: LeagueSettings, legacy: LegacySt
     // 5 -> 6: focus categories were withdrawn (#706); the field goes.
     const rest: Record<string, unknown> = { ...value };
     delete rest['focus'];
+    value = rest as typeof value;
+  }
+  if (version <= 6) {
+    // 6 -> 7: no copy knew where it came from; it is treated as entered by hand.
+    const rest: Record<string, unknown> = { ...value };
+    delete rest['source'];
     value = rest as typeof value;
   }
   const setup = normalize(value, fallback);

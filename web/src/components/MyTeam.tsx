@@ -5,20 +5,25 @@ import { CATEGORIES, CATEGORY_LABELS, fmt, ordinal } from '../lib/format';
 import { currentLeague } from '../lib/league';
 import { href } from '../lib/site';
 import { assign, categoryWeights, owners, toggleIl, useLeague } from '../lib/fantasy-league';
-import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
+import { scaleValue } from '../lib/league-value';
 import { acceptable, type FairnessModel, leagueState, marketMap, playerWorth } from '../lib/league-model';
 import { type BuildPlan, buildPlan } from '../lib/build-plan';
 import { leagueStandings as tradeStandings } from '../lib/trade-impact';
-import { dropRule, reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
-import { matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
+import { dropRule, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
+import { teamReview, teamValues } from '../lib/team-review';
+import { streamMove, streamTargets } from '../lib/matchup-streams';
+import { liveWeek, matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { expectedWins, leagueStandings, type LeagueStandings, type PowerRank, powerRankings } from '../lib/standings';
-import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
+import { hasWeekGames, type ValueUnit } from '../lib/week-value';
 import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
 import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, startsByPlayer, weekPlan, type WeekPlan } from '../lib/lineup';
 import { easternDate, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
-import { type ModelRow, restValues } from '../lib/board-model';
-import { CategoryProfile, LeagueBar, Matchup, Today, type TodayRow, Upgrades } from './LeagueParts';
+import type { ModelRow } from '../lib/board-model';
+import { CategoryProfile, LeagueBar, Today, type TodayRow, Upgrades } from './LeagueParts';
+import { Matchup, type MatchupBasis } from './MatchupCard';
 import { BuildYourTeam } from './BuildYourTeam';
+import { SyncLine, useEspnSync } from './LeagueSync';
+import { weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
 
 interface TeamRow extends ModelRow {
@@ -347,6 +352,8 @@ export default function MyTeam() {
   const [error, setError] = useState<unknown>(null);
   const [games, setGames] = useState<TodayGame[] | null>(null);
   const [setup, updateLeague] = useLeague(league);
+  // an ESPN league is read again on a visit, so the rosters and this week's opponent are current (#815)
+  const sync = useEspnSync(setup, updateLeague, rows);
 
   useEffect(() => {
     let live = true;
@@ -364,7 +371,6 @@ export default function MyTeam() {
   const owner = useMemo(() => owners(setup), [setup]);
   const points = setup.scoring === 'points';
   const h2h = setup.format === 'h2h';
-  const pool = setup.teams * setup.rosterSpots;
   const punted = useMemo(() => (setup.scoring === 'cats8' ? [...setup.punts, 'z_turnovers'] : setup.punts), [setup.punts, setup.scoring]);
   const activeCats = useMemo(() => CATEGORIES.filter((c) => !punted.includes(c)), [punted]);
   const byId = useMemo(() => new Map((rows ?? []).map((r) => [r.player_id, r])), [rows]);
@@ -375,19 +381,15 @@ export default function MyTeam() {
   );
   const remaining = useMemo(() => (rows ?? []).reduce((m, r) => Math.max(m, r.games_remaining ?? 0), 0), [rows]);
 
-  const leagueCats = useMemo(() => (rows && !points ? categoryValues(rows, activeCats, pool, setup.teams) : null), [rows, points, activeCats, pool, setup.teams]);
-  const leaguePoints = useMemo(() => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null), [rows, points, setup.weights, pool, setup.teams]);
-  const restValue = useMemo(() => restValues(rows ?? [], { points, leaguePoints, leagueCats, activeCats }), [rows, points, leaguePoints, leagueCats, activeCats]);
-  // last-ten form under the league's scoring: the week unit's per-game value (#466)
-  const recentCats = useMemo(
-    () => (rows && !points ? categoryValues(recentForm(rows, activeCats), activeCats, pool, setup.teams, rows) : null),
-    [rows, points, activeCats, pool, setup.teams],
+  // the league's values, shared with Pickups' top adds (#819): category or point values, the
+  // rest-of-season value, and last-ten form for the week unit (#466)
+  const values = useMemo(
+    () => teamValues(rows ?? [], { scoring: setup.scoring, punts: setup.punts, weights: setup.weights, teams: setup.teams, rosterSpots: setup.rosterSpots }),
+    [rows, setup.scoring, setup.punts, setup.weights, setup.teams, setup.rosterSpots],
   );
-  const perGame = useCallback(
-    (id: string, recent = false) =>
-      points ? (leaguePoints?.get(id)?.value ?? 0) : activeCats.reduce((s, c) => s + ((recent ? recentCats : leagueCats)?.get(id)?.[c] ?? 0), 0),
-    [points, leaguePoints, activeCats, recentCats, leagueCats],
-  );
+  const { restValue, perGame } = values;
+  const leagueCats = rows ? values.leagueCats : null;
+  const leaguePoints = rows ? values.leaguePoints : null;
 
   const standings = useMemo(() => {
     if (!rows || !leagueCats || myTeam.length === 0) return null;
@@ -410,12 +412,6 @@ export default function MyTeam() {
   const weekAvailable = useMemo(() => !!rows && hasWeekGames(rows), [rows]);
   const [unit, setUnit] = useState<ValueUnit>(h2h ? 'week' : 'rest');
   const week = unit === 'week' && weekAvailable;
-  const weekValues = useMemo(() => {
-    const out = new Map<string, number>();
-    if (!week) return out;
-    for (const r of rows ?? []) out.set(r.player_id, weekValue(perGame(r.player_id, true), r.games_this_week));
-    return out;
-  }, [rows, week, perGame]);
 
   // the week's lineup (#735): the days left, who plays each, and the slots they fill
   const lineupPlans = useMemo(() => {
@@ -438,8 +434,9 @@ export default function MyTeam() {
     return { mine: plan(myTeam), theirs: theirs && theirs.length ? plan(theirs) : null };
   }, [games, rows, myTeam, byId, setup.lineup, setup.opponent, setup.il, owner, perGame, h2h]);
   // The week's matchup: each side's projected totals over the games its lineup will start (#817),
-  // from the lineup plans above, so benched and out players' games no longer count.
-  const match = useMemo<WeekMatchup | null>(() => {
+  // from the lineup plans above, so benched and out players' games no longer count. An ESPN
+  // category league read today starts from the score so far.
+  const weekMatch = useMemo<{ match: WeekMatchup; basis: MatchupBasis } | null>(() => {
     if (!h2h || setup.opponent === null || !weekAvailable || myTeam.length === 0 || !rows) return null;
     const theirs = rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
     const scoring = points ? setup.weights : undefined;
@@ -448,12 +445,16 @@ export default function MyTeam() {
       const starts = startsByPlayer(plan);
       return (r: Record<string, unknown>) => starts.get(String(r['player_id'])) ?? 0;
     };
-    return matchup(
-      points ? [] : activeCats,
-      weekTotals(myTeam, activeCats, scoring, counted(lineupPlans?.mine)),
-      weekTotals(theirs, activeCats, scoring, counted(lineupPlans?.theirs)),
-    );
-  }, [h2h, setup.opponent, setup.weights, setup.il, weekAvailable, myTeam, rows, owner, points, activeCats, lineupPlans]);
+    const rest = {
+      mine: weekTotals(myTeam, activeCats, scoring, counted(lineupPlans?.mine)),
+      theirs: weekTotals(theirs, activeCats, scoring, counted(lineupPlans?.theirs)),
+    };
+    const cats = points ? [] : activeCats;
+    const score = points ? 'no-score' : weekScore(setup, easternDate(), (ms) => easternDate(new Date(ms)));
+    if (typeof score === 'string') return { match: matchup(cats, rest.mine, rest.theirs), basis: { live: false, reason: score } };
+    const live = liveWeek(cats, score, rest);
+    return { match: matchup(cats, live.mine, live.theirs), basis: { live: true, projectedOnly: live.projectedOnly } };
+  }, [h2h, setup, weekAvailable, myTeam, rows, owner, points, activeCats, lineupPlans]);
   // Today's start and sit (#816): the best lineup the slots hold from today's players, by the same
   // per-game values the week's plan uses.
   const verdict = useMemo(() => {
@@ -463,25 +464,34 @@ export default function MyTeam() {
     return todayVerdict(groups, slotList(setup.lineup), perGame, (id) => byId.get(id)?.position);
   }, [games, myTeam, setup.lineup, perGame, byId]);
 
-  const review = useMemo<RosterReview | null>(() => {
-    if (!rows || myTeam.length === 0 || setup.drafting) return null;
-    const cats = week ? recentCats : leagueCats;
-    const totals = setup.rosters.map((r) =>
-      Object.fromEntries(activeCats.map((c) => [c, r.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + (cats?.get(id)?.[c] ?? 0), 0)])),
-    );
-    const mine = myTeam.map((r) => r.player_id);
-    return reviewRoster({
+  // the roster review, as Pickups' top adds read it (#819); the week's drives the stream line (#818)
+  const weekReview = useMemo(() => (rows && weekAvailable ? teamReview(rows, setup, values, true) : null), [rows, setup, values, weekAvailable]);
+  const review = useMemo<RosterReview | null>(
+    () => (week ? (weekReview?.review ?? null) : rows ? (teamReview(rows, setup, values, false)?.review ?? null) : null),
+    [week, weekReview, rows, setup, values],
+  );
+  // From the matchup to the stream that flips a category (#818): the close and losing categories,
+  // and the top add for them on the open days, with the drop the week's review names.
+  const targets = useMemo(() => (weekMatch && !points ? streamTargets(weekMatch.match) : []), [weekMatch, points]);
+  const stream = useMemo(() => {
+    if (!weekMatch || points || !lineupPlans || !games || !rows) return null;
+    const days = lineupPlans.mine.days.map((d) => d.date);
+    const open = lineupPlans.mine.days.filter((d) => d.open.length > 0).map((d) => d.date);
+    const playing = new Set(games.filter((g) => days.includes(g.game_date)).flatMap((g) => [`${g.game_date}|${g.home_team_id}`, `${g.game_date}|${g.away_team_id}`]));
+    const starts = startsByPlayer(lineupPlans.mine);
+    return streamMove({
+      match: weekMatch.match,
+      rows,
+      available: (id) => !owner.has(id),
+      games: (r) => ({ window: days.filter((d) => playing.has(`${d}|${r.team_id}`)).length, open: open.filter((d) => playing.has(`${d}|${r.team_id}`)).length }),
+      openDays: open.length,
+      kept: activeCats,
+      drops: weekReview?.drops ?? [],
+      roster: weekReview?.mine ?? [],
       position: (id) => byId.get(id)?.position,
-      droppable: dropRule(rows, mine, setup, restValue, week),
-      mine,
-      available: rows.filter((r) => !owner.has(r.player_id)).map((r) => r.player_id),
-      rest: week ? weekValues : restValue,
-      cats: points ? [] : activeCats,
-      catValue: (id) => cats?.get(id),
-      totals,
-      myTeam: setup.mine,
+      starts: (id) => starts.get(id) ?? 0,
     });
-  }, [rows, myTeam, setup, week, recentCats, leagueCats, activeCats, byId, restValue, owner, weekValues, points]);
+  }, [weekMatch, points, lineupPlans, games, rows, owner, activeCats, weekReview, byId]);
   const applyUpgrade = useCallback((u: Upgrade) => updateLeague((s) => assign(assign(s, u.drop, null), u.add, s.mine)), [updateLeague]);
 
   // Build your team (#809): the league as the Trade page models it, for the rest of the season,
@@ -538,6 +548,7 @@ export default function MyTeam() {
   if (roster.length === 0) {
     return (
       <div className="grid gap-3" data-testid="team-empty">
+        <SyncLine setup={setup} sync={sync} />
         <LeagueBar setup={setup} rostered={owner.size} myCount={0} weakest={[]} />
         <p className="rounded-lg border border-line bg-card p-3 text-sm">
           Your team is empty. Set up your league on the{' '}
@@ -568,6 +579,7 @@ export default function MyTeam() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+      <SyncLine setup={setup} sync={sync} />
       <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={[]} />
       {setup.drafting && (
         <p className="rounded-lg border border-accent bg-card p-3 text-sm" data-testid="team-drafting">
@@ -580,12 +592,24 @@ export default function MyTeam() {
       )}
 
       {games && myTeam.length > 0 && !setup.drafting && (
-        <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} verdict={verdict} />
+        <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} verdict={verdict} need={targets} />
       )}
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
       <div className={`grid items-start gap-3 ${showMatchup && !points ? 'lg:grid-cols-2' : ''}`}>
-        {showMatchup && <Matchup setup={setup} match={match} points={points} onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))} />}
+        {showMatchup && (
+          <Matchup
+            setup={setup}
+            match={weekMatch?.match ?? null}
+            basis={weekMatch?.basis ?? null}
+            points={points}
+            league={league}
+            openDays={lineupPlans?.mine.days.filter((d) => d.open.length > 0).map((d) => d.date) ?? []}
+            stream={stream}
+            nameOf={name}
+            onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))}
+          />
+        )}
         {!points && <Categories standings={standings} mine={setup.mine} cats={activeCats} punted={punted} h2h={h2h} totals={myTotals} />}
       </div>
 

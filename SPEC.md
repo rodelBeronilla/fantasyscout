@@ -265,7 +265,7 @@ fantasyscout/
   .github/workflows/ # ci.yml, ingest.yml, backfill.yml, build.yml, deploy-web.yml, notes.yml
 ```
 
-> **Superseded in part.** The extract lives in `tableau/`, the data dictionary is the site's Schema page (generated from the models' yml), and the workflows are ci, deploy-web, ingest, backfill, build, export, notebooks, probe, query and watchdog, and `notes.yml` for phase 7. The README's layout table is the current one.
+> **Superseded in part.** The extract lives in `tableau/`, the data dictionary is the site's Schema page (generated from the models' yml), and the workflows are ci, deploy-web, ingest, backfill, build, export, notebooks, probe, query and watchdog, and `notes.yml` and `claims.yml` for phase 7. The README's layout table is the current one.
 
 ```
 ```

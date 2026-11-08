@@ -1,0 +1,59 @@
+# The outlets' published feeds that FantasyScout reads (ingest/rss.py, #812, #839).
+#
+# A feed is listed only after its outlet's terms of use and robots.txt were read (ADR 0008, addendum
+# of 2026-11-08). Each entry records the terms' address, what they let us keep and why:
+#   keep = "headline"           the headline, its link and its publish time
+#   keep = "headline+summary"   those and the opening of the feed's own summary (at most 400 characters)
+# The linked articles are never fetched and no full text is ever kept. The items go to the local
+# model for claims (ai/claims.py), so a feed whose terms forbid using the content with AI tools is
+# not listed, however open the feed is. Neither is a feed behind a login, a paywall or an anti-bot
+# challenge, or one that answers a non-browser client with 403.
+#
+# url is the feed's own address: redirects are not followed. team is the league's abbreviation for
+# a team beat feed; leave it out for a league-wide feed. An outlet that objects is removed here and
+# its landed files are deleted (docs/runbook.md, "Remove a source on request").
+
+[[feed]]
+id = "yahoo-nba"
+outlet = "Yahoo Sports"
+url = "https://sports.yahoo.com/nba/rss/"
+league = "nba"
+terms_url = "https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html"
+keep = "headline"
+terms = "2(o) licenses the RSS feeds: content as provided, unmodified, credited and linked. 2(d)(10) bars building an archive or data feed from Yahoo's content, so only the headline and link are stored, never the summary."
+
+[[feed]]
+id = "yahoo-wnba"
+outlet = "Yahoo Sports"
+url = "https://sports.yahoo.com/wnba/rss/"
+league = "wnba"
+terms_url = "https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html"
+keep = "headline"
+terms = "As yahoo-nba."
+
+[[feed]]
+id = "hoops-rumors"
+outlet = "Hoops Rumors"
+url = "https://www.hoopsrumors.com/feed"
+league = "nba"
+terms_url = "https://www.hoopsrumors.com/about/privacy"
+keep = "headline"
+terms = "No terms of use published (the privacy policy is the site's only legal page); the feed is linked from every page and robots.txt allows it (crawl delay 1 s). Nothing grants reuse of the summary, which is the story's opening, so the headline only."
+
+[[feed]]
+id = "theix-wnba"
+outlet = "The IX Sports"
+url = "https://www.theixsports.com/category/the-ix-basketball-newsroom/wnba/feed/"
+league = "wnba"
+terms_url = "https://www.theixsports.com/privacy-policy/"
+keep = "headline"
+terms = "No terms of use published (a privacy policy only); robots.txt allows every path the feed uses. Nothing grants reuse of the summary, so the headline only."
+
+[[feed]]
+id = "winsidr"
+outlet = "Winsidr"
+url = "https://winsidr.com/feed/"
+league = "wnba"
+terms_url = "https://winsidr.com/robots.txt"
+keep = "headline"
+terms = "No terms of use or privacy page published; robots.txt allows the feed. Nothing grants reuse of the summary, so the headline only."

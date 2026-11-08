@@ -1,5 +1,5 @@
 /** League pieces shared by the League page and the board: settings, the summary bar, the draft bar, a team's profile. */
-import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
+import { CATEGORIES, CATEGORY_LABELS } from '../lib/format';
 import { normalizeSlots, SLOT_KEYS, SLOT_LABEL } from '../lib/lineup';
 import {
   DEFAULT_SETTINGS,
@@ -15,11 +15,11 @@ import {
 } from '../lib/fantasy-league';
 import type { League } from '../lib/data';
 import type { RosterReview, Upgrade } from '../lib/roster-upgrades';
+import { pickupsPath } from '../lib/pickups-url';
 import { href } from '../lib/site';
-import { isRatio, type WeekMatchup } from '../lib/matchup';
 import { type TodayGame, todayGroups, type TodaySlot, type TodayVerdict } from '../lib/today';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
-import { Chip, InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Td, Th, Unvalidated } from './ui';
+import { Chip, InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Unvalidated } from './ui';
 
 const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
 
@@ -321,7 +321,7 @@ export function Upgrades({
   );
   const labels = (cats: string[]) => cats.map((c) => CATEGORY_LABELS[c] ?? c).join(', ');
   return (
-    <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="upgrades-h" data-testid="upgrades">
+    <section id="upgrades" className="rounded-lg border border-line bg-card p-3" aria-labelledby="upgrades-h" data-testid="upgrades">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
           Moves
@@ -427,102 +427,6 @@ export function Upgrades({
   );
 }
 
-/** The week against one opponent (#490): the categories the manager projects to win, lose or split, from the games left. */
-export function Matchup({
-  setup,
-  match,
-  points,
-  onOpponent,
-}: {
-  setup: LeagueSetup;
-  match: WeekMatchup | null;
-  points: boolean;
-  onOpponent: (team: number | null) => void;
-}) {
-  const them = setup.opponent === null ? null : (setup.names[setup.opponent] ?? `Team ${setup.opponent + 1}`);
-  const show = (cat: string, v: number) => (isRatio(cat) ? `${fmt(v * 100, 1)}%` : fmt(v, 0));
-  const tone = (r: WeekMatchup['cats'][number]['result']) => (r === 'win' ? 'text-good' : r === 'loss' ? 'text-bad' : 'text-muted');
-  return (
-    <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="matchup-h" data-testid="matchup">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="matchup-h" className="text-sm font-medium tracking-wide text-muted uppercase">
-          This week&apos;s matchup
-          <Unvalidated issue={754} what="The weekly projection" />
-        </h2>
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-muted">Opponent</span>
-          <select
-            value={setup.opponent ?? ''}
-            onChange={(e) => onOpponent(e.target.value === '' ? null : Number(e.target.value))}
-            className="rounded border border-line bg-bg px-2 py-1 text-sm"
-            aria-label="This week's opponent"
-          >
-            <option value="">Choose a team</option>
-            {setup.names.map((name, t) =>
-              t === setup.mine ? null : (
-                <option key={t} value={t}>
-                  {name}
-                </option>
-              ),
-            )}
-          </select>
-        </label>
-      </div>
-      {!match || them === null ? (
-        <p className="mt-1 text-sm text-muted" data-testid="matchup-summary">
-          Pick the team you face this week to see the categories you project to win and lose: each roster&apos;s projected line over the games
-          left this fantasy week (Monday to Sunday).
-        </p>
-      ) : points ? (
-        <p className="mt-1 text-sm" data-testid="matchup-summary">
-          You project <strong>{fmt(match.mine.fpts, 0)} fantasy points</strong> to {them}&apos;s {fmt(match.theirs.fpts, 0)} this week, over{' '}
-          {match.mine.games} games to their {match.theirs.games}.
-        </p>
-      ) : (
-        <>
-          <p className="mt-1 text-sm" data-testid="matchup-summary">
-            You project to{' '}
-            <strong>
-              win {match.wins} of {match.cats.length} categories
-            </strong>{' '}
-            against {them}, lose {match.losses}
-            {match.close ? `, with ${match.close} too close to call (within 5%)` : ''}. Games left this week: you {match.mine.games}, {them}{' '}
-            {match.theirs.games}.
-          </p>
-          <div className="table-scroll mt-2 overflow-auto" tabIndex={0} role="region" aria-label="Matchup, category by category">
-            <table className="w-full text-sm" data-testid="matchup-table">
-              <thead>
-                <tr>
-                  <Th>Category</Th>
-                  <Th right>You</Th>
-                  <Th right>{them}</Th>
-                  <Th right>Edge</Th>
-                  <Th>{''}</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {match.cats.map((r) => (
-                  <tr key={r.cat} className="border-t border-line" data-testid="matchup-row">
-                    <Td>{CATEGORY_LABELS[r.cat] ?? r.cat}</Td>
-                    <Td right>{show(r.cat, r.mine)}</Td>
-                    <Td right>{show(r.cat, r.theirs)}</Td>
-                    <Td right>
-                      <Signed value={isRatio(r.cat) ? r.edge * 100 : r.edge} digits={isRatio(r.cat) ? 1 : 0} />
-                    </Td>
-                    <Td>
-                      <span className={`text-xs font-semibold uppercase ${tone(r.result)}`}>{r.result}</span>
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-    </section>
-  );
-}
-
 /** A player on the Today card: the board row's identity, team, report and lineup fields. */
 export interface TodayRow extends InjuryFields {
   player_id: string;
@@ -546,6 +450,7 @@ export function Today({
   games,
   date,
   verdict,
+  need = [],
 }: {
   league: League;
   players: TodayRow[];
@@ -553,6 +458,8 @@ export function Today({
   date: string;
   /** Start and sit for today (#816), when the lineup slots and values are known. */
   verdict?: TodayVerdict | null;
+  /** The matchup's close and losing categories, preselected on Pickups (#818). */
+  need?: string[];
 }) {
   const { plays, listed, idle, leagueGames } = todayGroups(players, games, date);
   // a day with no games has nothing to plan: the card stays away rather than say so (#696)
@@ -594,7 +501,7 @@ export function Today({
           </>
         )}
       </p>
-      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} />}
+      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} pickups={href(pickupsPath(league, { open: [date], need }))} />}
       {leagueGames > 0 && (
         <details className="mt-2 text-sm" open={!verdict} data-testid="today-all">
           <summary className="cursor-pointer text-xs text-muted">All of today&apos;s players</summary>
@@ -633,11 +540,14 @@ function TodayCalls({
   verdict,
   players,
   time,
+  pickups,
 }: {
   league: League;
   verdict: TodayVerdict;
   players: TodayRow[];
   time: (iso: string | null) => string;
+  /** Pickups for today, with the matchup's need categories when there is one (#818). */
+  pickups: string;
 }) {
   const name = new Map(players.map((p) => [p.player_id, p.full_name ?? p.player_id]));
   const who = (id: string) => (
@@ -680,7 +590,7 @@ function TodayCalls({
       {verdict.open.length > 0 && (
         <p data-testid="today-open">
           <strong>{verdict.open.length} open {verdict.open.length === 1 ? 'slot' : 'slots'}</strong> ({verdict.open.join(', ')}):{' '}
-          <a href={href(`/streamers/?league=${league}`)} className="text-accent underline-offset-4 hover:underline">
+          <a href={pickups} className="text-accent underline-offset-4 hover:underline" data-testid="today-pickups">
             stream into {verdict.open.length === 1 ? 'it' : 'them'}
           </a>
         </p>

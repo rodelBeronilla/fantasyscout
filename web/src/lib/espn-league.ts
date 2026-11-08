@@ -10,13 +10,15 @@
  */
 import type { Format, PointWeights, Scoring } from './fantasy-league';
 import type { Slots } from './lineup';
+import type { ScoreSoFar } from './matchup';
 
 const API = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba';
 
 /** ESPN numbers a season by the year it ends: 2026-27 is 2027; a WNBA-style single year stays. */
 export function espnLeagueUrl(leagueId: string, season: string): string {
   const year = season.includes('-') ? String(Number(season.slice(0, 4)) + 1) : season;
-  return `${API}/seasons/${year}/segments/0/leagues/${encodeURIComponent(leagueId)}?view=mTeam&view=mRoster&view=mSettings`;
+  // mMatchupScore adds the schedule, for this week's opponent (#815), and each side's score by stat (#817)
+  return `${API}/seasons/${year}/segments/0/leagues/${encodeURIComponent(leagueId)}?view=mTeam&view=mRoster&view=mSettings&view=mMatchupScore`;
 }
 
 const G_SLOTS = new Set([0, 1, 5]);
@@ -38,11 +40,37 @@ const POINT_STATS: Record<number, keyof PointWeights> = {
   15: 'ftm',
   16: 'fta',
 };
+/** The board's category behind each counting stat in a category league's score (#817). */
+const COUNTING_STATS: Record<number, string> = {
+  0: 'z_points',
+  6: 'z_rebounds_total',
+  3: 'z_assists',
+  2: 'z_steals',
+  1: 'z_blocks',
+  17: 'z_three_pointers_made',
+  11: 'z_turnovers',
+};
+/** Each percentage category's stats: made, attempted, and the percentage itself. */
+const RATIO_STATS: Record<string, [number, number, number]> = {
+  z_field_goal_pct: [13, 14, 19],
+  z_free_throw_pct: [15, 16, 20],
+};
 
 export interface ImportedLeague {
   name: string;
   settings: { teams: number; rosterSpots: number; scoring: Scoring; format: Format; weights: Partial<PointWeights> | null; lineup: Slots };
-  teams: { name: string; players: string[] }[];
+  /** Each team with ESPN's id for it (null when ESPN gave none). */
+  teams: { id: number | null; name: string; players: string[] }[];
+  /** This week's pairings: each team's ESPN id to its opponent's, from the schedule (#815). */
+  opponents: Map<number, number>;
+  /** This week's score so far in a category league, by ESPN team id; empty without one (#817). */
+  scores: Map<number, ScoreSoFar>;
+}
+
+/** One side of a matchup: in a category league, its totals so far, stat by stat. */
+interface EspnSide {
+  teamId?: number;
+  cumulativeScore?: { scoreByStat?: Record<string, { score?: number } | null> | null };
 }
 
 interface EspnLeague {
@@ -51,8 +79,15 @@ interface EspnLeague {
     size?: number;
     rosterSettings?: { lineupSlotCounts?: Record<string, number> };
     scoringSettings?: { scoringType?: string; scoringItems?: { statId: number; points?: number }[] };
+    /** Each matchup period's scoring periods (days). */
+    scheduleSettings?: { matchupPeriods?: Record<string, number[]> };
   };
+  status?: { currentMatchupPeriod?: number };
+  /** Today's scoring period (day of the season). */
+  scoringPeriodId?: number;
+  schedule?: { matchupPeriodId?: number; home?: EspnSide; away?: EspnSide }[];
   teams?: {
+    id?: number;
     name?: string;
     location?: string;
     nickname?: string;
@@ -85,6 +120,7 @@ export function fromEspnLeague(json: unknown): ImportedLeague {
     : null;
   const scoring: Scoring = points ? 'points' : items.some((i) => i.statId === TURNOVERS) ? 'cats9' : 'cats8';
   const teams = data.teams.map((t) => ({
+    id: typeof t.id === 'number' ? t.id : null,
     name: (t.name ?? `${t.location ?? ''} ${t.nickname ?? ''}`).trim() || 'Team',
     players: (t.roster?.entries ?? []).map((e) => e.playerPoolEntry?.player?.fullName).filter((n): n is string => !!n),
   }));
@@ -92,7 +128,79 @@ export function fromEspnLeague(json: unknown): ImportedLeague {
     name: data.settings.name ?? 'ESPN league',
     settings: { teams: data.settings.size ?? teams.length, rosterSpots, scoring, format: type === 'ROTO' ? 'roto' : 'h2h', weights, lineup },
     teams,
+    opponents: weekOpponents(data),
+    scores: points ? new Map() : weekScores(data),
   };
+}
+
+/**
+ * The matchup period that holds today: ESPN's current one, or else the period whose days include
+ * today's scoring period. Null when the league says neither.
+ */
+function currentPeriod(data: EspnLeague): number | null {
+  const current = data.status?.currentMatchupPeriod;
+  if (typeof current === 'number' && current > 0) return current;
+  const today = data.scoringPeriodId;
+  if (typeof today !== 'number') return null;
+  const found = Object.entries(data.settings?.scheduleSettings?.matchupPeriods ?? {}).find(([, days]) => Array.isArray(days) && days.includes(today));
+  return found ? Number(found[0]) : null;
+}
+
+/** Each team's opponent in this week's matchup, both ways, by ESPN team id; a team on a bye has none. */
+function weekOpponents(data: EspnLeague): Map<number, number> {
+  const out = new Map<number, number>();
+  const period = currentPeriod(data);
+  if (period === null) return out;
+  for (const m of data.schedule ?? []) {
+    const home = m.home?.teamId;
+    const away = m.away?.teamId;
+    if (m.matchupPeriodId !== period || typeof home !== 'number' || typeof away !== 'number') continue;
+    out.set(home, away);
+    out.set(away, home);
+  }
+  return out;
+}
+
+/**
+ * A side's totals so far from ESPN's score by stat. A percentage needs its shots to be added to the
+ * rest of the week: made and attempted when ESPN gives both, or the percentage weighed by the one
+ * of them it gives. A percentage alone is left out, and the week projects that category instead.
+ */
+function scoreSoFar(byStat: Record<string, { score?: number } | null>): ScoreSoFar {
+  const stat = (id: number): number | null => {
+    const v = byStat[String(id)]?.score;
+    return typeof v === 'number' && Number.isFinite(v) ? v : null;
+  };
+  const totals: Record<string, number> = {};
+  for (const [id, cat] of Object.entries(COUNTING_STATS)) {
+    const v = stat(Number(id));
+    if (v !== null) totals[cat] = v;
+  }
+  const shots: Record<string, [number, number]> = {};
+  for (const [cat, [madeId, attemptedId, pctId]] of Object.entries(RATIO_STATS)) {
+    const made = stat(madeId);
+    const attempted = stat(attemptedId);
+    const pct = stat(pctId);
+    if (made !== null && attempted !== null) shots[cat] = [made, attempted];
+    else if (pct !== null && attempted !== null) shots[cat] = [pct * attempted, attempted];
+    else if (pct !== null && pct > 0 && made !== null) shots[cat] = [made, made / pct];
+  }
+  return { totals, shots };
+}
+
+/** Each team's score so far in this week's matchup, by ESPN team id; a team on a bye has none. */
+function weekScores(data: EspnLeague): Map<number, ScoreSoFar> {
+  const out = new Map<number, ScoreSoFar>();
+  const period = currentPeriod(data);
+  if (period === null) return out;
+  for (const m of data.schedule ?? []) {
+    if (m.matchupPeriodId !== period) continue;
+    for (const side of [m.home, m.away]) {
+      const byStat = side?.cumulativeScore?.scoreByStat;
+      if (typeof side?.teamId === 'number' && byStat && typeof byStat === 'object') out.set(side.teamId, scoreSoFar(byStat));
+    }
+  }
+  return out;
 }
 
 /** A league ID, or the ID in a pasted ESPN league address (…?leagueId=123456). */
