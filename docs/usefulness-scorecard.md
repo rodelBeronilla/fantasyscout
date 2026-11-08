@@ -73,7 +73,7 @@ ESPN points leagues score as "other leagues" in jobs 2 and 8: no score so far an
      - the roster review and Build your team (#757).
 8. **Playoff push: ahead of Hashtag and League Winner for an ESPN category league (was behind).**
    - My Team leads with the odds of making the playoffs, your games in the playoff weeks, and one target (#859).
-   - The odds beat the current standings out of sample but are not yet calibrated (#872, ADR 0025; next #900). League Winner's free odds give the same kind of answer.
+   - The odds beat the current standings out of sample but are not yet calibrated season by season (#872, ADR 0025). A share per tally did not fix it (#900, ADR 0028): pooled over seasons the slope is 0.90 to 1.02, but single seasons swing both ways (next #907). League Winner's free odds give the same kind of answer.
    - The playoff-week plan is factual and League Winner has none. Hashtag's free playoff schedule counts each NBA team's games, not your roster's in your league's weeks.
    - **Other leagues:**
      - The odds start every team level.

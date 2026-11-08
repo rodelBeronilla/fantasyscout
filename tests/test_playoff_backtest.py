@@ -58,10 +58,18 @@ def test_the_verdict_applies_the_declared_bar() -> None:
     assert pb.verdict(res) == ["matchups b: calibration slope 0.600 outside (0.8, 1.25)"]
 
 
-def test_the_fit_reads_only_the_tuning_seasons(tmp_path: Path) -> None:
+def test_each_tally_reads_its_own_share(tmp_path: Path) -> None:
     season = pb.load(_season(tmp_path / "s", "nba", "2023-24", weeks=14))
-    with pytest.raises(SystemExit, match="not a tuning season"):
-        pb.fit([season], _params())
+    cut, p = season.cuts[1], _params()
+    split = pb.checkpoint(cut, season.weeks, p, "nba", {"categories": 0.3, "matchups": 0.0})
+    for tally, share in (("categories", 0.3), ("matchups", 0.0)):
+        one = pb.checkpoint(cut, season.weeks, p, "nba", share)
+        assert (split[tally].odds == one[tally].odds).all()
+    # the scale overrides the registry's: a wider spread makes the odds less sure
+    wide = pb.checkpoint(cut, season.weeks, p, "nba", 0.0, scale=8.0)
+    base = pb.checkpoint(cut, season.weeks, p, "nba", 0.0)
+    for tally in pb.TALLIES:
+        assert abs(wide[tally].odds - 0.5).mean() < abs(base[tally].odds - 0.5).mean()
 
 
 def test_the_held_out_season_is_refused(tmp_path: Path) -> None:
