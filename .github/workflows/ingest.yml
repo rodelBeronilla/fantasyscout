@@ -22,9 +22,9 @@ on:
   workflow_dispatch:
     inputs:
       source:
-        description: Which source to run
+        description: "Which source to run (market: the season's ESPN draft order now, which the morning run otherwise lands once from the eve of the first game; with full_refresh, land it again)"
         type: choice
-        options: [both, espn, stats, reports]
+        options: [both, espn, stats, reports, market]
         default: both
       league:
         description: Which league
@@ -67,6 +67,7 @@ jobs:
       run_espn: ${{ steps.plan.outputs.run_espn }}
       run_stats: ${{ steps.plan.outputs.run_stats }}
       run_reports: ${{ steps.plan.outputs.run_reports }}
+      espn_history: ${{ steps.plan.outputs.espn_history }}
     steps:
       - id: plan
         env:
@@ -75,6 +76,17 @@ jobs:
           STATS_RUNNER_LABEL: ${{ vars.STATS_RUNNER_LABEL }}
         run: |
           echo "leagues=$LEAGUES" >> "$GITHUB_OUTPUT"
+          # The season's draft order on demand (#847): the ESPN job's history run, nothing else.
+          if [ "$SOURCE" = "market" ]; then
+            {
+              echo "run_reports=false"
+              echo "run_espn=true"
+              echo "run_stats=false"
+              echo "espn_history=true"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "espn_history=false" >> "$GITHUB_OUTPUT"
           if [ "$SOURCE" = "both" ] || [ "$SOURCE" = "reports" ]; then
             echo "run_reports=true" >> "$GITHUB_OUTPUT"
           else
@@ -149,8 +161,16 @@ jobs:
           FULL_REFRESH: ${{ inputs.full_refresh }}
           ONLY: ${{ inputs.only }}
           RESETTLE: ${{ inputs.resettle_days }}
+          HISTORY: ${{ needs.plan.outputs.espn_history }}
         run: |
           set -o pipefail
+          if [ "$HISTORY" = "true" ]; then
+            # the season's draft order now, under fantasy_adp (#847); landed once unless refreshed
+            args=(land espn --history --league "$LEAGUE" --backend volume)
+            [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
+            uv run fs-ingest "${args[@]}" 2>&1 | tee land.log
+            exit 0
+          fi
           args=(land espn --league "$LEAGUE" --backend volume)
           [ -n "$SINCE" ] && args+=(--since "$SINCE")
           [ -n "$UNTIL" ] && args+=(--until "$UNTIL")

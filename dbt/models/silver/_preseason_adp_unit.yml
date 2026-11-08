@@ -22,3 +22,37 @@ unit_tests:
         - {espn_player_id: '1', average_draft_position: 1.5, adp_rank: 1, known_date: '2018-10-15'}
         - {espn_player_id: '2', average_draft_position: 7.5, adp_rank: 2, known_date: '2018-10-15'}
         - {espn_player_id: '3', average_draft_position: 7.5, adp_rank: 3, known_date: '2018-10-15'}
+
+  - name: preseason_adp_point_in_time_sees_the_live_seasons_order_from_the_first_game_day
+    description: >
+      The season being played lands its draft order from the daily run (#847), here late, after
+      the first game. A point-in-time build as of the first game day still sees it, known the day
+      before; one as of the eve does not (the next test).
+    model: espn_preseason_adp
+    overrides:
+      vars: {as_of: '2026-10-21', point_in_time: true}
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2026-27', game_type: regular, game_date_est: '2026-10-21'}
+      - input: ref('espn_fantasy_adp')
+        rows:
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-08', _source_file: f, espn_player_id: '1', full_name: A, average_draft_position: '1.5'}
+    expect:
+      rows:
+        - {espn_player_id: '1', adp_rank: 1, known_date: '2026-10-20'}
+
+  - name: preseason_adp_point_in_time_hides_the_order_on_the_eve
+    description: A point-in-time build as of the eve of the first game has no draft order yet.
+    model: espn_preseason_adp
+    overrides:
+      vars: {as_of: '2026-10-20', point_in_time: true}
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2026-27', game_type: regular, game_date_est: '2026-10-21'}
+      - input: ref('espn_fantasy_adp')
+        rows:
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-08', _source_file: f, espn_player_id: '1', full_name: A, average_draft_position: '1.5'}
+    expect:
+      rows: []

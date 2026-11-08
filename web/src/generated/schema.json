@@ -10091,6 +10091,14 @@
       {
        "description": "A past season's ADP (#786) is known the day before the season's first regular-season game, not the day a history run landed it. A preseason game earlier in the schedule does not count. A draft position of 0 is ESPN's placeholder and is left out; the rank breaks a tie by player id.",
        "name": "preseason_adp_is_dated_to_the_first_game_and_ranked"
+      },
+      {
+       "description": "A point-in-time build as of the eve of the first game has no draft order yet.",
+       "name": "preseason_adp_point_in_time_hides_the_order_on_the_eve"
+      },
+      {
+       "description": "The season being played lands its draft order from the daily run (#847), here late, after the first game. A point-in-time build as of the first game day still sees it, known the day before; one as of the eve does not (the next test).",
+       "name": "preseason_adp_point_in_time_sees_the_live_seasons_order_from_the_first_game_day"
       }
      ]
     },
@@ -29199,6 +29207,16 @@
    "description": "A past season's ADP (#786) is known the day before the season's first regular-season game, not the day a history run landed it. A preseason game earlier in the schedule does not count. A draft position of 0 is ESPN's placeholder and is left out; the rank breaks a tie by player id.",
    "model": "espn_preseason_adp",
    "name": "preseason_adp_is_dated_to_the_first_game_and_ranked"
+  },
+  {
+   "description": "A point-in-time build as of the eve of the first game has no draft order yet.",
+   "model": "espn_preseason_adp",
+   "name": "preseason_adp_point_in_time_hides_the_order_on_the_eve"
+  },
+  {
+   "description": "The season being played lands its draft order from the daily run (#847), here late, after the first game. A point-in-time build as of the first game day still sees it, known the day before; one as of the eve does not (the next test).",
+   "model": "espn_preseason_adp",
+   "name": "preseason_adp_point_in_time_sees_the_live_seasons_order_from_the_first_game_day"
   },
   {
    "description": "Teammates who share a surname are told apart by the start of the given name (\"K. Mitchell\", \"Jal. Williams\") or by a suffix (\"Carter Jr.\" is not Carter); a surname that has since gained a hyphenated part (\"Laney\", now \"Laney-Hamilton\") still matches; the substitution belongs to the lineup before it. The row's _ingest_date is the newer of the play-by-play's and the box score's landing.",
