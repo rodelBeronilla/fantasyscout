@@ -132,7 +132,34 @@ export const PARAMS = {
     "middle": 1.0,
     "strong": 0.5
   },
-  "matchup.closeness": 0.05,
+  "matchup.game_spread": {
+    "nba": {
+      "z_points": 17.322,
+      "z_rebounds_total": 5.563,
+      "z_assists": 4.24,
+      "z_steals": 1.787,
+      "z_blocks": 1.264,
+      "z_three_pointers_made": 2.231,
+      "z_turnovers": 2.403,
+      "z_field_goal_pct": 2.177,
+      "z_free_throw_pct": 0.964
+    },
+    "wnba": {
+      "z_points": 8.676,
+      "z_rebounds_total": 3.841,
+      "z_assists": 2.231,
+      "z_steals": 1.362,
+      "z_blocks": 0.895,
+      "z_three_pointers_made": 1.145,
+      "z_turnovers": 1.7,
+      "z_field_goal_pct": 1.7,
+      "z_free_throw_pct": 0.852
+    }
+  },
+  "matchup.closeness": {
+    "nba": 0.05,
+    "wnba": 0.05
+  },
   "sync.every_minutes": 15,
   "notes.stand_days": 1,
   "notes.late_hours": 30,
@@ -569,13 +596,48 @@ export const PARAMETERS = [
     }
   },
   {
+    "id": "matchup.game_spread",
+    "kind": "model",
+    "status": "measured",
+    "what": "The week's matchup card (#869): one game's spread of a player's output per category, in the category's own unit (a percentage's as makes minus the pool's rate times attempts), behind each category's chance. It carries what the projection misses over a week, not only the game's own noise.",
+    "evidence": "ops.closeness_backtest fit on the tuning seasons, each category's lowest log loss on a grid of 0.01 to 100 in 2.5% steps: NBA 2020-21 to 2022-23 (runs 42494531714, 42494538368, 42494544319, 71 weeks), log loss 0.539 to 0.654 by category against a coin's 0.693; WNBA 2021 to 2023 (runs 42494550191, 42494555493, 42494560975, 51 weeks), 0.530 to 0.669. Judged (ADR 0026), the card's chances beat a coin flip and the naive manager in NBA 2023-24, 2024-25 and WNBA 2024, 2025 (runs 42503278616, 42503283927, 42503289028, 42503294592), calibration slope 0.82 to 0.99",
+    "validation": 869,
+    "value": {
+      "nba": {
+        "z_points": 17.322,
+        "z_rebounds_total": 5.563,
+        "z_assists": 4.24,
+        "z_steals": 1.787,
+        "z_blocks": 1.264,
+        "z_three_pointers_made": 2.231,
+        "z_turnovers": 2.403,
+        "z_field_goal_pct": 2.177,
+        "z_free_throw_pct": 0.964
+      },
+      "wnba": {
+        "z_points": 8.676,
+        "z_rebounds_total": 3.841,
+        "z_assists": 2.231,
+        "z_steals": 1.362,
+        "z_blocks": 0.895,
+        "z_three_pointers_made": 1.145,
+        "z_turnovers": 1.7,
+        "z_field_goal_pct": 1.7,
+        "z_free_throw_pct": 0.852
+      }
+    }
+  },
+  {
     "id": "matchup.closeness",
     "kind": "threshold",
     "status": "assumed",
-    "what": "A weekly category within this share is called too close.",
-    "evidence": "none; the week's matchup card, which #755's simulated leagues do not exercise",
-    "validation": 869,
-    "value": 0.05
+    "what": "The week's matchup card (#869): a category whose chance of being won lies within this of 50% is called too close.",
+    "evidence": "none: the value the share rule used, read as a chance band. The rule declared on #869 fitted the band by a stream replay, which proved degenerate (ADR 0026): it picked 0 (NBA) and 0.40, the grid's edge (WNBA), and failed out of sample in NBA 2024-25 and WNBA 2025. The replay measures need-chip targeting, not a coin flip",
+    "validation": 902,
+    "value": {
+      "nba": 0.05,
+      "wnba": 0.05
+    }
   },
   {
     "id": "sync.every_minutes",

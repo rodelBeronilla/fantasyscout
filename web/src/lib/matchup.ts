@@ -7,8 +7,10 @@
  * player's do not count; a percentage is made over attempted. Turnovers go to the lower total.
  * An ESPN category league adds the week's score so far, so the totals are projected finals.
  */
+import type { League } from './data';
 import type { PointWeights } from './fantasy-league';
 import { fantasyPoints, thirdsWeights } from './league-value';
+import { normalCdf } from './standings';
 import { PARAMS } from '../generated/parameters';
 
 type Row = Record<string, unknown>;
@@ -137,12 +139,15 @@ export interface CategoryEdge {
   theirs: number;
   /** The manager's margin in the category's own unit; positive favours the manager (turnovers reversed). */
   edge: number;
-  /** The margin as a share of the larger total: how close the category is. */
+  /** The margin as a share of the larger total. */
   share: number;
+  /** The manager's chance of winning the category this week, from the week's measured spread (#869). */
+  chance: number;
   result: 'win' | 'loss' | 'close';
 }
 
 export interface WeekMatchup {
+  league: League;
   cats: CategoryEdge[];
   wins: number;
   losses: number;
@@ -151,16 +156,49 @@ export interface WeekMatchup {
   theirs: WeekTotals;
 }
 
-/** Category by category against the opponent; a margin within `closeness` of the larger total is too close to call. */
-export function matchup(cats: string[], mine: WeekTotals, theirs: WeekTotals, closeness: number = PARAMS['matchup.closeness']): WeekMatchup {
+/**
+ * One game's spread of a player's output in each category, in the category's own unit (a
+ * percentage's as makes less the pool's rate times attempts): fitted on the tuning seasons by the
+ * matchup card's backtest (ops/closeness_backtest.py, #869).
+ */
+const GAME_SPREAD: Record<League, Record<string, number>> = PARAMS['matchup.game_spread'];
+
+/**
+ * The manager's chance of winning a category this week (#869): Φ(margin ÷ s). A counting
+ * category's s is σ √(games left, both sides); a percentage's is σ √(G₁ ÷ A₁² + G₂ ÷ A₂²), each
+ * side's games left over its attempts squared, so a percentage settles as the shots add up. With
+ * no games left the margin is the result.
+ */
+export function categoryChance(league: League, cat: string, mine: WeekTotals, theirs: WeekTotals, edge: number): number {
+  const sigma = GAME_SPREAD[league][cat] ?? 1;
+  const perShot = (t: WeekTotals) => {
+    const attempted = t.shots?.[cat]?.[1] ?? 0;
+    return attempted > 0 ? t.games / (attempted * attempted) : 0;
+  };
+  const variance = sigma * sigma * (isRatio(cat) ? perShot(mine) + perShot(theirs) : mine.games + theirs.games);
+  const s = Math.sqrt(variance);
+  if (s > 0) return normalCdf(edge / s);
+  return edge > 0 ? 1 : edge < 0 ? 0 : 1 / 2; // def: no games left, the margin is the result
+}
+
+/** How far a category's chance is from a coin flip: 0 for an even one. */
+const fromEven = (r: CategoryEdge) => Math.abs(r.chance - 1 / 2); // def: a coin flip
+
+/**
+ * Category by category against the opponent: a category whose chance lies within `closeness` of
+ * 50% is too close to call (#869).
+ */
+export function matchup(league: League, cats: string[], mine: WeekTotals, theirs: WeekTotals, closeness: number = PARAMS['matchup.closeness'][league]): WeekMatchup {
   const rows = cats.map((cat): CategoryEdge => {
     const a = mine.cats[cat] ?? 0;
     const b = theirs.cats[cat] ?? 0;
     const edge = LOWER_WINS.has(cat) ? b - a : a - b;
     const share = Math.abs(edge) / Math.max(Math.abs(a), Math.abs(b), 1e-9); // def: no division by zero
-    return { cat, mine: a, theirs: b, edge, share, result: share <= closeness ? 'close' : edge > 0 ? 'win' : 'loss' };
+    const chance = categoryChance(league, cat, mine, theirs, edge);
+    return { cat, mine: a, theirs: b, edge, share, chance, result: Math.abs(chance - 1 / 2) <= closeness ? 'close' : edge > 0 ? 'win' : 'loss' }; // def: a coin flip
   });
   return {
+    league,
     cats: rows,
     wins: rows.filter((r) => r.result === 'win').length,
     losses: rows.filter((r) => r.result === 'loss').length,
@@ -170,9 +208,20 @@ export function matchup(cats: string[], mine: WeekTotals, theirs: WeekTotals, cl
   };
 }
 
-/** The category closest to turning either way, by share: where the week's moves count most (#817). */
+/** The category closest to turning either way, its chance nearest a coin flip: where the week's moves count most (#817). */
 export function swingCategory(m: WeekMatchup): string | null {
-  return m.cats.reduce<CategoryEdge | null>((best, r) => (best === null || r.share < best.share ? r : best), null)?.cat ?? null;
+  return m.cats.reduce<CategoryEdge | null>((best, r) => (best === null || fromEven(r) < fromEven(best) ? r : best), null)?.cat ?? null;
+}
+
+/** The chances "too close" covers, as the card names them: "45% to 55%". */
+export function closeBand(league: League, closeness: number = PARAMS['matchup.closeness'][league]): string {
+  const pct = (p: number) => `${Math.round(p * 100)}%`; // def: a percentage
+  return `${pct(1 / 2 - closeness)} to ${pct(1 / 2 + closeness)}`; // def: around a coin flip
+}
+
+/** The categories nearest a coin flip first. */
+export function byCloseness(rows: CategoryEdge[]): CategoryEdge[] {
+  return [...rows].sort((a, b) => fromEven(a) - fromEven(b));
 }
 
 /** The week's call, e.g. "Winning 5, losing 3, 1 too close: steals is the swing category" (#817). */
@@ -187,5 +236,5 @@ export function matchupCall(m: WeekMatchup, name: (cat: string) => string): stri
  * same shape as the rotisserie weights, which rank the manager's own categories instead.
  */
 export function matchupWeights(rows: CategoryEdge[]): Record<string, number> {
-  return thirdsWeights([...rows].sort((a, b) => a.share - b.share).map((r) => r.cat));
+  return thirdsWeights(byCloseness(rows).map((r) => r.cat));
 }
