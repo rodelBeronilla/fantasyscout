@@ -130,18 +130,18 @@ export const PARAMS = {
   "matchup.closeness": 0.05,
   "trade.value_limits": {
     "nba": {
-      "bad": -0.15,
-      "terrible": -0.3
+      "bad": 0.0,
+      "terrible": 0.0
     },
     "wnba": {
-      "bad": -0.15,
-      "terrible": -0.3
+      "bad": -0.03,
+      "terrible": -0.07
     }
   },
   "trade.market_limits": {
     "nba": {
-      "bad": -0.2,
-      "terrible": -0.35
+      "bad": 0.0,
+      "terrible": 0.0
     },
     "wnba": {
       "bad": -0.2,
@@ -155,11 +155,11 @@ export const PARAMS = {
   "trade.disagreement": 0.35,
   "trade.even": {
     "nba": {
-      "value": 0.1,
-      "market": 0.15
+      "value": 0.0,
+      "market": 0.0
     },
     "wnba": {
-      "value": 0.1,
+      "value": 0.03,
       "market": 0.15
     }
   },
@@ -169,8 +169,8 @@ export const PARAMS = {
     "locked": 0.75
   },
   "trade.meaningful_gain": {
-    "nba": 0.05,
-    "wnba": 0.05
+    "nba": 0.0,
+    "wnba": 0.01
   },
   "trade.suggest": {
     "tolerance": 0.15,
@@ -569,12 +569,12 @@ export const PARAMETERS = [
     "validation": 756,
     "value": {
       "nba": {
-        "bad": -0.15,
-        "terrible": -0.3
+        "bad": 0.0,
+        "terrible": 0.0
       },
       "wnba": {
-        "bad": -0.15,
-        "terrible": -0.3
+        "bad": -0.03,
+        "terrible": -0.07
       }
     }
   },
@@ -587,8 +587,8 @@ export const PARAMETERS = [
     "validation": 756,
     "value": {
       "nba": {
-        "bad": -0.2,
-        "terrible": -0.35
+        "bad": 0.0,
+        "terrible": 0.0
       },
       "wnba": {
         "bad": -0.2,
@@ -626,11 +626,11 @@ export const PARAMETERS = [
     "validation": 756,
     "value": {
       "nba": {
-        "value": 0.1,
-        "market": 0.15
+        "value": 0.0,
+        "market": 0.0
       },
       "wnba": {
-        "value": 0.1,
+        "value": 0.03,
         "market": 0.15
       }
     }
@@ -664,8 +664,8 @@ export const PARAMETERS = [
     "evidence": "none",
     "validation": 756,
     "value": {
-      "nba": 0.05,
-      "wnba": 0.05
+      "nba": 0.0,
+      "wnba": 0.01
     }
   },
   {
