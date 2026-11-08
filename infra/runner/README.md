@@ -34,6 +34,7 @@ The runners reach the outside only through `egress-proxy` (Squid, pinned by dige
 - `.cloud.databricks.com`: the workspace (the ingest's OAuth token and the Files API);
 - `www.youtube.com` alone, not its other hosts: the YouTube channels' video feeds, watch pages and captions (`fs-ingest land youtube`, ADR 0008's YouTube addendum, #851). The proxy forwards from the home address as it is; it changes nothing about who asks, and the ingest stops at any bot check rather than trying another way;
 - `fantasyscout.beronilla.rodeo`, `extensions.duckdb.org`: the news claims (`claims.yml`, #861), which run whole on the home runner so their source texts are never uploaded. They read the published build (DuckDB's httpfs extension, fetched once).
+- `api.cloudflare.com`, with the two above: the player notes (`player-notes.yml`, #823), which run whole on the home runner as the claims do, read the published build and publish their lines to R2.
 
 The proxy reads `squid.conf` when it starts: after a change merges, run `docker compose -f infra/runner/compose.yml up -d --force-recreate egress-proxy` from the main checkout so it reads the new list.
 

@@ -28,7 +28,17 @@ interface Env extends YahooEnv, OwnerEnv, AiEnv {
 
 const DATA_PREFIX = '/data/';
 /** The two pointers the export rewrites. */
-const POINTER_KEYS = new Set(['latest.json', 'builds.json', 'notebooks/findings-history.json', 'notes/nba.json', 'notes/wnba.json', 'notes/evals.json']);
+const POINTER_KEYS = new Set([
+  'latest.json',
+  'builds.json',
+  'notebooks/findings-history.json',
+  'notes/nba.json',
+  'notes/wnba.json',
+  'notes/evals.json',
+  // the one-line notes on flagged players (#823), rewritten every day
+  'notes/players/nba.json',
+  'notes/players/wnba.json',
+]);
 /**
  * A build's files never change once written, except the lists of them: the export adds the
  * rendered notebooks and the Tableau extract to a staged build after the fact, rewriting the

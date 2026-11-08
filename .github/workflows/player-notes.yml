@@ -1,0 +1,77 @@
+name: Player notes
+
+# A one-line note for each flagged player (#823; ADR 0017), in one job on the home runner, the
+# only place the local model is. The flagged players, their numbers and the recent news about them
+# (the claims and feed items) are read from the published build; the model writes one line each;
+# and the check re-reads every line against its inputs and publishes the lines that pass. The
+# inputs and the drafts hold source text (headlines, feed items, what the news claims), which
+# never leaves the lakehouse and the owner-only storage: they pass between the steps on the
+# runner's disk and are never uploaded. Only the published lines, public on the site anyway, are
+# kept as an artifact, and only when they are published. A line with a number or a quotation that
+# is not in its inputs is dropped and logged by its reasons, never published. When the model is
+# away the run drafts nothing and the published lines stand; the pages show a line only while the
+# player's listing is the one it was written on.
+#
+# The runner reaches the published build (the site, and DuckDB's extension host for httpfs) and
+# R2 (the Cloudflare API) through its egress proxy (infra/runner/squid.conf).
+
+on:
+  schedule:
+    # daily, after the morning ingest, its build and its export, and the news claims
+    - cron: "20 17 * * *"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the lines (off, a dry run that prints the counts and reasons only)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: player-notes
+  cancel-in-progress: false
+
+jobs:
+  notes:
+    name: Pick, write and check the lines
+    if: vars.STATS_RUNNER_LABEL != ''
+    # the home runner: the model runs beside it (infra/runner/compose.yml, the ai service)
+    runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    timeout-minutes: 120
+    # it holds the CI reader key for the build's tables (#429) and the R2 credentials
+    environment: lakehouse
+    # the inputs and drafts sit in $RUNNER_TEMP/player-notes, on the runner's disk only, and are
+    # removed when the job ends
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - name: Pick the players and their news
+        env:
+          FS_NOTEBOOK_SOURCE: published
+          FS_READER_KEY: ${{ secrets.CI_READER_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/player-notes"
+          uv run python -m ai.player_notes inputs --source published --out "$RUNNER_TEMP/player-notes/inputs.json"
+      - name: Draft one line per player
+        run: uv run python -m ai.player_notes draft --inputs "$RUNNER_TEMP/player-notes/inputs.json" --out "$RUNNER_TEMP/player-notes/draft.json"
+      - name: Check every line and publish the ones that pass
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STORE: ${{ (github.event_name == 'schedule' || inputs.publish) && 'r2' || 'local' }}
+        run: |
+          uv run python -m ai.player_notes publish --inputs "$RUNNER_TEMP/player-notes/inputs.json" \
+            --draft "$RUNNER_TEMP/player-notes/draft.json" --store "$STORE" --out "$RUNNER_TEMP/player-notes/published"
+      # the published lines only, and only when they were published: they are on the site
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: github.event_name == 'schedule' || inputs.publish
+        with:
+          name: player-notes-published
+          path: ${{ runner.temp }}/player-notes/published/
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Leave no source text on the runner
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/player-notes"

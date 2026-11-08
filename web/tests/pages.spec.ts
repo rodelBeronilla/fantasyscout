@@ -3500,3 +3500,51 @@ test('"Clear all" on the board clears every punt, not only the last', async ({ p
   await expect(page.getByTestId('active-filters')).toHaveCount(0);
   await expect(board.locator('thead [data-cat]')).toHaveCount(9);
 });
+
+test("a flagged player's one-line note shows under him on My Team while it holds, and nothing when it does not (#823)", async ({ page }) => {
+  // a day with no games in the fixture schedule: no Today card, so the line sits in the roster
+  await page.clock.setFixedTime(new Date('2026-12-20T16:00:00Z'));
+  const copy = { version: 7, teams: 4, rosterSpots: 13, scoring: 'cats9', format: 'roto', punts: [], rosters: [['1630169', '203999'], [], [], []], mine: 0, il: [], drafting: false, picks: [], opponent: null };
+  await page.addInitScript((stored) => {
+    if (sessionStorage.getItem('seeded')) return;
+    localStorage.setItem('fantasyscout:league:nba', stored);
+    sessionStorage.setItem('seeded', '1');
+  }, JSON.stringify(copy));
+  const line = 'Out, expected to miss 4.6 games per the board; hold him.';
+  let asOf = '2026-12-20';
+  let status = 'Out';
+  await page.route('**/data/notes/players/nba.json', (route) =>
+    route.fulfill({
+      json: {
+        league: 'nba',
+        label: 'AI-written from FantasyScout data and the news',
+        model: 'qwen3:8b',
+        as_of: asOf,
+        notes: {
+          '1630169': { line, sources: [{ what: 'expected_games_missed', value: '4.6', row_ref: 'mart_board/nba/1630169/2026-12-20' }], injury_status: status, news_flag: null },
+        },
+      },
+    }),
+  );
+  await page.goto('/team/?league=nba');
+  const flagged = page.getByTestId('roster-table').locator('tr[data-player="1630169"]');
+  await expect(flagged.getByTestId('player-note')).toContainText(line);
+  // marked as AI-written, with each number's source on hover
+  await expect(flagged.getByTestId('player-note-label')).toHaveAttribute('title', /4\.6: expected_games_missed \(mart_board\/nba\/1630169\/2026-12-20\)/);
+  // the healthy player has no line
+  await expect(page.getByTestId('roster-table').locator('tr[data-player="203999"]').getByTestId('player-note')).toHaveCount(0);
+  // a line written on another listing, or two days ago, is not shown
+  for (const [nextStatus, nextAsOf] of [
+    ['Questionable', '2026-12-20'],
+    ['Out', '2026-12-18'],
+  ] as const) {
+    status = nextStatus;
+    asOf = nextAsOf;
+    const read = page.waitForResponse('**/data/notes/players/nba.json');
+    await page.reload();
+    await read;
+    await expect(page.getByTestId('roster-table')).toBeVisible();
+    await expect(page.getByTestId('il-candidates')).toBeVisible();
+    await expect(page.getByTestId('player-note')).toHaveCount(0);
+  }
+});

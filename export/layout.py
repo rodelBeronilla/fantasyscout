@@ -57,6 +57,16 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec(
         "gold.fct_player_youtube_item", "league, published_date desc, item_id, stats_player_id"
     ),
+    # What the news claims about each player: Parquet only, owner-only like the feed items, read
+    # by the inputs of the one-line notes on flagged players (ai/player_notes.py, #823). A claim
+    # read from a YouTube transcript stays in the lakehouse: its quote is the transcript's words,
+    # which never leave it (ADR 0008, the YouTube addendum). Its source_id is the 11-character
+    # video id then -t and the chunk's start; a title-and-description claim's is the bare id.
+    TableSpec(
+        "gold.fct_player_claim",
+        "league, published_date desc, stats_player_id, source, source_id",
+        where="not (source like 'youtube:%' and substr(source_id, 12, 2) = '-t')",
+    ),
     TableSpec("gold.fct_team_game_context", "league, season, game_date, game_id, team_id"),
     TableSpec("gold.fct_market_value", "league, market_rank, stats_player_id"),
     TableSpec("gold.fct_waiver_trend", "league, add_rank, drop_rank, sleeper_player_id"),

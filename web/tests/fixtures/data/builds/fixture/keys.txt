@@ -14,6 +14,7 @@ builds/fixture/fct_game_official.parquet
 builds/fixture/fct_injury_status.parquet
 builds/fixture/fct_market_value.parquet
 builds/fixture/fct_official_listing.parquet
+builds/fixture/fct_player_claim.parquet
 builds/fixture/fct_player_game/wnba-2026.parquet
 builds/fixture/fct_player_news.parquet
 builds/fixture/fct_player_prop.parquet
