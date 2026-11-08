@@ -173,6 +173,29 @@ parameters:
     evidence: "none (ADR 0015 says so)"
     validation: 755
 
+  # ---- playoff odds and the playoff weeks (web/src/lib/playoff-odds.ts, playoff-weeks.ts; #821)
+  - id: playoffs.teams
+    value: {nba: 6, wnba: 4}
+    kind: threshold
+    status: convention
+    what: "Teams that make the playoffs in a league entered by hand; an ESPN import reads its own."
+    evidence: "the common platform default for a 12-team NBA league (half the teams); a third of the default 10-team WNBA league, its season being shorter"
+    validation: 755
+  - id: playoffs.weeks
+    value: {nba: 3, wnba: 2}
+    kind: model
+    status: convention
+    what: "Fantasy weeks the playoffs take, the last of the schedule, in a league entered by hand; an ESPN import reads its own."
+    evidence: "the common platform default: three rounds over the regular season's last three weeks (NBA), two (WNBA)"
+    validation: 755
+  - id: playoffs.simulations
+    value: 2000
+    kind: search
+    status: arithmetic
+    what: "Seasons the playoff odds play out: the odds' sampling error is at most 1.1 points (the binomial standard error at 50%)."
+    evidence: "sqrt(0.25 / 2000) = 0.011"
+    validation: 755
+
   # ---- Fit weights before the standings model applies (web/src/lib/league-value.ts, matchup.ts)
   - id: fit.thirds
     value: {weak: 1.5, middle: 1.0, strong: 0.5}

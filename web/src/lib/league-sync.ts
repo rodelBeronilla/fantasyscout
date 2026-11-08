@@ -8,6 +8,7 @@
 import { espnLeagueUrl, fromEspnLeague, type ImportedLeague } from './espn-league';
 import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, normalize } from './fantasy-league';
 import type { ScoreSoFar } from './matchup';
+import { easternDate } from './today';
 
 /** How long an ESPN re-import stands before a visit reads the league again. */
 export const SYNC_EVERY_MS = 15 * 60 * 1000; // def: a quarter hour, in ms
@@ -71,6 +72,41 @@ export function syncDue(setup: LeagueSetup, now: number): 'none' | 'fresh' | 'ed
   return now - source.syncedAt < SYNC_EVERY_MS ? 'fresh' : 'due';
 }
 
+const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * DAY).toISOString().slice(0, 10);
+
+/**
+ * ESPN's playoff periods and their first and last dates: a scoring period is a day of the season,
+ * so its date is today's plus the days between it and today's scoring period. Undefined when ESPN
+ * gives no playoff days or no today.
+ */
+function espnPlayoffWeeks(league: ImportedLeague, now: number): LeagueSource['playoffWeeks'] {
+  const p = league.playoffs;
+  if (!p?.days || league.today === null) return undefined;
+  const today = easternDate(new Date(now));
+  return { periods: p.periods, from: addDays(today, p.days[0] - league.today), to: addDays(today, p.days[1] - league.today) };
+}
+
+/** The Monday-to-Sunday weeks two dates span, both counted. */
+export function weeksCovered(from: string, to: string): number {
+  const monday = (iso: string) => {
+    const d = new Date(`${iso}T12:00:00Z`);
+    return Date.parse(addDays(iso, -((d.getUTCDay() + 6) % 7))); // def: days back to Monday (Sunday is 0)
+  };
+  return Math.round((monday(to) - monday(from)) / (7 * DAY)) + 1; // def: a week
+}
+
+/** ESPN's matchups left, as each period's pairs of team indexes, in period order; a team not in the league is left out. */
+function fixtureWeeks(league: ImportedLeague, teamIds: (number | null)[]): [number, number][][] {
+  const byPeriod = new Map<number, [number, number][]>();
+  for (const f of league.fixtures) {
+    const a = teamIds.indexOf(f.home);
+    const b = teamIds.indexOf(f.away);
+    if (a < 0 || b < 0 || a === b) continue;
+    byPeriod.set(f.period, [...(byPeriod.get(f.period) ?? []), [a, b]]);
+  }
+  return [...byPeriod.entries()].sort((x, y) => x[0] - y[0]).map(([, week]) => week);
+}
+
 export interface EspnSync {
   setup: LeagueSetup;
   name: string;
@@ -106,9 +142,14 @@ export function espnSetup(league: ImportedLeague, players: Players, at: { league
     const at = them === undefined ? -1 : teamIds.indexOf(them);
     return at >= 0 ? at : null;
   });
+  const playoffWeeks = espnPlayoffWeeks(league, at.now);
   const setup = normalize(
     {
-      ...(previous ? { punts: previous.punts, il: previous.il } : {}),
+      ...(previous ? { punts: previous.punts, il: previous.il, playoffs: previous.playoffs } : {}),
+      // ESPN's playoff field and the Monday-to-Sunday weeks its playoff days cover, when it says (#821)
+      ...(league.playoffs
+        ? { playoffs: { teams: league.playoffs.teams, weeks: playoffWeeks ? weeksCovered(playoffWeeks.from, playoffWeeks.to) : league.playoffs.periods[1] - league.playoffs.periods[0] + 1 } }
+        : {}),
       teams: league.teams.length || league.settings.teams,
       rosterSpots: league.settings.rosterSpots || base.rosterSpots,
       scoring: league.settings.scoring,
@@ -139,6 +180,10 @@ export function espnSetup(league: ImportedLeague, players: Players, at: { league
     ...(league.scores.size > 0 ? { scores: teamIds.map((id) => (id === null ? null : (league.scores.get(id) ?? null))) } : {}),
     // each team's record and place so far, for the standings at the top of My Team (#822)
     ...(league.teams.some((t) => t.record) ? { records: league.teams.map((t) => t.record) } : {}),
+    // the playoff weeks, the regular season's matchups left and how the records count them, for the playoff odds (#821)
+    ...(playoffWeeks ? { playoffWeeks } : {}),
+    ...(league.fixtures.length ? { fixtures: fixtureWeeks(league, teamIds) } : {}),
+    tally: league.tally,
   };
   return {
     setup: { ...setup, source },

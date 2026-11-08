@@ -23019,7 +23019,8 @@
      ],
      "read_by": [],
      "read_by_pages": [
-      "/streamers/"
+      "/streamers/",
+      "/team/"
      ],
      "reads": [
       "dim_date",
@@ -28680,7 +28681,8 @@
    "reads": [
     "board",
     "minutes",
-    "schedule"
+    "schedule",
+    "team_weeks"
    ],
    "route": "/team/"
   },

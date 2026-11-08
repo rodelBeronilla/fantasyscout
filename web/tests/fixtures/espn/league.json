@@ -1,5 +1,5 @@
 {
-  "_comment": "The shape of ESPN's fantasy basketball league API (views mTeam, mRoster, mSettings, mMatchupScore, mStandings), trimmed to the fields FantasyScout reads (in the current matchup period, each side's score by stat: counting stats, made and attempted, and the percentages; each team's record and playoff seed); made-up league, teams and players. The tests swap each player's fullName for a board player's.",
+  "_comment": "The shape of ESPN's fantasy basketball league API (views mTeam, mRoster, mSettings, mMatchupScore, mStandings), trimmed to the fields FantasyScout reads (in the current matchup period, each side's score by stat: counting stats, made and attempted, and the percentages; each team's record and playoff seed; the regular season's length, the playoff field and the playoffs' periods); made-up league, teams and players. The tests swap each player's fullName for a board player's.",
   "id": 123456,
   "seasonId": 2027,
   "scoringPeriodId": 9,
@@ -24,7 +24,9 @@
     },
     "scheduleSettings": {
       "matchupPeriodCount": 3,
-      "matchupPeriods": { "1": [1, 2, 3, 4, 5, 6, 7], "2": [8, 9, 10, 11, 12, 13, 14], "3": [15, 16, 17, 18, 19, 20, 21] }
+      "playoffTeamCount": 2,
+      "playoffMatchupPeriodLength": 1,
+      "matchupPeriods": { "1": [1, 2, 3, 4, 5, 6, 7], "2": [8, 9, 10, 11, 12, 13, 14], "3": [15, 16, 17, 18, 19, 20, 21], "4": [22, 23, 24, 25, 26, 27, 28] }
     }
   },
   "teams": [

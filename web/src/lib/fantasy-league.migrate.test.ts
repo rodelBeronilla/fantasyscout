@@ -89,7 +89,30 @@ describe('the stored league setup migrates by version', () => {
     expect('source' in setup).toBe(false);
   });
 
-  it('is at version 7', () => {
-    expect(SETUP_VERSION).toBe(7);
+  it('gives a version 7 copy the default playoffs, no more teams than the league holds (#821)', () => {
+    expect(migrate({ version: 7, teams: 12 }, nba).playoffs).toEqual({ teams: 6, weeks: 3 });
+    expect(migrate({ version: 7, teams: 4 }, nba).playoffs).toEqual({ teams: 4, weeks: 3 });
+    expect(migrate({ version: 7, teams: 10 }, DEFAULT_SETTINGS.wnba).playoffs).toEqual({ teams: 4, weeks: 2 });
+  });
+
+  it('keeps a version 8 copy\'s playoffs, bounded to the league and the weeks planned', () => {
+    expect(migrate({ version: 8, teams: 8, playoffs: { teams: 4, weeks: 2 } }, nba).playoffs).toEqual({ teams: 4, weeks: 2 });
+    expect(migrate({ version: 8, teams: 8, playoffs: { teams: 12, weeks: 0 } }, nba).playoffs).toEqual({ teams: 8, weeks: 1 });
+    expect(migrate({ version: 8, teams: 8, playoffs: { teams: 'x' } }, nba).playoffs).toEqual({ teams: 6, weeks: 3 });
+  });
+
+  it("keeps a source's well-formed playoff weeks, fixtures and tally and drops malformed ones (#821)", () => {
+    const source = { host: 'espn', leagueId: '1', syncedAt: 1, rosters: [] };
+    const good = migrate(
+      { version: 8, teams: 4, source: { ...source, playoffWeeks: { periods: [4, 4], from: '2026-11-15', to: '2026-11-21' }, fixtures: [[[0, 1], [2, 3]]], tally: 'matchups' } },
+      nba,
+    ).source;
+    expect(good).toMatchObject({ playoffWeeks: { periods: [4, 4], from: '2026-11-15', to: '2026-11-21' }, fixtures: [[[0, 1], [2, 3]]], tally: 'matchups' });
+    const bad = migrate({ version: 8, teams: 4, source: { ...source, playoffWeeks: { periods: [4], from: 'soon' }, fixtures: [[[0, 'x']]], tally: 'most' } }, nba).source;
+    expect(bad && ('playoffWeeks' in bad || 'fixtures' in bad || 'tally' in bad)).toBe(false);
+  });
+
+  it('is at version 8', () => {
+    expect(SETUP_VERSION).toBe(8);
   });
 });
