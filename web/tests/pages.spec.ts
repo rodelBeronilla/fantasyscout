@@ -1447,6 +1447,11 @@ test('Buy & sell lists your hot players to sell and slumping players elsewhere t
   await page.goto('/trade/');
   await page.getByTestId('trade-tabs').getByRole('radio', { name: 'Buy & sell' }).click();
   await expect(page.getByTestId('sell-high')).toContainText(hot.full_name);
+  // sell high failed out of sample everywhere, buy low in the WNBA only (#758): each list's badge
+  const badges = page.locator('#buy-sell').getByTestId('unvalidated');
+  await expect(badges).toHaveCount(2);
+  await expect(badges.first()).toHaveAttribute('href', /\/issues\/903$/);
+  await expect(badges.last()).toHaveAttribute('href', /\/issues\/904$/);
   const buy = page.getByTestId('buy-low').getByTestId('swing').filter({ hasText: cold.full_name });
   await expect(buy).toContainText('Team 2');
   await expect(buy).toContainText(/lately vs .* projected/);

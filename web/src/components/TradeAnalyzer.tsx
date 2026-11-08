@@ -777,14 +777,17 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'chips' && swings && hasSwings && (
-        <Card title="Buy low, sell high" id="buy-sell" badge={<Unvalidated issue={758} what="Buy low, sell high" />}>
+        <Card title="Buy low, sell high" id="buy-sell">
           <p className="mb-3 text-sm text-muted">
             Recent form against the projection, in value per game above replacement under your league&apos;s scoring. Managers price players on the box
             scores they have just seen: a hot run sells for more than the projection says, a slump buys for less.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <h3 className="mb-1 text-sm font-semibold">Sell high: yours, running hot</h3>
+              <h3 className="mb-1 text-sm font-semibold">
+                Sell high: yours, running hot
+                <Unvalidated issue={903} what="Sell high" />
+              </h3>
               {swings.sellHigh.length ? (
                 <ul className="grid gap-1 text-sm" data-testid="sell-high">
                   {swings.sellHigh.map((s) => (
@@ -806,7 +809,10 @@ export default function TradeAnalyzer() {
               )}
             </div>
             <div>
-              <h3 className="mb-1 text-sm font-semibold">Buy low: theirs, in a slump</h3>
+              <h3 className="mb-1 text-sm font-semibold">
+                Buy low: theirs, in a slump
+                {league === 'wnba' && <Unvalidated issue={904} what="Buy low in the WNBA" />}
+              </h3>
               {swings.buyLow.length ? (
                 <ul className="grid gap-1 text-sm" data-testid="buy-low">
                   {swings.buyLow.map((s) => (
