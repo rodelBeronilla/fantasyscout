@@ -335,7 +335,7 @@ export function Upgrades({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
           Moves
-          <Unvalidated issue={757} what="The roster review" />
+          <Unvalidated issue={895} what="The roster review" />
         </h2>
         {onUnit && (
           <Segmented
@@ -394,6 +394,7 @@ export function Upgrades({
             Shop on the Trade page
           </a>
           .
+          <Unvalidated issue={896} what="Trade, don't drop" />
         </p>
       )}
       {week && (
