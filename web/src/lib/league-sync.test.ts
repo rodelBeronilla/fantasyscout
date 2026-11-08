@@ -86,6 +86,24 @@ describe('a re-import (#815)', () => {
     expect(result.changes).toBe(0);
   });
 
+  it("puts ESPN's IR slot on the injured list each sync, and takes a player off once ESPN activates him (#878)", () => {
+    // Brick City moves Player One to IR (slot 13)
+    const slot = (one: number) => ({ ...fixture, teams: fixture.teams.map((t) => (t.id === 1 ? { ...t, roster: { entries: t.roster.entries.map((e, i) => (i === 1 ? { ...e, lineupSlotId: one } : e)) } } : t)) });
+    const first = espnSetup(fromEspnLeague(slot(13)), players, at, null).setup;
+    expect(first.il).toEqual(['p1']);
+    expect(first.source?.ir).toEqual(['p1']);
+    // the manager also puts Player Two on the list by hand; the next sync keeps both
+    const marked = { ...first, il: [...first.il, 'p2'] };
+    const again = espnSetup(fromEspnLeague(slot(13)), players, { ...at, now: at.now + 20 * MIN }, marked).setup;
+    expect(again.il.sort()).toEqual(['p1', 'p2']);
+    // ESPN activates Player One: he leaves the list, the manager's own entry stays
+    const back = espnSetup(fromEspnLeague(slot(0)), players, { ...at, now: at.now + 40 * MIN }, again).setup;
+    expect(back.il).toEqual(['p2']);
+    expect(back.source?.ir).toEqual([]);
+    // a stored copy keeps the IR list through a reload
+    expect(normalize(first, DEFAULT_SETTINGS.nba).source?.ir).toEqual(['p1']);
+  });
+
   it('counts a trade on both sides, and a first import as no count', () => {
     expect(rosterChanges([['a', 'b'], ['c']], [['a', 'c'], ['b']])).toBe(4);
     expect(rosterChanges([['a']], [['a']])).toBe(0);

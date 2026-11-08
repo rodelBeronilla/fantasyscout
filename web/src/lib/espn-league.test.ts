@@ -39,6 +39,15 @@ describe('fromEspnLeague (#745)', () => {
     expect(l.teams[0]!.players).toEqual(['Nikola Jokić', 'Luka Dončić']);
   });
 
+  it("reads who is in ESPN's IR slot (13), still on the roster (#878)", () => {
+    const withIr = { ...categories, teams: [{ ...categories.teams[0]!, roster: { entries: [...categories.teams[0]!.roster.entries, entry('Kawhi Leonard', 13)] } }, categories.teams[1]!] };
+    const l = fromEspnLeague(withIr);
+    expect(l.teams[0]!.players).toEqual(['Nikola Jokić', 'Luka Dončić', 'Kawhi Leonard']);
+    expect(l.teams[0]!.ir).toEqual(['Kawhi Leonard']);
+    // the bench (12) is not IR
+    expect(l.teams[1]!.ir).toEqual([]);
+  });
+
   it('knows an 8-category league (no turnovers) and a rotisserie one', () => {
     const roto = {
       ...categories,

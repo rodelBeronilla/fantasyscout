@@ -21,7 +21,7 @@ import { hasWeekGames, type ValueUnit } from '../lib/week-value';
 import { ilMoves } from '../lib/il-moves';
 import { minutesByPlayer, minutesGoTo, type MinutesRow } from '../lib/minutes-go-to';
 import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, startsByPlayer, weekPlan, type WeekPlan } from '../lib/lineup';
-import { easternDate, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
+import { easternDate, sitsOut, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
 import type { ModelRow } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Today, type TodayRow, Upgrades } from './LeagueParts';
 import { Matchup, type MatchupBasis } from './MatchupCard';
@@ -337,7 +337,8 @@ export default function MyTeam() {
     if (playing.size === 0) return null;
     const plays = (id: string, date: string) => {
       const r = byId.get(id);
-      return !!r && !['out', 'doubtful'].includes(r.injury_group ?? '') && playing.has(`${date}|${r.team_id}`);
+      // out, doubtful, or inactive on the team's lineup that day (#878): no start
+      return !!r && !sitsOut(r, date) && playing.has(`${date}|${r.team_id}`);
     };
     const slots = slotList(setup.lineup);
     const plan = (team: TeamRow[]) => weekPlan(team.map((r) => ({ id: r.player_id, position: r.position, value: perGame(r.player_id) })), dates, plays, slots);

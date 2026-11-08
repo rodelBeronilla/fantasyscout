@@ -7,6 +7,9 @@
  * The ids are ESPN's (the same constants the espn-api library uses): lineup slots 0 PG, 1 SG, 2 SF,
  * 3 PF, 4 C, 5 G, 6 F, 7 SG/SF, 8 G/F, 9 PF/C, 10 F/C, 11 UTIL, 12 bench, 13 IR; stats 0 PTS,
  * 1 BLK, 2 STL, 3 AST, 6 REB, 11 TO, 13 FGM, 14 FGA, 15 FTM, 16 FTA, 17 3PM, 19 FG%, 20 FT%.
+ * ESPN's own data bears out IR as 13 (#878): its default league holds one slot 13 beside three
+ * bench (12) and counts games only in slots 0 to 6 and 11, and every player's eligible slots end in
+ * 12 and 13 (a center's are 4, 9, 10, 11, 12, 13).
  */
 import type { Format, PointWeights, Scoring } from './fantasy-league';
 import type { Slots } from './lineup';
@@ -61,8 +64,11 @@ const RATIO_STATS: Record<string, [number, number, number]> = {
 export interface ImportedLeague {
   name: string;
   settings: { teams: number; rosterSpots: number; scoring: Scoring; format: Format; weights: Partial<PointWeights> | null; lineup: Slots };
-  /** Each team with ESPN's id for it (null when ESPN gave none) and its record so far (#822). */
-  teams: { id: number | null; name: string; players: string[]; record: TeamRecord | null }[];
+  /**
+   * Each team with ESPN's id for it (null when ESPN gave none), its players, those of them in ESPN's
+   * IR slot (#878), and its record so far (#822).
+   */
+  teams: { id: number | null; name: string; players: string[]; ir: string[]; record: TeamRecord | null }[];
   /** This week's pairings: each team's ESPN id to its opponent's, from the schedule (#815). */
   opponents: Map<number, number>;
   /** This week's score so far in a category league, by ESPN team id; empty without one (#817). */
@@ -112,7 +118,7 @@ interface EspnLeague {
     name?: string;
     location?: string;
     nickname?: string;
-    roster?: { entries?: { playerPoolEntry?: { player?: { fullName?: string } } }[] };
+    roster?: { entries?: { lineupSlotId?: number; playerPoolEntry?: { player?: { fullName?: string } } }[] };
     record?: unknown;
     playoffSeed?: number;
   }[];
@@ -142,10 +148,14 @@ export function fromEspnLeague(json: unknown): ImportedLeague {
     ? Object.fromEntries(items.filter((i) => i.statId in POINT_STATS).map((i) => [POINT_STATS[i.statId]!, i.points ?? 0]))
     : null;
   const scoring: Scoring = points ? 'points' : items.some((i) => i.statId === TURNOVERS) ? 'cats9' : 'cats8';
+  const named = (entries: { lineupSlotId?: number; playerPoolEntry?: { player?: { fullName?: string } } }[]) =>
+    entries.map((e) => e.playerPoolEntry?.player?.fullName).filter((n): n is string => !!n);
   const teams = data.teams.map((t) => ({
     id: typeof t.id === 'number' ? t.id : null,
     name: (t.name ?? `${t.location ?? ''} ${t.nickname ?? ''}`).trim() || 'Team',
-    players: (t.roster?.entries ?? []).map((e) => e.playerPoolEntry?.player?.fullName).filter((n): n is string => !!n),
+    players: named(t.roster?.entries ?? []),
+    // the players in ESPN's IR slot (#878): owned, but off the active roster
+    ir: named((t.roster?.entries ?? []).filter((e) => e.lineupSlotId === IR)),
     record: espnRecord(t),
   }));
   return {
