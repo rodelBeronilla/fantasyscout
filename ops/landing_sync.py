@@ -20,9 +20,10 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from collections.abc import Iterable, Sequence
+import time
+from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
@@ -30,6 +31,9 @@ from ingest.store import VolumeBackend, credentials_from_env
 
 LANDING = PurePosixPath("landing")
 SKIPPED_NAMES = frozenset({"_index.json"})
+# Rounds a failed read is retried in, and the first pause between them (doubling): #806.
+ROUNDS = 5
+FIRST_PAUSE = 30.0
 
 
 class Source(Protocol):
@@ -48,6 +52,7 @@ class SyncResult:
     present: int
     missing: int
     bytes_copied: int
+    failed: list[str] = field(default_factory=list)
 
 
 def _subdirs(source: Source, directory: PurePosixPath) -> list[PurePosixPath]:
@@ -72,13 +77,27 @@ def plan(source: Source, leagues: Iterable[str], seasons: Iterable[str]) -> list
 
 
 def sync(
-    source: Source, out: Path, files: Sequence[PurePosixPath], *, workers: int = 8
+    source: Source,
+    out: Path,
+    files: Sequence[PurePosixPath],
+    *,
+    workers: int = 8,
+    rounds: int = ROUNDS,
+    sleep: Callable[[float], None] = time.sleep,
 ) -> SyncResult:
-    """Copy the files not yet under ``out``; a file the source no longer has is counted missing."""
+    """Copy the files not yet under ``out``; a file the source no longer has is counted missing.
+
+    A read that fails (the Files API answers 429 when several mirrors run at once, #806) does not
+    end the sync: the failed files are tried again in later rounds, after a pause that doubles
+    each round, and only those still failing after the last round are reported.
+    """
     todo = [f for f in files if not out.joinpath(*f.parts).exists()]
 
-    def copy(path: PurePosixPath) -> int | None:
-        body = source.read_bytes(path)
+    def copy(path: PurePosixPath) -> int | Exception | None:
+        try:
+            body = source.read_bytes(path)
+        except Exception as exc:  # retried in the next round
+            return exc
         if body is None:
             return None
         target = out.joinpath(*path.parts)
@@ -88,14 +107,34 @@ def sync(
         partial.replace(target)  # a run killed mid-copy leaves no half-written payload
         return len(body)
 
-    with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
-        sizes = list(pool.map(copy, todo))
-    copied = [s for s in sizes if s is not None]
+    copied: list[int] = []
+    missing = 0
+    pending = list(todo)
+    errors: list[str] = []
+    for round_no in range(max(1, rounds)):
+        if round_no:
+            sleep(FIRST_PAUSE * 2 ** (round_no - 1))
+        with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
+            results = list(pool.map(copy, pending))
+        retry: list[PurePosixPath] = []
+        errors = []
+        for path, result in zip(pending, results, strict=True):
+            if isinstance(result, Exception):
+                retry.append(path)
+                errors.append(f"{path}: {result}")
+            elif result is None:
+                missing += 1
+            else:
+                copied.append(result)
+        pending = retry
+        if not pending:
+            break
     return SyncResult(
         copied=len(copied),
         present=len(files) - len(todo),
-        missing=len(todo) - len(copied),
+        missing=missing,
         bytes_copied=sum(copied),
+        failed=errors,
     )
 
 
@@ -127,9 +166,11 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"{len(files)} payloads for {', '.join(args.league)} {', '.join(args.season)}: "
         f"{result.copied} copied ({result.bytes_copied / 1e6:.1f} MB), {result.present} already "
-        f"present, {result.missing} gone from the volume"
+        f"present, {result.missing} gone from the volume, {len(result.failed)} still failing"
     )
-    return 1 if result.missing else 0
+    for line in result.failed[:20]:
+        print(f"  {line}", file=sys.stderr)
+    return 1 if result.missing or result.failed else 0
 
 
 if __name__ == "__main__":

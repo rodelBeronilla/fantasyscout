@@ -52,7 +52,7 @@ jobs:
         run: |
           args=()
           for s in $SEASONS; do args+=(--season "$s"); done
-          uv run python -m ops.landing_sync --league "$LEAGUE" "${args[@]}" --out "$RUNNER_TEMP/landing" --workers 16
+          uv run python -m ops.landing_sync --league "$LEAGUE" "${args[@]}" --out "$RUNNER_TEMP/landing" --workers 8
           du -sh "$RUNNER_TEMP/landing"
           df -h "$RUNNER_TEMP"
       - name: Build on DuckDB
