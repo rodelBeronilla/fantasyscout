@@ -129,12 +129,24 @@ export const PARAMS = {
   },
   "matchup.closeness": 0.05,
   "trade.value_limits": {
-    "bad": -0.15,
-    "terrible": -0.3
+    "nba": {
+      "bad": -0.15,
+      "terrible": -0.3
+    },
+    "wnba": {
+      "bad": -0.15,
+      "terrible": -0.3
+    }
   },
   "trade.market_limits": {
-    "bad": -0.2,
-    "terrible": -0.35
+    "nba": {
+      "bad": -0.2,
+      "terrible": -0.35
+    },
+    "wnba": {
+      "bad": -0.2,
+      "terrible": -0.35
+    }
   },
   "trade.category_limits": {
     "bad": 2,
@@ -142,15 +154,24 @@ export const PARAMS = {
   },
   "trade.disagreement": 0.35,
   "trade.even": {
-    "value": 0.1,
-    "market": 0.15
+    "nba": {
+      "value": 0.1,
+      "market": 0.15
+    },
+    "wnba": {
+      "value": 0.1,
+      "market": 0.15
+    }
   },
   "trade.category_change": 0.02,
   "trade.chance_bands": {
     "conceding": 0.25,
     "locked": 0.75
   },
-  "trade.meaningful_gain": 0.05,
+  "trade.meaningful_gain": {
+    "nba": 0.05,
+    "wnba": 0.05
+  },
   "trade.suggest": {
     "tolerance": 0.15,
     "min_gain": 0.05
@@ -547,8 +568,14 @@ export const PARAMETERS = [
     "evidence": "none (one anecdote, #692)",
     "validation": 756,
     "value": {
-      "bad": -0.15,
-      "terrible": -0.3
+      "nba": {
+        "bad": -0.15,
+        "terrible": -0.3
+      },
+      "wnba": {
+        "bad": -0.15,
+        "terrible": -0.3
+      }
     }
   },
   {
@@ -559,8 +586,14 @@ export const PARAMETERS = [
     "evidence": "none",
     "validation": 756,
     "value": {
-      "bad": -0.2,
-      "terrible": -0.35
+      "nba": {
+        "bad": -0.2,
+        "terrible": -0.35
+      },
+      "wnba": {
+        "bad": -0.2,
+        "terrible": -0.35
+      }
     }
   },
   {
@@ -592,8 +625,14 @@ export const PARAMETERS = [
     "evidence": "none",
     "validation": 756,
     "value": {
-      "value": 0.1,
-      "market": 0.15
+      "nba": {
+        "value": 0.1,
+        "market": 0.15
+      },
+      "wnba": {
+        "value": 0.1,
+        "market": 0.15
+      }
     }
   },
   {
@@ -624,7 +663,10 @@ export const PARAMETERS = [
     "what": "Expected categories a trade must add to count (per rival in rotisserie).",
     "evidence": "none",
     "validation": 756,
-    "value": 0.05
+    "value": {
+      "nba": 0.05,
+      "wnba": 0.05
+    }
   },
   {
     "id": "trade.suggest",

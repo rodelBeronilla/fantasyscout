@@ -357,14 +357,14 @@ def threshold(ctx: Ctx, fmt: str, p: dict[str, Any]) -> float:
 
 
 def calls(
-    ln: dict[str, np.ndarray], gain: np.ndarray, thr: float, p: dict[str, Any]
+    ln: dict[str, np.ndarray], gain: np.ndarray, thr: float, p: dict[str, Any], league: str
 ) -> dict[str, np.ndarray]:
     """trade-fairness.ts judge and league-model.ts acceptable, over arrays."""
     vl, ml, cl, ev = (
-        p["trade.value_limits"],
-        p["trade.market_limits"],
+        trade.per_league(p, "trade.value_limits", league),
+        trade.per_league(p, "trade.market_limits", league),
         p["trade.category_limits"],
-        p["trade.even"],
+        trade.per_league(p, "trade.even", league),
     )
     v, m = ln["value_share"], ln["market_share"]
     has = np.isfinite(m)
@@ -517,7 +517,8 @@ def figures(ctx: Ctx, p: dict[str, Any], seed: int) -> dict[str, FormatFigures]:
     srng = np.random.default_rng(seed + 2)
     leagues, teams = ctx.rost.shape[:2]
     per_league = int(p["backtest.trade_sample"])
-    vl, ml = p["trade.value_limits"]["bad"], p["trade.market_limits"]["bad"]
+    vl = trade.per_league(p, "trade.value_limits", ctx.league)["bad"]
+    ml = trade.per_league(p, "trade.market_limits", ctx.league)["bad"]
     tol = p["trade.suggest"]["tolerance"]
     pad = len(ctx.rest) - 1
     out = {
@@ -560,7 +561,7 @@ def figures(ctx: Ctx, p: dict[str, Any], seed: int) -> dict[str, FormatFigures]:
             ff = out[fmt]
             thr = ff.threshold
             pr = predict(ctx, lg, ft, fmt)
-            cl = calls(ln, pr["gain"], thr, p)
+            cl = calls(ln, pr["gain"], thr, p, ctx.league)
             win = cl["acceptable"] & (pr["partner_gain"] > 0)
             keys = [pr["gain"], pr["partner_gain"]]
             arms = {"finder": _best(ft.a, win & (pr["gain"] >= thr), keys, teams), **plain}
@@ -578,7 +579,7 @@ def figures(ctx: Ctx, p: dict[str, Any], seed: int) -> dict[str, FormatFigures]:
             ff.sample.append((lg, s))
             if len(st.a):
                 sp = predict(ctx, lg, st, fmt)
-                sc = calls(sl, sp["gain"], thr, p)
+                sc = calls(sl, sp["gain"], thr, p, ctx.league)
                 ok = sc["acceptable"] & (sp["gain"] >= thr) & (sp["partner_gain"] > 0)
                 sarms = {
                     "suggest": _best(st.a, ok, [sp["gain"], sp["partner_gain"], -size], teams),

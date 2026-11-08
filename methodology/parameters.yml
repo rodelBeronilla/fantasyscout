@@ -221,14 +221,14 @@ parameters:
 
   # ---- trade verdicts (web/src/lib/trade-fairness.ts, trade-impact.ts, trade-suggest.ts)
   - id: trade.value_limits
-    value: {bad: -0.15, terrible: -0.3}
+    value: {nba: {bad: -0.15, terrible: -0.3}, wnba: {bad: -0.15, terrible: -0.3}}
     kind: threshold
     status: assumed
     what: "Value lens: the share given away that makes a trade bad or terrible."
     evidence: "none (one anecdote, #692)"
     validation: 756
   - id: trade.market_limits
-    value: {bad: -0.2, terrible: -0.35}
+    value: {nba: {bad: -0.2, terrible: -0.35}, wnba: {bad: -0.2, terrible: -0.35}}
     kind: threshold
     status: assumed
     what: "Market lens: the share given away that makes a trade bad or terrible."
@@ -249,7 +249,7 @@ parameters:
     evidence: "none"
     validation: 756
   - id: trade.even
-    value: {value: 0.1, market: 0.15}
+    value: {nba: {value: 0.1, market: 0.15}, wnba: {value: 0.1, market: 0.15}}
     kind: threshold
     status: assumed
     what: "The band within which each lens calls a trade even."
@@ -270,7 +270,7 @@ parameters:
     evidence: "none"
     validation: 756
   - id: trade.meaningful_gain
-    value: 0.05
+    value: {nba: 0.05, wnba: 0.05}
     kind: threshold
     status: assumed
     what: "Expected categories a trade must add to count (per rival in rotisserie)."

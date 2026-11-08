@@ -430,6 +430,7 @@ export default function MyTeam() {
     const standings = state ? tradeStandings(state, setup.mine) : null;
     const rest = (id: string) => worth.get(id)?.rest ?? 0;
     const fairness: FairnessModel = {
+      league,
       state,
       mine: setup.mine,
       value: rest,

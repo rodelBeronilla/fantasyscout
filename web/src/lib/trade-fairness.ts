@@ -13,6 +13,7 @@
  *
  * Pure functions, so the Trade page and tests share them.
  */
+import type { League } from './data';
 import { PARAMS } from '../generated/parameters';
 
 export interface Lens {
@@ -48,16 +49,19 @@ export function marketValues(players: { player_id: string; market_rank?: number 
   );
 }
 
-/** How far a lens may favour the partner before it is a bad trade, and a terrible one. */
-export const LIMITS = {
-  value: PARAMS['trade.value_limits'],
-  market: PARAMS['trade.market_limits'],
-} as const;
+/**
+ * How far a lens may favour the partner before it is a bad trade, and a terrible one, per league:
+ * fitted by the walk-forward backtest (ops/trade_backtest.py, #756) as the share at which the
+ * trade is expected to cost the categories the category lens calls bad or terrible.
+ */
+export function limits(league: League) {
+  return { value: PARAMS['trade.value_limits'][league], market: PARAMS['trade.market_limits'][league] };
+}
 /** Categories: a loss of this many times the meaningful change is bad, of the second terrible. */
 const CATEGORY_LIMITS = PARAMS['trade.category_limits'];
 /** Two lenses this far apart (in shares) mean the trade is a bet on one of them. */
 const DISAGREEMENT: number = PARAMS['trade.disagreement'];
-/** Within this share, a lens calls the sides even. */
+/** Within this share, a lens calls the sides even (per league). */
 const EVEN = PARAMS['trade.even'];
 
 export interface Fairness {
@@ -77,7 +81,8 @@ export interface Fairness {
 
 const pct = (share: number) => `${Math.round(Math.abs(share) * 100)}%`; // def: a percentage
 
-export function judge(value: Lens, market: Lens | null, categories: number | null, threshold: number): Fairness {
+export function judge(value: Lens, market: Lens | null, categories: number | null, threshold: number, league: League): Fairness {
+  const LIMITS = limits(league);
   const reasons: string[] = [];
   let severity: Fairness['severity'] = 'fine';
   const worse = (s: 'bad' | 'terrible') => {
@@ -108,8 +113,8 @@ export function judge(value: Lens, market: Lens | null, categories: number | nul
   }
   const disagree = !!market && Math.abs(value.share - market.share) >= DISAGREEMENT && Math.sign(value.share) !== Math.sign(market.share);
   const even =
-    Math.abs(value.share) <= EVEN.value &&
-    (!market || Math.abs(market.share) <= EVEN.market) &&
+    Math.abs(value.share) <= EVEN[league].value &&
+    (!market || Math.abs(market.share) <= EVEN[league].market) &&
     (categories === null || Math.abs(categories) < CATEGORY_LIMITS.bad * threshold);
   return { value, market, categories, even, severity, reasons, disagree };
 }

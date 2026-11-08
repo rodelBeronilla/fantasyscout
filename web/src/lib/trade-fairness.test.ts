@@ -24,14 +24,14 @@ describe('lens', () => {
 
 describe('judge: the trade that looked even', () => {
   it('giving the stars: the projections favour you, the market calls it a loss, and the page says they disagree', () => {
-    const f = judge(lens(A, B, v), lens(A, B, m), null, 0.05);
+    const f = judge(lens(A, B, v), lens(A, B, m), null, 0.05, 'nba');
     expect(f.even).toBe(false);
     expect(f.disagree).toBe(true);
     expect(f.severity).toBe('bad');
     expect(f.reasons.join(' ')).toContain("ESPN's ranks");
   });
   it('giving the depth: the projections call it a loss, the market a win', () => {
-    const f = judge(lens(B, A, v), lens(B, A, m), null, 0.05);
+    const f = judge(lens(B, A, v), lens(B, A, m), null, 0.05, 'nba');
     expect(f.even).toBe(false);
     expect(f.disagree).toBe(true);
     expect(f.severity).toBe('bad');
@@ -40,14 +40,14 @@ describe('judge: the trade that looked even', () => {
   it('is even only when every lens is', () => {
     const even = { a: 3, b: 3.1 };
     const e = (id: string) => even[id as keyof typeof even] ?? 0;
-    expect(judge(lens(['a'], ['b'], e), lens(['a'], ['b'], e), 0, 0.05).even).toBe(true);
-    expect(judge(lens(['a'], ['b'], e), lens(['a'], ['b'], e), -0.2, 0.05).even).toBe(false);
+    expect(judge(lens(['a'], ['b'], e), lens(['a'], ['b'], e), 0, 0.05, 'nba').even).toBe(true);
+    expect(judge(lens(['a'], ['b'], e), lens(['a'], ['b'], e), -0.2, 0.05, 'nba').even).toBe(false);
   });
   it('calls a big loss on any lens terrible', () => {
     const lopsided = (id: string) => (id === 'star' ? 10 : 2);
-    expect(judge(lens(['star'], ['bench'], lopsided), null, null, 0.05).severity).toBe('terrible');
+    expect(judge(lens(['star'], ['bench'], lopsided), null, null, 0.05, 'nba').severity).toBe('terrible');
     const even = (id: string) => (id === 'star' ? 5 : 5);
-    expect(judge(lens(['star'], ['bench'], even), null, -0.3, 0.05).severity).toBe('terrible');
+    expect(judge(lens(['star'], ['bench'], even), null, -0.3, 0.05, 'nba').severity).toBe('terrible');
   });
 });
 

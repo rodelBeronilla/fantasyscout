@@ -211,7 +211,7 @@ export function BuildYourTeam({
       {standings && (
         <p className="mt-2 text-xs text-muted">
           A pickup drops only a player the roster review would drop; a trade must raise your categories by at least{' '}
-          {fmt(PARAMS['trade.meaningful_gain'], 2)}
+          {fmt(PARAMS['trade.meaningful_gain'][league], 2)}
           {h2h ? ' a week' : ' per rival'}, pass the Trade page&apos;s fairness check, and give the other team a reason to say yes. No move leaves a
           position you cover empty.
         </p>

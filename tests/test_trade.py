@@ -67,6 +67,7 @@ def compute(c: dict[str, Any]) -> dict[str, Any]:
         lambda i: float(c["rest"].get(i, 0)),
     )
     fairness = trade.FairnessModel(
+        league=c["league"],
         state=state,
         mine=mine,
         value=lambda i: float(c["rest"].get(i, 0)),
@@ -126,7 +127,9 @@ def compute(c: dict[str, Any]) -> dict[str, Any]:
     for t in c["trades"]:
         impact = trade.trade_impact(state, st, mine, t["partner"], t["give"], t["get"], P)
         lenses = trade.trade_lenses(fairness, t["partner"], t["give"], t["get"])
-        fair = trade.judge(lenses["value"], lenses["market"], impact["mine"]["gain"], threshold, P)
+        fair = trade.judge(
+            lenses["value"], lenses["market"], impact["mine"]["gain"], threshold, P, c["league"]
+        )
         trades.append(
             {
                 "mine": {k: impact["mine"][k] for k in ("scoreBefore", "scoreAfter", "gain")},

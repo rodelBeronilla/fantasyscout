@@ -198,10 +198,10 @@ export function objective(mineGain: number, partnerGain: number, threshold: numb
 }
 
 /**
- * The smallest change worth calling: 0.05 categories a week in head-to-head, or the same share of
- * the rivals in rotisserie points.
+ * The smallest change worth calling (per league, fitted by the walk-forward backtest, #756):
+ * categories a week in head-to-head, or the same share of the rivals in rotisserie points.
  */
 export function meaningful(state: LeagueState, team: number): number {
-  const gain: number = PARAMS['trade.meaningful_gain'];
+  const gain: number = PARAMS['trade.meaningful_gain'][state.league];
   return state.format === 'roto' ? gain * Math.max(1, rivals(state.rosters, team, state.rosterSpots).length) : gain;
 }
