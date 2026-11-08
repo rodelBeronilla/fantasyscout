@@ -107,12 +107,12 @@ parameters:
     evidence: "ADR 0010, notebook 03 (NBA +29 points, 22 to 36). The 28-minute cut was not optimised"
     validation: 754
   - id: projection.market_prior
-    value: {enabled: false, weight: 0.45, fade_games: 20}
+    value: {leagues: [nba], weight: 0.45, fade_games: 20}
     dbt: market_prior
     kind: model
     status: measured
-    what: "While on: the weight a player's value per game gives the board's value of his rank in ESPN's draft order, falling linearly to nothing by fade_games games of the season being played."
-    evidence: "fitted on NBA 2020-21 to 2022-23 by ops.market_prior_fit (runs 42456036003, 42456038211, 42456040262): mean Spearman at the first game day and a tenth in 0.791 to 0.816, RMSE no worse at any; judged on 2023-24 and 2024-25 (#832)"
+    what: "In the leagues listed: the weight a player's value per game gives the board's value of his rank in ESPN's draft order, falling linearly to nothing by fade_games games of the season being played."
+    evidence: "ADR 0020: fitted on NBA 2020-21 to 2022-23 (runs 42456036003, 42456038211, 42456040262); judged out of sample on 2023-24 and 2024-25 (runs 42458451893, 42458454350): preseason RMSE -0.165 and -0.218, Spearman +0.029 and +0.028, top pool +4.5 and +3.8 points, nothing measurable at half way. The WNBA has no past market to test on, so it is off there"
     validation: 832
   - id: projection.calibration_min_listings
     value: 300

@@ -43,11 +43,11 @@
   games left, measured point in time in notebook 03 (#494): the multiplier keeps the rest.
   games_next_7 counts playoff games too.
 
-  The market prior (var market_prior, #832, off by default): while a player has few games in the
-  season being played, value per game is blended toward the board's own value of his rank in the
-  market's draft order (int_market_prior), at market_prior.weight falling linearly to nothing by
-  market_prior.fade_games games. The nine category columns stay the projection's; z_total carries
-  the blend.
+  The market prior (var market_prior, #832, ADR 0020): in the leagues it is on for, while a player
+  has few games in the season being played, value per game is blended toward the board's own value
+  of his rank in the market's draft order (int_market_prior), at market_prior.weight falling
+  linearly to nothing by market_prior.fade_games games. The nine category columns stay the
+  projection's; z_total carries the blend.
 #}
 
 {% set zcols = ['z_points', 'z_rebounds_total', 'z_assists', 'z_steals', 'z_blocks', 'z_three_pointers_made', 'z_turnovers', 'z_field_goal_pct', 'z_free_throw_pct'] %}
@@ -90,9 +90,15 @@ priced as (
 
 {#- The market prior (#832): while a player has few games in the season being played, his value
     is blended toward the board's value of his rank in the market's draft order, at a weight that
-    falls to nothing by fade_games games. Off (weight 0) unless market_prior.enabled. #}
+    falls to nothing by fade_games games. Off (weight 0) in a league not in market_prior.leagues. #}
 {%- set prior = var('market_prior') %}
-{%- set prior_weight = prior['weight'] if prior['enabled'] else 0 %}
+{%- set prior_on -%}
+    {%- if prior['leagues'] -%}
+        p.league in ({% for lg in prior['leagues'] %}'{{ lg }}'{{ ", " if not loop.last }}{% endfor %})
+    {%- else -%}
+        false
+    {%- endif -%}
+{%- endset %}
 weighted_prior as (
 
     select
@@ -101,8 +107,8 @@ weighted_prior as (
         cast(coalesce(mp.games, 0) as integer) as market_prior_games,
         curve.own_value as market_prior_value,
         case
-            when curve.own_value is null then 0.0
-            else {{ prior_weight }} * greatest(0.0, 1.0 - coalesce(mp.games, 0) * 1.0 / {{ prior['fade_games'] }})
+            when curve.own_value is null or not ({{ prior_on }}) then 0.0
+            else {{ prior['weight'] }} * greatest(0.0, 1.0 - coalesce(mp.games, 0) * 1.0 / {{ prior['fade_games'] }})
         end as market_prior_weight
     from priced as p
     left join {{ ref('int_market_prior') }} as mp on mp.league = p.league and mp.player_id = p.player_id

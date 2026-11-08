@@ -130,7 +130,7 @@ def test_the_parity_check_fails_when_sql_and_blend_differ() -> None:
             "market_prior_games": [0, 0],
         }
     )
-    prior = {"enabled": True, "weight": 0.5, "fade_games": 5}
+    prior = {"leagues": ["nba"], "weight": 0.5, "fade_games": 5}
     walk_forward._check_parity(off, off.assign(board_value=[2.0, -1.0]), prior, date(2024, 1, 1))
     with pytest.raises(SystemExit):
         walk_forward._check_parity(off, off, prior, date(2024, 1, 1))

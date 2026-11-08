@@ -105,7 +105,7 @@
    ]
   },
   {
-   "about": "One value scale (#767, ADR 0019). Fails on any of: game_mean     a player's mean regular-season game value is not their season z_total (the scale is linear in a game's numbers, so the two are the same figure) replacement   the board's replacement band (the `teams` players after the pool, by value) does not average zero: value is above replacement level playoff_game  a playoff or play-in game is valued (fantasy windows are the regular season)",
+   "about": "One value scale (#767, ADR 0019). Fails on any of: game_mean     a player's mean regular-season game value is not their season z_total (the scale is linear in a game's numbers, so the two are the same figure) replacement   the board's replacement band (the `teams` players after the pool, by the projection's value) does not average zero: value is above replacement level playoff_game  a playoff or play-in game is valued (fantasy windows are the regular season)",
    "name": "assert_one_value_scale",
    "reads": [
     "int_player_game_value",
@@ -22718,7 +22718,7 @@
        "type": "double"
       },
       {
-       "description": "Projected value per game above replacement (value_per_game): the sum of the nine z_ category values, blended toward market_prior_value at market_prior_weight while the market prior is on (#832)",
+       "description": "Projected value per game above replacement (value_per_game): the sum of the nine z_ category values, blended toward market_prior_value at market_prior_weight (the market prior, ADR 0020)",
        "meta": {},
        "name": "z_total",
        "tests": [],
@@ -23301,7 +23301,7 @@
        "type": "integer"
       },
       {
-       "description": "The weight z_total gives market_prior_value: market_prior.weight falling linearly to 0 by market_prior.fade_games games, and 0 while the prior is off or without a market value",
+       "description": "The weight z_total gives market_prior_value: market_prior.weight falling linearly to 0 by market_prior.fade_games games, and 0 in a league the prior is off for (the WNBA) or without a market value (ADR 0020)",
        "meta": {},
        "name": "market_prior_weight",
        "tests": [],
@@ -23491,7 +23491,7 @@
       "Every category then has replacement level subtracted: the average category score of the next `teams` players after the pool. Zero is a freely available player, so the nine values sum to value per game above replacement (value_per_game) and a punt build is the sum without the punted columns. value_total counts games: value per game times the projected share of team games the player plays (games_share), since a missed game is filled by a replacement-level player; a value below replacement is left as it is.",
       "Alongside the value the row carries the current season's z-scores over the whole season and the last twenty and ten games, the per-game line, the projected line itself, and the player's age and rookie status from the roster, so the app can rank on recent form or raw production too and filter the way a fantasy manager does.",
       "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current status. The games a listed player is expected to miss are calibrated on history (fct_official_listing): the average, over past injury listings with the same status, of the games the player then missed, capped at the games the team has left, with the same reason (an official Out for rest is averaged over rest listings, not injuries). The status is the official report's for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable); the history is fct_status_calibration's histogram, the league's own listings once it has 300 for the status and reason, else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the games before it instead, and a note that the player is out for the season counts them all. Without any history the old charges apply (out: every game; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. A regular (fantasy_rest_risk.min_minutes projected) on a team with nothing left to play for (fct_team_stakes.rest_risk) is expected to sit out fantasy_rest_risk.extra_sit_out more of the games left, measured point in time in notebook 03 (#494): the multiplier keeps the rest. games_next_7 counts playoff games too.",
-      "The market prior (var market_prior, #832, off by default): while a player has few games in the season being played, value per game is blended toward the board's own value of his rank in the market's draft order (int_market_prior), at market_prior.weight falling linearly to nothing by market_prior.fade_games games. The nine category columns stay the projection's; z_total carries the blend."
+      "The market prior (var market_prior, #832, ADR 0020): in the leagues it is on for, while a player has few games in the season being played, value per game is blended toward the board's own value of his rank in the market's draft order (int_market_prior), at market_prior.weight falling linearly to nothing by market_prior.fade_games games. The nine category columns stay the projection's; z_total carries the blend."
      ],
      "read_by": [
       "fct_board_history",
@@ -23536,7 +23536,7 @@
        "name": "board_pool_is_chosen_in_two_passes"
       },
       {
-       "description": "Five players whose values are 2, 1, 0, -1 and -2 (points only), with the prior on at weight 0.5, fading by four games. e (value -2, drafted first, no games) is priced at the board's best value, 2, and blended half way: 0. a (value 2, drafted third, two games) is priced at 0 at a quarter weight: 1.5. b (drafted second) has played four games, so the prior has faded and his value stays 1. c is undrafted and d is drafted beyond the board's last player, so neither has a market price and both keep their own values.",
+       "description": "Five players whose values are 2, 1, 0, -1 and -2 (points only), with the prior on at weight 0.5, fading by four games. e (value -2, drafted first, no games) is priced at the board's best value, 2, and blended half way: 0. a (value 2, drafted third, two games) is priced at 0 at a quarter weight: 1.5. b (drafted second) has played four games, so the prior has faded and his value stays 1. c is undrafted and d is drafted beyond the board's last player, so neither has a market price and both keep their own values. The prior is on for the NBA only: the WNBA's v, drafted first, is priced at the WNBA board's best value but not moved.",
        "name": "market_prior_prices_the_draft_rank_and_fades"
       }
      ]
@@ -27334,7 +27334,7 @@
    "name": "board_pool_is_chosen_in_two_passes"
   },
   {
-   "description": "Five players whose values are 2, 1, 0, -1 and -2 (points only), with the prior on at weight 0.5, fading by four games. e (value -2, drafted first, no games) is priced at the board's best value, 2, and blended half way: 0. a (value 2, drafted third, two games) is priced at 0 at a quarter weight: 1.5. b (drafted second) has played four games, so the prior has faded and his value stays 1. c is undrafted and d is drafted beyond the board's last player, so neither has a market price and both keep their own values.",
+   "description": "Five players whose values are 2, 1, 0, -1 and -2 (points only), with the prior on at weight 0.5, fading by four games. e (value -2, drafted first, no games) is priced at the board's best value, 2, and blended half way: 0. a (value 2, drafted third, two games) is priced at 0 at a quarter weight: 1.5. b (drafted second) has played four games, so the prior has faded and his value stays 1. c is undrafted and d is drafted beyond the board's last player, so neither has a market price and both keep their own values. The prior is on for the NBA only: the WNBA's v, drafted first, is priced at the WNBA board's best value but not moved.",
    "model": "mart_board",
    "name": "market_prior_prices_the_draft_rank_and_fades"
   },

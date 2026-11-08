@@ -20,8 +20,9 @@ undrafted player below every drafted one. Over the players who then played at le
 - a paired bootstrap interval of the board's RMSE minus the naive manager's (players resampled,
   ``backtest.bootstrap`` times): below zero, the board beat the baseline.
 
-With ``--market-prior`` the board is judged twice at each checkpoint: as built, and with the
-market prior on (the ``market_prior`` var, #832), mart_board rebuilt from the same cut. For each the
+With ``--market-prior`` the board is judged twice at each checkpoint: with the market prior off
+(the ``market_prior`` var, #832, ADR 0020), and on, mart_board rebuilt from the same cut. Without
+it the board is judged as the project builds it, the prior on where the var says. For each the
 run reports RMSE, Spearman and top-pool share, with the paired bootstrap interval of on minus off,
 and checks that the prior's value is the one ``blend`` computes from the first build's columns.
 ``--players-out`` writes every judged player's figures, which ops.market_prior_fit fits the prior
@@ -116,11 +117,12 @@ def _vars(as_of: date, prior: dict[str, Any] | None = None) -> str:
     return json.dumps(out)
 
 
-def _build(as_of: date, db: Path) -> None:
+def _build(as_of: date, db: Path, prior: dict[str, Any] | None = None) -> None:
+    """A checkpoint's point-in-time build: the market prior as the project has it, or ``prior``."""
     cmd = [
         "dbt", "build", "--target", "duckdb", "--full-refresh", "--exclude", "tag:quality",
         "--exclude-resource-type", "unit_test", "--exclude-resource-type", "test",
-        "--vars", _vars(as_of),
+        "--vars", _vars(as_of, prior),
     ]  # fmt: skip
     _dbt(cmd, db, as_of)
 
@@ -397,10 +399,13 @@ def _check_parity(off: Any, on: Any, prior: dict[str, Any], as_of: date) -> None
         raise SystemExit(msg)
 
 
-def _prior(p: dict[str, Any], weight: float | None, fade: float | None) -> dict[str, Any]:
+def _prior(
+    p: dict[str, Any], league: str, weight: float | None, fade: float | None
+) -> dict[str, Any]:
+    """The market prior on for ``league``, at the registry's parameters unless given."""
     reg = p["projection.market_prior"]
     return {
-        "enabled": True,
+        "leagues": [league],
         "weight": reg["weight"] if weight is None else weight,
         "fade_games": reg["fade_games"] if fade is None else fade,
     }
@@ -434,7 +439,11 @@ def main(argv: list[str] | None = None) -> int:
     with duckdb.connect(str(args.full_db), read_only=True) as full:
         first, last = _season_span(full, args.league, args.season)
     min_games, resamples = int(p["backtest.min_games"]), int(p["backtest.bootstrap"])
-    prior = _prior(p, args.prior_weight, args.prior_fade) if args.market_prior else None
+    prior = (
+        _prior(p, args.league, args.prior_weight, args.prior_fade) if args.market_prior else None
+    )
+    # judged off and on, the first build is the board without the prior
+    without = None if prior is None else {**prior, "leagues": []}
     results: list[Checkpoint] = []
     prior_results: list[PriorCheckpoint] = []
     players: list[Any] = []
@@ -447,7 +456,7 @@ def main(argv: list[str] | None = None) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         for fraction, as_of in zip(fractions, checkpoints(first, last, fractions), strict=True):
             db = Path(tmp) / f"wf-{as_of.isoformat()}.duckdb"
-            _build(as_of, db)
+            _build(as_of, db, without)
             df = board_frame(db, as_of)
             players.append(
                 df.assign(league=args.league, season=args.season, as_of=as_of, checkpoint=fraction)
