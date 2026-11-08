@@ -1,0 +1,74 @@
+{
+ "claims": [
+  {
+   "cap_reasons": [
+    "the item names 2 players"
+   ],
+   "confidence": 0.7,
+   "confidence_cap": 0.7,
+   "direction": 1,
+   "kind": "role_up",
+   "league": "wnba",
+   "model_confidence": 0.9,
+   "player_id": "1643434",
+   "published_at": "2026-10-29T23:48:50Z",
+   "published_date": "2026-10-29",
+   "quote": "Janiah Barker into the starting lineup",
+   "quote_start": 10,
+   "season": "2026",
+   "source": "espn_news",
+   "source_id": "50322590"
+  },
+  {
+   "cap_reasons": [
+    "the item names 2 players"
+   ],
+   "confidence": 0.7,
+   "confidence_cap": 0.7,
+   "direction": -1,
+   "kind": "role_down",
+   "league": "wnba",
+   "model_confidence": 0.9,
+   "player_id": "1629498",
+   "published_at": "2026-10-29T23:48:50Z",
+   "published_date": "2026-10-29",
+   "quote": "Jackie Young to the bench",
+   "quote_start": 50,
+   "season": "2026",
+   "source": "espn_news",
+   "source_id": "50322590"
+  }
+ ],
+ "extracted_at": "2026-10-27T16:40:00+00:00",
+ "league": "wnba",
+ "model": "qwen3:8b",
+ "players": [
+  {
+   "name": "Janiah Barker",
+   "player_id": "1643434"
+  },
+  {
+   "name": "Jackie Young",
+   "player_id": "1629498"
+  }
+ ],
+ "prompt": "0123456789ab",
+ "published_at": "2026-10-29T23:48:50+00:00",
+ "published_date": "2026-10-29",
+ "rejected": [
+  {
+   "claim": {
+    "confidence": 0.4,
+    "direction": -1,
+    "kind": "injury_out",
+    "player_id": "1629498",
+    "quote": "Young is out"
+   },
+   "reason": "the quote is not a span of the source text"
+  }
+ ],
+ "season": "2026",
+ "source": "espn_news",
+ "source_id": "50322590",
+ "text": "Aces move Janiah Barker into the starting lineup, Jackie Young to the bench"
+}

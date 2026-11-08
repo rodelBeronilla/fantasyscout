@@ -1,0 +1,59 @@
+{
+ "claims": [
+  {
+   "cap_reasons": [
+    "an expectation: expected"
+   ],
+   "confidence": 0.7,
+   "confidence_cap": 0.7,
+   "direction": 1,
+   "kind": "injury_return",
+   "league": "wnba",
+   "model_confidence": 0.8,
+   "player_id": "1631006",
+   "published_at": "2026-09-24T00:00:00Z",
+   "published_date": "2026-09-24",
+   "quote": "expected to return to a bench role",
+   "quote_start": 96,
+   "season": "2026",
+   "source": "espn_injury_note",
+   "source_id": "36901-5f1d2a3b4c6e"
+  },
+  {
+   "cap_reasons": [
+    "an expectation: expected"
+   ],
+   "confidence": 0.5,
+   "confidence_cap": 0.7,
+   "direction": -1,
+   "kind": "minutes_down",
+   "league": "wnba",
+   "model_confidence": 0.5,
+   "player_id": "1631006",
+   "published_at": "2026-09-24T00:00:00Z",
+   "published_date": "2026-09-24",
+   "quote": "limited in practice",
+   "quote_start": 69,
+   "season": "2026",
+   "source": "espn_injury_note",
+   "source_id": "36901-5f1d2a3b4c6e"
+  }
+ ],
+ "extracted_at": "2026-10-27T16:40:00+00:00",
+ "league": "wnba",
+ "model": "qwen3:8b",
+ "players": [
+  {
+   "name": "Kierstan Bell",
+   "player_id": "1631006"
+  }
+ ],
+ "prompt": "0123456789ab",
+ "published_at": "2026-09-24T00:00:00+00:00",
+ "published_date": "2026-09-24",
+ "rejected": [],
+ "season": "2026",
+ "source": "espn_injury_note",
+ "source_id": "36901-5f1d2a3b4c6e",
+ "text": "Bell (hamstring) is questionable for Wednesday's game.\nBell has been limited in practice and is expected to return to a bench role once cleared."
+}

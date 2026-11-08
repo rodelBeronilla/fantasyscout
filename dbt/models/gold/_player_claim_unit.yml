@@ -1,0 +1,44 @@
+unit_tests:
+  - name: player_claim_keeps_claims_about_league_players_only
+    description: >
+      One row per claim about a player dim_player has, with its source, quote, dates
+      and confidence as landed. A claim about a player id dim_player does not have is dropped.
+    model: fct_player_claim
+    given:
+      - input: ref('player_claims')
+        rows:
+          - {league: nba, season: '2026-27', source: espn_news, source_id: '1', stats_player_id: p1, kind: injury_out, direction: -1, confidence: 0.8, model_confidence: 0.95, confidence_cap: 0.8, quote: 'ruled out', quote_start: 10, published_date: '2026-10-28', model: 'm', prompt_version: 'v'}
+          - {league: nba, season: '2026-27', source: espn_injury_note, source_id: 7-abc, stats_player_id: p2, kind: injury_return, direction: 1, confidence: 0.7, model_confidence: 0.7, confidence_cap: 0.9, quote: 'will return Monday', quote_start: 40, published_date: '2026-10-29', model: 'm', prompt_version: 'v'}
+          - {league: nba, season: '2026-27', source: espn_news, source_id: '2', stats_player_id: unknown, kind: role_up, direction: 1, confidence: 0.6, model_confidence: 0.6, confidence_cap: 0.8, quote: 'will start', quote_start: 0, published_date: '2026-10-29', model: 'm', prompt_version: 'v'}
+          - {league: wnba, season: '2026', source: espn_news, source_id: '3', stats_player_id: p1, kind: role_up, direction: 1, confidence: 0.6, model_confidence: 0.6, confidence_cap: 0.8, quote: 'will start', quote_start: 0, published_date: '2026-10-29', model: 'm', prompt_version: 'v'}
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: p1}
+          - {league: nba, stats_player_id: p2}
+    expect:
+      rows:
+        - {league: nba, stats_player_id: p1, source: espn_news, source_id: '1', kind: injury_out, direction: -1, confidence: 0.8, model_confidence: 0.95, confidence_cap: 0.8, quote: 'ruled out', quote_start: 10, published_date: '2026-10-28'}
+        - {league: nba, stats_player_id: p2, source: espn_injury_note, source_id: 7-abc, kind: injury_return, direction: 1, confidence: 0.7, model_confidence: 0.7, confidence_cap: 0.9, quote: 'will return Monday', quote_start: 40, published_date: '2026-10-29'}
+
+  - name: player_claim_point_in_time_keeps_only_what_the_source_said_before_as_of
+    description: >
+      A point-in-time build (#752) keeps a claim only when its source said it before the build's
+      date, whenever it was extracted: as of 2026-10-29, the claim said on the 28th stays and the
+      ones said on the 29th and 30th do not.
+    model: fct_player_claim
+    overrides:
+      vars:
+        as_of: '2026-10-29'
+        point_in_time: true
+    given:
+      - input: ref('player_claims')
+        rows:
+          - {league: nba, source: espn_news, source_id: '1', stats_player_id: p1, kind: injury_out, published_date: '2026-10-28', extracted_at: '2026-11-08 16:40:00'}
+          - {league: nba, source: espn_news, source_id: '2', stats_player_id: p1, kind: injury_return, published_date: '2026-10-29', extracted_at: '2026-11-08 16:40:00'}
+          - {league: nba, source: espn_news, source_id: '3', stats_player_id: p1, kind: role_up, published_date: '2026-10-30', extracted_at: '2026-11-08 16:40:00'}
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: p1}
+    expect:
+      rows:
+        - {source_id: '1', kind: injury_out, published_date: '2026-10-28'}
