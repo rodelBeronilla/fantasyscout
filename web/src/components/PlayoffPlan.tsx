@@ -114,7 +114,7 @@ export function PlayoffPlan({
     recorded?.from === 'espn' ? "ESPN's records at the last sync" : recorded?.from === 'yahoo' ? "Yahoo's records at the last import" : 'the records entered on the League page';
 
   return (
-    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? (pointsOdds ? 891 : 872) : undefined}>
+    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? (pointsOdds ? 891 : 900) : undefined}>
       <p className="mt-1 text-sm" data-testid="playoff-line">
         <strong>{lead}</strong>
         {top && (
@@ -133,7 +133,7 @@ export function PlayoffPlan({
               {espn?.fixtures ? "on ESPN's schedule" : 'as a round robin'},{' '}
               {pointsOdds
                 ? "each matchup going to a side by its projected fantasy points, with a week's swing that has not yet been measured,"
-                : "each category of each matchup going to a side with the standings model's chance,"}{' '}
+                : "each category of each matchup going to a side with the standings model's chance, a projection's miss for each team carried through the whole season,"}{' '}
               from {levelStart ? 'level records' : recordsText}.{' '}
               {levelStart && "Enter each team's record on the League page (or import the league from ESPN or run the Yahoo bookmark) to start from the real standings. "}
             </>

@@ -89,7 +89,7 @@ function Categories({
   );
   if (!standings) {
     return (
-      <Tile title="Your categories" id="cats" testid="my-categories" issue={h2h ? undefined : 866}>
+      <Tile title="Your categories" id="cats" testid="my-categories" issue={h2h ? undefined : 898}>
         <p className="mt-1 text-sm text-muted" data-testid="cats-summary">
           Your team&apos;s value above replacement in each category. Add the other teams&apos; rosters on the{' '}
           <a href={href('/league/')} className="underline underline-offset-4">
@@ -111,7 +111,7 @@ function Categories({
   const wins = expectedWins(standings.chances);
   const order = cats.filter((c) => c in standings.chances);
   return (
-    <Tile title="Your categories" id="cats" testid="my-categories" issue={h2h ? undefined : 866}>
+    <Tile title="Your categories" id="cats" testid="my-categories" issue={h2h ? undefined : 898}>
       <p className="mt-1 text-sm" data-testid="cats-summary">
         {h2h ? (
           <>

@@ -1,4 +1,4 @@
-# 0023. My Team's roster review, judged on simulated leagues
+# 0024. My Team's roster review, judged on simulated leagues
 
 Date: 2026-11-08
 Status: Accepted

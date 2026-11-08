@@ -1887,8 +1887,9 @@ test('My Team shows the chance of beating the league in each kept category, and 
   await expect(cats.locator('[data-cat="z_points"]')).toHaveCount(0);
   await expect(cats).toContainText('Punted: PTS');
   await expect(cats.getByTestId('cat-chance').first()).toContainText(/\d+%\s*(1st|2nd) of 2/);
-  // the default league is rotisserie, whose chances failed their backtest before the season (#755)
-  await expect(cats.getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/866$/);
+  // the default league is rotisserie, whose chances failed their backtest before the season (#755),
+  // and a spread by the games left did not fix it (#866): the badge links the next rework
+  await expect(cats.getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/898$/);
   await expect(page.getByTestId('roster-table').locator('tbody tr')).toHaveCount(3);
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(results.violations).toEqual([]);
@@ -2316,8 +2317,8 @@ test("My Team leads a head-to-head league with its playoff odds, its games in th
   await expect(line).toHaveText(
     new RegExp(`^(\\d+%|under 1%|over 99%) to make it; ${mine} games in the playoff weeks \\(${day(from)} to ${day(to)}\\), \\d(st|nd|rd|th) of 4: target .+ \\(\\d+ games\\)$`),
   );
-  // the odds build on the standings model's weekly chances; their own test is #872
-  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/872$/);
+  // the odds beat the coin and the naive manager but fail their calibration (#872): the rework is #900
+  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/900$/);
   // the target is a free agent, linked to his page
   await expect(line.getByTestId('playoff-target')).toHaveAttribute('href', /\/p\/nba\/\d+\/$/);
   // every team's odds and the next targets are one click down; two spots of four, so the odds sum to 200%

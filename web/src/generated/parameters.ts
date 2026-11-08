@@ -122,6 +122,10 @@ export const PARAMS = {
     "wnba": 2
   },
   "playoffs.simulations": 2000,
+  "playoffs.season_share": {
+    "nba": 0.3,
+    "wnba": 0.2
+  },
   "playoffs.points_spread_share": 0.17,
   "fit.thirds": {
     "weak": 1.5,
@@ -485,8 +489,8 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "A projection's own error per category and player, added to a rotisserie season's spread.",
-    "evidence": "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed",
-    "validation": 866,
+    "evidence": "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed. The rework by games left (#866, ADR 0022) found no horizon in it: refitted leaving one tuning season out, the part that falls with the games left came out 0 in all six folds, and the first game day stayed too timid (pooled slope 1.52)",
+    "validation": 898,
     "value": {
       "nba": 0.8,
       "wnba": 0.8
@@ -524,6 +528,18 @@ export const PARAMETERS = [
     "evidence": "sqrt(0.25 / 2000) = 0.011",
     "validation": 872,
     "value": 2000
+  },
+  {
+    "id": "playoffs.season_share",
+    "kind": "model",
+    "status": "measured",
+    "what": "The playoff odds (#872): the share of a week's category spread that lasts all season (a projection's miss repeats every week). Each simulated season draws one shift per team and category from it; 0 draws every week independently.",
+    "evidence": "ops.playoff_backtest fit on the tuning seasons (the #755 runs' inputs), grid 0 to 0.8, the lowest mean log loss of the odds over the checkpoints and both tallies: NBA 0.6057 at 0 to 0.5961, WNBA 0.5585 to 0.5552. At 0 the tuning slopes were 0.31 to 1.13, mostly under 0.8: independent weeks made the odds too sure. Judged (ADR 0025, runs 42498681135, 42498686229, 42498692099, 42498697513): the odds beat the coin and the naive manager everywhere, but the matchups tally is too timid in three of four seasons (slopes up to 1.41) and the categories tally too sure in WNBA 2025 (0.75)",
+    "validation": 900,
+    "value": {
+      "nba": 0.3,
+      "wnba": 0.2
+    }
   },
   {
     "id": "playoffs.points_spread_share",
@@ -702,7 +718,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "measured",
     "what": "Share of roster spots counted as starters: a player ranked inside teams x this is never dropped.",
-    "evidence": "ops.roster_backtest fit on the tuning seasons, the review replay's best on a grid of 0 to 1: NBA 2020-21 to 2022-23 (runs 42487581023, 42487583214, 42487585033), WNBA 2021 to 2023 (runs 42487587073, 42487588817, 42487590681). Judged (ADR 0023): the review with the rule was never worse than without it, every judged season",
+    "evidence": "ops.roster_backtest fit on the tuning seasons, the review replay's best on a grid of 0 to 1: NBA 2020-21 to 2022-23 (runs 42487581023, 42487583214, 42487585033), WNBA 2021 to 2023 (runs 42487587073, 42487588817, 42487590681). Judged (ADR 0024): the review with the rule was never worse than without it, every judged season",
     "validation": 757,
     "value": {
       "nba": 0.65,
@@ -714,7 +730,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "The lowest-valued players a week's form may drop.",
-    "evidence": "not judged in #757 (ADR 0023): the week unit needs a week-by-week streaming replay (#895)",
+    "evidence": "not judged in #757 (ADR 0024): the week unit needs a week-by-week streaming replay (#895)",
     "validation": 895,
     "value": 2
   },
@@ -723,7 +739,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "measured",
     "what": "Rest-of-season value a swap must gain. The week unit applies it too, to week values, untested.",
-    "evidence": "ops.roster_backtest fit on the same tuning seasons with the share fixed, grid 0 to 5: the NBA's sits at the grid's edge. Judged (ADR 0023): the swaps beat standing pat in NBA 2023-24 and WNBA 2024 but not NBA 2024-25 or WNBA 2025, so the review failed",
+    "evidence": "ops.roster_backtest fit on the same tuning seasons with the share fixed, grid 0 to 5: the NBA's sits at the grid's edge. Judged (ADR 0024): the swaps beat standing pat in NBA 2023-24 and WNBA 2024 but not NBA 2024-25 or WNBA 2025, so the review failed",
     "validation": 895,
     "value": {
       "nba": 0.0,
@@ -735,7 +751,7 @@ export const PARAMETERS = [
     "kind": "search",
     "status": "assumed",
     "what": "Free agents, best first, a review considers.",
-    "evidence": "#757 (ADR 0023): the first swap is always the best free agent, so the number tried cannot change it; the later swaps were not judged",
+    "evidence": "#757 (ADR 0024): the first swap is always the best free agent, so the number tried cannot change it; the later swaps were not judged",
     "validation": 757,
     "value": 25
   },
