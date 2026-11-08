@@ -11,6 +11,12 @@ same data; the evening one refreshes the injury reports closer to tip-off).
 | --- | --- | --- | --- |
 | FantasyScout morning ingest | 04:30 | `ingest.yml`, source `both` | `27 9 * * *` UTC |
 | FantasyScout evening reports | 17:15 | `ingest.yml`, source `reports` | `41 22 * * *` UTC |
+| FantasyScout late reports 1 | 18:45 | `ingest.yml`, source `reports` | `47 23 * * *` UTC |
+| FantasyScout late reports 2 | 21:15 | `ingest.yml`, source `reports` | `17 2 * * *` UTC |
+
+The two late runs land the injury report and the lineups again about half an hour before the 7 pm
+and 10 pm Eastern tip-offs, when confirmed lineups and late scratches come out, so the Today card's
+start and sit reads them (#816). Each is a reports-only run and its light build.
 
 The times are the host's local time on purpose: the games and the 5 pm injury filing follow
 Eastern time, so the runs keep their place in the day across the clock change, where a UTC cron
@@ -31,7 +37,9 @@ $script = 'C:\Users\<you>\fantasyscout-host\dispatch-ingest.ps1'
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Minutes 5)
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive
 foreach ($t in @(@{ Name = 'FantasyScout morning ingest'; At = '04:30'; Source = 'both' },
-                 @{ Name = 'FantasyScout evening reports'; At = '17:15'; Source = 'reports' })) {
+                 @{ Name = 'FantasyScout evening reports'; At = '17:15'; Source = 'reports' },
+                 @{ Name = 'FantasyScout late reports 1'; At = '18:45'; Source = 'reports' },
+                 @{ Name = 'FantasyScout late reports 2'; At = '21:15'; Source = 'reports' })) {
   $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`" -Source $($t.Source)"
   Register-ScheduledTask -TaskName $t.Name -Action $action -Trigger (New-ScheduledTaskTrigger -Daily -At $t.At) -Settings $settings -Principal $principal -Force
 }
@@ -51,15 +59,17 @@ dispatches the morning run.
 ## Remove
 
 ```powershell
-Unregister-ScheduledTask -TaskName 'FantasyScout morning ingest','FantasyScout evening reports' -Confirm:$false
+Unregister-ScheduledTask -TaskName 'FantasyScout morning ingest','FantasyScout evening reports','FantasyScout late reports 1','FantasyScout late reports 2' -Confirm:$false
 ```
 
 ## Linux host
 
-The same two runs from cron, with `gh` signed in as the cron user (`TZ` keeps them on Eastern time):
+The same runs from cron, with `gh` signed in as the cron user (`TZ` keeps them on Eastern time):
 
 ```cron
 CRON_TZ=America/New_York
 30 4 * * *   gh workflow run ingest.yml --repo rodelBeronilla/fantasyscout -f source=both >> /var/log/fantasyscout-ingest.log 2>&1
 15 17 * * *  gh workflow run ingest.yml --repo rodelBeronilla/fantasyscout -f source=reports >> /var/log/fantasyscout-ingest.log 2>&1
+45 18 * * *  gh workflow run ingest.yml --repo rodelBeronilla/fantasyscout -f source=reports >> /var/log/fantasyscout-ingest.log 2>&1
+15 21 * * *  gh workflow run ingest.yml --repo rodelBeronilla/fantasyscout -f source=reports >> /var/log/fantasyscout-ingest.log 2>&1
 ```

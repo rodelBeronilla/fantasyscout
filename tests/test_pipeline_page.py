@@ -31,7 +31,7 @@ def test_the_page_names_the_ingest_schedule() -> None:
     for entry in triggers["schedule"]:
         minute, hour = entry["cron"].split()[:2]
         times.append(f"{int(hour):02d}:{int(minute):02d}")
-    assert len(times) == 2
+    assert len(times) == 4
     for t in times:
         assert f"{t} UTC" in PAGE or f"{t} and" in PAGE, t
         assert t in DIAGRAMS, t

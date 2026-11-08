@@ -15,6 +15,10 @@ on:
     # home runner host when the lag keeps the reports past tip-off.
     - cron: "27 9 * * *" # daily, after the previous night's games are final
     - cron: "41 22 * * *" # evening: the injury reports only, after teams file (5 pm ET) and before tip-off
+    # late evening, the reports and lineups again: about half an hour before the 7 pm and 10 pm ET
+    # tip-offs, when confirmed lineups and late scratches come out (#816)
+    - cron: "47 23 * * *"
+    - cron: "17 2 * * *"
   workflow_dispatch:
     inputs:
       source:
@@ -67,7 +71,7 @@ jobs:
       - id: plan
         env:
           # The evening schedule runs the injury reports only.
-          SOURCE: ${{ (github.event.schedule == '41 22 * * *' && 'reports') || inputs.source || 'both' }}
+          SOURCE: ${{ ((github.event.schedule == '41 22 * * *' || github.event.schedule == '47 23 * * *' || github.event.schedule == '17 2 * * *') && 'reports') || inputs.source || 'both' }}
           STATS_RUNNER_LABEL: ${{ vars.STATS_RUNNER_LABEL }}
         run: |
           echo "leagues=$LEAGUES" >> "$GITHUB_OUTPUT"
@@ -98,7 +102,7 @@ jobs:
       # reports gets a light build of the feeds' models and their consumers, not the whole graph.
       - name: Say what this run lands
         env:
-          SOURCE: ${{ (github.event.schedule == '41 22 * * *' && 'reports') || inputs.source || 'both' }}
+          SOURCE: ${{ ((github.event.schedule == '41 22 * * *' || github.event.schedule == '47 23 * * *' || github.event.schedule == '17 2 * * *') && 'reports') || inputs.source || 'both' }}
         run: |
           mkdir -p ingest-plan
           printf '{"source": "%s", "leagues": %s}\n' "$SOURCE" "$LEAGUES" > ingest-plan/ingest-plan.json
