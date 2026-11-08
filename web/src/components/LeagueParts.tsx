@@ -22,6 +22,8 @@ import { href } from '../lib/site';
 import { type TodayGame, todayGroups, type TodaySlot, type TodayVerdict } from '../lib/today';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
 import { PlayoffSettings } from './PlayoffSettings';
+import type { PlayerNotes } from '../lib/player-notes';
+import { PlayerNoteLine } from './PlayerNoteLine';
 import { Chip, InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Unvalidated } from './ui';
 
 const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
@@ -442,6 +444,7 @@ export interface TodayRow extends InjuryFields {
   lineup_role?: string | null;
   lineup_confirmed?: boolean | null;
   lineup_date?: string | null;
+  news_flag?: string | null;
 }
 
 // Built once, as in lib/format.ts (#557); tip-off times in the visitor's own zone.
@@ -457,9 +460,12 @@ export function Today({
   verdict,
   need = [],
   minutesFor,
+  notes,
 }: {
   league: League;
   players: TodayRow[];
+  /** The day's one-line notes on flagged players (#823), shown under each it has one for. */
+  notes?: PlayerNotes | null;
   games: TodayGame[];
   date: string;
   /** Start and sit for today (#816), when the lineup slots and values are known. */
@@ -489,6 +495,7 @@ export function Today({
         <LineupTag role={s.player.lineup_role} confirmed={s.player.lineup_confirmed} date={s.player.lineup_date} injuryGroup={s.player.injury_group} />
       )}
       <InjuryTag group={s.player.injury_group} status={s.player.injury_status} detail={injuryDetail(s.player)} />
+      <PlayerNoteLine notes={notes} row={s.player} today={date} />
     </li>
   );
   return (

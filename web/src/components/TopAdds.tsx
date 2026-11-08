@@ -8,7 +8,9 @@ import type { League } from '../lib/data';
 import { CATEGORY_LABELS, fmt } from '../lib/format';
 import type { TopAdd } from '../lib/pickups-top';
 import { href } from '../lib/site';
+import type { PlayerNotes } from '../lib/player-notes';
 import type { Candidate } from './PickupsTable';
+import { PlayerNoteLine } from './PlayerNoteLine';
 import { Unvalidated } from './ui';
 
 /** Where the roster review stands: no league rosters, still loading, ready, no team of the manager's own, or failed. */
@@ -40,6 +42,7 @@ export function TopAdds({
   onApply,
   onExplore,
   openDays,
+  notes,
 }: {
   adds: TopAdd<Candidate>[];
   league: League;
@@ -56,6 +59,8 @@ export function TopAdds({
   onExplore: () => void;
   /** Open days are picked: the adds must play on one. */
   openDays: boolean;
+  /** The day's one-line notes on flagged players (#823). */
+  notes?: PlayerNotes | null;
 }) {
   const [applied, setApplied] = useState<{ add: string; drop: string } | null>(null);
   const player = (id: string, name: string) => (
@@ -132,6 +137,7 @@ export function TopAdds({
               <p className="mt-0.5 text-sm" data-testid="top-add-why">
                 {whyLine(a, windowText)}
               </p>
+              <PlayerNoteLine notes={notes} row={a.row} />
               {review !== 'no-rosters' && (
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm" data-testid="top-add-drop">
                   {dropLine(a)}

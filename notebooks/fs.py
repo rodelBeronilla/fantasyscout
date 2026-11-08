@@ -58,6 +58,7 @@ TABLES = (
     "fct_player_news",
     "fct_player_rss_item",
     "fct_player_youtube_item",
+    "fct_player_claim",
     "fct_team_game_context",
     "fct_market_value",
     "fct_waiver_trend",

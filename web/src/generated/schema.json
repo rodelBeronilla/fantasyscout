@@ -19390,8 +19390,10 @@
        "type": "varchar"
       }
      ],
-     "description": "What the news claims about each player: one row per claim the local model read from an ESPN headline or injury note, an outlet's feed item, or a YouTube video's title and description or transcript, with its kind, direction, capped confidence, exact quote and the date the source said it. Not shown on the site and read by no number: stored so the walk-forward harness can score each source's track record before any claim may tune a projection.",
-     "exported_as": [],
+     "description": "What the news claims about each player: one row per claim the local model read from an ESPN headline or injury note, an outlet's feed item, or a YouTube video's title and description or transcript, with its kind, direction, capped confidence, exact quote and the date the source said it. Read by no number: stored so the walk-forward harness can score each source's track record before any claim may tune a projection. The one-line notes on flagged players (#823) read the last three days' claims as context, and may quote a claim's words only where they are its quote and it was not read from a transcript.",
+     "exported_as": [
+      "fct_player_claim.parquet"
+     ],
      "grain": {
       "columns": [
        "league",

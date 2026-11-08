@@ -30,6 +30,8 @@ import { IlMoves } from './IlMoves';
 import { MinutesGoTo } from './MinutesGoTo';
 import { PlayoffPlan } from './PlayoffPlan';
 import type { TeamWeek } from '../lib/playoff-weeks';
+import { PlayerNoteLine } from './PlayerNoteLine';
+import { usePlayerNotes } from '../lib/player-notes';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
@@ -52,6 +54,7 @@ interface TeamRow extends ModelRow {
   lineup_role?: string | null;
   lineup_confirmed?: boolean | null;
   lineup_date?: string | null;
+  news_flag?: string | null;
 }
 
 const NONE: string[] = [];
@@ -251,6 +254,8 @@ export default function MyTeam() {
   const [setup, updateLeague] = useLeague(league);
   // an ESPN league is read again on a visit, so the rosters and this week's opponent are current (#815)
   const sync = useEspnSync(setup, updateLeague, rows);
+  // a one-line note under each flagged player, when the day's notes are out (#823)
+  const notes = usePlayerNotes(league);
 
   useEffect(() => {
     let live = true;
@@ -470,6 +475,8 @@ export default function MyTeam() {
   }
 
   const moves = ilMoves(rows, roster, setup.il);
+  // Today's card shows on a game day (a verdict needs one) when no draft is under way
+  const todayShown = !!verdict && !setup.drafting;
   const showMatchup = h2h && owner.size > 0 && !setup.drafting && weekAvailable;
   // a player headed for the IL is an IL move, not a trade chip
   const shown = review && { ...review, chips: review.chips.filter((id) => !moves.toIl.includes(id)) };
@@ -539,7 +546,16 @@ export default function MyTeam() {
       {real && <Standings table={real} mine={setup.mine} names={setup.names} power={powerTable} />}
 
       {games && myTeam.length > 0 && !setup.drafting && (
-        <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} verdict={verdict} need={targets} minutesFor={minutesLine} />
+        <Today
+          league={league}
+          players={myTeam as unknown as TodayRow[]}
+          games={games}
+          date={easternDate()}
+          verdict={verdict}
+          need={targets}
+          minutesFor={minutesLine}
+          notes={notes}
+        />
       )}
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
@@ -618,6 +634,8 @@ export default function MyTeam() {
                         <span className="text-xs text-muted">{[r?.position, r?.team_abbreviation].filter(Boolean).join(' · ')}</span>
                         {onIl && <span className="rounded border border-line px-1 text-[10px]">IL</span>}
                         {r && <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />}
+                        {/* the line sits in Today's card on a game day, here otherwise (#823) */}
+                        {r && !onIl && !todayShown && <PlayerNoteLine notes={notes} row={r} />}
                       </span>
                     </Td>
                     <Td right>

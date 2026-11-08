@@ -327,6 +327,13 @@ describe('data', () => {
     expect(res.headers.get('cache-control')).toBe('public, max-age=60');
   });
 
+  it("serves the flagged players' notes with a short cache, since the notes workflow rewrites them daily (#823)", async () => {
+    await env.DATA.put('notes/players/nba.json', '{"notes":{}}', { httpMetadata: { contentType: 'application/json' } });
+    const res = await SELF.fetch(`${ORIGIN}/data/notes/players/nba.json`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=60');
+  });
+
   it('serves builds.json with a short cache too', async () => {
     const res = await SELF.fetch(`${ORIGIN}/data/builds.json`);
     expect(res.status).toBe(200);
