@@ -52,26 +52,16 @@ def market_values(players: Sequence[dict[str, Any]], value: Value) -> dict[str, 
     return out
 
 
-def per_league(p: dict[str, Any], pid: str, league: str) -> Any:
-    """A registry value, the league's own when it is kept per league."""
-    v = p[pid]
-    return v[league] if isinstance(v, dict) and league in v else v
-
-
 def judge(
     value: dict[str, float],
     market: dict[str, float] | None,
     categories: float | None,
     threshold: float,
     p: dict[str, Any],
-    league: str,
 ) -> dict[str, Any]:
     """The verdict: even when every lens at hand calls it even; the worst severity any lens says."""
-    vl, ml = (
-        per_league(p, "trade.value_limits", league),
-        per_league(p, "trade.market_limits", league),
-    )
-    cl, even_band = p["trade.category_limits"], per_league(p, "trade.even", league)
+    vl, ml = p["trade.value_limits"], p["trade.market_limits"]
+    cl, even_band = p["trade.category_limits"], p["trade.even"]
     severity = "fine"
     reasons = 0
 
@@ -276,7 +266,8 @@ def objective(mine_gain: float, partner_gain: float, threshold: float) -> str:
 
 
 def meaningful_gain(league: str, p: dict[str, Any]) -> float:
-    return float(per_league(p, "trade.meaningful_gain", league))
+    g = p["trade.meaningful_gain"]
+    return float(g[league] if isinstance(g, dict) else g)
 
 
 def meaningful(state: LeagueState, team: int, p: dict[str, Any]) -> float:
@@ -291,7 +282,6 @@ def meaningful(state: LeagueState, team: int, p: dict[str, Any]) -> float:
 
 @dataclass(frozen=True)
 class FairnessModel:
-    league: str
     state: LeagueState | None
     mine: int
     value: Value
@@ -321,11 +311,8 @@ def acceptable(
     lenses = trade_lenses(model, partner, give, get)
     value, market = lenses["value"], lenses["market"]
     return bool(
-        value["share"] > per_league(p, "trade.value_limits", model.league)["bad"]
-        and (
-            not market
-            or market["share"] > per_league(p, "trade.market_limits", model.league)["bad"]
-        )
+        value["share"] > p["trade.value_limits"]["bad"]
+        and (not market or market["share"] > p["trade.market_limits"]["bad"])
     )
 
 

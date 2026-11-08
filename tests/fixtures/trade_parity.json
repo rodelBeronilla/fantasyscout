@@ -1642,7 +1642,7 @@
      "fa0": 4.214,
      "fa1": -0.667
     },
-    "threshold": 0,
+    "threshold": 0.05,
     "needs": {
      "swing": [
       "z_assists",
@@ -1814,7 +1814,7 @@
        "disagree": false
       },
       "acceptable": true,
-      "objective": "neither"
+      "objective": "even"
      },
      {
       "mine": {
@@ -1968,7 +1968,7 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 3,
        "disagree": false
       },
       "acceptable": false,
@@ -2050,7 +2050,7 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 3,
        "disagree": false
       },
       "acceptable": false,
@@ -2132,7 +2132,7 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 3,
        "disagree": false
       },
       "acceptable": false,
@@ -2214,7 +2214,7 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 3,
        "disagree": false
       },
       "acceptable": false,
@@ -2298,8 +2298,8 @@
       },
       "verdict": {
        "even": false,
-       "severity": "fine",
-       "reasons": 0,
+       "severity": "terrible",
+       "reasons": 1,
        "disagree": false
       },
       "acceptable": true,
@@ -2442,7 +2442,7 @@
      "fa2": 7.088,
      "fa0": 3.805
     },
-    "threshold": 0,
+    "threshold": 0.15000000000000002,
     "needs": {
      "swing": [
       "z_points",
@@ -2531,8 +2531,8 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
-       "reasons": 2,
+       "severity": "bad",
+       "reasons": 3,
        "disagree": false
       },
       "acceptable": false,
@@ -2617,10 +2617,10 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 1,
        "disagree": false
       },
-      "acceptable": false,
+      "acceptable": true,
       "objective": "them"
      },
      {
@@ -2698,11 +2698,11 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
-       "reasons": 1,
+       "severity": "fine",
+       "reasons": 0,
        "disagree": false
       },
-      "acceptable": false,
+      "acceptable": true,
       "objective": "you"
      },
      {
@@ -2785,7 +2785,7 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 3,
        "disagree": false
       },
       "acceptable": false,
@@ -2865,7 +2865,7 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 1,
        "disagree": false
       },
       "acceptable": false,
@@ -2942,8 +2942,8 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
-       "reasons": 2,
+       "severity": "bad",
+       "reasons": 3,
        "disagree": false
       },
       "acceptable": false,
@@ -3103,12 +3103,12 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
+       "severity": "bad",
        "reasons": 1,
        "disagree": true
       },
       "acceptable": false,
-      "objective": "them"
+      "objective": "even"
      }
     ],
     "finder": {
@@ -3192,6 +3192,19 @@
        "partnerGain": 0.07517432620860731
       },
       {
+       "partner": 3,
+       "give": [
+        "a0",
+        "a3"
+       ],
+       "get": [
+        "d0"
+       ],
+       "net": -7.263000000000001,
+       "gain": 0.6537722161420376,
+       "partnerGain": 0.09802750846500174
+      },
+      {
        "partner": 1,
        "give": [
         "a2",
@@ -3203,19 +3216,6 @@
        "net": -2.04,
        "gain": 0.648372362435822,
        "partnerGain": 0.0429608491877147
-      },
-      {
-       "partner": 3,
-       "give": [
-        "a2",
-        "a3"
-       ],
-       "get": [
-        "d0"
-       ],
-       "net": -5.762,
-       "gain": 0.6320246229083786,
-       "partnerGain": 0.1430823574799831
       },
       {
        "partner": 1,
@@ -3382,15 +3382,15 @@
        },
        {
         "give": [
-         "a1",
-         "a3"
+         "a0",
+         "a2"
         ],
         "get": [
          "b0"
         ],
-        "net": -2.019,
-        "gain": 0.112497170306046,
-        "partnerGain": 0.5967533207390083
+        "net": -6.674000000000001,
+        "gain": 0.26294025774858554,
+        "partnerGain": 0.3088246542739732
        }
       ],
       "any": [
@@ -3459,15 +3459,15 @@
        },
        {
         "give": [
-         "a1",
-         "a3"
+         "a0",
+         "a2"
         ],
         "get": [
          "b0"
         ],
-        "net": -2.019,
-        "gain": 0.112497170306046,
-        "partnerGain": 0.5967533207390083
+        "net": -6.674000000000001,
+        "gain": 0.26294025774858554,
+        "partnerGain": 0.3088246542739732
        }
       ],
       "points": [
@@ -3569,7 +3569,7 @@
      "fa1": 5.344,
      "fa2": 2.055
     },
-    "threshold": 0.01,
+    "threshold": 0.05,
     "needs": {
      "swing": [
       "z_rebounds_total",
@@ -3797,8 +3797,8 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
-       "reasons": 2,
+       "severity": "bad",
+       "reasons": 1,
        "disagree": false
       },
       "acceptable": false,
@@ -3869,7 +3869,7 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
+       "severity": "bad",
        "reasons": 1,
        "disagree": true
       },
@@ -4028,7 +4028,7 @@
        "disagree": false
       },
       "acceptable": true,
-      "objective": "win-win"
+      "objective": "you"
      },
      {
       "mine": {
@@ -4096,8 +4096,8 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
-       "reasons": 2,
+       "severity": "bad",
+       "reasons": 1,
        "disagree": false
       },
       "acceptable": false,
@@ -4175,7 +4175,7 @@
        "disagree": false
       },
       "acceptable": false,
-      "objective": "you"
+      "objective": "even"
      }
     ],
     "finder": {
@@ -4380,6 +4380,19 @@
         "net": -5.881999999999999,
         "gain": 0.13651352477827983,
         "partnerGain": 0.07235125237119222
+       },
+       {
+        "give": [
+         "a0",
+         "a1",
+         "a2"
+        ],
+        "get": [
+         "b0"
+        ],
+        "net": -10.962,
+        "gain": 0.07572667268090916,
+        "partnerGain": 0.04944277059725133
        }
       ],
       "any": [
@@ -4409,14 +4422,16 @@
        },
        {
         "give": [
-         "a1"
+         "a0",
+         "a1",
+         "a2"
         ],
         "get": [
          "b0"
         ],
-        "net": 0.26400000000000023,
-        "gain": 0.040299542263591004,
-        "partnerGain": -0.06538000539898503
+        "net": -10.962,
+        "gain": 0.07572667268090916,
+        "partnerGain": 0.04944277059725133
        }
       ],
       "points": [
@@ -4536,7 +4551,7 @@
      "fa2": 4.626,
      "fa0": 2.663
     },
-    "threshold": 0.03,
+    "threshold": 0.15000000000000002,
     "needs": {
      "swing": [
       "z_assists",
@@ -4620,11 +4635,11 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
-       "reasons": 2,
+       "severity": "bad",
+       "reasons": 1,
        "disagree": false
       },
-      "acceptable": false,
+      "acceptable": true,
       "objective": "them"
      },
      {
@@ -4696,11 +4711,11 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
-       "reasons": 2,
+       "severity": "bad",
+       "reasons": 1,
        "disagree": false
       },
-      "acceptable": false,
+      "acceptable": true,
       "objective": "them"
      },
      {
@@ -4778,7 +4793,7 @@
       },
       "verdict": {
        "even": false,
-       "severity": "terrible",
+       "severity": "bad",
        "reasons": 2,
        "disagree": false
       },
@@ -4857,7 +4872,7 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 1,
        "disagree": true
       },
       "acceptable": false,
@@ -4935,7 +4950,7 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 1,
        "disagree": true
       },
       "acceptable": false,
@@ -5089,10 +5104,10 @@
       "verdict": {
        "even": false,
        "severity": "terrible",
-       "reasons": 2,
+       "reasons": 1,
        "disagree": false
       },
-      "acceptable": false,
+      "acceptable": true,
       "objective": "them"
      },
      {
@@ -5168,12 +5183,12 @@
        "share": 0.05597387281139428
       },
       "verdict": {
-       "even": false,
-       "severity": "bad",
-       "reasons": 2,
+       "even": true,
+       "severity": "fine",
+       "reasons": 0,
        "disagree": false
       },
-      "acceptable": false,
+      "acceptable": true,
       "objective": "them"
      }
     ],
@@ -5191,19 +5206,6 @@
        "net": 3.275,
        "gain": 0.2845379072293568,
        "partnerGain": 0.012810384484065906
-      },
-      {
-       "partner": 2,
-       "give": [
-        "a0",
-        "a2"
-       ],
-       "get": [
-        "c2"
-       ],
-       "net": -5.1930000000000005,
-       "gain": 0.11475481329548742,
-       "partnerGain": 0.18238506290035872
       }
      ],
      "any": [

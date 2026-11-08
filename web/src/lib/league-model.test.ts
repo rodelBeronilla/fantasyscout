@@ -47,7 +47,6 @@ describe('leagueState', () => {
 describe('the fairness check', () => {
   const value: Record<string, number> = { a: 10, b: 4, c: 1 };
   const model: FairnessModel = {
-    league: 'nba',
     state: null,
     mine: 0,
     value: (id) => value[id] ?? 0,

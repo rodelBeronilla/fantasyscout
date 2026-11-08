@@ -9,7 +9,7 @@ import type { League } from './data';
 import { type Format, weightedSum } from './fantasy-league';
 import { scaleValue, type ScaleRow } from './league-value';
 import { type LeagueState, rostersAfter } from './trade-impact';
-import { type Lens, lens, limits, marketValues } from './trade-fairness';
+import { type Lens, lens, LIMITS, marketValues } from './trade-fairness';
 import { weekValue } from './week-value';
 
 /** A player's worth under the league's settings: per game, over the season, for the rest of it, and for this fantasy week. */
@@ -122,8 +122,6 @@ export function marketMap(rows: { player_id: string; market_rank?: number | null
 
 /** What the fairness check reads: the league, the manager's team, and the two prices of a player. */
 export interface FairnessModel {
-  /** The league whose limits apply. */
-  league: League;
   /** Null without rosters: the roster spots are not settled. */
   state: LeagueState | null;
   mine: number;
@@ -148,6 +146,5 @@ export function tradeLenses(model: FairnessModel, partner: number, give: string[
 /** Not a bad trade for the manager on value or market: what suggestions, the finder and the build plan keep (#692). */
 export function acceptable(model: FairnessModel, partner: number, give: string[], get: string[]): boolean {
   const { value, market } = tradeLenses(model, partner, give, get);
-  const { value: v, market: m } = limits(model.league);
-  return value.share > v.bad && (!market || market.share > m.bad);
+  return value.share > LIMITS.value.bad && (!market || market.share > LIMITS.market.bad);
 }

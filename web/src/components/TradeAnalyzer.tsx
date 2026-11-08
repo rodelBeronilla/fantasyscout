@@ -166,7 +166,6 @@ export default function TradeAnalyzer() {
   const marketPrices = useMemo(() => (rows ? marketMap(rows, worth) : new Map<string, number>()), [rows, worth]);
   const fairness = useMemo<FairnessModel>(
     () => ({
-      league,
       state,
       mine: setup.mine,
       value: (id) => {
@@ -176,7 +175,7 @@ export default function TradeAnalyzer() {
       market: marketPrices,
       ranked: (id) => typeof byId.get(id)?.market_rank === 'number',
     }),
-    [league, state, setup.mine, worth, week, byId, marketPrices],
+    [state, setup.mine, worth, week, byId, marketPrices],
   );
   /** A trade's value and market lenses for the manager, the roster spots settled (#692). */
   const lensesFor = useCallback((partnerIdx: number, g: string[], r: string[]) => tradeLenses(fairness, partnerIdx, g, r), [fairness]);
@@ -329,7 +328,7 @@ export default function TradeAnalyzer() {
   // Is it even? (#692) Projected value with the roster spots settled, the market, and the categories:
   // even only when they agree; a warning when any says the trade is bad for the manager.
   const lenses = ready ? lensesFor(hasRosters ? partnerTeam : -1, give, get) : null;
-  const fair = lenses ? judge(lenses.value, lenses.market, impact ? impact.mine.gain : null, threshold, league) : null;
+  const fair = lenses ? judge(lenses.value, lenses.market, impact ? impact.mine.gain : null, threshold) : null;
   const settledNote = lenses?.settled && (lenses.settled.dropped.length > 0 || lenses.settled.added.length > 0);
   // Both sides in the same depth (#682): each team's needs from the standings, and the trade
   // judged by both teams' change in expected categories.

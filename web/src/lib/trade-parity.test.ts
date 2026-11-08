@@ -60,7 +60,7 @@ function compute(c: TradeCase) {
     ids.map((id) => ({ player_id: id, market_rank: c.marketRank[id] ?? null })),
     (id) => c.rest[id] ?? 0,
   );
-  const fairness: FairnessModel = { league: c.league, state, mine: c.mine, value: (id) => c.rest[id] ?? 0, market, ranked: (id) => id in c.marketRank };
+  const fairness: FairnessModel = { state, mine: c.mine, value: (id) => c.rest[id] ?? 0, market, ranked: (id) => id in c.marketRank };
   const threshold = meaningful(state, c.mine);
   const effect = (partner: number) => (g: string[], r: string[]): CategoryEffect => {
     const e = tradeImpact(state, standings, c.mine, partner, g, r);
@@ -98,7 +98,7 @@ function compute(c: TradeCase) {
     trades: c.trades.map((t) => {
       const impact = tradeImpact(state, standings, c.mine, t.partner, t.give, t.get);
       const lenses = tradeLenses(fairness, t.partner, t.give, t.get);
-      const fair = judge(lenses.value, lenses.market, impact.mine.gain, threshold, c.league);
+      const fair = judge(lenses.value, lenses.market, impact.mine.gain, threshold);
       return {
         mine: { scoreBefore: impact.mine.scoreBefore, scoreAfter: impact.mine.scoreAfter, gain: impact.mine.gain },
         partner: { scoreBefore: impact.partner.scoreBefore, scoreAfter: impact.partner.scoreAfter, gain: impact.partner.gain },

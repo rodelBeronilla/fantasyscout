@@ -3,7 +3,6 @@ what happened, and keeps to its seasons: the fit reads only the tuning seasons' 
 
 from __future__ import annotations
 
-import functools
 from pathlib import Path
 from typing import Any
 
@@ -66,12 +65,6 @@ def _state(ctx: trade_backtest.Ctx, lg: int, ids: list[str]) -> trade.LeagueStat
     )
 
 
-def _accept(
-    model: trade.FairnessModel, p: dict[str, Any], t: int, g: list[str], r: list[str]
-) -> bool:
-    return trade.acceptable(model, t, g, r, p)
-
-
 def test_the_array_rules_are_the_webs(season: Path) -> None:
     """Every finder trade's settlement, gains, lenses and verdict match ops/trade.py, and the
     finder's top trade is the web's first."""
@@ -89,10 +82,9 @@ def test_the_array_rules_are_the_webs(season: Path) -> None:
         ln = lenses(ctx, ft)
         thr = trade_backtest.threshold(ctx, fmt, p)
         assert thr == pytest.approx(trade.meaningful(state, 0, p))
-        cl = calls(ln, pr["gain"], thr, p, "nba")
+        cl = calls(ln, pr["gain"], thr, p)
         market = {ids[i]: float(ctx.market[i]) for i in range(len(ids) - 1)}
         model = trade.FairnessModel(
-            league="nba",
             state=state,
             mine=0,
             value=state.rest,
@@ -111,22 +103,16 @@ def test_the_array_rules_are_the_webs(season: Path) -> None:
             assert pr["partner_gain"][k] == pytest.approx(impact["partner"]["gain"], abs=1e-9)
             sides = impact["sides"]
             pad = len(ids) - 1
-            assert sorted(ids[i] for i in ft.mo[k] if i < pad) == sorted(
-                give + sides["mine"]["dropped"]
-            )
-            assert sorted(ids[i] for i in ft.mi[k] if i < pad) == sorted(
-                get + sides["mine"]["added"]
-            )
-            model_a = trade.FairnessModel(
-                "nba", model.state, a, model.value, model.market, model.ranked
-            )
+            assert sorted(ids[i] for i in ft.mo[k] if i < pad) == sorted(give + sides["mine"]["dropped"])
+            assert sorted(ids[i] for i in ft.mi[k] if i < pad) == sorted(get + sides["mine"]["added"])
+            model_a = trade.FairnessModel(model.state, a, model.value, model.market, model.ranked)
             lz = trade.trade_lenses(model_a, b, give, get)
             assert ln["value_share"][k] == pytest.approx(lz["value"]["share"], abs=1e-12)
             if lz["market"] is None:
                 assert np.isnan(ln["market_share"][k])
             else:
                 assert ln["market_share"][k] == pytest.approx(lz["market"]["share"], abs=1e-12)
-            j = trade.judge(lz["value"], lz["market"], impact["mine"]["gain"], thr, p, "nba")
+            j = trade.judge(lz["value"], lz["market"], impact["mine"]["gain"], thr, p)
             assert bool(cl["even"][k]) == j["even"]
             severity = "terrible" if cl["terrible"][k] else "bad" if cl["bad"][k] else "fine"
             assert severity == j["severity"]
@@ -135,13 +121,7 @@ def test_the_array_rules_are_the_webs(season: Path) -> None:
         rest = {i: max(0.0, state.rest(i)) for i in ids[:-1]}
         others = standings.rivals(state.rosters, 0, state.roster_spots, p)
 
-        def effect(
-            partner: int,
-            g: list[str],
-            r: list[str],
-            state: trade.LeagueState = state,
-            st: dict[str, Any] = st,
-        ) -> dict[str, Any]:
+        def effect(partner: int, g: list[str], r: list[str]) -> dict[str, Any]:
             e = trade.trade_impact(state, st, 0, partner, g, r, p)
             return {"gain": e["mine"]["gain"], "partnerGain": e["partner"]["gain"]}
 
@@ -153,7 +133,7 @@ def test_the_array_rules_are_the_webs(season: Path) -> None:
             thr,
             p,
             win_win=True,
-            accept=functools.partial(_accept, model, p),
+            accept=lambda t, g, r: trade.acceptable(model, t, g, r, p),
         )
         win = cl["acceptable"] & (pr["partner_gain"] > 0) & (pr["gain"] >= thr)
         best = trade_backtest._best(ft.a, win, [pr["gain"], pr["partner_gain"]], 12)[0]
