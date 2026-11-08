@@ -17,7 +17,7 @@ import type { League } from '../lib/data';
 import type { RosterReview, Upgrade } from '../lib/roster-upgrades';
 import { href } from '../lib/site';
 import { isRatio, type WeekMatchup } from '../lib/matchup';
-import { type TodayGame, todayGroups, type TodaySlot } from '../lib/today';
+import { type TodayGame, todayGroups, type TodaySlot, type TodayVerdict } from '../lib/today';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
 import { Chip, InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Td, Th, Unvalidated } from './ui';
 
@@ -540,7 +540,20 @@ const TODAY_DAY = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'sh
 const LOCAL_TIME = new Intl.DateTimeFormat([], { hour: 'numeric', minute: '2-digit' });
 
 /** The manager's game day (#464): who plays today, who is listed, who has no game. */
-export function Today({ league, players, games, date }: { league: League; players: TodayRow[]; games: TodayGame[]; date: string }) {
+export function Today({
+  league,
+  players,
+  games,
+  date,
+  verdict,
+}: {
+  league: League;
+  players: TodayRow[];
+  games: TodayGame[];
+  date: string;
+  /** Start and sit for today (#816), when the lineup slots and values are known. */
+  verdict?: TodayVerdict | null;
+}) {
   const { plays, listed, idle, leagueGames } = todayGroups(players, games, date);
   // a day with no games has nothing to plan: the card stays away rather than say so (#696)
   if (leagueGames === 0) return null;
@@ -581,7 +594,10 @@ export function Today({ league, players, games, date }: { league: League; player
           </>
         )}
       </p>
+      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} />}
       {leagueGames > 0 && (
+        <details className="mt-2 text-sm" open={!verdict} data-testid="today-all">
+          <summary className="cursor-pointer text-xs text-muted">All of today&apos;s players</summary>
         <div className="mt-2 grid gap-3 text-sm sm:grid-cols-3">
           <div>
             <h3 className="text-xs font-semibold text-good uppercase">Plays ({plays.length})</h3>
@@ -602,8 +618,74 @@ export function Today({ league, players, games, date }: { league: League; player
             </ul>
           </div>
         </div>
+        </details>
       )}
     </section>
+  );
+}
+
+/**
+ * Today's calls first (#816): who to start, who sits for want of a slot, who to check before
+ * tip-off, who is out, and the open slots to stream into. The full lists follow, one click down.
+ */
+function TodayCalls({
+  league,
+  verdict,
+  players,
+  time,
+}: {
+  league: League;
+  verdict: TodayVerdict;
+  players: TodayRow[];
+  time: (iso: string | null) => string;
+}) {
+  const name = new Map(players.map((p) => [p.player_id, p.full_name ?? p.player_id]));
+  const who = (id: string) => (
+    <a href={href(`/p/${league}/${id}/`)} className="font-medium underline-offset-4 hover:underline">
+      {name.get(id) ?? id}
+    </a>
+  );
+  return (
+    <div className="mt-2 grid gap-2 text-sm" data-testid="today-calls">
+      {verdict.start.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-good uppercase">Start ({verdict.start.length})</h3>
+          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1" data-testid="today-start">
+            {verdict.start.map((r) => (
+              <li key={r.id} data-player={r.id}>
+                {who(r.id)} <span className="text-muted">{r.slot}</span>
+                {r.checkBy && <span className="ml-1 text-warn" data-testid="check-by">listed: check by {time(r.checkBy)}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {verdict.bench.length > 0 && (
+        <p data-testid="today-bench">
+          <span className="text-xs font-semibold text-muted uppercase">Bench</span> {verdict.bench.map((r, i) => <span key={r.id}>{i ? ', ' : ''}{who(r.id)}</span>)}
+          <span className="text-muted">: a game today, but no slot left</span>
+        </p>
+      )}
+      {verdict.check.length > 0 && (
+        <p data-testid="today-check">
+          <span className="text-xs font-semibold text-warn uppercase">Check</span> {verdict.check.map((r, i) => <span key={r.id}>{i ? ', ' : ''}{who(r.id)}{r.tipoff ? ` (tip ${time(r.tipoff)})` : ''}</span>)}
+          <span className="text-muted">: doubtful; start only if the report clears him</span>
+        </p>
+      )}
+      {verdict.out.length > 0 && (
+        <p data-testid="today-out">
+          <span className="text-xs font-semibold text-bad uppercase">Out</span> {verdict.out.map((r, i) => <span key={r.id}>{i ? ', ' : ''}{who(r.id)}</span>)}
+        </p>
+      )}
+      {verdict.open.length > 0 && (
+        <p data-testid="today-open">
+          <strong>{verdict.open.length} open {verdict.open.length === 1 ? 'slot' : 'slots'}</strong> ({verdict.open.join(', ')}):{' '}
+          <a href={href(`/streamers/?league=${league}`)} className="text-accent underline-offset-4 hover:underline">
+            stream into {verdict.open.length === 1 ? 'it' : 'them'}
+          </a>
+        </p>
+      )}
+    </div>
   );
 }
 

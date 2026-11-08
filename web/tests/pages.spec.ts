@@ -1608,6 +1608,16 @@ test('the Today card groups the active roster by plays, listed and no game, on M
     await page.goto(path);
     const today = page.getByTestId('today');
     await expect(today.getByTestId('today-summary')).toContainText(`${plays ? 1 : 0} of your ${roster.length} active players play today`);
+    // the calls come first (#816): the healthy player starts, the one without a game never does
+    const calls = today.getByTestId('today-calls');
+    if (plays) await expect(calls.getByTestId('today-start').locator(`[data-player="${plays.player_id}"]`)).toBeVisible();
+    if (idle) await expect(calls.locator(`[data-player="${idle.player_id}"]`)).toHaveCount(0);
+    if (listed?.injury_group === 'out') await expect(calls.getByTestId('today-out')).toContainText(listed.full_name ?? '');
+    if (listed && ['questionable', 'day_to_day'].includes(listed.injury_group ?? '')) {
+      await expect(calls.getByTestId('today-start').locator(`[data-player="${listed.player_id}"]`).getByTestId('check-by')).toBeVisible();
+    }
+    // the full lists, one click down
+    await today.getByText("All of today's players").click();
     if (plays) await expect(today.getByTestId('today-plays').locator(`[data-player="${plays.player_id}"]`)).toBeVisible();
     if (listed) await expect(today.getByTestId('today-listed').locator(`[data-player="${listed.player_id}"]`)).toBeVisible();
     if (idle) await expect(today.getByTestId('today-idle').locator(`[data-player="${idle.player_id}"]`)).toBeVisible();

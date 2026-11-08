@@ -15,7 +15,7 @@ import { expectedWins, leagueStandings, type LeagueStandings, type PowerRank, po
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
 import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, weekPlan, type WeekPlan } from '../lib/lineup';
-import { easternDate, type TodayGame } from '../lib/today';
+import { easternDate, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
 import { type ModelRow, restValues } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Matchup, Today, type TodayRow, Upgrades } from './LeagueParts';
 import { BuildYourTeam } from './BuildYourTeam';
@@ -443,6 +443,14 @@ export default function MyTeam() {
       !h2h || setup.opponent === null ? null : rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
     return { mine: plan(myTeam), theirs: theirs && theirs.length ? plan(theirs) : null };
   }, [games, rows, myTeam, byId, setup.lineup, setup.opponent, setup.il, owner, perGame, h2h]);
+  // Today's start and sit (#816): the best lineup the slots hold from today's players, by the same
+  // per-game values the week's plan uses.
+  const verdict = useMemo(() => {
+    if (!games || !myTeam.length) return null;
+    const groups = todayGroups(myTeam as unknown as TodayRow[], games, easternDate());
+    if (!groups.leagueGames) return null;
+    return todayVerdict(groups, slotList(setup.lineup), perGame, (id) => byId.get(id)?.position);
+  }, [games, myTeam, setup.lineup, perGame, byId]);
 
   const review = useMemo<RosterReview | null>(() => {
     if (!rows || myTeam.length === 0 || setup.drafting) return null;
@@ -560,7 +568,9 @@ export default function MyTeam() {
         </p>
       )}
 
-      {games && myTeam.length > 0 && !setup.drafting && <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} />}
+      {games && myTeam.length > 0 && !setup.drafting && (
+        <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} verdict={verdict} />
+      )}
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
       <div className={`grid items-start gap-3 ${showMatchup && !points ? 'lg:grid-cols-2' : ''}`}>
