@@ -127,6 +127,10 @@ test('the methodology page lists every registered number with how it was set and
   const limits = page.locator('[data-param="trade.value_limits"]');
   await expect(limits).toHaveAttribute('data-status', 'assumed');
   await expect(limits.getByRole('link', { name: '#886' })).toBeVisible();
+  // The Trade page's form and profile cuts sit under the trade area too (#910).
+  const trade = page.locator('[data-area="trade"]');
+  await expect(trade.locator('[data-param="trade.form_hot"]')).toHaveAttribute('data-status', 'assumed');
+  await expect(trade.locator('[data-param="trade.profile_cut"]')).toContainText('0.5');
   // The counts by status add up to the registry.
   const counts = await page.getByTestId('status-counts').locator('li .font-medium').allTextContents();
   expect(counts.reduce((n, c) => n + Number.parseInt(c, 10), 0)).toBe(await params.count());

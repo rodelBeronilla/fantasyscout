@@ -197,6 +197,8 @@ export const PARAMS = {
     "pool": 16,
     "per_partner": 3
   },
+  "trade.form_hot": 1.5,
+  "trade.profile_cut": 0.5,
   "roster.starter_share": {
     "nba": 0.65,
     "wnba": 0.8
@@ -779,6 +781,24 @@ export const PARAMETERS = [
       "pool": 16,
       "per_partner": 3
     }
+  },
+  {
+    "id": "trade.form_hot",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Last-ten form against the projection, summed over the kept categories, past which a player is hot (or, below its negative, cold) and the timing note says sell high or buy low.",
+    "evidence": "none; a round number carried over from the Trade page (#694), never measured. Not the board's buy low, sell high swing (buysell.min_swing), which is judged in ADR 0027",
+    "validation": 886,
+    "value": 1.5
+  },
+  {
+    "id": "trade.profile_cut",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "A category's value above which it is one of a player's strong categories, or below whose negative it is his weak one.",
+    "evidence": "none; a round number carried over from the Trade page (#694), never measured. It labels a player and changes no verdict",
+    "validation": 886,
+    "value": 0.5
   },
   {
     "id": "roster.starter_share",
