@@ -2033,6 +2033,70 @@ test('My Team ranks every team by projection: matchup win rates in head-to-head,
   await expect(table.locator('thead')).not.toContainText('Win %');
 });
 
+test("My Team says who takes an out player's minutes, and pairs the IL move with the pickup (#820)", async ({ page }) => {
+  const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
+    player_id: string;
+    full_name: string | null;
+    team_id: string | null;
+    expected_games_missed: number | null;
+    injury_group: string | null;
+  }[];
+  const hurt = rows.find((r) => (r.expected_games_missed ?? 0) >= 3 && r.full_name && r.team_id);
+  const healthy = rows.filter((r) => !r.injury_group && r.full_name && r.player_id !== hurt?.player_id);
+  const [mate, taken, free] = healthy;
+  if (!hurt || !mate || !taken || !free) {
+    test.skip(true, 'the fixture has no listed-out player');
+    return;
+  }
+  // the lakehouse's splits: without the hurt player, `taken` gains ten minutes a game and `free` eight
+  const gain = (who: typeof free, gained: number, rank: number, owned: number) => ({
+    team_id: hurt.team_id,
+    player_id: hurt.player_id,
+    games_missed: 6,
+    teammate_id: who.player_id,
+    teammate_name: who.full_name,
+    teammate_games_without: 6,
+    minutes_with: 20,
+    minutes_without: 20 + gained,
+    minutes_gained: gained,
+    gain_rank: rank,
+    teammate_percent_owned: owned,
+  });
+  await page.route('**/minutes/nba.json', (route) => route.fulfill({ json: [gain(taken, 10.2, 1, 88), gain(free, 8.4, 2, 41.2)] }));
+  await page.goto('/league/?league=nba');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${hurt.full_name}\n${mate.full_name}`);
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  await page.goto('/team/?league=nba');
+  const row = page.getByTestId('il-candidates').locator(`li[data-player="${hurt.player_id}"]`);
+  // the top gainer is free: he is the pickup
+  await expect(row.getByTestId('minutes-go-to')).toHaveText(`Minutes go to ${taken.full_name} (+10, 88% rostered): add him`);
+  await expect(page.getByTestId('il-candidates').getByTestId('unvalidated')).toHaveAttribute('href', /issues\/763$/);
+  // when another team has him, the line says which, and the best gainer still free is the pickup
+  await page.goto('/league/?league=nba');
+  await page.getByLabel('Name of team 2').fill('Rivals');
+  await cards.nth(1).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Rivals').fill(taken.full_name ?? '');
+  await cards.nth(1).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(1).getByTestId('roster')).toContainText(taken.full_name ?? '');
+  await page.goto('/team/?league=nba');
+  await expect(row.getByTestId('minutes-go-to')).toHaveText(`Minutes go to ${taken.full_name} (+10, on Rivals); free: ${free.full_name} (+8, 41% rostered): add him`);
+  // Today's Out row says the same when the player is out with a game today
+  const out = page.getByTestId('today-out');
+  if (await out.count()) {
+    const mine = out.locator(`[data-player="${hurt.player_id}"]`);
+    if (await mine.count()) await expect(mine).toContainText(`Minutes go to ${taken.full_name}`);
+  }
+  // "add him" is the IL move and the pickup together
+  await row.getByTestId('minutes-add').click();
+  const table = page.getByTestId('roster-table');
+  await expect(table.locator('tr').filter({ hasText: hurt.full_name ?? '' })).toContainText('IL');
+  await expect(table).toContainText(free.full_name ?? '');
+  await expect(page.getByTestId('il-candidates')).toHaveCount(0);
+});
+
 test('My Team suggests IL moves from the board availability and applies them', async ({ page }) => {
   const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
     full_name: string | null;

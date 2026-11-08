@@ -41,6 +41,7 @@ exposures:
       - ref('mart_player_rolling')
       - ref('mart_streamers')
       - ref('mart_schedule_upcoming')
+      - ref('mart_minutes_redistribution')
       - ref('fct_player_game')
       - ref('fct_team_game')
       - ref('fct_player_tracking')

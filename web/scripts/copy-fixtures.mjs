@@ -26,7 +26,7 @@ cpSync(from, to, { recursive: true });
 // The Worker answers /data/current/<page file> from the build latest.json names (#436); the preview
 // has no Worker, so the copy puts those files there too and the pages read them the same way.
 const build = JSON.parse(readFileSync(join(to, 'latest.json'), 'utf8')).build_id;
-for (const kind of ['board', 'streamers', 'schedule', 'transactions', 'team_weeks', 'dim_team.json']) {
+for (const kind of ['board', 'streamers', 'schedule', 'transactions', 'team_weeks', 'minutes', 'dim_team.json']) {
   const source = join(to, 'builds', build, kind);
   if (!existsSync(source)) continue;
   mkdirSync(join(to, 'current'), { recursive: true });

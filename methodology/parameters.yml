@@ -319,6 +319,23 @@ parameters:
     evidence: "none; a regular rarely sits by the coach's choice"
     validation: 770
 
+  - id: injury.rotation_minutes
+    value: 20
+    dbt: minutes_redistribution.rotation_minutes
+    kind: threshold
+    status: assumed
+    what: "Minutes a game a player must average, over this season and last for his team, for his teammates' minutes in his absence to be measured."
+    evidence: "none; the box-score regular's floor (injury.box_score_regular)"
+    validation: 763
+  - id: injury.min_games_missed
+    value: 3
+    dbt: minutes_redistribution.min_games_missed
+    kind: threshold
+    status: assumed
+    what: "Team games a player must have missed, and played, before the minutes his teammates gained without him are shown; each teammate must have been there for as many of each."
+    evidence: "none; the IL move's floor (il.min_games)"
+    validation: 763
+
   - id: injury.recovery_min_spells
     value: 30
     dbt: recovery_min_spells

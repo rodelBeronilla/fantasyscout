@@ -58,6 +58,8 @@ DATED: tuple[tuple[str, str], ...] = (
     ("gold.fct_injury_spell", "return_date"),
     ("gold.fct_absence_spell", "start_date"),
     ("gold.fct_absence_spell", "return_date"),
+    # who takes a player's minutes: the latest team game each row counts
+    ("gold.mart_minutes_redistribution", "last_game_date"),
     # the news' claims, cut by the day the source said them, not the day they were extracted
     ("silver.player_claims", "published_date"),
     ("gold.fct_player_claim", "published_date"),

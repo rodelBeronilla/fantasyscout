@@ -72,6 +72,7 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.mart_player_rolling", "league, season, player_id, game_date, game_id"),
     TableSpec("gold.mart_streamers", "league, player_id"),
     TableSpec("gold.mart_schedule_upcoming", "league, game_date, game_id"),
+    TableSpec("gold.mart_minutes_redistribution", "league, team_id, player_id, gain_rank"),
     TableSpec(
         "gold.fct_player_game", "league, season, game_date, game_id, player_id", partition=True
     ),
@@ -453,6 +454,18 @@ from gold.fct_team_week_games
 order by league, week_start, team_abbreviation, team_id
 """
 
+# Who takes a player's minutes (mart_minutes_redistribution, #820): each rotation player's three
+# teammates who gained the most minutes without him, for My Team's out and IL rows.
+MINUTES_GAIN_TOP = 3
+MINUTES_SQL = f"""
+select league, team_id, player_id, games_missed, teammate_id, teammate_name,
+    teammate_games_without, minutes_with, minutes_without, minutes_gained, gain_rank,
+    teammate_percent_owned
+from gold.mart_minutes_redistribution
+where gain_rank <= {MINUTES_GAIN_TOP} and minutes_gained > 0
+order by league, team_id, player_id, gain_rank
+"""
+
 # The per-league files the pages read first also go out column-wise, `<name>/<league>.columns.json`
 # ({column: [values]}), a third of the size; the row files stay for every other reader (#535).
 COLUMNAR_JSON = ("board", "streamers")
@@ -463,6 +476,7 @@ PER_LEAGUE_JSON = (
     ("schedule", SCHEDULE_SQL),
     ("transactions", TRANSACTIONS_SQL),
     ("team_weeks", TEAM_WEEKS_SQL),
+    ("minutes", MINUTES_SQL),
 )
 # Three decimals: the pages show a percentage to a tenth of a point and values to two places, and
 # the board file is a fifth smaller compressed than at four (108 KB to 87 KB gzipped for the NBA,

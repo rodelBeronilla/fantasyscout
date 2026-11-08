@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { fetchBuildJson, fetchPageRows, type League } from '../lib/data';
+import { fetchBuildJson, fetchCurrentJson, fetchPageRows, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt, ordinal } from '../lib/format';
 import { currentLeague } from '../lib/league';
 import { href } from '../lib/site';
@@ -16,7 +16,8 @@ import { liveWeek, matchup, type WeekMatchup, weekTotals } from '../lib/matchup'
 import { expectedWins, leagueStandings, type LeagueStandings, powerRankings } from '../lib/standings';
 import { standingsOf } from '../lib/records';
 import { hasWeekGames, type ValueUnit } from '../lib/week-value';
-import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
+import { ilMoves } from '../lib/il-moves';
+import { minutesByPlayer, minutesGoTo, type MinutesRow } from '../lib/minutes-go-to';
 import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, startsByPlayer, weekPlan, type WeekPlan } from '../lib/lineup';
 import { easternDate, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
 import type { ModelRow } from '../lib/board-model';
@@ -25,6 +26,8 @@ import { Matchup, type MatchupBasis } from './MatchupCard';
 import { BuildYourTeam } from './BuildYourTeam';
 import { LeagueTable } from './PowerTable';
 import { Standings } from './Standings';
+import { IlMoves } from './IlMoves';
+import { MinutesGoTo } from './MinutesGoTo';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
@@ -48,8 +51,6 @@ interface TeamRow extends ModelRow {
   lineup_confirmed?: boolean | null;
   lineup_date?: string | null;
 }
-
-const button = 'rounded border border-line px-2 py-0.5 text-xs hover:bg-bg';
 
 /**
  * Each kept category against the league (#662): the chance of beating an average rival, and the
@@ -241,6 +242,7 @@ export default function MyTeam() {
   const [rows, setRows] = useState<TeamRow[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [games, setGames] = useState<TodayGame[] | null>(null);
+  const [minutes, setMinutes] = useState<Map<string, MinutesRow[]>>(() => new Map());
   const [setup, updateLeague] = useLeague(league);
   // an ESPN league is read again on a visit, so the rosters and this week's opponent are current (#815)
   const sync = useEspnSync(setup, updateLeague, rows);
@@ -253,6 +255,10 @@ export default function MyTeam() {
     fetchBuildJson<TodayGame[]>(`schedule/${league}.json`)
       .then((g) => live && setGames(g))
       .catch(() => live && setGames(null));
+    // an older build without the file names nobody (#820)
+    fetchCurrentJson<MinutesRow[]>(`minutes/${league}.json`)
+      .then((m) => live && setMinutes(minutesByPlayer(m)))
+      .catch(() => live && setMinutes(new Map()));
     return () => {
       live = false;
     };
@@ -482,6 +488,13 @@ export default function MyTeam() {
       note={setup.source?.host === 'espn' ? null : 'Import the league from ESPN to show the real standings.'}
     />
   );
+  // who takes an out player's minutes, and the pickup that goes with it (#820)
+  const minutesLine = (id: string, onAdd?: (add: string) => void) => {
+    const call = minutesGoTo(minutes.get(id), byId.get(id)?.team_id, owner);
+    if (!call) return null;
+    const teamName = (t: number) => setup.names[t] ?? `Team ${t + 1}`;
+    return <MinutesGoTo call={call} player={name(id)} league={league} mine={setup.mine} teamName={teamName} onAdd={onAdd} />;
+  };
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
@@ -499,7 +512,7 @@ export default function MyTeam() {
       {real && <Standings table={real} mine={setup.mine} names={setup.names} power={powerTable} />}
 
       {games && myTeam.length > 0 && !setup.drafting && (
-        <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} verdict={verdict} need={targets} />
+        <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} verdict={verdict} need={targets} minutesFor={minutesLine} />
       )}
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
@@ -531,40 +544,15 @@ export default function MyTeam() {
       )}
 
       <Tile title="Roster" id="roster" testid="my-roster">
-        {(moves.toIl.length > 0 || moves.back.length > 0) && (
-          <div className="mt-1 grid gap-1 text-sm">
-            {moves.toIl.length > 0 && (
-              <p data-testid="il-candidates">
-                <span className="text-muted">To the IL (expected to miss {IL_MIN_GAMES}+ games): </span>
-                {moves.toIl.map((id) => (
-                  <span key={id} className="mr-3 inline-flex flex-wrap items-center gap-1">
-                    {link(id)}
-                    <span className="text-xs text-muted">
-                      {fmt(byId.get(id)?.expected_games_missed ?? 0, 1)} games
-                      {byId.get(id)?.expected_return ? `, back ${byId.get(id)?.expected_return}` : ''}
-                    </span>
-                    <button type="button" className={button} onClick={() => updateLeague((s) => toggleIl(s, id))} data-testid="il-move">
-                      Move to IL
-                    </button>
-                  </span>
-                ))}
-              </p>
-            )}
-            {moves.back.length > 0 && (
-              <p data-testid="il-back">
-                <span className="text-muted">Back from the IL (no longer listed): </span>
-                {moves.back.map((id) => (
-                  <span key={id} className="mr-3 inline-flex items-center gap-1">
-                    {link(id)}
-                    <button type="button" className={button} onClick={() => updateLeague((s) => toggleIl(s, id))} data-testid="il-move">
-                      Activate
-                    </button>
-                  </span>
-                ))}
-              </p>
-            )}
-          </div>
-        )}
+        <IlMoves
+          moves={moves}
+          link={link}
+          missed={(id) => byId.get(id)?.expected_games_missed ?? 0}
+          back={(id) => byId.get(id)?.expected_return}
+          // each IL move with the pickup for the spot it opens (#820)
+          minutes={(id) => minutesLine(id, (add) => updateLeague((s) => assign(toggleIl(s, id), add, s.mine)))}
+          onToggle={(id) => updateLeague((s) => toggleIl(s, id))}
+        />
         <div className="table-scroll mt-2 overflow-auto" tabIndex={0} role="region" aria-label="Your roster">
           <table className="w-full text-sm" data-testid="roster-table">
             <thead>

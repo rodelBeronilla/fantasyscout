@@ -20,6 +20,7 @@ const MODULES = [
   'league-value.ts',
   'lineup.ts',
   'matchup.ts',
+  'minutes-go-to.ts',
   'matchup-streams.ts',
   'pickups-top.ts',
   'punt-chips.ts',
