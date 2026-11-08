@@ -235,10 +235,10 @@ parameters:
     evidence: "none yet; a guess at a game's spread, to be fitted on the tuning seasons by ops.closeness_backtest"
     validation: 869
   - id: matchup.closeness
-    value: 0.05
+    value: {nba: 0.05, wnba: 0.05}
     kind: threshold
     status: assumed
-    what: "A weekly category within this share is called too close."
+    what: "The week's matchup card (#869): a category whose chance of being won lies within this of 50% is called too close."
     evidence: "none; the week's matchup card, which #755's simulated leagues do not exercise"
     validation: 869
 

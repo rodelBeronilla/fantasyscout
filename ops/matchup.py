@@ -165,7 +165,7 @@ def matchup(
 ) -> dict[str, Any]:
     """matchup: category by category against the opponent, each with its chance and call."""
     p = registry() if p is None else p
-    band = float(p["matchup.closeness"]) if closeness is None else closeness
+    band = float(p["matchup.closeness"][league]) if closeness is None else closeness
     rows = []
     for cat in cats:
         a = float(mine["cats"].get(cat, 0))

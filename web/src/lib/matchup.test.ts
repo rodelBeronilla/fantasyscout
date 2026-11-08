@@ -139,7 +139,7 @@ describe('the head-to-head week', () => {
     );
     expect(swingCategory(m)).toBe('z_turnovers');
     expect(matchupCall(m, (c) => CATEGORY_WORDS[c] ?? c)).toBe('Winning 1, losing 1, 2 too close: turnovers is the swing category');
-    expect(closeBand(0.1)).toBe('40% to 60%');
+    expect(closeBand('nba', 0.1)).toBe('40% to 60%');
     const clear = matchup('nba', ['z_points'], totals({ z_points: 100 }), totals({ z_points: 50 }));
     expect(matchupCall(clear, (c) => CATEGORY_WORDS[c] ?? c)).toBe('Winning 1, losing 0: points is the swing category');
     expect(swingCategory(matchup('nba', [], totals({}), totals({})))).toBeNull();

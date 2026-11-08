@@ -188,7 +188,7 @@ const fromEven = (r: CategoryEdge) => Math.abs(r.chance - 1 / 2); // def: a coin
  * Category by category against the opponent: a category whose chance lies within `closeness` of
  * 50% is too close to call (#869).
  */
-export function matchup(league: League, cats: string[], mine: WeekTotals, theirs: WeekTotals, closeness: number = PARAMS['matchup.closeness']): WeekMatchup {
+export function matchup(league: League, cats: string[], mine: WeekTotals, theirs: WeekTotals, closeness: number = PARAMS['matchup.closeness'][league]): WeekMatchup {
   const rows = cats.map((cat): CategoryEdge => {
     const a = mine.cats[cat] ?? 0;
     const b = theirs.cats[cat] ?? 0;
@@ -214,7 +214,7 @@ export function swingCategory(m: WeekMatchup): string | null {
 }
 
 /** The chances "too close" covers, as the card names them: "45% to 55%". */
-export function closeBand(closeness: number = PARAMS['matchup.closeness']): string {
+export function closeBand(league: League, closeness: number = PARAMS['matchup.closeness'][league]): string {
   const pct = (p: number) => `${Math.round(p * 100)}%`; // def: a percentage
   return `${pct(1 / 2 - closeness)} to ${pct(1 / 2 + closeness)}`; // def: around a coin flip
 }

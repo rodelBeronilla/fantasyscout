@@ -188,7 +188,7 @@ export function Matchup({
               win {match.wins} of {match.cats.length} categories
             </strong>{' '}
             against {them}, lose {match.losses}
-            {match.close ? `, with ${match.close} too close to call (a ${closeBand()} chance)` : ''}. Games left this week: you {gamesLeft(match.mine.games)}, {them}{' '}
+            {match.close ? `, with ${match.close} too close to call (a ${closeBand(league)} chance)` : ''}. Games left this week: you {gamesLeft(match.mine.games)}, {them}{' '}
             {gamesLeft(match.theirs.games)}.
           </p>
           {basis?.live && basis.read && (

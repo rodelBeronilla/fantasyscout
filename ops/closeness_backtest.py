@@ -388,7 +388,7 @@ def _interval(point: float, draws: np.ndarray) -> list[float]:
 def judge(season: Season, p: dict[str, Any], *, seed: int = 0) -> dict[str, Any]:
     league = season.league
     sigma = card.sigmas(league, CATS, p)
-    band = float(p["matchup.closeness"])
+    band = float(p["matchup.closeness"][league])
     figs = [week_figures(w, p, league, sigma, band) for w in season.weeks]
     n_weeks = len(figs)
     rng = np.random.default_rng(seed)

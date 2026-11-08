@@ -156,7 +156,10 @@ export const PARAMS = {
       "z_free_throw_pct": 0.9
     }
   },
-  "matchup.closeness": 0.05,
+  "matchup.closeness": {
+    "nba": 0.05,
+    "wnba": 0.05
+  },
   "sync.every_minutes": 15,
   "notes.stand_days": 1,
   "notes.late_hours": 30,
@@ -625,10 +628,13 @@ export const PARAMETERS = [
     "id": "matchup.closeness",
     "kind": "threshold",
     "status": "assumed",
-    "what": "A weekly category within this share is called too close.",
+    "what": "The week's matchup card (#869): a category whose chance of being won lies within this of 50% is called too close.",
     "evidence": "none; the week's matchup card, which #755's simulated leagues do not exercise",
     "validation": 869,
-    "value": 0.05
+    "value": {
+      "nba": 0.05,
+      "wnba": 0.05
+    }
   },
   {
     "id": "sync.every_minutes",
