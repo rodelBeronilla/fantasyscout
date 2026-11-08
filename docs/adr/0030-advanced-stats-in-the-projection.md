@@ -42,7 +42,7 @@ The owner also asked whether machine learning should be applied to the tradition
 - **NBA:** 42518215822 (2020-21), 42518217919 (2021-22), 42518220147 (2022-23), 42518222423 (2023-24), 42518225161 (2024-25).
 - **WNBA:** 42518229324 (2021), 42518231473 (2022), 42518233507 (2023), 42518236169 (2024), 42518238385 (2025).
 
-**Results.** Pooled over the 8 judged checkpoints, on minus off, with 95% intervals. The `ops.projection_features judge` output has every checkpoint (PR #NNN).
+**Results.** Pooled over the 8 judged checkpoints, on minus off, with 95% intervals. The `ops.projection_features judge` output has every checkpoint (in the PR).
 
 | League | Step | Feature at its tuning point | Pooled RMSE | Pooled Spearman | Verdict |
 | --- | --- | --- | --- | --- | --- |
@@ -61,10 +61,10 @@ The owner also asked whether machine learning should be applied to the tradition
 
 - **On the off build's scale (the declared measure).** dbt's on line reproduces the declared Python result to 1e-14 in value:
   - WNBA (runs 42528136868, 42528125201): pooled −0.0301 (−0.0504 to −0.0121). That is the same figure as efficiency and pace judged together.
-  - NBA: CONFIRM_NBA_OFF.
+  - NBA (runs 42529059871, 42529062473): pooled −0.0203 (−0.0275 to −0.0138), Spearman +0.0035 (+0.0022 to +0.0050). That is the same figure as usage and efficiency judged together.
 - **Each build on its own scale.** The value scale's spreads come from the projected lines (ADR 0019). Shrinking shooting toward the league narrows them, so the on build measures a realized line in smaller units and every error looks larger:
   - **WNBA:** the shooting-impact spreads fall to 0.78–0.90 (FG) and 0.84–0.93 (FT) of the off build's. On that footing the pooled RMSE gap is +0.107 (+0.080 to +0.130) and Spearman −0.0045 (−0.0090 to −0.0002).
-  - **NBA:** CONFIRM_NBA_OWN.
+  - **NBA:** the shooting spreads fall to 0.87–0.94 of the off build's, and points widen to 1.03–1.05 with usage. Own value: RMSE +0.0071 (−0.0005 to +0.0142), Spearman +0.0014 (−0.0000 to +0.0030). The board with the market prior: RMSE +0.0157 (+0.0084 to +0.0225), Spearman +0.0009 (−0.0005 to +0.0023). Its ranking does not get worse.
 
   Two builds measured in different units are not comparable on RMSE. That is why the bar was declared on one scale. The own-scale figures are published here so that a reader sees both.
 
