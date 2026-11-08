@@ -559,7 +559,7 @@ def judge(
     return order, out, accepted
 
 
-def _fmt_gap(g: Gap) -> str:
+def fmt_gap(g: Gap) -> str:
     return (
         f"{g.as_of:>16} {g.players:>5} {g.moved:>5}  RMSE {g.rmse_off:.3f}->{g.rmse_on:.3f}"
         f" {g.rmse_gap:+.4f} ({g.rmse_low:+.4f} to {g.rmse_high:+.4f})"
@@ -585,9 +585,9 @@ def report(
             f" {j.tuning_rmse_on:.4f}): {verdict}"
             + (f": {'; '.join(j.reasons)}" if j.reasons else "")
         )
-        rows += [f"   {_fmt_gap(g)}" for g in j.checkpoints]
+        rows += [f"   {fmt_gap(g)}" for g in j.checkpoints]
         if j.pooled is not None:
-            rows.append(f"   {_fmt_gap(j.pooled)}")
+            rows.append(f"   {fmt_gap(j.pooled)}")
     rows.append(f"== {league}: setting {dict(accepted)}")
     return "\n".join(rows)
 
