@@ -338,6 +338,21 @@ parameters:
     what: "How many players a suggestion adds (fewer when both sides are already set), and how many it and the finder try."
     evidence: "judged as part of the finder and the suggestions on #756 (ADR 0023)"
     validation: 888
+  # ---- the Trade page's players (web/src/lib/trade-players.ts)
+  - id: trade.form_hot
+    value: 1.5
+    kind: threshold
+    status: assumed
+    what: "Last-ten form against the projection, summed over the kept categories, past which a player is hot (or, below its negative, cold) and the timing note says sell high or buy low."
+    evidence: "none; a round number carried over from the Trade page (#694), never measured. Not the board's buy low, sell high swing (buysell.min_swing), which is judged in ADR 0027"
+    validation: 886
+  - id: trade.profile_cut
+    value: 0.5
+    kind: threshold
+    status: assumed
+    what: "A category's value above which it is one of a player's strong categories, or below whose negative it is his weak one."
+    evidence: "none; a round number carried over from the Trade page (#694), never measured. It labels a player and changes no verdict"
+    validation: 886
 
   # ---- roster review (web/src/lib/roster-upgrades.ts)
   - id: roster.starter_share

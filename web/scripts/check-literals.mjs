@@ -34,6 +34,7 @@ const MODULES = [
   'team-review.ts',
   'trade-fairness.ts',
   'trade-impact.ts',
+  'trade-players.ts',
   'trade-suggest.ts',
   'week-value.ts',
 ];

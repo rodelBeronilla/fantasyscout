@@ -6,6 +6,7 @@
 import { num } from './board-model';
 import { fmt } from './format';
 import type { Worth } from './league-model';
+import { PARAMS } from '../generated/parameters';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 
 interface PlayerRowFields {
@@ -138,8 +139,10 @@ export function teamChange({
   };
 }
 
-/** Form past this, summed over the kept categories, is a hot (or cold) run. */
-export const HOT = 1.5;
+/** Form past this, summed over the kept categories, is a hot (or cold) run (methodology/parameters.yml). */
+export const HOT: number = PARAMS['trade.form_hot'];
+/** A category past this, either way, is one of a player's strong (or his weak) categories. */
+const PROFILE_CUT: number = PARAMS['trade.profile_cut'];
 
 /** The last ten games against the projection, summed over the kept categories; null without either. */
 export function formOf(p: TradePlayer, cats: string[]): number | null {
@@ -158,8 +161,8 @@ export function formOf(p: TradePlayer, cats: string[]): number | null {
 /** A player's two best kept categories and his worst, from his category values. */
 export function profileOf(values: Record<string, number>, cats: string[]): { best: string[]; worst: string[] } {
   const order = cats.filter((k) => typeof values[k] === 'number').sort((a, b) => (values[b] ?? 0) - (values[a] ?? 0));
-  const best = order.filter((k) => (values[k] ?? 0) > 0.5).slice(0, 2);
-  const worst = order.filter((k) => (values[k] ?? 0) < -0.5).slice(-1);
+  const best = order.filter((k) => (values[k] ?? 0) > PROFILE_CUT).slice(0, 2); // display: strong categories named
+  const worst = order.filter((k) => (values[k] ?? 0) < -PROFILE_CUT).slice(-1);
   return { best, worst };
 }
 
