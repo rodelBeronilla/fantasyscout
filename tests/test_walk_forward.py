@@ -64,3 +64,28 @@ def test_a_checkpoint_is_judged_on_the_players_who_then_played() -> None:
 def test_the_held_out_season_is_refused_without_its_one_judgement() -> None:
     assert walk_forward.main(["--league", "nba", "--season", "2025-26"]) == 2
     assert walk_forward.main(["--league", "wnba", "--season", "2026"]) == 2
+
+
+def test_the_market_is_judged_where_it_has_a_draft_order() -> None:
+    real = np.linspace(-2, 3, 20)
+    base = {
+        "player_id": [f"p{i}" for i in range(20)],
+        "board_value": real,
+        "naive_value": real,
+        "realized_value": real,
+        "realized_games": [20] * 20,
+        "pool": [5] * 20,
+    }
+    # the market drafts the best ten in order; the rest go undrafted
+    adp = [None] * 10 + list(range(10, 0, -1))
+    cp = judge(
+        pd.DataFrame({**base, "adp_rank": adp}), date(2024, 10, 22), min_games=10, resamples=10
+    )
+    assert cp.top_pool_market == 1.0 and cp.spearman_market is not None and cp.spearman_market > 0.8
+    later = judge(
+        pd.DataFrame({**base, "adp_rank": [None] * 20}),
+        date(2025, 1, 1),
+        min_games=10,
+        resamples=10,
+    )
+    assert later.spearman_market is None and later.top_pool_market is None

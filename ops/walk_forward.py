@@ -8,10 +8,14 @@ to the last (``backtest.checkpoints``). At each one the board's value per game a
 (``mart_board.z_total``) is judged against what each player then did in the rest of the regular
 season, scored on that checkpoint's own value scale (ADR 0019), so the two are in the same units.
 The baseline is a naive manager: the player's season so far on the same scale, or last season's
-line before he has played. Over the players who then played at least ``backtest.min_games``:
+line before he has played. The market is a second baseline: ESPN's preseason draft order
+(silver.espn_preseason_adp, #805), known from the season's first game and judged at every
+checkpoint, where it shows how fast the draft goes stale. It is a ranking with no values, an
+undrafted player below every drafted one. Over the players who then played at least
+``backtest.min_games``:
 
 - error of value per game (RMSE, MAE) of the board and of the naive manager;
-- rank agreement with the realized values (Spearman);
+- rank agreement with the realized values (Spearman), for the market too where it has one;
 - how much of the realized top pool (the scale's pool size) each one put in its own;
 - a paired bootstrap interval of the board's RMSE minus the naive manager's (players resampled,
   ``backtest.bootstrap`` times): below zero, the board beat the baseline.
@@ -138,6 +142,15 @@ def frame(cut: duckdb.DuckDBPyConnection, league: str, season: str, as_of: date)
             where league = $league and window_name = 'season' and season <= $season
             qualify row_number() over (partition by player_id order by season desc) = 1
         ),
+        market as (
+            -- the season's preseason draft order, known the day before its first game (#786)
+            select x.stats_player_id as player_id, min(a.adp_rank) as adp_rank
+            from silver.espn_preseason_adp as a
+            join silver.player_xwalk as x
+                on x.league = a.league and x.espn_player_id = a.espn_player_id
+            where a.league = $league and a.season = $season
+            group by x.stats_player_id
+        ),
         realized_line as (
             select player_id, count(*) as games, {realized_line}
             from whole.gold.fct_player_game
@@ -151,11 +164,13 @@ def frame(cut: duckdb.DuckDBPyConnection, league: str, season: str, as_of: date)
             {score_sql("n", "s")} as naive_value,
             {score_sql("r", "s")} as realized_value,
             coalesce(r.games, 0) as realized_games,
+            m.adp_rank,
             s.pool
         from board as b
         cross join scale as s
         left join naive_line as n on n.player_id = b.player_id
         left join realized_line as r on r.player_id = b.player_id
+        left join market as m on m.player_id = b.player_id
     """
     params = {"league": league, "season": season, "as_of": as_of}
     return cut.execute(sql, params).fetchdf()
@@ -173,6 +188,9 @@ class Checkpoint:
     spearman_naive: float
     top_pool_board: float
     top_pool_naive: float
+    # the preseason draft order's, null for a season without one (past WNBA seasons)
+    spearman_market: float | None
+    top_pool_market: float | None
     rmse_gap: float
     rmse_gap_low: float
     rmse_gap_high: float
@@ -205,6 +223,12 @@ def judge(df: Any, as_of: date, *, min_games: int, resamples: int, seed: int = 0
     real = q["realized_value"].to_numpy(float)
     pool = int(df["pool"].iloc[0]) if len(df) else 0
     err_b, err_n = board - real, naive - real
+    ranks = q.get("adp_rank")
+    has_market = ranks is not None and bool(ranks.notna().any())
+    # a market score: the earlier the pick the higher; an undrafted player below every pick
+    market = (
+        -ranks.fillna(ranks.max() + 1).to_numpy(float) if has_market and ranks is not None else None
+    )
 
     def rmse(e: np.ndarray) -> float:
         return float(np.sqrt(np.mean(e**2))) if len(e) else math.nan
@@ -226,6 +250,8 @@ def judge(df: Any, as_of: date, *, min_games: int, resamples: int, seed: int = 0
         spearman_naive=_spearman(naive, real),
         top_pool_board=_top_share(board, real, pool),
         top_pool_naive=_top_share(naive, real, pool),
+        spearman_market=_spearman(market, real) if market is not None else None,
+        top_pool_market=_top_share(market, real, pool) if market is not None else None,
         rmse_gap=rmse(err_b) - rmse(err_n),
         rmse_gap_low=float(low),
         rmse_gap_high=float(high),
@@ -274,6 +300,11 @@ def main(argv: list[str] | None = None) -> int:
                 f" {cp.rmse_gap_high:+.3f}); Spearman {cp.spearman_board:.3f} vs"
                 f" {cp.spearman_naive:.3f}; top pool {cp.top_pool_board:.0%}"
                 f" vs {cp.top_pool_naive:.0%}"
+                + (
+                    f"; market Spearman {cp.spearman_market:.3f}, top pool {cp.top_pool_market:.0%}"
+                    if cp.spearman_market is not None and cp.top_pool_market is not None
+                    else ""
+                )
             )
     out = {
         "league": args.league,
