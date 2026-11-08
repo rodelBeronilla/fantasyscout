@@ -1,5 +1,5 @@
 {
-  "_comment": "The shape of ESPN's fantasy basketball league API (views mTeam, mRoster, mSettings, mMatchupScore), trimmed to the fields FantasyScout reads (in the current matchup period, each side's score by stat: counting stats, made and attempted, and the percentages); made-up league, teams and players. The tests swap each player's fullName for a board player's.",
+  "_comment": "The shape of ESPN's fantasy basketball league API (views mTeam, mRoster, mSettings, mMatchupScore, mStandings), trimmed to the fields FantasyScout reads (in the current matchup period, each side's score by stat: counting stats, made and attempted, and the percentages; each team's record and playoff seed); made-up league, teams and players. The tests swap each player's fullName for a board player's.",
   "id": 123456,
   "seasonId": 2027,
   "scoringPeriodId": 9,
@@ -31,6 +31,8 @@
     {
       "id": 1,
       "name": "Brick City",
+      "record": { "overall": { "wins": 10, "losses": 8, "ties": 1 } },
+      "playoffSeed": 3,
       "roster": {
         "entries": [
           { "lineupSlotId": 4, "playerPoolEntry": { "player": { "fullName": "Player Zero" } } },
@@ -43,6 +45,8 @@
       "id": 2,
       "location": "Glass",
       "nickname": "Cleaners",
+      "record": { "overall": { "wins": 12, "losses": 6, "ties": 1 } },
+      "playoffSeed": 2,
       "roster": {
         "entries": [
           { "lineupSlotId": 0, "playerPoolEntry": { "player": { "fullName": "Player Two" } } },
@@ -50,8 +54,8 @@
         ]
       }
     },
-    { "id": 3, "name": "Third", "roster": { "entries": [{ "lineupSlotId": 0, "playerPoolEntry": { "player": { "fullName": "Player Three" } } }] } },
-    { "id": 4, "name": "Fourth", "roster": { "entries": [{ "lineupSlotId": 0, "playerPoolEntry": { "player": { "fullName": "Player Four" } } }] } }
+    { "id": 3, "name": "Third", "record": { "overall": { "wins": 14, "losses": 4, "ties": 1 } }, "playoffSeed": 1, "roster": { "entries": [{ "lineupSlotId": 0, "playerPoolEntry": { "player": { "fullName": "Player Three" } } }] } },
+    { "id": 4, "name": "Fourth", "record": { "overall": { "wins": 4, "losses": 14, "ties": 1 } }, "playoffSeed": 4, "roster": { "entries": [{ "lineupSlotId": 0, "playerPoolEntry": { "player": { "fullName": "Player Four" } } }] } }
   ],
   "schedule": [
     { "id": 1, "matchupPeriodId": 1, "home": { "teamId": 1, "totalPoints": 5 }, "away": { "teamId": 2, "totalPoints": 4 }, "winner": "HOME" },

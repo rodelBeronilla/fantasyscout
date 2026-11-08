@@ -137,6 +137,8 @@ export function espnSetup(league: ImportedLeague, players: Players, at: { league
     opponents,
     // this week's score so far in a category league, for the matchup to start from (#817)
     ...(league.scores.size > 0 ? { scores: teamIds.map((id) => (id === null ? null : (league.scores.get(id) ?? null))) } : {}),
+    // each team's record and place so far, for the standings at the top of My Team (#822)
+    ...(league.teams.some((t) => t.record) ? { records: league.teams.map((t) => t.record) } : {}),
   };
   return {
     setup: { ...setup, source },

@@ -11,14 +11,16 @@
 import type { Format, PointWeights, Scoring } from './fantasy-league';
 import type { Slots } from './lineup';
 import type { ScoreSoFar } from './matchup';
+import { espnRecord, type TeamRecord } from './records';
 
 const API = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba';
 
 /** ESPN numbers a season by the year it ends: 2026-27 is 2027; a WNBA-style single year stays. */
 export function espnLeagueUrl(leagueId: string, season: string): string {
   const year = season.includes('-') ? String(Number(season.slice(0, 4)) + 1) : season;
-  // mMatchupScore adds the schedule, for this week's opponent (#815), and each side's score by stat (#817)
-  return `${API}/seasons/${year}/segments/0/leagues/${encodeURIComponent(leagueId)}?view=mTeam&view=mRoster&view=mSettings&view=mMatchupScore`;
+  // mMatchupScore adds the schedule, for this week's opponent (#815), and each side's score by stat (#817);
+  // mStandings each team's record and place (#822)
+  return `${API}/seasons/${year}/segments/0/leagues/${encodeURIComponent(leagueId)}?view=mTeam&view=mRoster&view=mSettings&view=mMatchupScore&view=mStandings`;
 }
 
 const G_SLOTS = new Set([0, 1, 5]);
@@ -59,8 +61,8 @@ const RATIO_STATS: Record<string, [number, number, number]> = {
 export interface ImportedLeague {
   name: string;
   settings: { teams: number; rosterSpots: number; scoring: Scoring; format: Format; weights: Partial<PointWeights> | null; lineup: Slots };
-  /** Each team with ESPN's id for it (null when ESPN gave none). */
-  teams: { id: number | null; name: string; players: string[] }[];
+  /** Each team with ESPN's id for it (null when ESPN gave none) and its record so far (#822). */
+  teams: { id: number | null; name: string; players: string[]; record: TeamRecord | null }[];
   /** This week's pairings: each team's ESPN id to its opponent's, from the schedule (#815). */
   opponents: Map<number, number>;
   /** This week's score so far in a category league, by ESPN team id; empty without one (#817). */
@@ -92,6 +94,8 @@ interface EspnLeague {
     location?: string;
     nickname?: string;
     roster?: { entries?: { playerPoolEntry?: { player?: { fullName?: string } } }[] };
+    record?: unknown;
+    playoffSeed?: number;
   }[];
 }
 
@@ -123,6 +127,7 @@ export function fromEspnLeague(json: unknown): ImportedLeague {
     id: typeof t.id === 'number' ? t.id : null,
     name: (t.name ?? `${t.location ?? ''} ${t.nickname ?? ''}`).trim() || 'Team',
     players: (t.roster?.entries ?? []).map((e) => e.playerPoolEntry?.player?.fullName).filter((n): n is string => !!n),
+    record: espnRecord(t),
   }));
   return {
     name: data.settings.name ?? 'ESPN league',
