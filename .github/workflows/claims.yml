@@ -1,15 +1,31 @@
 name: News claims
 
-# Claims from the news the lakehouse already lands (#812, #833; ADR 0017), in two jobs that each
-# run where they belong: the recent ESPN headlines and injury notes, with the league players the
-# crosswalks linked them to, are read from the published build on a GitHub-hosted runner; the
-# local model reads each new item on the home runner (the only place it is) and the claims that
-# pass the checks land in the volume (landing/ai/claims, both leagues), where the next build
-# models them (fct_player_claim). An item already landed is not asked again.
+# Claims from the news the lakehouse already lands (#812, #833; ADR 0017), in one job on the home
+# runner, the only place the local model is: the recent ESPN headlines and injury notes, the
+# outlets' feed items and the YouTube videos, with the league players linked to them, are read
+# from the published build; the model reads each new item; and the claims that pass the checks
+# land in the volume (landing/ai/claims, both leagues), where the next build models them
+# (fct_player_claim). An item already landed is not asked again.
+#
+# The inputs hold source text (headlines, injury notes, feed summaries, video titles and
+# descriptions), which never leaves the lakehouse and the owner-only storage (#861): they pass
+# from the read to the extract on the runner's disk, under $RUNNER_TEMP/claims, are removed when
+# the job ends, and are never uploaded. Neither are the claims, whose quotes are spans of that
+# text: they land in the volume only. The log carries counts and item ids, never the text.
+# The runner reaches the published build (the site, and DuckDB's extension host for httpfs)
+# through its egress proxy (infra/runner/squid.conf).
 #
 # The claims are not shown on the site and change no number: they are stored for the backtest.
 # The model is there only while the home server is, so when it is not, the run says so and exits
 # 0, and opens nothing: the items wait for the next run.
+#
+# The YouTube channels (#851, ingest/youtube_channels.toml) land here too, in their own job on the
+# home runner each morning, before the morning ingest whose build models them for the afternoon's
+# claims: each channel's video feed, then the captions of its new videos, one at a time, from the
+# home address only, stopping at any bot check or block (ADR 0008, the YouTube addendum). A block
+# lands nothing for the video and exits 0; nothing is retried or worked around. The transcripts
+# stay in the volume: the inputs carry only which players each chunk names, and the extract reads
+# each chunk's words from the landing.
 
 on:
   schedule:
@@ -17,8 +33,15 @@ on:
     # hours late on busy days; a run that reads yesterday's build loses nothing, since the window
     # is three days and a landed item is never asked twice)
     - cron: "40 16 * * *"
+    # the YouTube channels, before the 09:27 ingest and its build
+    - cron: "50 8 * * *"
   workflow_dispatch:
     inputs:
+      only:
+        description: "Which part: all, youtube (land the channels) or claims (read and extract)"
+        type: choice
+        options: [all, youtube, claims]
+        default: all
       days:
         description: Headlines published this many days back
         type: string
@@ -36,42 +59,67 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  inputs:
-    name: Read the news from the build
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # it holds the CI reader key for the build's tables (#429)
+  youtube:
+    name: Land the YouTube channels
+    if: >-
+      vars.STATS_RUNNER_LABEL != '' &&
+      (github.event.schedule == '50 8 * * *' ||
+       (github.event_name == 'workflow_dispatch' && inputs.only != 'claims'))
+    # the home runner only: YouTube is asked from the home address, never a GitHub-hosted runner
+    # (ingest/youtube.py also refuses to ask for a transcript there)
+    runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    timeout-minutes: 30
     environment: lakehouse
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-uv
-      - name: Read the recent headlines and injury notes
+      - name: Land the channels' videos and new transcripts
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
+        # A block, a channel's outage or an unreachable host is "missing" in the run log and exits
+        # 0; only a failed write to the volume fails the job.
+        run: |
+          set -o pipefail
+          uv run fs-ingest land youtube --league nba --backend volume 2>&1 | tee land.log
+          if grep -q "blocked" land.log; then
+            echo "::warning::YouTube checked or refused the client: no transcript landed this run (see the log; nothing is retried)"
+          fi
+          {
+            echo "## YouTube channels"
+            echo
+            echo '```'
+            grep -E "^youtube|^  (missing|failed|pacing)" land.log || echo "(no summary line)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  claims:
+    name: Read the news, extract and land the claims
+    if: >-
+      vars.STATS_RUNNER_LABEL != '' &&
+      github.event.schedule != '50 8 * * *' && inputs.only != 'youtube'
+    # the home runner: the model runs beside it (infra/runner/compose.yml, the ai service), and
+    # it reaches the build and the volume through the egress proxy
+    runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
+    timeout-minutes: 140
+    # it holds the CI reader key for the build's tables (#429) and the ingest's credential
+    environment: lakehouse
+    # the inputs sit in $RUNNER_TEMP/claims, on the runner's disk only, and are removed when the
+    # job ends; nothing of this job is uploaded
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+      - name: Read the recent news from the build
         env:
           FS_NOTEBOOK_SOURCE: published
           FS_READER_KEY: ${{ secrets.CI_READER_KEY }}
           DAYS: ${{ inputs.days || '3' }}
-        run: uv run python -m ai.claims inputs --source published --days "$DAYS" --out claim-inputs.json
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: claim-inputs
-          path: claim-inputs.json
-          retention-days: 14
-
-  extract:
-    name: Extract and land the claims
-    needs: inputs
-    if: vars.STATS_RUNNER_LABEL != ''
-    # the home runner: the model runs beside it (infra/runner/compose.yml, the ai service), and
-    # it reaches the volume through the egress proxy
-    runs-on: ${{ fromJSON(format('["self-hosted","{0}"]', vars.STATS_RUNNER_LABEL)) }}
-    timeout-minutes: 120
-    environment: lakehouse
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: ./.github/actions/setup-uv
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          name: claim-inputs
+        # prints the item counts by source, never an item's text
+        run: |
+          mkdir -p "$RUNNER_TEMP/claims"
+          uv run python -m ai.claims inputs --source published --days "$DAYS" --out "$RUNNER_TEMP/claims/inputs.json"
       - name: Ask the local model and land what passes
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
@@ -81,7 +129,11 @@ jobs:
           DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
           FULL_REFRESH: ${{ inputs.full_refresh }}
+        # prints the counts, and an item's id (source and id, no text) when it is not answered
         run: |
-          args=(extract --inputs claim-inputs.json --backend volume)
+          args=(extract --inputs "$RUNNER_TEMP/claims/inputs.json" --backend volume)
           [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
           uv run python -m ai.claims "${args[@]}"
+      - name: Leave no source text on the runner
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/claims"

@@ -50,6 +50,23 @@ GOLD: tuple[TableSpec, ...] = (
     # The outlets' feed items and the players they name: Parquet only, which the Worker serves to
     # the owner alone, read by the claims extractor's inputs (ai/claims.py). No page shows them.
     TableSpec("gold.fct_player_rss_item", "league, published_date desc, item_id, stats_player_id"),
+    # The YouTube channels' items and the players they name: a video's title and description, and
+    # for each 30 seconds of a transcript only whom it names, never its words (ADR 0008, the
+    # YouTube addendum). Parquet only, which the Worker serves to the owner alone, read by the
+    # claims extractor's inputs. No page shows them.
+    TableSpec(
+        "gold.fct_player_youtube_item", "league, published_date desc, item_id, stats_player_id"
+    ),
+    # What the news claims about each player: Parquet only, owner-only like the feed items, read
+    # by the inputs of the one-line notes on flagged players (ai/player_notes.py, #823). A claim
+    # read from a YouTube transcript stays in the lakehouse: its quote is the transcript's words,
+    # which never leave it (ADR 0008, the YouTube addendum). Its source_id is the 11-character
+    # video id then -t and the chunk's start; a title-and-description claim's is the bare id.
+    TableSpec(
+        "gold.fct_player_claim",
+        "league, published_date desc, stats_player_id, source, source_id",
+        where="not (source like 'youtube:%' and substr(source_id, 12, 2) = '-t')",
+    ),
     TableSpec("gold.fct_team_game_context", "league, season, game_date, game_id, team_id"),
     TableSpec("gold.fct_market_value", "league, market_rank, stats_player_id"),
     TableSpec("gold.fct_waiver_trend", "league, add_rank, drop_rank, sleeper_player_id"),
@@ -72,6 +89,7 @@ GOLD: tuple[TableSpec, ...] = (
     TableSpec("gold.mart_player_rolling", "league, season, player_id, game_date, game_id"),
     TableSpec("gold.mart_streamers", "league, player_id"),
     TableSpec("gold.mart_schedule_upcoming", "league, game_date, game_id"),
+    TableSpec("gold.mart_minutes_redistribution", "league, team_id, player_id, gain_rank"),
     TableSpec(
         "gold.fct_player_game", "league, season, game_date, game_id, player_id", partition=True
     ),
@@ -453,6 +471,18 @@ from gold.fct_team_week_games
 order by league, week_start, team_abbreviation, team_id
 """
 
+# Who takes a player's minutes (mart_minutes_redistribution, #820): each rotation player's three
+# teammates who gained the most minutes without him, for My Team's out and IL rows.
+MINUTES_GAIN_TOP = 3
+MINUTES_SQL = f"""
+select league, team_id, player_id, games_missed, teammate_id, teammate_name,
+    teammate_games_without, minutes_with, minutes_without, minutes_gained, gain_rank,
+    teammate_percent_owned
+from gold.mart_minutes_redistribution
+where gain_rank <= {MINUTES_GAIN_TOP} and minutes_gained > 0
+order by league, team_id, player_id, gain_rank
+"""
+
 # The per-league files the pages read first also go out column-wise, `<name>/<league>.columns.json`
 # ({column: [values]}), a third of the size; the row files stay for every other reader (#535).
 COLUMNAR_JSON = ("board", "streamers")
@@ -463,6 +493,7 @@ PER_LEAGUE_JSON = (
     ("schedule", SCHEDULE_SQL),
     ("transactions", TRANSACTIONS_SQL),
     ("team_weeks", TEAM_WEEKS_SQL),
+    ("minutes", MINUTES_SQL),
 )
 # Three decimals: the pages show a percentage to a tenth of a point and values to two places, and
 # the board file is a fifth smaller compressed than at four (108 KB to 87 KB gzipped for the NBA,

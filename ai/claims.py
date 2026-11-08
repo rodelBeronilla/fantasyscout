@@ -1,15 +1,25 @@
 """Claims from the news the lakehouse already lands (#812, #833; ADR 0017), in two steps that run
-where each belongs (.github/workflows/claims.yml):
+one after the other on the home runner, in one job (.github/workflows/claims.yml):
 
-    uv run python -m ai.claims inputs --source published --out claim-inputs.json   # GitHub runner
-    uv run python -m ai.claims extract --inputs claim-inputs.json --backend volume   # home runner
+    uv run python -m ai.claims inputs --source published --out "$RUNNER_TEMP/claims/inputs.json"
+    uv run python -m ai.claims extract --inputs "$RUNNER_TEMP/claims/inputs.json" --backend volume
+
+The inputs hold source text, which never leaves the lakehouse and the owner-only storage (#861):
+they stay on the runner's disk and are never uploaded, and the log carries counts and item ids
+only.
 
 ``inputs`` reads, from the published build, the recent ESPN headlines (fct_player_news), the
 ESPN injury notes on the current report (fct_availability) and the recent items of the outlets'
 feeds (fct_player_rss_item: the headline, and the feed's summary where its terms allow), each with
 the league players the lakehouse linked it to: through its crosswalks for ESPN, by the players'
 whole names for a feed. An item no player is linked to is left out, so a claim's player is always
-a league player. A feed item's source is ``rss:<feed_id>``.
+a league player. A feed item's source is ``rss:<feed_id>``. The YouTube channels' items
+(fct_player_youtube_item, #851) are read the same way: a video's title and description, and each
+30 seconds of its transcript, with the players named in that item's own text, as source
+``youtube:<channel>``; a transcript chunk's id carries its start in the video
+(``<video_id>-t<seconds>``), so its claims' quotes can be heard again where they were said. A
+transcript's words are not in the build nor in the inputs: ``extract`` reads each chunk's words
+from the landed transcript, in the volume.
 
 ``extract`` asks the local model for each item's claims, checks them (claim_check.py) and lands
 each item's claims, the rejected ones with their reasons, and the text they were read from, as
@@ -40,9 +50,10 @@ import httpx
 
 from ai import client
 from ai.claim_check import review
-from ai.claim_schema import RSS_PREFIX, extraction_schema
+from ai.claim_schema import RSS_PREFIX, YOUTUBE_PREFIX, extraction_schema
 from ai.inputs import connect
 from ai.notes import build_id
+from ingest import youtube
 from ingest.land import default_season, make_backend
 from ingest.landing import eastern_today
 from ingest.store import Landing, Scope
@@ -208,10 +219,66 @@ def rss_items(con: Any, since: date) -> list[dict[str, Any]]:
     return list(items.values())
 
 
+def youtube_items(con: Any, since: date) -> list[dict[str, Any]]:
+    """One item per YouTube video's title and description, and per 30 seconds of its transcript,
+    published since the date, with the league players that item names (fct_player_youtube_item).
+    Its source is the channel, ``youtube:<channel>``; it is dated by the video's publish time,
+    never later than a feed first carried it. A transcript chunk comes without its words, which
+    never leave the lakehouse: ``extract`` reads them on the home runner (``transcript_text``). A
+    build without the table gives none."""
+    present = con.execute(
+        "select count(*) from information_schema.tables where table_name = ?",
+        ["fct_player_youtube_item"],
+    ).fetchone()
+    if not present or not present[0]:
+        return []
+    rows = _rows(
+        con,
+        """
+        select league, season, item_id, video_id, channel, channel_name, part, start_seconds,
+               text, published_date,
+               least(coalesce(published_at, first_seen_at), first_seen_at) as said_at,
+               stats_player_id, full_name
+        from fct_player_youtube_item
+        where published_date >= ? and (part = 'transcript' or text is not null)
+        order by said_at desc, video_id, part desc, start_seconds, stats_player_id
+        """,
+        [since],
+    )
+    items: dict[tuple[str, str], dict[str, Any]] = {}
+    for r in rows:
+        said: datetime = r["said_at"]
+        said = said.replace(tzinfo=UTC) if said.tzinfo is None else said.astimezone(UTC)
+        item = items.setdefault(
+            (r["league"], r["item_id"]),
+            {
+                "league": r["league"],
+                "season": r["season"] or default_season(r["league"], r["published_date"]),
+                "source": f"{YOUTUBE_PREFIX}{r['channel']}",
+                "source_id": r["item_id"],
+                "channel": r["channel_name"],
+                "part": r["part"],
+                "start_seconds": r["start_seconds"],
+                "published_at": said.isoformat(),
+                "published_date": r["published_date"].isoformat(),
+                "text": r["text"],
+                "players": [],
+            },
+        )
+        if all(p["player_id"] != r["stats_player_id"] for p in item["players"]):
+            item["players"].append({"player_id": r["stats_player_id"], "name": r["full_name"]})
+    return list(items.values())
+
+
 def make_inputs(source: str | None, days: int, today: date | None = None) -> dict[str, Any]:
     con = connect(source)
     since = (today or eastern_today()) - timedelta(days=days)
-    items = news_items(con, since) + injury_items(con) + rss_items(con, since)
+    items = (
+        news_items(con, since)
+        + injury_items(con)
+        + rss_items(con, since)
+        + youtube_items(con, since)
+    )
     return {
         "created_at": _now().isoformat(),
         "build_id": build_id(),
@@ -226,6 +293,15 @@ def item_key(item: dict[str, Any]) -> str:
 
 def source_label(item: dict[str, Any]) -> str:
     """What kind of item the model reads, in words."""
+    if item["source"].startswith(YOUTUBE_PREFIX):
+        by = item.get("channel") or "a basketball analyst"
+        if item.get("part") != "transcript":
+            return f"the title and description of a YouTube video by {by}"
+        at = int(item.get("start_seconds") or 0)
+        return (
+            f"about 30 seconds of the transcript of a YouTube video by {by},"
+            f" from {at // 60}:{at % 60:02d}"
+        )
     if item["source"].startswith(RSS_PREFIX):
         what = "a headline and its summary" if "\n" in item["text"] else "a headline"
         return f"{what} from {item.get('outlet') or 'an outlet'}'s news feed"
@@ -240,6 +316,21 @@ def model_view(item: dict[str, Any]) -> dict[str, Any]:
         "players": item["players"],
         "text": item["text"],
     }
+
+
+def transcript_text(landing: Landing, item: dict[str, Any]) -> str | None:
+    """A transcript chunk's words, from its video's landed transcript (ingest/youtube.py) in the
+    volume the home runner reads; None when the transcript or the chunk is not there."""
+    channel = item["source"].removeprefix(YOUTUBE_PREFIX)
+    video_id, _, start = str(item["source_id"]).rpartition("-t")
+    scope = Scope(youtube.SOURCE, youtube.TRANSCRIPTS, item["league"], item["season"])
+    body = landing.read_latest(scope, youtube.transcript_key(channel, video_id))
+    if not body:
+        return None
+    for chunk in json.loads(body).get("chunks") or []:
+        if str(chunk.get("start")) == start and str(chunk.get("text") or "").strip():
+            return str(chunk["text"]).strip()
+    return None
 
 
 def _body(
@@ -278,6 +369,13 @@ def extract(
         if landing.has_landed(scope, key):
             counts["already landed"] += 1
             continue
+        if item.get("part") == "transcript" and not item.get("text"):
+            text = transcript_text(landing, item)
+            if text is None:  # not landed where this runner reads: asked again next run
+                counts["transcript not found"] += 1
+                log(f"  {key}: its transcript is not in the landing")
+                continue
+            item = {**item, "text": text}
         started = _now()
         try:
             view = json.dumps(model_view(item), ensure_ascii=False)
@@ -341,6 +439,7 @@ def run_extract(args: argparse.Namespace) -> int:
     print(
         f"{len(inputs.get('items', []))} items: {counts['items']} read by {client.model_name()},"
         f" {counts['already landed']} already landed, {counts['not answered']} not answered;"
+        f" {counts['transcript not found']} transcript chunks not found;"
         f" {counts['claims']} claims kept, {counts['rejected']} rejected"
     )
     for f in failures:

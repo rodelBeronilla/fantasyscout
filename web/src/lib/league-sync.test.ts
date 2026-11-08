@@ -11,6 +11,7 @@ import {
   fetchEspnLeague,
   hasManualEdits,
   rosterChanges,
+  weeksCovered,
   SYNC_EVERY_MS,
   syncDue,
   weekScore,
@@ -202,5 +203,70 @@ describe('the synced line (#815)', () => {
     const y = yahooSource('99', [], at.now);
     expect(yahooStale(y, at.now + YAHOO_STALE_MS - 1)).toBe(false);
     expect(yahooStale(y, at.now + YAHOO_STALE_MS)).toBe(true);
+  });
+});
+
+describe("the playoffs from ESPN's settings and schedule (#821)", () => {
+  it('reads the playoff field, its periods and days, the matchups left and how the records count them', () => {
+    const l = fromEspnLeague(fixture);
+    // two teams make it: one round of one period, after the regular season's three
+    expect(l.playoffs).toEqual({ teams: 2, periods: [4, 4], days: [22, 28] });
+    expect(l.today).toBe(9);
+    // from the current period (2) to the regular season's last (3)
+    expect(l.fixtures).toEqual([
+      { period: 2, home: 3, away: 1 },
+      { period: 2, home: 2, away: 4 },
+      { period: 3, home: 1, away: 4 },
+      { period: 3, home: 2, away: 3 },
+    ]);
+    expect(l.tally).toBe('matchups');
+    const each = { ...fixture, settings: { ...fixture.settings, scoringSettings: { ...fixture.settings.scoringSettings, scoringType: 'H2H_CATEGORY' } } };
+    expect(fromEspnLeague(each).tally).toBe('categories');
+  });
+
+  it('has no playoffs without the regular season or the field', () => {
+    const settings = { ...fixture.settings, scheduleSettings: { matchupPeriods: fixture.settings.scheduleSettings.matchupPeriods } };
+    expect(fromEspnLeague({ ...fixture, settings }).playoffs).toBeNull();
+    expect(fromEspnLeague({ ...fixture, settings }).fixtures).toEqual([]);
+  });
+
+  it('runs six teams over three rounds, the top two on a bye', () => {
+    const scheduleSettings = { matchupPeriodCount: 19, playoffTeamCount: 6, playoffMatchupPeriodLength: 1 };
+    const l = fromEspnLeague({ ...fixture, settings: { ...fixture.settings, size: 12, scheduleSettings } });
+    expect(l.playoffs).toEqual({ teams: 6, periods: [20, 22], days: null });
+  });
+
+  it("stores the playoff weeks as dates, the matchups as team indexes, and sets the league's playoffs", () => {
+    const s = espnSetup(fromEspnLeague(fixture), players, at, null).setup;
+    // at.now is the evening of 2001-09-08 in the East, scoring period 9: periods 22 to 28 are 13 to 19 days on
+    expect(s.source?.playoffWeeks).toEqual({ periods: [4, 4], from: '2001-09-21', to: '2001-09-27' });
+    expect(s.source?.fixtures).toEqual([
+      [
+        [2, 0],
+        [1, 3],
+      ],
+      [
+        [0, 3],
+        [1, 2],
+      ],
+    ]);
+    expect(s.source?.tally).toBe('matchups');
+    // a Friday to a Thursday spans two Monday-to-Sunday weeks
+    expect(s.playoffs).toEqual({ teams: 2, weeks: 2 });
+    const again = normalize(JSON.parse(JSON.stringify(s)) as LeagueSetup, DEFAULT_SETTINGS.nba);
+    expect(again.source?.playoffWeeks).toEqual(s.source?.playoffWeeks);
+    expect(again.source?.fixtures).toEqual(s.source?.fixtures);
+  });
+
+  it('counts the Monday-to-Sunday weeks two dates span', () => {
+    expect(weeksCovered('2027-03-22', '2027-04-11')).toBe(3);
+    expect(weeksCovered('2027-03-28', '2027-03-29')).toBe(2);
+    expect(weeksCovered('2027-03-23', '2027-03-23')).toBe(1);
+  });
+
+  it("keeps the manager's playoffs when ESPN gives none", () => {
+    const plain = { ...fixture, settings: { ...fixture.settings, scheduleSettings: {} } };
+    const previous = { ...imported(), playoffs: { teams: 3, weeks: 2 } };
+    expect(espnSetup(fromEspnLeague(plain), players, at, previous).setup.playoffs).toEqual({ teams: 3, weeks: 2 });
   });
 });

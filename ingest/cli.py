@@ -18,7 +18,7 @@ from ingest import manual as manual_mod
 from ingest import probe as probe_mod
 from ingest.store import Scope, VolumeBackend, reindex
 
-SOURCES = ("stats", "espn", "reports", "bref", "movement", "rss")
+SOURCES = ("stats", "espn", "reports", "bref", "movement", "rss", "youtube")
 FAILURE_EXIT = 2
 
 

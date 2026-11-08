@@ -28,7 +28,17 @@ interface Env extends YahooEnv, OwnerEnv, AiEnv {
 
 const DATA_PREFIX = '/data/';
 /** The two pointers the export rewrites. */
-const POINTER_KEYS = new Set(['latest.json', 'builds.json', 'notebooks/findings-history.json', 'notes/nba.json', 'notes/wnba.json', 'notes/evals.json']);
+const POINTER_KEYS = new Set([
+  'latest.json',
+  'builds.json',
+  'notebooks/findings-history.json',
+  'notes/nba.json',
+  'notes/wnba.json',
+  'notes/evals.json',
+  // the one-line notes on flagged players (#823), rewritten every day
+  'notes/players/nba.json',
+  'notes/players/wnba.json',
+]);
 /**
  * A build's files never change once written, except the lists of them: the export adds the
  * rendered notebooks and the Tableau extract to a staged build after the fact, rewriting the
@@ -42,12 +52,13 @@ function isMutable(key: string): boolean {
 }
 /**
  * The files a page head preloads before it knows the build id (#436): the board, the streamers,
- * the schedule, the moves and the team-weeks of the current build, and its team list (#562), at an
+ * the schedule, the moves, the team-weeks and who takes an out player's minutes (#820) of the
+ * current build, and its team list (#562), at an
  * address that does not change. The Worker resolves the pointer, so the page fetches the file
  * beside latest.json instead of after it. Served like a pointer, for a minute; nothing else (no
  * private table, no player file) is reachable this way.
  */
-const CURRENT_PATH = /^current\/((?:(?:board|streamers|schedule|transactions|team_weeks)\/(?:wnba|nba)(?:\.columns)?|dim_team)\.json)$/;
+const CURRENT_PATH = /^current\/((?:(?:board|streamers|schedule|transactions|team_weeks|minutes)\/(?:wnba|nba)(?:\.columns)?|dim_team)\.json)$/;
 
 /** The cache-control a data file is served with: a minute for the mutable keys, a year for the rest. */
 function clientCache(key: string, isPrivate = false): string {

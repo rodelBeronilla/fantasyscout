@@ -14,6 +14,7 @@ builds/fixture/fct_game_official.parquet
 builds/fixture/fct_injury_status.parquet
 builds/fixture/fct_market_value.parquet
 builds/fixture/fct_official_listing.parquet
+builds/fixture/fct_player_claim.parquet
 builds/fixture/fct_player_game/wnba-2026.parquet
 builds/fixture/fct_player_news.parquet
 builds/fixture/fct_player_prop.parquet
@@ -34,10 +35,13 @@ builds/fixture/health.json
 builds/fixture/ingest_log.parquet
 builds/fixture/mart_board.parquet
 builds/fixture/mart_category_zscores.parquet
+builds/fixture/mart_minutes_redistribution.parquet
 builds/fixture/mart_player_projection.parquet
 builds/fixture/mart_player_rolling.parquet
 builds/fixture/mart_schedule_upcoming.parquet
 builds/fixture/mart_streamers.parquet
+builds/fixture/minutes/nba.json
+builds/fixture/minutes/wnba.json
 builds/fixture/players/wnba/1627668.json
 builds/fixture/players/wnba/1627673.json
 builds/fixture/players/wnba/1627674.json

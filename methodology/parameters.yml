@@ -180,6 +180,29 @@ parameters:
     evidence: "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed"
     validation: 866
 
+  # ---- playoff odds and the playoff weeks (web/src/lib/playoff-odds.ts, playoff-weeks.ts; #821)
+  - id: playoffs.teams
+    value: {nba: 6, wnba: 4}
+    kind: threshold
+    status: convention
+    what: "Teams that make the playoffs in a league entered by hand; an ESPN import reads its own."
+    evidence: "the common platform default for a 12-team NBA league (half the teams); a third of the default 10-team WNBA league, its season being shorter"
+    validation: 872
+  - id: playoffs.weeks
+    value: {nba: 3, wnba: 2}
+    kind: model
+    status: convention
+    what: "Fantasy weeks the playoffs take, the last of the schedule, in a league entered by hand; an ESPN import reads its own."
+    evidence: "the common platform default: three rounds over the regular season's last three weeks (NBA), two (WNBA)"
+    validation: 872
+  - id: playoffs.simulations
+    value: 2000
+    kind: search
+    status: arithmetic
+    what: "Seasons the playoff odds play out: the odds' sampling error is at most 1.1 points (the binomial standard error at 50%)."
+    evidence: "sqrt(0.25 / 2000) = 0.011"
+    validation: 872
+
   # ---- Fit weights before the standings model applies (web/src/lib/league-value.ts, matchup.ts)
   - id: fit.thirds
     value: {weak: 1.5, middle: 1.0, strong: 0.5}
@@ -325,6 +348,23 @@ parameters:
     what: "Who counts as a regular for a box-score absence spell: played the team's previous game and averaged these minutes over these games."
     evidence: "none; a regular rarely sits by the coach's choice"
     validation: 770
+
+  - id: injury.rotation_minutes
+    value: 20
+    dbt: minutes_redistribution.rotation_minutes
+    kind: threshold
+    status: assumed
+    what: "Minutes a game a player must average, over this season and last for his team, for his teammates' minutes in his absence to be measured."
+    evidence: "none; the box-score regular's floor (injury.box_score_regular)"
+    validation: 763
+  - id: injury.min_games_missed
+    value: 3
+    dbt: minutes_redistribution.min_games_missed
+    kind: threshold
+    status: assumed
+    what: "Team games a player must have missed, and played, before the minutes his teammates gained without him are shown; each teammate must have been there for as many of each."
+    evidence: "none; the IL move's floor (il.min_games)"
+    validation: 763
 
   - id: injury.recovery_min_spells
     value: 30

@@ -70,9 +70,9 @@ The methodology (#751) requires each part to beat a naive manager out of sample,
 
 **What changes on the site:**
 
-- The spreads are wider: `standings.spread_scale` and `standings.projection_spread`. Every chance, power ranking, Fit weight and Trade verdict reads them.
+- The spreads are wider: `standings.spread_scale` and `standings.projection_spread`. Every chance, power ranking, Fit weight, Trade verdict and the playoff odds (#821) read them.
 - In a head-to-head league, the "Your categories" tile loses its "not yet validated" badge.
-- Rotisserie chances keep the badge, linked to #866. So do the power rankings (#867) and Fit (#868).
+- Rotisserie chances keep the badge, linked to #866. So do the power rankings (#867), Fit (#868) and the playoff odds. The playoff odds build on the head-to-head chances but add a schedule and a cut, which this test did not judge (#872).
 
 ## Consequences
 

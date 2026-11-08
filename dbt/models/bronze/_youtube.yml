@@ -1,0 +1,70 @@
+version: 2
+
+models:
+  - name: youtube_video_items
+    description: "The YouTube channels' video feeds (ingest/youtube.py, ingest/youtube_channels.toml): one row per video per landed payload, a payload being one channel's feed on a day its videos changed. Title, description and publish time; no view counts. Values as text."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The channel's id in ingest/youtube_channels.toml"
+      - name: channel
+        description: "The channel's id in ingest/youtube_channels.toml (youtube:<channel> is the claims' source)"
+      - name: channel_name
+        description: "The channel's name, credited on the Sources page"
+      - name: channel_id
+        description: "YouTube's channel id (UC and 22 characters)"
+      - name: fetched_at
+        description: "When the feed was read (UTC)"
+      - name: video_id
+        description: "YouTube's video id"
+      - name: title
+        description: "The video's title"
+      - name: description
+        description: "The opening of the video's description, at most 2,000 characters; null when it has none"
+      - name: link
+        description: "The video's watch address"
+      - name: published_at
+        description: "When the channel published the video (UTC)"
+
+  - name: youtube_transcript_chunks
+    description: "The caption transcripts of the channels' new videos, fetched from the home runner only (ingest/youtube.py): one row per half-minute chunk per landed transcript, as the ingest chunks the timed lines it lands. Private: never published or shown; only the claims derived from them are used. Values as text."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The channel and the video (channel.video_id)"
+      - name: channel
+        description: "The channel's id in ingest/youtube_channels.toml"
+      - name: channel_name
+        description: "The channel's name"
+      - name: video_id
+        description: "YouTube's video id"
+      - name: video_title
+        description: "The video's title when its transcript was fetched"
+      - name: video_published_at
+        description: "When the channel published the video (UTC)"
+      - name: caption_language
+        description: "The captions' language code (en, en-US, ...)"
+      - name: caption_kind
+        description: "uploader (the channel's own captions) or automatic (YouTube's speech recognition)"
+      - name: fetched_at
+        description: "When the captions were fetched (UTC)"
+      - name: chunk_start
+        description: "Whole seconds into the video the chunk's first line starts"
+      - name: chunk_end
+        description: "Seconds into the video the chunk's last line ends"
+      - name: chunk_text
+        description: "The chunk's words: its timed lines joined in order"

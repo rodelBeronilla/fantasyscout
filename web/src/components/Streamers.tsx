@@ -10,6 +10,7 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { useWatchlist } from '../lib/watchlist';
 import { assign, keptCategories, owners, useLeague } from '../lib/fantasy-league';
+import { usePlayerNotes } from '../lib/player-notes';
 import { fantasyPoints } from '../lib/league-value';
 import { topAdds } from '../lib/pickups-top';
 import { daysFromParam, needsFromParam, withNeeds } from '../lib/pickups-url';
@@ -136,6 +137,8 @@ export default function Streamers() {
   const { watched, toggleWatched } = useWatchlist(league);
   // With the league's rosters in, leave out exactly the players on them (-1); otherwise a board-rank cut.
   const [setup, updateLeague] = useLeague(league);
+  // a one-line note under a flagged top add, when the day's notes are out (#823)
+  const notes = usePlayerNotes(league);
   const owner = useMemo(() => owners(setup), [setup]);
   const rostered = rosteredChoice ?? (owner.size ? -1 : 0);
   const hasRosters = owner.size > 0;
@@ -466,6 +469,7 @@ export default function Streamers() {
           onApply={(add, drop) => updateLeague((s) => assign(assign(s, drop, null), add, s.mine))}
           onExplore={openExplore}
           openDays={activePicked.size > 0}
+          notes={notes}
         />
       )}
 

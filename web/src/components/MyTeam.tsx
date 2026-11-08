@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { fetchBuildJson, fetchPageRows, type League } from '../lib/data';
+import { fetchBuildJson, fetchCurrentJson, fetchPageRows, type League } from '../lib/data';
 import { CATEGORIES, CATEGORY_LABELS, fmt, ordinal } from '../lib/format';
 import { currentLeague } from '../lib/league';
 import { href } from '../lib/site';
@@ -13,15 +13,25 @@ import { dropRule, type RosterReview, type Upgrade } from '../lib/roster-upgrade
 import { teamReview, teamValues } from '../lib/team-review';
 import { streamMove, streamTargets } from '../lib/matchup-streams';
 import { liveWeek, matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
-import { expectedWins, leagueStandings, type LeagueStandings, type PowerRank, powerRankings } from '../lib/standings';
+import { expectedWins, leagueStandings, type LeagueStandings, powerRankings } from '../lib/standings';
+import { standingsOf } from '../lib/records';
 import { hasWeekGames, type ValueUnit } from '../lib/week-value';
-import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
+import { ilMoves } from '../lib/il-moves';
+import { minutesByPlayer, minutesGoTo, type MinutesRow } from '../lib/minutes-go-to';
 import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, startsByPlayer, weekPlan, type WeekPlan } from '../lib/lineup';
 import { easternDate, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
 import type { ModelRow } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Today, type TodayRow, Upgrades } from './LeagueParts';
 import { Matchup, type MatchupBasis } from './MatchupCard';
 import { BuildYourTeam } from './BuildYourTeam';
+import { LeagueTable } from './PowerTable';
+import { Standings } from './Standings';
+import { IlMoves } from './IlMoves';
+import { MinutesGoTo } from './MinutesGoTo';
+import { PlayoffPlan } from './PlayoffPlan';
+import type { TeamWeek } from '../lib/playoff-weeks';
+import { PlayerNoteLine } from './PlayerNoteLine';
+import { usePlayerNotes } from '../lib/player-notes';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
@@ -44,9 +54,10 @@ interface TeamRow extends ModelRow {
   lineup_role?: string | null;
   lineup_confirmed?: boolean | null;
   lineup_date?: string | null;
+  news_flag?: string | null;
 }
 
-const button = 'rounded border border-line px-2 py-0.5 text-xs hover:bg-bg';
+const NONE: string[] = [];
 
 /**
  * Each kept category against the league (#662): the chance of beating an average rival, and the
@@ -145,119 +156,6 @@ function Categories({
   );
 }
 
-/**
- * Every team with players, category by category (moved from the League page, #716): each team's
- * value per game above replacement summed over its active roster, the top third green and the
- * bottom third red; in a points league, its fantasy points a game.
- */
-function LeagueTable({
-  names,
-  mine,
-  rosters,
-  il,
-  cats,
-  catValue,
-  fpts,
-  power,
-}: {
-  names: string[];
-  mine: number;
-  rosters: string[][];
-  il: string[];
-  cats: string[];
-  catValue: ((id: string) => Record<string, number> | undefined) | null;
-  fpts: ((id: string) => number) | null;
-  /** The standings model's power rankings (#743): the table's order and its projection columns. */
-  power: PowerRank[] | null;
-}) {
-  const teams = rosters
-    .map((roster, t) => {
-      const active = roster.filter((id) => !il.includes(id));
-      const totals = Object.fromEntries(cats.map((c) => [c, active.reduce((s, id) => s + (catValue?.(id)?.[c] ?? 0), 0)]));
-      const total = fpts ? active.reduce((s, id) => s + fpts(id), 0) : cats.reduce((s, c) => s + (totals[c] ?? 0), 0);
-      return { team: t, size: roster.length, totals, total };
-    })
-    .filter((x) => x.size > 0);
-  if (teams.length < 2) return null;
-  const n = teams.length;
-  const third = Math.max(1, Math.round(n / 3));
-  const rankOf = (get: (x: (typeof teams)[number]) => number, team: number) => 1 + teams.filter((x) => get(x) > get(teams.find((y) => y.team === team)!)).length;
-  const tone = (rank: number) => (n < 3 ? '' : rank <= third ? 'text-good' : rank > n - third ? 'text-bad' : '');
-  const label = (c: string) => CATEGORY_LABELS[c] ?? c;
-  const projected = new Map((power ?? []).map((p, i) => [p.team, { ...p, place: i + 1 }]));
-  const h2h = !!power?.some((p) => p.matchupWin !== null);
-  // the projection orders the table when it has every team; otherwise the totals do
-  const order = (x: (typeof teams)[number]) => (projected.get(x.team)?.place ?? n + 1) * 1e6 - x.total;
-  return (
-    <Tile title={power ? 'Power rankings' : 'League table'} id="league-table" testid="league-table" issue={power ? 867 : undefined}>
-      <p className="mt-1 text-xs text-muted">
-        {fpts
-          ? 'Each team’s projected fantasy points a game, from its active players.'
-          : `${
-              power
-                ? h2h
-                  ? 'Teams ranked by their projected matchup win rate against the rest of the league, with the categories they expect to win a week against an average rival. '
-                  : 'Teams ranked by their expected rotisserie points: one per category, and one more for each team finished ahead of. '
-                : ''
-            }Each category is the team’s value per game above replacement, summed over its active players: green the top third, red the bottom third.`}
-      </p>
-      <div className="table-scroll mt-2 max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="League table">
-        <table className="w-full text-sm" data-testid="team-strength">
-          <thead>
-            <tr>
-              {power && <Th right>#</Th>}
-              <Th>Team</Th>
-              {power && h2h && (
-                <Th right>
-                  <span title="The chance of winning a weekly matchup against a team picked at random from the rest">Win %</span>
-                </Th>
-              )}
-              {power && (
-                <Th right>
-                  <span title={h2h ? 'Categories expected to win a week against an average rival' : 'Expected rotisserie points'}>{h2h ? 'Cats' : 'Roto pts'}</span>
-                </Th>
-              )}
-              <Th right>Players</Th>
-              {!fpts && cats.map((c) => <Th key={c} right>{label(c)}</Th>)}
-              <Th right>{fpts ? 'FPts/G' : 'Total'}</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...teams]
-              .sort((a, b) => order(a) - order(b))
-              .map((x) => {
-                const p = projected.get(x.team);
-                return (
-                <tr key={x.team} className={`border-t border-line ${x.team === mine ? 'font-semibold' : ''}`} data-testid="power-row">
-                  {power && <Td right>{p?.place ?? '–'}</Td>}
-                  <Td>{names[x.team]}</Td>
-                  {power && h2h && <Td right>{p?.matchupWin != null ? `${Math.round(p.matchupWin * 100)}%` : '–'}</Td>}
-                  {power && <Td right>{p ? fmt(h2h ? p.expectedCats : (p.rotoPoints ?? 0), 1) : '–'}</Td>}
-                  <Td right>{x.size}</Td>
-                  {!fpts &&
-                    cats.map((c) => {
-                      const rank = rankOf((y) => y.totals[c] ?? 0, x.team);
-                      return (
-                        <Td key={c} right>
-                          <span className={tone(rank)} title={`Rank ${rank} of ${n}`}>
-                            {fmt(x.totals[c] ?? 0, 1)}
-                          </span>
-                        </Td>
-                      );
-                    })}
-                  <Td right>
-                    <span className={tone(rankOf((y) => y.total, x.team))}>{fmt(x.total, 1)}</span>
-                  </Td>
-                </tr>
-                );
-              })}
-          </tbody>
-        </table>
-      </div>
-    </Tile>
-  );
-}
-
 const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
 const dayName = (iso: string) => DAY.format(new Date(`${iso}T12:00:00Z`));
 /** Open slots counted by kind, "3 G · 2 C · 2 Util": short enough for a phone's column. */
@@ -351,9 +249,13 @@ export default function MyTeam() {
   const [rows, setRows] = useState<TeamRow[] | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [games, setGames] = useState<TodayGame[] | null>(null);
+  const [minutes, setMinutes] = useState<Map<string, MinutesRow[]>>(() => new Map());
+  const [teamWeeks, setTeamWeeks] = useState<TeamWeek[] | null>(null);
   const [setup, updateLeague] = useLeague(league);
   // an ESPN league is read again on a visit, so the rosters and this week's opponent are current (#815)
   const sync = useEspnSync(setup, updateLeague, rows);
+  // a one-line note under each flagged player, when the day's notes are out (#823)
+  const notes = usePlayerNotes(league);
 
   useEffect(() => {
     let live = true;
@@ -363,6 +265,14 @@ export default function MyTeam() {
     fetchBuildJson<TodayGame[]>(`schedule/${league}.json`)
       .then((g) => live && setGames(g))
       .catch(() => live && setGames(null));
+    // an older build without the file names nobody (#820)
+    fetchCurrentJson<MinutesRow[]>(`minutes/${league}.json`)
+      .then((m) => live && setMinutes(minutesByPlayer(m)))
+      .catch(() => live && setMinutes(new Map()));
+    // the rest of the season's games per team and week, for the playoff weeks (#821)
+    fetchCurrentJson<TeamWeek[]>(`team_weeks/${league}.json`)
+      .then((w) => live && setTeamWeeks(w))
+      .catch(() => live && setTeamWeeks(null));
     return () => {
       live = false;
     };
@@ -466,10 +376,9 @@ export default function MyTeam() {
 
   // the roster review, as Pickups' top adds read it (#819); the week's drives the stream line (#818)
   const weekReview = useMemo(() => (rows && weekAvailable ? teamReview(rows, setup, values, true) : null), [rows, setup, values, weekAvailable]);
-  const review = useMemo<RosterReview | null>(
-    () => (week ? (weekReview?.review ?? null) : rows ? (teamReview(rows, setup, values, false)?.review ?? null) : null),
-    [week, weekReview, rows, setup, values],
-  );
+  // the rest of the season's review: the Moves' unit by default, and the drops for the playoff targets (#821)
+  const restReview = useMemo(() => (rows ? teamReview(rows, setup, values, false) : null), [rows, setup, values]);
+  const review = useMemo<RosterReview | null>(() => (week ? (weekReview?.review ?? null) : (restReview?.review ?? null)), [week, weekReview, restReview]);
   // From the matchup to the stream that flips a category (#818): the close and losing categories,
   // and the top add for them on the open days, with the drop the week's review names.
   const targets = useMemo(() => (weekMatch && !points ? streamTargets(weekMatch.match) : []), [weekMatch, points]);
@@ -492,6 +401,9 @@ export default function MyTeam() {
       starts: (id) => starts.get(id) ?? 0,
     });
   }, [weekMatch, points, lineupPlans, games, rows, owner, activeCats, weekReview, byId]);
+  // stable for the playoff plan, whose odds play 2,000 seasons only when an input changes (#821)
+  const catOf = useMemo(() => (leagueCats ? (id: string) => leagueCats.get(id) : null), [leagueCats]);
+  const owned = useCallback((id: string) => owner.has(id), [owner]);
   const applyUpgrade = useCallback((u: Upgrade) => updateLeague((s) => assign(assign(s, u.drop, null), u.add, s.mine)), [updateLeague]);
 
   // Build your team (#809): the league as the Trade page models it, for the rest of the season,
@@ -563,6 +475,8 @@ export default function MyTeam() {
   }
 
   const moves = ilMoves(rows, roster, setup.il);
+  // Today's card shows on a game day (a verdict needs one) when no draft is under way
+  const todayShown = !!verdict && !setup.drafting;
   const showMatchup = h2h && owner.size > 0 && !setup.drafting && weekAvailable;
   // a player headed for the IL is an IL move, not a trade chip
   const shown = review && { ...review, chips: review.chips.filter((id) => !moves.toIl.includes(id)) };
@@ -576,6 +490,29 @@ export default function MyTeam() {
     const il = Number(setup.il.includes(a)) - Number(setup.il.includes(b));
     return il || (restValue.get(b) ?? 0) - (restValue.get(a) ?? 0);
   });
+  // ESPN's real standings lead the page (#822); the projected power table goes one click down
+  const real = setup.source?.host === 'espn' ? standingsOf(setup.source.records) : null;
+  const powerTable = (
+    <LeagueTable
+      names={setup.names}
+      mine={setup.mine}
+      rosters={setup.rosters}
+      il={setup.il}
+      cats={points ? [] : activeCats}
+      catValue={leagueCats ? (id) => leagueCats.get(id) : null}
+      fpts={points && leaguePoints ? (id) => leaguePoints.get(id)?.fpts ?? 0 : null}
+      power={power}
+      inline={!!real}
+      note={setup.source?.host === 'espn' ? null : 'Import the league from ESPN to show the real standings.'}
+    />
+  );
+  // who takes an out player's minutes, and the pickup that goes with it (#820)
+  const minutesLine = (id: string, onAdd?: (add: string) => void) => {
+    const call = minutesGoTo(minutes.get(id), byId.get(id)?.team_id, owner);
+    if (!call) return null;
+    const teamName = (t: number) => setup.names[t] ?? `Team ${t + 1}`;
+    return <MinutesGoTo call={call} player={name(id)} league={league} mine={setup.mine} teamName={teamName} onAdd={onAdd} />;
+  };
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
@@ -590,9 +527,35 @@ export default function MyTeam() {
           ; moves wait until it ends.
         </p>
       )}
+      {/* the playoff push leads a head-to-head league (#821): the odds, the playoff weeks' games and the target */}
+      {h2h && teamWeeks && !setup.drafting && (
+        <PlayoffPlan
+          league={league}
+          setup={setup}
+          rows={rows}
+          teamWeeks={teamWeeks}
+          cats={activeCats}
+          catValue={catOf}
+          perGame={perGame}
+          owned={owned}
+          drops={restReview?.drops ?? NONE}
+          roster={restReview?.mine ?? NONE}
+          today={easternDate()}
+        />
+      )}
+      {real && <Standings table={real} mine={setup.mine} names={setup.names} power={powerTable} />}
 
       {games && myTeam.length > 0 && !setup.drafting && (
-        <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} verdict={verdict} need={targets} />
+        <Today
+          league={league}
+          players={myTeam as unknown as TodayRow[]}
+          games={games}
+          date={easternDate()}
+          verdict={verdict}
+          need={targets}
+          minutesFor={minutesLine}
+          notes={notes}
+        />
       )}
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
@@ -624,40 +587,15 @@ export default function MyTeam() {
       )}
 
       <Tile title="Roster" id="roster" testid="my-roster">
-        {(moves.toIl.length > 0 || moves.back.length > 0) && (
-          <div className="mt-1 grid gap-1 text-sm">
-            {moves.toIl.length > 0 && (
-              <p data-testid="il-candidates">
-                <span className="text-muted">To the IL (expected to miss {IL_MIN_GAMES}+ games): </span>
-                {moves.toIl.map((id) => (
-                  <span key={id} className="mr-3 inline-flex flex-wrap items-center gap-1">
-                    {link(id)}
-                    <span className="text-xs text-muted">
-                      {fmt(byId.get(id)?.expected_games_missed ?? 0, 1)} games
-                      {byId.get(id)?.expected_return ? `, back ${byId.get(id)?.expected_return}` : ''}
-                    </span>
-                    <button type="button" className={button} onClick={() => updateLeague((s) => toggleIl(s, id))} data-testid="il-move">
-                      Move to IL
-                    </button>
-                  </span>
-                ))}
-              </p>
-            )}
-            {moves.back.length > 0 && (
-              <p data-testid="il-back">
-                <span className="text-muted">Back from the IL (no longer listed): </span>
-                {moves.back.map((id) => (
-                  <span key={id} className="mr-3 inline-flex items-center gap-1">
-                    {link(id)}
-                    <button type="button" className={button} onClick={() => updateLeague((s) => toggleIl(s, id))} data-testid="il-move">
-                      Activate
-                    </button>
-                  </span>
-                ))}
-              </p>
-            )}
-          </div>
-        )}
+        <IlMoves
+          moves={moves}
+          link={link}
+          missed={(id) => byId.get(id)?.expected_games_missed ?? 0}
+          back={(id) => byId.get(id)?.expected_return}
+          // each IL move with the pickup for the spot it opens (#820)
+          minutes={(id) => minutesLine(id, (add) => updateLeague((s) => assign(toggleIl(s, id), add, s.mine)))}
+          onToggle={(id) => updateLeague((s) => toggleIl(s, id))}
+        />
         <div className="table-scroll mt-2 overflow-auto" tabIndex={0} role="region" aria-label="Your roster">
           <table className="w-full text-sm" data-testid="roster-table">
             <thead>
@@ -696,6 +634,8 @@ export default function MyTeam() {
                         <span className="text-xs text-muted">{[r?.position, r?.team_abbreviation].filter(Boolean).join(' · ')}</span>
                         {onIl && <span className="rounded border border-line px-1 text-[10px]">IL</span>}
                         {r && <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />}
+                        {/* the line sits in Today's card on a game day, here otherwise (#823) */}
+                        {r && !onIl && !todayShown && <PlayerNoteLine notes={notes} row={r} />}
                       </span>
                     </Td>
                     <Td right>
@@ -749,16 +689,7 @@ export default function MyTeam() {
         />
       )}
 
-      <LeagueTable
-        names={setup.names}
-        mine={setup.mine}
-        rosters={setup.rosters}
-        il={setup.il}
-        cats={points ? [] : activeCats}
-        catValue={leagueCats ? (id) => leagueCats.get(id) : null}
-        fpts={points && leaguePoints ? (id) => leaguePoints.get(id)?.fpts ?? 0 : null}
-        power={power}
-      />
+      {!real && powerTable}
     </div>
   );
 }

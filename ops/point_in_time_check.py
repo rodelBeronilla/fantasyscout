@@ -58,12 +58,18 @@ DATED: tuple[tuple[str, str], ...] = (
     ("gold.fct_injury_spell", "return_date"),
     ("gold.fct_absence_spell", "start_date"),
     ("gold.fct_absence_spell", "return_date"),
+    # who takes a player's minutes: the latest team game each row counts
+    ("gold.mart_minutes_redistribution", "last_game_date"),
     # the news' claims, cut by the day the source said them, not the day they were extracted
     ("silver.player_claims", "published_date"),
     ("gold.fct_player_claim", "published_date"),
     # the outlets' feed items, cut by the day they were published (never later than first seen)
     ("silver.rss_feed_items", "published_date"),
     ("gold.fct_player_rss_item", "published_date"),
+    # the YouTube channels' videos and transcript chunks, cut by the day the video was published
+    ("silver.youtube_videos", "published_date"),
+    ("silver.youtube_transcripts", "published_date"),
+    ("gold.fct_player_youtube_item", "published_date"),
 )
 # Records of games, cut by the day they were played: everything before the date must survive.
 EVENTS: frozenset[str] = frozenset(

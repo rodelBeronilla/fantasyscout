@@ -2017,6 +2017,9 @@ test('My Team ranks every team by projection: matchup win rates in head-to-head,
   await page.goto('/team/');
   const table = page.getByTestId('league-table');
   await expect(table).toContainText('Power rankings');
+  // a league entered by hand keeps the projected table where it was, and says how to get the real standings (#822)
+  await expect(table.getByTestId('standings-note')).toHaveText('Import the league from ESPN to show the real standings.');
+  await expect(page.getByTestId('standings')).toHaveCount(0);
   const rows = table.getByTestId('power-row');
   await expect(rows).toHaveCount(4);
   await expect(rows.first().locator('td').first()).toHaveText('1');
@@ -2033,6 +2036,123 @@ test('My Team ranks every team by projection: matchup win rates in head-to-head,
   await page.goto('/team/');
   await expect(table.locator('thead')).toContainText('Roto pts');
   await expect(table.locator('thead')).not.toContainText('Win %');
+});
+
+test("My Team says who takes an out player's minutes, and pairs the IL move with the pickup (#820)", async ({ page }) => {
+  const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
+    player_id: string;
+    full_name: string | null;
+    team_id: string | null;
+    expected_games_missed: number | null;
+    injury_group: string | null;
+  }[];
+  const hurt = rows.find((r) => (r.expected_games_missed ?? 0) >= 3 && r.full_name && r.team_id);
+  const healthy = rows.filter((r) => !r.injury_group && r.full_name && r.player_id !== hurt?.player_id);
+  const [mate, taken, free] = healthy;
+  if (!hurt || !mate || !taken || !free) {
+    test.skip(true, 'the fixture has no listed-out player');
+    return;
+  }
+  // the lakehouse's splits: without the hurt player, `taken` gains ten minutes a game and `free` eight
+  const gain = (who: typeof free, gained: number, rank: number, owned: number) => ({
+    team_id: hurt.team_id,
+    player_id: hurt.player_id,
+    games_missed: 6,
+    teammate_id: who.player_id,
+    teammate_name: who.full_name,
+    teammate_games_without: 6,
+    minutes_with: 20,
+    minutes_without: 20 + gained,
+    minutes_gained: gained,
+    gain_rank: rank,
+    teammate_percent_owned: owned,
+  });
+  await page.route('**/minutes/nba.json', (route) => route.fulfill({ json: [gain(taken, 10.2, 1, 88), gain(free, 8.4, 2, 41.2)] }));
+  await page.goto('/league/?league=nba');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${hurt.full_name}\n${mate.full_name}`);
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  await page.goto('/team/?league=nba');
+  const row = page.getByTestId('il-candidates').locator(`li[data-player="${hurt.player_id}"]`);
+  // the top gainer is free: he is the pickup
+  await expect(row.getByTestId('minutes-go-to')).toHaveText(`Minutes go to ${taken.full_name} (+10, 88% rostered): add him`);
+  await expect(page.getByTestId('il-candidates').getByTestId('unvalidated')).toHaveAttribute('href', /issues\/763$/);
+  // when another team has him, the line says which, and the best gainer still free is the pickup
+  await page.goto('/league/?league=nba');
+  await page.getByLabel('Name of team 2').fill('Rivals');
+  await cards.nth(1).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Rivals').fill(taken.full_name ?? '');
+  await cards.nth(1).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(1).getByTestId('roster')).toContainText(taken.full_name ?? '');
+  await page.goto('/team/?league=nba');
+  await expect(row.getByTestId('minutes-go-to')).toHaveText(`Minutes go to ${taken.full_name} (+10, on Rivals); free: ${free.full_name} (+8, 41% rostered): add him`);
+  // Today's Out row says the same when the player is out with a game today
+  const out = page.getByTestId('today-out');
+  if (await out.count()) {
+    const mine = out.locator(`[data-player="${hurt.player_id}"]`);
+    if (await mine.count()) await expect(mine).toContainText(`Minutes go to ${taken.full_name}`);
+  }
+  // "add him" is the IL move and the pickup together
+  await row.getByTestId('minutes-add').click();
+  const table = page.getByTestId('roster-table');
+  await expect(table.locator('tr').filter({ hasText: hurt.full_name ?? '' })).toContainText('IL');
+  await expect(table).toContainText(free.full_name ?? '');
+  await expect(page.getByTestId('il-candidates')).toHaveCount(0);
+});
+
+test("My Team leads a head-to-head league with its playoff odds, its games in the playoff weeks and the free agent to target (#821)", async ({ page }) => {
+  type Row = { player_id: string; team_id: string | null };
+  type TeamWeek = { team_id: string; week_start: string; week_end: string; games: number; game_dates: string | null };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const weeks = (await (await page.request.get('/data/builds/fixture/team_weeks/nba.json')).json()) as TeamWeek[];
+  await page.clock.setFixedTime(new Date('2026-11-02T16:00:00Z'));
+  // a copy from before the playoffs were kept (version 7): four teams of three, entered by hand
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const copy = { version: 7, teams: 4, rosterSpots: 6, scoring: 'cats9', format: 'h2h', punts: [], names: ['Mine', 'Second', 'Third', 'Fourth'], rosters, mine: 0, il: [], drafting: false, picks: [], opponent: 1 };
+  await page.addInitScript((stored) => {
+    if (sessionStorage.getItem('seeded')) return;
+    localStorage.setItem('fantasyscout:league:nba', stored);
+    sessionStorage.setItem('seeded', '1');
+  }, JSON.stringify(copy));
+  // the League page sets two of the four in the playoffs; the weeks stay the default three
+  await page.goto('/league/?league=nba');
+  await expect(page.getByLabel('Fantasy weeks the playoffs take')).toHaveValue('3');
+  await page.getByLabel('Teams that make the playoffs').fill('2');
+  // the playoff weeks: the schedule's last three; the roster's games are its players' teams' games in them
+  const spans = [...new Set(weeks.filter((w) => w.games > 0).map((w) => `${w.week_start}|${w.week_end}`))].sort().slice(-3);
+  const from = spans[0]!.split('|')[0]!;
+  const to = spans[2]!.split('|')[1]!;
+  const teamGames = (team: string | null) =>
+    weeks.filter((w) => w.team_id === team).reduce((s, w) => s + (w.game_dates ?? '').split(',').filter((d) => d >= from && d <= to).length, 0);
+  const mine = rosters[0]!.reduce((s, id) => s + teamGames(board.find((r) => r.player_id === id)!.team_id), 0);
+  const day = (iso: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));
+
+  await page.goto('/team/?league=nba');
+  const tile = page.getByTestId('playoffs');
+  const line = tile.getByTestId('playoff-line');
+  await expect(line).toHaveText(
+    new RegExp(`^(\\d+%|under 1%|over 99%) to make it; ${mine} games in the playoff weeks \\(${day(from)} to ${day(to)}\\), \\d(st|nd|rd|th) of 4: target .+ \\(\\d+ games\\)$`),
+  );
+  // the odds build on the standings model's weekly chances; their own test is #872
+  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/872$/);
+  // the target is a free agent, linked to his page
+  await expect(line.getByTestId('playoff-target')).toHaveAttribute('href', /\/p\/nba\/\d+\/$/);
+  // every team's odds and the next targets are one click down; two spots of four, so the odds sum to 200%
+  const details = tile.getByTestId('playoff-details');
+  await expect(details.getByTestId('playoff-table')).toBeHidden();
+  await details.locator('summary').click();
+  const rows = details.getByTestId('playoff-row');
+  await expect(rows).toHaveCount(4);
+  const odds = (await rows.locator('td:nth-child(2)').allInnerTexts()).map((s) => (s.startsWith('under') ? 0 : s.startsWith('over') ? 100 : Number(s.replace('%', ''))));
+  expect(odds.reduce((s, p) => s + p, 0)).toBeGreaterThanOrEqual(198);
+  expect(odds.reduce((s, p) => s + p, 0)).toBeLessThanOrEqual(202);
+  await expect(details.getByTestId('playoff-basis')).toContainText('The top 2 of 4 make the playoffs');
+  await expect(details.getByTestId('playoff-target-row')).toHaveCount(3);  // the same odds on a reload: the seasons are drawn from a fixed seed
+  const first = await line.innerText();
+  await page.reload();
+  await expect(line).toHaveText(first);
 });
 
 test('My Team suggests IL moves from the board availability and applies them', async ({ page }) => {
@@ -2271,6 +2391,27 @@ test("an ESPN league re-syncs on My Team: when it synced, the roster changes, an
   await page.reload();
   await expect(summary).toContainText('Synced just now · 2 roster changes');
   expect(asked).toHaveLength(1);
+});
+
+test("an ESPN league leads My Team with the real standings, the whole league and the power table one click down (#822)", async ({ page }) => {
+  await espnLeagueAndCopy(page);
+  await page.goto('/team/?league=nba');
+  // the re-import brings ESPN's records: Third 14-4-1, Glass Cleaners 12-6-1, Brick City 10-8-1
+  await expect(page.getByTestId('standing-line')).toHaveText('3rd, 2 games back of 2nd and 4 games back of 1st (10-8-1, from ESPN at the last sync)');
+  const all = page.getByTestId('standings-all');
+  await expect(all.getByTestId('standings-table')).toBeHidden();
+  await all.locator('summary').click();
+  const rows = all.getByTestId('standing-row');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.nth(0)).toHaveText(/^1\s*Third\s*14-4-1\s*–$/);
+  await expect(rows.nth(2)).toHaveText(/^3\s*Brick City\s*10-8-1\s*4$/);
+  // the projected table is one click down, and needs no note to import from ESPN
+  const power = page.getByTestId('power-details');
+  await expect(power.getByTestId('league-table')).toBeHidden();
+  await power.locator('summary').click({ position: { x: 4, y: 4 } });
+  await expect(power.getByTestId('power-row')).toHaveCount(4);
+  await expect(page.getByTestId('league-table')).toHaveCount(1);
+  await expect(page.getByTestId('standings-note')).toHaveCount(0);
 });
 
 test("an ESPN category league's matchup starts from the score so far and leads with the call (#817)", async ({ page }) => {
@@ -3363,4 +3504,52 @@ test('"Clear all" on the board clears every punt, not only the last', async ({ p
   await page.getByTestId('active-filters').getByRole('button', { name: 'Clear all' }).click();
   await expect(page.getByTestId('active-filters')).toHaveCount(0);
   await expect(board.locator('thead [data-cat]')).toHaveCount(9);
+});
+
+test("a flagged player's one-line note shows under him on My Team while it holds, and nothing when it does not (#823)", async ({ page }) => {
+  // a day with no games in the fixture schedule: no Today card, so the line sits in the roster
+  await page.clock.setFixedTime(new Date('2026-12-20T16:00:00Z'));
+  const copy = { version: 7, teams: 4, rosterSpots: 13, scoring: 'cats9', format: 'roto', punts: [], rosters: [['1630169', '203999'], [], [], []], mine: 0, il: [], drafting: false, picks: [], opponent: null };
+  await page.addInitScript((stored) => {
+    if (sessionStorage.getItem('seeded')) return;
+    localStorage.setItem('fantasyscout:league:nba', stored);
+    sessionStorage.setItem('seeded', '1');
+  }, JSON.stringify(copy));
+  const line = 'Out, expected to miss 4.6 games per the board; hold him.';
+  let asOf = '2026-12-20';
+  let status = 'Out';
+  await page.route('**/data/notes/players/nba.json', (route) =>
+    route.fulfill({
+      json: {
+        league: 'nba',
+        label: 'AI-written from FantasyScout data and the news',
+        model: 'qwen3:8b',
+        as_of: asOf,
+        notes: {
+          '1630169': { line, sources: [{ what: 'expected_games_missed', value: '4.6', row_ref: 'mart_board/nba/1630169/2026-12-20' }], injury_status: status, news_flag: null },
+        },
+      },
+    }),
+  );
+  await page.goto('/team/?league=nba');
+  const flagged = page.getByTestId('roster-table').locator('tr[data-player="1630169"]');
+  await expect(flagged.getByTestId('player-note')).toContainText(line);
+  // marked as AI-written, with each number's source on hover
+  await expect(flagged.getByTestId('player-note-label')).toHaveAttribute('title', /4\.6: expected_games_missed \(mart_board\/nba\/1630169\/2026-12-20\)/);
+  // the healthy player has no line
+  await expect(page.getByTestId('roster-table').locator('tr[data-player="203999"]').getByTestId('player-note')).toHaveCount(0);
+  // a line written on another listing, or two days ago, is not shown
+  for (const [nextStatus, nextAsOf] of [
+    ['Questionable', '2026-12-20'],
+    ['Out', '2026-12-18'],
+  ] as const) {
+    status = nextStatus;
+    asOf = nextAsOf;
+    const read = page.waitForResponse('**/data/notes/players/nba.json');
+    await page.reload();
+    await read;
+    await expect(page.getByTestId('roster-table')).toBeVisible();
+    await expect(page.getByTestId('il-candidates')).toBeVisible();
+    await expect(page.getByTestId('player-note')).toHaveCount(0);
+  }
 });

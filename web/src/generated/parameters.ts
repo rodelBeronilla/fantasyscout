@@ -113,6 +113,15 @@ export const PARAMS = {
     "nba": 0.8,
     "wnba": 0.8
   },
+  "playoffs.teams": {
+    "nba": 6,
+    "wnba": 4
+  },
+  "playoffs.weeks": {
+    "nba": 3,
+    "wnba": 2
+  },
+  "playoffs.simulations": 2000,
   "fit.thirds": {
     "weak": 1.5,
     "middle": 1.0,
@@ -163,6 +172,8 @@ export const PARAMS = {
     "min_minutes": 20,
     "recent_games": 10
   },
+  "injury.rotation_minutes": 20,
+  "injury.min_games_missed": 3,
   "injury.recovery_min_spells": 30,
   "blowout.spread": 10,
   "blowout.minutes_per_5_points": {
@@ -472,6 +483,39 @@ export const PARAMETERS = [
     }
   },
   {
+    "id": "playoffs.teams",
+    "kind": "threshold",
+    "status": "convention",
+    "what": "Teams that make the playoffs in a league entered by hand; an ESPN import reads its own.",
+    "evidence": "the common platform default for a 12-team NBA league (half the teams); a third of the default 10-team WNBA league, its season being shorter",
+    "validation": 872,
+    "value": {
+      "nba": 6,
+      "wnba": 4
+    }
+  },
+  {
+    "id": "playoffs.weeks",
+    "kind": "model",
+    "status": "convention",
+    "what": "Fantasy weeks the playoffs take, the last of the schedule, in a league entered by hand; an ESPN import reads its own.",
+    "evidence": "the common platform default: three rounds over the regular season's last three weeks (NBA), two (WNBA)",
+    "validation": 872,
+    "value": {
+      "nba": 3,
+      "wnba": 2
+    }
+  },
+  {
+    "id": "playoffs.simulations",
+    "kind": "search",
+    "status": "arithmetic",
+    "what": "Seasons the playoff odds play out: the odds' sampling error is at most 1.1 points (the binomial standard error at 50%).",
+    "evidence": "sqrt(0.25 / 2000) = 0.011",
+    "validation": 872,
+    "value": 2000
+  },
+  {
     "id": "fit.thirds",
     "kind": "model",
     "status": "assumed",
@@ -673,6 +717,26 @@ export const PARAMETERS = [
       "min_minutes": 20,
       "recent_games": 10
     }
+  },
+  {
+    "id": "injury.rotation_minutes",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Minutes a game a player must average, over this season and last for his team, for his teammates' minutes in his absence to be measured.",
+    "evidence": "none; the box-score regular's floor (injury.box_score_regular)",
+    "validation": 763,
+    "dbt": "minutes_redistribution.rotation_minutes",
+    "value": 20
+  },
+  {
+    "id": "injury.min_games_missed",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Team games a player must have missed, and played, before the minutes his teammates gained without him are shown; each teammate must have been there for as many of each.",
+    "evidence": "none; the IL move's floor (il.min_games)",
+    "validation": 763,
+    "dbt": "minutes_redistribution.min_games_missed",
+    "value": 3
   },
   {
     "id": "injury.recovery_min_spells",

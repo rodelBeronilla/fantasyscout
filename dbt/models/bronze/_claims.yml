@@ -23,9 +23,9 @@ models:
       - name: extracted_at
         description: "When the model read the item (UTC)"
       - name: source
-        description: "espn_news, espn_injury_note or rss:<feed_id>"
+        description: "espn_news, espn_injury_note, rss:<feed_id> or youtube:<channel>"
       - name: source_id
-        description: "The ESPN article id, the injury listing id and a hash of the note's text, or the feed item's id"
+        description: "The ESPN article id, the injury listing id and a hash of the note's text, the feed item's id, or a YouTube item's: the video id, or <video_id>-t<seconds> for a transcript chunk"
       - name: player_id
         description: "League player id the claim is about"
       - name: kind

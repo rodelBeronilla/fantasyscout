@@ -327,6 +327,13 @@ describe('data', () => {
     expect(res.headers.get('cache-control')).toBe('public, max-age=60');
   });
 
+  it("serves the flagged players' notes with a short cache, since the notes workflow rewrites them daily (#823)", async () => {
+    await env.DATA.put('notes/players/nba.json', '{"notes":{}}', { httpMetadata: { contentType: 'application/json' } });
+    const res = await SELF.fetch(`${ORIGIN}/data/notes/players/nba.json`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=60');
+  });
+
   it('serves builds.json with a short cache too', async () => {
     const res = await SELF.fetch(`${ORIGIN}/data/builds.json`);
     expect(res.status).toBe(200);
@@ -400,7 +407,8 @@ describe('data', () => {
       // the other files Streamers reads (#562)
       await env.DATA.put('builds/test/dim_team.json', '[]', { httpMetadata: { contentType: 'application/json' } });
       await env.DATA.put('builds/test/team_weeks/wnba.json', '[]', { httpMetadata: { contentType: 'application/json' } });
-      for (const path of ['current/dim_team.json', 'current/team_weeks/wnba.json']) {
+      await env.DATA.put('builds/test/minutes/wnba.json', '[]', { httpMetadata: { contentType: 'application/json' } });
+      for (const path of ['current/dim_team.json', 'current/team_weeks/wnba.json', 'current/minutes/wnba.json']) {
         const res = await SELF.fetch(`${ORIGIN}/data/${path}`);
         expect(res.status, path).toBe(200);
         expect(res.headers.get('x-build-id')).toBe('test');
