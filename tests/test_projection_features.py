@@ -194,3 +194,40 @@ def test_parity_fails_when_the_mart_differs(tmp_path: Path) -> None:
     df.loc[0, "proj_points_pg"] += 0.01
     with pytest.raises(SystemExit):
         pf.check_parity(df, pf.NEUTRAL, "test")
+
+
+def _build(
+    df: pd.DataFrame, s: dict[str, float], scale: dict[str, float], build: str
+) -> pd.DataFrame:
+    out = df.copy()
+    line = pf.lines(df, s)
+    for c in pf.PRODUCTION:
+        out[f"proj_{c}_pg"] = line[c]
+    for k, v in scale.items():
+        out[f"scale_{k}"] = v
+    out["own_value"] = out["board_value"] = pf.total(pf.score(line, scale))
+    return out.assign(build=build)
+
+
+def test_the_confirmation_reproduces_the_declared_measure_on_the_off_scale(tmp_path: Path) -> None:
+    rng = np.random.default_rng(2)
+    df = _parts(60, seed=4).assign(
+        league="wnba", season="2024", checkpoint=0.0, player_id=[f"p{i}" for i in range(60)]
+    )
+    df["realized_games"] = 20
+    for c in pf.PRODUCTION:
+        df[f"real_{c}_pg"] = pf.lines(df, pf.NEUTRAL)[c] * rng.uniform(0.7, 1.3, 60)
+    setting = {**pf.NEUTRAL, "fg_shrink": 50.0}
+    off_scale = {c: 1.0 for c in pf.SCALE_COLUMNS} | {"pool": 10.0}
+    # the on build's own scale is narrower in shooting, as a shrinkage makes it
+    on_scale = off_scale | {"sd_fg_impact": 0.8}
+    f = tmp_path / "f.csv"
+    pd.concat(
+        [_build(df, pf.NEUTRAL, off_scale, "off"), _build(df, setting, on_scale, "on")]
+    ).to_csv(f, index=False)
+    found = pf.confirm([f], "wnba", setting, 10, 50)
+    assert found["parity"]["worst_value_gap"] < 1e-12
+    assert found["built_off_scale"][1].rmse_gap == pytest.approx(found["declared"][1].rmse_gap)
+    assert found["parity"]["scale_on_over_off"][0]["sd_fg_impact"] == pytest.approx(0.8)
+    # on its own scale the on build is judged in other units, so the figure differs
+    assert found["built_own_scale"][1].rmse_gap != pytest.approx(found["declared"][1].rmse_gap)

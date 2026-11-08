@@ -596,7 +596,9 @@ def main(argv: list[str] | None = None) -> int:
                     df, board_frame(db_on, as_of), as_of, min_games=min_games, resamples=resamples
                 )
                 feature_results.append(fc)
-                print(_prior_line(fc).replace("market prior", "features"))
+                # each board against the off build's realized values; the features move the scale,
+                # so ops.projection_features confirm scores both builds on one scale and on each's
+                print(_prior_line(fc).replace("market prior", "features (off scale's realized)"))
             if args.standings_out is not None:
                 with duckdb.connect(str(db), read_only=True) as cut:
                     standings_backtest.export_checkpoint(

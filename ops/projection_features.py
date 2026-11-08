@@ -400,28 +400,31 @@ def compare(
     *,
     resamples: int,
     seed: int = 0,
+    real_on: Sequence[np.ndarray] | None = None,
 ) -> tuple[list[Gap], Gap]:
     """Each checkpoint's and the pooled gap of ``on`` minus ``off`` (feature settings, or one
-    array of values per checkpoint), players resampled within each checkpoint."""
+    array of values per checkpoint), players resampled within each checkpoint. ``real_on``
+    scores ``on`` against other realized values (the same players on another scale)."""
 
     def values(x: Any, i: int, c: Cut) -> np.ndarray:
         return c.value(x) if isinstance(x, Mapping) else np.asarray(x[i], dtype=float)
 
     a = [values(off, i, c) for i, c in enumerate(cuts)]
     b = [values(on, i, c) for i, c in enumerate(cuts)]
+    rb = [c.real if real_on is None else np.asarray(real_on[i]) for i, c in enumerate(cuts)]
     rng = np.random.default_rng(seed)
 
     def figures(i: int, idx: np.ndarray) -> tuple[float, float, float, float, float, float]:
         c = cuts[i]
-        r = c.real[idx]
-        ea, eb = a[i][idx] - r, b[i][idx] - r
+        r, r2 = c.real[idx], rb[i][idx]
+        ea, eb = a[i][idx] - r, b[i][idx] - r2
         return (
             float(np.sum(ea**2)),
             float(np.sum(eb**2)),
             _spearman(a[i][idx], r),
-            _spearman(b[i][idx], r),
+            _spearman(b[i][idx], r2),
             _top(a[i][idx], r, c.pool),
-            _top(b[i][idx], r, c.pool),
+            _top(b[i][idx], r2, c.pool),
         )
 
     n = [len(c.real) for c in cuts]
@@ -595,6 +598,97 @@ def report(
     return "\n".join(rows)
 
 
+MEASURES = {
+    "declared": "declared: Python on the off build's scale",
+    "built_off_scale": "as built (dbt's line) scored on the off build's scale",
+    "built_own_scale": "as built, own value, each build on its own scale",
+    "built_board": "as built, the board's value (market prior where on), each on its own scale",
+}
+
+
+def confirm(
+    paths: Iterable[Path],
+    league: str,
+    setting: Mapping[str, float],
+    min_games: int,
+    resamples: int,
+) -> dict[str, Any]:
+    """A judged run's off and on builds (#771): the declared measure, dbt's on line on the off
+    build's scale (which must reproduce it), and the board as built on each build's own scale."""
+    df = pd.concat([pd.read_csv(p, dtype={"season": str, "player_id": str}) for p in paths])
+    df = df[df["league"] == league]
+    cuts: list[Cut] = []
+    arrays: dict[str, list[np.ndarray]] = {k: [] for k in ("off", "declared", "sql", "own_off")}
+    arrays |= {"own_on": [], "real_on": [], "board_off": [], "board_on": []}
+    scales: list[dict[str, Any]] = []
+    for (season, cp), g in df.groupby(["season", "checkpoint"], sort=True):
+        off = g[(g["build"] == "off") & (g["realized_games"] >= min_games)].reset_index(drop=True)
+        on = off[["player_id"]].merge(g[g["build"] == "on"], on="player_id", how="left")
+        scale, scale_on = scale_of(off), scale_of(on)
+        cut = Cut(str(season), float(cp), off, scale, total(score(realized_line(off), scale)), 0)
+        cut.pool = int(scale["pool"])
+        cuts.append(cut)
+        arrays["off"].append(cut.value(NEUTRAL))
+        arrays["declared"].append(cut.value(setting))
+        arrays["sql"].append(total(score({c: _col(on, f"proj_{c}_pg") for c in PRODUCTION}, scale)))
+        arrays["own_off"].append(_col(off, "own_value"))
+        arrays["own_on"].append(_col(on, "own_value"))
+        arrays["real_on"].append(total(score(realized_line(on), scale_on)))
+        arrays["board_off"].append(_col(off, "board_value"))
+        arrays["board_on"].append(_col(on, "board_value"))
+        scales.append(
+            {"as_of": f"{season} @ {cp:g}"}
+            | {k: scale_on[k] / scale[k] for k in ("sd_points", "sd_fg_impact", "sd_ft_impact")}
+        )
+    worst = max(
+        float(np.max(np.abs(a - b))) for a, b in zip(arrays["sql"], arrays["declared"], strict=True)
+    )
+    return {
+        "declared": compare(cuts, arrays["off"], arrays["declared"], resamples=resamples),
+        "built_off_scale": compare(cuts, arrays["off"], arrays["sql"], resamples=resamples),
+        "built_own_scale": compare(
+            cuts,
+            arrays["own_off"],
+            arrays["own_on"],
+            resamples=resamples,
+            real_on=arrays["real_on"],
+        ),
+        "built_board": compare(
+            cuts,
+            arrays["board_off"],
+            arrays["board_on"],
+            resamples=resamples,
+            real_on=arrays["real_on"],
+        ),
+        "parity": {"worst_value_gap": worst, "scale_on_over_off": scales},
+    }
+
+
+def _gaps_doc(v: tuple[list[Gap], Gap]) -> dict[str, Any]:
+    return {"checkpoints": [asdict(g) for g in v[0]], "pooled": asdict(v[1])}
+
+
+def confirm_report(league: str, setting: Mapping[str, float], found: Mapping[str, Any]) -> str:
+    rows = [f"== {league}: the board off and on {dict(setting)}"]
+    for key, label in MEASURES.items():
+        per, pooled = found[key]
+        rows.append(f"-- {label}")
+        rows += [f"   {fmt_gap(g)}" for g in [*per, pooled]]
+    par = found["parity"]
+    rows.append(
+        "-- dbt's on value minus the declared one, on the off scale: at most"
+        f" {par['worst_value_gap']:.2e}"
+    )
+    rows += [
+        "   "
+        + s["as_of"]
+        + ": on/off spread "
+        + ", ".join(f"{k} {v:.3f}" for k, v in s.items() if k != "as_of")
+        for s in par["scale_on_over_off"]
+    ]
+    return "\n".join(rows)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -604,9 +698,22 @@ def main(argv: list[str] | None = None) -> int:
     j.add_argument("--league", choices=("nba", "wnba"), required=True)
     j.add_argument("files", type=Path, nargs="+", help="ops.walk_forward --features-out")
     j.add_argument("--out", type=Path)
+    c = sub.add_parser("confirm", help="the board as built off and on, on both scales")
+    c.add_argument("--league", choices=("nba", "wnba"), required=True)
+    c.add_argument("--setting", required=True, help="the features judged, as JSON")
+    c.add_argument("files", type=Path, nargs="+", help="a --features run's --features-out")
+    c.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
     p = {x["id"]: x["value"] for x in parameters.load()}
     min_games, resamples = int(p["backtest.min_games"]), int(p["backtest.bootstrap"])
+    if args.cmd == "confirm":
+        setting = {**NEUTRAL, **json.loads(args.setting)}
+        found = confirm(args.files, args.league, setting, min_games, resamples)
+        print(confirm_report(args.league, setting, found))
+        if args.out is not None:
+            doc = {k: v if k == "parity" else _gaps_doc(v) for k, v in found.items()}
+            args.out.write_text(json.dumps(doc, indent=2, default=str) + "\n", encoding="utf-8")
+        return 0
     cuts = load(args.files, args.league, min_games)
     tuning = [c for c in cuts if c.season in TUNING[args.league]]
     judged_cuts = [c for c in cuts if c.season in JUDGED[args.league]]
