@@ -38,7 +38,7 @@ import argparse
 import json
 import math
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -107,6 +107,7 @@ def export_checkpoint(cut: Any, league: str, season: str, as_of: date, out: Path
         )
         select b.player_id, {", ".join(f"b.{c}" for c in CATS)}, b.availability_multiplier,
             b.games_share, b.ros_factor, b.value_rest_of_season, b.games_remaining, m.adp_rank,
+            b.rank_total, b.market_prior_weight, b.market_prior_value,
             {naive}
         from board as b
         cross join scale as s
@@ -147,6 +148,8 @@ class Cut:
     games_left: float
     weeks: np.ndarray  # indices of the season's weeks that start on or after the cut
     x: np.ndarray  # [W, P, 11] box-score totals in those weeks
+    # the board's other columns a harness reads, when the export has them (OPTIONAL)
+    columns: dict[str, np.ndarray] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -155,6 +158,10 @@ class Season:
     season: str
     weeks: list[date]
     cuts: list[Cut]
+
+
+# the board's columns a later harness reads (#757): absent from an export made before them
+OPTIONAL = ("rank_total", "market_prior_weight", "market_prior_value")
 
 
 def _col(df: pd.DataFrame, name: str, fill: float) -> np.ndarray:
@@ -193,6 +200,7 @@ def load(folder: Path) -> Season:
                 games_left=float(df["games_remaining"].fillna(0).max()),
                 weeks=np.array(mine, dtype=int),
                 x=x,
+                columns={c: df[c].astype(float).to_numpy() for c in OPTIONAL if c in df},
             )
         )
     return Season(meta["league"], meta["season"], weeks, cuts)

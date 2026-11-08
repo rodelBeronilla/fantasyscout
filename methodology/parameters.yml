@@ -332,32 +332,32 @@ parameters:
 
   # ---- roster review (web/src/lib/roster-upgrades.ts)
   - id: roster.starter_share
-    value: 0.6
+    value: {nba: 0.65, wnba: 0.8}
     kind: threshold
-    status: assumed
+    status: measured
     what: "Share of roster spots counted as starters: a player ranked inside teams x this is never dropped."
-    evidence: "none"
+    evidence: "ops.roster_backtest fit on the tuning seasons, the review replay's best on a grid of 0 to 1: NBA 2020-21 to 2022-23 (runs 42487581023, 42487583214, 42487585033), WNBA 2021 to 2023 (runs 42487587073, 42487588817, 42487590681). Judged (ADR 0024): the review with the rule was never worse than without it, every judged season"
     validation: 757
   - id: roster.bench_size
     value: 2
     kind: threshold
     status: assumed
     what: "The lowest-valued players a week's form may drop."
-    evidence: "none"
-    validation: 757
+    evidence: "not judged in #757 (ADR 0024): the week unit needs a week-by-week streaming replay (#895)"
+    validation: 895
   - id: roster.min_gain
-    value: 0.5
+    value: {nba: 0.0, wnba: 0.2}
     kind: threshold
-    status: assumed
-    what: "Value a swap must gain. Applied to week and rest-of-season values, which are in different units."
-    evidence: "none"
-    validation: 757
+    status: measured
+    what: "Rest-of-season value a swap must gain. The week unit applies it too, to week values, untested."
+    evidence: "ops.roster_backtest fit on the same tuning seasons with the share fixed, grid 0 to 5: the NBA's sits at the grid's edge. Judged (ADR 0024): the swaps beat standing pat in NBA 2023-24 and WNBA 2024 but not NBA 2024-25 or WNBA 2025, so the review failed"
+    validation: 895
   - id: roster.candidates
     value: 25
     kind: search
     status: assumed
     what: "Free agents, best first, a review considers."
-    evidence: "none"
+    evidence: "#757 (ADR 0024): the first swap is always the best free agent, so the number tried cannot change it; the later swaps were not judged"
     validation: 757
 
   # ---- buy low / sell high (web/src/lib/buy-sell.ts)
