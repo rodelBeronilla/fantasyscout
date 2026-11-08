@@ -12,6 +12,7 @@ import { useWatchlist } from '../lib/watchlist';
 import { assign, keptCategories, owners, useLeague } from '../lib/fantasy-league';
 import { fantasyPoints } from '../lib/league-value';
 import { topAdds } from '../lib/pickups-top';
+import { daysFromParam, needsFromParam, withNeeds } from '../lib/pickups-url';
 import { readRaw, storageKey, writeRaw } from '../lib/storage';
 import { type ReviewRow, teamReview, teamValues } from '../lib/team-review';
 import { hasWeekGames } from '../lib/week-value';
@@ -111,10 +112,9 @@ export default function Streamers() {
   }, [start]);
   const horizon = horizonChoice === 'week' ? weekDays : horizonChoice;
   // the lineup planner's link (#735): ?open=<days> picks the open days
-  const [pickedDays, setPickedDays] = useState<Set<string>>(
-    () => new Set((new URLSearchParams(window.location.search).get('open') ?? '').split(',').filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))),
-  );
-  const [needs, setNeeds] = useState<Set<string>>(new Set());
+  const [pickedDays, setPickedDays] = useState<Set<string>>(() => new Set(daysFromParam(new URLSearchParams(window.location.search).get('open'))));
+  // the matchup's link (#818): ?need=<categories> preselects the need chips, close and losing ones first
+  const [needs, setNeeds] = useState<Set<string>>(() => new Set(needsFromParam(new URLSearchParams(window.location.search).get('need'))));
   const [positions, setPositions] = useState<Set<PositionLetter>>(new Set());
   const [team, setTeam] = useState('');
   const [minGames, setMinGames] = useState(0);
@@ -125,8 +125,9 @@ export default function Streamers() {
   const [startersOnly, setStartersOnly] = useState(false);
   const [addingOnly, setAddingOnly] = useState(false);
   // Sorted by window value while games are scheduled (the streamer signals notebook found it the
-  // best guide to the week's pickups), else by the minutes trend; a header click overrides.
-  const [sortChoice, setSortKey] = useState<string | null>(null);
+  // best guide to the week's pickups), else by the minutes trend; a header click overrides. Needs
+  // picked from the URL sort by the fit in them, as picking them here does.
+  const [sortChoice, setSortKey] = useState<string | null>(() => (needs.size ? 'fit' : null));
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
   const [exploreOpen, setExploreOpen] = useState(() => readRaw(EXPLORE_KEY) === 'open');
@@ -382,6 +383,8 @@ export default function Streamers() {
   const toggleNeed = (c: string) => {
     const next = toggle(needs, c);
     setNeeds(next);
+    // kept in the address, so the chips survive a reload and a shared link
+    window.history.replaceState(null, '', withNeeds(window.location.href, CATEGORIES.filter((k) => next.has(k))));
     if (next.size) {
       setSortKey('fit');
       setSortDir('desc');

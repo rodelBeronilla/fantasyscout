@@ -7,6 +7,8 @@ import { CATEGORY_LABELS, CATEGORY_WORDS, fmt } from '../lib/format';
 import type { League } from '../lib/data';
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { isRatio, matchupCall, swingCategory, type WeekMatchup } from '../lib/matchup';
+import { type StreamMove, streamTargets } from '../lib/matchup-streams';
+import { pickupsPath } from '../lib/pickups-url';
 import { href } from '../lib/site';
 import { Signed, Td, Th, Unvalidated } from './ui';
 
@@ -33,6 +35,34 @@ function basisNote(basis: MatchupBasis | null): string | null {
   return 'ESPN has no score for this matchup yet, so the week projects from the games left.';
 }
 
+/** "Add Jones, drop Lee: flips steals, 2 games on your open days", with every stream one click down (#818). */
+function StreamLine({ stream, league, nameOf, pickups }: { stream: StreamMove; league: League; nameOf: (id: string) => string; pickups: string }) {
+  const player = (id: string) => (
+    <a href={href(`/p/${league}/${id}/`)} className="font-medium underline-offset-4 hover:underline">
+      {nameOf(id)}
+    </a>
+  );
+  const words = (cats: string[]) => cats.map(word).join(' and ');
+  const games = `${stream.games} ${stream.games === 1 ? 'game' : 'games'} on your open days`;
+  return (
+    <p className="mt-1 text-sm" data-testid="matchup-stream-move">
+      Add {player(stream.add)}
+      {stream.drop ? <>, drop {player(stream.drop)}</> : null}:{' '}
+      {stream.flips.length ? (
+        <strong data-testid="matchup-flips">flips {words(stream.flips)}</strong>
+      ) : (
+        <span>
+          best for {words(stream.targets.slice(0, 2))}, short of flipping {stream.targets.length === 1 ? 'it' : 'one'} alone
+        </span>
+      )}
+      , {games}.{' '}
+      <a href={pickups} className="text-accent underline underline-offset-4" data-testid="matchup-streams-link">
+        Every stream for them →
+      </a>
+    </p>
+  );
+}
+
 export function Matchup({
   setup,
   match,
@@ -40,6 +70,8 @@ export function Matchup({
   points,
   league,
   openDays,
+  stream = null,
+  nameOf = (id) => id,
   onOpponent,
 }: {
   setup: LeagueSetup;
@@ -49,6 +81,9 @@ export function Matchup({
   league: League;
   /** The days the manager's lineup has a slot open, to stream into. */
   openDays: string[];
+  /** The best stream for the close and losing categories, with its drop (#818). */
+  stream?: StreamMove | null;
+  nameOf?: (id: string) => string;
   onOpponent: (team: number | null) => void;
 }) {
   const them = setup.opponent === null ? null : (setup.names[setup.opponent] ?? `Team ${setup.opponent + 1}`);
@@ -57,6 +92,8 @@ export function Matchup({
   const swing = match && !points ? swingCategory(match) : null;
   const note = points ? null : basisNote(basis);
   const live = !!basis?.live;
+  // Pickups for the open days, with the close and losing categories as need chips (#818)
+  const pickups = href(pickupsPath(league, { week: true, open: openDays, need: match && !points ? streamTargets(match) : [] }));
   return (
     <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="matchup-h" data-testid="matchup">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -100,12 +137,13 @@ export function Matchup({
             {swing && openDays.length > 0 && (
               <>
                 {' '}
-                <a href={href(`/streamers/?league=${league}&window=week&open=${openDays.join(',')}`)} className={link} data-testid="matchup-stream">
+                <a href={pickups} className={link} data-testid="matchup-stream">
                   Stream {word(swing)} {openDays.map(dayName).join('/')} →
                 </a>
               </>
             )}
           </p>
+          {stream && openDays.length > 0 && <StreamLine stream={stream} league={league} nameOf={nameOf} pickups={pickups} />}
           <p className="mt-1 text-sm" data-testid="matchup-summary">
             {live ? 'From the score so far plus the games each lineup starts, you' : 'You'} project to{' '}
             <strong>

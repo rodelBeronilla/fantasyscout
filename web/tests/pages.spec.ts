@@ -1909,6 +1909,88 @@ test('Pickups leads with the top three adds for the league, each with why and wh
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
 });
 
+test('Pickups opens with the need chips a link names, and keeps them in the address (#818)', async ({ page }) => {
+  await page.goto('/streamers/?league=nba&window=week&need=z_steals,z_blocks,nonsense');
+  await exploreAll(page);
+  await expect(page.getByLabel('Need STL')).toBeChecked();
+  await expect(page.getByLabel('Need BLK')).toBeChecked();
+  await expect(page.getByLabel('Need AST')).not.toBeChecked();
+  await expect(page.getByRole('radio', { name: /^This week/ })).toHaveAttribute('aria-checked', 'true');
+  // the table ranks by the fit in them, as picking them on the page does
+  const table = page.getByTestId('trending');
+  await expect(table.locator('th[aria-sort="descending"]')).toContainText('Need fit');
+  const top = page.getByTestId('top-adds');
+  if (await top.count()) await expect(top.getByTestId('top-adds-context')).toContainText('Ranked by the last ten games in STL, BLK');
+  // a chip picked or dropped here goes into the address
+  await page.getByLabel('Need BLK').uncheck({ force: true });
+  await expect(page).toHaveURL(/need=z_steals$/);
+  await page.getByLabel('Need AST').check({ force: true });
+  await expect(page).toHaveURL(/need=z_assists,z_steals$/);
+  await page.reload();
+  await expect(page.getByLabel('Need AST')).toBeChecked();
+  await expect(page.getByLabel('Need BLK')).not.toBeChecked();
+});
+
+test('My Team names the stream that flips a losing category, and its links open Pickups with those needs (#818)', async ({ page }) => {
+  type Row = { player_id: string; full_name: string | null; team_abbreviation: string; position: string; rank_total: number; injury_group: string | null };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  // the fixture build's own day, so My Team's week and Pickups' window are the same days
+  const games = (await (await page.request.get('/data/builds/fixture/schedule/nba.json')).json()) as { game_date: string; days_ahead: number }[];
+  const day = games.find((g) => g.days_ahead === 0)?.game_date ?? '';
+  test.skip(!day, 'the fixture has no game on its build day');
+  await page.clock.setFixedTime(new Date(`${day}T16:00:00Z`));
+  // Pickups' last-ten category columns are the board's recent ones (the same ten games); the
+  // fixture carries Pickups' empty, so they are copied here
+  const recent = new Map(board.map((r) => [r.player_id, r as unknown as Record<string, unknown>]));
+  await page.route('**/streamers/nba.json', async (route) => {
+    const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
+    await route.fulfill({
+      json: rows.map((r) => {
+        const b = recent.get(String(r['player_id'])) ?? {};
+        return { ...r, ...Object.fromEntries(Object.keys(b).filter((k) => k.startsWith('recent_z_')).map((k) => [k.replace('recent_', 'last_10_'), b[k]])) };
+      }),
+    });
+  });
+  const label = (p: Row) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
+  const healthy = board.filter((r) => r.full_name && !r.injury_group);
+  // six players deep on the board against six of the best: most categories are lost, and the
+  // two lowest of the six may be dropped for a stream
+  const mine = (['G', 'F', 'C'] as const).flatMap((p) => healthy.filter((r) => r.position === p && r.rank_total > 120).slice(0, 2));
+  const theirs = [...healthy].sort((a, b) => a.rank_total - b.rank_total).slice(0, 6);
+  await page.goto('/league/?league=nba');
+  await page.getByLabel('Format').selectOption('h2h');
+  for (const p of mine) await page.getByLabel('Add a player to Team 1', { exact: true }).fill(label(p));
+  for (const p of theirs) await page.getByLabel('Add a player to Team 2', { exact: true }).fill(label(p));
+  await page.goto('/team/?league=nba');
+  const card = page.getByTestId('matchup');
+  await card.getByLabel("This week's opponent").selectOption({ label: 'Team 2' });
+  await expect(card.getByTestId('matchup-call')).toContainText(/losing [1-9]/);
+  // the call's link carries the close and losing categories as needs
+  const stream = card.getByTestId('matchup-stream');
+  await expect(stream).toHaveAttribute('href', new RegExp(`/streamers/\\?league=nba&window=week&open=${day}&need=z_[a-z_]+(,z_[a-z_]+)*$`));
+  // one line under the call: the add, the drop, what it flips (or that it is short), the open-day games
+  const line = card.getByTestId('matchup-stream-move');
+  await expect(line).toHaveText(/^Add .+, drop .+: (flips|best for) .+, \d+ games? on your open days\. Every stream for them →$/);
+  const dropped = (await line.locator('a').nth(1).innerText()).trim();
+  expect(mine.map((r) => r.full_name)).toContain(dropped);
+  const added = (await line.locator('a').first().innerText()).trim();
+  expect([...mine, ...theirs].map((r) => r.full_name)).not.toContain(added);
+  const href = (await card.getByTestId('matchup-streams-link').getAttribute('href')) ?? '';
+  expect(href).toBe(await stream.getAttribute('href'));
+  const needs = new URL(href, 'https://x.test').searchParams.get('need')?.split(',') ?? [];
+  expect(needs.length).toBeGreaterThan(0);
+  // the Today card's open slots link names the same needs
+  const todayLink = page.getByTestId('today-pickups');
+  if (await todayLink.count()) await expect(todayLink).toHaveAttribute('href', new RegExp(`&need=${needs.join(',')}$`));
+  // the table is one click down: Pickups opens with those chips, and leads with the same add
+  await card.getByTestId('matchup-streams-link').click();
+  await expect(page).toHaveURL(/\/streamers\/\?league=nba&window=week/);
+  await expect(page.getByTestId('top-adds').getByTestId('top-add').first().locator('a').first()).toHaveText(added);
+  await exploreAll(page);
+  const words: Record<string, string> = { z_points: 'PTS', z_rebounds_total: 'REB', z_assists: 'AST', z_steals: 'STL', z_blocks: 'BLK', z_three_pointers_made: '3PM', z_turnovers: 'TO', z_field_goal_pct: 'FG%', z_free_throw_pct: 'FT%' };
+  for (const c of needs) await expect(page.getByLabel(`Need ${words[c]}`)).toBeChecked();
+});
+
 test('the lineup setting resets with the rest, and a Pickups link with a day outside its window still lists players (#735)', async ({ page }) => {
   await page.goto('/league/?league=nba');
   await expect(page.getByRole('button', { name: 'Reset settings' })).toHaveCount(0);
