@@ -66,20 +66,6 @@ exposures:
     depends_on:
       - ref('fct_team_game')
       - ref('mart_board')
-  - name: notebook_board_backtest
-    label: "Notebook 01_board_backtest"
-    type: analysis
-    maturity: medium
-    url: https://fantasyscout.beronilla.rodeo/notebooks/
-    description: "The board, backtested: does the projected value put the right players in the top tiers and the rostered pool, season after season? Rendered after every full build from the published Parquet (notebooks/nb_board_backtest.py)."
-    owner:
-      name: FantasyScout
-    depends_on:
-      - ref('dim_player')
-      - ref('fct_player_game')
-      - ref('mart_board')
-      - ref('mart_player_projection')
-      - ref('fct_official_listing')
   - name: notebook_streamer_signals
     label: "Notebook 02_streamer_signals"
     type: analysis
@@ -91,6 +77,7 @@ exposures:
     depends_on:
       - ref('fct_official_listing')
       - ref('fct_player_game')
+      - ref('mart_category_zscores')
       - ref('mart_streamers')
       - ref('fct_player_tracking')
   - name: notebook_game_context
@@ -170,4 +157,5 @@ exposures:
       - ref('dim_player')
       - ref('fct_official_listing')
       - ref('fct_player_game')
+      - ref('mart_category_zscores')
       - ref('mart_streamers')

@@ -682,14 +682,14 @@ test('the notebooks page shows each analysis with its findings for the league', 
   const cards = page.getByTestId('notebooks').locator('section');
   await expect(cards.first()).toBeVisible();
   const notebooks = await cards.count();
-  expect(notebooks).toBeGreaterThanOrEqual(6);
+  expect(notebooks).toBeGreaterThanOrEqual(5);
   await expect(page.getByTestId('findings').or(page.getByTestId('findings-accumulating'))).toHaveCount(notebooks);
-  await expect(page.getByTestId('findings').first()).toContainText('top 30');
-  await expect(page.getByTestId('findings-n').first()).toContainText('player-checkpoints');
+  await expect(page.getByTestId('findings').first()).toContainText('last-ten production');
+  await expect(page.getByTestId('findings-n').first()).toContainText('candidate-weeks');
   await expect(page.getByRole('link', { name: /open the full notebook/i }).first()).toBeVisible();
   await page.goto('/notebooks/?league=nba');
   await expect(page.getByTestId('findings').or(page.getByTestId('findings-accumulating'))).toHaveCount(notebooks);
-  await expect(page.getByTestId('findings').nth(1)).toContainText('last-ten production');
+  await expect(page.getByTestId('findings').first()).toContainText('last-ten production');
   // the teammate-absence study: the uplift is real, the redistribution adds nothing beyond the last ten
   const absence = cards.last();
   await expect(absence).toContainText('Teammate absence');
@@ -703,7 +703,7 @@ test('the notebooks page shows the findings of past builds from the history file
       json: {
         updated_at: '2026-11-01T12:00:00+00:00',
         notebooks: {
-          '01_board_backtest': {
+          '02_streamer_signals': {
             wnba: [
               { build_id: 'b1', created_at: '2026-10-30T12:00:00+00:00', headline: 'top 30: 0.61 of the pool', facts: {} },
               { build_id: 'b2', created_at: '2026-10-31T12:00:00+00:00', headline: 'top 30: 0.64 of the pool', facts: {} },

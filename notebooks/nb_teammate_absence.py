@@ -44,7 +44,8 @@ and it targets production and usage over the following week, not only minutes.""
   minutes; usage (percentage points); fantasy points per 36 minutes (ESPN's default points:
   PTS + REB + 2 AST + 4 STL + 4 BLK + 3PM - 2 TO + 2 FGM - FGA + FTM - FTA); fantasy points per
   game; and production per game in the Streamers unit. Production is what a game adds to the
-  week's category totals, in units of each category's spread over the season's pool, as
+  week's category totals on the season's value scale (ADR 0019), read from the build's scored
+  season lines (`mart_category_zscores`), as
   `mart_streamers.last_10_production` measures it. Usage and per-36 outcomes need 10 or more
   minutes. A linear model per outcome, by role (starter: half or more of the games so far
   started; else bench) and by position, is fitted on the earlier seasons and estimated again on
@@ -72,8 +73,8 @@ and it targets production and usage over the following week, not only minutes.""
     setup(),
     (
         "code",
-        """from replay import finished, ols, value_scale
-import replay as rp
+        """from boxscore import contribution, finished, ols, value_scale
+import boxscore as bx
 
 FP = {'points': 1, 'rebounds_total': 1, 'assists': 2, 'steals': 4, 'blocks': 4, 'three_pointers_made': 1,
       'turnovers': -2, 'fgm': 2, 'fga': -1, 'ftm': 1, 'fta': -1}
@@ -81,19 +82,7 @@ GAME_MINUTES = {'nba': 48, 'wnba': 40}
 TYPICAL_USAGE = 0.2  # one of five on the floor; stands in where a game has no usage rate
 pcols = columns(con, 'fct_player_game')
 extra = [c for c in ('usage_percentage',) if c in pcols]
-cols = ', '.join((*rp.GAME_COLUMNS, *extra))
-
-
-def contribution(rows, scale):
-    \"\"\"What each game adds to a week's category totals, in units of each category's spread.\"\"\"
-    v = pd.Series(0.0, index=rows.index)
-    for c in rp.COUNTING:
-        x = rows[c].fillna(0) / scale[c]
-        v += -x if c == 'turnovers' else x
-    for name, made, att in (('fg', 'fgm', 'fga'), ('ft', 'ftm', 'fta')):
-        pct, sd = scale[name]
-        v += (rows[made].fillna(0) - pct * rows[att].fillna(0)) / sd
-    return v
+cols = ', '.join((*bx.GAME_COLUMNS, *extra))
 
 
 games, done = {}, {}
@@ -101,16 +90,17 @@ for lg in LEAGUES:
     g = con.sql(f"select {cols} from fct_player_game where league = '{lg}'").df()
     if g.empty:
         continue
-    g = rp.prepare(g)
+    g = bx.prepare(g)
     done[lg] = finished(g)
     g = g[g['regular']].copy()
     g['fp'] = sum(w * g[c].fillna(0) for c, w in FP.items())
     g['usage'] = pd.to_numeric(g['usage_percentage'], errors='coerce') if 'usage_percentage' in g else np.nan
     g['prod'] = np.nan
+    scales = value_scale(con, lg)  # the build's own scale per season (ADR 0019)
     for season, part in g.groupby('season'):
         played = part[part['played']]
-        if len(played) >= 50:
-            g.loc[played.index, 'prod'] = contribution(played, value_scale(played, lg))
+        if len(played) >= 50 and season in scales:
+            g.loc[played.index, 'prod'] = contribution(played, scales[season])
     games[lg] = g
 
 positions = {}

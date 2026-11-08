@@ -187,8 +187,8 @@ Three audiences, three doors onto the same gold tables: people who click (web ap
 
 **Notebooks** (`notebooks/`)
 
-1. `01_board_backtest` — the board replayed point in time before and during past seasons: top-N hit rate, rank correlation, error and capture against last season's numbers and the season to date, with player-bootstrap intervals, reliability, games-share calibration, in- and out-of-sample seasons, and parity with the build's projection.
-2. `02_streamer_signals` — every Monday, which Streamers signal (minutes trend, value trend, recent value, games in the next seven days, starts) finds next week's most productive free agents.
+1. `01_board_backtest` — retired (#776). It replayed the board in pandas on an older value scale; the board is now judged by the walk-forward harness (`ops/walk_forward.py`) on point-in-time builds (ADR 0018).
+2. `02_streamer_signals` — every Monday, which Streamers signal (minutes trend, value trend, recent value, games in the next seven days, starts, expected games, opportunity) finds next week's most productive free agents, on the build's value scale.
 3. `03_game_context` — rest, travel, time zones, altitude and the opponent against whether a regular plays and what they produce per minute, out of sample; the hazard of missing the next game after missing k.
 4. `04_data_quality` — a scorecard per league and season: source agreement, box closure, shot charts against the box score, lineup completeness, link rates, freshness and the dbt check history.
 5. `05_shooting` — how many attempts before shooting percentages (and shooting over expectation) are more skill than luck, first half against second half, and what a shot is worth by zone.
@@ -254,7 +254,7 @@ fantasyscout/
   dbt/               # dbt project: models/bronze|silver|gold|ops, tests/, seeds/, macros/
   export/            # gold -> Parquet/JSON -> R2, manifest, latest pointer
   ai/                # notes generator, prompts, evals/
-  notebooks/         # 01_board_backtest .. 07_teammate_absence, replay.py, fs.py
+  notebooks/         # 02_streamer_signals .. 07_teammate_absence, boxscore.py, fs.py
   web/               # Astro app
   worker/            # Cloudflare Worker + wrangler.toml
   infra/             # self-hosted runner definition (ADR 0002)

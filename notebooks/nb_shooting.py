@@ -43,15 +43,15 @@ claim; ignoring a real change in a player's shot volume is the most common way t
     setup(),
     (
         "code",
-        """import replay as rp
+        """import boxscore as bx
 
 MIN_ATT = {'fg': 100, 'fg3': 50, 'ft': 40}
-cols = ', '.join(rp.GAME_COLUMNS)
+cols = ', '.join(bx.GAME_COLUMNS)
 box = {}
 for lg in LEAGUES:
     g = con.sql(f"select {cols} from fct_player_game where league = '{lg}' and substr(game_id, 3, 1) = '2'").df()
     if len(g):
-        g = rp.prepare(g)
+        g = bx.prepare(g)
         g = g[g['played']].sort_values(['season', 'player_id', 'game_date', 'game_id'])
         g['gn'] = g.groupby(['season', 'player_id']).cumcount()
         mid = g.groupby('season')['game_date'].transform(lambda d: d.min() + (d.max() - d.min()) / 2)
