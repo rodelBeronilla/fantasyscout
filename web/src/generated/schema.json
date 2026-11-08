@@ -24430,6 +24430,7 @@
       "/draft/",
       "/league/",
       "/p/",
+      "/streamers/",
       "/team/",
       "/trade/"
      ],
@@ -27589,6 +27590,7 @@
   },
   {
    "reads": [
+    "board",
     "dim_team",
     "schedule",
     "streamers",
