@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { buildPlan, type PlanInput, type PlanModel } from './build-plan';
 import { type LeagueState, leagueStandings, meaningful } from './trade-impact';
+import { PARAMS } from '../generated/parameters';
 
 // A manager punting points: rebounds and assists are strengths, blocks the need. The scorer's
-// value is all in points, so he does nothing for this build.
-const values: Record<string, Record<string, number>> = {
+// value is all in points, so he does nothing for this build. The values are in units of the
+// standings model's spread scale, so the chances read the same whatever its fitted value.
+const unscaled: Record<string, Record<string, number>> = {
   star: { z_rebounds_total: 3, z_blocks: 0, z_assists: 3 },
   mid: { z_rebounds_total: 1, z_blocks: 0, z_assists: 1 },
   scorer: { z_points: 3, z_rebounds_total: -0.2, z_blocks: -0.2, z_assists: -0.2 },
@@ -19,6 +21,8 @@ const values: Record<string, Record<string, number>> = {
   faBlk: { z_rebounds_total: 0, z_blocks: 1, z_assists: 0 },
   faPts: { z_points: 5, z_rebounds_total: 0, z_blocks: 0, z_assists: 0 },
 };
+const scale = PARAMS['standings.spread_scale'].nba;
+const values = Object.fromEntries(Object.entries(unscaled).map(([id, v]) => [id, Object.fromEntries(Object.entries(v).map(([c, x]) => [c, x * scale]))]));
 const rest: Record<string, number> = { star: 30, mid: 10, scorer: 1, a1: 10, a2: 3.5, a3: 10, b1: 17.5, b2: 7.5, b3: 7.5, faBlk: 5, faPts: 9 };
 const positions: Record<string, string> = { star: 'C', mid: 'G', scorer: 'F', a1: 'G-F', a2: 'F', a3: 'G', b1: 'C', b2: 'G', b3: 'F', faBlk: 'F', faPts: 'F' };
 const cats = ['z_rebounds_total', 'z_blocks', 'z_assists'];

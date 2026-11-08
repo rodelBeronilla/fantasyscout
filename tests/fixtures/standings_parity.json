@@ -519,26 +519,26 @@
   "cases": [
    {
     "chances": {
-     "z_points": 0.9336291850780135,
-     "z_rebounds_total": 0.14949011279387014,
-     "z_assists": 0.6905607428494296,
-     "z_steals": 0.43817778465164153,
-     "z_blocks": 0.008995552434785928,
-     "z_three_pointers_made": 0.49720619823190626,
-     "z_turnovers": 0.19792152411060435,
-     "z_field_goal_pct": 0.7694226421096942,
-     "z_free_throw_pct": 0.34081496495853164
+     "z_points": 0.7857920460770105,
+     "z_rebounds_total": 0.22585734404374222,
+     "z_assists": 0.6604216390628462,
+     "z_steals": 0.4669390459761984,
+     "z_blocks": 0.1148549984389499,
+     "z_three_pointers_made": 0.49167992773501057,
+     "z_turnovers": 0.27322747868060215,
+     "z_field_goal_pct": 0.6489901703908006,
+     "z_free_throw_pct": 0.41793222881760644
     },
     "weights": {
-     "z_points": 0.8738684842907769,
-     "z_rebounds_total": 1.2127925772548247,
-     "z_assists": 1.464378391186677,
-     "z_steals": 0.9792085393689776,
-     "z_blocks": 0.11093146104694572,
-     "z_three_pointers_made": 1.5962315659717765,
-     "z_turnovers": 0.8114840020035284,
-     "z_field_goal_pct": 0.8378584051008287,
-     "z_free_throw_pct": 1.1132465737756658
+     "z_points": 1.355731358055808,
+     "z_rebounds_total": 1.2055372426891033,
+     "z_assists": 1.4945352092902873,
+     "z_steals": 0.6779960954264919,
+     "z_blocks": 0.5884934712570011,
+     "z_three_pointers_made": 1.253697009901456,
+     "z_turnovers": 0.9426332719524206,
+     "z_field_goal_pct": 0.6941382418080483,
+     "z_free_throw_pct": 0.7872380996193831
     },
     "totals": [
      {
@@ -594,44 +594,44 @@
     "power": [
      {
       "team": 3,
-      "expectedCats": 4.831161298487123,
-      "matchupWin": 0.5999448465745029,
+      "expectedCats": 4.877391885226558,
+      "matchupWin": 0.610491605701723,
       "rotoPoints": null
      },
      {
       "team": 1,
-      "expectedCats": 4.72082767424565,
-      "matchupWin": 0.5923052405658067,
+      "expectedCats": 4.513434560628849,
+      "matchupWin": 0.5090597702754427,
       "rotoPoints": null
      },
      {
       "team": 2,
-      "expectedCats": 4.42179232004875,
-      "matchupWin": 0.4760218286571966,
+      "expectedCats": 4.523478674921825,
+      "matchupWin": 0.5070152582864716,
       "rotoPoints": null
      },
      {
       "team": 0,
-      "expectedCats": 4.026218707218477,
-      "matchupWin": 0.3317280842024937,
+      "expectedCats": 4.085694879222767,
+      "matchupWin": 0.3734333657363627,
       "rotoPoints": null
      }
     ]
    },
    {
     "chances": {
-     "z_points": 0.6433290802459537,
-     "z_rebounds_total": 0.7286001082095404,
-     "z_assists": 0.0000017160814108629907,
-     "z_steals": 0.22781645449498572,
-     "z_blocks": 0.6881707243104889
+     "z_points": 0.638032903994067,
+     "z_rebounds_total": 0.7198652275667653,
+     "z_assists": 0.019851964021375262,
+     "z_steals": 0.3671753564412916,
+     "z_blocks": 0.5910318897330687
     },
     "weights": {
-     "z_points": 1.0362578535963973,
-     "z_rebounds_total": 1.1942158420822069,
-     "z_assists": 0.00004827482269071662,
-     "z_steals": 1.1770434371117875,
-     "z_blocks": 1.5924345923869185
+     "z_points": 1.241178057831491,
+     "z_rebounds_total": 1.0175419489653799,
+     "z_assists": 0.18778702330265945,
+     "z_steals": 1.1472513292674655,
+     "z_blocks": 1.4062416406330038
     },
     "totals": [
      {
@@ -670,44 +670,44 @@
     "power": [
      {
       "team": 0,
-      "expectedCats": 2.963972935396942,
+      "expectedCats": 2.8438725699182315,
       "matchupWin": null,
-      "rotoPoints": 10.927945870793884
+      "rotoPoints": 10.687745139836464
      },
      {
       "team": 2,
-      "expectedCats": 2.2879180833423796,
+      "expectedCats": 2.335957341756568,
       "matchupWin": null,
-      "rotoPoints": 9.57583616668476
+      "rotoPoints": 9.671914683513137
      },
      {
       "team": 1,
-      "expectedCats": 2.2481089812606783,
+      "expectedCats": 2.3201700883252,
       "matchupWin": null,
-      "rotoPoints": 9.496217962521358
+      "rotoPoints": 9.640340176650403
      }
     ]
    },
    {
     "chances": {
-     "z_points": 0.1190573897992861,
-     "z_rebounds_total": 0.29651821243025334,
-     "z_assists": 0.543471499211779,
-     "z_steals": 0.41282305199277247,
-     "z_blocks": 0.5872170063759805,
-     "z_three_pointers_made": 0.09246162624122387,
-     "z_field_goal_pct": 0.6781164033914606,
-     "z_free_throw_pct": 0.31227210357755936
+     "z_points": 0.2763631597349211,
+     "z_rebounds_total": 0.36116204586361456,
+     "z_assists": 0.5406623985419584,
+     "z_steals": 0.4549756523133682,
+     "z_blocks": 0.5702780488468644,
+     "z_three_pointers_made": 0.2536540564191896,
+     "z_field_goal_pct": 0.5921922081482922,
+     "z_free_throw_pct": 0.40321141758142465
     },
     "weights": {
-     "z_points": 1.187387442268331,
-     "z_rebounds_total": 1.530930477049953,
-     "z_assists": 1.164187242518397,
-     "z_steals": 0.8268213497277503,
-     "z_blocks": 0.8230749977698919,
-     "z_three_pointers_made": 0.7059852727617723,
-     "z_field_goal_pct": 0.8535659217475963,
-     "z_free_throw_pct": 0.9080472961563085
+     "z_points": 1.372450896502605,
+     "z_rebounds_total": 1.4418953449032,
+     "z_assists": 1.4625475755486748,
+     "z_steals": 0.5903476888392601,
+     "z_blocks": 0.8842694857016221,
+     "z_three_pointers_made": 0.9322959928830523,
+     "z_field_goal_pct": 0.6367879978529966,
+     "z_free_throw_pct": 0.6794050177685893
     },
     "totals": [
      {
@@ -748,20 +748,20 @@
     "power": [
      {
       "team": 2,
-      "expectedCats": 5.680595078457297,
-      "matchupWin": 0.9129219820646346,
-      "rotoPoints": null
-     },
-     {
-      "team": 0,
-      "expectedCats": 3.2774676285223885,
-      "matchupWin": 0.310082642160296,
+      "expectedCats": 5.1213934901454525,
+      "matchupWin": 0.7948465946494739,
       "rotoPoints": null
      },
      {
       "team": 1,
-      "expectedCats": 3.041937293020315,
-      "matchupWin": 0.2769953757750693,
+      "expectedCats": 3.452498987449633,
+      "matchupWin": 0.35928584942433334,
+      "rotoPoints": null
+     },
+     {
+      "team": 0,
+      "expectedCats": 3.4261075224049127,
+      "matchupWin": 0.3458675559261925,
       "rotoPoints": null
      }
     ]
@@ -769,37 +769,37 @@
   ],
   "models": [
    {
-    "z_points": 3.1251705408010793,
-    "z_rebounds_total": 3.015515434106305,
-    "z_assists": 2.8236189973904486,
-    "z_steals": 8.553098322192428,
-    "z_blocks": 4.852238471243782,
-    "z_three_pointers_made": 4.413618044464682,
-    "z_turnovers": 4.468445597812069,
-    "z_field_goal_pct": 7.812926352002698,
-    "z_free_throw_pct": 7.319478371876212
+    "z_points": 6.2503410816021585,
+    "z_rebounds_total": 6.03103086821261,
+    "z_assists": 5.647237994780897,
+    "z_steals": 17.106196644384855,
+    "z_blocks": 9.704476942487563,
+    "z_three_pointers_made": 8.827236088929364,
+    "z_turnovers": 8.936891195624138,
+    "z_field_goal_pct": 15.625852704005396,
+    "z_free_throw_pct": 14.638956743752424
    },
    {
-    "z_points": 1.6414458704004056,
-    "z_rebounds_total": 1.5968932906798068,
-    "z_assists": 1.6078384699510537,
-    "z_steals": 2.5855576152579123,
-    "z_blocks": 1.9516901766045105,
-    "z_three_pointers_made": 1.8247438176357795,
-    "z_turnovers": 2.0924287758053275,
-    "z_field_goal_pct": 2.7612004964902823,
-    "z_free_throw_pct": 2.874638159047943
+    "z_points": 3.98414083358234,
+    "z_rebounds_total": 3.911044966153257,
+    "z_assists": 3.928941101851513,
+    "z_steals": 5.642378286438506,
+    "z_blocks": 4.509143841331543,
+    "z_three_pointers_made": 4.291242244385651,
+    "z_turnovers": 4.754895658925937,
+    "z_field_goal_pct": 5.9659796117044115,
+    "z_free_throw_pct": 6.176583050669535
    },
    {
-    "z_points": 0.9836850937349634,
-    "z_rebounds_total": 0.9556847457887635,
-    "z_assists": 0.9071767727238704,
-    "z_steals": 2.465691863075426,
-    "z_blocks": 1.4417792038752928,
-    "z_three_pointers_made": 1.3232421157784002,
-    "z_turnovers": 1.337999411151748,
-    "z_field_goal_pct": 2.2589217057541577,
-    "z_free_throw_pct": 2.1214489045332803
+    "z_points": 2.1048860906342304,
+    "z_rebounds_total": 2.052640575778754,
+    "z_assists": 1.9626203881236912,
+    "z_steals": 4.987839758306742,
+    "z_blocks": 2.979078564071296,
+    "z_three_pointers_made": 2.7502506772799435,
+    "z_turnovers": 2.7786632931986737,
+    "z_field_goal_pct": 4.5794005165424325,
+    "z_free_throw_pct": 4.3083850591819
    }
   ]
  }

@@ -166,18 +166,18 @@ parameters:
     evidence: "none"
     validation: 755
   - id: standings.spread_scale
-    value: {nba: 1.0, wnba: 1.0}
+    value: {nba: 2.0, wnba: 2.0}
     kind: model
-    status: assumed
+    status: measured
     what: "Multiplies the games' spread of the gap between two teams, in both formats: what the measured per-game spreads miss (a projection's own error over a week, games that are not independent)."
-    evidence: "none yet; ops.standings_backtest fits it (#755)"
+    evidence: "ops.standings_backtest fit on the tuning seasons, the lowest head-to-head log loss on a grid of 0.5 to 2.0: NBA 2020-21 to 2022-23 (runs 42466140329, 42468833908, 42466144841), log loss 0.693 at 1 to 0.629; WNBA 2021 to 2023 (runs 42468836211, 42466314090, 42466316345), 0.689 to 0.640. Both sit at the grid's edge"
     validation: 755
   - id: standings.projection_spread
-    value: {nba: 0.3, wnba: 0.3}
+    value: {nba: 0.8, wnba: 0.8}
     kind: model
-    status: assumed
+    status: measured
     what: "A projection's own error per category and player, added to a rotisserie season's spread."
-    evidence: "none (ADR 0015 says so)"
+    evidence: "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565"
     validation: 755
 
   # ---- Fit weights before the standings model applies (web/src/lib/league-value.ts, matchup.ts)
