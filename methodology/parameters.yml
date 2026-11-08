@@ -177,8 +177,8 @@ parameters:
     kind: model
     status: measured
     what: "A projection's own error per category and player, added to a rotisserie season's spread."
-    evidence: "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed"
-    validation: 866
+    evidence: "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed. The rework by games left (#866, ADR 0022) found no horizon in it: refitted leaving one tuning season out, the part that falls with the games left came out 0 in all six folds, and the first game day stayed too timid (pooled slope 1.52)"
+    validation: 898
 
   # ---- playoff odds and the playoff weeks (web/src/lib/playoff-odds.ts, playoff-weeks.ts; #821)
   - id: playoffs.teams

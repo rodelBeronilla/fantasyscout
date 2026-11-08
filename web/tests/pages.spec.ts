@@ -1887,8 +1887,9 @@ test('My Team shows the chance of beating the league in each kept category, and 
   await expect(cats.locator('[data-cat="z_points"]')).toHaveCount(0);
   await expect(cats).toContainText('Punted: PTS');
   await expect(cats.getByTestId('cat-chance').first()).toContainText(/\d+%\s*(1st|2nd) of 2/);
-  // the default league is rotisserie, whose chances failed their backtest before the season (#755)
-  await expect(cats.getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/866$/);
+  // the default league is rotisserie, whose chances failed their backtest before the season (#755),
+  // and a spread by the games left did not fix it (#866): the badge links the next rework
+  await expect(cats.getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/898$/);
   await expect(page.getByTestId('roster-table').locator('tbody tr')).toHaveCount(3);
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(results.violations).toEqual([]);
