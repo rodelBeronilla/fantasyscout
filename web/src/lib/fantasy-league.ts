@@ -12,6 +12,7 @@ import { CATEGORIES } from './format';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
+import { PARAMS } from '../generated/parameters';
 
 export type Scoring = 'cats9' | 'cats8' | 'points';
 /** Rotisserie ranks season totals against every team; head-to-head plays one opponent a week. */
@@ -57,7 +58,18 @@ export interface LeagueSettings {
   punts: string[];
   /** The starting lineup's slots (#735): what the weekly planner fills each day. */
   lineup: Slots;
+  /** The playoffs (#821): the teams that make them and the fantasy weeks they take, the schedule's last. */
+  playoffs: Playoffs;
 }
+
+/** A head-to-head league's playoffs: how many teams make them, over how many of the last weeks. */
+interface Playoffs {
+  teams: number;
+  weeks: number;
+}
+
+/** The most fantasy weeks a playoff can take here. */
+export const MAX_PLAYOFF_WEEKS = 6;
 
 interface Pick {
   team: number;
@@ -87,6 +99,12 @@ export interface LeagueSource {
   scores?: (ScoreSoFar | null)[];
   /** Each team's record and place at `syncedAt`, by index; null where ESPN gave none (#822). */
   records?: (TeamRecord | null)[];
+  /** ESPN's playoff matchup periods and their first and last days at `syncedAt` (#821). */
+  playoffWeeks?: { periods: [number, number]; from: string; to: string };
+  /** The regular season's matchups from this week on, in ESPN's schedule: each week's pairs of team indexes (#821). */
+  fixtures?: [number, number][][];
+  /** How ESPN's records count a matchup: each category, or one result a week (#821). */
+  tally?: 'categories' | 'matchups';
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -108,8 +126,26 @@ export interface LeagueSetup extends LeagueSettings {
 /** The league the published values assume (dbt var `fantasy`). */
 export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
   // Yahoo's standard NBA lineup (PG, SG, G, SF, PF, F, C, C, Util, Util) folded into G, F, C and Util
-  nba: { teams: 12, rosterSpots: 13, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [], lineup: { G: 3, F: 3, C: 2, UTIL: 2 } },
-  wnba: { teams: 10, rosterSpots: 10, scoring: 'cats9', weights: POINT_PRESETS['espn']!.weights, format: 'roto', punts: [], lineup: { G: 2, F: 2, C: 1, UTIL: 2 } },
+  nba: {
+    teams: 12,
+    rosterSpots: 13,
+    scoring: 'cats9',
+    weights: POINT_PRESETS['espn']!.weights,
+    format: 'roto',
+    punts: [],
+    lineup: { G: 3, F: 3, C: 2, UTIL: 2 },
+    playoffs: { teams: PARAMS['playoffs.teams'].nba, weeks: PARAMS['playoffs.weeks'].nba },
+  },
+  wnba: {
+    teams: 10,
+    rosterSpots: 10,
+    scoring: 'cats9',
+    weights: POINT_PRESETS['espn']!.weights,
+    format: 'roto',
+    punts: [],
+    lineup: { G: 2, F: 2, C: 1, UTIL: 2 },
+    playoffs: { teams: PARAMS['playoffs.teams'].wnba, weeks: PARAMS['playoffs.weeks'].wnba },
+  },
 };
 
 /**
@@ -175,12 +211,27 @@ const cleanRecord = (raw: unknown): TeamRecord | null => {
   return { wins: r.wins!, losses: r.losses!, ties: r.ties!, seed: typeof r.seed === 'number' && count(r.seed) && r.seed > 0 ? r.seed : null };
 };
 
+const isDay = (x: unknown): x is string => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x);
+const isPeriod = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x) && x > 0;
+/** Stored playoff weeks, or undefined when they are missing or malformed. */
+const cleanPlayoffWeeks = (raw: unknown): LeagueSource['playoffWeeks'] => {
+  const p = raw as { periods?: unknown[]; from?: unknown; to?: unknown } | null;
+  if (!p || !Array.isArray(p.periods) || p.periods.length !== 2 || !p.periods.every(isPeriod) || !isDay(p.from) || !isDay(p.to)) return undefined;
+  return { periods: [p.periods[0] as number, p.periods[1] as number], from: p.from, to: p.to };
+};
+const isPair = (x: unknown): x is [number, number] => Array.isArray(x) && x.length === 2 && x.every((t) => typeof t === 'number' && isTeamIndex(t));
+/** Stored fixtures, or undefined when any week is malformed. */
+const cleanFixtures = (raw: unknown): [number, number][][] | undefined =>
+  Array.isArray(raw) && raw.every((w) => Array.isArray(w) && w.every(isPair)) ? (raw as [number, number][][]) : undefined;
+
 /** A stored source as this build reads it, or undefined when it is missing or malformed. */
 function cleanSource(raw: unknown): LeagueSource | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const s = raw as Partial<LeagueSource>;
   if ((s.host !== 'espn' && s.host !== 'yahoo') || typeof s.leagueId !== 'string' || typeof s.syncedAt !== 'number') return undefined;
   if (!Array.isArray(s.rosters) || !s.rosters.every(isIds)) return undefined;
+  const playoffWeeks = cleanPlayoffWeeks(s.playoffWeeks);
+  const fixtures = cleanFixtures(s.fixtures);
   return {
     host: s.host,
     leagueId: s.leagueId,
@@ -192,7 +243,19 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     ...(Array.isArray(s.opponents) ? { opponents: s.opponents.map((o) => (isTeamIndex(o) ? o : null)) } : {}),
     ...(Array.isArray(s.scores) ? { scores: s.scores.map(cleanScore) } : {}),
     ...(Array.isArray(s.records) ? { records: s.records.map(cleanRecord) } : {}),
+    ...(playoffWeeks ? { playoffWeeks } : {}),
+    ...(fixtures ? { fixtures } : {}),
+    ...(s.tally === 'categories' || s.tally === 'matchups' ? { tally: s.tally } : {}),
   };
+}
+
+const whole = (x: unknown, fallback: number, low: number, high: number) =>
+  Math.min(high, Math.max(low, typeof x === 'number' && Number.isFinite(x) ? Math.round(x) : fallback));
+
+/** The playoffs, from two teams to the whole league and from one week to the most this page plans. */
+function normalizePlayoffs(raw: Partial<Playoffs> | undefined, fallback: Playoffs, teams: number): Playoffs {
+  const most = Math.max(2, teams); // def: a playoff needs two teams
+  return { teams: whole(raw?.teams, Math.min(fallback.teams, most), 2, most), weeks: whole(raw?.weeks, fallback.weeks, 1, MAX_PLAYOFF_WEEKS) }; // def: two teams
 }
 
 /** Sizes the teams, rosters and draft log to the number of teams, keeping what fits. */
@@ -218,6 +281,7 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
     // known categories only, once each, in the board's order
     punts: CATEGORIES.filter((c) => (Array.isArray(raw.punts) ? raw.punts : fallback.punts).includes(c)),
     lineup: normalizeSlots(raw.lineup, fallback.lineup),
+    playoffs: normalizePlayoffs(raw.playoffs, fallback.playoffs, teams),
     names,
     rosters,
     mine,
@@ -282,8 +346,9 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
  * 5: the focus categories (`focus`).
  * 6: focus categories withdrawn (#706); the field is dropped.
  * 7: where the league was imported from (`source`, #815), which an older copy does not know.
+ * 8: the playoffs (`playoffs`: the teams that make them and the weeks they take, #821).
  */
-export const SETUP_VERSION = 7;
+export const SETUP_VERSION = 8;
 
 interface StoredSetup extends LeagueSetup {
   version: number;
@@ -334,6 +399,10 @@ export function migrate(raw: unknown, fallback: LeagueSettings, legacy: LegacySt
     const rest: Record<string, unknown> = { ...value };
     delete rest['source'];
     value = rest as typeof value;
+  }
+  if (version <= 7) {
+    // 7 -> 8: no copy had playoffs; they take the league's default (no more teams than it holds).
+    value = { ...value, playoffs: fallback.playoffs };
   }
   const setup = normalize(value, fallback);
   if (legacy.marks?.length) {

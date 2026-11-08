@@ -2097,6 +2097,59 @@ test("My Team says who takes an out player's minutes, and pairs the IL move with
   await expect(page.getByTestId('il-candidates')).toHaveCount(0);
 });
 
+test("My Team leads a head-to-head league with its playoff odds, its games in the playoff weeks and the free agent to target (#821)", async ({ page }) => {
+  type Row = { player_id: string; team_id: string | null };
+  type TeamWeek = { team_id: string; week_start: string; week_end: string; games: number; game_dates: string | null };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const weeks = (await (await page.request.get('/data/builds/fixture/team_weeks/nba.json')).json()) as TeamWeek[];
+  await page.clock.setFixedTime(new Date('2026-11-02T16:00:00Z'));
+  // a copy from before the playoffs were kept (version 7): four teams of three, entered by hand
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const copy = { version: 7, teams: 4, rosterSpots: 6, scoring: 'cats9', format: 'h2h', punts: [], names: ['Mine', 'Second', 'Third', 'Fourth'], rosters, mine: 0, il: [], drafting: false, picks: [], opponent: 1 };
+  await page.addInitScript((stored) => {
+    if (sessionStorage.getItem('seeded')) return;
+    localStorage.setItem('fantasyscout:league:nba', stored);
+    sessionStorage.setItem('seeded', '1');
+  }, JSON.stringify(copy));
+  // the League page sets two of the four in the playoffs; the weeks stay the default three
+  await page.goto('/league/?league=nba');
+  await expect(page.getByLabel('Fantasy weeks the playoffs take')).toHaveValue('3');
+  await page.getByLabel('Teams that make the playoffs').fill('2');
+  // the playoff weeks: the schedule's last three; the roster's games are its players' teams' games in them
+  const spans = [...new Set(weeks.filter((w) => w.games > 0).map((w) => `${w.week_start}|${w.week_end}`))].sort().slice(-3);
+  const from = spans[0]!.split('|')[0]!;
+  const to = spans[2]!.split('|')[1]!;
+  const teamGames = (team: string | null) =>
+    weeks.filter((w) => w.team_id === team).reduce((s, w) => s + (w.game_dates ?? '').split(',').filter((d) => d >= from && d <= to).length, 0);
+  const mine = rosters[0]!.reduce((s, id) => s + teamGames(board.find((r) => r.player_id === id)!.team_id), 0);
+  const day = (iso: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));
+
+  await page.goto('/team/?league=nba');
+  const tile = page.getByTestId('playoffs');
+  const line = tile.getByTestId('playoff-line');
+  await expect(line).toHaveText(
+    new RegExp(`^(\\d+%|under 1%|over 99%) to make it; ${mine} games in the playoff weeks \\(${day(from)} to ${day(to)}\\), \\d(st|nd|rd|th) of 4: target .+ \\(\\d+ games\\)$`),
+  );
+  // the odds are the standings model's, so they carry its badge
+  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/755$/);
+  // the target is a free agent, linked to his page
+  await expect(line.getByTestId('playoff-target')).toHaveAttribute('href', /\/p\/nba\/\d+\/$/);
+  // every team's odds and the next targets are one click down; two spots of four, so the odds sum to 200%
+  const details = tile.getByTestId('playoff-details');
+  await expect(details.getByTestId('playoff-table')).toBeHidden();
+  await details.locator('summary').click();
+  const rows = details.getByTestId('playoff-row');
+  await expect(rows).toHaveCount(4);
+  const odds = (await rows.locator('td:nth-child(2)').allInnerTexts()).map((s) => (s.startsWith('under') ? 0 : s.startsWith('over') ? 100 : Number(s.replace('%', ''))));
+  expect(odds.reduce((s, p) => s + p, 0)).toBeGreaterThanOrEqual(198);
+  expect(odds.reduce((s, p) => s + p, 0)).toBeLessThanOrEqual(202);
+  await expect(details.getByTestId('playoff-basis')).toContainText('The top 2 of 4 make the playoffs');
+  await expect(details.getByTestId('playoff-target-row')).toHaveCount(3);  // the same odds on a reload: the seasons are drawn from a fixed seed
+  const first = await line.innerText();
+  await page.reload();
+  await expect(line).toHaveText(first);
+});
+
 test('My Team suggests IL moves from the board availability and applies them', async ({ page }) => {
   const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
     full_name: string | null;

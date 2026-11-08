@@ -21,6 +21,7 @@ import { pickupsPath } from '../lib/pickups-url';
 import { href } from '../lib/site';
 import { type TodayGame, todayGroups, type TodaySlot, type TodayVerdict } from '../lib/today';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
+import { PlayoffSettings } from './PlayoffSettings';
 import { Chip, InjuryTag, injuryDetail, type InjuryFields, LineupTag, Segmented, Signed, Unvalidated } from './ui';
 
 const SCORING_LABEL: Record<Scoring, string> = { cats9: '9-cat', cats8: '8-cat (no TO)', points: 'Points' };
@@ -48,8 +49,9 @@ export function LeagueSettingsForm({
 }) {
   const d = DEFAULT_SETTINGS[league];
   const isDefault = isDefaultSettings(setup, d);
-  // the lineup does not change values (so not part of isDefaultSettings), but Reset puts it back too
-  const lineupDefault = SLOT_KEYS.every((k) => setup.lineup[k] === d.lineup[k]);
+  // the lineup and the playoffs do not change values (so not part of isDefaultSettings), but Reset puts them back too
+  const lineupDefault =
+    SLOT_KEYS.every((k) => setup.lineup[k] === d.lineup[k]) && setup.playoffs.teams === d.playoffs.teams && setup.playoffs.weeks === d.playoffs.weeks;
   return (
     <div className="grid gap-3 text-sm" data-testid="league-settings">
       <div className="flex flex-wrap items-end gap-3">
@@ -118,7 +120,7 @@ export function LeagueSettingsForm({
         {(!isDefault || !lineupDefault) && (
           <button
             type="button"
-            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts, lineup: d.lineup }))}
+            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts, lineup: d.lineup, playoffs: d.playoffs }))}
             className="rounded border border-line px-2 py-1 text-xs hover:bg-bg"
           >
             Reset settings
@@ -147,6 +149,7 @@ export function LeagueSettingsForm({
           </label>
         ))}
       </fieldset>
+      {setup.format === 'h2h' && <PlayoffSettings setup={setup} onChange={onChange} />}
       {setup.scoring !== 'points' && (
         <fieldset className="grid gap-2" data-testid="league-punts">
           <legend className="text-xs text-muted">

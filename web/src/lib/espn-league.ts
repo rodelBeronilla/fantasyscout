@@ -67,6 +67,17 @@ export interface ImportedLeague {
   opponents: Map<number, number>;
   /** This week's score so far in a category league, by ESPN team id; empty without one (#817). */
   scores: Map<number, ScoreSoFar>;
+  /**
+   * The playoffs as ESPN sets them (#821): the teams that make them, their first and last matchup
+   * periods, and those periods' first and last days (scoring periods) when the league lists them.
+   */
+  playoffs: { teams: number; periods: [number, number]; days: [number, number] | null } | null;
+  /** Today's scoring period (day of the season), for turning ESPN's days into dates. */
+  today: number | null;
+  /** The regular season's matchups from this week's period on, by ESPN team id (#821). */
+  fixtures: { period: number; home: number; away: number }[];
+  /** How the records count a matchup: each category won or lost, or one result a week. */
+  tally: 'categories' | 'matchups';
 }
 
 /** One side of a matchup: in a category league, its totals so far, stat by stat. */
@@ -81,8 +92,16 @@ interface EspnLeague {
     size?: number;
     rosterSettings?: { lineupSlotCounts?: Record<string, number> };
     scoringSettings?: { scoringType?: string; scoringItems?: { statId: number; points?: number }[] };
-    /** Each matchup period's scoring periods (days). */
-    scheduleSettings?: { matchupPeriods?: Record<string, number[]> };
+    /**
+     * Each matchup period's scoring periods (days); the regular season's periods; the teams that
+     * make the playoffs and the matchup periods each round takes.
+     */
+    scheduleSettings?: {
+      matchupPeriods?: Record<string, number[]>;
+      matchupPeriodCount?: number;
+      playoffTeamCount?: number;
+      playoffMatchupPeriodLength?: number;
+    };
   };
   status?: { currentMatchupPeriod?: number };
   /** Today's scoring period (day of the season). */
@@ -135,7 +154,47 @@ export function fromEspnLeague(json: unknown): ImportedLeague {
     teams,
     opponents: weekOpponents(data),
     scores: points ? new Map() : weekScores(data),
+    playoffs: playoffsOf(data, data.settings.size ?? teams.length),
+    today: typeof data.scoringPeriodId === 'number' ? data.scoringPeriodId : null,
+    fixtures: fixturesLeft(data),
+    // a most-categories or points league counts one result a week; an each-category league every category
+    tally: type.includes('MOST') || type.includes('POINTS') ? 'matchups' : 'categories',
   };
+}
+
+const whole = (x: unknown): number | null => (typeof x === 'number' && Number.isInteger(x) && x > 0 ? x : null);
+
+/**
+ * The playoffs from ESPN's schedule settings: after the regular season's periods, one round per
+ * halving of the field (six teams take three, the top two on a bye), each round as many periods as
+ * the league sets. Their days come from the periods' scoring periods. Null when ESPN says neither
+ * the regular season's length nor the playoff field.
+ */
+function playoffsOf(data: EspnLeague, size: number): ImportedLeague['playoffs'] {
+  const s = data.settings?.scheduleSettings;
+  const regular = whole(s?.matchupPeriodCount);
+  const teams = whole(s?.playoffTeamCount);
+  if (!regular || !teams || teams < 2 || teams > Math.max(size, 2)) return null; // def: a playoff needs two teams
+  const rounds = Math.ceil(Math.log2(teams));
+  const periods: [number, number] = [regular + 1, regular + rounds * (whole(s?.playoffMatchupPeriodLength) ?? 1)];
+  const days = Array.from({ length: periods[1] - periods[0] + 1 }, (_, i) => s?.matchupPeriods?.[String(periods[0] + i)]).flatMap((d) =>
+    Array.isArray(d) ? d.filter((x): x is number => typeof x === 'number') : [],
+  );
+  return { teams, periods, days: days.length ? [Math.min(...days), Math.max(...days)] : null };
+}
+
+/** The regular season's matchups from the current period to its last, by ESPN team id. */
+function fixturesLeft(data: EspnLeague): ImportedLeague['fixtures'] {
+  const current = currentPeriod(data);
+  const regular = whole(data.settings?.scheduleSettings?.matchupPeriodCount);
+  if (current === null || !regular) return [];
+  return (data.schedule ?? []).flatMap((m) => {
+    const period = m.matchupPeriodId;
+    const home = m.home?.teamId;
+    const away = m.away?.teamId;
+    if (typeof period !== 'number' || period < current || period > regular || typeof home !== 'number' || typeof away !== 'number') return [];
+    return [{ period, home, away }];
+  });
 }
 
 /**

@@ -47,7 +47,7 @@
    ]
   },
   {
-   "about": "Every claim comes from a known source: an ESPN headline, an ESPN injury note, an outlet's feed by its id (rss:<feed_id>, ingest/rss_feeds.toml) or a YouTube channel by its id (youtube:<channel>, ingest/youtube_channels.toml). The walk-forward harness scores each source's track record, so a source it cannot name would be scored as a source of its own.",
+   "about": "Every claim comes from a known source: an ESPN headline, an ESPN injury note, or an outlet's feed by its id (rss:<feed_id>, ingest/rss_feeds.toml). The walk-forward harness scores each source's track record, so a source it cannot name would be scored as a source of its own.",
    "name": "assert_claim_sources_known",
    "reads": [
     "player_claims"
@@ -395,7 +395,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 463,
+ "generic_tests": 438,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -600,18 +600,6 @@
    "read_by": [
     "stats_shotchartdetail"
    ]
-  },
-  {
-   "path": "youtube/transcripts",
-   "read_by": [
-    "youtube_transcript_chunks"
-   ]
-  },
-  {
-   "path": "youtube/videos",
-   "read_by": [
-    "youtube_video_items"
-   ]
   }
  ],
  "layers": [
@@ -684,14 +672,14 @@
        "type": "varchar"
       },
       {
-       "description": "espn_news, espn_injury_note, rss:<feed_id> or youtube:<channel>",
+       "description": "espn_news, espn_injury_note or rss:<feed_id>",
        "meta": {},
        "name": "source",
        "tests": [],
        "type": "varchar"
       },
       {
-       "description": "The ESPN article id, the injury listing id and a hash of the note's text, the feed item's id, or a YouTube item's: the video id, or <video_id>-t<seconds> for a transcript chunk",
+       "description": "The ESPN article id, the injury listing id and a hash of the note's text, or the feed item's id",
        "meta": {},
        "name": "source_id",
        "tests": [],
@@ -9160,261 +9148,6 @@
      "read_by_pages": [],
      "reads": [],
      "unit_tests": []
-    },
-    {
-     "checks": [],
-     "columns": [
-      {
-       "description": "Path of the landed payload this row was parsed from",
-       "meta": {},
-       "name": "_source_file",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "wnba or nba, from the landing path",
-       "meta": {},
-       "name": "league",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Season label, from the landing path",
-       "meta": {},
-       "name": "season",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Ingest date of the landed payload",
-       "meta": {},
-       "name": "_ingest_date",
-       "tests": [],
-       "type": "date"
-      },
-      {
-       "description": "The channel and the video (channel.video_id)",
-       "meta": {},
-       "name": "request_key",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's id in ingest/youtube_channels.toml",
-       "meta": {},
-       "name": "channel",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's name",
-       "meta": {},
-       "name": "channel_name",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "YouTube's video id",
-       "meta": {},
-       "name": "video_id",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The video's title when its transcript was fetched",
-       "meta": {},
-       "name": "video_title",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "When the channel published the video (UTC)",
-       "meta": {},
-       "name": "video_published_at",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The captions' language code (en, en-US, ...)",
-       "meta": {},
-       "name": "caption_language",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "uploader (the channel's own captions) or automatic (YouTube's speech recognition)",
-       "meta": {},
-       "name": "caption_kind",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "When the captions were fetched (UTC)",
-       "meta": {},
-       "name": "fetched_at",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Whole seconds into the video the chunk's first line starts",
-       "meta": {},
-       "name": "chunk_start",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Seconds into the video the chunk's last line ends",
-       "meta": {},
-       "name": "chunk_end",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The chunk's words: its timed lines joined in order",
-       "meta": {},
-       "name": "chunk_text",
-       "tests": [],
-       "type": "varchar"
-      }
-     ],
-     "description": "The caption transcripts of the channels' new videos, fetched from the home runner only (ingest/youtube.py): one row per half-minute chunk per landed transcript, as the ingest chunks the timed lines it lands. Private: never published or shown; only the claims derived from them are used. Values as text.",
-     "exported_as": [],
-     "grain": null,
-     "landing": [
-      "youtube/transcripts"
-     ],
-     "materialized": "incremental",
-     "name": "youtube_transcript_chunks",
-     "notes": [
-      "The caption transcripts of the YouTube channels' new videos (ingest/youtube.py), fetched from the home runner only: one row per half-minute chunk per landed transcript, a transcript being one video. The ingest chunks the timed lines it lands (chunk_lines), so the lakehouse and the claims extractor read the same chunks. Private: never published, never shown. Values stay text until silver."
-     ],
-     "read_by": [
-      "youtube_transcripts"
-     ],
-     "read_by_pages": [],
-     "reads": [],
-     "unit_tests": []
-    },
-    {
-     "checks": [],
-     "columns": [
-      {
-       "description": "Path of the landed payload this row was parsed from",
-       "meta": {},
-       "name": "_source_file",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "wnba or nba, from the landing path",
-       "meta": {},
-       "name": "league",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Season label, from the landing path",
-       "meta": {},
-       "name": "season",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Ingest date of the landed payload",
-       "meta": {},
-       "name": "_ingest_date",
-       "tests": [],
-       "type": "date"
-      },
-      {
-       "description": "The channel's id in ingest/youtube_channels.toml",
-       "meta": {},
-       "name": "request_key",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's id in ingest/youtube_channels.toml (youtube:<channel> is the claims' source)",
-       "meta": {},
-       "name": "channel",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's name, credited on the Sources page",
-       "meta": {},
-       "name": "channel_name",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "YouTube's channel id (UC and 22 characters)",
-       "meta": {},
-       "name": "channel_id",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "When the feed was read (UTC)",
-       "meta": {},
-       "name": "fetched_at",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "YouTube's video id",
-       "meta": {},
-       "name": "video_id",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The video's title",
-       "meta": {},
-       "name": "title",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The opening of the video's description, at most 2,000 characters; null when it has none",
-       "meta": {},
-       "name": "description",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The video's watch address",
-       "meta": {},
-       "name": "link",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "When the channel published the video (UTC)",
-       "meta": {},
-       "name": "published_at",
-       "tests": [],
-       "type": "varchar"
-      }
-     ],
-     "description": "The YouTube channels' video feeds (ingest/youtube.py, ingest/youtube_channels.toml): one row per video per landed payload, a payload being one channel's feed on a day its videos changed. Title, description and publish time; no view counts. Values as text.",
-     "exported_as": [],
-     "grain": null,
-     "landing": [
-      "youtube/videos"
-     ],
-     "materialized": "incremental",
-     "name": "youtube_video_items",
-     "notes": [
-      "The YouTube channels' video feeds (ingest/youtube.py): one row per video per landed payload, a payload being one channel's feed on the day its videos changed. The title, the description (at most 2,000 characters) and the publish time; no view counts. Values stay text until silver. Read on the owner's decision in ADR 0008's addendum of 2026-11-08."
-     ],
-     "read_by": [
-      "feed_freshness",
-      "youtube_videos"
-     ],
-     "read_by_pages": [],
-     "reads": [],
-     "unit_tests": []
     }
    ],
    "name": "bronze"
@@ -11651,7 +11384,7 @@
        "type": "varchar"
       },
       {
-       "description": "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note), rss:<feed_id> (an outlet's feed item, by its id in ingest/rss_feeds.toml) or youtube:<channel> (a YouTube channel's video or transcript chunk, by its id in ingest/youtube_channels.toml); tests/assert_claim_sources_known.sql holds it to those",
+       "description": "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note) or rss:<feed_id> (an outlet's feed item, by its id in ingest/rss_feeds.toml); tests/assert_claim_sources_known.sql holds it to those",
        "meta": {},
        "name": "source",
        "tests": [
@@ -11660,7 +11393,7 @@
        "type": "varchar"
       },
       {
-       "description": "The ESPN article id, the injury listing id and a hash of the note's text, the feed item's id (silver.rss_feed_items), or a YouTube item's: the video id, or <video_id>-t<seconds> for a transcript chunk (gold.fct_player_youtube_item)",
+       "description": "The ESPN article id, the injury listing id and a hash of the note's text, or the feed item's id (silver.rss_feed_items)",
        "meta": {},
        "name": "source_id",
        "tests": [
@@ -16397,319 +16130,6 @@
       "sleeper_trending"
      ],
      "unit_tests": []
-    },
-    {
-     "checks": [],
-     "columns": [
-      {
-       "description": "League, video id and the chunk's start",
-       "meta": {},
-       "name": "youtube_chunk_key",
-       "tests": [
-        "not_null",
-        "unique"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The video id and the chunk's start in whole seconds (<video_id>-t<seconds>), the claims' source_id",
-       "meta": {},
-       "name": "chunk_id",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The league the channel covers: wnba or nba",
-       "meta": {},
-       "name": "league",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Season label of the video's newest landing",
-       "meta": {},
-       "name": "season",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's id in ingest/youtube_channels.toml",
-       "meta": {},
-       "name": "channel",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's name",
-       "meta": {},
-       "name": "channel_name",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "YouTube's video id",
-       "meta": {},
-       "name": "video_id",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The video's title",
-       "meta": {},
-       "name": "title",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Whole seconds into the video the chunk's first line starts",
-       "meta": {},
-       "name": "start_seconds",
-       "tests": [
-        "not_null"
-       ],
-       "type": "integer"
-      },
-      {
-       "description": "Seconds into the video the chunk's last line ends",
-       "meta": {},
-       "name": "end_seconds",
-       "tests": [],
-       "type": "double"
-      },
-      {
-       "description": "The chunk's words, its lines joined in order",
-       "meta": {},
-       "name": "text",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The captions' language code",
-       "meta": {},
-       "name": "caption_language",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "uploader (the channel's own captions) or automatic (YouTube's speech recognition)",
-       "meta": {},
-       "name": "caption_kind",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The video's watch address at the chunk's start",
-       "meta": {},
-       "name": "link",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "When the channel published the video (UTC)",
-       "meta": {
-        "tz": "UTC"
-       },
-       "name": "published_at",
-       "tests": [],
-       "type": "timestamp with time zone"
-      },
-      {
-       "description": "When a landed feed first carried the video (UTC)",
-       "meta": {
-        "tz": "UTC"
-       },
-       "name": "first_seen_at",
-       "tests": [],
-       "type": "timestamp with time zone"
-      },
-      {
-       "description": "When the captions were fetched (UTC)",
-       "meta": {
-        "tz": "UTC"
-       },
-       "name": "fetched_at",
-       "tests": [],
-       "type": "timestamp with time zone"
-      },
-      {
-       "description": "The video's published_date (silver.youtube_videos); a point-in-time build keeps the chunks of videos before its date",
-       "meta": {},
-       "name": "published_date",
-       "tests": [
-        "not_null"
-       ],
-       "type": "date"
-      }
-     ],
-     "description": "The channels' video transcripts in chunks, one row per video and half minute (the ingest's chunk_lines), from the newest landing of each video's captions: the items the claims extractor reads, each with its start in the video. Dated by the video's publish day. Private: never published or shown, and never exported.",
-     "exported_as": [],
-     "grain": null,
-     "landing": [],
-     "materialized": "table",
-     "name": "youtube_transcripts",
-     "notes": [
-      "The channels' video transcripts in chunks, one row per video and chunk, from the newest landing of each video's captions. A chunk is half a minute of the video's timed lines, joined in order by the ingest (ingest/youtube.py, chunk_lines), and is what the claims extractor reads as one item, so a quote stays a few words of a short span, with its start in the video. Private: never published or shown; gold.fct_player_youtube_item takes from it only which players each chunk names, and the extractor reads the words from the landed file itself, on the home runner.",
-      "A chunk is dated by its video (silver.youtube_videos): the day the channel published it, never later than the feed first carried it, however much later the captions were fetched. A transcript of a video no feed landed has no row."
-     ],
-     "read_by": [
-      "fct_player_youtube_item"
-     ],
-     "read_by_pages": [],
-     "reads": [
-      "youtube_transcript_chunks",
-      "youtube_videos"
-     ],
-     "unit_tests": [
-      {
-       "description": "The newest landing of a video's captions wins, one row per chunk, each linking to the moment it starts and dated by its video, however much later the captions were fetched. An empty chunk is dropped, and a transcript of a video no feed landed has no row.",
-       "name": "youtube_transcripts_are_the_newest_captions_chunks_dated_by_their_video"
-      }
-     ]
-    },
-    {
-     "checks": [],
-     "columns": [
-      {
-       "description": "League and video id",
-       "meta": {},
-       "name": "youtube_video_key",
-       "tests": [
-        "not_null",
-        "unique"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The league the channel covers: wnba or nba",
-       "meta": {},
-       "name": "league",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Season label of the newest landing",
-       "meta": {},
-       "name": "season",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's id in ingest/youtube_channels.toml",
-       "meta": {},
-       "name": "channel",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's name, credited on the Sources page",
-       "meta": {},
-       "name": "channel_name",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "YouTube's channel id",
-       "meta": {},
-       "name": "channel_id",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "YouTube's video id",
-       "meta": {},
-       "name": "video_id",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The video's title, from the newest landing",
-       "meta": {},
-       "name": "title",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The opening of the video's description, at most 2,000 characters",
-       "meta": {},
-       "name": "description",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The video's watch address",
-       "meta": {},
-       "name": "link",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "When the channel published the video (UTC)",
-       "meta": {
-        "tz": "UTC"
-       },
-       "name": "published_at",
-       "tests": [],
-       "type": "timestamp with time zone"
-      },
-      {
-       "description": "When a landed feed first carried the video (UTC)",
-       "meta": {
-        "tz": "UTC"
-       },
-       "name": "first_seen_at",
-       "tests": [],
-       "type": "timestamp with time zone"
-      },
-      {
-       "description": "The Eastern day the video was published, or first seen when that is earlier; a point-in-time build keeps the videos before its date",
-       "meta": {},
-       "name": "published_date",
-       "tests": [
-        "not_null"
-       ],
-       "type": "date"
-      }
-     ],
-     "description": "The YouTube channels' videos (ingest/youtube_channels.toml), one row per video, with the newest title and description, when a feed first carried it, and the day it was published, never later than the day it was first seen.",
-     "exported_as": [],
-     "grain": null,
-     "landing": [],
-     "materialized": "table",
-     "name": "youtube_videos",
-     "notes": [
-      "The YouTube channels' videos, one row per video: the newest landing's title and description (channels edit them), the first time a feed carried it, and the day it was published.",
-      "published_date is the Eastern day of the channel's publish time, but never later than the day the feed first carried it: a video dated in the future, or not dated, is dated by when it was read. A point-in-time build keeps the videos published before its date."
-     ],
-     "read_by": [
-      "fct_player_youtube_item",
-      "youtube_transcripts"
-     ],
-     "read_by_pages": [],
-     "reads": [
-      "youtube_video_items"
-     ],
-     "unit_tests": [
-      {
-       "description": "A video in two days' feeds is one row with the newest title, first seen on the first day. A video dated in the future is dated by when the feed first carried it, and an untitled one is dropped.",
-       "name": "youtube_videos_are_one_row_per_video_dated_by_the_earlier_of_published_and_first_seen"
-      },
-      {
-       "description": "",
-       "name": "youtube_videos_point_in_time_keeps_the_videos_published_before_its_date"
-      }
-     ]
     }
    ],
    "name": "silver"
@@ -17203,10 +16623,8 @@
       "fct_player_salary",
       "fct_player_status",
       "fct_player_tracking",
-      "fct_player_youtube_item",
       "fct_waiver_trend",
       "mart_board",
-      "mart_minutes_redistribution",
       "mart_streamers"
      ],
      "read_by_pages": [
@@ -19071,7 +18489,6 @@
      "read_by": [
       "fct_board_history",
       "mart_board",
-      "mart_minutes_redistribution",
       "mart_streamers"
      ],
      "read_by_pages": [],
@@ -19279,14 +18696,14 @@
        "type": "varchar"
       },
       {
-       "description": "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note), rss:<feed_id> (an outlet's feed item) or youtube:<channel> (a YouTube video's title and description, or 30 seconds of its transcript)",
+       "description": "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note) or rss:<feed_id> (an outlet's feed item)",
        "meta": {},
        "name": "source",
        "tests": [],
        "type": "varchar"
       },
       {
-       "description": "The ESPN article id, the injury listing id and a hash of the note's text, the feed item's id (silver.rss_feed_items), or a YouTube item's: the video id, or <video_id>-t<seconds> for a transcript chunk (gold.fct_player_youtube_item)",
+       "description": "The ESPN article id, the injury listing id and a hash of the note's text, or the feed item's id (silver.rss_feed_items)",
        "meta": {},
        "name": "source_id",
        "tests": [],
@@ -19390,7 +18807,7 @@
        "type": "varchar"
       }
      ],
-     "description": "What the news claims about each player: one row per claim the local model read from an ESPN headline or injury note, an outlet's feed item, or a YouTube video's title and description or transcript, with its kind, direction, capped confidence, exact quote and the date the source said it. Not shown on the site and read by no number: stored so the walk-forward harness can score each source's track record before any claim may tune a projection.",
+     "description": "What the news claims about each player: one row per claim the local model read from an ESPN headline or injury note, or an outlet's feed item, with its kind, direction, capped confidence, exact quote and the date the source said it. Not shown on the site and read by no number: stored so the walk-forward harness can score each source's track record before any claim may tune a projection.",
      "exported_as": [],
      "grain": {
       "columns": [
@@ -19915,7 +19332,6 @@
       "int_market_prior",
       "int_player_game_value",
       "int_player_window_lines",
-      "mart_minutes_redistribution",
       "mart_player_projection",
       "mart_player_rolling",
       "mart_streamers"
@@ -21276,182 +20692,6 @@
      "checks": [],
      "columns": [
       {
-       "description": "Surrogate key: one row per league, item and league player",
-       "meta": {},
-       "name": "player_youtube_item_sk",
-       "tests": [
-        "not_null",
-        "unique"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The league the channel covers: wnba or nba",
-       "meta": {},
-       "name": "league",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Season label of the video's newest landing",
-       "meta": {},
-       "name": "season",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "League player id of the player the item names",
-       "meta": {},
-       "name": "stats_player_id",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The player's name as dim_player has it, the words found in the item",
-       "meta": {},
-       "name": "full_name",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The video id for its title and description, or <video_id>-t<seconds> for a transcript chunk: the claims' source_id",
-       "meta": {},
-       "name": "item_id",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "YouTube's video id",
-       "meta": {},
-       "name": "video_id",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's id in ingest/youtube_channels.toml; the claims' source is youtube:<channel>",
-       "meta": {},
-       "name": "channel",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The channel's name, credited on the Sources page",
-       "meta": {},
-       "name": "channel_name",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "video (the title and description) or transcript (30 seconds of the captions)",
-       "meta": {},
-       "name": "part",
-       "tests": [
-        "accepted_values"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "Whole seconds into the video a transcript chunk starts; null for the title and description",
-       "meta": {},
-       "name": "start_seconds",
-       "tests": [],
-       "type": "integer"
-      },
-      {
-       "description": "The video's title",
-       "meta": {},
-       "name": "title",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "What the model reads of a video: its title and description on two lines. Null for a transcript chunk, whose words never leave the lakehouse (the extractor reads them from the landed transcript)",
-       "meta": {},
-       "name": "text",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "The video's watch address, at the chunk's start for a transcript chunk",
-       "meta": {},
-       "name": "link",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "When the channel published the video (UTC)",
-       "meta": {
-        "tz": "UTC"
-       },
-       "name": "published_at",
-       "tests": [],
-       "type": "timestamp with time zone"
-      },
-      {
-       "description": "When a landed feed first carried the video (UTC)",
-       "meta": {
-        "tz": "UTC"
-       },
-       "name": "first_seen_at",
-       "tests": [],
-       "type": "timestamp with time zone"
-      },
-      {
-       "description": "The Eastern day the video was published, or first seen when that is earlier; a point-in-time build keeps the items before its date",
-       "meta": {},
-       "name": "published_date",
-       "tests": [],
-       "type": "date"
-      },
-      {
-       "description": "How many league players the item names",
-       "meta": {},
-       "name": "players_named",
-       "tests": [],
-       "type": "bigint"
-      }
-     ],
-     "description": "The league players each YouTube item names, one row per item and player, for the claims extractor. An item is a video's title and description, or 30 seconds of its transcript. A player is named when his full name's words appear whole in the item's text, the name is one only he carries in the league, and he was seen in the league within 400 days. Not shown on the site, and a transcript chunk's words are not in it: only which players the chunk names.",
-     "exported_as": [
-      "fct_player_youtube_item.parquet"
-     ],
-     "grain": {
-      "columns": [
-       "league",
-       "item_id",
-       "stats_player_id"
-      ],
-      "key": "player_youtube_item_sk"
-     },
-     "landing": [],
-     "materialized": "table",
-     "name": "fct_player_youtube_item",
-     "notes": [
-      "The league players each YouTube item names (#851): one row per item and player, for the claims extractor (ai/claims.py). An item is a video's title and description (part 'video'), or 30 seconds of its transcript (part 'transcript', silver.youtube_transcripts). Nothing on the site shows it; it leaves the lakehouse only as the owner-only Parquet the claims inputs read, and a transcript chunk's row carries which players it names, never its words: the extractor reads those from the landed transcript on the home runner (ai/claims.py), so a transcript is never in the published build or in a workflow's artifact.",
-      "A player is named as in an outlet's feed item (gold.fct_player_rss_item, macros/mentions.sql): his full name's words, whole, in the item's text; a name only he carries in the league; seen in the league within 400 days. A transcript chunk that says only \"he\" names no one, so a claim is only ever about a player the chunk names."
-     ],
-     "read_by": [],
-     "read_by_pages": [],
-     "reads": [
-      "dim_player",
-      "youtube_transcripts",
-      "youtube_videos"
-     ],
-     "unit_tests": [
-      {
-       "description": "A video's title and description is one item, each transcript chunk another. A player is named by his whole name in the item's own text, whatever its case: a chunk in lower-case automatic captions names him, a chunk that only says \"he\" names no one, and the description names a player the title does not. A chunk's row says whom it names, never its words.",
-       "name": "player_youtube_item_links_the_players_a_video_or_a_transcript_chunk_names"
-      }
-     ]
-    },
-    {
-     "checks": [],
-     "columns": [
-      {
        "description": "Surrogate key: one row per league, level, body part, kind and count of games",
        "meta": {},
        "name": "recovery_curve_sk",
@@ -22532,7 +21772,6 @@
       "fct_absence_spell",
       "fct_official_listing",
       "fct_referee_tendency",
-      "mart_minutes_redistribution",
       "mart_schedule_upcoming"
      ],
      "read_by_pages": [],
@@ -23019,7 +22258,8 @@
      ],
      "read_by": [],
      "read_by_pages": [
-      "/streamers/"
+      "/streamers/",
+      "/team/"
      ],
      "reads": [
       "dim_date",
@@ -25597,206 +24837,6 @@
      "checks": [],
      "columns": [
       {
-       "description": "Surrogate key: one row per league, team, player and teammate",
-       "meta": {},
-       "name": "minutes_redistribution_sk",
-       "tests": [
-        "not_null",
-        "unique"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "nba or wnba",
-       "meta": {},
-       "name": "league",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The team both are on now",
-       "meta": {},
-       "name": "team_id",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "League stats API id of the rotation player whose absences are measured",
-       "meta": {},
-       "name": "player_id",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "His name (dim_player's current stint)",
-       "meta": {},
-       "name": "full_name",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Team games over this season and last he played for the team",
-       "meta": {},
-       "name": "games_played",
-       "tests": [],
-       "type": "integer"
-      },
-      {
-       "description": "Team games over this season and last he missed while on the team, whatever the reason",
-       "meta": {},
-       "name": "games_missed",
-       "tests": [],
-       "type": "integer"
-      },
-      {
-       "description": "His average minutes in the games he played",
-       "meta": {
-        "unit": "minutes"
-       },
-       "name": "minutes_played",
-       "tests": [],
-       "type": "double"
-      },
-      {
-       "description": "League stats API id of the teammate",
-       "meta": {},
-       "name": "teammate_id",
-       "tests": [
-        "not_null"
-       ],
-       "type": "varchar"
-      },
-      {
-       "description": "The teammate's name (dim_player's current stint)",
-       "meta": {},
-       "name": "teammate_name",
-       "tests": [],
-       "type": "varchar"
-      },
-      {
-       "description": "Games the player played that the teammate was there for (played, or sat by the coach)",
-       "meta": {},
-       "name": "teammate_games_with",
-       "tests": [],
-       "type": "integer"
-      },
-      {
-       "description": "Games the player missed that the teammate was there for",
-       "meta": {},
-       "name": "teammate_games_without",
-       "tests": [],
-       "type": "integer"
-      },
-      {
-       "description": "The teammate's average minutes in the games the player played (a coach's DNP counts 0)",
-       "meta": {
-        "unit": "minutes"
-       },
-       "name": "minutes_with",
-       "tests": [],
-       "type": "double"
-      },
-      {
-       "description": "The teammate's average minutes in the games the player missed",
-       "meta": {
-        "unit": "minutes"
-       },
-       "name": "minutes_without",
-       "tests": [],
-       "type": "double"
-      },
-      {
-       "description": "minutes_without less minutes_with: the minutes a game the teammate gained without him",
-       "meta": {
-        "unit": "minutes"
-       },
-       "name": "minutes_gained",
-       "tests": [],
-       "type": "double"
-      },
-      {
-       "description": "1 for the teammate who gained the most minutes without him, then down",
-       "meta": {},
-       "name": "gain_rank",
-       "tests": [
-        "not_null"
-       ],
-       "type": "integer"
-      },
-      {
-       "description": "The share of ESPN leagues rostering the teammate (fct_market_value); null when ESPN has none",
-       "meta": {
-        "unit": "percent"
-       },
-       "name": "teammate_percent_owned",
-       "tests": [],
-       "type": "double"
-      },
-      {
-       "description": "The latest team game counted, before a point-in-time build's date",
-       "meta": {},
-       "name": "last_game_date",
-       "tests": [],
-       "type": "date"
-      }
-     ],
-     "description": "Who takes a player's minutes when he misses games (#820): for each team and each rotation player on it now, the minutes each current teammate averaged in the team's regular-season games the player missed against the games he played, over this season and last. My Team names the top gainer beside an out player, and the pickup when he is free in the manager's league. An average, not yet validated (#763).",
-     "exported_as": [
-      "mart_minutes_redistribution.parquet",
-      "minutes/<league>.json"
-     ],
-     "grain": {
-      "columns": [
-       "league",
-       "team_id",
-       "player_id",
-       "teammate_id"
-      ],
-      "key": "minutes_redistribution_sk"
-     },
-     "landing": [],
-     "materialized": "table",
-     "name": "mart_minutes_redistribution",
-     "notes": [
-      "Who takes a player's minutes when he misses games (#820): for each team and each rotation player on it now, the minutes each current teammate averaged in the team's regular-season games the player missed, against the games he played, over this season and last.",
-      "- A player is on a team from his first game listed with it to his last, or to the end of the team's season when it is his last team that season (as notebook 07 counts rosters). A team game in that span without minutes is a game he missed, whatever the reason.",
-      "- A rotation player averaged minutes_redistribution.rotation_minutes or more in the games he played for the team, and has missed and played minutes_redistribution.min_games_missed of its games or more.",
-      "- A teammate's minutes count in the games he was there for: those he played, and those the box score says the coach sat him (a DNP - Coach's Decision, as 0). A game he missed himself for any other reason counts in neither average, so his own injury does not read as a loss. Each split needs min_games_missed of his games.",
-      "- Both are on the team now (dim_player's current stint), so the row is about today's roster.",
-      "- A game played on or after a point-in-time build's date is left out (the facts already cut it).",
-      "minutes_gained is minutes_without less minutes_with; gain_rank orders the player's teammates by it, largest first. An average, not a model: who started, the opponent and blowouts are not held apart (#763 will test it)."
-     ],
-     "read_by": [],
-     "read_by_pages": [
-      "/team/"
-     ],
-     "reads": [
-      "dim_player",
-      "fct_market_value",
-      "fct_player_game",
-      "fct_team_game"
-     ],
-     "unit_tests": [
-      {
-       "description": "a plays 30 minutes in the team's games 1 to 5 and misses 6 to 8. Without him e, whom the coach sat in games 1 to 5, plays 10 (+10); b goes from 20 to 28 (+8); c from 10 to 12 (+2). d missed 6 to 8 himself and is in neither split; g has moved to another team. A third season back is left out: a's absence in 2023-24 does not count.",
-       "name": "minutes_go_to_the_teammates_who_played_more_without_him"
-      },
-      {
-       "description": "As of 2025-11-13, a's fourth missed game (that day) has not been played: three missed games count, and the latest game counted is 2025-11-11.",
-       "name": "minutes_redistribution_stops_before_a_point_in_time_builds_date"
-      }
-     ]
-    },
-    {
-     "checks": [],
-     "columns": [
-      {
        "description": "Surrogate key: one row per league, season and player",
        "meta": {},
        "name": "consistency_sk",
@@ -27865,8 +26905,7 @@
       "stats_playergamelogs_misc",
       "stats_playergamelogs_usage",
       "stats_scheduleleaguev2",
-      "stats_shotchartdetail",
-      "youtube_video_items"
+      "stats_shotchartdetail"
      ],
      "unit_tests": [
       {
@@ -28679,8 +27718,8 @@
   {
    "reads": [
     "board",
-    "minutes",
-    "schedule"
+    "schedule",
+    "team_weeks"
    ],
    "route": "/team/"
   },
@@ -29166,18 +28205,6 @@
    "module": "ingest/stats.py",
    "name": "League stats API",
    "runner": "the home runner (ADR 0002: the host blocks cloud addresses)"
-  },
-  {
-   "cadence": "",
-   "folders": [
-    "youtube/transcripts",
-    "youtube/videos"
-   ],
-   "host": "",
-   "key": "youtube",
-   "module": "",
-   "name": "youtube",
-   "runner": ""
   }
  ],
  "unit_tests": [
@@ -29270,11 +28297,6 @@
    "description": "A payroll row links to the stats player of that season with the same name, accents and punctuation aside (#772). A name two players share that season is left unlinked rather than guessed, and a blank salary stays null.",
    "model": "fct_player_salary",
    "name": "salaries_link_to_the_season_player_by_name"
-  },
-  {
-   "description": "A video's title and description is one item, each transcript chunk another. A player is named by his whole name in the item's own text, whatever its case: a chunk in lower-case automatic captions names him, a chunk that only says \"he\" names no one, and the description names a player the title does not. A chunk's row says whom it names, never its words.",
-   "model": "fct_player_youtube_item",
-   "name": "player_youtube_item_links_the_players_a_video_or_a_transcript_chunk_names"
   },
   {
    "description": "Five ankle spells: back after 1, 2 and 3 games, one last seen after 2 games still out and one after 5. Kaplan-Meier: 0.8 still out after 1 game (1 of 5 back), 0.6 after 2 (1 of the 4 at risk back), 0.3 after 3 (1 of 2), and 0.3 after 5 (none of the 1 back). Counting the censored spells as finished would have put everyone back by 5. A body part with fewer spells than the minimum gets no curve.",
@@ -29402,16 +28424,6 @@
    "name": "every_window_is_on_the_season_scale"
   },
   {
-   "description": "a plays 30 minutes in the team's games 1 to 5 and misses 6 to 8. Without him e, whom the coach sat in games 1 to 5, plays 10 (+10); b goes from 20 to 28 (+8); c from 10 to 12 (+2). d missed 6 to 8 himself and is in neither split; g has moved to another team. A third season back is left out: a's absence in 2023-24 does not count.",
-   "model": "mart_minutes_redistribution",
-   "name": "minutes_go_to_the_teammates_who_played_more_without_him"
-  },
-  {
-   "description": "As of 2025-11-13, a's fourth missed game (that day) has not been played: three missed games count, and the latest game counted is 2025-11-11.",
-   "model": "mart_minutes_redistribution",
-   "name": "minutes_redistribution_stops_before_a_point_in_time_builds_date"
-  },
-  {
    "description": "A player's games worth 0, 1 and 2 have a mean of 1, a spread of 1, and 20th and 80th percentile games of 0.4 and 1.6 (#747); a player with one game has no spread.",
    "model": "mart_player_consistency",
    "name": "consistency_spread_floor_and_ceiling"
@@ -29480,21 +28492,6 @@
    "description": "An ESPN line naming two players gives a row for each; a line naming nobody keeps one row without a player; a name two players share links to neither; a short name is not matched.",
    "model": "transactions",
    "name": "transactions_link_espn_lines_to_the_players_they_name"
-  },
-  {
-   "description": "The newest landing of a video's captions wins, one row per chunk, each linking to the moment it starts and dated by its video, however much later the captions were fetched. An empty chunk is dropped, and a transcript of a video no feed landed has no row.",
-   "model": "youtube_transcripts",
-   "name": "youtube_transcripts_are_the_newest_captions_chunks_dated_by_their_video"
-  },
-  {
-   "description": "A video in two days' feeds is one row with the newest title, first seen on the first day. A video dated in the future is dated by when the feed first carried it, and an untitled one is dropped.",
-   "model": "youtube_videos",
-   "name": "youtube_videos_are_one_row_per_video_dated_by_the_earlier_of_published_and_first_seen"
-  },
-  {
-   "description": "",
-   "model": "youtube_videos",
-   "name": "youtube_videos_point_in_time_keeps_the_videos_published_before_its_date"
   }
  ]
 }

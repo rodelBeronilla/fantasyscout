@@ -106,6 +106,15 @@ export const PARAMS = {
   },
   "standings.rival_min_share": 0.5,
   "standings.projection_spread": 0.3,
+  "playoffs.teams": {
+    "nba": 6,
+    "wnba": 4
+  },
+  "playoffs.weeks": {
+    "nba": 3,
+    "wnba": 2
+  },
+  "playoffs.simulations": 2000,
   "fit.thirds": {
     "weak": 1.5,
     "middle": 1.0,
@@ -448,6 +457,39 @@ export const PARAMETERS = [
     "evidence": "none (ADR 0015 says so)",
     "validation": 755,
     "value": 0.3
+  },
+  {
+    "id": "playoffs.teams",
+    "kind": "threshold",
+    "status": "convention",
+    "what": "Teams that make the playoffs in a league entered by hand; an ESPN import reads its own.",
+    "evidence": "the common platform default for a 12-team NBA league (half the teams); a third of the default 10-team WNBA league, its season being shorter",
+    "validation": 755,
+    "value": {
+      "nba": 6,
+      "wnba": 4
+    }
+  },
+  {
+    "id": "playoffs.weeks",
+    "kind": "model",
+    "status": "convention",
+    "what": "Fantasy weeks the playoffs take, the last of the schedule, in a league entered by hand; an ESPN import reads its own.",
+    "evidence": "the common platform default: three rounds over the regular season's last three weeks (NBA), two (WNBA)",
+    "validation": 755,
+    "value": {
+      "nba": 3,
+      "wnba": 2
+    }
+  },
+  {
+    "id": "playoffs.simulations",
+    "kind": "search",
+    "status": "arithmetic",
+    "what": "Seasons the playoff odds play out: the odds' sampling error is at most 1.1 points (the binomial standard error at 50%).",
+    "evidence": "sqrt(0.25 / 2000) = 0.011",
+    "validation": 755,
+    "value": 2000
   },
   {
     "id": "fit.thirds",

@@ -23,6 +23,8 @@ const MODULES = [
   'minutes-go-to.ts',
   'matchup-streams.ts',
   'pickups-top.ts',
+  'playoff-odds.ts',
+  'playoff-weeks.ts',
   'punt-chips.ts',
   'records.ts',
   'roster-upgrades.ts',

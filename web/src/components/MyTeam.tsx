@@ -28,6 +28,8 @@ import { LeagueTable } from './PowerTable';
 import { Standings } from './Standings';
 import { IlMoves } from './IlMoves';
 import { MinutesGoTo } from './MinutesGoTo';
+import { PlayoffPlan } from './PlayoffPlan';
+import type { TeamWeek } from '../lib/playoff-weeks';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
@@ -51,6 +53,9 @@ interface TeamRow extends ModelRow {
   lineup_confirmed?: boolean | null;
   lineup_date?: string | null;
 }
+
+const NONE: string[] = [];
+const button = 'rounded border border-line px-2 py-0.5 text-xs hover:bg-bg';
 
 /**
  * Each kept category against the league (#662): the chance of beating an average rival, and the
@@ -243,6 +248,7 @@ export default function MyTeam() {
   const [error, setError] = useState<unknown>(null);
   const [games, setGames] = useState<TodayGame[] | null>(null);
   const [minutes, setMinutes] = useState<Map<string, MinutesRow[]>>(() => new Map());
+  const [teamWeeks, setTeamWeeks] = useState<TeamWeek[] | null>(null);
   const [setup, updateLeague] = useLeague(league);
   // an ESPN league is read again on a visit, so the rosters and this week's opponent are current (#815)
   const sync = useEspnSync(setup, updateLeague, rows);
@@ -259,6 +265,10 @@ export default function MyTeam() {
     fetchCurrentJson<MinutesRow[]>(`minutes/${league}.json`)
       .then((m) => live && setMinutes(minutesByPlayer(m)))
       .catch(() => live && setMinutes(new Map()));
+    // the rest of the season's games per team and week, for the playoff weeks (#821)
+    fetchCurrentJson<TeamWeek[]>(`team_weeks/${league}.json`)
+      .then((w) => live && setTeamWeeks(w))
+      .catch(() => live && setTeamWeeks(null));
     return () => {
       live = false;
     };
@@ -362,10 +372,9 @@ export default function MyTeam() {
 
   // the roster review, as Pickups' top adds read it (#819); the week's drives the stream line (#818)
   const weekReview = useMemo(() => (rows && weekAvailable ? teamReview(rows, setup, values, true) : null), [rows, setup, values, weekAvailable]);
-  const review = useMemo<RosterReview | null>(
-    () => (week ? (weekReview?.review ?? null) : rows ? (teamReview(rows, setup, values, false)?.review ?? null) : null),
-    [week, weekReview, rows, setup, values],
-  );
+  // the rest of the season's review: the Moves' unit by default, and the drops for the playoff targets (#821)
+  const restReview = useMemo(() => (rows ? teamReview(rows, setup, values, false) : null), [rows, setup, values]);
+  const review = useMemo<RosterReview | null>(() => (week ? (weekReview?.review ?? null) : (restReview?.review ?? null)), [week, weekReview, restReview]);
   // From the matchup to the stream that flips a category (#818): the close and losing categories,
   // and the top add for them on the open days, with the drop the week's review names.
   const targets = useMemo(() => (weekMatch && !points ? streamTargets(weekMatch.match) : []), [weekMatch, points]);
@@ -388,6 +397,9 @@ export default function MyTeam() {
       starts: (id) => starts.get(id) ?? 0,
     });
   }, [weekMatch, points, lineupPlans, games, rows, owner, activeCats, weekReview, byId]);
+  // stable for the playoff plan, whose odds play 2,000 seasons only when an input changes (#821)
+  const catOf = useMemo(() => (leagueCats ? (id: string) => leagueCats.get(id) : null), [leagueCats]);
+  const owned = useCallback((id: string) => owner.has(id), [owner]);
   const applyUpgrade = useCallback((u: Upgrade) => updateLeague((s) => assign(assign(s, u.drop, null), u.add, s.mine)), [updateLeague]);
 
   // Build your team (#809): the league as the Trade page models it, for the rest of the season,
@@ -508,6 +520,22 @@ export default function MyTeam() {
           </a>
           ; moves wait until it ends.
         </p>
+      )}
+      {/* the playoff push leads a head-to-head league (#821): the odds, the playoff weeks' games and the target */}
+      {h2h && teamWeeks && !setup.drafting && (
+        <PlayoffPlan
+          league={league}
+          setup={setup}
+          rows={rows}
+          teamWeeks={teamWeeks}
+          cats={activeCats}
+          catValue={catOf}
+          perGame={perGame}
+          owned={owned}
+          drops={restReview?.drops ?? NONE}
+          roster={restReview?.mine ?? NONE}
+          today={easternDate()}
+        />
       )}
       {real && <Standings table={real} mine={setup.mine} names={setup.names} power={powerTable} />}
 
