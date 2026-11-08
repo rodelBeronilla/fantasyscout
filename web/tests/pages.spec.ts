@@ -2015,6 +2015,9 @@ test('My Team ranks every team by projection: matchup win rates in head-to-head,
   await page.goto('/team/');
   const table = page.getByTestId('league-table');
   await expect(table).toContainText('Power rankings');
+  // a league entered by hand keeps the projected table where it was, and says how to get the real standings (#822)
+  await expect(table.getByTestId('standings-note')).toHaveText('Import the league from ESPN to show the real standings.');
+  await expect(page.getByTestId('standings')).toHaveCount(0);
   const rows = table.getByTestId('power-row');
   await expect(rows).toHaveCount(4);
   await expect(rows.first().locator('td').first()).toHaveText('1');
@@ -2266,6 +2269,27 @@ test("an ESPN league re-syncs on My Team: when it synced, the roster changes, an
   await page.reload();
   await expect(summary).toContainText('Synced just now · 2 roster changes');
   expect(asked).toHaveLength(1);
+});
+
+test("an ESPN league leads My Team with the real standings, the whole league and the power table one click down (#822)", async ({ page }) => {
+  await espnLeagueAndCopy(page);
+  await page.goto('/team/?league=nba');
+  // the re-import brings ESPN's records: Third 14-4-1, Glass Cleaners 12-6-1, Brick City 10-8-1
+  await expect(page.getByTestId('standing-line')).toHaveText('3rd, 2 games back of 2nd and 4 games back of 1st (10-8-1, from ESPN at the last sync)');
+  const all = page.getByTestId('standings-all');
+  await expect(all.getByTestId('standings-table')).toBeHidden();
+  await all.locator('summary').click();
+  const rows = all.getByTestId('standing-row');
+  await expect(rows).toHaveCount(4);
+  await expect(rows.nth(0)).toHaveText(/^1\s*Third\s*14-4-1\s*–$/);
+  await expect(rows.nth(2)).toHaveText(/^3\s*Brick City\s*10-8-1\s*4$/);
+  // the projected table is one click down, and needs no note to import from ESPN
+  const power = page.getByTestId('power-details');
+  await expect(power.getByTestId('league-table')).toBeHidden();
+  await power.locator('summary').click({ position: { x: 4, y: 4 } });
+  await expect(power.getByTestId('power-row')).toHaveCount(4);
+  await expect(page.getByTestId('league-table')).toHaveCount(1);
+  await expect(page.getByTestId('standings-note')).toHaveCount(0);
 });
 
 test("an ESPN category league's matchup starts from the score so far and leads with the call (#817)", async ({ page }) => {

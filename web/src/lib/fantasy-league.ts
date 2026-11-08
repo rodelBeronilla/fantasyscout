@@ -10,6 +10,7 @@ import { accountStatus, loadSaved, saveSoon } from './account';
 import type { League } from './data';
 import { CATEGORIES } from './format';
 import type { ScoreSoFar } from './matchup';
+import type { TeamRecord } from './records';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
 
 export type Scoring = 'cats9' | 'cats8' | 'points';
@@ -84,6 +85,8 @@ export interface LeagueSource {
   opponents?: (number | null)[];
   /** Each team's score so far in this week's matchup at `syncedAt`, by index; null without one (#817). */
   scores?: (ScoreSoFar | null)[];
+  /** Each team's record and place at `syncedAt`, by index; null where ESPN gave none (#822). */
+  records?: (TeamRecord | null)[];
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -164,6 +167,14 @@ const cleanScore = (raw: unknown): ScoreSoFar | null => {
   return s && isTotals(s.totals) && isShots(s.shots) ? { totals: s.totals, shots: s.shots } : null;
 };
 
+const count = (x: unknown) => typeof x === 'number' && Number.isInteger(x) && x >= 0;
+/** A stored record, or null when it is missing or malformed. */
+const cleanRecord = (raw: unknown): TeamRecord | null => {
+  const r = raw as Partial<TeamRecord> | null;
+  if (!r || !count(r.wins) || !count(r.losses) || !count(r.ties)) return null;
+  return { wins: r.wins!, losses: r.losses!, ties: r.ties!, seed: typeof r.seed === 'number' && count(r.seed) && r.seed > 0 ? r.seed : null };
+};
+
 /** A stored source as this build reads it, or undefined when it is missing or malformed. */
 function cleanSource(raw: unknown): LeagueSource | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
@@ -180,6 +191,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     changes: typeof s.changes === 'number' && s.changes >= 0 ? s.changes : null,
     ...(Array.isArray(s.opponents) ? { opponents: s.opponents.map((o) => (isTeamIndex(o) ? o : null)) } : {}),
     ...(Array.isArray(s.scores) ? { scores: s.scores.map(cleanScore) } : {}),
+    ...(Array.isArray(s.records) ? { records: s.records.map(cleanRecord) } : {}),
   };
 }
 
