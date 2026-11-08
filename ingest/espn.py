@@ -19,6 +19,8 @@ from ingest.store import Landing, LandResult, Scope
 
 SOURCE = "espn"
 BASE = "https://site.api.espn.com/apis/site/v2/sports/basketball"
+# ESPN's season type for the regular season (1 is the preseason, 3 the postseason).
+REGULAR_SEASON = 2
 
 
 @dataclass(frozen=True)
@@ -99,6 +101,14 @@ def events_from_scoreboard(payload: bytes) -> list[Event]:
     return events
 
 
+def has_regular_season_game(payload: bytes) -> bool:
+    """Whether a scoreboard lists a regular-season game."""
+    doc = json.loads(payload)
+    return any(
+        (ev.get("season") or {}).get("type") == REGULAR_SEASON for ev in doc.get("events") or []
+    )
+
+
 def team_ids_from_teams(payload: bytes) -> list[str]:
     doc = json.loads(payload)
     ids: list[str] = []
@@ -130,6 +140,8 @@ class EspnIngestor:
         self.planner = planner
         self._now = now
         self.only = only or None
+        # the days whose scoreboard lists a regular-season game, window and days ahead (#847)
+        self.regular_season_days: set[date] = set()
 
     def _clock(self) -> datetime:
         return self._now or datetime.now(UTC)
@@ -205,7 +217,7 @@ class EspnIngestor:
         try:
             self._run(summary, since=since, until=until, rosters=rosters)
             for day in days_between(until + timedelta(days=1), until + timedelta(days=ahead)):
-                self._try(self.planner.scoreboard_request(day), summary)
+                self._note_season(day, self._try(self.planner.scoreboard_request(day), summary))
         except CircuitOpenError as exc:
             summary.aborted = str(exc)
         for failure in self.landing.flush():
@@ -213,10 +225,15 @@ class EspnIngestor:
         summary.pacing = self.client.pacing()
         return summary
 
+    def _note_season(self, day: date, body: bytes | None) -> None:
+        if body is not None and has_regular_season_game(body):
+            self.regular_season_days.add(day)
+
     def _run(self, summary: RunSummary, *, since: date, until: date, rosters: bool) -> None:
         events: list[Event] = []
         for day in days_between(since, until):
             body = self._try(self.planner.scoreboard_request(day), summary, played=day)
+            self._note_season(day, body)
             if body is not None:
                 events.extend(events_from_scoreboard(body))
         seen: set[str] = set()

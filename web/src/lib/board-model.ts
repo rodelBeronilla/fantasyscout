@@ -4,7 +4,7 @@
  * The component keeps only the useMemo calls, so these are tested without rendering the page.
  */
 import type { BoardView } from './board-url';
-import { leagueTiers, primaryPosition, scaleValue, type ScaleRow, type Tier } from './league-value';
+import { leagueTiers, marketPriorShift, primaryPosition, scaleValue, type ScaleRow, type Tier } from './league-value';
 
 /** A board row as these functions read it: the scale fields, a position and any column by name. */
 export interface ModelRow extends ScaleRow {
@@ -39,13 +39,13 @@ export interface LeagueValues {
   replacement?: Record<string, number> | null;
 }
 
-/** Rest-of-season value under the league's scoring, per player: the scale the Trade page uses. */
+/** Rest-of-season value under the league's scoring, per player: the scale the Trade page uses; a categories league's carries the market prior (#848). */
 export function restValues(rows: ModelRow[], { points, leaguePoints, leagueCats, activeCats }: LeagueValues): Map<string, number> {
   const out = new Map<string, number>();
   for (const r of rows) {
     const v = points
       ? (leaguePoints?.get(r.player_id)?.value ?? 0)
-      : activeCats.reduce((s, c) => s + (leagueCats?.get(r.player_id)?.[c] ?? 0), 0);
+      : activeCats.reduce((s, c) => s + (leagueCats?.get(r.player_id)?.[c] ?? 0), 0) + marketPriorShift(r);
     out.set(r.player_id, scaleValue(v, r));
   }
   return out;
@@ -75,8 +75,10 @@ export function scoreRows<R extends ModelRow>(
       value = scale(r, leaguePoints.get(r.player_id)?.value ?? 0);
     } else if (view === 'value' && leagueCats) {
       const cats = leagueCats.get(r.player_id) ?? {};
-      value = scale(r, activeCats.reduce((s, c) => s + (cats[c] ?? 0), 0));
-      if (weights) fit = scale(r, activeCats.reduce((s, c) => s + (weights[c] ?? 1) * (cats[c] ?? 0), 0));
+      // the market prior's shift as a total on top of the categories, as mart_board's value (#848)
+      const prior = marketPriorShift(r);
+      value = scale(r, activeCats.reduce((s, c) => s + (cats[c] ?? 0), 0) + prior);
+      if (weights) fit = scale(r, activeCats.reduce((s, c) => s + (weights[c] ?? 1) * (cats[c] ?? 0), 0) + prior);
     } else {
       const parts = activeCats.map((c) => num(r, zKey(view, c)));
       const repl = opts.replacement ?? {};

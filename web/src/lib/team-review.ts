@@ -5,7 +5,7 @@
  */
 import { CATEGORIES } from './format';
 import { type LeagueSetup, owners } from './fantasy-league';
-import { categoryValues, pointValues } from './league-value';
+import { categoryValues, marketPriorShift, pointValues } from './league-value';
 import { type ModelRow, restValues } from './board-model';
 import { dropRule, type DropRow, reviewRoster, type RosterReview } from './roster-upgrades';
 import { recentForm, weekValue } from './week-value';
@@ -39,8 +39,12 @@ export function teamValues(rows: ReviewRow[], s: ValueSettings): TeamValues {
   const leaguePoints = points ? pointValues(rows, s.weights, pool, s.teams) : null;
   const recentCats = points ? null : categoryValues(recentForm(rows, activeCats), activeCats, pool, s.teams, rows);
   const restValue = restValues(rows, { points, leaguePoints, leagueCats, activeCats });
+  // the projection's value carries the market prior's shift (#848); last-ten form does not
+  const prior = new Map(points ? [] : rows.map((r) => [r.player_id, marketPriorShift(r)]));
   const perGame = (id: string, recent = false) =>
-    points ? (leaguePoints?.get(id)?.value ?? 0) : activeCats.reduce((sum, c) => sum + ((recent ? recentCats : leagueCats)?.get(id)?.[c] ?? 0), 0);
+    points
+      ? (leaguePoints?.get(id)?.value ?? 0)
+      : activeCats.reduce((sum, c) => sum + ((recent ? recentCats : leagueCats)?.get(id)?.[c] ?? 0), 0) + (recent ? 0 : (prior.get(id) ?? 0));
   return { points, activeCats, leagueCats, leaguePoints, recentCats, restValue, perGame };
 }
 

@@ -195,7 +195,8 @@ export default function YahooImport({
               <li>
                 Run the bookmark <strong className="text-fg">on that page</strong>. On a phone, tap the address bar, type the bookmark&apos;s
                 name and tap it in the list: opening it from the Bookmarks menu would run it in a new tab instead. It brings you back here with
-                the rosters. A bookmark saved before this note appeared read the pages differently: save it again from the link above.
+                the rosters, the standings, this week&apos;s opponent and score so far, and the playoff weeks. Run it again each day for the
+                day&apos;s score. A bookmark saved before this note appeared reads rosters only: save it again from the link above.
               </li>
               <li>Check the rosters below: a name Yahoo spells differently is listed as not found, and you can add it by hand.</li>
             </ol>

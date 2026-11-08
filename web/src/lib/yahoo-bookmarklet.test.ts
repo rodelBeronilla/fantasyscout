@@ -6,13 +6,13 @@ import { applyYahooImport, parseYahooHash } from './yahoo-bookmarklet';
 const hash = (payload: unknown) => `#yahoo=${encodeURIComponent(JSON.stringify(payload))}`;
 
 describe('the Yahoo import', () => {
-  it('reads a version 1 or 2 payload from the fragment and nothing else', () => {
+  it('reads a version 1, 2 or 3 payload from the fragment and nothing else', () => {
     expect(parseYahooHash('')).toBeNull();
     expect(parseYahooHash('#yahoo=not-json')).toBeNull();
-    expect(parseYahooHash(hash({ v: 3, teams: [{ id: 1, players: ['A'] }] }))).toBeNull();
+    expect(parseYahooHash(hash({ v: 4, teams: [{ id: 1, players: ['A'] }] }))).toBeNull();
     expect(parseYahooHash(hash({ v: 1, teams: [] }))).toBeNull();
     const v1 = parseYahooHash(hash({ v: 1, leagueId: 'L1', teams: [{ id: 7, name: 'Hoops', players: ['A One', 'B Two'] }, 'junk'] }));
-    expect(v1).toEqual({ v: 2, leagueId: 'L1', mine: null, teams: [{ id: 7, name: 'Hoops', players: [{ name: 'A One', il: false }, { name: 'B Two', il: false }] }] });
+    expect(v1).toEqual({ v: 3, leagueId: 'L1', mine: null, teams: [{ id: 7, name: 'Hoops', players: [{ name: 'A One', il: false }, { name: 'B Two', il: false }] }] });
     const v2 = parseYahooHash(hash({ v: 2, mine: 3, teams: [{ id: 3, players: [{ name: 'C Three', il: 1 }, { nope: true }] }] }));
     expect(v2?.mine).toBe(3);
     expect(v2?.teams[0]).toEqual({ id: 3, name: 'Team 3', players: [{ name: 'C Three', il: true }] });

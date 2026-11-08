@@ -37,6 +37,8 @@ DATED: tuple[tuple[str, str], ...] = (
     ("silver.injuries", "report_date"),
     ("silver.injury_status_history", "status_to"),
     ("silver.espn_fantasy_market", "observed_date"),
+    # each season's draft order, known the day before its first game however late it landed (#847)
+    ("silver.espn_preseason_adp", "known_date"),
     ("silver.game_lines", "observed_date"),
     ("silver.standings", "observed_date"),
     ("silver.transactions", "transaction_date"),

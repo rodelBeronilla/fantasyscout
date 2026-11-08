@@ -60,6 +60,9 @@ interface BoardRowFields {
   /** Where ESPN drafters take the player, and the gap to the board's rank (positive: a value). */
   market_rank?: number | null;
   market_gap?: number | null;
+  /** The market prior's weight and the board's value at the player's draft rank: the shift the league's value adds (#848). */
+  market_prior_weight?: number | null;
+  market_prior_value?: number | null;
   ownership_bucket?: string | null;
   /** What the team still plays for, and a late-season rest risk (fct_team_stakes). */
   team_stakes?: string | null;

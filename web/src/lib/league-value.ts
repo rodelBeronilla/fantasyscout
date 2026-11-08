@@ -9,8 +9,14 @@
  * scale (ADR 0019). Points: fantasy points per game from the projected line with the league's weights,
  * minus the replacement level's. Either way, value above replacement is then counted over the
  * projected share of games played.
+ *
+ * A categories league's projected value also carries the market prior (ADR 0020), as a total on
+ * top of the categories (`marketPriorShift`), so it matches the published value per game. The
+ * windows (last ten, last twenty, the season) do not carry it, as on the board. Nor does a points
+ * league: the prior was fitted and judged on the nine-category value only.
  */
 import { POINT_STATS, type PointWeights } from './fantasy-league';
+import { CATEGORIES } from './format';
 import { PARAMS } from '../generated/parameters';
 
 type Row = Record<string, unknown>;
@@ -52,6 +58,35 @@ export function categoryValues(
 ): Map<string, Record<string, number>> {
   const repl = categoryReplacement(basis, categories, pool, teams);
   return new Map(rows.map((r) => [String(r['player_id']), Object.fromEntries(categories.map((c) => [c, n(r, c) - (repl[c] ?? 0)]))]));
+}
+
+/** What the market prior reads of a board row (ADR 0020). */
+export interface PriorRow {
+  market_prior_weight?: number | null;
+  market_prior_value?: number | null;
+}
+
+/**
+ * The market prior's shift of a player's value per game in a categories league (ADR 0020, #848).
+ * mart_board blends the nine categories' sum toward market_prior_value, the board's own value at
+ * the player's rank in ESPN's draft order: `own + weight * (market - own)`. It leaves the nine
+ * category columns alone, so a league value rebuilt from them adds the same shift as a total.
+ *
+ * Both terms are on the board's nine-category scale, and the shift is their difference. A league
+ * of another size only moves every player by its replacement offset, which cancels, so the shift
+ * is the one its own curve would give. A punt build keeps the shift whole: the draft order prices
+ * a player's whole game, and repricing his rank on a punt build's curve would pull the categories
+ * the manager gave up back in. Zero when the weight is (the WNBA, a player past the fade, between
+ * seasons) or the player has no market price.
+ */
+export function marketPriorShift(board: object): number {
+  // a board row: the prior's two columns (PriorRow) and the nine categories' z_ columns
+  const row = board as Row;
+  const weight = n(row, 'market_prior_weight');
+  const market = row['market_prior_value'];
+  if (!(weight > 0) || typeof market !== 'number' || Number.isNaN(market)) return 0;
+  const own = CATEGORIES.reduce((s, c) => s + n(row, c), 0);
+  return weight * (market - own);
 }
 
 export function fantasyPoints(row: Row, weights: PointWeights): number {

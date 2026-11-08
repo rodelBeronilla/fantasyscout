@@ -6,6 +6,7 @@
 import { CATEGORY_LABELS, CATEGORY_WORDS, fmt } from '../lib/format';
 import type { League } from '../lib/data';
 import type { LeagueSetup } from '../lib/fantasy-league';
+import { readLine, type ScoreRead } from '../lib/game-state';
 import { isRatio, matchupCall, swingCategory, type WeekMatchup } from '../lib/matchup';
 import { type StreamMove, streamTargets } from '../lib/matchup-streams';
 import { pickupsPath } from '../lib/pickups-url';
@@ -13,24 +14,36 @@ import { href } from '../lib/site';
 import { Signed, Td, Th, Unvalidated } from './ui';
 
 /** Where the week's totals start: ESPN's score so far, or the projection alone and why. */
-export type MatchupBasis = { live: true; projectedOnly: string[] } | { live: false; reason: 'not-espn' | 'no-score' | 'stale' };
+export type MatchupBasis = { live: true; projectedOnly: string[]; read?: ScoreRead } | { live: false; reason: 'not-espn' | 'no-score' | 'stale' };
+
+/** A count of games left, to a tenth when a game under way counts for its minutes left. */
+const gamesLeft = (n: number) => fmt(n, Number.isInteger(Math.round(n * 10) / 10) ? 0 : 1); // def: tenths
 
 const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
 const dayName = (iso: string) => DAY.format(new Date(`${iso}T12:00:00Z`));
 const word = (cat: string) => CATEGORY_WORDS[cat] ?? CATEGORY_LABELS[cat] ?? cat;
 const link = 'font-medium text-accent underline-offset-4 hover:underline';
 
-/** Why the week projects from the games left alone, in a line; nothing when it starts from the score. */
-function basisNote(basis: MatchupBasis | null): string | null {
+/**
+ * Why the week projects from the games left alone, in a line; nothing when it starts from the
+ * score. An ESPN league syncs itself; a Yahoo league's score comes with the bookmark (#874).
+ */
+function basisNote(basis: MatchupBasis | null, host: 'espn' | 'yahoo' | undefined): string | null {
   if (!basis) return null;
+  const from = host === 'yahoo' ? 'Yahoo' : 'ESPN';
   if (basis.live) {
     if (!basis.projectedOnly.length) return null;
     const cats = basis.projectedOnly.map((c) => CATEGORY_LABELS[c] ?? c).join(' and ');
     return basis.projectedOnly.length === 1
-      ? `${cats} projects from the games left only: ESPN gave the score so far without it, or without the shots behind it.`
-      : `${cats} project from the games left only: ESPN gave the score so far without them, or without the shots behind them.`;
+      ? `${cats} projects from the games left only: ${from} gave the score so far without it, or without the shots behind it.`
+      : `${cats} project from the games left only: ${from} gave the score so far without them, or without the shots behind them.`;
   }
-  if (basis.reason === 'not-espn') return 'Import the league from ESPN to start from the live score.';
+  if (basis.reason === 'not-espn') return 'The week projects from the games left: an ESPN import, or the Yahoo bookmark on the League page, brings the score so far.';
+  if (host === 'yahoo') {
+    return basis.reason === 'stale'
+      ? "The score so far is from the Yahoo bookmark's last run, not today's: run it again on the League page to start from today's score."
+      : "Yahoo's matchup page gave no score for this matchup, so the week projects from the games left.";
+  }
   if (basis.reason === 'stale') return 'The score so far waits on a sync with ESPN today; until then the week projects from the games left.';
   return 'ESPN has no score for this matchup yet, so the week projects from the games left.';
 }
@@ -90,7 +103,7 @@ export function Matchup({
   const show = (cat: string, v: number) => (isRatio(cat) ? `${fmt(v * 100, 1)}%` : fmt(v, 0));
   const tone = (r: WeekMatchup['cats'][number]['result']) => (r === 'win' ? 'text-good' : r === 'loss' ? 'text-bad' : 'text-muted');
   const swing = match && !points ? swingCategory(match) : null;
-  const note = points ? null : basisNote(basis);
+  const note = points ? null : basisNote(basis, setup.source?.host);
   const live = !!basis?.live;
   // Pickups for the open days, with the close and losing categories as need chips (#818)
   const pickups = href(pickupsPath(league, { week: true, open: openDays, need: match && !points ? streamTargets(match) : [] }));
@@ -150,9 +163,14 @@ export function Matchup({
               win {match.wins} of {match.cats.length} categories
             </strong>{' '}
             against {them}, lose {match.losses}
-            {match.close ? `, with ${match.close} too close to call (within 5%)` : ''}. Games left this week: you {match.mine.games}, {them}{' '}
-            {match.theirs.games}.
+            {match.close ? `, with ${match.close} too close to call (within 5%)` : ''}. Games left this week: you {gamesLeft(match.mine.games)}, {them}{' '}
+            {gamesLeft(match.theirs.games)}.
           </p>
+          {basis?.live && basis.read && (
+            <p className="mt-1 text-xs text-muted" data-testid="matchup-read">
+              {readLine(basis.read, setup.source?.host)}
+            </p>
+          )}
           {note && (
             <p className="mt-1 text-xs text-muted" data-testid="matchup-basis">
               {note}

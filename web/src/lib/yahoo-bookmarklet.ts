@@ -5,8 +5,9 @@
  * names and player names to the League page in the URL fragment (which never reaches a server).
  * The League page matches the names to players and fills the rosters.
  */
-import { DEFAULT_SETTINGS, type LeagueSetup, matchNames, normalize } from './fantasy-league';
+import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, normalize } from './fantasy-league';
 import { yahooSource } from './league-sync';
+import { cleanYahooPages, type YahooPages, yahooPlayoffs, yahooRecord, yahooScore, yahooScoring } from './yahoo-pages';
 
 interface YahooPlayer {
   name: string;
@@ -20,8 +21,8 @@ interface YahooTeam {
   players: YahooPlayer[];
 }
 
-export interface YahooPayload {
-  v: 2;
+export interface YahooPayload extends YahooPages {
+  v: 3;
   leagueId: string;
   /** Yahoo's id of the manager's team, where the page said which one that is. */
   mine: number | null;
@@ -161,7 +162,59 @@ function collectYahooLeague(target: string): void {
       alert('No rosters were found. Open your league’s Starting Rosters page on Yahoo (League, then Starting Rosters) and run the bookmark there.');
       return;
     }
-    const payload: YahooPayload = { v: 2, leagueId, mine, teams };
+    // The league's state (#874): the standings on its home page, this week's matchup and the
+    // settings. Each page's text goes as it stands; a page that does not answer is left out.
+    const read = async (path: string) => {
+      try {
+        const res = await fetch(base + path, { credentials: 'include' });
+        return res.ok ? new DOMParser().parseFromString(await res.text(), 'text/html') : null;
+      } catch {
+        return null;
+      }
+    };
+    const cellsOf = (row: Element) => Array.from(row.children).map((c) => textOf(c));
+    const teamOf = (row: Element) => {
+      for (const a of Array.from(row.querySelectorAll('a[href]'))) {
+        const t = teamLink(a);
+        if (t !== null) return t;
+      }
+      return null;
+    };
+    const headOf = (table: Element) => table.querySelector('thead tr') || table.querySelector('tr');
+    const records: Record<string, [string, string]> = {};
+    const home = await read('');
+    for (const table of home ? Array.from(home.querySelectorAll('table')) : []) {
+      const head = headOf(table);
+      const at = head ? cellsOf(head).findIndex((c) => /^W-L-T$/i.test(c)) : -1;
+      if (at < 0) continue;
+      for (const row of Array.from(table.querySelectorAll('tbody tr'))) {
+        const t = teamOf(row);
+        const c = cellsOf(row);
+        if (t !== null && c[at]) records[t] = [c[at] || '', c[0] || ''];
+      }
+      break;
+    }
+    let matchup: { labels: string[]; rows: { id: number; cells: string[] }[] } | undefined;
+    const board = await read('matchup' + (mine !== null ? '?mid1=' + mine : ''));
+    for (const table of board ? Array.from(board.querySelectorAll('table')) : []) {
+      const head = headOf(table);
+      const labels = head ? cellsOf(head) : [];
+      if (!/^team$/i.test(labels[0] || '') || !labels.some((l) => /^(PTS|REB|AST)$/i.test(l))) continue;
+      const rows = Array.from(table.querySelectorAll('tbody tr')).flatMap((row) => {
+        const id = teamOf(row);
+        return id === null ? [] : [{ id, cells: cellsOf(row) }];
+      });
+      if (rows.length === 2) matchup = { labels, rows };
+      break;
+    }
+    const settings: { playoffs?: string; scoring?: string } = {};
+    const settingsPage = await read('settings');
+    for (const row of settingsPage ? Array.from(settingsPage.querySelectorAll('tr')) : []) {
+      const c = cellsOf(row);
+      if (/^playoffs:?$/i.test(c[0] || '') && c[1]) settings.playoffs = c[1];
+      if (/^scoring type:?$/i.test(c[0] || '') && c[1]) settings.scoring = c[1];
+    }
+    const payload: YahooPayload = { v: 3, leagueId, mine, teams, records, ...(matchup ? { matchup } : {}), settings };
     location.href = target.replace(/#.*$/, '') + '#yahoo=' + encodeURIComponent(JSON.stringify(payload));
   })();
 }
@@ -184,9 +237,10 @@ export function parseYahooHash(hash: string): YahooPayload | null {
   const m = hash.match(/^#yahoo=(.+)$/);
   if (!m || !m[1]) return null;
   try {
-    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown };
-    // Version 1 bookmarks (names only) still work; version 2 says who is on the injured list.
-    if ((raw.v !== 1 && raw.v !== 2) || !Array.isArray(raw.teams) || !raw.teams.length) return null;
+    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown };
+    // Version 1 bookmarks (names only) still work; version 2 says who is on the injured list;
+    // version 3 adds the standings, this week's matchup and the settings (#874).
+    if ((raw.v !== 1 && raw.v !== 2 && raw.v !== 3) || !Array.isArray(raw.teams) || !raw.teams.length) return null;
     const teams = (raw.teams as unknown[])
       .filter((t): t is { id: unknown; name?: unknown; players: unknown[] } => !!t && typeof t === 'object' && Array.isArray((t as { players?: unknown }).players))
       .map((t) => ({
@@ -194,15 +248,57 @@ export function parseYahooHash(hash: string): YahooPayload | null {
         name: String(t.name || `Team ${t.id}`).slice(0, 60),
         players: t.players.map(yahooPlayer).filter((p): p is YahooPlayer => !!p),
       }));
-    return teams.length ? { v: 2, leagueId: String(raw.leagueId ?? ''), mine: typeof raw.mine === 'number' ? raw.mine : null, teams } : null;
+    const pages = raw.v === 3 ? cleanYahooPages(raw) : {};
+    return teams.length ? { v: 3, leagueId: String(raw.leagueId ?? ''), mine: typeof raw.mine === 'number' ? raw.mine : null, teams, ...pages } : null;
   } catch {
     return null;
   }
 }
 
 /**
+ * What the extra pages give the league (#874): each team's record and place, this week's opponent
+ * and the score so far on both sides, the playoffs and how the records count. Team indexes follow
+ * the payload's teams.
+ */
+function yahooState(payload: YahooPayload, mine: number, now: number): { source: Partial<LeagueSource>; settings: Partial<LeagueSetup> } {
+  const index = (id: number) => payload.teams.findIndex((t) => t.id === id);
+  const source: Partial<LeagueSource> = {};
+  const settings: Partial<LeagueSetup> = {};
+  if (payload.records) {
+    const records = payload.teams.map((t) => {
+      const r = payload.records?.[String(t.id)];
+      return r ? yahooRecord(r[0], r[1]) : null;
+    });
+    if (records.some(Boolean)) source.records = records;
+  }
+  const sides = payload.matchup?.rows.map((r) => index(r.id)) ?? [];
+  const other = sides[0] === mine ? sides[1] : sides[1] === mine ? sides[0] : undefined;
+  if (payload.matchup && typeof other === 'number' && other >= 0) {
+    const { labels, rows } = payload.matchup;
+    source.opponents = payload.teams.map((_, i) => (i === mine ? other : i === other ? mine : null));
+    source.scores = payload.teams.map((_, i) => {
+      const row = rows.find((r) => index(r.id) === i);
+      return row ? yahooScore(labels, row.cells) : null;
+    });
+    settings.opponent = other;
+  }
+  const playoffs = payload.settings?.playoffs ? yahooPlayoffs(payload.settings.playoffs, now) : null;
+  if (playoffs) {
+    source.playoffWeeks = { periods: playoffs.periods, from: playoffs.from, to: playoffs.to };
+    settings.playoffs = { teams: playoffs.teams, weeks: playoffs.weeks, start: playoffs.from };
+  }
+  const scoring = payload.settings?.scoring ? yahooScoring(payload.settings.scoring) : null;
+  if (scoring) {
+    source.tally = scoring.tally;
+    settings.format = scoring.format;
+  }
+  return { source, settings };
+}
+
+/**
  * The league with the imported teams: names, rosters matched by name, the injured list, the
- * manager's team, and when the bookmarklet ran (#815).
+ * manager's team, and when the bookmarklet ran (#815); with a version 3 bookmark, the standings,
+ * this week's matchup and the playoffs too (#874).
  */
 export function applyYahooImport(
   setup: LeagueSetup,
@@ -221,9 +317,10 @@ export function applyYahooImport(
     return result.matched;
   });
   const mine = Math.max(0, payload.teams.findIndex((t) => t.id === payload.mine));
+  const state = yahooState(payload, mine, now);
   const next = normalize(
-    { ...setup, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },
+    { ...setup, ...state.settings, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },
     DEFAULT_SETTINGS['nba'],
   );
-  return { setup: { ...next, source: yahooSource(payload.leagueId, next.rosters, now) }, matched, unmatched, il: next.il.length };
+  return { setup: { ...next, source: { ...yahooSource(payload.leagueId, next.rosters, now), ...state.source } }, matched, unmatched, il: next.il.length };
 }

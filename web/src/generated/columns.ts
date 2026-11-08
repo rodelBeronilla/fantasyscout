@@ -40,6 +40,8 @@ export type BoardColumn =
   | 'lineup_date'
   | 'market_rank'
   | 'market_gap'
+  | 'market_prior_weight'
+  | 'market_prior_value'
   | 'game_floor'
   | 'game_ceiling'
   | 'game_value_sd'

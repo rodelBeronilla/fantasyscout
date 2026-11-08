@@ -9,6 +9,10 @@ import { expect, test } from './fixtures';
 const espnFixture = JSON.parse(readFileSync(new URL('./fixtures/espn/league.json', import.meta.url), 'utf8')) as {
   teams: { roster: { entries: { playerPoolEntry: { player: { fullName: string } } }[] } }[];
 };
+/** ESPN's NBA scoreboard for 8 November 2026 at 8:15 pm ET (#875): two games final, three under way, two to come. */
+const scoreboardFixture = JSON.parse(readFileSync(new URL('./fixtures/espn/scoreboard.json', import.meta.url), 'utf8')) as {
+  events: { status: { type: { state: string } } }[];
+};
 
 // The preview server serves the fixture data build (tests/fixtures/data) under /data/.
 
@@ -1110,7 +1114,8 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   await page.route(/\/nba\/12345\/(\d+)$/, (route) => route.fulfill({ path: `tests/fixtures/data/yahoo/team-${route.request().url().split('/').pop()}.html` }));
   await page.goto('/data/yahoo/league.html');
   await page.evaluate(code.slice('javascript:'.length));
-  await expect(page).toHaveURL(/\/league\/\?league=nba$/);
+  // the bookmark reads the team pages, then the standings, the matchup and the settings, in turn
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
   await expect(page.getByTestId('team-card')).toHaveCount(4);
   await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 12 players matched, 4 on the IL.');
   await expect(page.getByTestId('roster').filter({ hasText: 'Napheesa Collier' })).toHaveCount(0);
@@ -1137,7 +1142,8 @@ test('the Yahoo bookmarklet reads every roster from the Starting Rosters page it
   });
   await page.goto('/data/yahoo/startingrosters.html');
   await page.evaluate(code.slice('javascript:'.length));
-  await expect(page).toHaveURL(/\/league\/\?league=nba$/);
+  // the bookmark reads the team pages, then the standings, the matchup and the settings, in turn
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
   await expect(page.getByTestId('team-card')).toHaveCount(4);
   await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 14 players matched, 2 on the IL.');
   expect(fetched).toBe(0);
@@ -1151,6 +1157,115 @@ test('the Yahoo bookmarklet reads every roster from the Starting Rosters page it
   // the sidebar's players belong to nobody
   await expect(page.getByTestId('roster').filter({ hasText: 'Napheesa Collier' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Injured list:/, pressed: true })).toHaveCount(2);
+});
+
+test("the Yahoo bookmarklet brings the standings, this week's opponent and score, and the playoff weeks; My Team leads with them (#874)", async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  await page.clock.setFixedTime(new Date('2026-11-08T17:00:00Z'));
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  // the team pages, then the league's home (standings), the manager's matchup and the settings
+  const asked: string[] = [];
+  await page.route(/\/nba\/12345\/(\d+)$/, (route) => route.fulfill({ path: `tests/fixtures/data/yahoo/team-${route.request().url().split('/').pop()}.html` }));
+  await page.route(/\/nba\/12345\/(matchup\?.*|settings)?$/, (route) => {
+    const url = new URL(route.request().url());
+    asked.push(url.pathname + url.search);
+    const page = url.pathname.endsWith('/matchup') ? 'matchup' : url.pathname.endsWith('/settings') ? 'settings' : 'home';
+    return route.fulfill({ path: `tests/fixtures/data/yahoo/${page}.html` });
+  });
+  await page.goto('/data/yahoo/league.html');
+  await page.evaluate(code.slice('javascript:'.length));
+  // the bookmark reads the team pages, then the standings, the matchup and the settings, in turn
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
+  await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo');
+  // the matchup asked for is the manager's (Rim Reapers, Yahoo's team 2)
+  expect(asked).toEqual(['/nba/12345/', '/nba/12345/matchup?mid1=2', '/nba/12345/settings']);
+  // a head-to-head categories league; the records came in, so there is nothing to enter by hand
+  await expect(page.getByLabel('Format')).toHaveValue('h2h');
+  await expect(page.getByTestId('standings-entry')).toHaveCount(0);
+  await expect(page.getByLabel('Teams that make the playoffs')).toHaveValue('4');
+  await expect(page.getByLabel('The first playoff week (its Monday)')).toHaveValue('2027-03-15');
+  await expect(page.getByLabel('The first playoff week (its Monday)')).toBeDisabled();
+
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('sync-summary')).toHaveText('Last synced just now from Yahoo · this week vs Triple Doubles');
+  await expect(page.getByTestId('standing-line')).toHaveText('2nd, 2.5 games back of 1st (9-8-1, from Yahoo at the last import)');
+  const matchup = page.getByTestId('matchup');
+  if (await matchup.count()) {
+    await expect(matchup.getByLabel("This week's opponent")).toHaveValue('2');
+    await expect(matchup.getByTestId('matchup-summary')).toContainText('From the score so far plus the games each lineup starts');
+    // noon ET, before the day's first tip-off: the line names Yahoo and the read time (#875)
+    await expect(matchup.getByTestId('matchup-read')).toContainText("Score so far from Yahoo at 12:00 ET, before today's");
+  }
+});
+
+test('a league built by hand takes its records and its first playoff week on the League page, and My Team leads with them (#874)', async ({ page }) => {
+  type TeamWeek = { team_id: string; week_start: string; week_end: string; games: number };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];
+  const weeks = (await (await page.request.get('/data/builds/fixture/team_weeks/nba.json')).json()) as TeamWeek[];
+  await page.clock.setFixedTime(new Date('2026-11-02T16:00:00Z'));
+  // a copy from before records and a first playoff week were kept (version 8)
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const copy = {
+    version: 8,
+    teams: 4,
+    rosterSpots: 6,
+    scoring: 'cats9',
+    format: 'h2h',
+    punts: [],
+    names: ['Mine', 'Second', 'Third', 'Fourth'],
+    rosters,
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    playoffs: { teams: 2, weeks: 2 },
+  };
+  await page.addInitScript((stored) => {
+    if (sessionStorage.getItem('seeded')) return;
+    localStorage.setItem('fantasyscout:league:nba', stored);
+    sessionStorage.setItem('seeded', '1');
+  }, JSON.stringify(copy));
+  await page.goto('/league/?league=nba');
+  const entry = page.getByTestId('standings-entry');
+  await expect(entry).toContainText("Standings: enter each team's record");
+  await entry.locator('summary').click();
+  await entry.getByLabel('How the records count').selectOption('matchups');
+  const records: [string, number, number][] = [
+    ['Mine', 5, 3],
+    ['Second', 6, 2],
+    ['Third', 4, 4],
+    ['Fourth', 1, 7],
+  ];
+  for (const [name, won, lost] of records) {
+    await entry.getByLabel(`${name}: won`).fill(String(won));
+    await entry.getByLabel(`${name}: lost`).fill(String(lost));
+  }
+  await expect(entry.locator('summary')).toHaveText('Standings (4 of 4 teams entered)');
+  // the playoffs start two weeks before the schedule's last: a Thursday stands for its week's Monday
+  const spans = [...new Set(weeks.filter((w) => w.games > 0).map((w) => `${w.week_start}|${w.week_end}`))].sort();
+  const monday = spans.at(-4)!.split('|')[0]!;
+  const thursday = new Date(Date.parse(`${monday}T12:00:00Z`) + 3 * 86_400_000).toISOString().slice(0, 10);
+  await page.getByLabel('The first playoff week (its Monday)').fill(thursday);
+  await expect(page.getByLabel('The first playoff week (its Monday)')).toHaveValue(monday);
+  const end = new Date(Date.parse(`${monday}T12:00:00Z`) + 13 * 86_400_000).toISOString().slice(0, 10);
+  const day = (iso: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`));
+
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('standing-line')).toHaveText('2nd, 1 game back of 1st (5-3, as entered on the League page)');
+  await expect(page.getByTestId('playoff-line')).toContainText(`games in the playoff weeks (${day(monday)} to ${day(end)})`);
+  const details = page.getByTestId('playoff-details');
+  await details.locator('summary').click();
+  await expect(details.getByTestId('playoff-basis')).toContainText('from the records entered on the League page');
+  await expect(details.getByTestId('playoff-basis')).not.toContainText("taken to be the schedule's last");
+  // kept across a reload, at the new version
+  await page.reload();
+  await expect(page.getByTestId('standing-line')).toContainText('as entered on the League page');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fantasyscout:league:nba') ?? '{}') as { version: number; playoffs: { start: string } });
+  expect(stored.version).toBe(9);
+  expect(stored.playoffs.start).toBe(monday);
 });
 
 test('the Trade page values both sides for the rest of the season and gives a verdict', async ({ page }) => {
@@ -1585,7 +1700,7 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
   await expect(matchupCard.getByTestId('matchup-call')).toContainText(/^Winning [5-9], losing \d(, \d too close)?: .+ is the swing category\./);
   await expect(matchupCard.getByTestId('matchup-stream')).toHaveAttribute('href', /\/streamers\/\?league=nba&window=week&open=2026-11-0\d/);
   // a league entered here has no score so far
-  await expect(matchupCard.getByTestId('matchup-basis')).toHaveText('Import the league from ESPN to start from the live score.');
+  await expect(matchupCard.getByTestId('matchup-basis')).toHaveText('The week projects from the games left: an ESPN import, or the Yahoo bookmark on the League page, brings the score so far.');
   // three players fill three of the ten slots, so each starts every game his team has left
   const mine = names.slice(0, 3).reduce((s, name) => s + gamesFor(name), 0);
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText(`Games left this week: you ${mine}, Team 2 ${gamesFor(names[3] ?? '')}`);
@@ -2018,7 +2133,7 @@ test('My Team ranks every team by projection: matchup win rates in head-to-head,
   const table = page.getByTestId('league-table');
   await expect(table).toContainText('Power rankings');
   // a league entered by hand keeps the projected table where it was, and says how to get the real standings (#822)
-  await expect(table.getByTestId('standings-note')).toHaveText('Import the league from ESPN to show the real standings.');
+  await expect(table.getByTestId('standings-note')).toHaveText("Import the league from ESPN, run the Yahoo bookmark, or enter each team's record on the League page to show the real standings.");
   await expect(page.getByTestId('standings')).toHaveCount(0);
   const rows = table.getByTestId('power-row');
   await expect(rows).toHaveCount(4);
@@ -2299,6 +2414,8 @@ test('the League page imports a public ESPN league: settings, lineup, teams and 
     asked = route.request().url();
     return route.request().url().includes('/leagues/999999') ? route.fulfill({ status: 401, json: { messages: ['not authorized'] } }) : route.fulfill({ json: league });
   });
+  // the import reads ESPN's scoreboard with the league (#875): a day with no games
+  await page.route('https://site.api.espn.com/**', (route) => route.fulfill({ json: { events: [] } }));
   await page.goto('/league/?league=nba');
   const card = page.getByTestId('espn-import');
   await card.getByLabel('ESPN league address or ID').fill('https://fantasy.espn.com/basketball/league?leagueId=123456');
@@ -2326,6 +2443,8 @@ async function espnLeagueAndCopy(
   page: Page,
   edit: (rosters: string[][], id: (i: number) => string) => string[][] = (r) => r,
   then = Date.now() - 2 * 60 * 60 * 1000,
+  // ESPN's scoreboard at each read (#875): by default a day with no games
+  scoreboard: (read: number) => unknown = () => ({ events: [] }),
 ) {
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string; full_name: string; season: string }[];
   const made = ['Player Zero', 'Player One', 'Player Two', 'Player Three', 'Player Four', 'Player Five', 'Player Six'];
@@ -2369,7 +2488,12 @@ async function espnLeagueAndCopy(
     asked.push(route.request().url());
     return route.fulfill({ json: league });
   });
-  return { asked, id };
+  const boards: string[] = [];
+  await page.route('https://site.api.espn.com/**', (route) => {
+    boards.push(route.request().url());
+    return route.fulfill({ json: scoreboard(boards.length) });
+  });
+  return { asked, boards, id };
 }
 
 test("an ESPN league re-syncs on My Team: when it synced, the roster changes, and this week's opponent from ESPN's schedule (#815)", async ({ page }) => {
@@ -2433,6 +2557,60 @@ test("an ESPN category league's matchup starts from the score so far and leads w
   const points = card.getByTestId('matchup-row').filter({ hasText: 'PTS' });
   expect(Number(await points.locator('td').nth(1).innerText())).toBeGreaterThanOrEqual(1000);
   await expect(points).toContainText('win');
+});
+
+test("the evening matchup reads ESPN's scoreboard with the score and says how many of today's games it holds (#875)", async ({ page }) => {
+  // 8:15 pm ET on Sunday 8 November: 01:15 UTC on the 9th
+  const now = new Date('2026-11-09T01:15:00Z').getTime();
+  await page.clock.setFixedTime(now);
+  const { asked, boards } = await espnLeagueAndCopy(page, undefined, now - 2 * 60 * 60 * 1000, () => scoreboardFixture);
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('sync-summary')).toContainText('Synced just now');
+  expect(asked).toHaveLength(1);
+  // the Eastern day's scoreboard, though it is already the 9th in UTC
+  expect(boards).toEqual(['https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=20261108']);
+  const card = page.getByTestId('matchup');
+  await expect(card.getByTestId('matchup-summary')).toContainText('From the score so far plus the games each lineup starts');
+  await expect(card.getByTestId('matchup-read')).toHaveText(
+    "Score so far from ESPN at 20:15 ET, with 5 of today's 7 games started: the score holds what they have played, so the games left count only the rest.",
+  );
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fantasyscout:league:nba') ?? '{}') as { source: { games: { started: number; left: Record<string, number> } } });
+  expect(stored.source.games.started).toBe(5);
+  expect(stored.source.games.left['CHI']).toBe(0);
+  expect(stored.source.games.left['LAC']).toBeUndefined();
+});
+
+test('an open My Team reads the league again every quarter hour while in view, and when its tab comes back (#875)', async ({ page }) => {
+  const start = new Date('2026-11-09T01:15:00Z').getTime();
+  await page.clock.install({ time: start });
+  // the second read finds every game under way or final
+  const allStarted = { ...scoreboardFixture, events: scoreboardFixture.events.map((e) => ({ ...e, status: { period: 4, clock: 0, type: { state: 'post', completed: true } } })) };
+  const { asked, boards } = await espnLeagueAndCopy(page, undefined, start - 2 * 60 * 60 * 1000, (read) => (read === 1 ? scoreboardFixture : allStarted));
+  await page.goto('/team/?league=nba');
+  const read = page.getByTestId('matchup').getByTestId('matchup-read');
+  await expect(read).toContainText("with 5 of today's 7 games started");
+  expect(asked).toHaveLength(1);
+  // a hidden tab asks nothing of ESPN, however long it waits
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.clock.runFor('01:00:00');
+  expect(asked).toHaveLength(1);
+  // back in view, it reads the league and the scoreboard again at once
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(read).toContainText("with all 7 of today's games started");
+  expect(asked).toHaveLength(2);
+  expect(boards).toHaveLength(2);
+  await expect(read).toContainText('Score so far from ESPN at 21:15 ET');
+  // in view, not again inside the quarter hour, and again once it has passed
+  await page.clock.runFor('10:00');
+  expect(asked).toHaveLength(2);
+  await page.clock.runFor('06:00');
+  await expect.poll(() => asked.length).toBe(3);
 });
 
 test('an ESPN league edited by hand is not re-synced until the manager asks, and then it is (#815)', async ({ page }) => {

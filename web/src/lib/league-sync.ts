@@ -4,25 +4,36 @@
  * settings and this week's opponent from ESPN's schedule. A copy the manager has edited by hand
  * since the import is never replaced without asking. A Yahoo league comes in through the
  * bookmarklet, which only the manager can run, so its copy says how old it is instead.
+ *
+ * An open page reads the league again on its own (#875): while it is visible, once the copy is a
+ * quarter hour old, and when the tab comes back into view. The same read takes ESPN's scoreboard,
+ * so the matchup knows which of today's games the score so far already holds.
  */
 import { espnLeagueUrl, fromEspnLeague, type ImportedLeague } from './espn-league';
 import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, normalize } from './fantasy-league';
+import { fetchGamesRead, type GamesRead } from './game-state';
 import type { ScoreSoFar } from './matchup';
 import { easternDate } from './today';
-
-/** How long an ESPN re-import stands before a visit reads the league again. */
-export const SYNC_EVERY_MS = 15 * 60 * 1000; // def: a quarter hour, in ms
-/** How old a Yahoo copy gets before the page offers to re-sync it. */
-export const YAHOO_STALE_MS = 24 * 60 * 60 * 1000; // def: a day, in ms
+import { PARAMS } from '../generated/parameters';
 
 const MINUTE = 60 * 1000; // def: ms in a minute
 const HOUR = 60 * MINUTE; // def: minutes in an hour
 const DAY = 24 * HOUR; // def: hours in a day
 
+/** How long an ESPN re-import stands before a visit, or an open page, reads the league again. */
+export const SYNC_EVERY_MS = PARAMS['sync.every_minutes'] * MINUTE;
+/** How old a Yahoo copy gets before the page offers to re-sync it. */
+export const YAHOO_STALE_MS = DAY;
+
 type Players = { player_id: string; full_name: string | null }[];
 
 /** Reads a public ESPN league; the error says what to do about a private or missing one. */
 export async function fetchEspnLeague(leagueId: string, season: string, get: typeof fetch = fetch): Promise<ImportedLeague> {
+  return (await getEspnLeague(leagueId, season, get)).league;
+}
+
+/** The league and when ESPN's server produced it (X-Fantasy-Server-Time): a cache can serve it minutes later. */
+async function getEspnLeague(leagueId: string, season: string, get: typeof fetch): Promise<{ league: ImportedLeague; servedAt: number | null }> {
   const res = await get(espnLeagueUrl(leagueId, season), { headers: { accept: 'application/json' } });
   if (res.status === 401 || res.status === 403) {
     throw new Error(
@@ -31,7 +42,25 @@ export async function fetchEspnLeague(leagueId: string, season: string, get: typ
   }
   if (res.status === 404) throw new Error(`ESPN has no ${season} league with ID ${leagueId}.`);
   if (!res.ok) throw new Error(`ESPN answered ${res.status}; try again in a moment.`);
-  return fromEspnLeague(await res.json());
+  const served = Date.parse(res.headers?.get('x-fantasy-server-time') ?? '');
+  return { league: fromEspnLeague(await res.json()), servedAt: Number.isFinite(served) ? served : null };
+}
+
+/**
+ * Reads the league and then, for an NBA league, today's scoreboard (#875): which of today's games
+ * had started when ESPN produced the score so far. The scoreboard is null when it does not answer,
+ * and for a WNBA league; the matchup then goes by the tip-off times.
+ */
+export async function readEspn(
+  leagueId: string,
+  season: string,
+  now: number,
+  get: typeof fetch = fetch,
+): Promise<{ league: ImportedLeague; games: GamesRead | null }> {
+  const { league, servedAt } = await getEspnLeague(leagueId, season, get);
+  // an NBA season has two years in its name (2026-27); the scoreboard read here is the NBA's
+  const games = season.includes('-') ? await fetchGamesRead(easternDate(new Date(now)), Math.min(servedAt ?? now, now), get) : null;
+  return { league, games };
 }
 
 /** Each team's roster keyed by ESPN's team id where there is one, else by its place in the league. */
@@ -122,7 +151,12 @@ export interface EspnSync {
  * the manager's own choices (their team, matched by ESPN's team id, the punts and the injured list)
  * and takes everything else from ESPN, this week's opponent included when the schedule has one.
  */
-export function espnSetup(league: ImportedLeague, players: Players, at: { leagueId: string; season: string; now: number }, previous: LeagueSetup | null): EspnSync {
+export function espnSetup(
+  league: ImportedLeague,
+  players: Players,
+  at: { leagueId: string; season: string; now: number; games?: GamesRead | null },
+  previous: LeagueSetup | null,
+): EspnSync {
   const base = DEFAULT_SETTINGS.nba;
   const unmatched: string[] = [];
   let matched = 0;
@@ -145,10 +179,16 @@ export function espnSetup(league: ImportedLeague, players: Players, at: { league
   const playoffWeeks = espnPlayoffWeeks(league, at.now);
   const setup = normalize(
     {
-      ...(previous ? { punts: previous.punts, il: previous.il, playoffs: previous.playoffs } : {}),
-      // ESPN's playoff field and the Monday-to-Sunday weeks its playoff days cover, when it says (#821)
+      ...(previous ? { punts: previous.punts, il: previous.il, playoffs: previous.playoffs, standings: previous.standings } : {}),
+      // ESPN's playoff field and the Monday-to-Sunday weeks its playoff days cover, from their first (#821, #874)
       ...(league.playoffs
-        ? { playoffs: { teams: league.playoffs.teams, weeks: playoffWeeks ? weeksCovered(playoffWeeks.from, playoffWeeks.to) : league.playoffs.periods[1] - league.playoffs.periods[0] + 1 } }
+        ? {
+            playoffs: {
+              teams: league.playoffs.teams,
+              weeks: playoffWeeks ? weeksCovered(playoffWeeks.from, playoffWeeks.to) : league.playoffs.periods[1] - league.playoffs.periods[0] + 1,
+              start: playoffWeeks?.from ?? previous?.playoffs.start ?? null,
+            },
+          }
         : {}),
       teams: league.teams.length || league.settings.teams,
       rosterSpots: league.settings.rosterSpots || base.rosterSpots,
@@ -184,6 +224,8 @@ export function espnSetup(league: ImportedLeague, players: Players, at: { league
     ...(playoffWeeks ? { playoffWeeks } : {}),
     ...(league.fixtures.length ? { fixtures: fixtureWeeks(league, teamIds) } : {}),
     tally: league.tally,
+    // which of today's games the score so far holds, from ESPN's scoreboard read with it (#875)
+    ...(at.games ? { games: at.games } : {}),
   };
   return {
     setup: { ...setup, source },
@@ -197,8 +239,9 @@ export function espnSetup(league: ImportedLeague, players: Players, at: { league
 
 /**
  * The score so far for the week's matchup between the manager and the opponent (#817), when the
- * league came from ESPN with one and it was read today: an older score misses the days since, so
- * the week projects from the games left instead. The reason says which.
+ * league came from ESPN or the Yahoo bookmark (#874) with one and it was read today: an older score
+ * misses the days since, so the week projects from the games left instead. The reason says which;
+ * 'not-espn' is a league with no import at all.
  */
 export function weekScore(
   setup: LeagueSetup,
@@ -206,7 +249,7 @@ export function weekScore(
   dateOf: (ms: number) => string,
 ): { mine: ScoreSoFar; theirs: ScoreSoFar } | 'not-espn' | 'no-score' | 'stale' {
   const source = setup.source;
-  if (source?.host !== 'espn') return 'not-espn';
+  if (!source) return 'not-espn';
   const mine = source.scores?.[setup.mine];
   const theirs = setup.opponent === null ? null : source.scores?.[setup.opponent];
   if (!mine || !theirs) return 'no-score';

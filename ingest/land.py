@@ -20,7 +20,7 @@ from typing import Literal
 from ingest.bref import THROTTLE as BREF_THROTTLE
 from ingest.bref import BrefSalariesIngestor
 from ingest.espn import EspnIngestor, EspnPlanner
-from ingest.espn_fantasy import EspnFantasyIngestor
+from ingest.espn_fantasy import EspnFantasyIngestor, draft_order_due
 from ingest.espn_news import EspnNewsIngestor
 from ingest.http import Throttle, ThrottledClient
 from ingest.injury_report import InjuryReportIngestor, ReportHistoryIngestor
@@ -219,6 +219,10 @@ def plan_lines(opts: LandOptions, season: str, since: date, until: date) -> Sequ
         lines.append(
             f"  and, when the window ends today, {opts.ahead_days} days of upcoming scoreboards"
         )
+        lines.append(
+            "  and, once a regular-season game is on them up to tomorrow's, ESPN fantasy's draft"
+            " order for the season, once, under fantasy_adp (#847)"
+        )
     if opts.only or opts.from_run_log:
         only = ", ".join(Only.parse(opts.only).specs()) or "(from the run log)"
         lines.append(
@@ -344,9 +348,15 @@ def _run_source(
     else:
         # Only a run that ends today looks ahead; a backfill's window is in the past.
         ahead = opts.ahead_days if until == today else 0
-        summary = EspnIngestor(client, landing, EspnPlanner(opts.league, season), only=only).run(
-            since=since, until=until, ahead=ahead
-        )
+        espn = EspnIngestor(client, landing, EspnPlanner(opts.league, season), only=only)
+        summary = espn.run(since=since, until=until, ahead=ahead)
+        # The season's draft order, once, from the eve of its first game (#847): the market
+        # prior's input. Not from a backfill's window in the past, nor from a replay.
+        if until == today and only is None and draft_order_due(espn.regular_season_days, today):
+            EspnFantasyIngestor(client, landing, opts.league, season, keep=True).land_into(summary)
+            for failure in landing.flush():
+                summary.fail(failure.endpoint, failure.key, failure.error)
+            summary.pacing = client.pacing()
     return summary
 
 

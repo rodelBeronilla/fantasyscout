@@ -12,8 +12,10 @@ import { leagueStandings as tradeStandings } from '../lib/trade-impact';
 import { dropRule, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { teamReview, teamValues } from '../lib/team-review';
 import { streamMove, streamTargets } from '../lib/matchup-streams';
+import { tonight } from '../lib/game-state';
 import { liveWeek, matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { expectedWins, leagueStandings, type LeagueStandings, powerRankings } from '../lib/standings';
+import { leagueRecords, recordsFromText } from '../lib/league-state';
 import { standingsOf } from '../lib/records';
 import { hasWeekGames, type ValueUnit } from '../lib/week-value';
 import { ilMoves } from '../lib/il-moves';
@@ -350,9 +352,15 @@ export default function MyTeam() {
     if (!h2h || setup.opponent === null || !weekAvailable || myTeam.length === 0 || !rows) return null;
     const theirs = rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
     const scoring = points ? setup.weights : undefined;
+    const today = easternDate();
+    const score = points ? 'no-score' : weekScore(setup, today, (ms) => easternDate(new Date(ms)));
+    // the score so far already holds today's games that had tipped when it was read (#875)
+    const source = setup.source;
+    const read = typeof score === 'string' || !source ? null : tonight(games ?? [], today, source.games, source.syncedAt);
+    const toCome = (id: string, date: string) => (read && date === today ? (read.left.get(byId.get(id)?.team_id ?? '') ?? 1) : 1);
     const counted = (plan: WeekPlan | null | undefined) => {
       if (!plan) return undefined;
-      const starts = startsByPlayer(plan);
+      const starts = startsByPlayer(plan, toCome);
       return (r: Record<string, unknown>) => starts.get(String(r['player_id'])) ?? 0;
     };
     const rest = {
@@ -360,11 +368,10 @@ export default function MyTeam() {
       theirs: weekTotals(theirs, activeCats, scoring, counted(lineupPlans?.theirs)),
     };
     const cats = points ? [] : activeCats;
-    const score = points ? 'no-score' : weekScore(setup, easternDate(), (ms) => easternDate(new Date(ms)));
-    if (typeof score === 'string') return { match: matchup(cats, rest.mine, rest.theirs), basis: { live: false, reason: score } };
+    if (typeof score === 'string' || !read) return { match: matchup(cats, rest.mine, rest.theirs), basis: { live: false, reason: typeof score === 'string' ? score : 'not-espn' } };
     const live = liveWeek(cats, score, rest);
-    return { match: matchup(cats, live.mine, live.theirs), basis: { live: true, projectedOnly: live.projectedOnly } };
-  }, [h2h, setup, weekAvailable, myTeam, rows, owner, points, activeCats, lineupPlans]);
+    return { match: matchup(cats, live.mine, live.theirs), basis: { live: true, projectedOnly: live.projectedOnly, read } };
+  }, [h2h, setup, weekAvailable, myTeam, rows, owner, points, activeCats, lineupPlans, games, byId]);
   // Today's start and sit (#816): the best lineup the slots hold from today's players, by the same
   // per-game values the week's plan uses.
   const verdict = useMemo(() => {
@@ -490,8 +497,10 @@ export default function MyTeam() {
     const il = Number(setup.il.includes(a)) - Number(setup.il.includes(b));
     return il || (restValue.get(b) ?? 0) - (restValue.get(a) ?? 0);
   });
-  // ESPN's real standings lead the page (#822); the projected power table goes one click down
-  const real = setup.source?.host === 'espn' ? standingsOf(setup.source.records) : null;
+  // the real standings lead the page (#822): ESPN's or Yahoo's records, or those entered by hand (#874);
+  // the projected power table goes one click down
+  const recorded = leagueRecords(setup);
+  const real = recorded ? standingsOf(recorded.records) : null;
   const powerTable = (
     <LeagueTable
       names={setup.names}
@@ -503,7 +512,7 @@ export default function MyTeam() {
       fpts={points && leaguePoints ? (id) => leaguePoints.get(id)?.fpts ?? 0 : null}
       power={power}
       inline={!!real}
-      note={setup.source?.host === 'espn' ? null : 'Import the league from ESPN to show the real standings.'}
+      note={real ? null : "Import the league from ESPN, run the Yahoo bookmark, or enter each team's record on the League page to show the real standings."}
     />
   );
   // who takes an out player's minutes, and the pickup that goes with it (#820)
@@ -543,7 +552,7 @@ export default function MyTeam() {
           today={easternDate()}
         />
       )}
-      {real && <Standings table={real} mine={setup.mine} names={setup.names} power={powerTable} />}
+      {real && <Standings table={real} mine={setup.mine} names={setup.names} power={powerTable} from={recordsFromText(recorded?.from ?? 'entered')} />}
 
       {games && myTeam.length > 0 && !setup.drafting && (
         <Today

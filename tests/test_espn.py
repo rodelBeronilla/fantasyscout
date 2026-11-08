@@ -11,6 +11,7 @@ from ingest.espn import (
     EspnPlanner,
     days_between,
     events_from_scoreboard,
+    has_regular_season_game,
     team_ids_from_teams,
 )
 from ingest.http import Throttle, ThrottledClient
@@ -200,3 +201,20 @@ def test_a_daily_run_lands_the_upcoming_scoreboards_for_their_lines(tmp_path: Pa
         if not p.name.endswith(".meta.json")
     )
     assert days == ["20260924", "20260925", "20260926"]
+
+
+def test_a_run_notes_the_days_whose_scoreboard_has_a_regular_season_game(tmp_path: Path) -> None:
+    # #847: the window's day and the days ahead, each scoreboard's own date; a preseason
+    # scoreboard (type 1) counts for none.
+    assert has_regular_season_game(fixture("scoreboard"))
+    preseason = fixture("scoreboard").replace(b'"type": 2', b'"type": 1')
+    assert not has_regular_season_game(preseason)
+    now = datetime(2026, 9, 24, 12, tzinfo=UTC)
+    ingestor = EspnIngestor(
+        fixture_client(),
+        Landing(LocalBackend(tmp_path), ingest_date=now.date()),
+        EspnPlanner("wnba", "2026"),
+        now=now,
+    )
+    ingestor.run(since=date(2026, 9, 24), until=date(2026, 9, 24), rosters=False, ahead=1)
+    assert ingestor.regular_season_days == {date(2026, 9, 24), date(2026, 9, 25)}

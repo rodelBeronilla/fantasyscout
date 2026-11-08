@@ -9,7 +9,7 @@ import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum } from '../lib/fantasy-league';
-import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
+import { categoryValues, marketPriorShift, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { chooseMine } from '../lib/league-sync';
 import { href } from '../lib/site';
@@ -20,6 +20,7 @@ import { Card, Loading, Problem, Unvalidated } from './ui';
 import AccountBox from './AccountBox';
 import YahooImport from './YahooImport';
 import EspnImport from './EspnImport';
+import { StandingsEntry } from './StandingsEntry';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 
 interface PlayerRowFields {
@@ -134,7 +135,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   const valueOf = useMemo(() => {
     const out = new Map<string, number>();
     for (const r of rows ?? []) {
-      const perGame = points ? (pointVals?.get(r.player_id)?.value ?? 0) : weightedSum(catValues?.get(r.player_id), catWeight);
+      const perGame = points ? (pointVals?.get(r.player_id)?.value ?? 0) : weightedSum(catValues?.get(r.player_id), catWeight) + marketPriorShift(r);
       out.set(r.player_id, scaleValue(perGame, r, { restOfSeason: false }));
     }
     return out;
@@ -301,6 +302,9 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
           set replacement level.
         </p>
       </Card>
+
+      {/* the records by hand, where no import brings them (#874) */}
+      {setup.format === 'h2h' && !setup.source?.records?.some(Boolean) && <StandingsEntry setup={setup} onChange={update} />}
 
       {setup.drafting && (
         <p className="rounded-lg border border-accent bg-card px-3 py-2 text-sm" data-testid="draft-link">

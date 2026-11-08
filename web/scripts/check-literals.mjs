@@ -15,6 +15,7 @@ const MODULES = [
   'board-model.ts',
   'build-plan.ts',
   'buy-sell.ts',
+  'game-state.ts',
   'il-moves.ts',
   'league-model.ts',
   'league-value.ts',

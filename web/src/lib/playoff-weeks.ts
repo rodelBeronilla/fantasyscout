@@ -19,29 +19,22 @@ export interface TeamWeek {
   game_dates: string | null;
 }
 
-/** The fantasy playoffs' days, and ESPN's numbers for their weeks when the league came from ESPN. */
+/** The fantasy playoffs' days, and the host's numbers for their weeks when the league came from ESPN or Yahoo. */
 export interface PlayoffWindow {
   from: string;
   to: string;
-  /** ESPN's first and last playoff matchup periods; null for a league entered by hand. */
+  /** The host's first and last playoff weeks (ESPN's matchup periods, Yahoo's weeks); null for a league entered by hand. */
   periods: [number, number] | null;
-}
-
-/** The playoffs as an ESPN import stores them. */
-export interface EspnPlayoffs {
-  periods: [number, number];
-  from: string;
-  to: string;
 }
 
 const weeksOf = (rows: TeamWeek[]) => [...new Set(rows.filter((r) => r.games > 0).map((r) => `${r.week_start}|${r.week_end}`))].sort();
 
 /**
- * The playoff weeks: ESPN's, when the import read them, else the schedule's last `weeks`
- * Monday-to-Sunday weeks with games. Null without a schedule.
+ * The playoff weeks: the import's or the first week entered (#874) when the league fixes them,
+ * else the schedule's last `weeks` Monday-to-Sunday weeks with games. Null without either.
  */
-export function playoffWindow(rows: TeamWeek[], weeks: number, espn?: EspnPlayoffs | null): PlayoffWindow | null {
-  if (espn) return { from: espn.from, to: espn.to, periods: espn.periods };
+export function playoffWindow(rows: TeamWeek[], weeks: number, fixed?: PlayoffWindow | null): PlayoffWindow | null {
+  if (fixed) return { from: fixed.from, to: fixed.to, periods: fixed.periods };
   const all = weeksOf(rows);
   if (!all.length || weeks < 1) return null;
   const kept = all.slice(-weeks);

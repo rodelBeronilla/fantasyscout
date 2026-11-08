@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SETTINGS } from './fantasy-league';
-import { categoryReplacement, categoryValues, fantasyPoints, fitWeights, leagueTiers, naturalBreaks, pointValues, primaryPosition, replacementLevel, scaleValue } from './league-value';
+import { restValues, scoreRows } from './board-model';
+import { CATEGORIES } from './format';
+import { categoryReplacement, categoryValues, fantasyPoints, fitWeights, leagueTiers, marketPriorShift, naturalBreaks, pointValues, primaryPosition, replacementLevel, scaleValue } from './league-value';
+import { playerWorth } from './league-model';
+import { teamValues } from './team-review';
 
 const rows = [10, 8, 6, 4, 2].map((v, i) => ({ player_id: `p${i + 1}`, v, w: v / 2 }));
 
@@ -93,5 +97,71 @@ describe('scaleValue', () => {
   it('ignores the rest-of-season factor once the season is over, and treats missing fields as 1', () => {
     expect(scaleValue(10, { ...row, season_complete: true })).toBeCloseTo(5);
     expect(scaleValue(10, {})).toBe(10);
+  });
+});
+
+describe('the market prior on the league scale (#848, ADR 0020)', () => {
+  // mart_board's unit test (market_prior_prices_the_draft_rank_and_fades): own values 2, 1, 0, -1
+  // and -2 in points only, the prior at weight 0.5 fading by four games. Its z_total is the
+  // published value per game.
+  const zero = Object.fromEntries(CATEGORIES.map((c) => [c, 0]));
+  const board = [
+    { player_id: 'a', z_points: 2, market_prior_weight: 0.25, market_prior_value: 0, value_per_game: 1.5 },
+    { player_id: 'b', z_points: 1, market_prior_weight: 0, market_prior_value: 1, value_per_game: 1 },
+    { player_id: 'c', z_points: 0, market_prior_weight: 0, market_prior_value: null, value_per_game: 0 },
+    { player_id: 'd', z_points: -1, market_prior_weight: 0, market_prior_value: null, value_per_game: -1 },
+    { player_id: 'e', z_points: -2, market_prior_weight: 0.5, market_prior_value: 2, value_per_game: 0 },
+  ].map((r) => ({ ...zero, position: 'G', games_share: 1, ros_factor: 1, season_complete: false, rank_total: 1, ...r, recent_z_points: r.z_points }));
+  // a pool of two in a one-team league: the replacement level is c's, zero, as at the default size
+  const pool = 2;
+  const teams = 1;
+  const valueOf = (activeCats: string[], rows = board) =>
+    scoreRows(rows, {
+      view: 'value',
+      points: false,
+      leaguePoints: null,
+      leagueCats: categoryValues(rows, activeCats, pool, teams),
+      activeCats,
+      countGames: false,
+      restOfSeason: false,
+      weights: null,
+    }).map((s) => s.value);
+
+  it('is the weight times the market price less the nine categories, and nothing without a weight or a price', () => {
+    expect(board.map(marketPriorShift)).toEqual([-0.5, 0, 0, 0, 2]);
+    expect(marketPriorShift({ z_points: 3, market_prior_weight: null, market_prior_value: 5 })).toBe(0);
+    expect(marketPriorShift({ z_points: 3, market_prior_weight: 0.5 })).toBe(0);
+  });
+
+  it("puts the Board's value on the published value per game at the default league size, with no punts", () => {
+    expect(valueOf(CATEGORIES)).toEqual(board.map((r) => r.value_per_game));
+  });
+
+  it('keeps the shift whole in a punt build, which subtracts only the punted categories', () => {
+    const withAssists = board.map((r) => ({ ...r, z_assists: r.player_id === 'a' ? 1 : 0 }));
+    // a: own 3 over the nine against the market's 0, at a quarter weight: a shift of -0.75
+    const kept = CATEGORIES.filter((c) => c !== 'z_assists');
+    expect(valueOf(kept, withAssists)[0]).toBeCloseTo(2 - 0.75);
+    expect(valueOf(CATEGORIES, withAssists)[0]).toBeCloseTo(3 - 0.75);
+  });
+
+  it('is a no-op when the weight is 0, as in the WNBA and past the fade', () => {
+    const off = board.map((r) => ({ ...r, market_prior_weight: 0 }));
+    expect(valueOf(CATEGORIES, off)).toEqual(off.map((r) => r.z_points));
+  });
+
+  it('reaches My Team and Trade: the projection carries it; last-ten form and a points league do not', () => {
+    const leagueCats = categoryValues(board, CATEGORIES, pool, teams);
+    expect(restValues(board, { points: false, leaguePoints: null, leagueCats, activeCats: CATEGORIES }).get('a')).toBeCloseTo(1.5);
+    const catWeight = Object.fromEntries(CATEGORIES.map((c) => [c, 1]));
+    const worth = playerWorth(board, { points: false, cats: CATEGORIES, catWeight, catValues: leagueCats, pointValues: null, recentCats: null });
+    expect(worth.get('a')?.perGame).toBeCloseTo(1.5);
+    const settings = { scoring: 'cats9' as const, punts: [], weights: DEFAULT_SETTINGS.nba.weights, teams, rosterSpots: pool };
+    const v = teamValues(board, settings);
+    expect(v.perGame('a')).toBeCloseTo(1.5);
+    expect(v.perGame('a', true)).toBeCloseTo(2);
+    const off = board.map((r) => ({ ...r, market_prior_weight: 0 }));
+    const points = { ...settings, scoring: 'points' as const };
+    expect(teamValues(board, points).perGame('e')).toBe(teamValues(off, points).perGame('e'));
   });
 });

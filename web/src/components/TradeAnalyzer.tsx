@@ -9,7 +9,7 @@ import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORY_LABELS, fmt, pct } from '../lib/format';
 import { currentLeague } from '../lib/league';
 import { categoryWeights, DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague, weightedSum } from '../lib/fantasy-league';
-import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
+import { categoryValues, marketPriorShift, pointValues, scaleValue } from '../lib/league-value';
 import { acceptable, type FairnessModel, leagueState, marketMap, playerWorth, tradeLenses, type Worth } from '../lib/league-model';
 import { href } from '../lib/site';
 import { matchup, weekTotals } from '../lib/matchup';
@@ -208,7 +208,7 @@ export default function TradeAnalyzer() {
     const counted = keptCategories({ scoring: setup.scoring, punts: [] });
     const everyCat = categoryValues(rows, counted, pool, setup.teams);
     const allValue = new Map(
-      rows.map((r) => [r.player_id, scaleValue(counted.reduce((s, c) => s + (everyCat.get(r.player_id)?.[c] ?? 0), 0), r)]),
+      rows.map((r) => [r.player_id, scaleValue(counted.reduce((s, c) => s + (everyCat.get(r.player_id)?.[c] ?? 0), 0) + marketPriorShift(r), r)]),
     );
     const ids = rows.map((r) => r.player_id);
     const league = ranks(ids, (id) => allValue.get(id) ?? 0);
