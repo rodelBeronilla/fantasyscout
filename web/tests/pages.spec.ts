@@ -2326,8 +2326,8 @@ test("My Team leads a head-to-head league with its playoff odds, its games in th
   await expect(line).toHaveText(
     new RegExp(`^(\\d+%|under 1%|over 99%) to make it; ${mine} games in the playoff weeks \\(${day(from)} to ${day(to)}\\), \\d(st|nd|rd|th) of 4: target .+ \\(\\d+ games\\)$`),
   );
-  // the odds beat the coin and the naive manager but fail their calibration (#872): the rework is #900
-  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/900$/);
+  // the odds beat the coin and the naive manager but fail their calibration (#872, #900): next is #907
+  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/907$/);
   // the target is a free agent, linked to his page
   await expect(line.getByTestId('playoff-target')).toHaveAttribute('href', /\/p\/nba\/\d+\/$/);
   // every team's odds and the next targets are one click down; two spots of four, so the odds sum to 200%

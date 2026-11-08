@@ -114,7 +114,7 @@ export function PlayoffPlan({
     recorded?.from === 'espn' ? "ESPN's records at the last sync" : recorded?.from === 'yahoo' ? "Yahoo's records at the last import" : 'the records entered on the League page';
 
   return (
-    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? (pointsOdds ? 913 : 900) : undefined}>
+    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? (pointsOdds ? 913 : 907) : undefined}>
       <p className="mt-1 text-sm" data-testid="playoff-line">
         <strong>{lead}</strong>
         {top && (

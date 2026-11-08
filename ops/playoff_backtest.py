@@ -4,7 +4,7 @@ seasons.
 
     uv run python -m ops.walk_forward --league nba --season 2023-24 --standings-out standings/
     uv run python -m ops.playoff_backtest judge standings/ --out playoffs.json
-    uv run python -m ops.playoff_backtest fit tuning-2020-21/ tuning-2021-22/ tuning-2022-23/
+    uv run python -m ops.playoff_cv cv nba-2020-21/ nba-2021-22/ nba-2022-23/ --out cv.json
 
 It reads the inputs ops.standings_backtest reads (ADR 0021) and drafts the same leagues at each
 checkpoint. Each league gets:
@@ -20,8 +20,8 @@ the regular season played on real box scores, a tie for the last place sharing t
 Both tallies, categories and matchups, are judged: the Brier score against a coin (the base rate)
 and the naive manager (the current standings order), and the calibration slope (outcome on
 logit(odds)). Intervals are 95%, from ``backtest.bootstrap`` resamples of the weeks still to
-play. The pass bar was declared on #872 before any run; ``verdict`` applies it. ``fit`` reads the
-tuning seasons only.
+play. The pass bar was declared on #872 before any run; ``verdict`` applies it. The fits, and the
+folds within the tuning seasons that judge a lasting share per tally (#900), are ops.playoff_cv's.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ import argparse
 import dataclasses
 import json
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -40,7 +41,7 @@ import pandas as pd
 
 from ops import playoffs, standings, standings_backtest
 from ops.standings import CATS
-from ops.standings_backtest import JUDGED, STATS, TUNING, Cut, beat, cat_values, logistic_slope
+from ops.standings_backtest import JUDGED, STATS, Cut, beat, cat_values, logistic_slope
 from ops.walk_forward import LOCKED
 
 TALLIES = ("categories", "matchups")
@@ -108,9 +109,24 @@ class Figures:
         return realized_made(w, lo, ti, self.spots)
 
 
+def shares_of(share: float | Mapping[str, float]) -> dict[str, float]:
+    """Each tally's lasting share: one number for both, or one per tally (#900)."""
+    if isinstance(share, Mapping):
+        return {t: float(share[t]) for t in TALLIES}
+    return dict.fromkeys(TALLIES, float(share))
+
+
 def checkpoint(
-    cut: Cut, n_weeks: list[Any], p: dict[str, Any], league: str, share: float
+    cut: Cut,
+    n_weeks: list[Any],
+    p: dict[str, Any],
+    league: str,
+    share: float | Mapping[str, float],
+    scale: float | None = None,
 ) -> dict[str, Figures]:
+    """Both tallies' figures at one checkpoint, each tally's odds at its own lasting share;
+    ``scale`` overrides the registry's ``standings.spread_scale`` (the folds' refits, #900)."""
+    by_tally = shares_of(share)
     lg = standings_backtest.simulate(cut, p, league, standings_backtest._seed(cut.as_of))
     n_leagues, teams = lg.tot.shape[:2]
     n = len(CATS)
@@ -127,14 +143,28 @@ def checkpoint(
         b = [m[1] for m in sched[w]]
         real.append(beat(cv[:, a], cv[:, b]).sum(-1))  # [L, M]
     left = sched[played:]
-    shift, draws, jitter = playoffs.season_draws(sims, teams, n, left, share > 0, playoffs.SEED)
-    spread = standings.spreads(league, CATS, lg.n, "h2h", p=p)  # [L, 9]
-    won: list[list[np.ndarray]] = []
-    for lgi in range(n_leagues):
-        ch = playoffs.chances(lg.tot[lgi], spread[lgi], left, shift, share)
-        won.append([(d < c).sum(-1).astype(float) for d, c in zip(draws, ch, strict=True)])
+    spread = standings.spreads(league, CATS, lg.n, "h2h", p=p, scale=scale)  # [L, 9]
+    # the web's draws at each share a tally reads: the shift is drawn only above 0
+    won_at: dict[float, tuple[list[list[np.ndarray]], np.ndarray]] = {}
+    for at in sorted(set(by_tally.values())):
+        shift, draws, jitter = playoffs.season_draws(sims, teams, n, left, at > 0, playoffs.SEED)
+        won_at[at] = (
+            [
+                [
+                    (d < c).sum(-1).astype(float)
+                    for d, c in zip(
+                        draws,
+                        playoffs.chances(lg.tot[lgi], spread[lgi], left, shift, at),
+                        strict=True,
+                    )
+                ]
+                for lgi in range(n_leagues)
+            ],
+            jitter,
+        )
     out = {}
     for tally in TALLIES:
+        won, jitter = won_at[by_tally[tally]]
         so_far = playoffs.tally_weeks(real[:played], sched[:played], teams, n, tally)
         if not played:
             so_far = tuple(np.zeros((n_leagues, teams)) for _ in range(3))  # type: ignore[assignment]
@@ -199,7 +229,7 @@ def judge_figures(f: Figures, draws: np.ndarray, sims: int) -> dict[str, Any]:
 
 def judge(season: standings_backtest.Season, p: dict[str, Any], *, seed: int = 0) -> dict[str, Any]:
     league = season.league
-    share = float(p["playoffs.season_share"][league])
+    share = shares_of(p["playoffs.season_share"][league])
     sims = int(p["playoffs.simulations"])
     rng = np.random.default_rng(seed)
     cps = []
@@ -234,59 +264,10 @@ def verdict(result: dict[str, Any]) -> list[str]:
     return fails
 
 
-# ---- the fit ---------------------------------------------------------------------------------
-
-
-def _log_loss(odds: np.ndarray, made: np.ndarray, sims: int) -> float:
+def log_loss(odds: np.ndarray, made: np.ndarray, sims: int) -> float:
+    """The odds' mean log loss, clipped as the slope's logit is (the fits, ops.playoff_cv)."""
     q = _clip(odds, sims)
     return float(-(made * np.log(q) + (1 - made) * np.log(1 - q)).mean())
-
-
-def fit(seasons: list[standings_backtest.Season], p: dict[str, Any]) -> dict[str, Any]:
-    """The declared rule: the season share with the lowest mean log loss of the odds over the
-    tuning checkpoints, both tallies weighted equally (ties smaller). Today's odds (a share of 0)
-    are checked first: their calibration slope at each tuning checkpoint."""
-    league = seasons[0].league
-    for s in seasons:
-        if s.league != league or s.season not in TUNING[league]:
-            msg = (
-                f"{s.league} {s.season} is not a tuning season ({sorted(TUNING[league])});"
-                " the fit reads only those"
-            )
-            raise SystemExit(msg)
-    sims = int(p["playoffs.simulations"])
-    grid: dict[float, float] = {}
-    check: list[dict[str, Any]] = []
-    for share in SHARES:
-        losses = []
-        for s in seasons:
-            for cut in s.cuts:
-                figs = checkpoint(cut, s.weeks, p, league, share)
-                for tally, f in figs.items():
-                    made = f.made()
-                    losses.append(_log_loss(f.odds, made, sims))
-                    if share == 0:
-                        x = standings_backtest._logit(_clip(f.odds, sims)).ravel()
-                        check.append(
-                            {
-                                "season": s.season,
-                                "as_of": cut.as_of.isoformat(),
-                                "tally": tally,
-                                "slope": logistic_slope(x, made.ravel()),
-                                "log_loss": losses[-1],
-                            }
-                        )
-        grid[share] = float(np.mean(losses))
-        print(f"season share {share}: mean log loss {grid[share]:.5f}", flush=True)
-    pick = min(SHARES, key=lambda k: (round(grid[k], 12), k))
-    return {
-        "league": league,
-        "seasons": sorted(s.season for s in seasons),
-        "season_share": pick,
-        "log_loss": {"at_0": grid[0.0], "at_pick": grid[pick]},
-        "grid": {str(k): v for k, v in grid.items()},
-        "independent_check": check,
-    }
 
 
 # ---- the command line ------------------------------------------------------------------------
@@ -315,17 +296,8 @@ def main(argv: list[str] | None = None) -> int:
     j.add_argument("folder", type=Path)
     j.add_argument("--out", type=Path)
     j.add_argument("--judge-locked", action="store_true", help="the held-out season, once")
-    f = sub.add_parser("fit", help="fit playoffs.season_share on the tuning seasons")
-    f.add_argument("folders", type=Path, nargs="+")
-    f.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
     p = standings.registry()
-    if args.cmd == "fit":
-        res = fit([load(d) for d in args.folders], p)
-        print(json.dumps(res, indent=2))
-        if args.out:
-            args.out.write_text(json.dumps(res, indent=2) + "\n", encoding="utf-8")
-        return 0
     season = standings_backtest.load(args.folder)
     if LOCKED.get(season.league) == season.season and not args.judge_locked:
         print(f"{season.league} {season.season} is held out (#751)", file=sys.stderr)
