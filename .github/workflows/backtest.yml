@@ -38,12 +38,16 @@ on:
         description: Judge the standings model on simulated leagues too (#755)
         type: boolean
         default: false
+      buy_sell:
+        description: Judge the Trade page's buy low, sell high on simulated leagues too (#758)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: backtest-${{ inputs.league }}-${{ inputs.judge }}-${{ inputs.seasons }}-${{ inputs.market_prior }}-${{ inputs.standings }}
+  group: backtest-${{ inputs.league }}-${{ inputs.judge }}-${{ inputs.seasons }}-${{ inputs.market_prior }}-${{ inputs.standings }}-${{ inputs.buy_sell }}
   cancel-in-progress: false
 
 jobs:
@@ -120,6 +124,7 @@ jobs:
           PRIOR_WEIGHT: ${{ inputs.prior_weight }}
           PRIOR_FADE: ${{ inputs.prior_fade }}
           STANDINGS: ${{ inputs.standings }}
+          BUY_SELL: ${{ inputs.buy_sell }}
           FS_LANDING_ROOT: ${{ runner.temp }}/landing
         run: |
           set -o pipefail
@@ -127,7 +132,8 @@ jobs:
           if [ "$MARKET_PRIOR" = "true" ]; then args+=(--market-prior); fi
           if [ -n "$PRIOR_WEIGHT" ]; then args+=(--prior-weight "$PRIOR_WEIGHT"); fi
           if [ -n "$PRIOR_FADE" ]; then args+=(--prior-fade "$PRIOR_FADE"); fi
-          if [ "$STANDINGS" = "true" ]; then args+=(--standings-out standings); fi
+          if [ "$STANDINGS" = "true" ] || [ "$BUY_SELL" = "true" ]; then args+=(--standings-out standings); fi
+          if [ "$BUY_SELL" = "true" ]; then args+=(--buy-sell); fi
           uv run python -m ops.walk_forward --league "$LEAGUE" --season "$JUDGE" \
             --full-db dbt/fantasyscout.duckdb --out walk_forward.json \
             --players-out walk_forward_players.csv "${args[@]}" 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
@@ -136,14 +142,21 @@ jobs:
         run: |
           set -o pipefail
           uv run python -m ops.standings_backtest judge standings --out standings.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Judge buy low, sell high
+        if: inputs.judge != '' && inputs.buy_sell
+        run: |
+          set -o pipefail
+          uv run python -m ops.buy_sell_backtest judge standings walk_forward_players.csv --out buy_sell.json --cache buy-sell-cache.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         # kept when the standings judgement fails, so its inputs can be read
         if: always() && inputs.judge != ''
         with:
-          name: walk-forward-${{ inputs.league }}-${{ inputs.judge }}${{ inputs.market_prior && '-prior' || '' }}${{ inputs.standings && '-standings' || '' }}
+          name: walk-forward-${{ inputs.league }}-${{ inputs.judge }}${{ inputs.market_prior && '-prior' || '' }}${{ inputs.standings && '-standings' || '' }}${{ inputs.buy_sell && '-buy-sell' || '' }}
           path: |
             walk_forward.json
             walk_forward_players.csv
             standings.json
+            buy_sell.json
+            buy-sell-cache.json
             standings/
           retention-days: 90
