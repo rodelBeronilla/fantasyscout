@@ -77,6 +77,11 @@ def score_sql(line: str, scale: str) -> str:
     ``line`` has <category>_pg and fgm_pg, fga_pg, ftm_pg, fta_pg; ``scale`` is an int_value_scale
     row. A test holds the two equal.
     """
+    return " + ".join(f"({t})" for t in score_terms(line, scale))
+
+
+def score_terms(line: str, scale: str) -> list[str]:
+    """score_sql's nine terms, one per category in the board's order (z_points to FT%)."""
     terms = []
     for c in COUNTING:
         z = f"coalesce(({line}.{c}_pg - {scale}.mean_{c}) / nullif({scale}.sd_{c}, 0), 0)"
@@ -89,7 +94,7 @@ def score_sql(line: str, scale: str) -> str:
         f"coalesce(({line}.ftm_pg - {scale}.pool_free_throw_pct * {line}.fta_pg)"
         f" / nullif({scale}.sd_ft_impact, 0), 0) - {scale}.repl_z_free_throw_pct"
     )
-    return " + ".join(f"({t})" for t in terms)
+    return terms
 
 
 def checkpoints(first: date, last: date, fractions: list[float]) -> list[date]:
@@ -426,6 +431,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prior-weight", type=float, help="the prior's weight (default: registry)")
     parser.add_argument("--prior-fade", type=float, help="its fade_games (default: registry)")
     parser.add_argument("--players-out", type=Path, help="every board player's figures, as CSV")
+    parser.add_argument(
+        "--standings-out", type=Path, help="a folder for ops.standings_backtest's inputs (#755)"
+    )
     args = parser.parse_args(argv)
     if LOCKED.get(args.league) == args.season and not args.judge_locked:
         print(
@@ -448,16 +456,34 @@ def main(argv: list[str] | None = None) -> int:
     prior_results: list[PriorCheckpoint] = []
     players: list[Any] = []
 
+    cuts = checkpoints(first, last, fractions)
+    if args.standings_out is not None:
+        from ops import standings_backtest
+
+        args.standings_out.mkdir(parents=True, exist_ok=True)
+        meta = {"league": args.league, "season": args.season}
+        meta["checkpoints"] = [d.isoformat() for d in cuts]
+        (args.standings_out / "meta.json").write_text(json.dumps(meta) + "\n", encoding="utf-8")
+        with duckdb.connect(str(args.full_db), read_only=True) as full:
+            standings_backtest.export_weeks(
+                full, args.league, args.season, first, args.standings_out
+            )
+
     def board_frame(db: Path, as_of: date) -> Any:
         with duckdb.connect(str(db)) as cut:
             cut.execute(f"attach '{args.full_db.as_posix()}' as whole (read_only)")
             return frame(cut, args.league, args.season, as_of)
 
     with tempfile.TemporaryDirectory() as tmp:
-        for fraction, as_of in zip(fractions, checkpoints(first, last, fractions), strict=True):
+        for fraction, as_of in zip(fractions, cuts, strict=True):
             db = Path(tmp) / f"wf-{as_of.isoformat()}.duckdb"
             _build(as_of, db, without)
             df = board_frame(db, as_of)
+            if args.standings_out is not None:
+                with duckdb.connect(str(db), read_only=True) as cut:
+                    standings_backtest.export_checkpoint(
+                        cut, args.league, args.season, as_of, args.standings_out
+                    )
             players.append(
                 df.assign(league=args.league, season=args.season, as_of=as_of, checkpoint=fraction)
             )

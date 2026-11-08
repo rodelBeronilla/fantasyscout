@@ -105,7 +105,14 @@ export const PARAMS = {
     "wnba": 2.6
   },
   "standings.rival_min_share": 0.5,
-  "standings.projection_spread": 0.3,
+  "standings.spread_scale": {
+    "nba": 1.0,
+    "wnba": 1.0
+  },
+  "standings.projection_spread": {
+    "nba": 0.3,
+    "wnba": 0.3
+  },
   "fit.thirds": {
     "weak": 1.5,
     "middle": 1.0,
@@ -171,7 +178,9 @@ export const PARAMS = {
     0.5
   ],
   "backtest.min_games": 10,
-  "backtest.bootstrap": 1000
+  "backtest.bootstrap": 1000,
+  "backtest.standings_leagues": 200,
+  "backtest.standings_draft_choice": 5
 } as const;
 
 /** Every registered parameter, for the Methodology page. */
@@ -439,13 +448,28 @@ export const PARAMETERS = [
     "value": 0.5
   },
   {
+    "id": "standings.spread_scale",
+    "kind": "model",
+    "status": "assumed",
+    "what": "Multiplies the games' spread of the gap between two teams, in both formats: what the measured per-game spreads miss (a projection's own error over a week, games that are not independent).",
+    "evidence": "none yet; ops.standings_backtest fits it (#755)",
+    "validation": 755,
+    "value": {
+      "nba": 1.0,
+      "wnba": 1.0
+    }
+  },
+  {
     "id": "standings.projection_spread",
     "kind": "model",
     "status": "assumed",
-    "what": "A projection's own error per category, added to a rotisserie season's spread.",
+    "what": "A projection's own error per category and player, added to a rotisserie season's spread.",
     "evidence": "none (ADR 0015 says so)",
     "validation": 755,
-    "value": 0.3
+    "value": {
+      "nba": 0.3,
+      "wnba": 0.3
+    }
   },
   {
     "id": "fit.thirds",
@@ -730,5 +754,23 @@ export const PARAMETERS = [
     "evidence": "a common size for a 95% percentile interval",
     "validation": 769,
     "value": 1000
+  },
+  {
+    "id": "backtest.standings_leagues",
+    "kind": "search",
+    "status": "convention",
+    "what": "Simulated leagues drafted at each checkpoint to judge the standings model (#755).",
+    "evidence": "an evaluation choice: more leagues average over more rosters, not over more games",
+    "validation": 755,
+    "value": 200
+  },
+  {
+    "id": "backtest.standings_draft_choice",
+    "kind": "search",
+    "status": "convention",
+    "what": "A simulated draft's pick is drawn at random from this many of the best players left, so the leagues differ.",
+    "evidence": "an evaluation choice, not a model one",
+    "validation": 755,
+    "value": 5
   }
 ] as const;
