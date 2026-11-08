@@ -103,7 +103,7 @@ export function PlayoffPlan({
   const levelStart = !espn?.records?.some(Boolean);
 
   return (
-    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? 755 : undefined}>
+    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? 872 : undefined}>
       <p className="mt-1 text-sm" data-testid="playoff-line">
         <strong>{lead}</strong>
         {top && (

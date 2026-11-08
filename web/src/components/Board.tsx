@@ -646,7 +646,7 @@ export default function Board() {
           <p className="text-xs text-muted" data-testid="validation-status">
             <span className="text-warn">Not yet validated</span> out of sample, each until its test passes:
             <Unvalidated issue={754} what="The value" label="value" />
-            <Unvalidated issue={755} what="Fit" label="Fit" />
+            <Unvalidated issue={868} what="Fit" label="Fit" />
             <Unvalidated issue={761} what="Consistency" label="consistency" />
           </p>
         )}

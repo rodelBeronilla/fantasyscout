@@ -26,10 +26,17 @@ const GAMES_PER_WEEK: Record<League, number> = PARAMS['standings.games_per_week'
 
 /**
  * The error of a projected per-game z-score against what the player goes on to produce, per
- * category: a rotisserie season's uncertainty beyond its games' own spread. An assumption, not a
- * measurement; a weekly head-to-head matchup is dominated by the games' spread and leaves it out.
+ * category: a rotisserie season's uncertainty beyond its games' own spread. A weekly head-to-head
+ * matchup is dominated by the games' spread and leaves it out.
  */
-const PROJECTION_SPREAD: number = PARAMS['standings.projection_spread'];
+const PROJECTION_SPREAD: Record<League, number> = PARAMS['standings.projection_spread'];
+
+/**
+ * A multiplier on the games' spread of the gap between two teams, in both formats: what the
+ * per-game spreads miss over a week (a projection's own error, games that move together). Fitted
+ * by the walk-forward backtest (ops/standings_backtest.py, #755).
+ */
+const SPREAD_SCALE: Record<League, number> = PARAMS['standings.spread_scale'];
 
 export interface StandingsModel {
   cats: string[];
@@ -46,9 +53,9 @@ export function standingsModel(league: League, cats: string[], players: number, 
   const n = Math.max(players, 1);
   const games = format === 'h2h' ? GAMES_PER_WEEK[league] : Math.max(gamesLeft, GAMES_PER_WEEK[league]);
   const spread: Record<string, number> = {};
+  const projection = format === 'roto' ? PROJECTION_SPREAD[league] * PROJECTION_SPREAD[league] * 2 * n : 0; // def: the gap between two teams
   for (const c of cats) {
-    const game = GAME_SPREAD[league][c] ?? 1;
-    const projection = format === 'roto' ? PROJECTION_SPREAD * PROJECTION_SPREAD * 2 * n : 0; // def: the gap between two teams
+    const game = SPREAD_SCALE[league] * (GAME_SPREAD[league][c] ?? 1);
     spread[c] = Math.sqrt((game * game * 2 * n) / games + projection); // def: the gap between two teams
   }
   return { cats, spread };

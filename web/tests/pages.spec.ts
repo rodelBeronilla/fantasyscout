@@ -1706,6 +1706,8 @@ test('My Team shows the chance of beating the league in each kept category, and 
   await expect(cats.locator('[data-cat="z_points"]')).toHaveCount(0);
   await expect(cats).toContainText('Punted: PTS');
   await expect(cats.getByTestId('cat-chance').first()).toContainText(/\d+%\s*(1st|2nd) of 2/);
+  // the default league is rotisserie, whose chances failed their backtest before the season (#755)
+  await expect(cats.getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/866$/);
   await expect(page.getByTestId('roster-table').locator('tbody tr')).toHaveCount(3);
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(results.violations).toEqual([]);
@@ -2026,6 +2028,9 @@ test('My Team ranks every team by projection: matchup win rates in head-to-head,
   expect(rates.reduce((s, r) => s + r, 0) / rates.length).toBeGreaterThanOrEqual(48);
   expect(rates.reduce((s, r) => s + r, 0) / rates.length).toBeLessThanOrEqual(52);
   expect(rates[0]).toBeGreaterThanOrEqual(rates[3]!);
+  // head-to-head chances passed their backtest (#755); the power rankings did not (#867)
+  await expect(page.getByTestId('my-categories').getByTestId('unvalidated')).toHaveCount(0);
+  await expect(table.getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/867$/);
   await page.goto('/league/');
   await page.getByLabel('Format').selectOption('roto');
   await page.goto('/team/');
@@ -2130,8 +2135,8 @@ test("My Team leads a head-to-head league with its playoff odds, its games in th
   await expect(line).toHaveText(
     new RegExp(`^(\\d+%|under 1%|over 99%) to make it; ${mine} games in the playoff weeks \\(${day(from)} to ${day(to)}\\), \\d(st|nd|rd|th) of 4: target .+ \\(\\d+ games\\)$`),
   );
-  // the odds are the standings model's, so they carry its badge
-  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/755$/);
+  // the odds build on the standings model's weekly chances; their own test is #872
+  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/872$/);
   // the target is a free agent, linked to his page
   await expect(line.getByTestId('playoff-target')).toHaveAttribute('href', /\/p\/nba\/\d+\/$/);
   // every team's odds and the next targets are one click down; two spots of four, so the odds sum to 200%
@@ -3409,7 +3414,7 @@ test('every feature not yet backtested says so and links the issue that will val
   await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
   const status = page.getByTestId('validation-status');
   await expect(status.getByTestId('unvalidated')).toHaveCount(3);
-  for (const [issue, label] of [[754, 'value'], [755, 'Fit'], [761, 'consistency']] as const) {
+  for (const [issue, label] of [[754, 'value'], [868, 'Fit'], [761, 'consistency']] as const) {
     await expect(status.locator(`a[href$="/issues/${issue}"]`)).toHaveText(label);
   }
   await page.goto('/streamers/');

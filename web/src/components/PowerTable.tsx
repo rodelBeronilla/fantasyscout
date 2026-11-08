@@ -133,7 +133,7 @@ export function LeagueTable({
     );
   }
   return (
-    <Tile title={power ? 'Power rankings' : 'League table'} id="league-table" testid="league-table" issue={power ? 755 : undefined}>
+    <Tile title={power ? 'Power rankings' : 'League table'} id="league-table" testid="league-table" issue={power ? 867 : undefined}>
       {body}
     </Tile>
   );

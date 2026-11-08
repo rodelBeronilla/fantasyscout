@@ -25,6 +25,7 @@ Option 3, in `web/src/lib/standings.ts`.
   - Results: NBA points 1.14, rebounds 1.10, assists 1.03, steals 3.12, blocks 1.77, threes 1.61, turnovers 1.63, FG% 2.85, FT% 2.67 (mean of 2023-24 to 2025-26; each season within about 0.2 of the mean). The WNBA's are close (2022 to 2026).
   - Weekly spread: the spread of the gap between two teams of *n* active players over a week of *g* games each is `game spread × √(2n ÷ g)`, with *g* = 3.3 games a week in the NBA and 2.6 in the WNBA.
   - Rotisserie: uses the games left in the season instead of a week, plus a projection error of 0.3 z per player per category. **The projection error is an assumption, not a measurement**; calibrating it is follow-up work.
+  - *Superseded by ADR 0021: both spreads gain a fitted multiplier (`standings.spread_scale`), and the projection error is measured at 0.8.*
 - **Rivals.** Every other team with at least half its roster entered, so a team the manager has only started to fill in does not count as an easy win. With no rival, Fit falls back to the old weights.
 - **Fit.** On the board, the This-week unit of a head-to-head league with an opponent set keeps the matchup weights (#490). Otherwise Fit uses the standings weights, and the League bar names the three kept categories the team is least likely to win.
 

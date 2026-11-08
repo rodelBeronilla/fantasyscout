@@ -53,7 +53,7 @@ export function Standings({ table, mine, names, power }: { table: Standing[]; mi
         <details className="mt-2 text-sm" data-testid="power-details">
           <summary className="cursor-pointer text-xs text-muted">
             Power rankings: the teams by what their rosters project to win
-            <Unvalidated issue={755} what="Power rankings" />
+            <Unvalidated issue={867} what="Power rankings" />
           </summary>
           {power}
         </details>

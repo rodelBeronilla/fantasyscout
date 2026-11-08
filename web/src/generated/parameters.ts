@@ -105,7 +105,14 @@ export const PARAMS = {
     "wnba": 2.6
   },
   "standings.rival_min_share": 0.5,
-  "standings.projection_spread": 0.3,
+  "standings.spread_scale": {
+    "nba": 2.0,
+    "wnba": 2.0
+  },
+  "standings.projection_spread": {
+    "nba": 0.8,
+    "wnba": 0.8
+  },
   "playoffs.teams": {
     "nba": 6,
     "wnba": 4
@@ -182,7 +189,9 @@ export const PARAMS = {
     0.5
   ],
   "backtest.min_games": 10,
-  "backtest.bootstrap": 1000
+  "backtest.bootstrap": 1000,
+  "backtest.standings_leagues": 200,
+  "backtest.standings_draft_choice": 5
 } as const;
 
 /** Every registered parameter, for the Methodology page. */
@@ -401,7 +410,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "One game's standard deviation of a player's output per category, in board z units.",
-    "evidence": "ADR 0015 (an ad hoc lakehouse query; no notebook reproduces it yet)",
+    "evidence": "ADR 0015 (an ad hoc lakehouse query). With standings.spread_scale, the head-to-head chances it sets passed out of sample in #755 (ADR 0021)",
     "validation": 755,
     "value": {
       "nba": {
@@ -445,18 +454,33 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Share of a roster a team needs entered before it counts as a rival in the standings.",
-    "evidence": "none",
+    "evidence": "none: a rule for a league still being entered, which #755's full simulated leagues cannot test",
     "validation": 755,
     "value": 0.5
   },
   {
+    "id": "standings.spread_scale",
+    "kind": "model",
+    "status": "measured",
+    "what": "Multiplies the games' spread of the gap between two teams, in both formats: what the measured per-game spreads miss (a projection's own error over a week, games that are not independent).",
+    "evidence": "ops.standings_backtest fit on the tuning seasons, the lowest head-to-head log loss on a grid of 0.5 to 2.0: NBA 2020-21 to 2022-23 (runs 42466140329, 42468833908, 42466144841), log loss 0.693 at 1 to 0.629; WNBA 2021 to 2023 (runs 42468836211, 42466314090, 42466316345), 0.689 to 0.640. Both sit at the grid's edge",
+    "validation": 755,
+    "value": {
+      "nba": 2.0,
+      "wnba": 2.0
+    }
+  },
+  {
     "id": "standings.projection_spread",
     "kind": "model",
-    "status": "assumed",
-    "what": "A projection's own error per category, added to a rotisserie season's spread.",
-    "evidence": "none (ADR 0015 says so)",
-    "validation": 755,
-    "value": 0.3
+    "status": "measured",
+    "what": "A projection's own error per category and player, added to a rotisserie season's spread.",
+    "evidence": "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed",
+    "validation": 866,
+    "value": {
+      "nba": 0.8,
+      "wnba": 0.8
+    }
   },
   {
     "id": "playoffs.teams",
@@ -464,7 +488,7 @@ export const PARAMETERS = [
     "status": "convention",
     "what": "Teams that make the playoffs in a league entered by hand; an ESPN import reads its own.",
     "evidence": "the common platform default for a 12-team NBA league (half the teams); a third of the default 10-team WNBA league, its season being shorter",
-    "validation": 755,
+    "validation": 872,
     "value": {
       "nba": 6,
       "wnba": 4
@@ -476,7 +500,7 @@ export const PARAMETERS = [
     "status": "convention",
     "what": "Fantasy weeks the playoffs take, the last of the schedule, in a league entered by hand; an ESPN import reads its own.",
     "evidence": "the common platform default: three rounds over the regular season's last three weeks (NBA), two (WNBA)",
-    "validation": 755,
+    "validation": 872,
     "value": {
       "nba": 3,
       "wnba": 2
@@ -488,7 +512,7 @@ export const PARAMETERS = [
     "status": "arithmetic",
     "what": "Seasons the playoff odds play out: the odds' sampling error is at most 1.1 points (the binomial standard error at 50%).",
     "evidence": "sqrt(0.25 / 2000) = 0.011",
-    "validation": 755,
+    "validation": 872,
     "value": 2000
   },
   {
@@ -496,8 +520,8 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "assumed",
     "what": "Category weights for the weakest, middle and strongest thirds, when no rival roster is in.",
-    "evidence": "none",
-    "validation": 755,
+    "evidence": "an arm of #755's decision replay (ADR 0021): neither it nor the standings weights reliably beat equal weights",
+    "validation": 868,
     "value": {
       "weak": 1.5,
       "middle": 1.0,
@@ -509,8 +533,8 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "A weekly category within this share is called too close.",
-    "evidence": "none",
-    "validation": 755,
+    "evidence": "none; the week's matchup card, which #755's simulated leagues do not exercise",
+    "validation": 869,
     "value": 0.05
   },
   {
@@ -794,5 +818,23 @@ export const PARAMETERS = [
     "evidence": "a common size for a 95% percentile interval",
     "validation": 769,
     "value": 1000
+  },
+  {
+    "id": "backtest.standings_leagues",
+    "kind": "search",
+    "status": "convention",
+    "what": "Simulated leagues drafted at each checkpoint to judge the standings model (#755).",
+    "evidence": "an evaluation choice: more leagues average over more rosters, not over more games",
+    "validation": 755,
+    "value": 200
+  },
+  {
+    "id": "backtest.standings_draft_choice",
+    "kind": "search",
+    "status": "convention",
+    "what": "A simulated draft's pick is drawn at random from this many of the best players left, so the leagues differ.",
+    "evidence": "an evaluation choice, not a model one",
+    "validation": 755,
+    "value": 5
   }
 ] as const;

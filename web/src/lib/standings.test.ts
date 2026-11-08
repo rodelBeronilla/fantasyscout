@@ -1,3 +1,6 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { expectedWins, GAME_SPREAD, leagueStandings, matchupChance, normalCdf, powerRankings, rivals, standingsModel, standingWeights, teamTotals, winChances } from './standings';
@@ -132,5 +135,53 @@ describe('matchupChance (#743)', () => {
     expect(matchupChance([0.5, 0.5])).toBeCloseTo(0.5, 10);
     // two coin flips and a sure win: win unless both flips lose (0.25), never a tie with three
     expect(matchupChance([0.5, 0.5, 1])).toBeCloseTo(0.75, 10);
+  });
+});
+
+interface ParityFixture {
+  cases: {
+    league: 'nba' | 'wnba';
+    format: 'h2h' | 'roto';
+    cats: string[];
+    rosters: string[][];
+    rosterSpots: number;
+    il: string[];
+    mine: number;
+    gamesLeft: number;
+    values: Record<string, Record<string, number>>;
+    availability: Record<string, number>;
+  }[];
+  models: { league: 'nba' | 'wnba'; cats: string[]; players: number; format: 'h2h' | 'roto'; gamesLeft: number }[];
+  expected?: unknown;
+}
+
+// The Python reference (ops/standings.py) runs the backtest (#755); both are checked against the
+// same figures. UPDATE_STANDINGS_PARITY=1 rewrites them from this module after a deliberate change.
+describe('parity with ops/standings.py (#755)', () => {
+  const path = fileURLToPath(new URL('../../../tests/fixtures/standings_parity.json', import.meta.url));
+  const fixture = JSON.parse(readFileSync(path, 'utf8')) as ParityFixture;
+  const computed = {
+    cases: fixture.cases.map((c) => {
+      const setup = { rosters: c.rosters, mine: c.mine, rosterSpots: c.rosterSpots, il: c.il, format: c.format };
+      const value = (id: string) => c.values[id];
+      const availability = (id: string) => c.availability[id] ?? 1;
+      const s = leagueStandings(c.league, setup, c.cats, value, availability, c.gamesLeft);
+      const power = powerRankings(c.league, setup, c.cats, value, availability, c.gamesLeft);
+      return { chances: s?.chances ?? null, weights: s?.weights ?? null, totals: s?.totals ?? null, others: s?.others ?? null, power };
+    }),
+    models: fixture.models.map((m) => standingsModel(m.league, m.cats, m.players, m.format, m.gamesLeft).spread),
+  };
+  if (process.env['UPDATE_STANDINGS_PARITY']) writeFileSync(path, `${JSON.stringify({ ...fixture, expected: computed }, null, 1)}\n`);
+
+  it('gives the figures the Python reference is checked against', () => {
+    expect(fixture.expected).toBeDefined();
+    const close = (a: unknown, b: unknown): void => {
+      if (typeof a === 'number' && typeof b === 'number') expect(a).toBeCloseTo(b, 12);
+      else if (a && typeof a === 'object' && b && typeof b === 'object') {
+        expect(Object.keys(a)).toEqual(Object.keys(b));
+        for (const k of Object.keys(a)) close((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]);
+      } else expect(a).toEqual(b);
+    };
+    close(computed, fixture.expected);
   });
 });
