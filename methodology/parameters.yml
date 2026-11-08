@@ -207,8 +207,8 @@ parameters:
     kind: model
     status: measured
     what: "The playoff odds (#872): the share of a week's category spread that lasts all season (a projection's miss repeats every week). Each simulated season draws one shift per team and category from it; 0 draws every week independently."
-    evidence: "ops.playoff_backtest fit on the tuning seasons (the #755 runs' inputs), grid 0 to 0.8, the lowest mean log loss of the odds over the checkpoints and both tallies: NBA 0.6057 at 0 to 0.5961, WNBA 0.5585 to 0.5552. At 0 the tuning slopes were 0.31 to 1.13, mostly under 0.8: independent weeks made the odds too sure. Judged (ADR 0025, runs 42498681135, 42498686229, 42498692099, 42498697513): the odds beat the coin and the naive manager everywhere, but the matchups tally is too timid in three of four seasons (slopes up to 1.41) and the categories tally too sure in WNBA 2025 (0.75)"
-    validation: 900
+    evidence: "ops.playoff_backtest fit on the tuning seasons (the #755 runs' inputs), grid 0 to 0.8, the lowest mean log loss of the odds over the checkpoints and both tallies: NBA 0.6057 at 0 to 0.5961, WNBA 0.5585 to 0.5552. At 0 the tuning slopes were 0.31 to 1.13, mostly under 0.8: independent weeks made the odds too sure. Judged (ADR 0025, runs 42498681135, 42498686229, 42498692099, 42498697513): the odds beat the coin and the naive manager everywhere, but the matchups tally is too timid in three of four seasons (slopes up to 1.41) and the categories tally too sure in WNBA 2025 (0.75). A share per tally (#900, ADR 0028), judged by leaving one tuning season out with the spread scale refitted in each fold (2.0 in all six): the matchups tally wants less (0 to 0.2 against 0.2 to 0.5) but 0 of 6 folds pass, single seasons' slopes swinging both ways (0.33 to 1.69 at the first game day) while the six pooled pass (0.90 to 1.02); held-out log loss per tally 0.5786 and 0.5737 against one share's 0.5784 and 0.5749, not better in both, so the one share stays"
+    validation: 907
   - id: playoffs.points_spread_share
     value: 0.17
     kind: model
