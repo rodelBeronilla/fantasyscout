@@ -145,6 +145,10 @@ export const PARAMS = {
   "roster.candidates": 25,
   "buysell.min_swing": 1,
   "il.min_games": 3,
+  "injury.box_score_regular": {
+    "min_minutes": 20,
+    "recent_games": 10
+  },
   "blowout.spread": 10,
   "blowout.minutes_per_5_points": {
     "nba": 0.73,
@@ -600,6 +604,19 @@ export const PARAMETERS = [
     "evidence": "none (its input is calibrated, ADR 0010)",
     "validation": 763,
     "value": 3
+  },
+  {
+    "id": "injury.box_score_regular",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Who counts as a regular for a box-score absence spell: played the team's previous game and averaged these minutes over these games.",
+    "evidence": "none; a regular rarely sits by the coach's choice",
+    "validation": 770,
+    "dbt": "absence_spells",
+    "value": {
+      "min_minutes": 20,
+      "recent_games": 10
+    }
   },
   {
     "id": "blowout.spread",

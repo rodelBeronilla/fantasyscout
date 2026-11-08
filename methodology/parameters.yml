@@ -301,6 +301,16 @@ parameters:
     evidence: "none (its input is calibrated, ADR 0010)"
     validation: 763
 
+  # ---- injury histories (dbt vars; #770)
+  - id: injury.box_score_regular
+    value: {min_minutes: 20, recent_games: 10}
+    dbt: absence_spells
+    kind: threshold
+    status: assumed
+    what: "Who counts as a regular for a box-score absence spell: played the team's previous game and averaged these minutes over these games."
+    evidence: "none; a regular rarely sits by the coach's choice"
+    validation: 770
+
   # ---- context flags (web/src/lib/blowout.ts)
   - id: blowout.spread
     value: 10

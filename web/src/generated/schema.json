@@ -384,7 +384,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 402,
+ "generic_tests": 406,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -14110,6 +14110,7 @@
       "A side without a real team is left out: the NBA schedules the Cup's knockout-week games with a placeholder team (id 0) until the group stage decides who plays, and counting those put a team \"0\" in the weekly games and a game in every team's week that it may not play (#386)."
      ],
      "read_by": [
+      "fct_absence_spell",
       "fct_injury_spell",
       "fct_team_game_context",
       "fct_team_stakes",
@@ -16058,6 +16059,144 @@
       "teams"
      ],
      "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, player and first game missed",
+       "meta": {},
+       "name": "absence_spell_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label (2026 in the WNBA, 2025-26 in the NBA)",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The team whose games he missed",
+       "meta": {},
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The first team game he missed",
+       "meta": {},
+       "name": "first_game_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Date of the first team game missed",
+       "meta": {},
+       "name": "start_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "His next regular-season game played; null while censored",
+       "meta": {},
+       "name": "return_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "True when the return was seen",
+       "meta": {},
+       "name": "returned",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "null with a return; ongoing while the team has regular-season games left, season_end when the season ended first",
+       "meta": {},
+       "name": "censored",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The team's regular-season games missed in the spell (seen so far when censored)",
+       "meta": {},
+       "name": "games_missed",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Days from the first game missed to the return, or to the last game missed when censored",
+       "meta": {
+        "unit": "days"
+       },
+       "name": "days_out",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "His average minutes over his last absence_spells.recent_games games before the spell",
+       "meta": {
+        "unit": "minutes"
+       },
+       "name": "minutes_before",
+       "tests": [],
+       "type": "double"
+      }
+     ],
+     "description": "Absence spells from the box scores alone (#798, for #770): one row per run of regular-season games a regular missed. They have no stated reason or body part, and fill the seasons without official reports. Censored like fct_injury_spell.",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "player_id",
+       "first_game_id"
+      ],
+      "key": "absence_spell_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_absence_spell",
+     "notes": [
+      "Absence spells from the box scores alone (#798, for #770): one row per run of regular-season games a regular missed, where no official report says why. They fill the seasons without official reports (the WNBA before 2026, the NBA before 2018-12-17) and stand beside fct_injury_spell.",
+      "- A regular: played his team's previous regular-season game and averaged at least absence_spells.min_minutes over his last absence_spells.recent_games games played. A game such a player then misses starts a spell, which runs to his next regular-season game played, for any team; a spell that ends with a game for another team was a trade, not an absence, and is left out. A spell can start only after a game played, so one running from the season's first game is missed. A regular rarely sits by the coach's choice, but the box score cannot tell an injury from rest, personal leave or a suspension: a spell here has no reason and no body part.",
+      "- Censored as fct_injury_spell is: without a return, ongoing while the team still has regular-season games to play, season_end when the season ended first; games_missed and days_out are then a lower bound."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "fct_player_game",
+      "fct_team_game",
+      "schedule_team_games"
+     ],
+     "unit_tests": [
+      {
+       "description": "a, a regular, misses the team's games 4 and 5 and plays game 6: one returned spell of two games. b plays five minutes a game and is no regular: no spell. c misses game 6 with games still to come: censored, ongoing. d is traded and plays next for another team: no spell.",
+       "name": "box_score_spells_are_a_regulars_missed_games"
+      }
+     ]
     },
     {
      "checks": [
@@ -18303,6 +18442,7 @@
       "Player × game: traditional box score with the advanced line joined, keyed to the dimensions. The usage and misc game logs add the player's share of the team's box score while on the floor and fouls drawn, blocks against and points by situation (null where those logs have not landed). Where ESPN also reports the player-game, source_agreement carries the reconciliation verdict (exact, minor, conflict) and the resolution rule is applied: the league value wins, ESPN's fills in only where the league's is null (ADR 0005). Rows ESPN does not cover are 'unverified'."
      ],
      "read_by": [
+      "fct_absence_spell",
       "fct_injury_spell",
       "fct_official_listing",
       "fct_player_salary",
@@ -20460,6 +20600,7 @@
       "Team × game: totals from the game log, possessions, pace and ratings with the opponent joined."
      ],
      "read_by": [
+      "fct_absence_spell",
       "fct_official_listing",
       "fct_referee_tendency",
       "mart_schedule_upcoming"
@@ -26601,6 +26742,11 @@
    "description": "The table holds G1 and G2 from a landing on the 20th and G0 from the 21st, its newest. On the 22nd G1's play-by-play lands again, corrected and one action fewer, and G3 lands for the first time. The run recomputes G1 from its newest landing alone (the dropped action is not kept from the 20th's landing; the pre-hook, which a unit test does not run, has deleted its old rows), G3 as new, and G0 unchanged (the newest landing day is always redone). G2 is not read at all.",
    "model": "events",
    "name": "events_recomputes_only_the_games_that_landed_again"
+  },
+  {
+   "description": "a, a regular, misses the team's games 4 and 5 and plays game 6: one returned spell of two games. b plays five minutes a game and is no regular: no spell. c misses game 6 with games still to come: censored, ongoing. d is traded and plays next for another team: no spell.",
+   "model": "fct_absence_spell",
+   "name": "box_score_spells_are_a_regulars_missed_games"
   },
   {
    "description": "Game G1's play-by-play landed on the 20th and was merged without lineups because its box score had not landed; on the 21st other games landed, moving the table's newest landing past G1's. On the 22nd G1's box score and G2's play-by-play land. The next run re-merges G1 (its box score landed on or after the table's newest landing) with its lineups, merges G2 as new, and re-merges G3 unchanged (the newest landing day always is). Keyed on the event's own landing date, G1 would have stayed without lineups until a full refresh.",

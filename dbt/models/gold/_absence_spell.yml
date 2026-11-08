@@ -1,0 +1,79 @@
+version: 2
+
+models:
+  - name: fct_absence_spell
+    description: "Absence spells from the box scores alone (#798, for #770): one row per run of regular-season games a regular missed. They have no stated reason or body part, and fill the seasons without official reports. Censored like fct_injury_spell."
+    columns:
+      - name: absence_spell_sk
+        description: "Surrogate key: one row per league, player and first game missed"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+      - name: season
+        description: "Season label (2026 in the WNBA, 2025-26 in the NBA)"
+      - name: player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "The team whose games he missed"
+      - name: first_game_id
+        description: "The first team game he missed"
+      - name: start_date
+        description: "Date of the first team game missed"
+      - name: return_date
+        description: "His next regular-season game played; null while censored"
+      - name: returned
+        description: "True when the return was seen"
+      - name: censored
+        description: "null with a return; ongoing while the team has regular-season games left, season_end when the season ended first"
+        data_tests:
+          - accepted_values:
+              values: [ongoing, season_end]
+      - name: games_missed
+        description: "The team's regular-season games missed in the spell (seen so far when censored)"
+      - name: days_out
+        meta: {unit: days}
+        description: "Days from the first game missed to the return, or to the last game missed when censored"
+      - name: minutes_before
+        meta: {unit: minutes}
+        description: "His average minutes over his last absence_spells.recent_games games before the spell"
+
+unit_tests:
+  - name: box_score_spells_are_a_regulars_missed_games
+    description: >
+      a, a regular, misses the team's games 4 and 5 and plays game 6: one returned spell of two
+      games. b plays five minutes a game and is no regular: no spell. c misses game 6 with games
+      still to come: censored, ongoing. d is traded and plays next for another team: no spell.
+    model: fct_absence_spell
+    given:
+      - input: ref('fct_team_game')
+        rows:
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500001', game_date: '2025-11-01'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500002', game_date: '2025-11-03'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500003', game_date: '2025-11-05'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500004', game_date: '2025-11-07'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500005', game_date: '2025-11-09'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500006', game_date: '2025-11-11'}
+          - {league: nba, season: '2025-26', team_id: U, game_id: '0022500007', game_date: '2025-11-08'}
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2025-26', team_id: T, player_id: a, game_id: '0022500001', game_date: '2025-11-01', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, player_id: a, game_id: '0022500002', game_date: '2025-11-03', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, player_id: a, game_id: '0022500003', game_date: '2025-11-05', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, player_id: a, game_id: '0022500006', game_date: '2025-11-11', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, player_id: b, game_id: '0022500001', game_date: '2025-11-01', played: true, minutes: 5}
+          - {league: nba, season: '2025-26', team_id: T, player_id: c, game_id: '0022500001', game_date: '2025-11-01', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, player_id: c, game_id: '0022500002', game_date: '2025-11-03', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, player_id: c, game_id: '0022500003', game_date: '2025-11-05', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, player_id: c, game_id: '0022500004', game_date: '2025-11-07', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, player_id: c, game_id: '0022500005', game_date: '2025-11-09', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, player_id: d, game_id: '0022500001', game_date: '2025-11-01', played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: U, player_id: d, game_id: '0022500007', game_date: '2025-11-08', played: true, minutes: 30}
+      - input: ref('schedule_team_games')
+        rows:
+          - {league: nba, season: '2025-26', team_id: T, game_type: regular, game_status: 3, game_date_est: '2025-11-11'}
+          - {league: nba, season: '2025-26', team_id: T, game_type: regular, game_status: 1, game_date_est: '2025-11-13'}
+    expect:
+      rows:
+        - {player_id: a, start_date: '2025-11-07', return_date: '2025-11-11', returned: true, censored: null, games_missed: 2, days_out: 4}
+        - {player_id: c, start_date: '2025-11-11', return_date: null, returned: false, censored: ongoing, games_missed: 1, days_out: 0}

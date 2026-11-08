@@ -65,6 +65,11 @@ vars:
   # has this many listings for a status and reason; until then the NBA's history stands in
   # (fct_status_calibration).
   calibration_min_listings: 300
+  # Box-score absence spells (fct_absence_spell, #798): a regular is a player who played his team's
+  # previous game and averaged at least min_minutes over his last recent_games; one who then misses
+  # a game starts a spell. A regular rarely sits out by the coach's choice, which the box score
+  # cannot tell from an injury.
+  absence_spells: {min_minutes: 20, recent_games: 10}
   fantasy_durability: {typical_share: 0.8}
   # A past season spent mostly on another team: the share of its minutes weight it keeps.
   fantasy_team_change: 0.25
