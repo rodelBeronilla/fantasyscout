@@ -149,6 +149,7 @@ export const PARAMS = {
     "min_minutes": 20,
     "recent_games": 10
   },
+  "injury.recovery_min_spells": 30,
   "blowout.spread": 10,
   "blowout.minutes_per_5_points": {
     "nba": 0.73,
@@ -617,6 +618,16 @@ export const PARAMETERS = [
       "min_minutes": 20,
       "recent_games": 10
     }
+  },
+  {
+    "id": "injury.recovery_min_spells",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Injury spells a body part, or a body part and kind, needs for its own recovery curve.",
+    "evidence": "none; a common floor for a Kaplan-Meier median that is not one or two spells",
+    "validation": 770,
+    "dbt": "recovery_min_spells",
+    "value": 30
   },
   {
     "id": "blowout.spread",
