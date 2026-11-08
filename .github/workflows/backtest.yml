@@ -27,7 +27,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: backtest-${{ inputs.league }}
+  group: backtest-${{ inputs.league }}-${{ inputs.judge }}-${{ inputs.seasons }}
   cancel-in-progress: false
 
 jobs:
