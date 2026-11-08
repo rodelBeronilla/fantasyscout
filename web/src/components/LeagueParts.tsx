@@ -15,6 +15,7 @@ import {
 } from '../lib/fantasy-league';
 import type { League } from '../lib/data';
 import type { RosterReview, Upgrade } from '../lib/roster-upgrades';
+import { pickupsPath } from '../lib/pickups-url';
 import { href } from '../lib/site';
 import { type TodayGame, todayGroups, type TodaySlot, type TodayVerdict } from '../lib/today';
 import { UNIT_LABEL, type ValueUnit } from '../lib/week-value';
@@ -449,6 +450,7 @@ export function Today({
   games,
   date,
   verdict,
+  need = [],
 }: {
   league: League;
   players: TodayRow[];
@@ -456,6 +458,8 @@ export function Today({
   date: string;
   /** Start and sit for today (#816), when the lineup slots and values are known. */
   verdict?: TodayVerdict | null;
+  /** The matchup's close and losing categories, preselected on Pickups (#818). */
+  need?: string[];
 }) {
   const { plays, listed, idle, leagueGames } = todayGroups(players, games, date);
   // a day with no games has nothing to plan: the card stays away rather than say so (#696)
@@ -497,7 +501,7 @@ export function Today({
           </>
         )}
       </p>
-      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} />}
+      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} pickups={href(pickupsPath(league, { open: [date], need }))} />}
       {leagueGames > 0 && (
         <details className="mt-2 text-sm" open={!verdict} data-testid="today-all">
           <summary className="cursor-pointer text-xs text-muted">All of today&apos;s players</summary>
@@ -536,11 +540,14 @@ function TodayCalls({
   verdict,
   players,
   time,
+  pickups,
 }: {
   league: League;
   verdict: TodayVerdict;
   players: TodayRow[];
   time: (iso: string | null) => string;
+  /** Pickups for today, with the matchup's need categories when there is one (#818). */
+  pickups: string;
 }) {
   const name = new Map(players.map((p) => [p.player_id, p.full_name ?? p.player_id]));
   const who = (id: string) => (
@@ -583,7 +590,7 @@ function TodayCalls({
       {verdict.open.length > 0 && (
         <p data-testid="today-open">
           <strong>{verdict.open.length} open {verdict.open.length === 1 ? 'slot' : 'slots'}</strong> ({verdict.open.join(', ')}):{' '}
-          <a href={href(`/streamers/?league=${league}`)} className="text-accent underline-offset-4 hover:underline">
+          <a href={pickups} className="text-accent underline-offset-4 hover:underline" data-testid="today-pickups">
             stream into {verdict.open.length === 1 ? 'it' : 'them'}
           </a>
         </p>

@@ -11,6 +11,7 @@ import { type BuildPlan, buildPlan } from '../lib/build-plan';
 import { leagueStandings as tradeStandings } from '../lib/trade-impact';
 import { dropRule, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { teamReview, teamValues } from '../lib/team-review';
+import { streamMove, streamTargets } from '../lib/matchup-streams';
 import { liveWeek, matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { expectedWins, leagueStandings, type LeagueStandings, type PowerRank, powerRankings } from '../lib/standings';
 import { hasWeekGames, type ValueUnit } from '../lib/week-value';
@@ -463,8 +464,34 @@ export default function MyTeam() {
     return todayVerdict(groups, slotList(setup.lineup), perGame, (id) => byId.get(id)?.position);
   }, [games, myTeam, setup.lineup, perGame, byId]);
 
-  // the roster review, as Pickups' top adds read it (#819)
-  const review = useMemo<RosterReview | null>(() => (rows ? (teamReview(rows, setup, values, week)?.review ?? null) : null), [rows, setup, values, week]);
+  // the roster review, as Pickups' top adds read it (#819); the week's drives the stream line (#818)
+  const weekReview = useMemo(() => (rows && weekAvailable ? teamReview(rows, setup, values, true) : null), [rows, setup, values, weekAvailable]);
+  const review = useMemo<RosterReview | null>(
+    () => (week ? (weekReview?.review ?? null) : rows ? (teamReview(rows, setup, values, false)?.review ?? null) : null),
+    [week, weekReview, rows, setup, values],
+  );
+  // From the matchup to the stream that flips a category (#818): the close and losing categories,
+  // and the top add for them on the open days, with the drop the week's review names.
+  const targets = useMemo(() => (weekMatch && !points ? streamTargets(weekMatch.match) : []), [weekMatch, points]);
+  const stream = useMemo(() => {
+    if (!weekMatch || points || !lineupPlans || !games || !rows) return null;
+    const days = lineupPlans.mine.days.map((d) => d.date);
+    const open = lineupPlans.mine.days.filter((d) => d.open.length > 0).map((d) => d.date);
+    const playing = new Set(games.filter((g) => days.includes(g.game_date)).flatMap((g) => [`${g.game_date}|${g.home_team_id}`, `${g.game_date}|${g.away_team_id}`]));
+    const starts = startsByPlayer(lineupPlans.mine);
+    return streamMove({
+      match: weekMatch.match,
+      rows,
+      available: (id) => !owner.has(id),
+      games: (r) => ({ window: days.filter((d) => playing.has(`${d}|${r.team_id}`)).length, open: open.filter((d) => playing.has(`${d}|${r.team_id}`)).length }),
+      openDays: open.length,
+      kept: activeCats,
+      drops: weekReview?.drops ?? [],
+      roster: weekReview?.mine ?? [],
+      position: (id) => byId.get(id)?.position,
+      starts: (id) => starts.get(id) ?? 0,
+    });
+  }, [weekMatch, points, lineupPlans, games, rows, owner, activeCats, weekReview, byId]);
   const applyUpgrade = useCallback((u: Upgrade) => updateLeague((s) => assign(assign(s, u.drop, null), u.add, s.mine)), [updateLeague]);
 
   // Build your team (#809): the league as the Trade page models it, for the rest of the season,
@@ -565,7 +592,7 @@ export default function MyTeam() {
       )}
 
       {games && myTeam.length > 0 && !setup.drafting && (
-        <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} verdict={verdict} />
+        <Today league={league} players={myTeam as unknown as TodayRow[]} games={games} date={easternDate()} verdict={verdict} need={targets} />
       )}
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
@@ -578,6 +605,8 @@ export default function MyTeam() {
             points={points}
             league={league}
             openDays={lineupPlans?.mine.days.filter((d) => d.open.length > 0).map((d) => d.date) ?? []}
+            stream={stream}
+            nameOf={name}
             onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))}
           />
         )}
