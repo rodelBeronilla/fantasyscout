@@ -87,9 +87,13 @@ export function SyncLine({ setup, sync }: { setup: LeagueSetup; sync: SyncState 
   const line = 'flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted';
 
   if (source.host === 'yahoo') {
+    // the bookmark's matchup page names this week's opponent (#874)
+    const versus = setup.format === 'h2h' && setup.opponent !== null && source.opponents?.[setup.mine] === setup.opponent ? setup.names[setup.opponent] : null;
     return (
       <p className={line} data-testid="sync-line">
-        <span>Last synced {ago(source.syncedAt, now)} from Yahoo</span>
+        <span data-testid="sync-summary">
+          Last synced {ago(source.syncedAt, now)} from Yahoo{versus ? ` · this week vs ${versus}` : ''}
+        </span>
         {yahooStale(source, now) && (
           <a href={href('/league/#yahoo')} className="font-medium text-accent underline-offset-4 hover:underline" data-testid="yahoo-resync">
             Re-sync

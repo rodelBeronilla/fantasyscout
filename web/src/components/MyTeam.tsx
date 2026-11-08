@@ -15,6 +15,7 @@ import { streamMove, streamTargets } from '../lib/matchup-streams';
 import { tonight } from '../lib/game-state';
 import { liveWeek, matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { expectedWins, leagueStandings, type LeagueStandings, powerRankings } from '../lib/standings';
+import { leagueRecords, recordsFromText } from '../lib/league-state';
 import { standingsOf } from '../lib/records';
 import { hasWeekGames, type ValueUnit } from '../lib/week-value';
 import { ilMoves } from '../lib/il-moves';
@@ -496,8 +497,10 @@ export default function MyTeam() {
     const il = Number(setup.il.includes(a)) - Number(setup.il.includes(b));
     return il || (restValue.get(b) ?? 0) - (restValue.get(a) ?? 0);
   });
-  // ESPN's real standings lead the page (#822); the projected power table goes one click down
-  const real = setup.source?.host === 'espn' ? standingsOf(setup.source.records) : null;
+  // the real standings lead the page (#822): ESPN's or Yahoo's records, or those entered by hand (#874);
+  // the projected power table goes one click down
+  const recorded = leagueRecords(setup);
+  const real = recorded ? standingsOf(recorded.records) : null;
   const powerTable = (
     <LeagueTable
       names={setup.names}
@@ -509,7 +512,7 @@ export default function MyTeam() {
       fpts={points && leaguePoints ? (id) => leaguePoints.get(id)?.fpts ?? 0 : null}
       power={power}
       inline={!!real}
-      note={setup.source?.host === 'espn' ? null : 'Import the league from ESPN to show the real standings.'}
+      note={real ? null : "Import the league from ESPN, run the Yahoo bookmark, or enter each team's record on the League page to show the real standings."}
     />
   );
   // who takes an out player's minutes, and the pickup that goes with it (#820)
@@ -549,7 +552,7 @@ export default function MyTeam() {
           today={easternDate()}
         />
       )}
-      {real && <Standings table={real} mine={setup.mine} names={setup.names} power={powerTable} />}
+      {real && <Standings table={real} mine={setup.mine} names={setup.names} power={powerTable} from={recordsFromText(recorded?.from ?? 'entered')} />}
 
       {games && myTeam.length > 0 && !setup.drafting && (
         <Today

@@ -90,15 +90,15 @@ describe('the stored league setup migrates by version', () => {
   });
 
   it('gives a version 7 copy the default playoffs, no more teams than the league holds (#821)', () => {
-    expect(migrate({ version: 7, teams: 12 }, nba).playoffs).toEqual({ teams: 6, weeks: 3 });
-    expect(migrate({ version: 7, teams: 4 }, nba).playoffs).toEqual({ teams: 4, weeks: 3 });
-    expect(migrate({ version: 7, teams: 10 }, DEFAULT_SETTINGS.wnba).playoffs).toEqual({ teams: 4, weeks: 2 });
+    expect(migrate({ version: 7, teams: 12 }, nba).playoffs).toEqual({ teams: 6, weeks: 3, start: null });
+    expect(migrate({ version: 7, teams: 4 }, nba).playoffs).toEqual({ teams: 4, weeks: 3, start: null });
+    expect(migrate({ version: 7, teams: 10 }, DEFAULT_SETTINGS.wnba).playoffs).toEqual({ teams: 4, weeks: 2, start: null });
   });
 
   it('keeps a version 8 copy\'s playoffs, bounded to the league and the weeks planned', () => {
-    expect(migrate({ version: 8, teams: 8, playoffs: { teams: 4, weeks: 2 } }, nba).playoffs).toEqual({ teams: 4, weeks: 2 });
-    expect(migrate({ version: 8, teams: 8, playoffs: { teams: 12, weeks: 0 } }, nba).playoffs).toEqual({ teams: 8, weeks: 1 });
-    expect(migrate({ version: 8, teams: 8, playoffs: { teams: 'x' } }, nba).playoffs).toEqual({ teams: 6, weeks: 3 });
+    expect(migrate({ version: 8, teams: 8, playoffs: { teams: 4, weeks: 2 } }, nba).playoffs).toEqual({ teams: 4, weeks: 2, start: null });
+    expect(migrate({ version: 8, teams: 8, playoffs: { teams: 12, weeks: 0 } }, nba).playoffs).toEqual({ teams: 8, weeks: 1, start: null });
+    expect(migrate({ version: 8, teams: 8, playoffs: { teams: 'x' } }, nba).playoffs).toEqual({ teams: 6, weeks: 3, start: null });
   });
 
   it("keeps a source's well-formed playoff weeks, fixtures and tally and drops malformed ones (#821)", () => {
@@ -112,7 +112,25 @@ describe('the stored league setup migrates by version', () => {
     expect(bad && ('playoffWeeks' in bad || 'fixtures' in bad || 'tally' in bad)).toBe(false);
   });
 
-  it('is at version 8', () => {
-    expect(SETUP_VERSION).toBe(8);
+  it('gives a version 8 copy no first playoff week and no records entered, keeping its teams and weeks (#874)', () => {
+    const setup = migrate({ version: 8, teams: 8, playoffs: { teams: 4, weeks: 2 } }, nba);
+    expect(setup.playoffs).toEqual({ teams: 4, weeks: 2, start: null });
+    expect(setup.standings).toEqual({ records: Array(8).fill(null), tally: 'categories' });
+  });
+
+  it('keeps a version 9 copy\'s first playoff week as its Monday, and its well-formed records', () => {
+    const record = { wins: 5, losses: 3, ties: 1, seed: null };
+    const setup = migrate(
+      { version: 9, teams: 4, playoffs: { teams: 4, weeks: 3, start: '2027-03-18' }, standings: { records: [record, { wins: -1 }, null], tally: 'matchups' } },
+      nba,
+    );
+    // a Thursday stands for its week: the Monday before
+    expect(setup.playoffs.start).toBe('2027-03-15');
+    expect(setup.standings).toEqual({ records: [record, null, null, null], tally: 'matchups' });
+    expect(migrate({ version: 9, teams: 4, playoffs: { teams: 4, weeks: 3, start: 'soon' } }, nba).playoffs.start).toBeNull();
+  });
+
+  it('is at version 9', () => {
+    expect(SETUP_VERSION).toBe(9);
   });
 });

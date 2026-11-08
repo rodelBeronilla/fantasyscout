@@ -20,6 +20,7 @@ import { Card, Loading, Problem, Unvalidated } from './ui';
 import AccountBox from './AccountBox';
 import YahooImport from './YahooImport';
 import EspnImport from './EspnImport';
+import { StandingsEntry } from './StandingsEntry';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 
 interface PlayerRowFields {
@@ -301,6 +302,9 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
           set replacement level.
         </p>
       </Card>
+
+      {/* the records by hand, where no import brings them (#874) */}
+      {setup.format === 'h2h' && !setup.source?.records?.some(Boolean) && <StandingsEntry setup={setup} onChange={update} />}
 
       {setup.drafting && (
         <p className="rounded-lg border border-accent bg-card px-3 py-2 text-sm" data-testid="draft-link">

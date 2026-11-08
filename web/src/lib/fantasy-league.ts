@@ -63,10 +63,24 @@ export interface LeagueSettings {
   playoffs: Playoffs;
 }
 
-/** A head-to-head league's playoffs: how many teams make them, over how many of the last weeks. */
+/**
+ * A head-to-head league's playoffs: how many teams make them, over how many weeks, and the Monday
+ * of their first week (#874). Without a first week they take the schedule's last weeks, though
+ * most hosts end before the NBA's last week.
+ */
 interface Playoffs {
   teams: number;
   weeks: number;
+  start: string | null;
+}
+
+/** How a league's records count a matchup: each category won or lost, or one result a week. */
+export type Tally = 'categories' | 'matchups';
+
+/** The standings entered by hand for a league whose host does not send them (#874): each team's record, by index. */
+interface EnteredStandings {
+  records: (TeamRecord | null)[];
+  tally: Tally;
 }
 
 /** The most fantasy weeks a playoff can take here. */
@@ -104,8 +118,8 @@ export interface LeagueSource {
   playoffWeeks?: { periods: [number, number]; from: string; to: string };
   /** The regular season's matchups from this week on, in ESPN's schedule: each week's pairs of team indexes (#821). */
   fixtures?: [number, number][][];
-  /** How ESPN's records count a matchup: each category, or one result a week (#821). */
-  tally?: 'categories' | 'matchups';
+  /** How the host's records count a matchup: each category, or one result a week (#821). */
+  tally?: Tally;
   /** Today's games on ESPN's scoreboard when the score so far was read: which it already holds (#875). */
   games?: GamesRead;
 }
@@ -124,6 +138,8 @@ export interface LeagueSetup extends LeagueSettings {
   opponent: number | null;
   /** Where the league was imported from, when it was (#815). */
   source?: LeagueSource;
+  /** The records entered on the League page, for a league whose import brings none (#874). */
+  standings: EnteredStandings;
 }
 
 /** The league the published values assume (dbt var `fantasy`). */
@@ -137,7 +153,7 @@ export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
     format: 'roto',
     punts: [],
     lineup: { G: 3, F: 3, C: 2, UTIL: 2 },
-    playoffs: { teams: PARAMS['playoffs.teams'].nba, weeks: PARAMS['playoffs.weeks'].nba },
+    playoffs: { teams: PARAMS['playoffs.teams'].nba, weeks: PARAMS['playoffs.weeks'].nba, start: null },
   },
   wnba: {
     teams: 10,
@@ -147,7 +163,7 @@ export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
     format: 'roto',
     punts: [],
     lineup: { G: 2, F: 2, C: 1, UTIL: 2 },
-    playoffs: { teams: PARAMS['playoffs.teams'].wnba, weeks: PARAMS['playoffs.weeks'].wnba },
+    playoffs: { teams: PARAMS['playoffs.teams'].wnba, weeks: PARAMS['playoffs.weeks'].wnba, start: null },
   },
 };
 
@@ -266,10 +282,28 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
 const whole = (x: unknown, fallback: number, low: number, high: number) =>
   Math.min(high, Math.max(low, typeof x === 'number' && Number.isFinite(x) ? Math.round(x) : fallback));
 
-/** The playoffs, from two teams to the whole league and from one week to the most this page plans. */
+/** The Monday of the Monday-to-Sunday week a date falls in. */
+export function mondayOf(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10); // def: days back to Monday (Sunday is 0), a day in ms
+}
+
+/** The playoffs, from two teams to the whole league and from one week to the most this page plans; a first week is its Monday. */
 function normalizePlayoffs(raw: Partial<Playoffs> | undefined, fallback: Playoffs, teams: number): Playoffs {
   const most = Math.max(2, teams); // def: a playoff needs two teams
-  return { teams: whole(raw?.teams, Math.min(fallback.teams, most), 2, most), weeks: whole(raw?.weeks, fallback.weeks, 1, MAX_PLAYOFF_WEEKS) }; // def: two teams
+  return {
+    teams: whole(raw?.teams, Math.min(fallback.teams, most), 2, most), // def: two teams
+    weeks: whole(raw?.weeks, fallback.weeks, 1, MAX_PLAYOFF_WEEKS),
+    start: isDay(raw?.start) ? mondayOf(raw.start) : null,
+  };
+}
+
+/** The standings entered by hand, one record (or none) per team; any other tally counts categories. */
+function normalizeStandings(raw: Partial<EnteredStandings> | undefined, teams: number): EnteredStandings {
+  return {
+    records: Array.from({ length: teams }, (_, i) => cleanRecord(raw?.records?.[i] ?? null)),
+    tally: raw?.tally === 'matchups' ? 'matchups' : 'categories',
+  };
 }
 
 /** Sizes the teams, rosters and draft log to the number of teams, keeping what fits. */
@@ -304,6 +338,7 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
     picks,
     opponent,
     ...(source ? { source } : {}),
+    standings: normalizeStandings(raw.standings, teams),
   };
 }
 
@@ -361,8 +396,9 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
  * 6: focus categories withdrawn (#706); the field is dropped.
  * 7: where the league was imported from (`source`, #815), which an older copy does not know.
  * 8: the playoffs (`playoffs`: the teams that make them and the weeks they take, #821).
+ * 9: the playoffs' first week (`playoffs.start`) and the records entered by hand (`standings`, #874).
  */
-export const SETUP_VERSION = 8;
+export const SETUP_VERSION = 9;
 
 interface StoredSetup extends LeagueSetup {
   version: number;
@@ -417,6 +453,12 @@ export function migrate(raw: unknown, fallback: LeagueSettings, legacy: LegacySt
   if (version <= 7) {
     // 7 -> 8: no copy had playoffs; they take the league's default (no more teams than it holds).
     value = { ...value, playoffs: fallback.playoffs };
+  }
+  if (version <= 8) {
+    // 8 -> 9: the playoffs keep their teams and weeks and have no first week yet, so they stay the
+    // schedule's last until the manager or an import sets one; no records were entered by hand.
+    const playoffs = (value.playoffs ?? fallback.playoffs) as Partial<Playoffs>;
+    value = { ...value, playoffs: { ...fallback.playoffs, ...playoffs, start: null }, standings: { records: [], tally: 'categories' } };
   }
   const setup = normalize(value, fallback);
   if (legacy.marks?.length) {

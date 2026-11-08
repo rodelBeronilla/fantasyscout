@@ -53,7 +53,10 @@ export function LeagueSettingsForm({
   const isDefault = isDefaultSettings(setup, d);
   // the lineup and the playoffs do not change values (so not part of isDefaultSettings), but Reset puts them back too
   const lineupDefault =
-    SLOT_KEYS.every((k) => setup.lineup[k] === d.lineup[k]) && setup.playoffs.teams === d.playoffs.teams && setup.playoffs.weeks === d.playoffs.weeks;
+    SLOT_KEYS.every((k) => setup.lineup[k] === d.lineup[k]) &&
+    setup.playoffs.teams === d.playoffs.teams &&
+    setup.playoffs.weeks === d.playoffs.weeks &&
+    setup.playoffs.start === d.playoffs.start;
   return (
     <div className="grid gap-3 text-sm" data-testid="league-settings">
       <div className="flex flex-wrap items-end gap-3">

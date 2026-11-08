@@ -136,10 +136,15 @@ export function tonight(schedule: TodayGame[], today: string, read: GamesRead | 
 /** When the score so far was read, and how many of today's games it held then. */
 export type ScoreRead = Pick<Tonight, 'at' | 'games' | 'started' | 'byClock'>;
 
-/** The matchup's score line, e.g. "Score so far from ESPN at 20:15 ET, with 5 of today's 7 games started: ..." */
-export function readLine(read: ScoreRead): string {
-  const at = `Score so far from ESPN at ${easternClock(new Date(read.at).toISOString())} ET`;
-  const how = read.byClock ? " (by the tip-off times: ESPN's scoreboard did not answer)" : '';
+/**
+ * The matchup's score line, e.g. "Score so far from ESPN at 20:15 ET, with 5 of today's 7 games
+ * started: ...". A Yahoo score comes with no scoreboard read (#874), so its games go by the
+ * tip-off times.
+ */
+export function readLine(read: ScoreRead, host: 'espn' | 'yahoo' = 'espn'): string {
+  const at = `Score so far from ${host === 'yahoo' ? 'Yahoo' : 'ESPN'} at ${easternClock(new Date(read.at).toISOString())} ET`;
+  const why = host === 'yahoo' ? 'Yahoo sends no game states' : "ESPN's scoreboard did not answer";
+  const how = read.byClock ? ` (by the tip-off times: ${why})` : '';
   if (read.games === 0) return `${at}; no games today.`;
   if (read.started === 0) return `${at}, before today's ${read.games === 1 ? 'game' : `${read.games} games`}${how}: the games left count all of today.`;
   const of = read.started === read.games ? `all ${read.games} of today's games` : `${read.started} of today's ${read.games} games`;

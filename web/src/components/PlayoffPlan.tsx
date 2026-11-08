@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import type { League } from '../lib/data';
 import { fmt } from '../lib/format';
 import type { LeagueSetup } from '../lib/fantasy-league';
+import { fixedPlayoffs, leagueRecords } from '../lib/league-state';
 import { playoffOdds, type Week } from '../lib/playoff-odds';
 import { gamesPlace, oddsText, playoffLead, playoffTargets, playoffWindow, rosterGames, type TargetRow, type TeamWeek, weeksToPlay, windowGames, windowText } from '../lib/playoff-weeks';
 import { recordText } from '../lib/records';
@@ -51,18 +52,22 @@ export function PlayoffPlan({
 }) {
   const byId = useMemo(() => new Map(rows.map((r) => [r.player_id, r])), [rows]);
   const espn = setup.source?.host === 'espn' ? setup.source : undefined;
-  const window = useMemo(() => playoffWindow(teamWeeks, setup.playoffs.weeks, espn?.playoffWeeks), [teamWeeks, setup.playoffs.weeks, espn?.playoffWeeks]);
+  // the import's playoff weeks, or the first week entered by hand (#874), else the schedule's last
+  const fixed = useMemo(() => fixedPlayoffs(setup), [setup]);
+  const window = useMemo(() => playoffWindow(teamWeeks, setup.playoffs.weeks, fixed), [teamWeeks, setup.playoffs.weeks, fixed]);
   const games = useMemo(() => (window ? windowGames(teamWeeks, window, today) : new Map<string, number>()), [teamWeeks, window, today]);
   const gamesOf = (id: string) => games.get(byId.get(id)?.team_id ?? '') ?? 0;
   const perTeam = rosterGames(setup.rosters, setup.il, gamesOf);
   const allRosters = setup.rosters.every((r) => r.length > 0);
+  // the records the odds start from: the import's, else those entered by hand (#874)
+  const recorded = useMemo(() => leagueRecords(setup), [setup]);
 
   // the regular season left: ESPN's schedule from this week on, or a round robin over the weeks before the playoffs
   const schedule = useMemo(() => {
     if (!window) return null;
     const weeks: Week[] = espn?.fixtures ?? weeksToPlay(teamWeeks, window, today, setup.teams);
-    return { weeks, records: espn?.records ?? [], tally: espn?.tally ?? 'categories' };
-  }, [window, espn, teamWeeks, today, setup.teams]);
+    return { weeks, records: recorded?.records ?? [], tally: recorded?.tally ?? 'categories' };
+  }, [window, espn, teamWeeks, today, setup.teams, recorded]);
   const odds = useMemo(
     () =>
       catValue && schedule
@@ -100,7 +105,9 @@ export function PlayoffPlan({
   );
   const [top] = targets;
   const order = setup.rosters.map((_, t) => t).sort((a, b) => (odds ? (odds.odds[b] ?? 0) - (odds.odds[a] ?? 0) : 0) || (perTeam[b] ?? 0) - (perTeam[a] ?? 0));
-  const levelStart = !espn?.records?.some(Boolean);
+  const levelStart = !recorded;
+  const recordsText =
+    recorded?.from === 'espn' ? "ESPN's records at the last sync" : recorded?.from === 'yahoo' ? "Yahoo's records at the last import" : 'the records entered on the League page';
 
   return (
     <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? 872 : undefined}>
@@ -120,8 +127,8 @@ export function PlayoffPlan({
               The top {Math.min(setup.playoffs.teams, setup.teams)} of {setup.teams} make the playoffs. The odds play the regular season&apos;s{' '}
               {schedule?.weeks.length ?? 0} {schedule?.weeks.length === 1 ? 'week' : 'weeks'} left out{' '}
               {espn?.fixtures ? "on ESPN's schedule" : 'as a round robin'}, each category of each matchup going to a side with the standings model&apos;s
-              chance, from {levelStart ? 'level records' : "ESPN's records at the last sync"}.{' '}
-              {levelStart && !espn && 'Import the league from ESPN to start from the real records and schedule. '}
+              chance, from {levelStart ? 'level records' : recordsText}.{' '}
+              {levelStart && "Enter each team's record on the League page (or import the league from ESPN or run the Yahoo bookmark) to start from the real standings. "}
             </>
           ) : (
             <>
@@ -132,6 +139,7 @@ export function PlayoffPlan({
           )}
           Games are each active player&apos;s team&apos;s games in {windowText(window)}; the targets are free agents ranked as Pickups ranks them, by value per
           game times those games, each with the player Moves would drop for him.{' '}
+          {!fixed && "The playoff weeks are taken to be the schedule's last; most hosts end theirs sooner, so set the first playoff week. "}
           <a href={href('/league/')} className="underline underline-offset-4">
             Set the playoffs on the League page.
           </a>
@@ -141,7 +149,7 @@ export function PlayoffPlan({
             <thead>
               <tr>
                 <Th>Team</Th>
-                {espn?.records && <Th right>W-L-T</Th>}
+                {recorded && <Th right>W-L-T</Th>}
                 {odds && <Th right>Playoffs</Th>}
                 <Th right>
                   <span title={`Games in ${windowText(window)}`}>Playoff games</span>
@@ -150,11 +158,11 @@ export function PlayoffPlan({
             </thead>
             <tbody>
               {order.map((t) => {
-                const record = espn?.records?.[t];
+                const record = recorded?.records[t];
                 return (
                   <tr key={t} className={`border-t border-line ${t === setup.mine ? 'font-semibold' : ''}`} data-testid="playoff-row">
                     <Td>{setup.names[t] ?? `Team ${t + 1}`}</Td>
-                    {espn?.records && <Td right>{record ? recordText(record) : '–'}</Td>}
+                    {recorded && <Td right>{record ? recordText(record) : '–'}</Td>}
                     {odds && <Td right>{oddsText(odds.odds[t] ?? 0)}</Td>}
                     <Td right>{perTeam[t] ?? 0}</Td>
                   </tr>
