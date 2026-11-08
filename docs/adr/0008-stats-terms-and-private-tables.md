@@ -146,3 +146,12 @@ No team beat writer's feed passed: every local paper's feed was blocked, challen
 **Use.** Items are landed privately (`landing/rss/items`). They are modelled in `silver.rss_feed_items` and `gold.fct_player_rss_item`, the second going out only as owner-only Parquet. They are read by the claims extractor as source `rss:<feed_id>`, with the headline's confidence cap. No page shows them, and the Sources page credits each outlet.
 
 **On objection** the feed is removed from `ingest/rss_feeds.toml`, and its landed files and claims are deleted (runbook, "Remove a source on request").
+
+## Addendum (2026-11-08): ESPN content read by the local model
+
+Disney's terms, which cover ESPN, now bar using its content with AI tools ("prompting … of any artificial intelligence", #845). The claims pipeline (#833) has the local model read ESPN headlines and injury notes to pull out dated, sourced claims. The owner chose to continue on the terms this ADR already sets for ESPN and for Basketball-Reference:
+
+- **Private and derived.** The model runs on the home runner and sends nothing outside it. Claims are stored for the walk-forward to score; no page shows them, and none of ESPN's text is published.
+- **On objection** ESPN is dropped from the model's inputs, and its claims are deleted.
+- **Not extended.** The RSS feeds whose terms bar AI use stay out of the model (the RSS addendum above); the owner's choice covers ESPN only.
+
