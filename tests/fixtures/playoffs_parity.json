@@ -216,6 +216,63 @@
    "spots": 3,
    "sims": 250,
    "seasonShare": 0.6
+  },
+  {
+   "name": "a points league (#891): one category on fantasy points per game, one result a week, a lasting share",
+   "totals": [
+    {
+     "fpts": 231.4
+    },
+    {
+     "fpts": 218
+    },
+    {
+     "fpts": 240.9
+    },
+    {
+     "fpts": 205.2
+    },
+    {
+     "fpts": 226.7
+    }
+   ],
+   "spread": {
+    "fpts": 44.888000000000005
+   },
+   "cats": [
+    "fpts"
+   ],
+   "records": [
+    {
+     "wins": 3,
+     "losses": 1,
+     "ties": 0
+    },
+    null,
+    {
+     "wins": 2,
+     "losses": 2,
+     "ties": 0
+    },
+    {
+     "wins": 1,
+     "losses": 3,
+     "ties": 0
+    },
+    {
+     "wins": 2,
+     "losses": 1,
+     "ties": 1
+    }
+   ],
+   "robin": [
+    5,
+    6
+   ],
+   "tally": "matchups",
+   "spots": 2,
+   "sims": 300,
+   "seasonShare": 0.4
   }
  ],
  "expected": {
@@ -754,6 +811,29 @@
      22.828,
      27.252,
      23.036
+    ]
+   },
+   {
+    "odds": [
+     0.7333333333333333,
+     0.22333333333333333,
+     0.59,
+     0.03333333333333333,
+     0.42
+    ],
+    "wins": [
+     5.376666666666667,
+     2.046666666666667,
+     5.573333333333333,
+     2.39,
+     5.113333333333333
+    ],
+    "losses": [
+     2.6233333333333335,
+     2.953333333333333,
+     3.4266666666666667,
+     6.61,
+     3.8866666666666667
     ]
    }
   ]

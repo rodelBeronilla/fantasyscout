@@ -58,6 +58,10 @@ on:
         description: Judge the Trade page's buy low, sell high on simulated leagues too (#758)
         type: boolean
         default: false
+      points:
+        description: Judge a points league's playoff odds on the same leagues too (#891; needs standings)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -225,4 +229,17 @@ jobs:
           path: |
             closeness.json
             closeness/
+          retention-days: 90
+      # A points league's playoff odds (#891): the standings model's leagues played on ESPN's default
+      # points scoring, from the inputs the standings judgement reads.
+      - name: Judge a points league's playoff odds
+        if: inputs.judge != '' && inputs.standings && inputs.points
+        run: |
+          set -o pipefail
+          uv run python -m ops.points_backtest judge standings --out points.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && inputs.judge != '' && inputs.standings && inputs.points
+        with:
+          name: points-${{ inputs.league }}-${{ inputs.judge }}
+          path: points.json
           retention-days: 90

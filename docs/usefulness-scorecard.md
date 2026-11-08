@@ -79,6 +79,7 @@ ESPN points leagues score as "other leagues" in jobs 2 and 8: no score so far an
      - The odds start every team level.
      - The playoff weeks are assumed to be the schedule's last, while most hosts end before the NBA's last week (#874).
      - That puts them behind Hashtag's host presets and League Winner's synced records.
+   - **Points leagues:** the odds play on a weekly spread measured on past seasons (#891, ADR 0029). In season they beat the current standings everywhere out of sample, but they are too sure at the NBA's first game day and in places later (next #913).
 
 **Where FantasyScout leads:**
 - the week from the score so far, with the call and the streams for the categories at stake (ESPN category leagues);

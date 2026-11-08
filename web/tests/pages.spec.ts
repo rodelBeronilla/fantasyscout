@@ -2696,11 +2696,11 @@ test('a head-to-head points league gets playoff odds from its fantasy points, ba
   await page.goto('/team/?league=nba');
   const tile = page.getByTestId('playoffs');
   await expect(tile.getByTestId('playoff-line')).toHaveText(/^(\d+%|under 1%|over 99%) to make it; \d+ games in the playoff weeks/);
-  // the weekly points spread is a prior: its test is #891
-  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/891$/);
+  // the weekly points spread is measured, but the odds are too sure in places (#891): next is #913
+  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/913$/);
   const details = tile.getByTestId('playoff-details');
   await details.locator('summary').click();
-  await expect(details.getByTestId('playoff-basis')).toContainText("each matchup going to a side by its projected fantasy points, with a week's swing that has not yet been measured");
+  await expect(details.getByTestId('playoff-basis')).toContainText("each matchup going to a side by its projected fantasy points, with a week's swing measured on past seasons");
   const odds = (await details.getByTestId('playoff-row').locator('td:nth-child(2)').allInnerTexts()).map((s) =>
     s.startsWith('under') ? 0 : s.startsWith('over') ? 100 : Number(s.replace('%', '')),
   );

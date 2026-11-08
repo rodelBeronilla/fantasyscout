@@ -126,7 +126,14 @@ export const PARAMS = {
     "nba": 0.3,
     "wnba": 0.2
   },
-  "playoffs.points_spread_share": 0.17,
+  "playoffs.points_spread_share": {
+    "nba": 0.271,
+    "wnba": 0.35
+  },
+  "playoffs.points_season_share": {
+    "nba": 0.0,
+    "wnba": 0.0
+  },
   "fit.thirds": {
     "weak": 1.5,
     "middle": 1.0,
@@ -578,11 +585,26 @@ export const PARAMETERS = [
   {
     "id": "playoffs.points_spread_share",
     "kind": "model",
-    "status": "assumed",
+    "status": "measured",
     "what": "A points league's playoff odds (#877): the standard deviation of a week's fantasy-points margin between two teams, as a share of the league's average team.",
-    "evidence": "an unmeasured prior: a game's fantasy points vary by about a third of the player's mean, so over about 35 started games a week the margin varies by sqrt(2) x 0.35 / sqrt(35) = 0.084 of a team's week; doubled for what the projection misses, as the category model needed (standings.spread_scale 2.0, ADR 0021)",
-    "validation": 891,
-    "value": 0.17
+    "evidence": "ops.points_backtest fit on the tuning seasons (#891; runs 42514378363, 42514380629, 42514383087, 42514385913, 42514388109, 42514390535, the #755 leagues drafted by projected fantasy points, ESPN default scoring): the share making the weekly margin's z-scores unit-variance, sqrt(mean (r - mu)^2) over every week from each checkpoint on, league and pair, each checkpoint weighted equally. NBA 0.271 (checkpoints 0.235 to 0.304), WNBA 0.35 (0.296 to 0.409): the z-scores had a standard deviation of 1.59 (NBA) and 2.06 (WNBA) at the prior 0.17, which assumed a third of a player's mean a game over 35 games a week, doubled. Judged (ADR 0029, runs 42519149453, 42519152350, 42519156785, 42519159987): the weekly z-scores at the measured spread have a standard deviation of 0.87 to 1.08 out of sample, but the odds fail, too sure at the NBA's first game day (slopes 0.62 and 0.10, the coin not beaten) and in places in season (0.70 to 0.77)",
+    "validation": 913,
+    "value": {
+      "nba": 0.271,
+      "wnba": 0.35
+    }
+  },
+  {
+    "id": "playoffs.points_season_share",
+    "kind": "model",
+    "status": "measured",
+    "what": "A points league's playoff odds (#891): the share of a week's fantasy-points margin variance that lasts all season (a projection's miss repeats every week), as playoffs.season_share is for the categories. Each simulated season draws one shift per team from it; 0 draws every week independently.",
+    "evidence": "ops.points_backtest fit on the tuning seasons (#891, the same runs), grid 0 to 0.8, the lowest mean log loss of the odds at the measured spread: 0 in both leagues, on the grid's edge (NBA 0.5905 at 0 to 0.6161 at 0.8, WNBA 0.5690 to 0.5856). The tuning slopes at 0 were 0.23 to 1.11 at the first game day (0.23 to 0.70 in the NBA) and 0.72 to 1.57 after it",
+    "validation": 913,
+    "value": {
+      "nba": 0.0,
+      "wnba": 0.0
+    }
   },
   {
     "id": "fit.thirds",
