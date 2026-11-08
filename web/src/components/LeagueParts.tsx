@@ -1,4 +1,6 @@
 /** League pieces shared by the League page and the board: settings, the summary bar, the draft bar, a team's profile. */
+import type { ReactNode } from 'react';
+
 import { CATEGORIES, CATEGORY_LABELS } from '../lib/format';
 import { normalizeSlots, SLOT_KEYS, SLOT_LABEL } from '../lib/lineup';
 import {
@@ -451,6 +453,7 @@ export function Today({
   date,
   verdict,
   need = [],
+  minutesFor,
 }: {
   league: League;
   players: TodayRow[];
@@ -460,6 +463,8 @@ export function Today({
   verdict?: TodayVerdict | null;
   /** The matchup's close and losing categories, preselected on Pickups (#818). */
   need?: string[];
+  /** Who takes an out player's minutes (#820), beside each one in the Out row; null when unknown. */
+  minutesFor?: (id: string) => ReactNode;
 }) {
   const { plays, listed, idle, leagueGames } = todayGroups(players, games, date);
   // a day with no games has nothing to plan: the card stays away rather than say so (#696)
@@ -501,7 +506,7 @@ export function Today({
           </>
         )}
       </p>
-      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} pickups={href(pickupsPath(league, { open: [date], need }))} />}
+      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} pickups={href(pickupsPath(league, { open: [date], need }))} minutesFor={minutesFor} />}
       {leagueGames > 0 && (
         <details className="mt-2 text-sm" open={!verdict} data-testid="today-all">
           <summary className="cursor-pointer text-xs text-muted">All of today&apos;s players</summary>
@@ -541,6 +546,7 @@ function TodayCalls({
   players,
   time,
   pickups,
+  minutesFor,
 }: {
   league: League;
   verdict: TodayVerdict;
@@ -548,6 +554,7 @@ function TodayCalls({
   time: (iso: string | null) => string;
   /** Pickups for today, with the matchup's need categories when there is one (#818). */
   pickups: string;
+  minutesFor?: (id: string) => ReactNode;
 }) {
   const name = new Map(players.map((p) => [p.player_id, p.full_name ?? p.player_id]));
   const who = (id: string) => (
@@ -584,7 +591,18 @@ function TodayCalls({
       )}
       {verdict.out.length > 0 && (
         <p data-testid="today-out">
-          <span className="text-xs font-semibold text-bad uppercase">Out</span> {verdict.out.map((r, i) => <span key={r.id}>{i ? ', ' : ''}{who(r.id)}</span>)}
+          <span className="text-xs font-semibold text-bad uppercase">Out</span>{' '}
+          {verdict.out.map((r, i) => {
+            const minutes = minutesFor?.(r.id) ?? null;
+            return (
+              <span key={r.id} data-player={r.id}>
+                {i ? ', ' : ''}
+                {who(r.id)}
+                {minutes && <> · {minutes}</>}
+              </span>
+            );
+          })}
+          {verdict.out.some((r) => minutesFor?.(r.id)) && <Unvalidated issue={763} what="Who takes an out player's minutes" />}
         </p>
       )}
       {verdict.open.length > 0 && (

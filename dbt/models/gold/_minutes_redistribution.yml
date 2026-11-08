@@ -1,0 +1,181 @@
+version: 2
+
+models:
+  - name: mart_minutes_redistribution
+    description: "Who takes a player's minutes when he misses games (#820): for each team and each rotation player on it now, the minutes each current teammate averaged in the team's regular-season games the player missed against the games he played, over this season and last. My Team names the top gainer beside an out player, and the pickup when he is free in the manager's league. An average, not yet validated (#763)."
+    columns:
+      - name: minutes_redistribution_sk
+        description: "Surrogate key: one row per league, team, player and teammate"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+        data_tests: [not_null]
+      - name: team_id
+        description: "The team both are on now"
+        data_tests: [not_null]
+      - name: player_id
+        description: "League stats API id of the rotation player whose absences are measured"
+        data_tests: [not_null]
+      - name: full_name
+        description: "His name (dim_player's current stint)"
+      - name: games_played
+        description: "Team games over this season and last he played for the team"
+      - name: games_missed
+        description: "Team games over this season and last he missed while on the team, whatever the reason"
+      - name: minutes_played
+        meta: {unit: minutes}
+        description: "His average minutes in the games he played"
+      - name: teammate_id
+        description: "League stats API id of the teammate"
+        data_tests: [not_null]
+      - name: teammate_name
+        description: "The teammate's name (dim_player's current stint)"
+      - name: teammate_games_with
+        description: "Games the player played that the teammate was there for (played, or sat by the coach)"
+      - name: teammate_games_without
+        description: "Games the player missed that the teammate was there for"
+      - name: minutes_with
+        meta: {unit: minutes}
+        description: "The teammate's average minutes in the games the player played (a coach's DNP counts 0)"
+      - name: minutes_without
+        meta: {unit: minutes}
+        description: "The teammate's average minutes in the games the player missed"
+      - name: minutes_gained
+        meta: {unit: minutes}
+        description: "minutes_without less minutes_with: the minutes a game the teammate gained without him"
+      - name: gain_rank
+        description: "1 for the teammate who gained the most minutes without him, then down"
+        data_tests: [not_null]
+      - name: teammate_percent_owned
+        meta: {unit: percent}
+        description: "The share of ESPN leagues rostering the teammate (fct_market_value); null when ESPN has none"
+      - name: last_game_date
+        description: "The latest team game counted, before a point-in-time build's date"
+
+unit_tests:
+  - name: minutes_go_to_the_teammates_who_played_more_without_him
+    description: >
+      a plays 30 minutes in the team's games 1 to 5 and misses 6 to 8. Without him e, whom the coach
+      sat in games 1 to 5, plays 10 (+10); b goes from 20 to 28 (+8); c from 10 to 12 (+2). d missed
+      6 to 8 himself and is in neither split; g has moved to another team. A third season back is
+      left out: a's absence in 2023-24 does not count.
+    model: mart_minutes_redistribution
+    given:
+      - input: ref('fct_team_game')
+        rows:
+          - {league: nba, season: '2023-24', team_id: T, game_id: '0022300001', game_date: '2023-11-01'}
+          - {league: nba, season: '2023-24', team_id: T, game_id: '0022300002', game_date: '2023-11-03'}
+          - {league: nba, season: '2024-25', team_id: U, game_id: '0022400001', game_date: '2024-11-01'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500001', game_date: '2025-11-01'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500002', game_date: '2025-11-03'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500003', game_date: '2025-11-05'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500004', game_date: '2025-11-07'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500005', game_date: '2025-11-09'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500006', game_date: '2025-11-11'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500007', game_date: '2025-11-13'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500008', game_date: '2025-11-15'}
+      - input: ref('fct_player_game')
+        format: csv
+        rows: |
+          league,season,team_id,game_id,game_date,player_id,played,minutes,comment
+          nba,2023-24,T,0022300001,2023-11-01,a,true,30,
+          nba,2023-24,T,0022300001,2023-11-01,b,true,40,
+          nba,2023-24,T,0022300002,2023-11-03,b,true,40,
+          nba,2025-26,T,0022500001,2025-11-01,a,true,30,
+          nba,2025-26,T,0022500002,2025-11-03,a,true,30,
+          nba,2025-26,T,0022500003,2025-11-05,a,true,30,
+          nba,2025-26,T,0022500004,2025-11-07,a,true,30,
+          nba,2025-26,T,0022500005,2025-11-09,a,true,30,
+          nba,2025-26,T,0022500001,2025-11-01,b,true,20,
+          nba,2025-26,T,0022500002,2025-11-03,b,true,20,
+          nba,2025-26,T,0022500003,2025-11-05,b,true,20,
+          nba,2025-26,T,0022500004,2025-11-07,b,true,20,
+          nba,2025-26,T,0022500005,2025-11-09,b,true,20,
+          nba,2025-26,T,0022500006,2025-11-11,b,true,28,
+          nba,2025-26,T,0022500007,2025-11-13,b,true,28,
+          nba,2025-26,T,0022500008,2025-11-15,b,true,28,
+          nba,2025-26,T,0022500001,2025-11-01,c,true,10,
+          nba,2025-26,T,0022500002,2025-11-03,c,true,10,
+          nba,2025-26,T,0022500003,2025-11-05,c,true,10,
+          nba,2025-26,T,0022500004,2025-11-07,c,true,10,
+          nba,2025-26,T,0022500005,2025-11-09,c,true,10,
+          nba,2025-26,T,0022500006,2025-11-11,c,true,12,
+          nba,2025-26,T,0022500007,2025-11-13,c,true,12,
+          nba,2025-26,T,0022500008,2025-11-15,c,true,12,
+          nba,2025-26,T,0022500001,2025-11-01,d,true,15,
+          nba,2025-26,T,0022500002,2025-11-03,d,true,15,
+          nba,2025-26,T,0022500003,2025-11-05,d,true,15,
+          nba,2025-26,T,0022500004,2025-11-07,d,true,15,
+          nba,2025-26,T,0022500005,2025-11-09,d,true,15,
+          nba,2025-26,T,0022500001,2025-11-01,e,false,,DNP - Coach's Decision
+          nba,2025-26,T,0022500002,2025-11-03,e,false,,DNP - Coach's Decision
+          nba,2025-26,T,0022500003,2025-11-05,e,false,,DNP - Coach's Decision
+          nba,2025-26,T,0022500004,2025-11-07,e,false,,DNP - Coach's Decision
+          nba,2025-26,T,0022500005,2025-11-09,e,false,,DNP - Coach's Decision
+          nba,2025-26,T,0022500006,2025-11-11,e,true,10,
+          nba,2025-26,T,0022500007,2025-11-13,e,true,10,
+          nba,2025-26,T,0022500008,2025-11-15,e,true,10,
+          nba,2025-26,T,0022500001,2025-11-01,g,true,5,
+          nba,2025-26,T,0022500002,2025-11-03,g,true,5,
+          nba,2025-26,T,0022500003,2025-11-05,g,true,5,
+          nba,2025-26,T,0022500004,2025-11-07,g,true,5,
+          nba,2025-26,T,0022500005,2025-11-09,g,true,5,
+          nba,2025-26,T,0022500006,2025-11-11,g,true,25,
+          nba,2025-26,T,0022500007,2025-11-13,g,true,25,
+          nba,2025-26,T,0022500008,2025-11-15,g,true,25,
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: a, team_id: T, full_name: Ace, is_current: true}
+          - {league: nba, stats_player_id: b, team_id: T, full_name: Brown, is_current: true}
+          - {league: nba, stats_player_id: c, team_id: T, full_name: Cole, is_current: true}
+          - {league: nba, stats_player_id: d, team_id: T, full_name: Dunn, is_current: true}
+          - {league: nba, stats_player_id: e, team_id: T, full_name: Eze, is_current: true}
+          - {league: nba, stats_player_id: g, team_id: T, full_name: Gray, is_current: false}
+          - {league: nba, stats_player_id: g, team_id: U, full_name: Gray, is_current: true}
+      - input: ref('fct_market_value')
+        rows:
+          - {league: nba, stats_player_id: b, percent_owned: 41.2}
+    expect:
+      rows:
+        - {player_id: a, games_played: 5, games_missed: 3, teammate_id: e, teammate_name: Eze, teammate_games_with: 5, teammate_games_without: 3, minutes_with: 0, minutes_without: 10, minutes_gained: 10, gain_rank: 1, teammate_percent_owned: null}
+        - {player_id: a, games_played: 5, games_missed: 3, teammate_id: b, teammate_name: Brown, teammate_games_with: 5, teammate_games_without: 3, minutes_with: 20, minutes_without: 28, minutes_gained: 8, gain_rank: 2, teammate_percent_owned: 41.2}
+        - {player_id: a, games_played: 5, games_missed: 3, teammate_id: c, teammate_name: Cole, teammate_games_with: 5, teammate_games_without: 3, minutes_with: 10, minutes_without: 12, minutes_gained: 2, gain_rank: 3, teammate_percent_owned: null}
+
+  - name: minutes_redistribution_stops_before_a_point_in_time_builds_date
+    description: >
+      As of 2025-11-13, a's fourth missed game (that day) has not been played: three missed games
+      count, and the latest game counted is 2025-11-11.
+    model: mart_minutes_redistribution
+    overrides:
+      vars: {as_of: '2025-11-13', point_in_time: true}
+    given:
+      - input: ref('fct_team_game')
+        rows:
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500001', game_date: '2025-11-01'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500002', game_date: '2025-11-03'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500003', game_date: '2025-11-05'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500004', game_date: '2025-11-07'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500005', game_date: '2025-11-09'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500006', game_date: '2025-11-11'}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500007', game_date: '2025-11-13'}
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500001', game_date: '2025-11-01', player_id: a, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500002', game_date: '2025-11-03', player_id: a, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500003', game_date: '2025-11-05', player_id: a, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500001', game_date: '2025-11-01', player_id: b, played: true, minutes: 20}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500002', game_date: '2025-11-03', player_id: b, played: true, minutes: 20}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500003', game_date: '2025-11-05', player_id: b, played: true, minutes: 20}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500004', game_date: '2025-11-07', player_id: b, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500005', game_date: '2025-11-09', player_id: b, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500006', game_date: '2025-11-11', player_id: b, played: true, minutes: 30}
+          - {league: nba, season: '2025-26', team_id: T, game_id: '0022500007', game_date: '2025-11-13', player_id: b, played: true, minutes: 40}
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: a, team_id: T, full_name: Ace, is_current: true}
+          - {league: nba, stats_player_id: b, team_id: T, full_name: Brown, is_current: true}
+      - input: ref('fct_market_value')
+        rows: []
+    expect:
+      rows:
+        - {player_id: a, games_missed: 3, teammate_id: b, teammate_games_without: 3, minutes_without: 30, minutes_gained: 10, last_game_date: '2025-11-11'}

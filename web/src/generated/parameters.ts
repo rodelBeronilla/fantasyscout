@@ -156,6 +156,8 @@ export const PARAMS = {
     "min_minutes": 20,
     "recent_games": 10
   },
+  "injury.rotation_minutes": 20,
+  "injury.min_games_missed": 3,
   "injury.recovery_min_spells": 30,
   "blowout.spread": 10,
   "blowout.minutes_per_5_points": {
@@ -649,6 +651,26 @@ export const PARAMETERS = [
       "min_minutes": 20,
       "recent_games": 10
     }
+  },
+  {
+    "id": "injury.rotation_minutes",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Minutes a game a player must average, over this season and last for his team, for his teammates' minutes in his absence to be measured.",
+    "evidence": "none; the box-score regular's floor (injury.box_score_regular)",
+    "validation": 763,
+    "dbt": "minutes_redistribution.rotation_minutes",
+    "value": 20
+  },
+  {
+    "id": "injury.min_games_missed",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Team games a player must have missed, and played, before the minutes his teammates gained without him are shown; each teammate must have been there for as many of each.",
+    "evidence": "none; the IL move's floor (il.min_games)",
+    "validation": 763,
+    "dbt": "minutes_redistribution.min_games_missed",
+    "value": 3
   },
   {
     "id": "injury.recovery_min_spells",

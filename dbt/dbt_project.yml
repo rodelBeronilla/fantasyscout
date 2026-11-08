@@ -70,6 +70,11 @@ vars:
   # a game starts a spell. A regular rarely sits out by the coach's choice, which the box score
   # cannot tell from an injury.
   absence_spells: {min_minutes: 20, recent_games: 10}
+  # Who takes a player's minutes (mart_minutes_redistribution, #820): a rotation player averaged at
+  # least rotation_minutes in the games he played for the team over this season and last; his
+  # teammates' gains are measured once he has missed min_games_missed of the team's games and
+  # played as many, and each teammate was there for that many of each.
+  minutes_redistribution: {rotation_minutes: 20, min_games_missed: 3}
   # Recovery timelines (fct_recovery_curve, mart_recovery_timeline, #800): a body part, or a body
   # part and kind, gets its own Kaplan-Meier curve once it has this many injury spells.
   recovery_min_spells: 30
