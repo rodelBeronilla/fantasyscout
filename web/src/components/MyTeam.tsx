@@ -14,7 +14,7 @@ import { matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { expectedWins, leagueStandings, type LeagueStandings, type PowerRank, powerRankings } from '../lib/standings';
 import { hasWeekGames, recentForm, type ValueUnit, weekValue } from '../lib/week-value';
 import { IL_MIN_GAMES, ilMoves } from '../lib/il-moves';
-import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, weekPlan, type WeekPlan } from '../lib/lineup';
+import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, startsByPlayer, weekPlan, type WeekPlan } from '../lib/lineup';
 import { easternDate, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
 import { type ModelRow, restValues } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Matchup, Today, type TodayRow, Upgrades } from './LeagueParts';
@@ -416,12 +416,6 @@ export default function MyTeam() {
     for (const r of rows ?? []) out.set(r.player_id, weekValue(perGame(r.player_id, true), r.games_this_week));
     return out;
   }, [rows, week, perGame]);
-  const match = useMemo<WeekMatchup | null>(() => {
-    if (!h2h || setup.opponent === null || !weekAvailable || myTeam.length === 0 || !rows) return null;
-    const theirs = rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
-    const scoring = points ? setup.weights : undefined;
-    return matchup(points ? [] : activeCats, weekTotals(myTeam, activeCats, scoring), weekTotals(theirs, activeCats, scoring));
-  }, [h2h, setup.opponent, setup.weights, setup.il, weekAvailable, myTeam, rows, owner, points, activeCats]);
 
   // the week's lineup (#735): the days left, who plays each, and the slots they fill
   const lineupPlans = useMemo(() => {
@@ -443,6 +437,23 @@ export default function MyTeam() {
       !h2h || setup.opponent === null ? null : rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
     return { mine: plan(myTeam), theirs: theirs && theirs.length ? plan(theirs) : null };
   }, [games, rows, myTeam, byId, setup.lineup, setup.opponent, setup.il, owner, perGame, h2h]);
+  // The week's matchup: each side's projected totals over the games its lineup will start (#817),
+  // from the lineup plans above, so benched and out players' games no longer count.
+  const match = useMemo<WeekMatchup | null>(() => {
+    if (!h2h || setup.opponent === null || !weekAvailable || myTeam.length === 0 || !rows) return null;
+    const theirs = rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
+    const scoring = points ? setup.weights : undefined;
+    const counted = (plan: WeekPlan | null | undefined) => {
+      if (!plan) return undefined;
+      const starts = startsByPlayer(plan);
+      return (r: Record<string, unknown>) => starts.get(String(r['player_id'])) ?? 0;
+    };
+    return matchup(
+      points ? [] : activeCats,
+      weekTotals(myTeam, activeCats, scoring, counted(lineupPlans?.mine)),
+      weekTotals(theirs, activeCats, scoring, counted(lineupPlans?.theirs)),
+    );
+  }, [h2h, setup.opponent, setup.weights, setup.il, weekAvailable, myTeam, rows, owner, points, activeCats, lineupPlans]);
   // Today's start and sit (#816): the best lineup the slots hold from today's players, by the same
   // per-game values the week's plan uses.
   const verdict = useMemo(() => {

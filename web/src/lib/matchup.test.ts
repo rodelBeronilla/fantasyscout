@@ -22,6 +22,14 @@ describe('the head-to-head week', () => {
     expect(t.fpts).toBeCloseTo((20 - 6 + 16 - 16) * 3 + (10 - 2 + 8 - 10) * 2, 6);
   });
 
+  it('counts the games a player starts when they are given, not every game his team has (#817)', () => {
+    // the first player starts 2 of his 3 games; the second sits all of his: a full lineup
+    const starts: Record<number, number> = { 20: 2, 10: 0 };
+    const t = weekTotals(mine, cats, undefined, (r) => starts[r['proj_points_pg'] as number] ?? 0);
+    expect(t.cats['z_points']).toBe(40);
+    expect(t.games).toBe(2);
+  });
+
   it('calls each category won, lost or too close, turnovers to the lower total', () => {
     const m = matchup(cats, weekTotals(mine, cats), weekTotals(theirs, cats));
     expect(m.cats.map((r) => [r.cat, r.result])).toEqual([
