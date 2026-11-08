@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: rss_items
+    description: "The outlets' RSS and Atom feeds (ingest/rss.py): one row per item per landed payload, a payload being one feed in one Eastern hour. Headline, link, publish time, and the feed's summary only where its terms allow; the linked articles are never fetched. Values as text."
+    columns:
+      - name: _source_file
+        description: "Path of the landed payload this row was parsed from"
+      - name: league
+        description: "wnba or nba, from the landing path"
+      - name: season
+        description: "Season label, from the landing path"
+      - name: _ingest_date
+        description: "Ingest date of the landed payload"
+      - name: request_key
+        description: "The feed and the Eastern hour it was landed (feed_id.YYYY-MM-DDTHH)"
+      - name: feed_id
+        description: "The feed's id in ingest/rss_feeds.toml"
+      - name: outlet
+        description: "The outlet that publishes the feed, credited on the Sources page"
+      - name: feed_team
+        description: "The team a beat feed covers (the league's abbreviation); null for a league-wide feed"
+      - name: feed_keep
+        description: "What the feed's terms let us keep: headline, or headline+summary"
+      - name: fetched_at
+        description: "When the feed was fetched (UTC)"
+      - name: item_guid
+        description: "The item's id as the feed gives it (RSS guid, Atom id), or its link when it has none"
+      - name: title
+        description: "The headline as the outlet writes it, markup dropped"
+      - name: link
+        description: "Link to the story on the outlet's site; null when the feed gives no web link"
+      - name: published_at
+        description: "When the outlet says it published the item (UTC); null when the feed gives no date"
+      - name: summary
+        description: "The opening of the feed's own summary, at most 400 characters, markup dropped; null for a headline-only feed"

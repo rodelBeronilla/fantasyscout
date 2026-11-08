@@ -1,0 +1,38 @@
+unit_tests:
+  - name: rss_items_are_one_row_per_link_dated_by_the_earlier_of_published_and_first_seen
+    description: >
+      The same story in an outlet's league feed and its team feed is one item, credited to the
+      feed that carried it first, with the newest landing's headline. A guid stands in for a
+      missing link. An item dated in the future, or not dated, is dated by when it was first
+      seen. A headline-only feed keeps no summary even if one was landed, and an untitled item
+      is dropped.
+    model: rss_feed_items
+    given:
+      - input: ref('rss_items')
+        rows:
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-07', _source_file: a, feed_id: desk-nba, outlet: Desk, feed_keep: headline+summary, fetched_at: '2026-11-07T15:00:00+00:00', item_guid: g1, title: 'Avery Example ruled out', link: 'https://desk.example/1', published_at: '2026-11-07T14:00:00+00:00', summary: 'Will not play.'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-08', _source_file: b, feed_id: desk-team, outlet: Desk, feed_team: ATL, feed_keep: headline+summary, fetched_at: '2026-11-08T15:00:00+00:00', item_guid: g1-team, title: 'Avery Example ruled out Friday', link: 'https://desk.example/1', published_at: '2026-11-07T14:00:00+00:00', summary: 'Will not play Friday.'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-08', _source_file: c, feed_id: beat-x, outlet: Beat, feed_keep: headline, fetched_at: '2026-11-08T03:30:00+00:00', item_guid: 'tag:beat,2', title: 'Undated item', link: null, published_at: null, summary: 'kept by mistake'}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-08', _source_file: c, feed_id: beat-x, outlet: Beat, feed_keep: headline, fetched_at: '2026-11-08T03:30:00+00:00', item_guid: g3, title: 'Dated next week', link: 'https://beat.example/3', published_at: '2026-11-15T12:00:00+00:00', summary: null}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-08', _source_file: c, feed_id: beat-x, outlet: Beat, feed_keep: headline, fetched_at: '2026-11-08T03:30:00+00:00', item_guid: g4, title: null, link: 'https://beat.example/4', published_at: '2026-11-08T01:00:00+00:00', summary: null}
+    expect:
+      rows:
+        - {feed_id: desk-nba, item_guid: g1-team, title: 'Avery Example ruled out Friday', summary: 'Will not play Friday.', published_date: '2026-11-07'}
+        - {feed_id: beat-x, item_guid: 'tag:beat,2', title: 'Undated item', summary: null, published_date: '2026-11-07'}
+        - {feed_id: beat-x, item_guid: g3, title: 'Dated next week', summary: null, published_date: '2026-11-07'}
+
+  - name: rss_items_point_in_time_keeps_the_items_published_before_its_date
+    description: >
+      A point-in-time build keeps an item published before its date, however late it was first
+      seen, and drops one published on or after it.
+    model: rss_feed_items
+    overrides:
+      vars: {as_of: '2026-11-08', point_in_time: true}
+    given:
+      - input: ref('rss_items')
+        rows:
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-09', _source_file: a, feed_id: desk-nba, outlet: Desk, feed_keep: headline, fetched_at: '2026-11-09T15:00:00+00:00', item_guid: g1, title: 'Earlier', link: 'https://desk.example/1', published_at: '2026-11-07T14:00:00+00:00', summary: null}
+          - {league: nba, season: '2026-27', _ingest_date: '2026-11-09', _source_file: a, feed_id: desk-nba, outlet: Desk, feed_keep: headline, fetched_at: '2026-11-09T15:00:00+00:00', item_guid: g2, title: 'On the day', link: 'https://desk.example/2', published_at: '2026-11-08T14:00:00+00:00', summary: null}
+    expect:
+      rows:
+        - {title: 'Earlier', published_date: '2026-11-07'}

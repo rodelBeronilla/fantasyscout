@@ -47,6 +47,17 @@
    ]
   },
   {
+   "about": "Every claim comes from a known source: an ESPN headline, an ESPN injury note, or an outlet's feed by its id (rss:<feed_id>, ingest/rss_feeds.toml). The walk-forward harness scores each source's track record, so a source it cannot name would be scored as a source of its own.",
+   "name": "assert_claim_sources_known",
+   "reads": [
+    "player_claims"
+   ],
+   "severity": "error",
+   "tags": [
+    "claims"
+   ]
+  },
+  {
    "about": "Every final regular-season or playoff game on the schedule that finished more than a day ago has a box score and play-by-play in gold. Preseason, All-Star, play-in and tournament finals are on the schedule but outside what the ingestors fetch (SPEC.md scope), so they are not counted as missing.  A season a Backfill run is still landing is left out until it finishes (#420): the build passes the league-seasons of the unfinished Backfill runs as var backfilling ([\"nba:2023-24\", ...], ops.backfilling), and the first build after the backfill judges the season again.",
    "name": "assert_completeness",
    "reads": [
@@ -384,7 +395,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 426,
+ "generic_tests": 436,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -492,6 +503,12 @@
    "path": "odds_api/player_props",
    "read_by": [
     "odds_api_player_props"
+   ]
+  },
+  {
+   "path": "rss/items",
+   "read_by": [
+    "rss_items"
    ]
   },
   {
@@ -655,14 +672,14 @@
        "type": "varchar"
       },
       {
-       "description": "espn_news or espn_injury_note",
+       "description": "espn_news, espn_injury_note or rss:<feed_id>",
        "meta": {},
        "name": "source",
        "tests": [],
        "type": "varchar"
       },
       {
-       "description": "The ESPN article id, or the injury listing id and a hash of the note's text",
+       "description": "The ESPN article id, the injury listing id and a hash of the note's text, or the feed item's id",
        "meta": {},
        "name": "source_id",
        "tests": [],
@@ -3600,6 +3617,134 @@
      "read_by": [
       "feed_freshness",
       "player_props"
+     ],
+     "read_by_pages": [],
+     "reads": [],
+     "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Path of the landed payload this row was parsed from",
+       "meta": {},
+       "name": "_source_file",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba, from the landing path",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label, from the landing path",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Ingest date of the landed payload",
+       "meta": {},
+       "name": "_ingest_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "The feed and the Eastern hour it was landed (feed_id.YYYY-MM-DDTHH)",
+       "meta": {},
+       "name": "request_key",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The feed's id in ingest/rss_feeds.toml",
+       "meta": {},
+       "name": "feed_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The outlet that publishes the feed, credited on the Sources page",
+       "meta": {},
+       "name": "outlet",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The team a beat feed covers (the league's abbreviation); null for a league-wide feed",
+       "meta": {},
+       "name": "feed_team",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "What the feed's terms let us keep: headline, or headline+summary",
+       "meta": {},
+       "name": "feed_keep",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the feed was fetched (UTC)",
+       "meta": {},
+       "name": "fetched_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The item's id as the feed gives it (RSS guid, Atom id), or its link when it has none",
+       "meta": {},
+       "name": "item_guid",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The headline as the outlet writes it, markup dropped",
+       "meta": {},
+       "name": "title",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Link to the story on the outlet's site; null when the feed gives no web link",
+       "meta": {},
+       "name": "link",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the outlet says it published the item (UTC); null when the feed gives no date",
+       "meta": {},
+       "name": "published_at",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The opening of the feed's own summary, at most 400 characters, markup dropped; null for a headline-only feed",
+       "meta": {},
+       "name": "summary",
+       "tests": [],
+       "type": "varchar"
+      }
+     ],
+     "description": "The outlets' RSS and Atom feeds (ingest/rss.py): one row per item per landed payload, a payload being one feed in one Eastern hour. Headline, link, publish time, and the feed's summary only where its terms allow; the linked articles are never fetched. Values as text.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [
+      "rss/items"
+     ],
+     "materialized": "incremental",
+     "name": "rss_items",
+     "notes": [
+      "The outlets' RSS and Atom feeds (ingest/rss.py): one row per item per landed payload, a payload being one feed in one Eastern hour. The headline, link and publish time, and the feed's own summary only where the feed's terms allow it (ingest/rss_feeds.toml, ADR 0008 addendum of 2026-11-08). The linked articles are never fetched. Values stay text until silver."
+     ],
+     "read_by": [
+      "feed_freshness",
+      "rss_feed_items"
      ],
      "read_by_pages": [],
      "reads": [],
@@ -11206,7 +11351,9 @@
      "unit_tests": []
     },
     {
-     "checks": [],
+     "checks": [
+      "assert_claim_sources_known"
+     ],
      "columns": [
       {
        "description": "Natural key: league, source, source id, league player id and kind; one row per claim",
@@ -11235,17 +11382,16 @@
        "type": "varchar"
       },
       {
-       "description": "espn_news (an ESPN headline) or espn_injury_note (an ESPN injury note)",
+       "description": "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note) or rss:<feed_id> (an outlet's feed item, by its id in ingest/rss_feeds.toml); tests/assert_claim_sources_known.sql holds it to those",
        "meta": {},
        "name": "source",
        "tests": [
-        "accepted_values",
         "not_null"
        ],
        "type": "varchar"
       },
       {
-       "description": "The ESPN article id, or the injury listing id and a hash of the note's text",
+       "description": "The ESPN article id, the injury listing id and a hash of the note's text, or the feed item's id (silver.rss_feed_items)",
        "meta": {},
        "name": "source_id",
        "tests": [
@@ -14145,6 +14291,160 @@
      ]
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "League and item id",
+       "meta": {},
+       "name": "rss_item_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The first 16 hex digits of the SHA-256 of the item's link, or of its id when it has no link",
+       "meta": {},
+       "name": "item_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label of the newest landing",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The feed that carried the item first (ingest/rss_feeds.toml)",
+       "meta": {},
+       "name": "feed_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The outlet that publishes the feed",
+       "meta": {},
+       "name": "outlet",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The team a beat feed covers; null for a league-wide feed",
+       "meta": {},
+       "name": "feed_team",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "What the feed's terms let us keep: headline, or headline+summary",
+       "meta": {},
+       "name": "feed_keep",
+       "tests": [
+        "accepted_values"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The item's id as the feed gives it (RSS guid, Atom id)",
+       "meta": {},
+       "name": "item_guid",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The headline as the outlet writes it, from the newest landing",
+       "meta": {},
+       "name": "title",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Link to the story on the outlet's site",
+       "meta": {},
+       "name": "link",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The opening of the feed's own summary, at most 400 characters; null for a headline-only feed",
+       "meta": {},
+       "name": "summary",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the outlet says it published the item (UTC); null when the feed gives no date",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "published_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "When a feed first carried the item in a landing (UTC)",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "first_seen_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "The Eastern day the item was published, or first seen when that is earlier or the feed gives no date; a point-in-time build keeps the items before its date",
+       "meta": {},
+       "name": "published_date",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      }
+     ],
+     "description": "The outlets' RSS and Atom feed items, one row per item (its link, or its id when the feed gives no link), with the newest headline and summary, the feed that carried it first, and the day it was published, never later than the day it was first seen.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "rss_feed_items",
+     "notes": [
+      "The outlets' feed items, one row per item: an item is its link, or its id when the feed gives no link, so the same story in an outlet's league feed and its team feed is one item, credited to the feed that carried it first. The newest landing gives the headline and summary, since outlets edit them. The earlier landings say when the item was first seen.",
+      "published_date is the Eastern day of the outlet's publish time, but never later than the day we first saw the item: a feed that gives no date, or a date in the future, is dated by when it was read. A point-in-time build keeps the items published before its date."
+     ],
+     "read_by": [
+      "fct_player_rss_item"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "rss_items"
+     ],
+     "unit_tests": [
+      {
+       "description": "The same story in an outlet's league feed and its team feed is one item, credited to the feed that carried it first, with the newest landing's headline. A guid stands in for a missing link. An item dated in the future, or not dated, is dated by when it was first seen. A headline-only feed keeps no summary even if one was landed, and an untitled item is dropped.",
+       "name": "rss_items_are_one_row_per_link_dated_by_the_earlier_of_published_and_first_seen"
+      },
+      {
+       "description": "A point-in-time build keeps an item published before its date, however late it was first seen, and drops one published on or after it.",
+       "name": "rss_items_point_in_time_keeps_the_items_published_before_its_date"
+      }
+     ]
+    },
+    {
      "checks": [
       "assert_completeness",
       "assert_freshness_in_season",
@@ -16315,6 +16615,7 @@
       "fct_official_listing",
       "fct_player_claim",
       "fct_player_game",
+      "fct_player_rss_item",
       "fct_player_salary",
       "fct_player_status",
       "fct_player_tracking",
@@ -18391,14 +18692,14 @@
        "type": "varchar"
       },
       {
-       "description": "espn_news (an ESPN headline) or espn_injury_note (an ESPN injury note)",
+       "description": "espn_news (an ESPN headline), espn_injury_note (an ESPN injury note) or rss:<feed_id> (an outlet's feed item)",
        "meta": {},
        "name": "source",
        "tests": [],
        "type": "varchar"
       },
       {
-       "description": "The ESPN article id, or the injury listing id and a hash of the note's text",
+       "description": "The ESPN article id, the injury listing id and a hash of the note's text, or the feed item's id (silver.rss_feed_items)",
        "meta": {},
        "name": "source_id",
        "tests": [],
@@ -18502,7 +18803,7 @@
        "type": "varchar"
       }
      ],
-     "description": "What the news claims about each player: one row per claim the local model read from an ESPN headline or injury note, with its kind, direction, capped confidence, exact quote and the date the source said it. Not shown on the site and read by no number: stored so the walk-forward harness can score each source's track record before any claim may tune a projection.",
+     "description": "What the news claims about each player: one row per claim the local model read from an ESPN headline or injury note, or an outlet's feed item, with its kind, direction, capped confidence, exact quote and the date the source said it. Not shown on the site and read by no number: stored so the walk-forward harness can score each source's track record before any claim may tune a projection.",
      "exported_as": [],
      "grain": {
       "columns": [
@@ -19390,6 +19691,172 @@
       {
        "description": "Each source and bookmaker keeps its last line before the start; a snapshot after the start and a quote without a league player are left out. The consensus averages the bookmakers' lines and vig-free over probabilities, counting DraftKings once although both sources carry it (The Odds API's quote on a tie).",
        "name": "player_prop_keeps_the_latest_pre_game_line_and_a_consensus_per_bookmaker"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, feed item and league player",
+       "meta": {},
+       "name": "player_rss_item_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label of the item's newest landing",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id of the player the item names",
+       "meta": {},
+       "name": "stats_player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The player's name as dim_player has it, the words found in the item",
+       "meta": {},
+       "name": "full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The feed item (silver.rss_feed_items)",
+       "meta": {},
+       "name": "item_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The feed that carried the item first (ingest/rss_feeds.toml)",
+       "meta": {},
+       "name": "feed_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The outlet that publishes the feed, credited on the Sources page",
+       "meta": {},
+       "name": "outlet",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The team a beat feed covers; null for a league-wide feed",
+       "meta": {},
+       "name": "feed_team",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "What the feed's terms let us keep: headline, or headline+summary",
+       "meta": {},
+       "name": "feed_keep",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The headline as the outlet writes it",
+       "meta": {},
+       "name": "title",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Link to the story on the outlet's site",
+       "meta": {},
+       "name": "link",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The opening of the feed's own summary, at most 400 characters; null for a headline-only feed",
+       "meta": {},
+       "name": "summary",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "When the outlet says it published the item (UTC); null when the feed gives no date",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "published_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "When a feed first carried the item in a landing (UTC)",
+       "meta": {
+        "tz": "UTC"
+       },
+       "name": "first_seen_at",
+       "tests": [],
+       "type": "timestamp with time zone"
+      },
+      {
+       "description": "The Eastern day the item was published, or first seen when that is earlier; a point-in-time build keeps the items before its date",
+       "meta": {},
+       "name": "published_date",
+       "tests": [],
+       "type": "date"
+      },
+      {
+       "description": "How many league players the item names",
+       "meta": {},
+       "name": "players_named",
+       "tests": [],
+       "type": "bigint"
+      }
+     ],
+     "description": "The league players each outlet's feed item names, one row per item and player, for the claims extractor. A player is named when his full name's words appear whole in the headline or summary, the name is one only he carries in the league, and he was seen in the league within 400 days. Not shown on the site.",
+     "exported_as": [
+      "fct_player_rss_item.parquet"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "item_id",
+       "stats_player_id"
+      ],
+      "key": "player_rss_item_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_player_rss_item",
+     "notes": [
+      "The league players each outlet's feed item names (#812): one row per item and player, for the claims extractor (ai/claims.py), which reads the headline and, where the feed's terms allow, its summary. Nothing on the site shows it.",
+      "A player is named when his full name's words appear, whole, in the headline or summary (macros/mentions.sql): accents, case, punctuation and a generational suffix aside, and never as part of a longer word. Only a name one player in the league carries counts, and only for a player seen in the league (a game, or a roster) within 400 days of the item, so a namesake from years ago does not take the mention. An item that names no such player has no row, and so yields no claim."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "dim_player",
+      "rss_feed_items"
+     ],
+     "unit_tests": [
+      {
+       "description": "A player is named when his name's words appear whole in the headline or the summary, whatever the accents, case, apostrophes or suffix: \"Luka Doncic\" names Luka Dončić, \"Jaren Jackson\" names Jaren Jackson Jr., \"D’Angelo\" names D'Angelo. \"Jalen Greene\" does not name Jalen Green, a name two players carry names neither, a player last seen two seasons ago is not named, and an item that names no one has no row.",
+       "name": "player_rss_item_links_the_players_an_item_names_by_their_whole_name"
       }
      ]
     },
@@ -26306,6 +26773,7 @@
       "league_player_movement",
       "league_referee_assignments",
       "odds_api_player_props",
+      "rss_items",
       "sleeper_players",
       "sleeper_trending",
       "stats_boxscoretraditionalv3",
@@ -27575,6 +28043,17 @@
    "runner": "GitHub-hosted"
   },
   {
+   "cadence": "",
+   "folders": [
+    "rss/items"
+   ],
+   "host": "",
+   "key": "rss",
+   "module": "",
+   "name": "rss",
+   "runner": ""
+  },
+  {
    "cadence": "daily (ingest.yml)",
    "folders": [
     "sleeper/players",
@@ -27689,6 +28168,11 @@
    "description": "Each source and bookmaker keeps its last line before the start; a snapshot after the start and a quote without a league player are left out. The consensus averages the bookmakers' lines and vig-free over probabilities, counting DraftKings once although both sources carry it (The Odds API's quote on a tie).",
    "model": "fct_player_prop",
    "name": "player_prop_keeps_the_latest_pre_game_line_and_a_consensus_per_bookmaker"
+  },
+  {
+   "description": "A player is named when his name's words appear whole in the headline or the summary, whatever the accents, case, apostrophes or suffix: \"Luka Doncic\" names Luka Dončić, \"Jaren Jackson\" names Jaren Jackson Jr., \"D’Angelo\" names D'Angelo. \"Jalen Greene\" does not name Jalen Green, a name two players carry names neither, a player last seen two seasons ago is not named, and an item that names no one has no row.",
+   "model": "fct_player_rss_item",
+   "name": "player_rss_item_links_the_players_an_item_names_by_their_whole_name"
   },
   {
    "description": "A payroll row links to the stats player of that season with the same name, accents and punctuation aside (#772). A name two players share that season is left unlinked rather than guessed, and a blank salary stays null.",
@@ -27864,6 +28348,16 @@
    "description": "The roster writes height as feet-inches text and the birth date as MAR 03, 1996; silver keeps the text and adds the inches, and types the date. Text that does not parse is null, not an error.",
    "model": "rosters",
    "name": "rosters_type_height_and_birth_date"
+  },
+  {
+   "description": "The same story in an outlet's league feed and its team feed is one item, credited to the feed that carried it first, with the newest landing's headline. A guid stands in for a missing link. An item dated in the future, or not dated, is dated by when it was first seen. A headline-only feed keeps no summary even if one was landed, and an untitled item is dropped.",
+   "model": "rss_feed_items",
+   "name": "rss_items_are_one_row_per_link_dated_by_the_earlier_of_published_and_first_seen"
+  },
+  {
+   "description": "A point-in-time build keeps an item published before its date, however late it was first seen, and drops one published on or after it.",
+   "model": "rss_feed_items",
+   "name": "rss_items_point_in_time_keeps_the_items_published_before_its_date"
   },
   {
    "description": "An ESPN line naming two players gives a row for each; a line naming nobody keeps one row without a player; a name two players share links to neither; a short name is not matched.",

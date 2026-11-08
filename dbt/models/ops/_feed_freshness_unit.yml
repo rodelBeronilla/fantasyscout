@@ -70,6 +70,10 @@ unit_tests:
         format: sql
         rows: |
           select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
+      - input: ref('rss_items')
+        format: sql
+        rows: |
+          select cast(null as string) as league, cast(null as date) as _ingest_date, cast(null as string) as _source_file where false
       - input: ref('stats_boxscoretraditionalv3')
         format: sql
         rows: |
@@ -176,3 +180,5 @@ unit_tests:
         - {feed_key: 'nba:league_player_movement', status: never}
         - {feed_key: 'nba:sleeper_players', status: never}
         - {feed_key: 'nba:sleeper_trending', status: never}
+        - {feed_key: 'nba:rss_items', status: never}
+        - {feed_key: 'wnba:rss_items', status: never}

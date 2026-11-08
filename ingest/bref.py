@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from ingest.http import CircuitOpenError, Throttle, ThrottledClient
+from ingest.http import CRAWLER_USER_AGENT, CircuitOpenError, Throttle, ThrottledClient
 from ingest.landing import League
 from ingest.run import RunSummary
 from ingest.store import Landing, Scope
@@ -30,10 +30,7 @@ from ingest.store import Landing, Scope
 SOURCE = "bref"
 ENDPOINT = "salaries"
 BASE = "https://www.basketball-reference.com/teams/{code}/{year}.html"
-USER_AGENT = (
-    "FantasyScout/1.0 (free, non-commercial fantasy research; "
-    "+https://fantasyscout.beronilla.rodeo/sources/)"
-)
+USER_AGENT = CRAWLER_USER_AGENT
 # At least four seconds between requests, slowing to eight if the site strains (robots.txt asks
 # for three; the bot policy blocks a client past 20 requests a minute).
 THROTTLE = Throttle(min_gap=4.0, max_gap=8.0, start_gap=5.0, max_retries=2)

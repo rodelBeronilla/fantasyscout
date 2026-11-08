@@ -1,0 +1,38 @@
+{
+ "feed": {
+  "id": "sample-desk",
+  "outlet": "Sample Desk (made up for the dbt sample)",
+  "url": "https://desk.example/wnba/feed",
+  "league": "wnba",
+  "terms_url": "https://desk.example/terms",
+  "keep": "headline+summary",
+  "terms": "Made up for the dbt sample: no real outlet's feed.",
+  "team": null
+ },
+ "fetched_at": "2026-10-27T09:15:00+00:00",
+ "etag": "\"sample-1\"",
+ "last_modified": null,
+ "items": [
+  {
+   "id": "sample-1",
+   "title": "Jackie Young (knee) listed as questionable for the opener",
+   "link": "https://desk.example/wnba/1",
+   "published": "2026-10-26T22:10:00+00:00",
+   "summary": "The forward did not practice on Sunday."
+  },
+  {
+   "id": "sample-2",
+   "title": "Kierstan Bell and Jackie Young headline the all-defensive team",
+   "link": "https://desk.example/wnba/2",
+   "published": "2026-10-26T18:00:00+00:00",
+   "summary": null
+  },
+  {
+   "id": "sample-3",
+   "title": "League announces the offseason calendar",
+   "link": "https://desk.example/wnba/3",
+   "published": "2026-10-25T15:00:00+00:00",
+   "summary": "No player is named here, so the item links to no one."
+  }
+ ]
+}

@@ -1,11 +1,11 @@
 {
-  "updated": "2026-11-01",
+  "updated": "2026-11-08",
   "contact": "https://github.com/rodelBeronilla/fantasyscout/issues",
   "principles": [
     "Raw payloads are never redistributed. What the site publishes is derived: per-game and per-player tables, the board's values and projections, the schedule with context, aggregates in the notebooks.",
     "The Parquet mirror of the gold tables is served to the site's owner alone (ADR 0008); the JSON the pages read is public.",
     "Betting lines are model inputs and analysis aids: the game line is shown as context, player prop lines are never published (ADR 0008 addendum).",
-    "Collection is polite: one request at a time per host with a pacing gap, no retries beyond the shared client's, scheduled runs morning and evening.",
+    "Collection is polite: one request at a time per host with a pacing gap, no retries beyond the shared client's, scheduled runs morning and evening. Outlets' news feeds are read only where their terms allow it, never behind a login, a paywall or a bot check, once per run with a User-Agent that links this page; only the headline, link and date are kept, and the articles are never fetched (ADR 0008 addendum, 2026-11-08).",
     "The site is free, non-commercial and not affiliated with any of the organisations below. If a source objects, the site complies: open an issue or write to the address on the GitHub profile."
   ],
   "sources": [
@@ -62,6 +62,42 @@
       "cadence": "Morning and evening in season; the archive landed once.",
       "published": "Each player's official status and reason for the next game, and the calibration of expected games missed built from past listings (aggregates by status and reason).",
       "retention": "As above."
+    },
+    {
+      "name": "Yahoo Sports",
+      "host": "sports.yahoo.com",
+      "terms": "https://legal.yahoo.com/us/en/yahoo/terms/otos/index.html",
+      "feeds": "The NBA and WNBA news RSS feeds: each item's headline, link and publish time. The summary and the articles are never kept or fetched.",
+      "cadence": "Once each morning and at each evening injury-report run, one request per feed, from an identified client.",
+      "published": "Nothing. Headlines are an input to the claims the local model reads, which the backtest scores before any of them may tune a number; credited here.",
+      "retention": "Landed payloads kept on the lakehouse volume; dropped and deleted if Yahoo objects."
+    },
+    {
+      "name": "Hoops Rumors",
+      "host": "www.hoopsrumors.com",
+      "terms": "https://www.hoopsrumors.com/about/privacy",
+      "feeds": "The site's RSS feed (NBA): each item's headline, link and publish time. The summary and the articles are never kept or fetched. The site publishes no terms of use; its privacy policy is linked.",
+      "cadence": "As Yahoo Sports.",
+      "published": "Nothing, as Yahoo Sports.",
+      "retention": "Landed payloads kept; dropped and deleted if Hoops Rumors objects."
+    },
+    {
+      "name": "The IX Sports",
+      "host": "www.theixsports.com",
+      "terms": "https://www.theixsports.com/privacy-policy/",
+      "feeds": "The WNBA newsroom's RSS feed: each item's headline, link and publish time. The summary and the articles are never kept or fetched. The site publishes no terms of use; its privacy policy is linked.",
+      "cadence": "As Yahoo Sports.",
+      "published": "Nothing, as Yahoo Sports.",
+      "retention": "Landed payloads kept; dropped and deleted if The IX objects."
+    },
+    {
+      "name": "Winsidr",
+      "host": "winsidr.com",
+      "terms": "https://winsidr.com/robots.txt",
+      "feeds": "The site's RSS feed (WNBA): each item's headline, link and publish time. The summary and the articles are never kept or fetched. The site publishes no terms of use; its robots.txt, which allows the feed, is linked.",
+      "cadence": "As Yahoo Sports.",
+      "published": "Nothing, as Yahoo Sports.",
+      "retention": "Landed payloads kept; dropped and deleted if Winsidr objects."
     },
     {
       "name": "NBA.com referee assignments",

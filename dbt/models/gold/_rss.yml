@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: fct_player_rss_item
+    description: "The league players each outlet's feed item names, one row per item and player, for the claims extractor. A player is named when his full name's words appear whole in the headline or summary, the name is one only he carries in the league, and he was seen in the league within 400 days. Not shown on the site."
+    columns:
+      - name: player_rss_item_sk
+        description: "Surrogate key: one row per league, feed item and league player"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "wnba or nba"
+      - name: season
+        description: "Season label of the item's newest landing"
+      - name: stats_player_id
+        description: "League player id of the player the item names"
+        data_tests: [not_null]
+      - name: full_name
+        description: "The player's name as dim_player has it, the words found in the item"
+      - name: item_id
+        description: "The feed item (silver.rss_feed_items)"
+        data_tests: [not_null]
+      - name: feed_id
+        description: "The feed that carried the item first (ingest/rss_feeds.toml)"
+      - name: outlet
+        description: "The outlet that publishes the feed, credited on the Sources page"
+      - name: feed_team
+        description: "The team a beat feed covers; null for a league-wide feed"
+      - name: feed_keep
+        description: "What the feed's terms let us keep: headline, or headline+summary"
+      - name: title
+        description: "The headline as the outlet writes it"
+      - name: link
+        description: "Link to the story on the outlet's site"
+      - name: summary
+        description: "The opening of the feed's own summary, at most 400 characters; null for a headline-only feed"
+      - name: published_at
+        meta: {tz: UTC}
+        description: "When the outlet says it published the item (UTC); null when the feed gives no date"
+      - name: first_seen_at
+        meta: {tz: UTC}
+        description: "When a feed first carried the item in a landing (UTC)"
+      - name: published_date
+        description: "The Eastern day the item was published, or first seen when that is earlier; a point-in-time build keeps the items before its date"
+      - name: players_named
+        description: "How many league players the item names"
