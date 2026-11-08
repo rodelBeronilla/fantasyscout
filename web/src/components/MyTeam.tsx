@@ -55,7 +55,6 @@ interface TeamRow extends ModelRow {
 }
 
 const NONE: string[] = [];
-const button = 'rounded border border-line px-2 py-0.5 text-xs hover:bg-bg';
 
 /**
  * Each kept category against the league (#662): the chance of beating an average rival, and the
