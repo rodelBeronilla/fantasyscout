@@ -75,8 +75,8 @@ export function PlayoffPlan({
     if (!schedule) return null;
     const availability = (id: string) => byId.get(id)?.availability_multiplier ?? 1;
     if (catValue) return playoffOdds(league, setup, cats, catValue, availability, schedule);
-    // a points league: each week on fantasy points, with a spread not yet validated (#877, #891)
-    return fpts ? pointsPlayoffOdds(setup, fpts, availability, schedule) : null;
+    // a points league: each week on fantasy points, with a spread measured on past seasons (#877, #891)
+    return fpts ? pointsPlayoffOdds(league, setup, fpts, availability, schedule) : null;
   }, [catValue, fpts, schedule, league, setup, cats, byId]);
   const pointsOdds = !!odds && !catValue;
   const targets = useMemo(
@@ -114,7 +114,7 @@ export function PlayoffPlan({
     recorded?.from === 'espn' ? "ESPN's records at the last sync" : recorded?.from === 'yahoo' ? "Yahoo's records at the last import" : 'the records entered on the League page';
 
   return (
-    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? (pointsOdds ? 891 : 900) : undefined}>
+    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? (pointsOdds ? 913 : 900) : undefined}>
       <p className="mt-1 text-sm" data-testid="playoff-line">
         <strong>{lead}</strong>
         {top && (
@@ -132,7 +132,7 @@ export function PlayoffPlan({
               {schedule?.weeks.length ?? 0} {schedule?.weeks.length === 1 ? 'week' : 'weeks'} left out{' '}
               {espn?.fixtures ? "on ESPN's schedule" : 'as a round robin'},{' '}
               {pointsOdds
-                ? "each matchup going to a side by its projected fantasy points, with a week's swing that has not yet been measured,"
+                ? "each matchup going to a side by its projected fantasy points, with a week's swing measured on past seasons,"
                 : "each category of each matchup going to a side with the standings model's chance, a projection's miss for each team carried through the whole season,"}{' '}
               from {levelStart ? 'level records' : recordsText}.{' '}
               {levelStart && "Enter each team's record on the League page (or import the league from ESPN or run the Yahoo bookmark) to start from the real standings. "}

@@ -212,12 +212,14 @@ const POINTS = 'fpts';
  * A points league's playoff odds (#877): each team's projected fantasy points per game summed over
  * its active players, each counted by the share of games he is expected to play. A week's margin
  * between two teams is drawn normal around the gap between them, with a spread of
- * `playoffs.points_spread_share` of the league's average team; one result a week. That spread is a
- * prior nobody has measured yet (#891). Every team plays the same games a week here, so the games
- * a week scale both the gap and the spread alike and drop out. Null outside a head-to-head league,
+ * `playoffs.points_spread_share` of the league's average team, part of it
+ * (`playoffs.points_season_share`) drawn once a season; one result a week. Both are fitted on
+ * simulated points leagues (#891). Every team plays the same games a week here, so the games a
+ * week scale both the gap and the spread alike and drop out. Null outside a head-to-head league,
  * until every team has half a roster in, or when no player has a projection.
  */
 export function pointsPlayoffOdds(
+  league: League,
   setup: OddsLeague,
   fpts: (id: string) => number,
   availability: (id: string) => number,
@@ -234,12 +236,13 @@ export function pointsPlayoffOdds(
   if (!(average > 0)) return null;
   return simulateOdds({
     totals,
-    spread: { [POINTS]: PARAMS['playoffs.points_spread_share'] * average },
+    spread: { [POINTS]: PARAMS['playoffs.points_spread_share'][league] * average },
     cats: [POINTS],
     records: schedule.records,
     weeks: schedule.weeks,
     tally: 'matchups',
     spots: Math.min(setup.playoffs.teams, teams),
     sims,
+    seasonShare: PARAMS['playoffs.points_season_share'][league],
   });
 }

@@ -108,6 +108,7 @@ def export_checkpoint(cut: Any, league: str, season: str, as_of: date, out: Path
         select b.player_id, {", ".join(f"b.{c}" for c in CATS)}, b.availability_multiplier,
             b.games_share, b.ros_factor, b.value_rest_of_season, b.games_remaining, m.adp_rank,
             b.rank_total, b.market_prior_weight, b.market_prior_value,
+            {", ".join(f"b.{c}" for c in PROJECTED)},
             {naive}
         from board as b
         cross join scale as s
@@ -160,8 +161,25 @@ class Season:
     cuts: list[Cut]
 
 
-# the board's columns a later harness reads (#757): absent from an export made before them
-OPTIONAL = ("rank_total", "market_prior_weight", "market_prior_value")
+# the board's projected per-game line a points league scores (#891, web POINT_STATS), in STATS order
+PROJECTED = tuple(
+    f"proj_{s}_pg"
+    for s in (
+        "points",
+        "rebounds_total",
+        "assists",
+        "steals",
+        "blocks",
+        "three_pointers_made",
+        "turnovers",
+        "fgm",
+        "fga",
+        "ftm",
+        "fta",
+    )
+)
+# the board's columns a later harness reads (#757, #891): absent from an export made before them
+OPTIONAL = ("rank_total", "market_prior_weight", "market_prior_value", *PROJECTED)
 
 
 def _col(df: pd.DataFrame, name: str, fill: float) -> np.ndarray:
