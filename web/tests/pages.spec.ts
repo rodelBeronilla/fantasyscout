@@ -1565,6 +1565,11 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
   await matchupCard.getByLabel("This week's opponent").selectOption({ label: 'Team 2' });
   // three of the best against one player far down the board: most categories are won; turnovers go the other way
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText(/win [5-9] of 9 categories against Team 2/);
+  // the call leads (#817): the count and the swing category, then the open days to stream it
+  await expect(matchupCard.getByTestId('matchup-call')).toContainText(/^Winning [5-9], losing \d(, \d too close)?: .+ is the swing category\./);
+  await expect(matchupCard.getByTestId('matchup-stream')).toHaveAttribute('href', /\/streamers\/\?league=nba&window=week&open=2026-11-0\d/);
+  // a league entered here has no score so far
+  await expect(matchupCard.getByTestId('matchup-basis')).toHaveText('Import the league from ESPN to start from the live score.');
   // three players fill three of the ten slots, so each starts every game his team has left
   const mine = names.slice(0, 3).reduce((s, name) => s + gamesFor(name), 0);
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText(`Games left this week: you ${mine}, Team 2 ${gamesFor(names[3] ?? '')}`);
@@ -2001,7 +2006,11 @@ test('the League page imports a public ESPN league: settings, lineup, teams and 
  * The recorded ESPN league (tests/fixtures/espn/league.json) with board players in place of its
  * made-up ones, and a stored copy of it from two hours ago, as an ESPN import leaves it (#815).
  */
-async function espnLeagueAndCopy(page: Page, edit: (rosters: string[][], id: (i: number) => string) => string[][] = (r) => r) {
+async function espnLeagueAndCopy(
+  page: Page,
+  edit: (rosters: string[][], id: (i: number) => string) => string[][] = (r) => r,
+  then = Date.now() - 2 * 60 * 60 * 1000,
+) {
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string; full_name: string; season: string }[];
   const made = ['Player Zero', 'Player One', 'Player Two', 'Player Three', 'Player Four', 'Player Five', 'Player Six'];
   const swap = (name: string) => (made.includes(name) ? board[made.indexOf(name)]!.full_name : name);
@@ -2015,7 +2024,6 @@ async function espnLeagueAndCopy(page: Page, edit: (rosters: string[][], id: (i:
   const id = (i: number) => board[i]!.player_id;
   // two hours ago Brick City had board player 5 where ESPN now lists player 6
   const imported = [[id(0), id(1), id(5)], [id(2)], [id(3)], [id(4)]];
-  const then = Date.now() - 2 * 60 * 60 * 1000;
   const copy = {
     version: 7,
     savedAt: then,
@@ -2067,6 +2075,27 @@ test("an ESPN league re-syncs on My Team: when it synced, the roster changes, an
   await page.reload();
   await expect(summary).toContainText('Synced just now · 2 roster changes');
   expect(asked).toHaveLength(1);
+});
+
+test("an ESPN category league's matchup starts from the score so far and leads with the call (#817)", async ({ page }) => {
+  // a Monday of the fixture's schedule, two hours after the stored copy was read
+  const now = new Date('2026-11-02T16:00:00Z').getTime();
+  await page.clock.setFixedTime(now);
+  const { asked } = await espnLeagueAndCopy(page, undefined, now - 2 * 60 * 60 * 1000);
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('sync-summary')).toContainText('Synced just now');
+  expect(asked).toHaveLength(1);
+  const card = page.getByTestId('matchup');
+  await expect(card.getByLabel("This week's opponent")).toHaveValue('2');
+  await expect(card.getByTestId('matchup-call')).toContainText(/^Winning \d, losing \d(, \d too close)?: .+ is the swing category\./);
+  await expect(card.getByTestId('matchup-summary')).toContainText('From the score so far plus the games each lineup starts, you project to win');
+  // ESPN gave made and attempted, so every category starts from the score
+  await expect(card.getByTestId('matchup-basis')).toHaveCount(0);
+  await expect(card.getByTestId('matchup-row')).toHaveCount(9);
+  // Brick City has 1,000 points so far to Third's 100: the projected final adds the games to come
+  const points = card.getByTestId('matchup-row').filter({ hasText: 'PTS' });
+  expect(Number(await points.locator('td').nth(1).innerText())).toBeGreaterThanOrEqual(1000);
+  await expect(points).toContainText('win');
 });
 
 test('an ESPN league edited by hand is not re-synced until the manager asks, and then it is (#815)', async ({ page }) => {

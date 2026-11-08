@@ -7,6 +7,7 @@
  */
 import { espnLeagueUrl, fromEspnLeague, type ImportedLeague } from './espn-league';
 import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, normalize } from './fantasy-league';
+import type { ScoreSoFar } from './matchup';
 
 /** How long an ESPN re-import stands before a visit reads the league again. */
 export const SYNC_EVERY_MS = 15 * 60 * 1000; // def: a quarter hour, in ms
@@ -134,6 +135,8 @@ export function espnSetup(league: ImportedLeague, players: Players, at: { league
     teamIds,
     changes,
     opponents,
+    // this week's score so far in a category league, for the matchup to start from (#817)
+    ...(league.scores.size > 0 ? { scores: teamIds.map((id) => (id === null ? null : (league.scores.get(id) ?? null))) } : {}),
   };
   return {
     setup: { ...setup, source },
@@ -143,6 +146,24 @@ export function espnSetup(league: ImportedLeague, players: Players, at: { league
     unmatched,
     changes,
   };
+}
+
+/**
+ * The score so far for the week's matchup between the manager and the opponent (#817), when the
+ * league came from ESPN with one and it was read today: an older score misses the days since, so
+ * the week projects from the games left instead. The reason says which.
+ */
+export function weekScore(
+  setup: LeagueSetup,
+  today: string,
+  dateOf: (ms: number) => string,
+): { mine: ScoreSoFar; theirs: ScoreSoFar } | 'not-espn' | 'no-score' | 'stale' {
+  const source = setup.source;
+  if (source?.host !== 'espn') return 'not-espn';
+  const mine = source.scores?.[setup.mine];
+  const theirs = setup.opponent === null ? null : source.scores?.[setup.opponent];
+  if (!mine || !theirs) return 'no-score';
+  return dateOf(source.syncedAt) === today ? { mine, theirs } : 'stale';
 }
 
 /** The league after the manager picks their team: this week's opponent follows from ESPN's schedule when it is known. */

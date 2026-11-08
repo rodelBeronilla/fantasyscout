@@ -13,6 +13,7 @@ import {
   rosterChanges,
   SYNC_EVERY_MS,
   syncDue,
+  weekScore,
   YAHOO_STALE_MS,
   yahooSource,
   yahooStale,
@@ -119,6 +120,53 @@ describe('when a visit re-imports (#815)', () => {
     const s = imported();
     const again = normalize(JSON.parse(JSON.stringify(s)) as LeagueSetup, DEFAULT_SETTINGS.nba);
     expect(again.source).toEqual(s.source);
+  });
+});
+
+describe("this week's score so far from ESPN (#817)", () => {
+  const day = (ms: number) => (ms < at.now + 12 * 60 * MIN ? '2026-11-05' : '2026-11-06');
+
+  it('reads each side of the current matchup period, stat by stat, into the categories and the shots', () => {
+    const l = fromEspnLeague(fixture);
+    expect([...l.scores.keys()].sort()).toEqual([1, 2, 3, 4]);
+    const brick = l.scores.get(1)!;
+    expect(brick.totals).toEqual({
+      z_points: 1000,
+      z_rebounds_total: 300,
+      z_assists: 200,
+      z_steals: 40,
+      z_blocks: 30,
+      z_three_pointers_made: 80,
+      z_turnovers: 50,
+    });
+    expect(brick.shots).toEqual({ z_field_goal_pct: [380, 800], z_free_throw_pct: [160, 200] });
+  });
+
+  it('stores the scores by team, in the league order, and keeps them through the stored shape', () => {
+    const s = imported();
+    expect(s.source?.scores?.map((x) => x?.totals['z_points'])).toEqual([1000, 410, 100, 395]);
+    const again = normalize(JSON.parse(JSON.stringify(s)) as LeagueSetup, DEFAULT_SETTINGS.nba);
+    expect(again.source?.scores).toEqual(s.source?.scores);
+  });
+
+  it("gives the manager's and the opponent's score when the league was read today, and says why not otherwise", () => {
+    const s = imported();
+    const score = weekScore(s, '2026-11-05', day);
+    expect(typeof score === 'object' && [score.mine.totals['z_steals'], score.theirs.totals['z_steals']]).toEqual([40, 5]);
+    // synced yesterday: the days since are missing from it
+    expect(weekScore(s, '2026-11-06', day)).toBe('stale');
+    // a team on a bye, or no opponent picked
+    expect(weekScore({ ...s, source: { ...s.source!, scores: [s.source!.scores![0]!, null, null, null] } }, '2026-11-05', day)).toBe('no-score');
+    expect(weekScore({ ...s, opponent: null }, '2026-11-05', day)).toBe('no-score');
+    // a league entered by hand or from Yahoo
+    expect(weekScore(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), '2026-11-05', day)).toBe('not-espn');
+  });
+
+  it('has no score in a points league, nor without a schedule', () => {
+    const points = { ...fixture, settings: { ...fixture.settings, scoringSettings: { ...fixture.settings.scoringSettings, scoringType: 'H2H_POINTS' } } };
+    expect(fromEspnLeague(points).scores.size).toBe(0);
+    expect(fromEspnLeague({ ...fixture, schedule: undefined }).scores.size).toBe(0);
+    expect(espnSetup(fromEspnLeague(points), players, at, null).setup.source?.scores).toBeUndefined();
   });
 });
 
