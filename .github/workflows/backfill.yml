@@ -64,8 +64,10 @@ jobs:
             else echo "since=$y-05-01" >> "$GITHUB_OUTPUT"; echo "until=$y-09-30" >> "$GITHUB_OUTPUT"; fi
           else
             y1=${SEASON%-*}; y2=$((y1 + 1))
-            if [ "$SEASON_TYPE" = "Playoffs" ]; then echo "since=$y2-04-10" >> "$GITHUB_OUTPUT"; echo "until=$y2-06-30" >> "$GITHUB_OUTPUT";
-            else echo "since=$y1-10-01" >> "$GITHUB_OUTPUT"; echo "until=$y2-04-30" >> "$GITHUB_OUTPUT"; fi
+            # 2019-20 played its seeding games and playoffs in the bubble (to 2020-10-11) and
+            # 2020-21 ran to 2021-07-20 (#813): the regular season runs to August, playoffs to mid-October.
+            if [ "$SEASON_TYPE" = "Playoffs" ]; then echo "since=$y2-04-10" >> "$GITHUB_OUTPUT"; echo "until=$y2-10-15" >> "$GITHUB_OUTPUT";
+            else echo "since=$y1-10-01" >> "$GITHUB_OUTPUT"; echo "until=$y2-08-31" >> "$GITHUB_OUTPUT"; fi
           fi
       - name: Land
         id: land
@@ -122,7 +124,8 @@ jobs:
             echo "since=$SEASON-05-01" >> "$GITHUB_OUTPUT"; echo "until=$SEASON-10-31" >> "$GITHUB_OUTPUT"
           else
             y1=${SEASON%-*}; y2=$((y1 + 1))
-            echo "since=$y1-10-01" >> "$GITHUB_OUTPUT"; echo "until=$y2-06-30" >> "$GITHUB_OUTPUT"
+            # to mid-October: the 2020 bubble Finals ended 10-11, and no season has opened before 10-15
+            echo "since=$y1-10-01" >> "$GITHUB_OUTPUT"; echo "until=$y2-10-15" >> "$GITHUB_OUTPUT"
           fi
       - name: Land
         id: land
