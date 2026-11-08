@@ -199,3 +199,14 @@ def test_the_fit_finds_a_scale_from_the_grid(tmp_path: Path) -> None:
 def test_the_held_out_season_is_refused(tmp_path: Path) -> None:
     folder = _season(tmp_path / "l", "nba", "2025-26", weeks=2, players=200)
     assert standings_backtest.main(["judge", str(folder)]) == 2
+
+
+def test_the_calibration_slope_is_recovered_and_survives_a_near_separation() -> None:
+    rng = np.random.default_rng(3)
+    x = rng.normal(0, 2, 20_000)
+    y = (rng.uniform(size=x.size) < 1 / (1 + np.exp(-0.7 * x))).astype(float)
+    assert standings_backtest.logistic_slope(x, y) == pytest.approx(0.7, abs=0.05)
+    # nearly every outcome follows the sign: a plain Newton step overshoots and fails here
+    y = np.where(x > 0, 1.0, 0.0)
+    y[:3] = 0.5
+    assert standings_backtest.logistic_slope(x * 10, y) > 1

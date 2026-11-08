@@ -249,16 +249,30 @@ def spearman_rows(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 
 
 def logistic_slope(x: np.ndarray, y: np.ndarray) -> float:
-    """The slope of a logistic fit of y (0 to 1) on x, with an intercept (Newton)."""
+    """The slope of a logistic fit of y (0 to 1) on x, with an intercept: Newton steps, each
+    halved until the likelihood improves (a nearly separable rotisserie season overshoots
+    otherwise)."""
+
+    def nll(a: float, b: float) -> float:
+        eta = a + b * x
+        return float(np.sum(np.logaddexp(0, eta) - y * eta))
+
     a, b = 0.0, 1.0
-    for _ in range(50):
-        mu = 1 / (1 + np.exp(-(a + b * x)))
+    cur = nll(a, b)
+    for _ in range(100):
+        mu = 0.5 * (1 + np.tanh((a + b * x) / 2))
         w = mu * (1 - mu)
         r = y - mu
         h = np.array([[w.sum(), (w * x).sum()], [(w * x).sum(), (w * x * x).sum()]])
-        step = np.linalg.solve(h, np.array([r.sum(), (r * x).sum()]))
-        a, b = a + step[0], b + step[1]
-        if np.max(np.abs(step)) < 1e-10:
+        step = np.linalg.lstsq(h, np.array([r.sum(), (r * x).sum()]), rcond=None)[0]
+        t = 1.0
+        while t > 1e-8 and nll(a + t * step[0], b + t * step[1]) > cur:
+            t /= 2
+        if t <= 1e-8:
+            break
+        a, b = a + t * step[0], b + t * step[1]
+        cur = nll(a, b)
+        if np.max(np.abs(t * step)) < 1e-10:
             break
     return float(b)
 
