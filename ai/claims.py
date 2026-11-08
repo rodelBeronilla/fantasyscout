@@ -1,8 +1,12 @@
 """Claims from the news the lakehouse already lands (#812, #833; ADR 0017), in two steps that run
-where each belongs (.github/workflows/claims.yml):
+one after the other on the home runner, in one job (.github/workflows/claims.yml):
 
-    uv run python -m ai.claims inputs --source published --out claim-inputs.json   # GitHub runner
-    uv run python -m ai.claims extract --inputs claim-inputs.json --backend volume   # home runner
+    uv run python -m ai.claims inputs --source published --out "$RUNNER_TEMP/claims/inputs.json"
+    uv run python -m ai.claims extract --inputs "$RUNNER_TEMP/claims/inputs.json" --backend volume
+
+The inputs hold source text, which never leaves the lakehouse and the owner-only storage (#861):
+they stay on the runner's disk and are never uploaded, and the log carries counts and item ids
+only.
 
 ``inputs`` reads, from the published build, the recent ESPN headlines (fct_player_news), the
 ESPN injury notes on the current report (fct_availability) and the recent items of the outlets'
@@ -14,8 +18,8 @@ a league player. A feed item's source is ``rss:<feed_id>``. The YouTube channels
 30 seconds of its transcript, with the players named in that item's own text, as source
 ``youtube:<channel>``; a transcript chunk's id carries its start in the video
 (``<video_id>-t<seconds>``), so its claims' quotes can be heard again where they were said. A
-transcript's words are not in the build nor in the inputs (a workflow artifact): ``extract``
-reads each chunk's words from the landed transcript, in the volume, on the home runner.
+transcript's words are not in the build nor in the inputs: ``extract`` reads each chunk's words
+from the landed transcript, in the volume.
 
 ``extract`` asks the local model for each item's claims, checks them (claim_check.py) and lands
 each item's claims, the rejected ones with their reasons, and the text they were read from, as
