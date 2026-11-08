@@ -6,6 +6,7 @@ import { isLeague } from '../lib/league';
 import { type CrewFields, crewText } from '../lib/referees';
 import { href } from '../lib/site';
 import { assign, owners, useLeague } from '../lib/fantasy-league';
+import { PlayerNoteBox } from './PlayerNoteLine';
 import ShotChart from './ShotChart';
 import TrendChart from './TrendChart';
 import { Badge, Card, Loading, Problem, Signed, Td, Th, Unvalidated } from './ui';
@@ -96,6 +97,7 @@ interface PlayerBoardFields {
   proj_free_throw_pct?: number | null;
   lineup_role?: string | null;
   lineup_confirmed?: boolean | null;
+  lineup_date?: string | null;
   market_rank?: number | null;
   ownership_bucket?: string | null;
   team_stakes?: string | null;
@@ -110,6 +112,8 @@ interface PlayerBoardFields {
   /** official (the league's report for the next game) or espn. */
   injury_source?: string | null;
   official_game_date?: string | null;
+  news_flag?: string | null;
+  news_date?: string | null;
 }
 type PlayerBoard = ExportedRow<PlayerBoardColumn, PlayerBoardFields>;
 
@@ -566,6 +570,9 @@ export default function PlayerPage() {
           {player.last_game_date ? ` · Last game ${day(player.last_game_date)}` : ''}
         </p>
       </header>
+
+      {/* a flagged player's note (#879): the call first, before the outlook */}
+      {player.board && <PlayerNoteBox league={target.league} row={{ ...player.board, player_id: player.player_id }} />}
 
       {player.board && (
         <OutlookCard

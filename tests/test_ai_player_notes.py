@@ -48,6 +48,7 @@ INP: dict[str, Any] = {
             "what": "claim: will miss games",
             "text": "he's going to miss about 10 days",
             "row_ref": "fct_player_claim/nba/youtube:hoops-talk/abc123-t90",
+            "kind": "injury_out",
             "quotable": False,
         },
         {
@@ -61,7 +62,7 @@ INP: dict[str, Any] = {
 
 
 def line(text: str, **extra: Any) -> dict[str, Any]:
-    return {"player_id": "7", "line": text, **extra}
+    return {"player_id": "7", "action": "hold", "line": text, **extra}
 
 
 def test_a_line_whose_numbers_and_quotes_are_all_in_its_inputs_passes_with_sources() -> None:
@@ -138,6 +139,9 @@ def test_a_line_about_another_player_too_long_or_on_two_lines_is_dropped() -> No
     assert check(line(" ".join(["word"] * 31) + " 4.6"), INP)[0] is None
     assert check(line("Expected to miss 4.6 games.\nHold him."), INP)[0] is None
     assert check({"line": "x"}, INP)[0] is None
+    # the call is one of the six, and there is one
+    assert check(line("Expected to miss 4.6 games.", action="trade"), INP)[0] is None
+    assert check({"player_id": "7", "line": "Expected to miss 4.6 games."}, INP)[0] is None
 
 
 def test_text_numbers_read_a_date_and_a_range_without_their_dashes() -> None:
@@ -214,6 +218,12 @@ def test_inputs_pick_the_flagged_players_with_their_numbers_and_recent_news(
     assert p1["metrics"]["value_rest_of_season"] == {"after": 5.2}
     assert p1["metrics"]["projected_minutes"] == {"after": 30.0}
     assert p1["row_ref"] == "mart_board/nba/p1/2026-11-08"
+    # what a line is written on, for the page's check
+    assert (p1["injury_status"], p1["injury_group"], p1["news_date"]) == ("Out", "out", None)
+    assert (p2["news_flag"], p2["news_date"]) == ("role", "2026-11-07")
+    assert p1["texts"][2]["kind"] == "injury_out"
+    assert all("kind" not in n for n in player_notes.model_view(p1)["news"])
+    assert data["mode"] == "daily" and nba["flagged"] == 2
     # the injury note, the return date and the recent claim; the month-old claim is left out
     assert [t["what"] for t in p1["texts"]] == [
         "injury note",
@@ -233,21 +243,53 @@ def test_inputs_pick_the_flagged_players_with_their_numbers_and_recent_news(
     assert "expected_games_missed" not in view["numbers"]
 
 
-def test_review_publishes_passing_lines_and_logs_the_rest(tmp_path: Path) -> None:
-    inputs = {
+def _inputs(*players: dict[str, Any], mode: str = "daily") -> dict[str, Any]:
+    return {
         "build_id": "b1",
-        "sets": [{"league": "nba", "as_of": "2026-11-08", "players": [INP]}],
+        "mode": mode,
+        "made_at": "2026-11-08T17:24:00Z",
+        "sets": [
+            {"league": "nba", "as_of": "2026-11-08", "flagged": len(players), "players": [*players]}
+        ],
     }
+
+
+def _published(tmp_path: Path) -> dict[str, Any]:
+    path = tmp_path / "notes" / "players" / "nba.json"
+    return dict(json.loads(path.read_text(encoding="utf-8")))
+
+
+def _seed(tmp_path: Path, doc: dict[str, Any]) -> None:
+    (tmp_path / "notes" / "players").mkdir(parents=True)
+    (tmp_path / "notes" / "players" / "nba.json").write_text(json.dumps(doc), encoding="utf-8")
+
+
+OUT = INP | {"injury_group": "out", "news_date": None}
+
+
+def test_review_publishes_passing_lines_and_logs_the_rest(tmp_path: Path) -> None:
+    inputs = _inputs(OUT)
     good = {
         "model": "m",
-        "drafts": [{"league": "nba", "player_id": "7", "note": line("Miss 4.6 games; hold.")}],
+        "drafts": [{"league": "nba", "player_id": "7", "note": line("Miss 4.6 games.")}],
     }
     leagues = player_notes.publish(inputs, good, store_kind="local", out=tmp_path)
-    doc = json.loads((tmp_path / "notes" / "players" / "nba.json").read_text(encoding="utf-8"))
+    doc = _published(tmp_path)
     assert doc == leagues["nba"] | {"notes": doc["notes"]}
-    assert doc["notes"]["7"]["line"] == "Miss 4.6 games; hold."
-    assert doc["notes"]["7"]["injury_status"] == "Out"
+    note = doc["notes"]["7"]
+    assert (note["action"], note["line"]) == ("hold", "Miss 4.6 games.")
+    # what it was written on, and when
+    assert note["written_at"] == "2026-11-08T17:24:00Z"
+    assert (note["injury_status"], note["injury_group"], note["says"]) == ("Out", "out", "sits")
     assert doc["counts"] == {"drafted": 1, "published": 1, "rejected": 0}
+    assert doc["drafted_at"] == "2026-11-08T17:24:00Z"
+    assert doc["run"] == {
+        "at": "2026-11-08T17:24:00Z",
+        "mode": "daily",
+        "flagged": 1,
+        "asked": 1,
+        "model_away": False,
+    }
     bad = {
         "model": "m",
         "drafts": [{"league": "nba", "player_id": "7", "note": line("Miss 9 games.")}],
@@ -257,15 +299,105 @@ def test_review_publishes_passing_lines_and_logs_the_rest(tmp_path: Path) -> Non
     assert "9" in rejected["rejected"][0]["reasons"][0]
 
 
-def test_nothing_is_drafted_or_published_while_the_model_is_away(
+def test_a_line_takes_its_listings_side_of_playing_unless_it_cites_a_claim_the_other_way() -> None:
+    def side(group: str | None, text: str) -> str | None:
+        inp = INP | {"injury_group": group}
+        note, reasons = check(line(text), inp)
+        assert note is not None, reasons
+        return player_notes.says(inp, note)
+
+    assert side("out", "Miss 4.6 games.") == "sits"
+    assert side("doubtful", "Miss 4.6 games.") == "sits"
+    assert side(None, "Ranked 58; start him.") == "plays"
+    assert side("probable", "Ranked 58; start him.") == "plays"
+    # a toss-up takes no side
+    assert side("questionable", "Ranked 58; watch him.") is None
+    # a line citing a "will miss games" claim while he is listed healthy takes no side; one
+    # citing it while he is out stays on the out side
+    assert side(None, "Out about 10 days per a video.") is None
+    assert side("out", "Out about 10 days per a video.") == "sits"
+
+
+def test_a_changed_run_asks_only_for_the_players_whose_line_no_longer_holds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(player_notes, "connect", lambda _source: _con())
+    monkeypatch.setattr(player_notes, "build_id", lambda: "b1")
+    held = {"injury_status": "Out", "injury_group": "out", "news_date": None}
+    notes: dict[str, Any] = {"p1": held}
+    published: dict[str, dict[str, Any] | None] = {"nba": {"notes": notes}, "wnba": None}
+
+    def asked() -> list[str]:
+        data = player_notes.make_inputs(
+            "local", today=date(2026, 11, 8), mode="changed", published=published
+        )
+        nba = next(s for s in data["sets"] if s["league"] == "nba")
+        assert (data["mode"], nba["flagged"]) == ("changed", 2)
+        return [p["player_id"] for p in nba["players"]]
+
+    # p1's line was written on his listing now; p2 has none
+    assert asked() == ["p2"]
+    # a new listing, a newer headline, or a line from before these were kept: drafted again
+    for change in (
+        {"injury_status": "Doubtful"},
+        {"news_date": "2026-11-07"},
+        {"injury_group": None},
+    ):
+        notes["p1"] = held | change
+        assert asked() == ["p1", "p2"]
+
+
+def test_a_run_merges_its_lines_into_the_published_file(tmp_path: Path) -> None:
+    other = OUT | {"player_id": "8"}
+    _seed(
+        tmp_path,
+        {
+            "notes": {"8": {"line": "8's old line"}, "9": {"line": "9's old line"}},
+            "drafted_at": "2026-11-07T17:22:00Z",
+        },
+    )
+    drafted = {
+        "model": "m",
+        "drafts": [{"league": "nba", "player_id": "7", "note": line("Miss 4.6 games.")}],
+    }
+    # a changed run: 7's new line joins; 8 (not asked) and 9 (no longer flagged) keep theirs
+    player_notes.publish(_inputs(OUT, mode="changed"), drafted, store_kind="local", out=tmp_path)
+    doc = _published(tmp_path)
+    assert sorted(doc["notes"]) == ["7", "8", "9"]
+    assert doc["drafted_at"] == "2026-11-07T17:22:00Z"
+    assert doc["run"]["mode"] == "changed"
+    # a daily run drops the line of a player it no longer flags; 8, flagged and not redrafted,
+    # keeps his
+    player_notes.publish(_inputs(OUT, other), drafted, store_kind="local", out=tmp_path)
+    doc = _published(tmp_path)
+    assert sorted(doc["notes"]) == ["7", "8"]
+    assert doc["notes"]["8"]["line"] == "8's old line"
+    assert doc["drafted_at"] == "2026-11-08T17:24:00Z"
+
+
+def test_nothing_is_drafted_while_the_model_is_away_and_the_file_says_so(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(client, "unavailable", lambda **_: "not reachable")
-    inputs = {
-        "build_id": "b1",
-        "sets": [{"league": "nba", "as_of": "2026-11-08", "players": [INP]}],
-    }
+    inputs = _inputs(INP)
     drafts = player_notes.draft(inputs)
     assert drafts["drafts"] == []
-    assert player_notes.publish(inputs, drafts, store_kind="local", out=tmp_path) == {}
-    assert not (tmp_path / "notes").exists()
+    old = {"notes": {"7": {"line": "yesterday's line"}}, "drafted_at": "2026-11-07T17:22:00Z"}
+    _seed(tmp_path, old)
+    player_notes.publish(inputs, drafts, store_kind="local", out=tmp_path)
+    doc = _published(tmp_path)
+    # the lines stand, the last drafted time is kept, and the run says the model was away
+    assert doc["notes"] == old["notes"]
+    assert doc["drafted_at"] == "2026-11-07T17:22:00Z"
+    assert doc["run"]["model_away"] is True
+    assert doc["counts"]["drafted"] == 0
+
+
+def test_a_run_with_no_one_to_ask_does_not_ask_the_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    def asked(**_: Any) -> str:
+        raise AssertionError("the model was asked")
+
+    monkeypatch.setattr(client, "unavailable", asked)
+    drafts = player_notes.draft(_inputs(mode="changed"))
+    assert drafts["drafts"] == []
+    assert "unavailable" not in drafts

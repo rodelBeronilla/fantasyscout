@@ -9,10 +9,13 @@ import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortD
 import { href } from '../lib/site';
 import { type BoardAvailability, type BoardView, readBoardFilters, writeBoardFilters } from '../lib/board-url';
 import { useWatchlist } from '../lib/watchlist';
+import { noteFor, usePlayerNotes } from '../lib/player-notes';
+import { easternDate } from '../lib/today';
 import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
 import { categoryReplacement, categoryValues, fitWeights, pointValues, type Tier } from '../lib/league-value';
 import { leagueStandings } from '../lib/standings';
 import { DraftBar, LeagueBar } from './LeagueParts';
+import { PlayerNoteLine } from './PlayerNoteLine';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag, Unvalidated } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 import { isLine, num, rankAndTier, scoreRows, zKey } from '../lib/board-model';
@@ -205,6 +208,8 @@ export default function Board() {
   const [rangeCols, setRangeCols] = useState(false);
   const [showChoice, setShowChoice] = useState<Show | null>(null);
   const { watched, toggleWatched } = useWatchlist(league);
+  // a flagged player's one-line note, in a row under his (#879)
+  const notes = usePlayerNotes(league);
   const [setup, updateLeague] = useLeague(league);
   // Punts are the league's (#661): these chips edit the setting the League page does, and the
   // Trade page, the upgrades and Streamers read it.
@@ -440,6 +445,7 @@ export default function Board() {
   };
 
   const body: ReactNode[] = [];
+  const today = easternDate();
   let currentTier: number | undefined;
   ranked.slice(0, warm ? shown : Math.min(shown, FIRST_ROWS)).forEach(({ row, value }, i) => {
     if (showTiers) {
@@ -593,6 +599,17 @@ export default function Board() {
         </Td>
       </tr>,
     );
+    // the note spans the row under him and stays in view while the table scrolls sideways (#879)
+    if (noteFor(notes, row, today))
+      body.push(
+        <tr key={`${row.player_id}-note`} className={held === 'Mine' ? 'bg-good/10' : held ? 'text-muted' : ''} data-note-for={row.player_id}>
+          <td colSpan={columns} className="px-2 pb-1.5">
+            <div className="sticky left-2 w-fit max-w-[min(36rem,calc(100vw-3rem))]">
+              <PlayerNoteLine notes={notes} row={row} today={today} />
+            </div>
+          </td>
+        </tr>,
+      );
   });
 
   return (
