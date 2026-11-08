@@ -235,6 +235,22 @@ parameters:
     evidence: "none; a balance of a live score against ESPN's load: ESPN caches the league for 5 minutes (Cache-Control max-age=300), so a shorter wait gains little"
     validation: 875
 
+  # ---- the one-line player notes (web/src/lib/player-notes.ts, #879)
+  - id: notes.stand_days
+    value: 1
+    kind: threshold
+    status: assumed
+    what: "Days after the day a player's note was written (Eastern) that the pages still show it, marked with when it was written: the daily run replaces it, so a day's grace covers one run the model missed."
+    evidence: "none; the daily cadence of the player-notes workflow"
+    validation: 879
+  - id: notes.late_hours
+    value: 30
+    kind: threshold
+    status: assumed
+    what: "Hours since the last daily run drafted the player notes before Data Health says they were not drafted."
+    evidence: "none; a day between daily runs, plus GitHub's schedule lag (runs observed up to about three hours late, ingest.yml) and the run itself"
+    validation: 879
+
   # ---- trade verdicts (web/src/lib/trade-fairness.ts, trade-impact.ts, trade-suggest.ts)
   - id: trade.value_limits
     value: {bad: -0.15, terrible: -0.3}

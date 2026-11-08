@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -90,23 +91,41 @@ def test_the_secret_scan_catches_the_key_kinds_the_project_holds() -> None:
     assert not scan.search("a PRIVATE KEY is mentioned in prose")
 
 
-def test_the_claims_workflow_uploads_no_source_text() -> None:
-    """The claims' inputs and claims hold source text and stay on the home runner (#861).
+@pytest.mark.parametrize(
+    ("workflow", "job", "folder"),
+    [("claims.yml", "claims", "claims"), ("player-notes.yml", "notes", "player-notes")],
+)
+def test_the_news_workflows_upload_no_source_text(workflow: str, job: str, folder: str) -> None:
+    """The claims' and the player notes' inputs hold source text and stay on the home runner
+    (#861, #879).
 
     A workflow artifact on this public repository can be downloaded by any GitHub account, so
-    the claims workflow uploads nothing, runs every job on the home runner and removes its
-    inputs from the runner's disk whatever the outcome.
+    these workflows upload nothing, run every job on the home runner and remove their inputs
+    from the runner's disk whatever the outcome.
     """
     document = yaml.safe_load(
-        (ROOT / ".github" / "workflows" / "claims.yml").read_text(encoding="utf-8")
+        (ROOT / ".github" / "workflows" / workflow).read_text(encoding="utf-8")
     )
     uses = [str(s.get("uses", "")) for s in _steps(document)]
     assert not [u for u in uses if "upload-artifact" in u or "download-artifact" in u]
-    for name, job in document["jobs"].items():
-        assert "self-hosted" in str(job["runs-on"]), f"{name} runs off the home runner"
-    steps = document["jobs"]["claims"]["steps"]
-    cleanup = [s for s in steps if 'rm -rf "$RUNNER_TEMP/claims"' in str(s.get("run", ""))]
+    for name, j in document["jobs"].items():
+        assert "self-hosted" in str(j["runs-on"]), f"{name} runs off the home runner"
+    steps = document["jobs"][job]["steps"]
+    cleanup = [s for s in steps if f'rm -rf "$RUNNER_TEMP/{folder}"' in str(s.get("run", ""))]
     assert cleanup and cleanup[0].get("if") == "always()" and cleanup[0] is steps[-1]
+
+
+def test_the_player_notes_run_again_after_each_build() -> None:
+    """After each published build, the evening report runs' among them, a changed run (#879)."""
+    document = yaml.safe_load(
+        (ROOT / ".github" / "workflows" / "player-notes.yml").read_text(encoding="utf-8")
+    )
+    build = yaml.safe_load((ROOT / ".github" / "workflows" / "build.yml").read_text("utf-8"))
+    on = document[True]
+    assert on["workflow_run"]["workflows"] == [build["name"]]
+    job = document["jobs"]["notes"]
+    assert "github.event.workflow_run.conclusion == 'success'" in job["if"]
+    assert "github.event_name == 'workflow_run' && 'changed'" in job["env"]["MODE"]
 
 
 def test_no_workflow_passes_the_owner_id_as_a_plain_variable() -> None:

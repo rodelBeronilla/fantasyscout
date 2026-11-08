@@ -3824,50 +3824,142 @@ test('"Clear all" on the board clears every punt, not only the last', async ({ p
   await expect(board.locator('thead [data-cat]')).toHaveCount(9);
 });
 
-test("a flagged player's one-line note shows under him on My Team while it holds, and nothing when it does not (#823)", async ({ page }) => {
+/** A league's notes file as the player-notes workflow publishes it (#823, #879), one line. */
+function notesFile(league: 'nba' | 'wnba', playerId: string, note: Record<string, unknown>, extra: Record<string, unknown> = {}) {
+  return {
+    league,
+    label: 'AI-written from FantasyScout data and the news',
+    model: 'qwen3:8b',
+    as_of: '2026-12-20',
+    drafted_at: '2026-12-20T17:20:00Z',
+    run: { at: '2026-12-20T17:20:00Z', mode: 'daily', flagged: 1, asked: 1, model_away: false },
+    notes: {
+      [playerId]: {
+        action: 'hold',
+        line: 'Out, expected to miss 9.4 games per the board.',
+        sources: [{ what: 'expected_games_missed', value: '9.4', row_ref: `mart_board/${league}/${playerId}/2026-12-20` }],
+        written_at: '2026-12-20T17:20:00Z',
+        injury_status: 'Out',
+        injury_group: 'out',
+        news_flag: null,
+        news_date: null,
+        says: 'sits',
+        ...note,
+      },
+    },
+    ...extra,
+  };
+}
+
+test("a flagged player's note leads with its call on My Team, marks a change and is withdrawn when contradicted (#823, #879)", async ({ page }) => {
   // a day with no games in the fixture schedule: no Today card, so the line sits in the roster
-  await page.clock.setFixedTime(new Date('2026-12-20T16:00:00Z'));
+  await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
   const copy = { version: 7, teams: 4, rosterSpots: 13, scoring: 'cats9', format: 'roto', punts: [], rosters: [['1630169', '203999'], [], [], []], mine: 0, il: [], drafting: false, picks: [], opponent: null };
   await page.addInitScript((stored) => {
     if (sessionStorage.getItem('seeded')) return;
     localStorage.setItem('fantasyscout:league:nba', stored);
     sessionStorage.setItem('seeded', '1');
   }, JSON.stringify(copy));
-  const line = 'Out, expected to miss 4.6 games per the board; hold him.';
-  let asOf = '2026-12-20';
-  let status = 'Out';
-  await page.route('**/data/notes/players/nba.json', (route) =>
-    route.fulfill({
-      json: {
-        league: 'nba',
-        label: 'AI-written from FantasyScout data and the news',
-        model: 'qwen3:8b',
-        as_of: asOf,
-        notes: {
-          '1630169': { line, sources: [{ what: 'expected_games_missed', value: '4.6', row_ref: 'mart_board/nba/1630169/2026-12-20' }], injury_status: status, news_flag: null },
-        },
-      },
-    }),
-  );
-  await page.goto('/team/?league=nba');
+  // Haliburton is listed Out in the fixture; each pass writes the line on another listing or day
+  let written: Record<string, unknown> = {};
+  await page.route('**/data/notes/players/nba.json', (route) => route.fulfill({ json: notesFile('nba', '1630169', written) }));
   const flagged = page.getByTestId('roster-table').locator('tr[data-player="1630169"]');
-  await expect(flagged.getByTestId('player-note')).toContainText(line);
-  // marked as AI-written, with each number's source on hover
-  await expect(flagged.getByTestId('player-note-label')).toHaveAttribute('title', /4\.6: expected_games_missed \(mart_board\/nba\/1630169\/2026-12-20\)/);
-  // the healthy player has no line
-  await expect(page.getByTestId('roster-table').locator('tr[data-player="203999"]').getByTestId('player-note')).toHaveCount(0);
-  // a line written on another listing, or two days ago, is not shown
-  for (const [nextStatus, nextAsOf] of [
-    ['Questionable', '2026-12-20'],
-    ['Out', '2026-12-18'],
-  ] as const) {
-    status = nextStatus;
-    asOf = nextAsOf;
+  const reread = async () => {
     const read = page.waitForResponse('**/data/notes/players/nba.json');
     await page.reload();
     await read;
     await expect(page.getByTestId('roster-table')).toBeVisible();
     await expect(page.getByTestId('il-candidates')).toBeVisible();
-    await expect(page.getByTestId('player-note')).toHaveCount(0);
-  }
+  };
+
+  await page.goto('/team/?league=nba');
+  const note = flagged.getByTestId('player-note');
+  await expect(note).toHaveAttribute('data-state', 'holds');
+  // the call first, then the line, marked as AI-written with when (12:20 Eastern), sources on hover
+  await expect(note.getByTestId('player-note-call')).toHaveText('Hold:');
+  await expect(note).toContainText('Out, expected to miss 9.4 games per the board.');
+  await expect(note.getByTestId('player-note-label')).toHaveText('AI note · 12:20 ET');
+  await expect(note.getByTestId('player-note-label')).toHaveAttribute('title', /9.4: expected_games_missed \(mart_board\/nba\/1630169\/2026-12-20\)/);
+  await expect(note.getByTestId('player-note-changed')).toHaveCount(0);
+  // the healthy player has no line
+  await expect(page.getByTestId('roster-table').locator('tr[data-player="203999"]').getByTestId('player-note')).toHaveCount(0);
+
+  // written while he was Questionable: still shown, with what changed
+  written = { injury_status: 'Questionable', injury_group: 'questionable', says: null };
+  await reread();
+  await expect(note).toHaveAttribute('data-state', 'changed');
+  await expect(note.getByTestId('player-note-changed')).toHaveText('May be out of date: listed Out (was Questionable).');
+
+  // a number it cites has moved since: shown, with the number now and then
+  written = { sources: [{ what: 'expected_games_missed', value: '4.6', row_ref: 'mart_board/nba/1630169/2026-12-20' }] };
+  await reread();
+  await expect(note.getByTestId('player-note-changed')).toHaveText('May be out of date: games expected to miss now 9.4 (was 4.6).');
+
+  // written while he was healthy, saying start him: now Out, so withdrawn, saying what and when
+  written = { action: 'start', injury_status: null, injury_group: null, says: 'plays' };
+  await reread();
+  await expect(note).toHaveAttribute('data-state', 'withdrawn');
+  await expect(note).toHaveText('AI note from 12:20 ET withdrawn: listed Out (was off the injury report).');
+  await expect(note).not.toContainText('expected to miss');
+
+  // written two days ago: nothing
+  written = { written_at: '2026-12-18T17:20:00Z' };
+  await reread();
+  await expect(page.getByTestId('player-note')).toHaveCount(0);
+});
+
+test("the board shows a flagged player's note in a row under his, in view on a phone (#879)", async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
+  await page.route('**/data/notes/players/nba.json', (route) => route.fulfill({ json: notesFile('nba', '1630169', {}) }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?league=nba');
+  const board = page.getByTestId('board');
+  const row = board.locator('tbody tr[data-note-for="1630169"]');
+  await expect(row.getByTestId('player-note-call')).toHaveText('Hold:');
+  await expect(row.getByTestId('player-note')).toContainText('expected to miss 9.4 games');
+  // the note row follows his row, and no other player has one
+  await expect(board.locator('tbody tr[data-player="1630169"] + tr')).toHaveAttribute('data-note-for', '1630169');
+  await expect(board.locator('tbody tr[data-note-for]')).toHaveCount(1);
+  // on a phone the whole line is in view, without scrolling the table sideways
+  const box = await row.getByTestId('player-note').boundingBox();
+  expect(box && box.x >= 0 && box.x + box.width <= 390).toBe(true);
+  await row.scrollIntoViewIfNeeded();
+  await expect(row.getByTestId('player-note-call')).toBeInViewport();
+  // a desktop gets the same row
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(row.getByTestId('player-note')).toBeVisible();
+});
+
+test("the player page leads with a flagged player's note, before the outlook (#879)", async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
+  // Aliyah Boston is listed Out in the fixture
+  await page.route('**/data/notes/players/wnba.json', (route) => route.fulfill({ json: notesFile('wnba', '1641648', {}) }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/p/wnba/1641648/');
+  const note = page.getByTestId('player-page-note');
+  await expect(note.getByTestId('player-note-call')).toHaveText('Hold:');
+  await expect(note).toContainText('AI note · 12:20 ET');
+  await expect(note).toBeInViewport();
+  // above the outlook in the page's order
+  const order = await page.evaluate(() => {
+    const a = document.querySelector('[data-testid="player-page-note"]');
+    const b = document.querySelector('[data-testid="player-outlook"]');
+    return a && b ? a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
+  });
+  expect(order).toBeTruthy();
+  // another player has no note box
+  await page.goto('/p/wnba/1628932/');
+  await expect(page.getByTestId('player-name')).toBeVisible();
+  await expect(page.getByTestId('player-page-note')).toHaveCount(0);
+});
+
+test('data health says when the player notes were not drafted (#879)', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-12-21T01:00:00Z'));
+  await page.route('https://api.github.com/**', (route) => route.fulfill({ json: [] }));
+  const away = { run: { at: '2026-12-21T00:40:00Z', mode: 'changed', flagged: 1, asked: 1, model_away: true } };
+  await page.route('**/data/notes/players/nba.json', (route) => route.fulfill({ json: notesFile('nba', '1630169', {}, away) }));
+  await page.goto('/health/');
+  const line = page.getByTestId('status-player-notes');
+  await expect(line).toContainText('Player notes not drafted. NBA: the local model was away at the last run, Dec 21, 00:40 UTC');
+  await expect(line).toContainText('the lines drafted Dec 20, 17:20 UTC stand until the day after');
 });

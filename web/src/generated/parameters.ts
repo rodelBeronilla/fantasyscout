@@ -130,6 +130,8 @@ export const PARAMS = {
   },
   "matchup.closeness": 0.05,
   "sync.every_minutes": 15,
+  "notes.stand_days": 1,
+  "notes.late_hours": 30,
   "trade.value_limits": {
     "bad": -0.15,
     "terrible": -0.3
@@ -556,6 +558,24 @@ export const PARAMETERS = [
     "evidence": "none; a balance of a live score against ESPN's load: ESPN caches the league for 5 minutes (Cache-Control max-age=300), so a shorter wait gains little",
     "validation": 875,
     "value": 15
+  },
+  {
+    "id": "notes.stand_days",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Days after the day a player's note was written (Eastern) that the pages still show it, marked with when it was written: the daily run replaces it, so a day's grace covers one run the model missed.",
+    "evidence": "none; the daily cadence of the player-notes workflow",
+    "validation": 879,
+    "value": 1
+  },
+  {
+    "id": "notes.late_hours",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Hours since the last daily run drafted the player notes before Data Health says they were not drafted.",
+    "evidence": "none; a day between daily runs, plus GitHub's schedule lag (runs observed up to about three hours late, ingest.yml) and the run itself",
+    "validation": 879,
+    "value": 30
   },
   {
     "id": "trade.value_limits",
