@@ -6,6 +6,7 @@
  * The League page matches the names to players and fills the rosters.
  */
 import { DEFAULT_SETTINGS, type LeagueSetup, matchNames, normalize } from './fantasy-league';
+import { yahooSource } from './league-sync';
 
 interface YahooPlayer {
   name: string;
@@ -199,11 +200,15 @@ export function parseYahooHash(hash: string): YahooPayload | null {
   }
 }
 
-/** The league with the imported teams: names, rosters matched by name, the injured list, and the manager's team. */
+/**
+ * The league with the imported teams: names, rosters matched by name, the injured list, the
+ * manager's team, and when the bookmarklet ran (#815).
+ */
 export function applyYahooImport(
   setup: LeagueSetup,
   payload: YahooPayload,
   players: { player_id: string; full_name: string | null }[],
+  now = Date.now(),
 ): { setup: LeagueSetup; matched: number; unmatched: string[]; il: number } {
   const unmatched: string[] = [];
   const il: string[] = [];
@@ -220,5 +225,5 @@ export function applyYahooImport(
     { ...setup, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },
     DEFAULT_SETTINGS['nba'],
   );
-  return { setup: next, matched, unmatched, il: next.il.length };
+  return { setup: { ...next, source: yahooSource(payload.leagueId, next.rosters, now) }, matched, unmatched, il: next.il.length };
 }

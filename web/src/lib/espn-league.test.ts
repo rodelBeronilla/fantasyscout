@@ -89,6 +89,8 @@ describe('espnLeagueUrl (#745)', () => {
     expect(url).toContain('view=mTeam');
     expect(url).toContain('view=mRoster');
     expect(url).toContain('view=mSettings');
+    // and the schedule, for this week's opponent (#815)
+    expect(url).toContain('view=mMatchupScore');
   });
 });
 

@@ -1,7 +1,14 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 
+import { readFileSync } from 'node:fs';
+
 import { expect, test } from './fixtures';
+
+/** ESPN's league API as recorded for the tests (#815): the views the import asks for, a made-up league. */
+const espnFixture = JSON.parse(readFileSync(new URL('./fixtures/espn/league.json', import.meta.url), 'utf8')) as {
+  teams: { roster: { entries: { playerPoolEntry: { player: { fullName: string } } }[] } }[];
+};
 
 // The preview server serves the fixture data build (tests/fixtures/data) under /data/.
 
@@ -1988,6 +1995,94 @@ test('the League page imports a public ESPN league: settings, lineup, teams and 
   await card.getByLabel('ESPN league address or ID').fill('999999');
   await card.getByRole('button', { name: 'Import' }).click();
   await expect(card.getByTestId('espn-note')).toContainText('Make League Viewable to Public');
+});
+
+/**
+ * The recorded ESPN league (tests/fixtures/espn/league.json) with board players in place of its
+ * made-up ones, and a stored copy of it from two hours ago, as an ESPN import leaves it (#815).
+ */
+async function espnLeagueAndCopy(page: Page, edit: (rosters: string[][], id: (i: number) => string) => string[][] = (r) => r) {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string; full_name: string; season: string }[];
+  const made = ['Player Zero', 'Player One', 'Player Two', 'Player Three', 'Player Four', 'Player Five', 'Player Six'];
+  const swap = (name: string) => (made.includes(name) ? board[made.indexOf(name)]!.full_name : name);
+  const league = {
+    ...espnFixture,
+    teams: espnFixture.teams.map((t) => ({
+      ...t,
+      roster: { entries: t.roster.entries.map((e) => ({ ...e, playerPoolEntry: { player: { fullName: swap(e.playerPoolEntry.player.fullName) } } })) },
+    })),
+  };
+  const id = (i: number) => board[i]!.player_id;
+  // two hours ago Brick City had board player 5 where ESPN now lists player 6
+  const imported = [[id(0), id(1), id(5)], [id(2)], [id(3)], [id(4)]];
+  const then = Date.now() - 2 * 60 * 60 * 1000;
+  const copy = {
+    version: 7,
+    savedAt: then,
+    teams: 4,
+    rosterSpots: 13,
+    scoring: 'cats9',
+    format: 'h2h',
+    punts: [],
+    lineup: { G: 3, F: 3, C: 1, UTIL: 3 },
+    names: ['Brick City', 'Glass Cleaners', 'Third', 'Fourth'],
+    rosters: edit(imported, id),
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    source: { host: 'espn', leagueId: '123456', season: board[0]!.season, syncedAt: then, rosters: imported, teamIds: [1, 2, 3, 4], changes: null, opponents: [1, 0, 3, 2] },
+  };
+  // stored once, before the first page: a reload keeps what the page saved
+  await page.addInitScript((stored) => {
+    if (sessionStorage.getItem('seeded')) return;
+    localStorage.setItem('fantasyscout:league:nba', stored);
+    sessionStorage.setItem('seeded', '1');
+  }, JSON.stringify(copy));
+  const asked: string[] = [];
+  await page.route('https://lm-api-reads.fantasy.espn.com/**', (route) => {
+    asked.push(route.request().url());
+    return route.fulfill({ json: league });
+  });
+  return { asked, id };
+}
+
+test("an ESPN league re-syncs on My Team: when it synced, the roster changes, and this week's opponent from ESPN's schedule (#815)", async ({ page }) => {
+  const { asked, id } = await espnLeagueAndCopy(page);
+  await page.goto('/team/?league=nba');
+  const summary = page.getByTestId('sync-line').getByTestId('sync-summary');
+  // Brick City dropped one player and added another; ESPN's period 2 pairs it with Third
+  await expect(summary).toHaveText('Synced just now · 2 roster changes since your last visit · this week vs Third');
+  expect(asked).toHaveLength(1);
+  expect(asked[0]).toContain('/leagues/123456?');
+  expect(asked[0]).toContain('view=mMatchupScore');
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('fantasyscout:league:nba') ?? '{}') as { rosters: string[][]; opponent: number });
+  expect(stored.rosters[0]).toContain(id(6));
+  expect(stored.rosters[0]).not.toContain(id(5));
+  expect(stored.opponent).toBe(2);
+  // with this week's games in, the matchup has ESPN's opponent picked
+  if (await page.getByTestId('matchup').count()) await expect(page.getByLabel("This week's opponent")).toHaveValue('2');
+  // inside a quarter hour a visit reads the stored copy, not ESPN
+  await page.reload();
+  await expect(summary).toContainText('Synced just now · 2 roster changes');
+  expect(asked).toHaveLength(1);
+});
+
+test('an ESPN league edited by hand is not re-synced until the manager asks, and then it is (#815)', async ({ page }) => {
+  // the manager added board player 7 to their team here after the import
+  const { asked } = await espnLeagueAndCopy(page, (r, id) => r.map((roster, t) => (t === 0 ? [...roster, id(7)] : roster)));
+  await page.goto('/team/?league=nba');
+  const line = page.getByTestId('sync-line');
+  await expect(line).toContainText('you have changed the rosters here since');
+  const button = line.getByRole('button', { name: 'Re-sync from ESPN (replaces your edits)' });
+  await expect(button).toBeVisible();
+  expect(asked).toHaveLength(0);
+  await button.click();
+  // the hand-added player and the dropped one go, ESPN's pickup comes in
+  await expect(line.getByTestId('sync-summary')).toHaveText('Synced just now · 3 roster changes since your last visit · this week vs Third');
+  await expect(button).toHaveCount(0);
+  expect(asked).toHaveLength(1);
 });
 
 test('/league/ and /draft/ have no accessibility violations', async ({ page }) => {

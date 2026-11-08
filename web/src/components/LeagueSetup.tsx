@@ -11,6 +11,7 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum } from '../lib/fantasy-league';
 import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
+import { chooseMine } from '../lib/league-sync';
 import { href } from '../lib/site';
 import { auctionValues } from '../lib/auction';
 import { DraftBar, LeagueSettingsForm, describeSettings } from './LeagueParts';
@@ -372,7 +373,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
                     aria-label={`Name of team ${t + 1}`}
                   />
                   <label className={`flex items-center gap-1 text-xs whitespace-nowrap ${mine ? 'font-semibold text-good' : 'text-muted'}`}>
-                    <input type="radio" name="my-team" checked={mine} onChange={() => update((s) => ({ ...s, mine: t }))} aria-label={`${name} is my team`} />
+                    <input type="radio" name="my-team" checked={mine} onChange={() => update((s) => chooseMine(s, t))} aria-label={`${name} is my team`} />
                     My team
                   </label>
                 </div>

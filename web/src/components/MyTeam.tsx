@@ -19,6 +19,7 @@ import { easternDate, type TodayGame, todayGroups, todayVerdict } from '../lib/t
 import { type ModelRow, restValues } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Matchup, Today, type TodayRow, Upgrades } from './LeagueParts';
 import { BuildYourTeam } from './BuildYourTeam';
+import { SyncLine, useEspnSync } from './LeagueSync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
 
 interface TeamRow extends ModelRow {
@@ -347,6 +348,8 @@ export default function MyTeam() {
   const [error, setError] = useState<unknown>(null);
   const [games, setGames] = useState<TodayGame[] | null>(null);
   const [setup, updateLeague] = useLeague(league);
+  // an ESPN league is read again on a visit, so the rosters and this week's opponent are current (#815)
+  const sync = useEspnSync(setup, updateLeague, rows);
 
   useEffect(() => {
     let live = true;
@@ -538,6 +541,7 @@ export default function MyTeam() {
   if (roster.length === 0) {
     return (
       <div className="grid gap-3" data-testid="team-empty">
+        <SyncLine setup={setup} sync={sync} />
         <LeagueBar setup={setup} rostered={owner.size} myCount={0} weakest={[]} />
         <p className="rounded-lg border border-line bg-card p-3 text-sm">
           Your team is empty. Set up your league on the{' '}
@@ -568,6 +572,7 @@ export default function MyTeam() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+      <SyncLine setup={setup} sync={sync} />
       <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={[]} />
       {setup.drafting && (
         <p className="rounded-lg border border-accent bg-card p-3 text-sm" data-testid="team-drafting">

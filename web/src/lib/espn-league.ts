@@ -16,7 +16,8 @@ const API = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba';
 /** ESPN numbers a season by the year it ends: 2026-27 is 2027; a WNBA-style single year stays. */
 export function espnLeagueUrl(leagueId: string, season: string): string {
   const year = season.includes('-') ? String(Number(season.slice(0, 4)) + 1) : season;
-  return `${API}/seasons/${year}/segments/0/leagues/${encodeURIComponent(leagueId)}?view=mTeam&view=mRoster&view=mSettings`;
+  // mMatchupScore adds the schedule, for this week's opponent (#815)
+  return `${API}/seasons/${year}/segments/0/leagues/${encodeURIComponent(leagueId)}?view=mTeam&view=mRoster&view=mSettings&view=mMatchupScore`;
 }
 
 const G_SLOTS = new Set([0, 1, 5]);
@@ -42,7 +43,10 @@ const POINT_STATS: Record<number, keyof PointWeights> = {
 export interface ImportedLeague {
   name: string;
   settings: { teams: number; rosterSpots: number; scoring: Scoring; format: Format; weights: Partial<PointWeights> | null; lineup: Slots };
-  teams: { name: string; players: string[] }[];
+  /** Each team with ESPN's id for it (null when ESPN gave none). */
+  teams: { id: number | null; name: string; players: string[] }[];
+  /** This week's pairings: each team's ESPN id to its opponent's, from the schedule (#815). */
+  opponents: Map<number, number>;
 }
 
 interface EspnLeague {
@@ -51,8 +55,15 @@ interface EspnLeague {
     size?: number;
     rosterSettings?: { lineupSlotCounts?: Record<string, number> };
     scoringSettings?: { scoringType?: string; scoringItems?: { statId: number; points?: number }[] };
+    /** Each matchup period's scoring periods (days). */
+    scheduleSettings?: { matchupPeriods?: Record<string, number[]> };
   };
+  status?: { currentMatchupPeriod?: number };
+  /** Today's scoring period (day of the season). */
+  scoringPeriodId?: number;
+  schedule?: { matchupPeriodId?: number; home?: { teamId?: number }; away?: { teamId?: number } }[];
   teams?: {
+    id?: number;
     name?: string;
     location?: string;
     nickname?: string;
@@ -85,6 +96,7 @@ export function fromEspnLeague(json: unknown): ImportedLeague {
     : null;
   const scoring: Scoring = points ? 'points' : items.some((i) => i.statId === TURNOVERS) ? 'cats9' : 'cats8';
   const teams = data.teams.map((t) => ({
+    id: typeof t.id === 'number' ? t.id : null,
     name: (t.name ?? `${t.location ?? ''} ${t.nickname ?? ''}`).trim() || 'Team',
     players: (t.roster?.entries ?? []).map((e) => e.playerPoolEntry?.player?.fullName).filter((n): n is string => !!n),
   }));
@@ -92,7 +104,36 @@ export function fromEspnLeague(json: unknown): ImportedLeague {
     name: data.settings.name ?? 'ESPN league',
     settings: { teams: data.settings.size ?? teams.length, rosterSpots, scoring, format: type === 'ROTO' ? 'roto' : 'h2h', weights, lineup },
     teams,
+    opponents: weekOpponents(data),
   };
+}
+
+/**
+ * The matchup period that holds today: ESPN's current one, or else the period whose days include
+ * today's scoring period. Null when the league says neither.
+ */
+function currentPeriod(data: EspnLeague): number | null {
+  const current = data.status?.currentMatchupPeriod;
+  if (typeof current === 'number' && current > 0) return current;
+  const today = data.scoringPeriodId;
+  if (typeof today !== 'number') return null;
+  const found = Object.entries(data.settings?.scheduleSettings?.matchupPeriods ?? {}).find(([, days]) => Array.isArray(days) && days.includes(today));
+  return found ? Number(found[0]) : null;
+}
+
+/** Each team's opponent in this week's matchup, both ways, by ESPN team id; a team on a bye has none. */
+function weekOpponents(data: EspnLeague): Map<number, number> {
+  const out = new Map<number, number>();
+  const period = currentPeriod(data);
+  if (period === null) return out;
+  for (const m of data.schedule ?? []) {
+    const home = m.home?.teamId;
+    const away = m.away?.teamId;
+    if (m.matchupPeriodId !== period || typeof home !== 'number' || typeof away !== 'number') continue;
+    out.set(home, away);
+    out.set(away, home);
+  }
+  return out;
 }
 
 /** A league ID, or the ID in a pasted ESPN league address (…?leagueId=123456). */

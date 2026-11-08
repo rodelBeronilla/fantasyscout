@@ -35,7 +35,9 @@ describe('the Yahoo import', () => {
         ],
       }),
     )!;
-    const result = applyYahooImport(normalize({ teams: 12 }, DEFAULT_SETTINGS.nba), payload, players);
+    const result = applyYahooImport(normalize({ teams: 12 }, DEFAULT_SETTINGS.nba), payload, players, 1234);
+    // when the bookmark ran, for My Team's "Last synced" (#815)
+    expect(result.setup.source).toMatchObject({ host: 'yahoo', leagueId: 'L', syncedAt: 1234, changes: null });
     expect(result.matched).toBe(3);
     expect(result.unmatched).toEqual(['Nobody']);
     expect(result.il).toBe(1);
