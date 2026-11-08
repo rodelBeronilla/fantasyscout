@@ -39,6 +39,13 @@ _USER_AGENT = (
     "(KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
 )
 
+# What an identified crawler sends (Basketball-Reference, the outlets' feeds): who we are and where
+# the Sources page says what we collect and how to object.
+CRAWLER_USER_AGENT = (
+    "FantasyScout/1.0 (free, non-commercial fantasy research; "
+    "+https://fantasyscout.beronilla.rodeo/sources/)"
+)
+
 _LEAGUE_SITE: dict[League, str] = {"wnba": "https://www.wnba.com", "nba": "https://www.nba.com"}
 
 

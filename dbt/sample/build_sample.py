@@ -56,6 +56,9 @@ PAYLOADS = [
     ("ai", "claims", "claims_news", "wnba", "2026", "espn_news-50300001"),
     ("ai", "claims", "claims_injury_note", "wnba", "2026", "espn_injury_note-36901-5f1d2a3b4c6e"),
     ("ai", "claims", "claims_news_shared", "wnba", "2026", "espn_news-50322590"),
+    ("ai", "claims", "claims_rss", "wnba", "2026", "rss:sample-desk-983d2e259e454f3b"),
+    # an outlet's feed as ingest/rss.py lands it (a made-up outlet and headlines)
+    ("rss", "items", "sample_items", "wnba", "2026", "sample-desk.2026-10-27T05"),
     ("sleeper", "players", "players", "nba", "2026-27", "2026-10-29"),
     ("sleeper", "trending", "trending", "nba", "2026-27", "2026-10-29T22"),
     ("espn", "prop_bets", "prop_bets", "nba", "2026-27", "401909277-2026-10-30T10"),

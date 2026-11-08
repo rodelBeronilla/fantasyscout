@@ -21,6 +21,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timedelta
 from pathlib import Path, PurePosixPath
+from types import MappingProxyType
 from typing import Any, Literal, Protocol
 
 import httpx
@@ -558,6 +559,10 @@ class Landing:
         if scope not in self._indexes:
             self._indexes[scope] = load_index(self.backend, scope)
         return self._indexes[scope]
+
+    def entries(self, scope: Scope) -> Mapping[str, IndexEntry]:
+        """The scope's index as it stands in this run: every key's latest landing (read-only)."""
+        return MappingProxyType(self._index(scope))
 
     def has_landed(self, scope: Scope, key: str) -> bool:
         """Whether the key has ever landed for the scope (a history run lands each key once)."""

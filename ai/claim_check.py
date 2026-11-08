@@ -20,12 +20,15 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from ai.claim_schema import SIGN, ExtractedClaim, Extraction, SourceClaim
+from ai.claim_schema import RSS_PREFIX, SIGN, ExtractedClaim, Extraction, SourceClaim
 
 MIN_QUOTE = 4
 # the cap a source carries before anything else: a headline compresses its story, and the story,
 # with its qualifiers, is not landed (ingest/espn_news.py); an injury note is the desk's own words
 SOURCE_CAP = {"espn_news": 0.8, "espn_injury_note": 0.9}
+# an outlet's feed item is a headline too, at most with the feed's short teaser, and its story is
+# never fetched (ingest/rss.py): the headline's cap
+RSS_CAP = 0.8
 # a headline that names several players often says the claim about one of them only
 SHARED_CAP = 0.7
 # a rumor is a rumor, and "other" has no track record to lean on yet
@@ -79,10 +82,15 @@ def _sentence(text: str, start: int, end: int) -> str:
     return text[left : min(rights) + 1 if rights else len(text)]
 
 
+def source_cap(source: str) -> float:
+    """The cap a source carries before any other rule."""
+    return RSS_CAP if source.startswith(RSS_PREFIX) else SOURCE_CAP[source]
+
+
 def cap(item: dict[str, Any], kind: str, quote: str, start: int) -> tuple[float, list[str]]:
     """The most confidence a claim may keep, and why it is not 1."""
     caps: list[tuple[float, str]] = [
-        (SOURCE_CAP[item["source"]], f"source {item['source']}"),
+        (source_cap(item["source"]), f"source {item['source']}"),
     ]
     if len(item["players"]) > 1:
         caps.append((SHARED_CAP, f"the item names {len(item['players'])} players"))

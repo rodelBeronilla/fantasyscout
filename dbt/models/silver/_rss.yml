@@ -1,0 +1,46 @@
+version: 2
+
+models:
+  - name: rss_feed_items
+    description: "The outlets' RSS and Atom feed items, one row per item (its link, or its id when the feed gives no link), with the newest headline and summary, the feed that carried it first, and the day it was published, never later than the day it was first seen."
+    columns:
+      - name: rss_item_key
+        description: "League and item id"
+        data_tests: [unique, not_null]
+      - name: item_id
+        description: "The first 16 hex digits of the SHA-256 of the item's link, or of its id when it has no link"
+        data_tests: [not_null]
+      - name: league
+        description: "wnba or nba"
+      - name: season
+        description: "Season label of the newest landing"
+      - name: feed_id
+        description: "The feed that carried the item first (ingest/rss_feeds.toml)"
+        data_tests: [not_null]
+      - name: outlet
+        description: "The outlet that publishes the feed"
+      - name: feed_team
+        description: "The team a beat feed covers; null for a league-wide feed"
+      - name: feed_keep
+        description: "What the feed's terms let us keep: headline, or headline+summary"
+        data_tests:
+          - accepted_values:
+              values: [headline, headline+summary]
+      - name: item_guid
+        description: "The item's id as the feed gives it (RSS guid, Atom id)"
+      - name: title
+        description: "The headline as the outlet writes it, from the newest landing"
+        data_tests: [not_null]
+      - name: link
+        description: "Link to the story on the outlet's site"
+      - name: summary
+        description: "The opening of the feed's own summary, at most 400 characters; null for a headline-only feed"
+      - name: published_at
+        meta: {tz: UTC}
+        description: "When the outlet says it published the item (UTC); null when the feed gives no date"
+      - name: first_seen_at
+        meta: {tz: UTC}
+        description: "When a feed first carried the item in a landing (UTC)"
+      - name: published_date
+        description: "The Eastern day the item was published, or first seen when that is earlier or the feed gives no date; a point-in-time build keeps the items before its date"
+        data_tests: [not_null]

@@ -4,10 +4,12 @@ where each belongs (.github/workflows/claims.yml):
     uv run python -m ai.claims inputs --source published --out claim-inputs.json   # GitHub runner
     uv run python -m ai.claims extract --inputs claim-inputs.json --backend volume   # home runner
 
-``inputs`` reads, from the published build, the recent ESPN headlines (fct_player_news) and the
-ESPN injury notes on the current report (fct_availability), each with the league players the
-lakehouse's crosswalks linked it to. An item no player is linked to is left out, so a claim's
-player is always a league player.
+``inputs`` reads, from the published build, the recent ESPN headlines (fct_player_news), the
+ESPN injury notes on the current report (fct_availability) and the recent items of the outlets'
+feeds (fct_player_rss_item: the headline, and the feed's summary where its terms allow), each with
+the league players the lakehouse linked it to: through its crosswalks for ESPN, by the players'
+whole names for a feed. An item no player is linked to is left out, so a claim's player is always
+a league player. A feed item's source is ``rss:<feed_id>``.
 
 ``extract`` asks the local model for each item's claims, checks them (claim_check.py) and lands
 each item's claims, the rejected ones with their reasons, and the text they were read from, as
@@ -38,7 +40,7 @@ import httpx
 
 from ai import client
 from ai.claim_check import review
-from ai.claim_schema import extraction_schema
+from ai.claim_schema import RSS_PREFIX, extraction_schema
 from ai.inputs import connect
 from ai.notes import build_id
 from ingest.land import default_season, make_backend
@@ -156,10 +158,60 @@ def injury_items(con: Any) -> list[dict[str, Any]]:
     return out
 
 
+def rss_text(title: str, summary: str | None) -> str:
+    """A feed item as the model reads it: the headline, and the feed's summary on its own line."""
+    return "\n".join(t.strip() for t in (title, summary) if t and t.strip())
+
+
+def rss_items(con: Any, since: date) -> list[dict[str, Any]]:
+    """One item per outlet feed item published since the date, with the league players it names
+    (fct_player_rss_item; an item naming none has no row there). Its source is the feed,
+    ``rss:<feed_id>``; it is dated by the outlet's publish time, never later than when a feed
+    first carried it. A build published before the feeds were landed has no such table: none."""
+    present = con.execute(
+        "select count(*) from information_schema.tables where table_name = 'fct_player_rss_item'"
+    ).fetchone()
+    if not present or not present[0]:
+        return []
+    rows = _rows(
+        con,
+        """
+        select league, season, item_id, feed_id, outlet, title, summary, published_date,
+               least(coalesce(published_at, first_seen_at), first_seen_at) as said_at,
+               stats_player_id, full_name
+        from fct_player_rss_item
+        where published_date >= ? and title is not null
+        order by said_at desc, item_id, stats_player_id
+        """,
+        [since],
+    )
+    items: dict[tuple[str, str], dict[str, Any]] = {}
+    for r in rows:
+        said: datetime = r["said_at"]
+        said = said.replace(tzinfo=UTC) if said.tzinfo is None else said.astimezone(UTC)
+        item = items.setdefault(
+            (r["league"], r["item_id"]),
+            {
+                "league": r["league"],
+                "season": r["season"] or default_season(r["league"], r["published_date"]),
+                "source": f"{RSS_PREFIX}{r['feed_id']}",
+                "source_id": r["item_id"],
+                "outlet": r["outlet"],
+                "published_at": said.isoformat(),
+                "published_date": r["published_date"].isoformat(),
+                "text": rss_text(r["title"], r["summary"]),
+                "players": [],
+            },
+        )
+        if all(p["player_id"] != r["stats_player_id"] for p in item["players"]):
+            item["players"].append({"player_id": r["stats_player_id"], "name": r["full_name"]})
+    return list(items.values())
+
+
 def make_inputs(source: str | None, days: int, today: date | None = None) -> dict[str, Any]:
     con = connect(source)
     since = (today or eastern_today()) - timedelta(days=days)
-    items = news_items(con, since) + injury_items(con)
+    items = news_items(con, since) + injury_items(con) + rss_items(con, since)
     return {
         "created_at": _now().isoformat(),
         "build_id": build_id(),
@@ -172,10 +224,18 @@ def item_key(item: dict[str, Any]) -> str:
     return f"{item['source']}-{item['source_id']}"
 
 
+def source_label(item: dict[str, Any]) -> str:
+    """What kind of item the model reads, in words."""
+    if item["source"].startswith(RSS_PREFIX):
+        what = "a headline and its summary" if "\n" in item["text"] else "a headline"
+        return f"{what} from {item.get('outlet') or 'an outlet'}'s news feed"
+    return SOURCE_LABEL[item["source"]]
+
+
 def model_view(item: dict[str, Any]) -> dict[str, Any]:
     """What the model is given for one item."""
     return {
-        "source": SOURCE_LABEL[item["source"]],
+        "source": source_label(item),
         "date": item["published_date"],
         "players": item["players"],
         "text": item["text"],

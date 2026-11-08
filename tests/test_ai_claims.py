@@ -422,6 +422,111 @@ def test_the_model_sees_the_item_and_its_players_only() -> None:
     }
 
 
+# the outlets' feeds (#839)
+
+
+def _rss_con() -> duckdb.DuckDBPyConnection:
+    con = duckdb.connect()
+    con.execute(
+        "create table fct_player_rss_item (league varchar, season varchar, item_id varchar,"
+        " feed_id varchar, outlet varchar, title varchar, summary varchar,"
+        " published_at timestamptz, first_seen_at timestamptz, published_date date,"
+        " stats_player_id varchar, full_name varchar)"
+    )
+    con.execute(
+        "insert into fct_player_rss_item values"
+        # a headline naming two players, from a headline-only feed
+        " ('nba', '2026-27', 'i1', 'desk-nba', 'Desk', 'One and Two traded', null,"
+        "  '2026-10-30 14:00:00+00', '2026-10-30 15:00:00+00', '2026-10-30', 'p1', 'Player One'),"
+        " ('nba', '2026-27', 'i1', 'desk-nba', 'Desk', 'One and Two traded', null,"
+        "  '2026-10-30 14:00:00+00', '2026-10-30 15:00:00+00', '2026-10-30', 'p2', 'Player Two'),"
+        # a headline and its summary, dated in the future: dated by when it was first seen
+        " ('nba', '2026-27', 'i2', 'beat-x', 'Beat', 'One (ankle) out', 'Will not play Friday.',"
+        "  '2026-11-30 14:00:00+00', '2026-10-31 03:00:00+00', '2026-10-30', 'p1', 'Player One'),"
+        # too old for the window
+        " ('nba', '2026-27', 'i3', 'beat-x', 'Beat', 'An old one', null,"
+        "  '2026-10-01 14:00:00+00', '2026-10-01 15:00:00+00', '2026-10-01', 'p1', 'Player One')"
+    )
+    return con
+
+
+def test_rss_inputs_are_the_feeds_recent_items_with_the_players_they_name() -> None:
+    items = claims.rss_items(_rss_con(), date(2026, 10, 27))
+    assert [i["source_id"] for i in items] == ["i2", "i1"], "newest first; the old one is out"
+    two, one = items
+    assert one["source"] == "rss:desk-nba" and one["outlet"] == "Desk"
+    assert one["text"] == "One and Two traded"
+    assert one["players"] == [
+        {"player_id": "p1", "name": "Player One"},
+        {"player_id": "p2", "name": "Player Two"},
+    ]
+    assert one["published_at"].startswith("2026-10-30T14:00:00")
+    assert two["text"] == "One (ankle) out\nWill not play Friday."
+    assert two["published_at"].startswith("2026-10-31T03:00:00"), "never later than first seen"
+    assert claims.item_key(two) == "rss:beat-x-i2"
+
+
+def test_a_build_without_the_feeds_table_gives_no_rss_inputs() -> None:
+    assert claims.rss_items(_con(), date(2026, 10, 27)) == []
+
+
+def test_the_model_is_told_which_outlet_and_what_it_reads() -> None:
+    [two, one] = claims.rss_items(_rss_con(), date(2026, 10, 27))
+    assert claims.model_view(one)["source"] == "a headline from Desk's news feed"
+    assert claims.model_view(two)["source"] == "a headline and its summary from Beat's news feed"
+
+
+def test_an_rss_claim_passes_the_same_checks_and_takes_the_headline_cap() -> None:
+    [two, _] = claims.rss_items(_rss_con(), date(2026, 10, 27))
+    kept, rejected = review(
+        two,
+        {
+            "claims": [
+                {
+                    "player_id": "p1",
+                    "kind": "injury_out",
+                    "direction": -1,
+                    "confidence": 0.95,
+                    "quote": "will not play Friday",
+                },
+                {
+                    "player_id": "p9",
+                    "kind": "injury_out",
+                    "direction": -1,
+                    "confidence": 0.9,
+                    "quote": "One (ankle) out",
+                },
+                {
+                    "player_id": "p1",
+                    "kind": "role_up",
+                    "direction": 1,
+                    "confidence": 0.9,
+                    "quote": "moves into the starting lineup",
+                },
+            ]
+        },
+    )
+    [c] = kept
+    assert (c.source, c.source_id, c.quote, c.confidence) == (
+        "rss:beat-x",
+        "i2",
+        "Will not play Friday",
+        0.8,
+    )
+    assert c.cap_reasons == ["source rss:beat-x"]
+    assert [r["reason"] for r in rejected] == [
+        "about p9, a player the item does not name",
+        "the quote is not a span of the source text",
+    ]
+
+
+@pytest.mark.parametrize("source", ["rss:", "rss:Bad Id", "reddit", "rss:a--b"])
+def test_a_claim_from_an_unknown_source_is_refused(source: str) -> None:
+    [c] = review(NEWS, {"claims": [claim()]})[0]
+    with pytest.raises(ValidationError):
+        SourceClaim.model_validate({**c.model_dump(), "source": source})
+
+
 # the dbt sample's claims are the extractor's own output
 
 

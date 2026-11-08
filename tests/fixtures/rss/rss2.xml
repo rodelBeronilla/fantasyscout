@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Built from the RSS 2.0 specification (https://www.rssboard.org/rss-specification), not from
+     any outlet's feed: the outlet, the players and the stories are made up. -->
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Example Hoops Desk: NBA</title>
+    <link>https://hoops.example/nba</link>
+    <description>Made-up NBA headlines for the parser's tests.</description>
+    <atom:link href="https://hoops.example/nba/rss.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>Avery Example (ankle) ruled out Friday</title>
+      <link>https://hoops.example/nba/avery-example-ruled-out</link>
+      <guid isPermaLink="false">hoops-1001</guid>
+      <pubDate>Sat, 08 Nov 2026 14:30:00 -0500</pubDate>
+      <description><![CDATA[<p>The guard <b>will not play</b> against the Hawks &amp; is day-to-day.</p><img src="https://hoops.example/photo.jpg"/>]]></description>
+    </item>
+    <item>
+      <title>Jordan Sample &#8211; moving into the starting lineup</title>
+      <link>https://hoops.example/nba/jordan-sample-starts</link>
+      <dc:date>2026-11-08T16:00:00Z</dc:date>
+      <description>Coach says the forward starts on Saturday.</description>
+    </item>
+    <item>
+      <title>Avery Example (ankle) ruled out Friday</title>
+      <link>https://hoops.example/nba/avery-example-ruled-out</link>
+      <guid isPermaLink="false">hoops-1001</guid>
+      <pubDate>Sat, 08 Nov 2026 14:30:00 -0500</pubDate>
+    </item>
+    <item>
+      <description>An item with no title is skipped.</description>
+      <link>https://hoops.example/nba/untitled</link>
+    </item>
+    <item>
+      <title>A podcast episode with no date</title>
+      <link>javascript:alert(1)</link>
+      <guid>hoops-1003</guid>
+    </item>
+  </channel>
+</rss>

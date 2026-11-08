@@ -86,3 +86,63 @@ The contract-year study (#772) needs each player's salary by season. No salary s
 - **On objection** the source is dropped and its landed files are deleted.
 - **No way past a block.** Sites that refuse automated clients (a Cloudflare challenge, Turnstile, a robots.txt that names the client) are not collected from by any automated means, and no challenge is answered on anyone's behalf. Pages the owner saves while browsing them can come in through a manual import instead (#772).
 
+
+## Addendum (2026-11-08): outlets' RSS feeds
+
+The qualitative-signals epic (#812) reads outlets' and beat writers' published news feeds (#839). The local model extracts claims from each item (ADR 0017, #833). The feeds were chosen by their terms first, on these rules:
+
+- **Allowed.** A feed is kept only when its outlet's terms allow automated reading of the feed for non-commercial use, or the outlet publishes no terms and its robots.txt allows the feed.
+- **Not used with AI tools.** A feed whose terms forbid using the content with AI tools ("prompting", "grounding", a "context window") is dropped, however open the feed is, because the items go to the local model.
+- **Open.** Nothing behind a login, a paywall or a bot check (Cloudflare, Akamai or Vercel challenges), and nothing that answers a non-browser client with 403.
+- **What is kept.** The headline, the link and the publish time. The feed's own summary is kept, cut to 400 characters, only where the terms grant its reuse. The linked articles are never fetched, and no full text is kept (several feeds carry the whole story in `content:encoded` or Atom `content`; the parser reads neither).
+
+**Kept**, each recorded with its terms URL, what is kept and why in `ingest/rss_feeds.toml`:
+
+| Feed | League | Kept | Terms decision |
+|---|---|---|---|
+| Yahoo Sports NBA (`yahoo-nba`) | NBA | headline | Yahoo's terms, 2(o), license the RSS feeds: the content as provided, unmodified, credited and linked. 2(d)(10) bars building an archive from Yahoo's content, so the summary is not stored. |
+| Yahoo Sports WNBA (`yahoo-wnba`) | WNBA | headline | As above. |
+| Hoops Rumors (`hoops-rumors`) | NBA | headline | No terms of use are published (the privacy policy is the only legal page), the feed is linked from every page, and robots.txt allows it. Nothing grants reuse of the summary. |
+| The IX Sports WNBA newsroom (`theix-wnba`) | WNBA | headline | No terms of use are published (a privacy policy only), and robots.txt allows the feed. |
+| Winsidr (`winsidr`) | WNBA | headline | No terms or privacy page are published, and robots.txt allows the feed. |
+
+**Dropped**:
+
+- Terms forbid AI use:
+  - ESPN's RSS feeds. Disney's terms bar "prompting … of any artificial intelligence" tool and automated copying. The ESPN headlines are also already landed through ESPN's API (#833 reads them).
+  - The SB Nation sites: the league feeds, the team blogs (Pounding The Rock, Liberty Ballers, Silver Screen and Roll, Bright Side of the Sun, CelticsBlog) and Swish Appeal. Penske Media's terms (§19) license the feeds, but bar using content "to train or ground artificial intelligence".
+  - The Seattle Times (Storm).
+  - Advance Local's papers (cleveland.com Cavaliers, OregonLive Trail Blazers).
+  - RotoWire, whose terms also bar automated access.
+  - Sporting News, whose terms also bar automated access.
+- Terms forbid automated reading and grant no RSS licence:
+  - CBS Sports: personal viewing only, and "may not build a business or other enterprise … whether for profit or not".
+  - NBC Sports and ProBasketballTalk: no crawler or aggregator.
+  - The Las Vegas Review-Journal (Aces).
+  - The Deseret News (Jazz).
+  - NOLA.com (Pelicans).
+- Fox Sports: its feed terms allow non-commercial use, but the feed host's robots.txt disallows everything.
+- Blocked, a challenge, or no feed:
+  - NBA.com and the team sites: 403 to non-browser clients, no team feeds.
+  - WNBA.com: no feed.
+  - RealGM: Cloudflare challenge.
+  - NY Daily News, Mercury News, Denver Post, OC Register: 403.
+  - Star Tribune: Vercel checkpoint.
+  - Boston Globe: an empty feed.
+  - Salt Lake Tribune: terms unreadable without a browser.
+  - The Ringer: no feed.
+- Her Hoop Stats (Substack): its posts are mostly about women's college basketball, and Substack's terms bar crawling pages.
+
+No team beat writer's feed passed: every local paper's feed was blocked, challenged or barred by its terms, and the SB Nation team blogs bar AI use. The beat coverage that remains is what the league-wide feeds carry.
+
+**Collection** (`fs-ingest land rss`, and within every `reports` run, so once each morning and at each evening injury-report run):
+
+- One request per feed per run, with no retry.
+- A User-Agent that names FantasyScout and links the Sources page.
+- `If-None-Match` and `If-Modified-Since` from the feed's last landing, so an unchanged feed costs a 304.
+- Redirects are not followed.
+- A feed that is down, moved or no longer a feed is recorded as missing and never fails the run.
+
+**Use.** Items are landed privately (`landing/rss/items`). They are modelled in `silver.rss_feed_items` and `gold.fct_player_rss_item`, the second going out only as owner-only Parquet. They are read by the claims extractor as source `rss:<feed_id>`, with the headline's confidence cap. No page shows them, and the Sources page credits each outlet.
+
+**On objection** the feed is removed from `ingest/rss_feeds.toml`, and its landed files and claims are deleted (runbook, "Remove a source on request").

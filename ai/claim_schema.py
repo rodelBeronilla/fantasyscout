@@ -27,6 +27,9 @@ Kind = Literal[
     "other",
 ]
 Source = Literal["espn_news", "espn_injury_note"]
+# An outlet's feed is a source of its own, by its id in ingest/rss_feeds.toml: rss:<feed_id>.
+RSS_PREFIX = "rss:"
+SOURCE_PATTERN = r"^(espn_news|espn_injury_note|rss:[a-z0-9]+(-[a-z0-9]+)*)$"
 KINDS: tuple[str, ...] = get_args(Kind)
 SOURCES: tuple[str, ...] = get_args(Source)
 
@@ -80,7 +83,7 @@ class SourceClaim(BaseModel):
     # the span of the source text, exactly as the source writes it, and where it starts
     quote: str = Field(min_length=1, max_length=MAX_QUOTE)
     quote_start: int = Field(ge=0)
-    source: Source
+    source: str = Field(pattern=SOURCE_PATTERN)
     source_id: str
     # when the source said it: the point-in-time date a backtest cuts on
     published_at: datetime
