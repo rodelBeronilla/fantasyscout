@@ -126,3 +126,12 @@ def test_judge_runs_the_bar_and_the_fit_reads_only_tuning_seasons(
     if got["informative"]:
         assert got["min_swing"] == pytest.approx(round(got["rmse"] / (1 - got["beta"]), 1))
     assert buy_sell_backtest.LISTS == ("buy", "sell")
+
+
+def test_a_resample_without_the_flagged_players_is_left_out() -> None:
+    f = buy_sell_backtest.Flagged(np.array([0, 0, 1]), np.array([1.0, 3.0, 5.0]), np.zeros(3))
+    w = np.array([[1.0, 1.0, 1.0], [0.0, 0.0, 3.0], [2.0, 0.0, 1.0]])
+    got = buy_sell_backtest._weighted(f, "reversal", w)
+    assert got[0] == pytest.approx(3.0)
+    assert np.isnan(got[1])
+    assert got[2] == pytest.approx(2.0)

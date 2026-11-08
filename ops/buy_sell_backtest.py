@@ -176,12 +176,14 @@ def flagged(board: Board, idx: np.ndarray, kind: str, base: np.ndarray) -> Flagg
 
 
 def _weighted(f: Flagged, field: str, w: np.ndarray) -> np.ndarray:
-    """The mean of a field for each weighting of the players w [B, N]."""
+    """The mean of a field for each weighting of the players w [B, N]; nan for a weighting that
+    draws none of the flagged players, which the interval then leaves out."""
     v = getattr(f, field)
     if not len(v):
         return np.full(len(w), np.nan)
     ww = w[:, f.player]
-    out: np.ndarray = (ww * v).sum(1) / np.maximum(ww.sum(1), 1e-12)
+    tot = ww.sum(1)
+    out: np.ndarray = np.where(tot > 0, (ww * v).sum(1) / np.where(tot > 0, tot, 1), np.nan)
     return out
 
 
