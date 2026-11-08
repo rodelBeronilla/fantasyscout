@@ -1,0 +1,3121 @@
+{
+ "_": "The roster review's parity cases (#757). The web's test writes expected (UPDATE_ROSTER_PARITY=1) and checks it; tests/test_roster.py checks ops/roster.py against the same figures.",
+ "cases": [
+  {
+   "name": "four teams of five, nine categories, the rest of the season",
+   "teams": 4,
+   "rosterSpots": 5,
+   "week": false,
+   "rows": [
+    {
+     "player_id": "p0",
+     "rank_total": 6
+    },
+    {
+     "player_id": "p1",
+     "rank_total": 16,
+     "market_rank": 17
+    },
+    {
+     "player_id": "p2",
+     "rank_total": 28
+    },
+    {
+     "player_id": "p3",
+     "rank_total": 25,
+     "market_rank": 20
+    },
+    {
+     "player_id": "p4",
+     "rank_total": 23,
+     "market_rank": 27
+    },
+    {
+     "player_id": "p5",
+     "rank_total": 27
+    },
+    {
+     "player_id": "p6",
+     "rank_total": 1
+    },
+    {
+     "player_id": "p7",
+     "rank_total": 7
+    },
+    {
+     "player_id": "p8",
+     "rank_total": 10,
+     "market_rank": 13
+    },
+    {
+     "player_id": "p9",
+     "rank_total": 3,
+     "market_rank": 9
+    },
+    {
+     "player_id": "p10",
+     "rank_total": 26,
+     "market_rank": 20
+    },
+    {
+     "player_id": "p11",
+     "rank_total": 4,
+     "market_rank": 9
+    },
+    {
+     "player_id": "p12",
+     "rank_total": 21,
+     "market_rank": 24
+    },
+    {
+     "player_id": "p13",
+     "rank_total": 24
+    },
+    {
+     "player_id": "p14",
+     "rank_total": 20,
+     "market_rank": 20
+    },
+    {
+     "player_id": "p15",
+     "rank_total": 2
+    },
+    {
+     "player_id": "p16",
+     "rank_total": 12,
+     "market_rank": 9
+    },
+    {
+     "player_id": "p17",
+     "rank_total": 14
+    },
+    {
+     "player_id": "p18",
+     "rank_total": 11,
+     "market_rank": 12
+    },
+    {
+     "player_id": "p19",
+     "rank_total": 5
+    },
+    {
+     "player_id": "p20",
+     "rank_total": 22
+    },
+    {
+     "player_id": "p21",
+     "rank_total": 8,
+     "market_rank": 7
+    },
+    {
+     "player_id": "p22",
+     "rank_total": 17,
+     "market_rank": 21
+    },
+    {
+     "player_id": "p23",
+     "rank_total": 19,
+     "market_rank": 20
+    },
+    {
+     "player_id": "p24",
+     "rank_total": 15,
+     "market_rank": 13
+    },
+    {
+     "player_id": "p25",
+     "rank_total": 18
+    },
+    {
+     "player_id": "p26",
+     "rank_total": 9
+    },
+    {
+     "player_id": "p27",
+     "rank_total": 13,
+     "market_rank": 8
+    }
+   ],
+   "rosters": [
+    [
+     "p0",
+     "p1",
+     "p2",
+     "p3",
+     "p4"
+    ],
+    [
+     "p5",
+     "p6",
+     "p7",
+     "p8",
+     "p9"
+    ],
+    [
+     "p10",
+     "p11",
+     "p12",
+     "p13",
+     "p14"
+    ],
+    [
+     "p15",
+     "p16",
+     "p17",
+     "p18",
+     "p19"
+    ]
+   ],
+   "myTeam": 0,
+   "available": [
+    "p20",
+    "p21",
+    "p22",
+    "p23",
+    "p24",
+    "p25",
+    "p26",
+    "p27"
+   ],
+   "rest": {
+    "p0": 6.775,
+    "p1": 3.093,
+    "p2": -3.94,
+    "p3": -1.377,
+    "p4": 1.265,
+    "p5": -3.273,
+    "p6": 9.595,
+    "p7": 6.474,
+    "p8": 5.192,
+    "p9": 8.638,
+    "p10": -2.694,
+    "p11": 8.501,
+    "p12": 1.935,
+    "p13": 0.021,
+    "p14": 2.169,
+    "p15": 9.195,
+    "p16": 4.57,
+    "p17": 3.508,
+    "p18": 4.889,
+    "p19": 6.782,
+    "p20": 1.798,
+    "p21": 6.334,
+    "p22": 2.824,
+    "p23": 2.243,
+    "p24": 3.135,
+    "p25": 2.402,
+    "p26": 5.484,
+    "p27": 3.949
+   },
+   "cats": [
+    "z_points",
+    "z_rebounds_total",
+    "z_assists",
+    "z_steals",
+    "z_blocks",
+    "z_three_pointers_made",
+    "z_turnovers",
+    "z_field_goal_pct",
+    "z_free_throw_pct"
+   ],
+   "values": {
+    "p0": {
+     "z_points": 0.482,
+     "z_rebounds_total": 0.4,
+     "z_assists": 0.197,
+     "z_steals": 1.464,
+     "z_blocks": -0.296,
+     "z_three_pointers_made": 0.675,
+     "z_turnovers": 0.15,
+     "z_field_goal_pct": 1.338,
+     "z_free_throw_pct": 1.167
+    },
+    "p1": {
+     "z_points": 0.511,
+     "z_rebounds_total": -0.942,
+     "z_assists": -0.152,
+     "z_steals": 0.683,
+     "z_blocks": 0.78,
+     "z_three_pointers_made": 1.311,
+     "z_turnovers": -0.206,
+     "z_field_goal_pct": 0.016,
+     "z_free_throw_pct": -0.268
+    },
+    "p2": {
+     "z_points": -1.737,
+     "z_rebounds_total": 0.009,
+     "z_assists": 0.41,
+     "z_steals": 0.092,
+     "z_blocks": 0.16,
+     "z_three_pointers_made": -0.527,
+     "z_turnovers": 0.286,
+     "z_field_goal_pct": -0.804,
+     "z_free_throw_pct": 0.292
+    },
+    "p3": {
+     "z_points": 0.959,
+     "z_rebounds_total": -0.549,
+     "z_assists": -0.829,
+     "z_steals": -0.547,
+     "z_blocks": -1.117,
+     "z_three_pointers_made": 0.893,
+     "z_turnovers": 1.063,
+     "z_field_goal_pct": -0.206,
+     "z_free_throw_pct": -1.005
+    },
+    "p4": {
+     "z_points": 0.558,
+     "z_rebounds_total": -0.18,
+     "z_assists": -0.058,
+     "z_steals": -0.574,
+     "z_blocks": 0.384,
+     "z_three_pointers_made": 0.556,
+     "z_turnovers": -0.219,
+     "z_field_goal_pct": -0.024,
+     "z_free_throw_pct": 0.21
+    },
+    "p5": {
+     "z_points": -0.671,
+     "z_rebounds_total": 0.616,
+     "z_assists": -0.746,
+     "z_steals": 0.072,
+     "z_blocks": -1.146,
+     "z_three_pointers_made": 0.837,
+     "z_turnovers": -0.048,
+     "z_field_goal_pct": 0.915,
+     "z_free_throw_pct": -1.281
+    },
+    "p6": {
+     "z_points": 1.074,
+     "z_rebounds_total": 1.093,
+     "z_assists": -0.583,
+     "z_steals": 0.708,
+     "z_blocks": 0.994,
+     "z_three_pointers_made": -0.277,
+     "z_turnovers": 0.184,
+     "z_field_goal_pct": 1.572,
+     "z_free_throw_pct": 1.806
+    },
+    "p7": {
+     "z_points": -0.751,
+     "z_rebounds_total": 1.096,
+     "z_assists": 0.71,
+     "z_steals": 0.937,
+     "z_blocks": 0.025,
+     "z_three_pointers_made": 0.404,
+     "z_turnovers": 0.568,
+     "z_field_goal_pct": -0.488,
+     "z_free_throw_pct": 1.451
+    },
+    "p8": {
+     "z_points": 0.634,
+     "z_rebounds_total": -0.547,
+     "z_assists": 0.034,
+     "z_steals": 0.577,
+     "z_blocks": 0.269,
+     "z_three_pointers_made": 0.076,
+     "z_turnovers": 1.876,
+     "z_field_goal_pct": 0.828,
+     "z_free_throw_pct": 0.018
+    },
+    "p9": {
+     "z_points": 0.392,
+     "z_rebounds_total": 0.237,
+     "z_assists": 0.82,
+     "z_steals": -0.094,
+     "z_blocks": 1.209,
+     "z_three_pointers_made": 0.901,
+     "z_turnovers": 0.239,
+     "z_field_goal_pct": 0.764,
+     "z_free_throw_pct": 0.8
+    },
+    "p10": {
+     "z_points": 0.257,
+     "z_rebounds_total": 0.067,
+     "z_assists": 1.05,
+     "z_steals": -0.449,
+     "z_blocks": -0.082,
+     "z_three_pointers_made": -0.583,
+     "z_turnovers": -1.2,
+     "z_field_goal_pct": -1.618,
+     "z_free_throw_pct": 0.228
+    },
+    "p11": {
+     "z_points": 1.567,
+     "z_rebounds_total": 0.959,
+     "z_assists": 0.673,
+     "z_steals": -0.536,
+     "z_blocks": 0.995,
+     "z_three_pointers_made": -0.102,
+     "z_turnovers": 1.124,
+     "z_field_goal_pct": 0.88,
+     "z_free_throw_pct": -0.168
+    },
+    "p12": {
+     "z_points": 1.434,
+     "z_rebounds_total": -0.351,
+     "z_assists": 0.955,
+     "z_steals": -0.289,
+     "z_blocks": -1.252,
+     "z_three_pointers_made": 0.172,
+     "z_turnovers": 1.371,
+     "z_field_goal_pct": -0.111,
+     "z_free_throw_pct": -0.115
+    },
+    "p13": {
+     "z_points": 0.02,
+     "z_rebounds_total": 1.329,
+     "z_assists": 0.036,
+     "z_steals": 0.1,
+     "z_blocks": 0.107,
+     "z_three_pointers_made": 0.818,
+     "z_turnovers": -0.695,
+     "z_field_goal_pct": -0.072,
+     "z_free_throw_pct": -0.81
+    },
+    "p14": {
+     "z_points": -1.232,
+     "z_rebounds_total": 0.068,
+     "z_assists": 0.203,
+     "z_steals": -0.053,
+     "z_blocks": 0.072,
+     "z_three_pointers_made": 0.258,
+     "z_turnovers": 0.398,
+     "z_field_goal_pct": -0.173,
+     "z_free_throw_pct": 1.166
+    },
+    "p15": {
+     "z_points": 2.513,
+     "z_rebounds_total": -0.248,
+     "z_assists": 0.783,
+     "z_steals": 0.565,
+     "z_blocks": 0.302,
+     "z_three_pointers_made": 1.253,
+     "z_turnovers": 0.055,
+     "z_field_goal_pct": -0.149,
+     "z_free_throw_pct": 1.221
+    },
+    "p16": {
+     "z_points": 0.764,
+     "z_rebounds_total": 0.893,
+     "z_assists": -0.003,
+     "z_steals": 0.75,
+     "z_blocks": 0.768,
+     "z_three_pointers_made": -0.081,
+     "z_turnovers": 0.249,
+     "z_field_goal_pct": 0.25,
+     "z_free_throw_pct": 0.641
+    },
+    "p17": {
+     "z_points": -0.042,
+     "z_rebounds_total": 0.748,
+     "z_assists": -0.161,
+     "z_steals": 0.091,
+     "z_blocks": -0.212,
+     "z_three_pointers_made": 1.69,
+     "z_turnovers": 0.349,
+     "z_field_goal_pct": -0.608,
+     "z_free_throw_pct": 0.917
+    },
+    "p18": {
+     "z_points": -0.066,
+     "z_rebounds_total": 0.358,
+     "z_assists": 1.251,
+     "z_steals": 0.509,
+     "z_blocks": 0.271,
+     "z_three_pointers_made": 0.642,
+     "z_turnovers": -0.054,
+     "z_field_goal_pct": 0.783,
+     "z_free_throw_pct": -0.45
+    },
+    "p19": {
+     "z_points": -0.349,
+     "z_rebounds_total": 1.762,
+     "z_assists": -0.291,
+     "z_steals": -0.222,
+     "z_blocks": 0.873,
+     "z_three_pointers_made": 1.777,
+     "z_turnovers": 0.184,
+     "z_field_goal_pct": 0.453,
+     "z_free_throw_pct": 1.354
+    },
+    "p20": {
+     "z_points": 0.247,
+     "z_rebounds_total": 1.337,
+     "z_assists": -1.201,
+     "z_steals": 0.799,
+     "z_blocks": -0.328,
+     "z_three_pointers_made": -0.307,
+     "z_turnovers": -0.359,
+     "z_field_goal_pct": 0.611,
+     "z_free_throw_pct": -0.623
+    },
+    "p21": {
+     "z_points": -0.667,
+     "z_rebounds_total": 0.975,
+     "z_assists": -0.649,
+     "z_steals": 0.866,
+     "z_blocks": -0.729,
+     "z_three_pointers_made": 1.596,
+     "z_turnovers": 1.761,
+     "z_field_goal_pct": 0.104,
+     "z_free_throw_pct": -0.34
+    },
+    "p22": {
+     "z_points": -1.086,
+     "z_rebounds_total": -0.324,
+     "z_assists": -0.337,
+     "z_steals": 0.087,
+     "z_blocks": 1.313,
+     "z_three_pointers_made": 0.461,
+     "z_turnovers": 1.25,
+     "z_field_goal_pct": -0.558,
+     "z_free_throw_pct": 0.808
+    },
+    "p23": {
+     "z_points": 0.721,
+     "z_rebounds_total": 0.311,
+     "z_assists": 0.434,
+     "z_steals": 1.194,
+     "z_blocks": -1.874,
+     "z_three_pointers_made": 0.894,
+     "z_turnovers": 0.178,
+     "z_field_goal_pct": 0.664,
+     "z_free_throw_pct": -1.174
+    },
+    "p24": {
+     "z_points": 0.471,
+     "z_rebounds_total": -0.002,
+     "z_assists": 0.545,
+     "z_steals": -0.168,
+     "z_blocks": -0.286,
+     "z_three_pointers_made": 0.36,
+     "z_turnovers": 0.447,
+     "z_field_goal_pct": 0.256,
+     "z_free_throw_pct": 0.649
+    },
+    "p25": {
+     "z_points": 0.433,
+     "z_rebounds_total": 0.727,
+     "z_assists": 0.779,
+     "z_steals": 0.247,
+     "z_blocks": -0.839,
+     "z_three_pointers_made": -0.031,
+     "z_turnovers": 0.748,
+     "z_field_goal_pct": 0.289,
+     "z_free_throw_pct": -0.394
+    },
+    "p26": {
+     "z_points": 0.308,
+     "z_rebounds_total": 1.354,
+     "z_assists": 0.468,
+     "z_steals": 0.202,
+     "z_blocks": -0.54,
+     "z_three_pointers_made": 0.621,
+     "z_turnovers": 0.225,
+     "z_field_goal_pct": 1.016,
+     "z_free_throw_pct": 0.613
+    },
+    "p27": {
+     "z_points": -1.287,
+     "z_rebounds_total": 1.466,
+     "z_assists": 0.714,
+     "z_steals": -0.492,
+     "z_blocks": 1.194,
+     "z_three_pointers_made": -1.07,
+     "z_turnovers": 1.29,
+     "z_field_goal_pct": -0.098,
+     "z_free_throw_pct": 0.136
+    }
+   },
+   "totals": [
+    {
+     "z_points": 0.773,
+     "z_rebounds_total": -1.262,
+     "z_assists": -0.432,
+     "z_steals": 1.118,
+     "z_blocks": -0.089,
+     "z_three_pointers_made": 2.908,
+     "z_turnovers": 1.074,
+     "z_field_goal_pct": 0.32,
+     "z_free_throw_pct": 0.396
+    },
+    {
+     "z_points": 0.678,
+     "z_rebounds_total": 2.495,
+     "z_assists": 0.235,
+     "z_steals": 2.2,
+     "z_blocks": 1.351,
+     "z_three_pointers_made": 1.941,
+     "z_turnovers": 2.819,
+     "z_field_goal_pct": 3.591,
+     "z_free_throw_pct": 2.794
+    },
+    {
+     "z_points": 2.046,
+     "z_rebounds_total": 2.072,
+     "z_assists": 2.917,
+     "z_steals": -1.227,
+     "z_blocks": -0.16,
+     "z_three_pointers_made": 0.563,
+     "z_turnovers": 0.998,
+     "z_field_goal_pct": -1.094,
+     "z_free_throw_pct": 0.301
+    },
+    {
+     "z_points": 2.82,
+     "z_rebounds_total": 3.513,
+     "z_assists": 1.579,
+     "z_steals": 1.693,
+     "z_blocks": 2.002,
+     "z_three_pointers_made": 5.281,
+     "z_turnovers": 0.783,
+     "z_field_goal_pct": 0.729,
+     "z_free_throw_pct": 3.683
+    }
+   ],
+   "minGains": [
+    0,
+    0.5,
+    2
+   ]
+  },
+  {
+   "name": "four teams of five, the week",
+   "teams": 4,
+   "rosterSpots": 5,
+   "week": true,
+   "rows": [
+    {
+     "player_id": "p0",
+     "rank_total": 16,
+     "market_rank": 21
+    },
+    {
+     "player_id": "p1",
+     "rank_total": 5
+    },
+    {
+     "player_id": "p2",
+     "rank_total": 20
+    },
+    {
+     "player_id": "p3",
+     "rank_total": 10,
+     "market_rank": 11
+    },
+    {
+     "player_id": "p4",
+     "rank_total": 4,
+     "market_rank": 8
+    },
+    {
+     "player_id": "p5",
+     "rank_total": 7,
+     "market_rank": 13
+    },
+    {
+     "player_id": "p6",
+     "rank_total": 21,
+     "market_rank": 24
+    },
+    {
+     "player_id": "p7",
+     "rank_total": 18,
+     "market_rank": 13
+    },
+    {
+     "player_id": "p8",
+     "rank_total": 1,
+     "market_rank": 7
+    },
+    {
+     "player_id": "p9",
+     "rank_total": 19
+    },
+    {
+     "player_id": "p10",
+     "rank_total": 14,
+     "market_rank": 19
+    },
+    {
+     "player_id": "p11",
+     "rank_total": 26,
+     "market_rank": 32
+    },
+    {
+     "player_id": "p12",
+     "rank_total": 11
+    },
+    {
+     "player_id": "p13",
+     "rank_total": 15
+    },
+    {
+     "player_id": "p14",
+     "rank_total": 25
+    },
+    {
+     "player_id": "p15",
+     "rank_total": 22
+    },
+    {
+     "player_id": "p16",
+     "rank_total": 24,
+     "market_rank": 25
+    },
+    {
+     "player_id": "p17",
+     "rank_total": 8,
+     "market_rank": 14
+    },
+    {
+     "player_id": "p18",
+     "rank_total": 12,
+     "market_rank": 9
+    },
+    {
+     "player_id": "p19",
+     "rank_total": 6
+    },
+    {
+     "player_id": "p20",
+     "rank_total": 13,
+     "market_rank": 8
+    },
+    {
+     "player_id": "p21",
+     "rank_total": 23,
+     "market_rank": 25
+    },
+    {
+     "player_id": "p22",
+     "rank_total": 9,
+     "market_rank": 13
+    },
+    {
+     "player_id": "p23",
+     "rank_total": 17,
+     "market_rank": 13
+    },
+    {
+     "player_id": "p24",
+     "rank_total": 28
+    },
+    {
+     "player_id": "p25",
+     "rank_total": 27
+    },
+    {
+     "player_id": "p26",
+     "rank_total": 2,
+     "market_rank": 7
+    },
+    {
+     "player_id": "p27",
+     "rank_total": 3,
+     "market_rank": 9
+    }
+   ],
+   "rosters": [
+    [
+     "p0",
+     "p1",
+     "p2",
+     "p3",
+     "p4"
+    ],
+    [
+     "p5",
+     "p6",
+     "p7",
+     "p8",
+     "p9"
+    ],
+    [
+     "p10",
+     "p11",
+     "p12",
+     "p13",
+     "p14"
+    ],
+    [
+     "p15",
+     "p16",
+     "p17",
+     "p18",
+     "p19"
+    ]
+   ],
+   "myTeam": 0,
+   "available": [
+    "p20",
+    "p21",
+    "p22",
+    "p23",
+    "p24",
+    "p25",
+    "p26",
+    "p27"
+   ],
+   "rest": {
+    "p0": 2.949,
+    "p1": 7.578,
+    "p2": 1.695,
+    "p3": 5.164,
+    "p4": 7.579,
+    "p5": 6.462,
+    "p6": 1.688,
+    "p7": 2.786,
+    "p8": 9.548,
+    "p9": 1.72,
+    "p10": 3.949,
+    "p11": 0.205,
+    "p12": 4.548,
+    "p13": 3.816,
+    "p14": 1.448,
+    "p15": 1.642,
+    "p16": 1.461,
+    "p17": 5.788,
+    "p18": 4.259,
+    "p19": 6.519,
+    "p20": 4.011,
+    "p21": 1.51,
+    "p22": 5.304,
+    "p23": 2.917,
+    "p24": -0.873,
+    "p25": -0.193,
+    "p26": 8.302,
+    "p27": 7.81
+   },
+   "cats": [
+    "z_points",
+    "z_rebounds_total",
+    "z_assists",
+    "z_steals",
+    "z_blocks",
+    "z_three_pointers_made",
+    "z_turnovers",
+    "z_field_goal_pct",
+    "z_free_throw_pct"
+   ],
+   "values": {
+    "p0": {
+     "z_points": -0.042,
+     "z_rebounds_total": 0.75,
+     "z_assists": -0.714,
+     "z_steals": -0.017,
+     "z_blocks": -0.155,
+     "z_three_pointers_made": 0.014,
+     "z_turnovers": 0.518,
+     "z_field_goal_pct": 0.611,
+     "z_free_throw_pct": 0.32
+    },
+    "p1": {
+     "z_points": 1.415,
+     "z_rebounds_total": 0.488,
+     "z_assists": -1.223,
+     "z_steals": 0.267,
+     "z_blocks": -0.031,
+     "z_three_pointers_made": 0.368,
+     "z_turnovers": 1.285,
+     "z_field_goal_pct": 1.382,
+     "z_free_throw_pct": -0.059
+    },
+    "p2": {
+     "z_points": 0.911,
+     "z_rebounds_total": 0.534,
+     "z_assists": -0.627,
+     "z_steals": -0.385,
+     "z_blocks": -0.548,
+     "z_three_pointers_made": 0.453,
+     "z_turnovers": 0.073,
+     "z_field_goal_pct": -0.101,
+     "z_free_throw_pct": 0.973
+    },
+    "p3": {
+     "z_points": 0.417,
+     "z_rebounds_total": 0.344,
+     "z_assists": 0.468,
+     "z_steals": -0.27,
+     "z_blocks": 0.688,
+     "z_three_pointers_made": 0.602,
+     "z_turnovers": 0.185,
+     "z_field_goal_pct": 0.26,
+     "z_free_throw_pct": 0.111
+    },
+    "p4": {
+     "z_points": 0.053,
+     "z_rebounds_total": 0.891,
+     "z_assists": 0.09,
+     "z_steals": 1.774,
+     "z_blocks": 0.042,
+     "z_three_pointers_made": -0.318,
+     "z_turnovers": 1.394,
+     "z_field_goal_pct": -0.161,
+     "z_free_throw_pct": 1.876
+    },
+    "p5": {
+     "z_points": 0.458,
+     "z_rebounds_total": 1.357,
+     "z_assists": 0.58,
+     "z_steals": 0.173,
+     "z_blocks": 0.847,
+     "z_three_pointers_made": 0.539,
+     "z_turnovers": 0.391,
+     "z_field_goal_pct": 0.608,
+     "z_free_throw_pct": -0.41
+    },
+    "p6": {
+     "z_points": -0.115,
+     "z_rebounds_total": -0.279,
+     "z_assists": 0.171,
+     "z_steals": -0.101,
+     "z_blocks": 0.984,
+     "z_three_pointers_made": -0.291,
+     "z_turnovers": 0.2,
+     "z_field_goal_pct": 0.869,
+     "z_free_throw_pct": -0.239
+    },
+    "p7": {
+     "z_points": 0.365,
+     "z_rebounds_total": 0.856,
+     "z_assists": 0.118,
+     "z_steals": 0.618,
+     "z_blocks": 0.52,
+     "z_three_pointers_made": 1.044,
+     "z_turnovers": -1.527,
+     "z_field_goal_pct": 0.455,
+     "z_free_throw_pct": -0.13
+    },
+    "p8": {
+     "z_points": 0.382,
+     "z_rebounds_total": -0.484,
+     "z_assists": 1.3,
+     "z_steals": 1.557,
+     "z_blocks": 0.967,
+     "z_three_pointers_made": 0.173,
+     "z_turnovers": 0.788,
+     "z_field_goal_pct": 0.982,
+     "z_free_throw_pct": -0.369
+    },
+    "p9": {
+     "z_points": -0.504,
+     "z_rebounds_total": 0.9,
+     "z_assists": -0.332,
+     "z_steals": -0.081,
+     "z_blocks": 0.177,
+     "z_three_pointers_made": -0.913,
+     "z_turnovers": 0.201,
+     "z_field_goal_pct": 1.574,
+     "z_free_throw_pct": 0.628
+    },
+    "p10": {
+     "z_points": 0.18,
+     "z_rebounds_total": 1.424,
+     "z_assists": 0.671,
+     "z_steals": 1.989,
+     "z_blocks": 0.158,
+     "z_three_pointers_made": -0.257,
+     "z_turnovers": 0.542,
+     "z_field_goal_pct": 0.136,
+     "z_free_throw_pct": -0.447
+    },
+    "p11": {
+     "z_points": -0.188,
+     "z_rebounds_total": -0.878,
+     "z_assists": -0.901,
+     "z_steals": 0.426,
+     "z_blocks": -0.06,
+     "z_three_pointers_made": -0.585,
+     "z_turnovers": 0.303,
+     "z_field_goal_pct": 0.754,
+     "z_free_throw_pct": 0.432
+    },
+    "p12": {
+     "z_points": 0.83,
+     "z_rebounds_total": -0.35,
+     "z_assists": 0.619,
+     "z_steals": 0.219,
+     "z_blocks": 1.369,
+     "z_three_pointers_made": -0.851,
+     "z_turnovers": -0.387,
+     "z_field_goal_pct": -0.4,
+     "z_free_throw_pct": 0.411
+    },
+    "p13": {
+     "z_points": 0.945,
+     "z_rebounds_total": 0.317,
+     "z_assists": 0.171,
+     "z_steals": -0.354,
+     "z_blocks": 0.486,
+     "z_three_pointers_made": 1.102,
+     "z_turnovers": 0.019,
+     "z_field_goal_pct": 0.354,
+     "z_free_throw_pct": 0.579
+    },
+    "p14": {
+     "z_points": 0.141,
+     "z_rebounds_total": 0.587,
+     "z_assists": -0.832,
+     "z_steals": 0.746,
+     "z_blocks": 0.598,
+     "z_three_pointers_made": -0.098,
+     "z_turnovers": 1.774,
+     "z_field_goal_pct": -1.283,
+     "z_free_throw_pct": 0.016
+    },
+    "p15": {
+     "z_points": -1.583,
+     "z_rebounds_total": 0.767,
+     "z_assists": -0.435,
+     "z_steals": -0.629,
+     "z_blocks": 0.35,
+     "z_three_pointers_made": 0.675,
+     "z_turnovers": 0.082,
+     "z_field_goal_pct": 0.791,
+     "z_free_throw_pct": -0.35
+    },
+    "p16": {
+     "z_points": -0.7,
+     "z_rebounds_total": 1.078,
+     "z_assists": -0.144,
+     "z_steals": -0.071,
+     "z_blocks": 0.015,
+     "z_three_pointers_made": 0.117,
+     "z_turnovers": 0.047,
+     "z_field_goal_pct": -0.281,
+     "z_free_throw_pct": 0.855
+    },
+    "p17": {
+     "z_points": 0.451,
+     "z_rebounds_total": -0.095,
+     "z_assists": 0.535,
+     "z_steals": 0.936,
+     "z_blocks": 0.739,
+     "z_three_pointers_made": 0.771,
+     "z_turnovers": 0.541,
+     "z_field_goal_pct": 0.603,
+     "z_free_throw_pct": 0.04
+    },
+    "p18": {
+     "z_points": -0.308,
+     "z_rebounds_total": -0.392,
+     "z_assists": 0.717,
+     "z_steals": 0.858,
+     "z_blocks": 0.5,
+     "z_three_pointers_made": 1.24,
+     "z_turnovers": -0.29,
+     "z_field_goal_pct": -0.234,
+     "z_free_throw_pct": 0.443
+    },
+    "p19": {
+     "z_points": 1.314,
+     "z_rebounds_total": 1.675,
+     "z_assists": 0.884,
+     "z_steals": -0.489,
+     "z_blocks": 0.929,
+     "z_three_pointers_made": 1.081,
+     "z_turnovers": -0.102,
+     "z_field_goal_pct": -0.253,
+     "z_free_throw_pct": 0.232
+    },
+    "p20": {
+     "z_points": 0.815,
+     "z_rebounds_total": 0.068,
+     "z_assists": -0.276,
+     "z_steals": -0.227,
+     "z_blocks": 0.831,
+     "z_three_pointers_made": 0.215,
+     "z_turnovers": 1.534,
+     "z_field_goal_pct": 0.366,
+     "z_free_throw_pct": -0.863
+    },
+    "p21": {
+     "z_points": -1.395,
+     "z_rebounds_total": -0.781,
+     "z_assists": 0.217,
+     "z_steals": 0.878,
+     "z_blocks": 1.105,
+     "z_three_pointers_made": 0.394,
+     "z_turnovers": 1.005,
+     "z_field_goal_pct": 0.556,
+     "z_free_throw_pct": -1.118
+    },
+    "p22": {
+     "z_points": -0.57,
+     "z_rebounds_total": 2.38,
+     "z_assists": 0.981,
+     "z_steals": 0,
+     "z_blocks": 0.672,
+     "z_three_pointers_made": 0.516,
+     "z_turnovers": 0.492,
+     "z_field_goal_pct": 0.055,
+     "z_free_throw_pct": -0.511
+    },
+    "p23": {
+     "z_points": 0.237,
+     "z_rebounds_total": 1.645,
+     "z_assists": -1.285,
+     "z_steals": -0.36,
+     "z_blocks": 0.348,
+     "z_three_pointers_made": -0.593,
+     "z_turnovers": 0.083,
+     "z_field_goal_pct": -0.154,
+     "z_free_throw_pct": 1.28
+    },
+    "p24": {
+     "z_points": -0.741,
+     "z_rebounds_total": 2.32,
+     "z_assists": -0.767,
+     "z_steals": -0.941,
+     "z_blocks": -0.116,
+     "z_three_pointers_made": 0.414,
+     "z_turnovers": -0.04,
+     "z_field_goal_pct": -0.731,
+     "z_free_throw_pct": 0.999
+    },
+    "p25": {
+     "z_points": 0.757,
+     "z_rebounds_total": 0.141,
+     "z_assists": -0.866,
+     "z_steals": -0.247,
+     "z_blocks": 0.2,
+     "z_three_pointers_made": 0.13,
+     "z_turnovers": 1.473,
+     "z_field_goal_pct": 0.125,
+     "z_free_throw_pct": -1.406
+    },
+    "p26": {
+     "z_points": 1.058,
+     "z_rebounds_total": 0.636,
+     "z_assists": 0.922,
+     "z_steals": -1.258,
+     "z_blocks": 0.859,
+     "z_three_pointers_made": 2.081,
+     "z_turnovers": 1.154,
+     "z_field_goal_pct": 0.09,
+     "z_free_throw_pct": 0.872
+    },
+    "p27": {
+     "z_points": 0.659,
+     "z_rebounds_total": 0.278,
+     "z_assists": -0.023,
+     "z_steals": 0.58,
+     "z_blocks": 0.301,
+     "z_three_pointers_made": 0.517,
+     "z_turnovers": 0.765,
+     "z_field_goal_pct": 1.755,
+     "z_free_throw_pct": 0.764
+    }
+   },
+   "totals": [
+    {
+     "z_points": 2.754,
+     "z_rebounds_total": 3.007,
+     "z_assists": -2.006,
+     "z_steals": 1.369,
+     "z_blocks": -0.004,
+     "z_three_pointers_made": 1.119,
+     "z_turnovers": 3.455,
+     "z_field_goal_pct": 1.991,
+     "z_free_throw_pct": 3.221
+    },
+    {
+     "z_points": 0.586,
+     "z_rebounds_total": 2.35,
+     "z_assists": 1.837,
+     "z_steals": 2.166,
+     "z_blocks": 3.495,
+     "z_three_pointers_made": 0.552,
+     "z_turnovers": 0.053,
+     "z_field_goal_pct": 4.488,
+     "z_free_throw_pct": -0.52
+    },
+    {
+     "z_points": 1.908,
+     "z_rebounds_total": 1.1,
+     "z_assists": -0.272,
+     "z_steals": 3.026,
+     "z_blocks": 2.551,
+     "z_three_pointers_made": -0.689,
+     "z_turnovers": 2.251,
+     "z_field_goal_pct": -0.439,
+     "z_free_throw_pct": 0.991
+    },
+    {
+     "z_points": -0.826,
+     "z_rebounds_total": 3.033,
+     "z_assists": 1.557,
+     "z_steals": 0.605,
+     "z_blocks": 2.533,
+     "z_three_pointers_made": 3.884,
+     "z_turnovers": 0.278,
+     "z_field_goal_pct": 0.626,
+     "z_free_throw_pct": 1.22
+    }
+   ],
+   "minGains": [
+    0,
+    0.5,
+    2
+   ]
+  },
+  {
+   "name": "three teams of six, punting points",
+   "teams": 3,
+   "rosterSpots": 6,
+   "week": false,
+   "rows": [
+    {
+     "player_id": "p0",
+     "rank_total": 5
+    },
+    {
+     "player_id": "p1",
+     "rank_total": 15
+    },
+    {
+     "player_id": "p2",
+     "rank_total": 26,
+     "market_rank": 25
+    },
+    {
+     "player_id": "p3",
+     "rank_total": 1
+    },
+    {
+     "player_id": "p4",
+     "rank_total": 3
+    },
+    {
+     "player_id": "p5",
+     "rank_total": 6
+    },
+    {
+     "player_id": "p6",
+     "rank_total": 16,
+     "market_rank": 19
+    },
+    {
+     "player_id": "p7",
+     "rank_total": 9
+    },
+    {
+     "player_id": "p8",
+     "rank_total": 11,
+     "market_rank": 12
+    },
+    {
+     "player_id": "p9",
+     "rank_total": 24
+    },
+    {
+     "player_id": "p10",
+     "rank_total": 17,
+     "market_rank": 18
+    },
+    {
+     "player_id": "p11",
+     "rank_total": 18,
+     "market_rank": 20
+    },
+    {
+     "player_id": "p12",
+     "rank_total": 20
+    },
+    {
+     "player_id": "p13",
+     "rank_total": 4,
+     "market_rank": 1
+    },
+    {
+     "player_id": "p14",
+     "rank_total": 7
+    },
+    {
+     "player_id": "p15",
+     "rank_total": 21
+    },
+    {
+     "player_id": "p16",
+     "rank_total": 14
+    },
+    {
+     "player_id": "p17",
+     "rank_total": 10,
+     "market_rank": 7
+    },
+    {
+     "player_id": "p18",
+     "rank_total": 22,
+     "market_rank": 25
+    },
+    {
+     "player_id": "p19",
+     "rank_total": 8
+    },
+    {
+     "player_id": "p20",
+     "rank_total": 19,
+     "market_rank": 20
+    },
+    {
+     "player_id": "p21",
+     "rank_total": 12
+    },
+    {
+     "player_id": "p22",
+     "rank_total": 23,
+     "market_rank": 25
+    },
+    {
+     "player_id": "p23",
+     "rank_total": 2,
+     "market_rank": 5
+    },
+    {
+     "player_id": "p24",
+     "rank_total": 25,
+     "market_rank": 29
+    },
+    {
+     "player_id": "p25",
+     "rank_total": 13
+    }
+   ],
+   "rosters": [
+    [
+     "p0",
+     "p1",
+     "p2",
+     "p3",
+     "p4",
+     "p5"
+    ],
+    [
+     "p6",
+     "p7",
+     "p8",
+     "p9",
+     "p10",
+     "p11"
+    ],
+    [
+     "p12",
+     "p13",
+     "p14",
+     "p15",
+     "p16",
+     "p17"
+    ]
+   ],
+   "myTeam": 0,
+   "available": [
+    "p18",
+    "p19",
+    "p20",
+    "p21",
+    "p22",
+    "p23",
+    "p24",
+    "p25"
+   ],
+   "rest": {
+    "p0": 5.387,
+    "p1": 2.688,
+    "p2": -8.273,
+    "p3": 12.049,
+    "p4": 5.527,
+    "p5": 5.374,
+    "p6": 2.649,
+    "p7": 4.253,
+    "p8": 3.183,
+    "p9": -2.839,
+    "p10": 2.391,
+    "p11": 1.698,
+    "p12": -0.179,
+    "p13": 5.476,
+    "p14": 5.027,
+    "p15": -0.49,
+    "p16": 2.734,
+    "p17": 3.239,
+    "p18": -0.732,
+    "p19": 4.967,
+    "p20": 0.224,
+    "p21": 3.097,
+    "p22": -1.97,
+    "p23": 6.597,
+    "p24": -3.397,
+    "p25": 2.903
+   },
+   "cats": [
+    "z_rebounds_total",
+    "z_assists",
+    "z_steals",
+    "z_blocks",
+    "z_three_pointers_made",
+    "z_turnovers",
+    "z_field_goal_pct",
+    "z_free_throw_pct"
+   ],
+   "values": {
+    "p0": {
+     "z_points": -0.114,
+     "z_rebounds_total": -0.256,
+     "z_assists": 0.472,
+     "z_steals": 1.069,
+     "z_blocks": 0.04,
+     "z_three_pointers_made": 1.432,
+     "z_turnovers": 0.437,
+     "z_field_goal_pct": 0.946,
+     "z_free_throw_pct": 0.247
+    },
+    "p1": {
+     "z_points": -0.21,
+     "z_rebounds_total": 0.851,
+     "z_assists": -0.017,
+     "z_steals": 0.535,
+     "z_blocks": 0.832,
+     "z_three_pointers_made": -0.623,
+     "z_turnovers": 1.529,
+     "z_field_goal_pct": -1.321,
+     "z_free_throw_pct": -0.167
+    },
+    "p2": {
+     "z_points": -0.481,
+     "z_rebounds_total": -0.703,
+     "z_assists": -0.167,
+     "z_steals": -0.943,
+     "z_blocks": -0.95,
+     "z_three_pointers_made": -0.503,
+     "z_turnovers": -1.133,
+     "z_field_goal_pct": 0.828,
+     "z_free_throw_pct": -0.086
+    },
+    "p3": {
+     "z_points": 1.135,
+     "z_rebounds_total": 1.048,
+     "z_assists": 0.194,
+     "z_steals": 0.438,
+     "z_blocks": 1.8,
+     "z_three_pointers_made": 0.95,
+     "z_turnovers": 0.603,
+     "z_field_goal_pct": 1.438,
+     "z_free_throw_pct": 0.53
+    },
+    "p4": {
+     "z_points": 1.118,
+     "z_rebounds_total": -1.208,
+     "z_assists": 0.472,
+     "z_steals": 0.611,
+     "z_blocks": 1.267,
+     "z_three_pointers_made": 0.716,
+     "z_turnovers": -1.071,
+     "z_field_goal_pct": 0.795,
+     "z_free_throw_pct": 1.36
+    },
+    "p5": {
+     "z_points": 0.636,
+     "z_rebounds_total": 0.258,
+     "z_assists": 1.55,
+     "z_steals": 1.103,
+     "z_blocks": 0.347,
+     "z_three_pointers_made": 0.182,
+     "z_turnovers": -0.31,
+     "z_field_goal_pct": 0.002,
+     "z_free_throw_pct": 1.433
+    },
+    "p6": {
+     "z_points": -0.107,
+     "z_rebounds_total": 0.665,
+     "z_assists": -1.245,
+     "z_steals": -0.733,
+     "z_blocks": 0.322,
+     "z_three_pointers_made": 1.05,
+     "z_turnovers": 0.433,
+     "z_field_goal_pct": 1.395,
+     "z_free_throw_pct": -0.031
+    },
+    "p7": {
+     "z_points": -0.201,
+     "z_rebounds_total": -0.335,
+     "z_assists": 0.476,
+     "z_steals": 0.873,
+     "z_blocks": -0.358,
+     "z_three_pointers_made": 1.266,
+     "z_turnovers": 1.612,
+     "z_field_goal_pct": 0.752,
+     "z_free_throw_pct": -0.376
+    },
+    "p8": {
+     "z_points": 0.611,
+     "z_rebounds_total": 0.614,
+     "z_assists": -0.102,
+     "z_steals": -0.098,
+     "z_blocks": 0.31,
+     "z_three_pointers_made": -0.074,
+     "z_turnovers": 0.077,
+     "z_field_goal_pct": 0.439,
+     "z_free_throw_pct": -0.044
+    },
+    "p9": {
+     "z_points": 0.421,
+     "z_rebounds_total": 0.331,
+     "z_assists": 1.428,
+     "z_steals": -0.465,
+     "z_blocks": -0.55,
+     "z_three_pointers_made": 0.066,
+     "z_turnovers": 0.018,
+     "z_field_goal_pct": -0.252,
+     "z_free_throw_pct": -1.579
+    },
+    "p10": {
+     "z_points": -0.171,
+     "z_rebounds_total": 1.01,
+     "z_assists": 0.163,
+     "z_steals": 0.075,
+     "z_blocks": -1.074,
+     "z_three_pointers_made": 0.831,
+     "z_turnovers": 0.281,
+     "z_field_goal_pct": 0.298,
+     "z_free_throw_pct": -0.19
+    },
+    "p11": {
+     "z_points": 1.135,
+     "z_rebounds_total": -0.252,
+     "z_assists": -0.402,
+     "z_steals": 0.373,
+     "z_blocks": 0.618,
+     "z_three_pointers_made": 0.659,
+     "z_turnovers": 1.108,
+     "z_field_goal_pct": -0.224,
+     "z_free_throw_pct": -0.972
+    },
+    "p12": {
+     "z_points": -0.822,
+     "z_rebounds_total": 1.11,
+     "z_assists": 1.23,
+     "z_steals": -0.565,
+     "z_blocks": 0.21,
+     "z_three_pointers_made": 0.752,
+     "z_turnovers": -0.52,
+     "z_field_goal_pct": -0.741,
+     "z_free_throw_pct": -0.068
+    },
+    "p13": {
+     "z_points": 0.718,
+     "z_rebounds_total": 0.624,
+     "z_assists": -0.276,
+     "z_steals": 1.251,
+     "z_blocks": 0.486,
+     "z_three_pointers_made": 0.24,
+     "z_turnovers": 1.837,
+     "z_field_goal_pct": -0.129,
+     "z_free_throw_pct": -0.385
+    },
+    "p14": {
+     "z_points": -0.303,
+     "z_rebounds_total": 0.212,
+     "z_assists": 0.879,
+     "z_steals": 0.679,
+     "z_blocks": -1.232,
+     "z_three_pointers_made": 1.026,
+     "z_turnovers": -0.438,
+     "z_field_goal_pct": 0.955,
+     "z_free_throw_pct": 1.557
+    },
+    "p15": {
+     "z_points": 0.348,
+     "z_rebounds_total": -0.228,
+     "z_assists": -0.434,
+     "z_steals": 0.041,
+     "z_blocks": -0.735,
+     "z_three_pointers_made": 0.366,
+     "z_turnovers": 0.46,
+     "z_field_goal_pct": -0.516,
+     "z_free_throw_pct": 0.266
+    },
+    "p16": {
+     "z_points": -0.757,
+     "z_rebounds_total": 1.259,
+     "z_assists": 0.334,
+     "z_steals": 0.722,
+     "z_blocks": -0.424,
+     "z_three_pointers_made": 0.364,
+     "z_turnovers": -0.151,
+     "z_field_goal_pct": -1.003,
+     "z_free_throw_pct": 0.615
+    },
+    "p17": {
+     "z_points": -0.222,
+     "z_rebounds_total": 1.267,
+     "z_assists": 0.486,
+     "z_steals": -0.114,
+     "z_blocks": -0.778,
+     "z_three_pointers_made": 1.21,
+     "z_turnovers": 0.147,
+     "z_field_goal_pct": -0.856,
+     "z_free_throw_pct": 1.019
+    },
+    "p18": {
+     "z_points": -0.455,
+     "z_rebounds_total": -0.395,
+     "z_assists": 0.904,
+     "z_steals": -0.508,
+     "z_blocks": -0.318,
+     "z_three_pointers_made": 0.79,
+     "z_turnovers": -1.414,
+     "z_field_goal_pct": 0.209,
+     "z_free_throw_pct": -0.338
+    },
+    "p19": {
+     "z_points": 0.178,
+     "z_rebounds_total": 0.229,
+     "z_assists": -0.007,
+     "z_steals": 0.624,
+     "z_blocks": 0.738,
+     "z_three_pointers_made": -0.477,
+     "z_turnovers": 0.44,
+     "z_field_goal_pct": 0.399,
+     "z_free_throw_pct": 0.717
+    },
+    "p20": {
+     "z_points": -0.622,
+     "z_rebounds_total": 1.734,
+     "z_assists": 0.005,
+     "z_steals": -1.164,
+     "z_blocks": 1.747,
+     "z_three_pointers_made": 0.322,
+     "z_turnovers": -1.058,
+     "z_field_goal_pct": -0.632,
+     "z_free_throw_pct": 0.638
+    },
+    "p21": {
+     "z_points": 0.987,
+     "z_rebounds_total": 0.095,
+     "z_assists": 0.288,
+     "z_steals": 0.769,
+     "z_blocks": 0.705,
+     "z_three_pointers_made": -0.469,
+     "z_turnovers": -0.744,
+     "z_field_goal_pct": 0.616,
+     "z_free_throw_pct": -0.38
+    },
+    "p22": {
+     "z_points": 1.467,
+     "z_rebounds_total": 0.436,
+     "z_assists": -0.022,
+     "z_steals": -1.482,
+     "z_blocks": -0.94,
+     "z_three_pointers_made": -0.466,
+     "z_turnovers": -0.886,
+     "z_field_goal_pct": 0.279,
+     "z_free_throw_pct": -0.156
+    },
+    "p23": {
+     "z_points": 1.111,
+     "z_rebounds_total": 0.672,
+     "z_assists": 0.373,
+     "z_steals": 0.423,
+     "z_blocks": 0.427,
+     "z_three_pointers_made": 1.1,
+     "z_turnovers": -0.44,
+     "z_field_goal_pct": 0.342,
+     "z_free_throw_pct": 0.413
+    },
+    "p24": {
+     "z_points": 0.729,
+     "z_rebounds_total": -0.556,
+     "z_assists": 0.837,
+     "z_steals": -1.098,
+     "z_blocks": 0.921,
+     "z_three_pointers_made": -1.78,
+     "z_turnovers": 0.37,
+     "z_field_goal_pct": -0.025,
+     "z_free_throw_pct": -0.46
+    },
+    "p25": {
+     "z_points": -0.259,
+     "z_rebounds_total": 0.324,
+     "z_assists": 0.682,
+     "z_steals": -0.045,
+     "z_blocks": -0.291,
+     "z_three_pointers_made": 0.628,
+     "z_turnovers": -0.023,
+     "z_field_goal_pct": 0.2,
+     "z_free_throw_pct": 0.32
+    }
+   },
+   "totals": [
+    {
+     "z_rebounds_total": -0.01,
+     "z_assists": 2.504,
+     "z_steals": 2.813,
+     "z_blocks": 3.336,
+     "z_three_pointers_made": 2.154,
+     "z_turnovers": 0.055,
+     "z_field_goal_pct": 2.688,
+     "z_free_throw_pct": 3.317
+    },
+    {
+     "z_rebounds_total": 2.033,
+     "z_assists": 0.318,
+     "z_steals": 0.025,
+     "z_blocks": -0.732,
+     "z_three_pointers_made": 3.798,
+     "z_turnovers": 3.529,
+     "z_field_goal_pct": 2.408,
+     "z_free_throw_pct": -3.192
+    },
+    {
+     "z_rebounds_total": 4.244,
+     "z_assists": 2.219,
+     "z_steals": 2.014,
+     "z_blocks": -2.473,
+     "z_three_pointers_made": 3.958,
+     "z_turnovers": 1.335,
+     "z_field_goal_pct": -2.29,
+     "z_free_throw_pct": 3.004
+    }
+   ],
+   "minGains": [
+    0,
+    0.5,
+    2
+   ]
+  },
+  {
+   "name": "a points league: no categories",
+   "teams": 3,
+   "rosterSpots": 4,
+   "week": false,
+   "rows": [
+    {
+     "player_id": "p0",
+     "rank_total": 9
+    },
+    {
+     "player_id": "p1",
+     "rank_total": 12,
+     "market_rank": 14
+    },
+    {
+     "player_id": "p2",
+     "rank_total": 2,
+     "market_rank": 5
+    },
+    {
+     "player_id": "p3",
+     "rank_total": 3,
+     "market_rank": 8
+    },
+    {
+     "player_id": "p4",
+     "rank_total": 16
+    },
+    {
+     "player_id": "p5",
+     "rank_total": 5
+    },
+    {
+     "player_id": "p6",
+     "rank_total": 18,
+     "market_rank": 22
+    },
+    {
+     "player_id": "p7",
+     "rank_total": 8
+    },
+    {
+     "player_id": "p8",
+     "rank_total": 10,
+     "market_rank": 15
+    },
+    {
+     "player_id": "p9",
+     "rank_total": 1,
+     "market_rank": 1
+    },
+    {
+     "player_id": "p10",
+     "rank_total": 4
+    },
+    {
+     "player_id": "p11",
+     "rank_total": 7
+    },
+    {
+     "player_id": "p12",
+     "rank_total": 11,
+     "market_rank": 10
+    },
+    {
+     "player_id": "p13",
+     "rank_total": 6,
+     "market_rank": 1
+    },
+    {
+     "player_id": "p14",
+     "rank_total": 17
+    },
+    {
+     "player_id": "p15",
+     "rank_total": 13,
+     "market_rank": 18
+    },
+    {
+     "player_id": "p16",
+     "rank_total": 15,
+     "market_rank": 15
+    },
+    {
+     "player_id": "p17",
+     "rank_total": 14,
+     "market_rank": 18
+    },
+    {
+     "player_id": "p18",
+     "rank_total": 20,
+     "market_rank": 16
+    },
+    {
+     "player_id": "p19",
+     "rank_total": 19,
+     "market_rank": 18
+    }
+   ],
+   "rosters": [
+    [
+     "p0",
+     "p1",
+     "p2",
+     "p3"
+    ],
+    [
+     "p4",
+     "p5",
+     "p6",
+     "p7"
+    ],
+    [
+     "p8",
+     "p9",
+     "p10",
+     "p11"
+    ]
+   ],
+   "myTeam": 0,
+   "available": [
+    "p12",
+    "p13",
+    "p14",
+    "p15",
+    "p16",
+    "p17",
+    "p18",
+    "p19"
+   ],
+   "rest": {
+    "p0": 2.955,
+    "p1": 1.664,
+    "p2": 7.32,
+    "p3": 7.016,
+    "p4": 0.868,
+    "p5": 5.723,
+    "p6": 0.012,
+    "p7": 3.142,
+    "p8": 2.419,
+    "p9": 8.773,
+    "p10": 6.208,
+    "p11": 4.574,
+    "p12": 1.744,
+    "p13": 4.735,
+    "p14": 0.761,
+    "p15": 1.401,
+    "p16": 1.03,
+    "p17": 1.272,
+    "p18": -3.914,
+    "p19": -1.488
+   },
+   "cats": [],
+   "values": {
+    "p0": {
+     "z_points": 0.012,
+     "z_rebounds_total": 0.652,
+     "z_assists": -0.824,
+     "z_steals": 0.453,
+     "z_blocks": 0.204,
+     "z_three_pointers_made": 1.734,
+     "z_turnovers": 0.157,
+     "z_field_goal_pct": -0.244,
+     "z_free_throw_pct": 0.387
+    },
+    "p1": {
+     "z_points": -0.245,
+     "z_rebounds_total": 0.86,
+     "z_assists": -1.065,
+     "z_steals": 0.397,
+     "z_blocks": 0.181,
+     "z_three_pointers_made": 0.567,
+     "z_turnovers": -0.281,
+     "z_field_goal_pct": 0.857,
+     "z_free_throw_pct": 0.268
+    },
+    "p2": {
+     "z_points": -1.255,
+     "z_rebounds_total": 1.156,
+     "z_assists": 0.905,
+     "z_steals": 1.138,
+     "z_blocks": -0.052,
+     "z_three_pointers_made": 1.066,
+     "z_turnovers": 1.7,
+     "z_field_goal_pct": 0.369,
+     "z_free_throw_pct": 0.813
+    },
+    "p3": {
+     "z_points": -0.459,
+     "z_rebounds_total": 0.9,
+     "z_assists": 1.714,
+     "z_steals": -0.107,
+     "z_blocks": 0.193,
+     "z_three_pointers_made": 0.765,
+     "z_turnovers": 0.02,
+     "z_field_goal_pct": 1.691,
+     "z_free_throw_pct": -0.548
+    },
+    "p4": {
+     "z_points": 0.091,
+     "z_rebounds_total": -0.004,
+     "z_assists": -0.881,
+     "z_steals": -0.089,
+     "z_blocks": 0.929,
+     "z_three_pointers_made": 1.337,
+     "z_turnovers": 0.685,
+     "z_field_goal_pct": 0.007,
+     "z_free_throw_pct": 0.308
+    },
+    "p5": {
+     "z_points": 0.533,
+     "z_rebounds_total": 1.116,
+     "z_assists": 0.551,
+     "z_steals": 1.863,
+     "z_blocks": 0.032,
+     "z_three_pointers_made": 0.357,
+     "z_turnovers": -1.436,
+     "z_field_goal_pct": 0.78,
+     "z_free_throw_pct": 0.01
+    },
+    "p6": {
+     "z_points": -0.201,
+     "z_rebounds_total": -0.077,
+     "z_assists": -0.018,
+     "z_steals": 0.567,
+     "z_blocks": -0.005,
+     "z_three_pointers_made": -0.602,
+     "z_turnovers": -0.733,
+     "z_field_goal_pct": 1.068,
+     "z_free_throw_pct": 0.415
+    },
+    "p7": {
+     "z_points": 1.637,
+     "z_rebounds_total": 0.836,
+     "z_assists": -0.453,
+     "z_steals": 0.64,
+     "z_blocks": 0.07,
+     "z_three_pointers_made": -1.026,
+     "z_turnovers": 0.779,
+     "z_field_goal_pct": 1.353,
+     "z_free_throw_pct": -0.662
+    },
+    "p8": {
+     "z_points": 1.049,
+     "z_rebounds_total": -0.443,
+     "z_assists": 0.623,
+     "z_steals": -0.63,
+     "z_blocks": 1.169,
+     "z_three_pointers_made": -1.082,
+     "z_turnovers": -0.846,
+     "z_field_goal_pct": -0.252,
+     "z_free_throw_pct": 2.254
+    },
+    "p9": {
+     "z_points": 0.263,
+     "z_rebounds_total": 1.549,
+     "z_assists": 0.218,
+     "z_steals": 0.823,
+     "z_blocks": 0.691,
+     "z_three_pointers_made": 0.989,
+     "z_turnovers": 0.797,
+     "z_field_goal_pct": -0.166,
+     "z_free_throw_pct": 0.849
+    },
+    "p10": {
+     "z_points": 1.79,
+     "z_rebounds_total": -0.443,
+     "z_assists": 1.382,
+     "z_steals": 1.346,
+     "z_blocks": 0.395,
+     "z_three_pointers_made": -0.264,
+     "z_turnovers": 0.293,
+     "z_field_goal_pct": 0.63,
+     "z_free_throw_pct": 0.372
+    },
+    "p11": {
+     "z_points": 0.777,
+     "z_rebounds_total": 1.079,
+     "z_assists": -0.073,
+     "z_steals": 1.122,
+     "z_blocks": -1.054,
+     "z_three_pointers_made": 0.492,
+     "z_turnovers": 1.33,
+     "z_field_goal_pct": -1.026,
+     "z_free_throw_pct": 0.159
+    },
+    "p12": {
+     "z_points": 0.819,
+     "z_rebounds_total": -1.237,
+     "z_assists": -0.491,
+     "z_steals": 0.998,
+     "z_blocks": 1.404,
+     "z_three_pointers_made": 0.142,
+     "z_turnovers": -0.407,
+     "z_field_goal_pct": 0.83,
+     "z_free_throw_pct": -1.01
+    },
+    "p13": {
+     "z_points": -0.319,
+     "z_rebounds_total": 1.183,
+     "z_assists": 0.24,
+     "z_steals": 0.522,
+     "z_blocks": -0.232,
+     "z_three_pointers_made": 0.299,
+     "z_turnovers": 1.668,
+     "z_field_goal_pct": 0.506,
+     "z_free_throw_pct": 0.933
+    },
+    "p14": {
+     "z_points": 0.656,
+     "z_rebounds_total": 0.045,
+     "z_assists": 0.122,
+     "z_steals": 0.775,
+     "z_blocks": -0.08,
+     "z_three_pointers_made": -0.513,
+     "z_turnovers": 0.333,
+     "z_field_goal_pct": -0.998,
+     "z_free_throw_pct": -0.292
+    },
+    "p15": {
+     "z_points": 0.036,
+     "z_rebounds_total": 0.308,
+     "z_assists": -0.179,
+     "z_steals": 0.873,
+     "z_blocks": -0.285,
+     "z_three_pointers_made": -0.023,
+     "z_turnovers": -0.176,
+     "z_field_goal_pct": 0.273,
+     "z_free_throw_pct": 0.148
+    },
+    "p16": {
+     "z_points": 0.561,
+     "z_rebounds_total": 0.922,
+     "z_assists": -0.238,
+     "z_steals": 0.08,
+     "z_blocks": 0.16,
+     "z_three_pointers_made": 0.013,
+     "z_turnovers": 0.474,
+     "z_field_goal_pct": -0.312,
+     "z_free_throw_pct": -0.102
+    },
+    "p17": {
+     "z_points": 1.714,
+     "z_rebounds_total": -0.759,
+     "z_assists": 0.221,
+     "z_steals": -0.914,
+     "z_blocks": -0.746,
+     "z_three_pointers_made": 0.175,
+     "z_turnovers": 0.115,
+     "z_field_goal_pct": 1.568,
+     "z_free_throw_pct": 0.851
+    },
+    "p18": {
+     "z_points": -0.185,
+     "z_rebounds_total": -0.481,
+     "z_assists": 0.082,
+     "z_steals": -0.609,
+     "z_blocks": 0.427,
+     "z_three_pointers_made": 0.087,
+     "z_turnovers": -0.845,
+     "z_field_goal_pct": -0.553,
+     "z_free_throw_pct": -0.838
+    },
+    "p19": {
+     "z_points": -0.255,
+     "z_rebounds_total": 0.195,
+     "z_assists": -0.513,
+     "z_steals": 0.09,
+     "z_blocks": -0.126,
+     "z_three_pointers_made": 0.609,
+     "z_turnovers": -0.538,
+     "z_field_goal_pct": -0.204,
+     "z_free_throw_pct": 0.418
+    }
+   },
+   "totals": [
+    {},
+    {},
+    {}
+   ],
+   "minGains": [
+    0,
+    0.5,
+    2
+   ]
+  }
+ ],
+ "expected": {
+  "cases": [
+   {
+    "droppable": {
+     "p0": false,
+     "p1": true,
+     "p2": true,
+     "p3": true,
+     "p4": true
+    },
+    "reviews": [
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p21",
+         "drop": "p2",
+         "gain": 10.274,
+         "fit": 0,
+         "ups": [
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_blocks",
+          "z_free_throw_pct"
+         ]
+        },
+        {
+         "add": "p26",
+         "drop": "p3",
+         "gain": 6.861,
+         "fit": 0,
+         "ups": [
+          "z_assists",
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_points",
+          "z_turnovers"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p4",
+         "gain": 2.684,
+         "fit": -1,
+         "ups": [
+          "z_assists"
+         ],
+         "downs": [
+          "z_points",
+          "z_three_pointers_made"
+         ]
+        },
+        {
+         "add": "p24",
+         "drop": "p1",
+         "gain": 0.041999999999999815,
+         "fit": 0,
+         "ups": [
+          "z_assists"
+         ],
+         "downs": [
+          "z_blocks"
+         ]
+        }
+       ],
+       "replace": [
+        "p2",
+        "p3",
+        "p4",
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p21",
+        "gap": 10.274
+       },
+       "rostered": 5,
+       "chips": []
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p21",
+         "drop": "p2",
+         "gain": 10.274,
+         "fit": 0,
+         "ups": [
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_blocks",
+          "z_free_throw_pct"
+         ]
+        },
+        {
+         "add": "p26",
+         "drop": "p3",
+         "gain": 6.861,
+         "fit": 0,
+         "ups": [
+          "z_assists",
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_points",
+          "z_turnovers"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p4",
+         "gain": 2.684,
+         "fit": -1,
+         "ups": [
+          "z_assists"
+         ],
+         "downs": [
+          "z_points",
+          "z_three_pointers_made"
+         ]
+        },
+        {
+         "add": "p24",
+         "drop": "p1",
+         "gain": 0.041999999999999815,
+         "fit": 0,
+         "ups": [
+          "z_assists"
+         ],
+         "downs": [
+          "z_blocks"
+         ]
+        }
+       ],
+       "replace": [
+        "p2",
+        "p3",
+        "p4",
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p21",
+        "gap": 10.274
+       },
+       "rostered": 5,
+       "chips": []
+      }
+     },
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p21",
+         "drop": "p2",
+         "gain": 10.274,
+         "fit": 0,
+         "ups": [
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_blocks",
+          "z_free_throw_pct"
+         ]
+        },
+        {
+         "add": "p26",
+         "drop": "p3",
+         "gain": 6.861,
+         "fit": 0,
+         "ups": [
+          "z_assists",
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_points",
+          "z_turnovers"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p4",
+         "gain": 2.684,
+         "fit": -1,
+         "ups": [
+          "z_assists"
+         ],
+         "downs": [
+          "z_points",
+          "z_three_pointers_made"
+         ]
+        }
+       ],
+       "replace": [
+        "p2",
+        "p3",
+        "p4"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p21",
+        "gap": 10.274
+       },
+       "rostered": 5,
+       "chips": []
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p21",
+         "drop": "p2",
+         "gain": 10.274,
+         "fit": 0,
+         "ups": [
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_blocks",
+          "z_free_throw_pct"
+         ]
+        },
+        {
+         "add": "p26",
+         "drop": "p3",
+         "gain": 6.861,
+         "fit": 0,
+         "ups": [
+          "z_assists",
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_points",
+          "z_turnovers"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p4",
+         "gain": 2.684,
+         "fit": -1,
+         "ups": [
+          "z_assists"
+         ],
+         "downs": [
+          "z_points",
+          "z_three_pointers_made"
+         ]
+        }
+       ],
+       "replace": [
+        "p2",
+        "p3",
+        "p4"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p21",
+        "gap": 10.274
+       },
+       "rostered": 5,
+       "chips": []
+      }
+     },
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p21",
+         "drop": "p2",
+         "gain": 10.274,
+         "fit": 0,
+         "ups": [
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_blocks",
+          "z_free_throw_pct"
+         ]
+        },
+        {
+         "add": "p26",
+         "drop": "p3",
+         "gain": 6.861,
+         "fit": 0,
+         "ups": [
+          "z_assists",
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_points",
+          "z_turnovers"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p4",
+         "gain": 2.684,
+         "fit": -1,
+         "ups": [
+          "z_assists"
+         ],
+         "downs": [
+          "z_points",
+          "z_three_pointers_made"
+         ]
+        }
+       ],
+       "replace": [
+        "p2",
+        "p3",
+        "p4"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p21",
+        "gap": 10.274
+       },
+       "rostered": 5,
+       "chips": []
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p21",
+         "drop": "p2",
+         "gain": 10.274,
+         "fit": 0,
+         "ups": [
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_blocks",
+          "z_free_throw_pct"
+         ]
+        },
+        {
+         "add": "p26",
+         "drop": "p3",
+         "gain": 6.861,
+         "fit": 0,
+         "ups": [
+          "z_assists",
+          "z_steals",
+          "z_field_goal_pct"
+         ],
+         "downs": [
+          "z_points",
+          "z_turnovers"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p4",
+         "gain": 2.684,
+         "fit": -1,
+         "ups": [
+          "z_assists"
+         ],
+         "downs": [
+          "z_points",
+          "z_three_pointers_made"
+         ]
+        }
+       ],
+       "replace": [
+        "p2",
+        "p3",
+        "p4"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p21",
+        "gap": 10.274
+       },
+       "rostered": 5,
+       "chips": []
+      }
+     }
+    ]
+   },
+   {
+    "droppable": {
+     "p0": true,
+     "p1": false,
+     "p2": true,
+     "p3": false,
+     "p4": false
+    },
+    "reviews": [
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p26",
+         "drop": "p2",
+         "gain": 6.606999999999999,
+         "fit": 0,
+         "ups": [
+          "z_rebounds_total"
+         ],
+         "downs": [
+          "z_steals"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p0",
+         "gain": 4.861,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p0"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p26",
+        "gap": 6.606999999999999
+       },
+       "rostered": 5,
+       "chips": [
+        "p3",
+        "p1",
+        "p4"
+       ]
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p26",
+         "drop": "p2",
+         "gain": 6.606999999999999,
+         "fit": 0,
+         "ups": [
+          "z_rebounds_total"
+         ],
+         "downs": [
+          "z_steals"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p0",
+         "gain": 4.861,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        },
+        {
+         "add": "p22",
+         "drop": "p3",
+         "gain": 0.14000000000000057,
+         "fit": 0,
+         "ups": [
+          "z_rebounds_total"
+         ],
+         "downs": [
+          "z_points"
+         ]
+        }
+       ],
+       "replace": [
+        "p2",
+        "p0",
+        "p3"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p26",
+        "gap": 6.606999999999999
+       },
+       "rostered": 5,
+       "chips": []
+      }
+     },
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p26",
+         "drop": "p2",
+         "gain": 6.606999999999999,
+         "fit": 0,
+         "ups": [
+          "z_rebounds_total"
+         ],
+         "downs": [
+          "z_steals"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p0",
+         "gain": 4.861,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p0"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p26",
+        "gap": 6.606999999999999
+       },
+       "rostered": 5,
+       "chips": [
+        "p3",
+        "p1",
+        "p4"
+       ]
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p26",
+         "drop": "p2",
+         "gain": 6.606999999999999,
+         "fit": 0,
+         "ups": [
+          "z_rebounds_total"
+         ],
+         "downs": [
+          "z_steals"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p0",
+         "gain": 4.861,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p0"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p26",
+        "gap": 6.606999999999999
+       },
+       "rostered": 5,
+       "chips": []
+      }
+     },
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p26",
+         "drop": "p2",
+         "gain": 6.606999999999999,
+         "fit": 0,
+         "ups": [
+          "z_rebounds_total"
+         ],
+         "downs": [
+          "z_steals"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p0",
+         "gain": 4.861,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p0"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p26",
+        "gap": 6.606999999999999
+       },
+       "rostered": 5,
+       "chips": [
+        "p3"
+       ]
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p26",
+         "drop": "p2",
+         "gain": 6.606999999999999,
+         "fit": 0,
+         "ups": [
+          "z_rebounds_total"
+         ],
+         "downs": [
+          "z_steals"
+         ]
+        },
+        {
+         "add": "p27",
+         "drop": "p0",
+         "gain": 4.861,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p0"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p26",
+        "gap": 6.606999999999999
+       },
+       "rostered": 5,
+       "chips": []
+      }
+     }
+    ]
+   },
+   {
+    "droppable": {
+     "p0": false,
+     "p1": true,
+     "p2": true,
+     "p3": false,
+     "p4": false,
+     "p5": false
+    },
+    "reviews": [
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p23",
+         "drop": "p2",
+         "gain": 14.870000000000001,
+         "fit": -1,
+         "ups": [],
+         "downs": [
+          "z_field_goal_pct"
+         ]
+        },
+        {
+         "add": "p19",
+         "drop": "p1",
+         "gain": 2.2789999999999995,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p23",
+        "gap": 14.870000000000001
+       },
+       "rostered": 6,
+       "chips": [
+        "p5",
+        "p0",
+        "p4"
+       ]
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p23",
+         "drop": "p2",
+         "gain": 14.870000000000001,
+         "fit": -1,
+         "ups": [],
+         "downs": [
+          "z_field_goal_pct"
+         ]
+        },
+        {
+         "add": "p19",
+         "drop": "p1",
+         "gain": 2.2789999999999995,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p23",
+        "gap": 14.870000000000001
+       },
+       "rostered": 6,
+       "chips": []
+      }
+     },
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p23",
+         "drop": "p2",
+         "gain": 14.870000000000001,
+         "fit": -1,
+         "ups": [],
+         "downs": [
+          "z_field_goal_pct"
+         ]
+        },
+        {
+         "add": "p19",
+         "drop": "p1",
+         "gain": 2.2789999999999995,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p23",
+        "gap": 14.870000000000001
+       },
+       "rostered": 6,
+       "chips": [
+        "p5",
+        "p0",
+        "p4"
+       ]
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p23",
+         "drop": "p2",
+         "gain": 14.870000000000001,
+         "fit": -1,
+         "ups": [],
+         "downs": [
+          "z_field_goal_pct"
+         ]
+        },
+        {
+         "add": "p19",
+         "drop": "p1",
+         "gain": 2.2789999999999995,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p23",
+        "gap": 14.870000000000001
+       },
+       "rostered": 6,
+       "chips": []
+      }
+     },
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p23",
+         "drop": "p2",
+         "gain": 14.870000000000001,
+         "fit": -1,
+         "ups": [],
+         "downs": [
+          "z_field_goal_pct"
+         ]
+        },
+        {
+         "add": "p19",
+         "drop": "p1",
+         "gain": 2.2789999999999995,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p23",
+        "gap": 14.870000000000001
+       },
+       "rostered": 6,
+       "chips": []
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p23",
+         "drop": "p2",
+         "gain": 14.870000000000001,
+         "fit": -1,
+         "ups": [],
+         "downs": [
+          "z_field_goal_pct"
+         ]
+        },
+        {
+         "add": "p19",
+         "drop": "p1",
+         "gain": 2.2789999999999995,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p2",
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p2",
+        "add": "p23",
+        "gap": 14.870000000000001
+       },
+       "rostered": 6,
+       "chips": []
+      }
+     }
+    ]
+   },
+   {
+    "droppable": {
+     "p0": false,
+     "p1": true,
+     "p2": false,
+     "p3": false
+    },
+    "reviews": [
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p13",
+         "drop": "p1",
+         "gain": 3.0710000000000006,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p1",
+        "add": "p13",
+        "gap": 3.0710000000000006
+       },
+       "rostered": 4,
+       "chips": [
+        "p0"
+       ]
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p13",
+         "drop": "p1",
+         "gain": 3.0710000000000006,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p1",
+        "add": "p13",
+        "gap": 3.0710000000000006
+       },
+       "rostered": 4,
+       "chips": []
+      }
+     },
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p13",
+         "drop": "p1",
+         "gain": 3.0710000000000006,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p1",
+        "add": "p13",
+        "gap": 3.0710000000000006
+       },
+       "rostered": 4,
+       "chips": [
+        "p0"
+       ]
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p13",
+         "drop": "p1",
+         "gain": 3.0710000000000006,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p1",
+        "add": "p13",
+        "gap": 3.0710000000000006
+       },
+       "rostered": 4,
+       "chips": []
+      }
+     },
+     {
+      "rule": {
+       "upgrades": [
+        {
+         "add": "p13",
+         "drop": "p1",
+         "gain": 3.0710000000000006,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p1",
+        "add": "p13",
+        "gap": 3.0710000000000006
+       },
+       "rostered": 4,
+       "chips": []
+      },
+      "anyone": {
+       "upgrades": [
+        {
+         "add": "p13",
+         "drop": "p1",
+         "gain": 3.0710000000000006,
+         "fit": 0,
+         "ups": [],
+         "downs": []
+        }
+       ],
+       "replace": [
+        "p1"
+       ],
+       "optimized": false,
+       "weakest": {
+        "drop": "p1",
+        "add": "p13",
+        "gap": 3.0710000000000006
+       },
+       "rostered": 4,
+       "chips": []
+      }
+     }
+    ]
+   }
+  ]
+ }
+}
