@@ -42,6 +42,12 @@
   (fct_team_stakes.rest_risk) is expected to sit out fantasy_rest_risk.extra_sit_out more of the
   games left, measured point in time in notebook 03 (#494): the multiplier keeps the rest.
   games_next_7 counts playoff games too.
+
+  The market prior (var market_prior, #832, ADR 0020): in the leagues it is on for, while a player
+  has few games in the season being played, value per game is blended toward the board's own value
+  of his rank in the market's draft order (int_market_prior), at market_prior.weight falling
+  linearly to nothing by market_prior.fade_games games. The nine category columns stay the
+  projection's; z_total carries the blend.
 #}
 
 {% set zcols = ['z_points', 'z_rebounds_total', 'z_assists', 'z_steals', 'z_blocks', 'z_three_pointers_made', 'z_turnovers', 'z_field_goal_pct', 'z_free_throw_pct'] %}
@@ -67,15 +73,60 @@ scored as (
 
 ),
 
+priced as (
+
+    -- each player's own value and his place on the board's value curve, which prices a draft
+    -- position on the board's scale as Trade does in the web (marketValues)
+    select
+        *,
+        {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} as own_value,
+        row_number() over (
+            partition by league
+            order by {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} desc, player_id
+        ) as value_rank
+    from scored
+
+),
+
+{#- The market prior (#832): while a player has few games in the season being played, his value
+    is blended toward the board's value of his rank in the market's draft order, at a weight that
+    falls to nothing by fade_games games. Off (weight 0) in a league not in market_prior.leagues. #}
+{%- set prior = var('market_prior') %}
+{%- set prior_on -%}
+    {%- if prior['leagues'] -%}
+        p.league in ({% for lg in prior['leagues'] %}'{{ lg }}'{{ ", " if not loop.last }}{% endfor %})
+    {%- else -%}
+        false
+    {%- endif -%}
+{%- endset %}
+weighted_prior as (
+
+    select
+        p.*,
+        mp.adp_rank as preseason_adp_rank,
+        cast(coalesce(mp.games, 0) as integer) as market_prior_games,
+        curve.own_value as market_prior_value,
+        case
+            when curve.own_value is null or not ({{ prior_on }}) then 0.0
+            else {{ prior['weight'] }} * greatest(0.0, 1.0 - coalesce(mp.games, 0) * 1.0 / {{ prior['fade_games'] }})
+        end as market_prior_weight
+    from priced as p
+    left join {{ ref('int_market_prior') }} as mp on mp.league = p.league and mp.player_id = p.player_id
+    left join priced as curve on curve.league = p.league and curve.value_rank = mp.adp_rank
+
+),
+
 valued as (
 
     select
         *,
-        row_number() over (
-            partition by league
-            order by {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} desc, player_id
-        ) <= pool as in_pool
-    from scored
+        row_number() over (partition by league order by value_blend desc, player_id) <= pool as in_pool
+    from (
+        select
+            *,
+            own_value + market_prior_weight * (coalesce(market_prior_value, own_value) - own_value) as value_blend
+        from weighted_prior
+    ) as blended
 
 ),
 
@@ -369,11 +420,11 @@ totals as (
 
     select
         *,
-        {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} as z_total,
+        -- the nine categories' sum, blended toward the market while the prior is on (#832)
+        value_blend as z_total,
         case
-            when {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %} > 0
-                then ({% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %}) * games_share_now
-            else {% for z in zcols %}{{ z }}{{ " + " if not loop.last }}{% endfor %}
+            when value_blend > 0 then value_blend * games_share_now
+            else value_blend
         end as season_value,
         case
             when season_complete then 1.0
@@ -441,6 +492,10 @@ select
     lineup_confirmed,
     lineup_date,
     market_rank,
+    preseason_adp_rank,
+    market_prior_value,
+    market_prior_games,
+    market_prior_weight,
     game_floor,
     game_ceiling,
     game_value_sd,

@@ -54,6 +54,13 @@ export const PARAMS = {
       "min_minutes": 28
     }
   },
+  "projection.market_prior": {
+    "leagues": [
+      "nba"
+    ],
+    "weight": 0.45,
+    "fade_games": 20
+  },
   "projection.calibration_min_listings": 300,
   "projection.regular_season_games": {
     "nba": 82
@@ -318,6 +325,22 @@ export const PARAMETERS = [
         "extra_sit_out": 0.0,
         "min_minutes": 28
       }
+    }
+  },
+  {
+    "id": "projection.market_prior",
+    "kind": "model",
+    "status": "measured",
+    "what": "In the leagues listed: the weight a player's value per game gives the board's value of his rank in ESPN's draft order, falling linearly to nothing by fade_games games of the season being played.",
+    "evidence": "ADR 0020: fitted on NBA 2020-21 to 2022-23 (runs 42456036003, 42456038211, 42456040262); judged out of sample on 2023-24 and 2024-25 (runs 42458451893, 42458454350): preseason RMSE -0.165 and -0.218, Spearman +0.029 and +0.028, top pool +4.5 and +3.8 points, nothing measurable at half way. The WNBA has no past market to test on, so it is off there",
+    "validation": 832,
+    "dbt": "market_prior",
+    "value": {
+      "leagues": [
+        "nba"
+      ],
+      "weight": 0.45,
+      "fade_games": 20
     }
   },
   {

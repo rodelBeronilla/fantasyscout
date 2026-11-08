@@ -1452,7 +1452,7 @@ models:
         meta: {unit: ratio 0 to 1}
         description: "Projected free throw percentage (volume-weighted impact) value per game above replacement: the pool z-score minus replacement level"
       - name: z_total
-        description: "Sum of the nine z_ category values: projected value per game above replacement (value_per_game)"
+        description: "Projected value per game above replacement (value_per_game): the sum of the nine z_ category values, blended toward market_prior_value at market_prior_weight (the market prior, ADR 0020)"
       - name: recent_z_points
         description: "Z-score of points over the last 10 games this season (mart_category_zscores); not above replacement"
       - name: season_z_points
@@ -1622,6 +1622,14 @@ models:
         description: "The game day the lineup role is for (the next game day with a lineup, today or later)"
       - name: market_rank
         description: "Where ESPN drafters take the player (fct_market_value)"
+      - name: preseason_adp_rank
+        description: "The player's rank in ESPN's draft order for the season being played (int_market_prior); null when undrafted, between seasons or when that season's draft order was never landed"
+      - name: market_prior_value
+        description: "The board's own value per game (the sum of the nine categories) of the player at preseason_adp_rank: the market's rank priced on the board's scale; null without a rank or for a rank beyond the board"
+      - name: market_prior_games
+        description: "The player's regular-season games so far in the season being played, which fade the market prior"
+      - name: market_prior_weight
+        description: "The weight z_total gives market_prior_value: market_prior.weight falling linearly to 0 by market_prior.fade_games games, and 0 in a league the prior is off for (the WNBA) or without a market value (ADR 0020)"
       - name: ownership_bucket
         description: "How widely ESPN leagues roster the player: most, many, some, few or rare"
         data_tests:

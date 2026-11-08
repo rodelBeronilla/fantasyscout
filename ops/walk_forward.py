@@ -20,6 +20,14 @@ undrafted player below every drafted one. Over the players who then played at le
 - a paired bootstrap interval of the board's RMSE minus the naive manager's (players resampled,
   ``backtest.bootstrap`` times): below zero, the board beat the baseline.
 
+With ``--market-prior`` the board is judged twice at each checkpoint: with the market prior off
+(the ``market_prior`` var, #832, ADR 0020), and on, mart_board rebuilt from the same cut. Without
+it the board is judged as the project builds it, the prior on where the var says. For each the
+run reports RMSE, Spearman and top-pool share, with the paired bootstrap interval of on minus off,
+and checks that the prior's value is the one ``blend`` computes from the first build's columns.
+``--players-out`` writes every judged player's figures, which ops.market_prior_fit fits the prior
+on, for the tuning seasons only.
+
 The held-out seasons (NBA 2025-26, WNBA 2026) are judged once, at the end of the plan (#751); the
 harness refuses them unless ``--judge-locked`` says this is that judgement.
 """
@@ -30,6 +38,7 @@ import argparse
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -40,6 +49,7 @@ from typing import Any
 
 import duckdb
 import numpy as np
+import pandas as pd
 
 from ops import parameters
 
@@ -100,13 +110,34 @@ def _season_span(full: duckdb.DuckDBPyConnection, league: str, season: str) -> t
     return row[0], row[1]
 
 
-def _build(as_of: date, db: Path) -> None:
-    env = {**os.environ, "DBT_DUCKDB_PATH": str(db), "DBT_PROFILES_DIR": "."}
+def _vars(as_of: date, prior: dict[str, Any] | None = None) -> str:
+    out: dict[str, Any] = {"as_of": as_of.isoformat(), "point_in_time": True}
+    if prior is not None:
+        out["market_prior"] = prior
+    return json.dumps(out)
+
+
+def _build(as_of: date, db: Path, prior: dict[str, Any] | None = None) -> None:
+    """A checkpoint's point-in-time build: the market prior as the project has it, or ``prior``."""
     cmd = [
         "dbt", "build", "--target", "duckdb", "--full-refresh", "--exclude", "tag:quality",
         "--exclude-resource-type", "unit_test", "--exclude-resource-type", "test",
-        "--vars", f"{{as_of: '{as_of.isoformat()}', point_in_time: true}}",
+        "--vars", _vars(as_of, prior),
     ]  # fmt: skip
+    _dbt(cmd, db, as_of)
+
+
+def _rebuild_board(as_of: date, db: Path, prior: dict[str, Any]) -> None:
+    """Rebuild only mart_board in a copy of a checkpoint's build, with the market prior given."""
+    cmd = [
+        "dbt", "run", "--target", "duckdb", "--full-refresh", "--select", "mart_board",
+        "--vars", _vars(as_of, prior),
+    ]  # fmt: skip
+    _dbt(cmd, db, as_of)
+
+
+def _dbt(cmd: list[str], db: Path, as_of: date) -> None:
+    env = {**os.environ, "DBT_DUCKDB_PATH": str(db), "DBT_PROFILES_DIR": "."}
     run = subprocess.run(cmd, cwd=DBT, env=env, capture_output=True, text=True, check=False)
     if run.returncode != 0:
         tail = f"{run.stdout[-3000:]}\n{run.stderr[-1000:]}"
@@ -128,7 +159,8 @@ def frame(cut: duckdb.DuckDBPyConnection, league: str, season: str, as_of: date)
     )
     sql = f"""
         with board as (
-            select league, season, player_id, z_total as board_value
+            select league, season, player_id, z_total as board_value, market_prior_value,
+                market_prior_games
             from gold.mart_board where league = $league
         ),
         scale as (
@@ -161,6 +193,8 @@ def frame(cut: duckdb.DuckDBPyConnection, league: str, season: str, as_of: date)
         select
             b.player_id,
             b.board_value,
+            b.market_prior_value,
+            b.market_prior_games,
             {score_sql("n", "s")} as naive_value,
             {score_sql("r", "s")} as realized_value,
             coalesce(r.games, 0) as realized_games,
@@ -258,6 +292,125 @@ def judge(df: Any, as_of: date, *, min_games: int, resamples: int, seed: int = 0
     )
 
 
+def blend(
+    own: np.ndarray, market: np.ndarray, games: np.ndarray, *, weight: float, fade_games: float
+) -> np.ndarray:
+    """The board's value with the market prior on, as mart_board has it (#832): own value blended
+    toward the market's (null: none) at ``weight``, falling linearly to 0 by ``fade_games``."""
+    w = weight * np.clip(1.0 - games / fade_games, 0.0, None)
+    w = np.where(np.isnan(market), 0.0, w)
+    out: np.ndarray = own + w * (np.where(np.isnan(market), own, market) - own)
+    return out
+
+
+@dataclass(frozen=True)
+class PriorCheckpoint:
+    """The board with the market prior off and on at one checkpoint; each gap is on minus off."""
+
+    as_of: str
+    players: int
+    # judged players whose value the prior moved: none once it has faded
+    moved: int
+    rmse_off: float
+    rmse_on: float
+    spearman_off: float
+    spearman_on: float
+    top_pool_off: float
+    top_pool_on: float
+    rmse_gap: float
+    rmse_gap_low: float
+    rmse_gap_high: float
+    spearman_gap: float
+    spearman_gap_low: float
+    spearman_gap_high: float
+    top_pool_gap: float
+    top_pool_gap_low: float
+    top_pool_gap_high: float
+
+
+def judge_prior(
+    off: Any, on: Any, as_of: date, *, min_games: int, resamples: int, seed: int = 0
+) -> PriorCheckpoint:
+    """Off against on over the players who then played at least ``min_games``, paired by player."""
+    q = off[off["realized_games"] >= min_games][["player_id", "board_value", "realized_value"]]
+    q = q.merge(
+        on[["player_id", "board_value"]].rename(columns={"board_value": "on_value"}),
+        on="player_id",
+        how="left",
+    )
+    a, b = q["board_value"].to_numpy(float), q["on_value"].to_numpy(float)
+    real = q["realized_value"].to_numpy(float)
+    pool = int(off["pool"].iloc[0]) if len(off) else 0
+
+    def rmse(pred: np.ndarray, r: np.ndarray) -> float:
+        return float(np.sqrt(np.mean((pred - r) ** 2))) if len(r) else math.nan
+
+    def gaps(i: np.ndarray) -> tuple[float, float, float]:
+        return (
+            rmse(b[i], real[i]) - rmse(a[i], real[i]),
+            _spearman(b[i], real[i]) - _spearman(a[i], real[i]),
+            _top_share(b[i], real[i], pool) - _top_share(a[i], real[i], pool),
+        )
+
+    rng = np.random.default_rng(seed)
+    draws = np.array(
+        [gaps(rng.integers(0, len(q), len(q))) for _ in range(resamples if len(q) else 0)]
+    ).reshape(-1, 3)
+    if len(draws):
+        low, high = np.percentile(draws, [2.5, 97.5], axis=0)
+    else:
+        low = high = np.full(3, math.nan)
+    point = gaps(np.arange(len(q)))
+    return PriorCheckpoint(
+        as_of=as_of.isoformat(),
+        players=len(q),
+        moved=int(np.sum(np.abs(b - a) > 1e-12)),
+        rmse_off=rmse(a, real),
+        rmse_on=rmse(b, real),
+        spearman_off=_spearman(a, real),
+        spearman_on=_spearman(b, real),
+        top_pool_off=_top_share(a, real, pool),
+        top_pool_on=_top_share(b, real, pool),
+        rmse_gap=point[0],
+        rmse_gap_low=float(low[0]),
+        rmse_gap_high=float(high[0]),
+        spearman_gap=point[1],
+        spearman_gap_low=float(low[1]),
+        spearman_gap_high=float(high[1]),
+        top_pool_gap=point[2],
+        top_pool_gap_low=float(low[2]),
+        top_pool_gap_high=float(high[2]),
+    )
+
+
+def _check_parity(off: Any, on: Any, prior: dict[str, Any], as_of: date) -> None:
+    """The prior's value in SQL is the one blend() computes from the first build's columns."""
+    q = off.merge(on[["player_id", "board_value"]], on="player_id", suffixes=("", "_on"))
+    want = blend(
+        q["board_value"].to_numpy(float),
+        q["market_prior_value"].to_numpy(float),
+        q["market_prior_games"].to_numpy(float),
+        weight=float(prior["weight"]),
+        fade_games=float(prior["fade_games"]),
+    )
+    worst = float(np.max(np.abs(q["board_value_on"].to_numpy(float) - want))) if len(q) else 0.0
+    if len(q) != len(off) or worst > 1e-9:
+        msg = f"as of {as_of}: the market prior in mart_board differs from blend() by {worst}"
+        raise SystemExit(msg)
+
+
+def _prior(
+    p: dict[str, Any], league: str, weight: float | None, fade: float | None
+) -> dict[str, Any]:
+    """The market prior on for ``league``, at the registry's parameters unless given."""
+    reg = p["projection.market_prior"]
+    return {
+        "leagues": [league],
+        "weight": reg["weight"] if weight is None else weight,
+        "fade_games": reg["fade_games"] if fade is None else fade,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -267,6 +420,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--full-db", type=Path, default=DBT / "fantasyscout.duckdb")
     parser.add_argument("--out", type=Path, default=Path("walk_forward.json"))
     parser.add_argument("--judge-locked", action="store_true", help="the held-out season, once")
+    parser.add_argument(
+        "--market-prior", action="store_true", help="judge the board with the prior off and on"
+    )
+    parser.add_argument("--prior-weight", type=float, help="the prior's weight (default: registry)")
+    parser.add_argument("--prior-fade", type=float, help="its fade_games (default: registry)")
+    parser.add_argument("--players-out", type=Path, help="every board player's figures, as CSV")
     args = parser.parse_args(argv)
     if LOCKED.get(args.league) == args.season and not args.judge_locked:
         print(
@@ -279,21 +438,40 @@ def main(argv: list[str] | None = None) -> int:
     fractions = [float(f) for f in p["backtest.checkpoints"]]
     with duckdb.connect(str(args.full_db), read_only=True) as full:
         first, last = _season_span(full, args.league, args.season)
+    min_games, resamples = int(p["backtest.min_games"]), int(p["backtest.bootstrap"])
+    prior = (
+        _prior(p, args.league, args.prior_weight, args.prior_fade) if args.market_prior else None
+    )
+    # judged off and on, the first build is the board without the prior
+    without = None if prior is None else {**prior, "leagues": []}
     results: list[Checkpoint] = []
+    prior_results: list[PriorCheckpoint] = []
+    players: list[Any] = []
+
+    def board_frame(db: Path, as_of: date) -> Any:
+        with duckdb.connect(str(db)) as cut:
+            cut.execute(f"attach '{args.full_db.as_posix()}' as whole (read_only)")
+            return frame(cut, args.league, args.season, as_of)
+
     with tempfile.TemporaryDirectory() as tmp:
-        for as_of in checkpoints(first, last, fractions):
+        for fraction, as_of in zip(fractions, checkpoints(first, last, fractions), strict=True):
             db = Path(tmp) / f"wf-{as_of.isoformat()}.duckdb"
-            _build(as_of, db)
-            with duckdb.connect(str(db)) as cut:
-                cut.execute(f"attach '{args.full_db.as_posix()}' as whole (read_only)")
-                df = frame(cut, args.league, args.season, as_of)
-            cp = judge(
-                df,
-                as_of,
-                min_games=int(p["backtest.min_games"]),
-                resamples=int(p["backtest.bootstrap"]),
+            _build(as_of, db, without)
+            df = board_frame(db, as_of)
+            players.append(
+                df.assign(league=args.league, season=args.season, as_of=as_of, checkpoint=fraction)
             )
+            cp = judge(df, as_of, min_games=min_games, resamples=resamples)
             results.append(cp)
+            if prior is not None:
+                db_on = Path(tmp) / f"wf-{as_of.isoformat()}-prior.duckdb"
+                shutil.copyfile(db, db_on)
+                _rebuild_board(as_of, db_on, prior)
+                on = board_frame(db_on, as_of)
+                _check_parity(df, on, prior, as_of)
+                pc = judge_prior(df, on, as_of, min_games=min_games, resamples=resamples)
+                prior_results.append(pc)
+                print(_prior_line(pc))
             print(
                 f"{as_of}: {cp.players} players; RMSE board {cp.rmse_board:.3f} vs naive"
                 f" {cp.rmse_naive:.3f} (gap {cp.rmse_gap:+.3f}, 95% {cp.rmse_gap_low:+.3f} to"
@@ -313,8 +491,27 @@ def main(argv: list[str] | None = None) -> int:
         "min_games": p["backtest.min_games"],
         "checkpoints": [asdict(c) for c in results],
     }
+    if prior is not None:
+        out["market_prior"] = {**prior, "checkpoints": [asdict(c) for c in prior_results]}
     args.out.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
+    if args.players_out is not None:
+        pd.concat(players).to_csv(args.players_out, index=False)
     return 0
+
+
+def _prior_line(pc: PriorCheckpoint) -> str:
+    def gap(name: str, v: float, lo: float, hi: float, f: str) -> str:
+        return f"{name} {v:{f}} (95% {lo:{f}} to {hi:{f}})"
+
+    return (
+        f"{pc.as_of} market prior on minus off, {pc.players} players, {pc.moved} moved: "
+        + gap("RMSE", pc.rmse_gap, pc.rmse_gap_low, pc.rmse_gap_high, "+.3f")
+        + f" [{pc.rmse_off:.3f} to {pc.rmse_on:.3f}]; "
+        + gap("Spearman", pc.spearman_gap, pc.spearman_gap_low, pc.spearman_gap_high, "+.3f")
+        + f" [{pc.spearman_off:.3f} to {pc.spearman_on:.3f}]; "
+        + gap("top pool", pc.top_pool_gap, pc.top_pool_gap_low, pc.top_pool_gap_high, "+.1%")
+        + f" [{pc.top_pool_off:.0%} to {pc.top_pool_on:.0%}]"
+    )
 
 
 if __name__ == "__main__":
