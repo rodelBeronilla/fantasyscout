@@ -1,11 +1,14 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, fetchPageRows, type League } from '../lib/data';
-import { CATEGORIES, CATEGORY_LABELS, fmt } from '../lib/format';
+import { CATEGORIES, CATEGORY_LABELS, fmt, ordinal } from '../lib/format';
 import { currentLeague } from '../lib/league';
 import { href } from '../lib/site';
-import { assign, owners, toggleIl, useLeague } from '../lib/fantasy-league';
-import { categoryValues, pointValues } from '../lib/league-value';
+import { assign, categoryWeights, owners, toggleIl, useLeague } from '../lib/fantasy-league';
+import { categoryValues, pointValues, scaleValue } from '../lib/league-value';
+import { acceptable, type FairnessModel, leagueState, marketMap, playerWorth } from '../lib/league-model';
+import { type BuildPlan, buildPlan } from '../lib/build-plan';
+import { leagueStandings as tradeStandings } from '../lib/trade-impact';
 import { dropRule, reviewRoster, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { matchup, type WeekMatchup, weekTotals } from '../lib/matchup';
 import { expectedWins, leagueStandings, type LeagueStandings, type PowerRank, powerRankings } from '../lib/standings';
@@ -15,7 +18,8 @@ import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, weekPlan, t
 import { easternDate, type TodayGame } from '../lib/today';
 import { type ModelRow, restValues } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Matchup, Today, type TodayRow, Upgrades } from './LeagueParts';
-import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Unvalidated } from './ui';
+import { BuildYourTeam } from './BuildYourTeam';
+import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
 
 interface TeamRow extends ModelRow {
   full_name: string | null;
@@ -38,21 +42,6 @@ interface TeamRow extends ModelRow {
 }
 
 const button = 'rounded border border-line px-2 py-0.5 text-xs hover:bg-bg';
-
-/** A card on the page: a heading, and what it holds. */
-function Tile({ title, id, children, testid, issue }: { title: string; id: string; children: ReactNode; testid?: string; issue?: number }) {
-  return (
-    <section className="min-w-0 rounded-lg border border-line bg-card p-3" aria-labelledby={`${id}-h`} data-testid={testid}>
-      <h2 id={`${id}-h`} className="text-sm font-medium tracking-wide text-muted uppercase">
-        {title}
-        {issue && <Unvalidated issue={issue} what={title} />}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
 
 /**
  * Each kept category against the league (#662): the chance of beating an average rival, and the
@@ -476,6 +465,54 @@ export default function MyTeam() {
   }, [rows, myTeam, setup, week, recentCats, leagueCats, activeCats, byId, restValue, owner, weekValues, points]);
   const applyUpgrade = useCallback((u: Upgrade) => updateLeague((s) => assign(assign(s, u.drop, null), u.add, s.mine)), [updateLeague]);
 
+  // Build your team (#809): the league as the Trade page models it, for the rest of the season,
+  // and the plan read from it. A categories league only; a draft under way waits.
+  const catWeight = useMemo(() => categoryWeights(setup), [setup]);
+  const worth = useMemo(
+    () => playerWorth(rows ?? [], { points, cats: activeCats, catWeight, catValues: leagueCats, pointValues: leaguePoints, recentCats: null }),
+    [rows, points, activeCats, catWeight, leagueCats, leaguePoints],
+  );
+  const plan = useMemo<BuildPlan | null>(() => {
+    if (!rows || points || myTeam.length === 0 || setup.drafting) return null;
+    const state = leagueState(rows, {
+      league,
+      format: setup.format,
+      points,
+      cats: activeCats,
+      rosters: setup.rosters,
+      il: setup.il,
+      rosterSpots: setup.rosterSpots,
+      owner,
+      worth,
+      week: false,
+    });
+    const standings = state ? tradeStandings(state, setup.mine) : null;
+    const rest = (id: string) => worth.get(id)?.rest ?? 0;
+    const fairness: FairnessModel = {
+      state,
+      mine: setup.mine,
+      value: rest,
+      market: marketMap(rows, worth),
+      ranked: (id) => typeof byId.get(id)?.market_rank === 'number',
+    };
+    const mine = myTeam.map((r) => r.player_id);
+    return buildPlan({
+      cats: activeCats,
+      // the league's punts; an 8-category league's turnovers are not a punt, just not counted
+      punted: setup.punts,
+      mine: setup.mine,
+      roster: mine,
+      others: rows.filter((r) => !mine.includes(r.player_id) && !setup.il.includes(r.player_id)).map((r) => r.player_id),
+      owner: (id) => owner.get(id),
+      rest,
+      catValue: (id) => worth.get(id)?.cats,
+      scale: (id, perGame) => scaleValue(perGame, byId.get(id) ?? {}),
+      position: (id) => byId.get(id)?.position,
+      droppable: dropRule(rows, mine, setup, restValue, false),
+      model: state && standings ? { state, standings, acceptable: (partner, give, get) => acceptable(fairness, partner, give, get) } : null,
+    });
+  }, [rows, points, myTeam, setup, league, activeCats, owner, worth, byId, restValue]);
+
   if (error) return <Problem error={error} />;
   if (!rows) return <Loading what="your team" />;
 
@@ -653,6 +690,17 @@ export default function MyTeam() {
           unit={week ? 'week' : 'rest'}
           onUnit={weekAvailable ? setUnit : null}
           gamesOf={(id) => byId.get(id)?.games_this_week ?? 0}
+        />
+      )}
+
+      {plan && (
+        <BuildYourTeam
+          plan={plan}
+          league={league}
+          nameOf={name}
+          detailOf={(id) => [byId.get(id)?.position, byId.get(id)?.team_abbreviation].filter(Boolean).join(' ')}
+          teamName={(t) => setup.names[t] ?? `Team ${t + 1}`}
+          h2h={h2h}
         />
       )}
 

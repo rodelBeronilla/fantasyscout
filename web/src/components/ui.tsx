@@ -66,6 +66,19 @@ export function Unvalidated({ issue, what, label = 'Not yet validated' }: { issu
   );
 }
 
+/** A card on My Team: a heading, and what it holds; `issue` adds the "Not yet validated" badge. */
+export function Tile({ title, id, children, testid, issue }: { title: string; id: string; children: ReactNode; testid?: string; issue?: number }) {
+  return (
+    <section className="min-w-0 rounded-lg border border-line bg-card p-3" aria-labelledby={`${id}-h`} data-testid={testid}>
+      <h2 id={`${id}-h`} className="text-sm font-medium tracking-wide text-muted uppercase">
+        {title}
+        {issue && <Unvalidated issue={issue} what={title} />}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
 export function Card({ title, children, id, badge }: { title: string; children: ReactNode; id?: string; badge?: ReactNode }) {
   return (
     <section id={id} className="min-w-0 rounded-lg border border-line bg-card p-4" aria-labelledby={id ? `${id}-h` : undefined}>

@@ -10,6 +10,9 @@ export function pct(value: number | null | undefined): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+/** 1st, 2nd, 3rd, 11th, 22nd: a place in a ranking. */
+export const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
+
 export function int(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '–';
   return Math.round(value).toLocaleString('en-US');
