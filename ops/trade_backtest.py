@@ -101,8 +101,10 @@ class Ctx:
 
 
 def web_rest(cut: Cut) -> np.ndarray:
-    """The web's rest-of-season value (league-model.ts playerWorth, the default league): the
-    nine categories' sum, its positive part scaled by games share and ros_factor."""
+    """The web's rest-of-season value (league-model.ts playerWorth, the default league) as it was
+    when #756 was judged: the nine categories' sum, its positive part scaled by games share and
+    ros_factor. #848 has since added the market prior's shift to the per-game value (NBA, the
+    first 20 games); the re-judge (#886) adds it here."""
     v = cut.z.sum(1)
     out: np.ndarray = np.where(v > 0, v * cut.games_share * cut.ros_factor, v)
     return out

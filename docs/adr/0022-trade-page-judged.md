@@ -109,7 +109,11 @@ The fit's collapse to 0 says the meaningful gain cannot be set by the replay. An
   - **The finder:** require the partner's predicted gain to clear the meaningful gain, or drop the win-win label.
 - **The judged seasons are spent** for these thresholds: NBA 2023-24 and 2024-25, and WNBA 2024 and 2025. A re-fit must be judged on seasons that it has not seen, starting with 2026-27.
 - **The NBA judged runs read the fitted values** (commit 85cf128). The values the site keeps were judged only locally, as reported, not gated.
-- **Neither #848 (the market prior on the web's own values) nor #868 (Fit weights) changes these lenses.** The value lens reads rest-of-season value, which #848 will blend toward the market, so the verdict should be re-judged once #848 lands. The "swing" categories (`teamNeeds`) read the standings weights, but they are only displayed.
+- **#848 merged while this ran.** It adds the market prior's shift to the web's per-game values, in the NBA, fading to nothing by 20 games.
+  - It reaches the value lens and the market lens, which read rest-of-season value, and the roster settlement.
+  - It does not reach the category lens, which reads the nine categories.
+  - The harness (`web_rest`) mirrors the values as they were before #848. The re-judge (#886) should add the shift.
+- **#868 (Fit weights) does not touch these lenses.** The "swing" categories (`teamNeeds`) read the standings weights, but they are only displayed.
 - **Not tested here:**
   - the week unit;
   - points leagues;
