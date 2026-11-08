@@ -177,8 +177,8 @@ parameters:
     kind: model
     status: measured
     what: "A projection's own error per category and player, added to a rotisserie season's spread."
-    evidence: "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed"
-    validation: 866
+    evidence: "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed. The rework by games left (#866, ADR 0022) found no horizon in it: refitted leaving one tuning season out, the part that falls with the games left came out 0 in all six folds, and the first game day stayed too timid (pooled slope 1.52)"
+    validation: 898
 
   # ---- playoff odds and the playoff weeks (web/src/lib/playoff-odds.ts, playoff-weeks.ts; #821)
   - id: playoffs.teams
@@ -202,6 +202,20 @@ parameters:
     what: "Seasons the playoff odds play out: the odds' sampling error is at most 1.1 points (the binomial standard error at 50%)."
     evidence: "sqrt(0.25 / 2000) = 0.011"
     validation: 872
+  - id: playoffs.season_share
+    value: {nba: 0.3, wnba: 0.2}
+    kind: model
+    status: measured
+    what: "The playoff odds (#872): the share of a week's category spread that lasts all season (a projection's miss repeats every week). Each simulated season draws one shift per team and category from it; 0 draws every week independently."
+    evidence: "ops.playoff_backtest fit on the tuning seasons (the #755 runs' inputs), grid 0 to 0.8, the lowest mean log loss of the odds over the checkpoints and both tallies: NBA 0.6057 at 0 to 0.5961, WNBA 0.5585 to 0.5552. At 0 the tuning slopes were 0.31 to 1.13, mostly under 0.8: independent weeks made the odds too sure. Judged (ADR 0025, runs 42498681135, 42498686229, 42498692099, 42498697513): the odds beat the coin and the naive manager everywhere, but the matchups tally is too timid in three of four seasons (slopes up to 1.41) and the categories tally too sure in WNBA 2025 (0.75)"
+    validation: 900
+  - id: playoffs.points_spread_share
+    value: 0.17
+    kind: model
+    status: assumed
+    what: "A points league's playoff odds (#877): the standard deviation of a week's fantasy-points margin between two teams, as a share of the league's average team."
+    evidence: "an unmeasured prior: a game's fantasy points vary by about a third of the player's mean, so over about 35 started games a week the margin varies by sqrt(2) x 0.35 / sqrt(35) = 0.084 of a team's week; doubled for what the projection misses, as the category model needed (standings.spread_scale 2.0, ADR 0021)"
+    validation: 891
 
   # ---- Fit weights before the standings model applies (web/src/lib/league-value.ts, matchup.ts)
   - id: fit.thirds
@@ -228,76 +242,92 @@ parameters:
     evidence: "none; a balance of a live score against ESPN's load: ESPN caches the league for 5 minutes (Cache-Control max-age=300), so a shorter wait gains little"
     validation: 875
 
+  # ---- the one-line player notes (web/src/lib/player-notes.ts, #879)
+  - id: notes.stand_days
+    value: 1
+    kind: threshold
+    status: assumed
+    what: "Days after the day a player's note was written (Eastern) that the pages still show it, marked with when it was written: the daily run replaces it, so a day's grace covers one run the model missed."
+    evidence: "none; the daily cadence of the player-notes workflow"
+    validation: 879
+  - id: notes.late_hours
+    value: 30
+    kind: threshold
+    status: assumed
+    what: "Hours since the last daily run drafted the player notes before Data Health says they were not drafted."
+    evidence: "none; a day between daily runs, plus GitHub's schedule lag (runs observed up to about three hours late, ingest.yml) and the run itself"
+    validation: 879
+
   # ---- trade verdicts (web/src/lib/trade-fairness.ts, trade-impact.ts, trade-suggest.ts)
   - id: trade.value_limits
     value: {bad: -0.15, terrible: -0.3}
     kind: threshold
     status: assumed
     what: "Value lens: the share given away that makes a trade bad or terrible."
-    evidence: "judged on #756 (ADR 0022): the declared fit set them from the meaningful gain and collapsed to 0 in the NBA (-0.03 and -0.07 in the WNBA); they failed out of sample, so these assumed values stay. Trades they call bad or terrible lost in every judged season"
+    evidence: "judged on #756 (ADR 0023): the declared fit set them from the meaningful gain and collapsed to 0 in the NBA (-0.03 and -0.07 in the WNBA); they failed out of sample, so these assumed values stay. Trades they call bad or terrible lost in every judged season"
     validation: 886
   - id: trade.market_limits
     value: {bad: -0.2, terrible: -0.35}
     kind: threshold
     status: assumed
     what: "Market lens: the share given away that makes a trade bad or terrible."
-    evidence: "judged on #756 (ADR 0022): the declared fit collapsed them to 0 in the NBA and they failed out of sample, so these assumed values stay"
+    evidence: "judged on #756 (ADR 0023): the declared fit collapsed them to 0 in the NBA and they failed out of sample, so these assumed values stay"
     validation: 886
   - id: trade.category_limits
     value: {bad: 2, terrible: 5}
     kind: threshold
     status: assumed
     what: "Category lens: expected categories lost that make a trade bad or terrible."
-    evidence: "the scale the lens limits were fitted on in #756 (ADR 0022); trades the lenses call bad or terrible lost in every judged season"
+    evidence: "the scale the lens limits were fitted on in #756 (ADR 0023); trades the lenses call bad or terrible lost in every judged season"
     validation: 886
   - id: trade.disagreement
     value: 0.35
     kind: threshold
     status: assumed
     what: "Gap between the value and market lenses that is called a disagreement."
-    evidence: "reported in #756 (ADR 0022): what happened went the value lens's way in 38% to 51% of NBA disagreements"
+    evidence: "reported in #756 (ADR 0023): what happened went the value lens's way in 38% to 51% of NBA disagreements"
     validation: 886
   - id: trade.even
     value: {value: 0.1, market: 0.15}
     kind: threshold
     status: assumed
     what: "The band within which each lens calls a trade even."
-    evidence: "judged on #756 (ADR 0022): the declared fit called nothing even in the NBA and missed its band in the WNBA. At these assumed values, WNBA even trades were calibrated (reported, not gated)"
+    evidence: "judged on #756 (ADR 0023): the declared fit called nothing even in the NBA and missed its band in the WNBA. At these assumed values, WNBA even trades were calibrated (reported, not gated)"
     validation: 886
   - id: trade.category_change
     value: 0.02
     kind: threshold
     status: assumed
     what: "A category's win chance must move this much to be listed as up or down."
-    evidence: "judged on #756 (ADR 0022): a category listed up gained share against the rivals and one listed down lost it, with intervals clear of zero in every judged season"
+    evidence: "judged on #756 (ADR 0023): a category listed up gained share against the rivals and one listed down lost it, with intervals clear of zero in every judged season"
     validation: 756
   - id: trade.chance_bands
     value: {conceding: 0.25, locked: 0.75}
     kind: threshold
     status: assumed
     what: "Win chances below or above which a category is conceded or locked."
-    evidence: "judged on #756 (ADR 0022): conceded categories were won 15% to 23% of the time and locked ones 76% to 85%, close to their chances, in every judged season"
+    evidence: "judged on #756 (ADR 0023): conceded categories were won 15% to 23% of the time and locked ones 76% to 85%, close to their chances, in every judged season"
     validation: 756
   - id: trade.meaningful_gain
     value: 0.05
     kind: threshold
     status: assumed
     what: "Expected categories a trade must add to count (per rival in rotisserie)."
-    evidence: "judged on #756 (ADR 0022): the declared replay fit picked 0.00 in the NBA (runs 42478335636, 42478338072, 42478340676) and 0.01 in the WNBA (runs 42478343718, 42478346505, 42478349501), the grid's edge. Judged out of sample, the verdict failed, so this assumed value stays"
+    evidence: "judged on #756 (ADR 0023): the declared replay fit picked 0.00 in the NBA (runs 42478335636, 42478338072, 42478340676) and 0.01 in the WNBA (runs 42478343718, 42478346505, 42478349501), the grid's edge. Judged out of sample, the verdict failed, so this assumed value stays"
     validation: 886
   - id: trade.suggest
     value: {tolerance: 0.15, min_gain: 0.05}
     kind: threshold
     status: assumed
     what: "Suggestions: how far from even a package may be, and the least it must gain."
-    evidence: "judged on #756 (ADR 0022): the suggestions lost to the naive manager's package in NBA 2023-24 and both WNBA seasons"
+    evidence: "judged on #756 (ADR 0023): the suggestions lost to the naive manager's package in NBA 2023-24 and both WNBA seasons"
     validation: 887
   - id: trade.search
     value: {max_add: 3, max_add_both: 2, candidates: 8, pool: 16, per_partner: 3}
     kind: search
     status: assumed
     what: "How many players a suggestion adds (fewer when both sides are already set), and how many it and the finder try."
-    evidence: "judged as part of the finder and the suggestions on #756 (ADR 0022)"
+    evidence: "judged as part of the finder and the suggestions on #756 (ADR 0023)"
     validation: 888
 
   # ---- roster review (web/src/lib/roster-upgrades.ts)

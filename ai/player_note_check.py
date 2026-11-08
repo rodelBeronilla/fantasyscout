@@ -1,7 +1,8 @@
 """The check a one-line player note passes before it is published (#823).
 
-The model writes one line about one flagged player from the numbers and the texts it is given
-(player_notes.py). The line is published only when everything in it can be found in its inputs:
+The model writes one call (start, sit, add, drop, hold or watch) and one line about one flagged
+player from the numbers and the texts it is given (player_notes.py). The line is published only
+when everything in it can be found in its inputs:
 
 - it fits the schema and is about the player it was asked about;
 - every number it writes is one of the input's numbers, at the precision it is written (a share
@@ -21,13 +22,15 @@ rejection log.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from ai.claim_check import locate
 from ai.validate import NUMBER, decimals_of, trace
 
+# the calls a note makes on a player, as the prompt names them
+Call = Literal["start", "sit", "add", "drop", "hold", "watch"]
 MAX_WORDS = 30
 # a quotation in the line: straight or curly double quotes around at least one character
 MINUS = chr(0x2212)
@@ -36,9 +39,11 @@ QUOTED = re.compile(f'["{_OPEN}]([^"{_OPEN}{_CLOSE}]+)["{_CLOSE}]')
 
 
 class LineDraft(BaseModel):
-    """What the model returns: one line about one player."""
+    """What the model returns: the call on one player, and one line saying why."""
 
     player_id: str
+    # the call, which the pages put first (#879): what to do now, then why
+    action: Call
     line: str = Field(min_length=3, max_length=240)
 
     @field_validator("line")

@@ -1,6 +1,9 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
-import { playoffOdds, roundRobin, seededRandom, simulateOdds } from './playoff-odds';
+import { playoffOdds, pointsPlayoffOdds, roundRobin, seededRandom, simulateOdds } from './playoff-odds';
 
 const cats = ['z_points', 'z_rebounds_total', 'z_assists'];
 const spread = { z_points: 1, z_rebounds_total: 1, z_assists: 1 };
@@ -96,5 +99,110 @@ describe('playoffOdds', () => {
     expect(playoffOdds('nba', { ...setup, format: 'roto' }, cats, value, () => 1, schedule)).toBeNull();
     expect(playoffOdds('nba', setup, [], value, () => 1, schedule)).toBeNull();
     expect(playoffOdds('nba', { ...setup, rosters: [...rosters.slice(0, 3), []] }, cats, value, () => 1, schedule)).toBeNull();
+  });
+});
+
+describe('pointsPlayoffOdds (#877)', () => {
+  const rosters = [['a1', 'a2'], ['b1', 'b2'], ['c1', 'c2'], ['d1', 'd2']];
+  const setup = { rosters, il: [], rosterSpots: 2, format: 'h2h' as const, playoffs: { teams: 2 } };
+  const schedule = { weeks: roundRobin(4, 6), records: [] };
+
+  it('plays each week out on fantasy points: the higher-scoring roster is the likelier in, level rosters split the spots', () => {
+    const fpts = (id: string) => (id.startsWith('a') ? 40 : 30);
+    const odds = pointsPlayoffOdds(setup, fpts, () => 1, schedule, 400)!;
+    expect(odds.odds[0]).toBeGreaterThan(Math.max(...odds.odds.slice(1)));
+    expect(odds.odds.reduce((s, p) => s + p, 0)).toBeCloseTo(2, 6);
+    // one result a week: six weeks, six games each
+    expect(odds.wins[0]! + odds.losses[0]!).toBeCloseTo(6, 6);
+    const level = pointsPlayoffOdds(setup, () => 30, () => 1, schedule, 2000)!;
+    for (const p of level.odds) expect(p).toBeCloseTo(0.5, 1);
+  });
+
+  it("counts a player by his share of the games, leaves the IL out, and starts from the records", () => {
+    const fpts = () => 30;
+    // team a's players are expected to miss most games, and one is on the IL
+    const hurt = pointsPlayoffOdds({ ...setup, il: ['a2'] }, fpts, (id) => (id.startsWith('a') ? 0.2 : 1), schedule, 400)!;
+    expect(hurt.odds[0]).toBeLessThan(Math.min(...hurt.odds.slice(1)));
+    const settled = pointsPlayoffOdds(setup, fpts, () => 1, { weeks: [], records: [null, { wins: 9, losses: 1, ties: 0, seed: null }, { wins: 8, losses: 2, ties: 0, seed: null }, null] }, 50)!;
+    expect(settled.odds).toEqual([0, 1, 1, 0]);
+  });
+
+  it('has none outside a head-to-head league, until every team has half a roster in, or without projections', () => {
+    expect(pointsPlayoffOdds({ ...setup, format: 'roto' }, () => 30, () => 1, schedule)).toBeNull();
+    expect(pointsPlayoffOdds({ ...setup, rosters: [...rosters.slice(0, 3), []] }, () => 30, () => 1, schedule)).toBeNull();
+    expect(pointsPlayoffOdds(setup, () => 0, () => 1, schedule)).toBeNull();
+  });
+});
+
+describe('a lasting share (#872)', () => {
+  const totals = level(4);
+  totals[0] = { z_points: 0.8, z_rebounds_total: 0.8, z_assists: 0.8 };
+  const base = { totals, spread, cats, records: [], weeks: roundRobin(4, 12), tally: 'matchups' as const, spots: 2, sims: 2000 };
+
+  it('makes the odds less sure, since a team that is better than it looks stays better all season', () => {
+    const independent = simulateOdds(base);
+    const lasting = simulateOdds({ ...base, seasonShare: 0.5 });
+    expect(lasting.odds[0]).toBeLessThan(independent.odds[0]!);
+    expect(lasting.odds[0]).toBeGreaterThan(0.5);
+    expect(lasting.odds.reduce((s, p) => s + p, 0)).toBeCloseTo(2, 10);
+  });
+
+  it('is the independent simulation at 0', () => {
+    expect(simulateOdds({ ...base, seasonShare: 0 })).toEqual(simulateOdds(base));
+  });
+});
+
+interface PlayoffsFixture {
+  draws: { seed: number; count: number };
+  robins: [number, number][];
+  cases: {
+    totals: Record<string, number>[];
+    spread: Record<string, number>;
+    cats: string[];
+    records: ({ wins: number; losses: number; ties: number } | null)[];
+    robin: [number, number];
+    tally: 'categories' | 'matchups';
+    spots: number;
+    sims: number;
+    seasonShare: number;
+  }[];
+  expected?: unknown;
+}
+
+// The Python reference (ops/playoffs.py) runs the backtest (#872) and makes the web's draws one for
+// one. UPDATE_PLAYOFFS_PARITY=1 rewrites the figures from this module after a deliberate change.
+describe('parity with ops/playoffs.py (#872)', () => {
+  const path = fileURLToPath(new URL('../../../tests/fixtures/playoffs_parity.json', import.meta.url));
+  const fixture = JSON.parse(readFileSync(path, 'utf8')) as PlayoffsFixture;
+  const random = seededRandom(fixture.draws.seed);
+  const computed = {
+    draws: Array.from({ length: fixture.draws.count }, () => random()),
+    robins: fixture.robins.map(([t, w]) => roundRobin(t, w)),
+    cases: fixture.cases.map((c) =>
+      simulateOdds({
+        totals: c.totals,
+        spread: c.spread,
+        cats: c.cats,
+        records: c.records.map((r) => (r ? { ...r, seed: null } : null)),
+        weeks: roundRobin(c.robin[0], c.robin[1]),
+        tally: c.tally,
+        spots: c.spots,
+        sims: c.sims,
+        seasonShare: c.seasonShare,
+      }),
+    ),
+  };
+  if (process.env['UPDATE_PLAYOFFS_PARITY']) writeFileSync(path, `${JSON.stringify({ ...fixture, expected: computed }, null, 1)}\n`);
+
+  it('gives the figures the Python reference is checked against', () => {
+    expect(fixture.expected).toBeDefined();
+    const close = (a: unknown, b: unknown): void => {
+      if (typeof a === 'number' && typeof b === 'number') expect(a).toBeCloseTo(b, 12);
+      else if (a && typeof a === 'object' && b && typeof b === 'object') {
+        expect(Object.keys(a)).toEqual(Object.keys(b));
+        for (const k of Object.keys(a)) close((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]);
+      } else expect(a).toEqual(b);
+    };
+    close(computed, fixture.expected);
   });
 });

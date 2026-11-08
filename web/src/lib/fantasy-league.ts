@@ -122,6 +122,8 @@ export interface LeagueSource {
   tally?: Tally;
   /** Today's games on ESPN's scoreboard when the score so far was read: which it already holds (#875). */
   games?: GamesRead;
+  /** The players in ESPN's IR slot at `syncedAt` (#878): they join the injured list, and leave it when ESPN activates them. */
+  ir?: string[];
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -276,6 +278,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     ...(fixtures ? { fixtures } : {}),
     ...(s.tally === 'categories' || s.tally === 'matchups' ? { tally: s.tally } : {}),
     ...(games ? { games } : {}),
+    ...(isIds(s.ir) ? { ir: s.ir } : {}),
   };
 }
 

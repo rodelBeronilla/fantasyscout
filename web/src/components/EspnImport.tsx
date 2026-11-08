@@ -41,6 +41,8 @@ export default function EspnImport({
       setNote(
         `Imported ${league.name}: ${league.teams.length} teams, ${matched} of ${total} players matched.` +
           (unmatched.length ? ` Not on the board: ${unmatched.join(', ')}.` : '') +
+          // ESPN's IR slot lands on the injured list (#878)
+          (setup.il.length ? ` ${setup.il.length} on ESPN's IR, so on the injured list here.` : '') +
           ' ESPN does not say which team is yours: pick it below with My team. My Team and Trade read the league from ESPN again when you open them, so the rosters stay current.',
       );
     } catch (e) {

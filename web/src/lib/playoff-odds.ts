@@ -1,10 +1,11 @@
 /**
  * Playoff odds (#821): the standings model (standings.ts) played forward over the regular season's
  * matchups still to come, many seasons over. Each week each category of each matchup goes to one
- * side with the model's chance of winning it, as the matchup chance assumes; the records start from
+ * side with the model's chance of winning it, part of each team's edge drawn once a season so a
+ * projection's miss lasts all season (#872, ADR 0025); the records start from
  * ESPN's at the last sync, or level for a league entered by hand, and the top teams by winning share
  * make the playoffs. The draws are seeded, so the page shows the same odds on every visit and the
- * tests can pin them.
+ * tests can pin them. A points league plays each week out on fantasy points instead (#877).
  */
 import type { League } from './data';
 import type { Format } from './fantasy-league';
@@ -72,6 +73,13 @@ export interface OddsInput {
   spots: number;
   sims?: number;
   seed?: number;
+  /**
+   * The share of a week's category spread that lasts all season (`playoffs.season_share`, #872):
+   * a projection's miss is the same every week. Each simulated season draws one shift per team and
+   * category from it, and the weeks draw from the rest, so a week on its own keeps the standings
+   * model's chance. 0 draws every week independently.
+   */
+  seasonShare?: number;
 }
 
 export interface Odds {
@@ -94,9 +102,22 @@ export function simulateOdds(input: OddsInput): Odds {
   const random = seededRandom(input.seed ?? SEED);
   const n = input.cats.length;
   // each pair's chance of taking each category in a week, the first team's side
-  const chance = input.totals.map((a) =>
-    input.totals.map((b) => input.cats.map((c) => normalCdf(((a[c] ?? 0) - (b[c] ?? 0)) / (input.spread[c] ?? 1)))),
-  );
+  const lasting = Math.max(0, input.seasonShare ?? 0);
+  const gapOf = (a: number, b: number, c: string) => (input.totals[a]?.[c] ?? 0) - (input.totals[b]?.[c] ?? 0);
+  const fixed = input.totals.map((_, a) => input.totals.map((_, b) => input.cats.map((c) => normalCdf(gapOf(a, b, c) / (input.spread[c] ?? 1)))));
+  // a season's chances: its own lasting shift of each team in each category, drawn first, and the
+  // rest of the spread for the weeks (Box-Muller, the cosine branch)
+  const seasonChances = (): number[][][] => {
+    const shift = input.totals.map(() => input.cats.map(() => Math.sqrt(-2 * Math.log(1 - random())) * Math.cos(2 * Math.PI * random()))); // def: Box-Muller
+    return input.totals.map((_, a) =>
+      input.totals.map((_, b) =>
+        input.cats.map((c, k) => {
+          const s = input.spread[c] ?? 1;
+          return normalCdf((gapOf(a, b, c) + Math.sqrt(lasting / 2) * s * ((shift[a]?.[k] ?? 0) - (shift[b]?.[k] ?? 0))) / (Math.sqrt(1 - lasting) * s)); // def: half the pair's lasting variance per team
+        }),
+      ),
+    );
+  };
   const start = Array.from({ length: teams }, (_, t) => input.records[t] ?? { wins: 0, losses: 0, ties: 0 });
   const made = new Array<number>(teams).fill(0);
   const winSum = new Array<number>(teams).fill(0);
@@ -105,6 +126,7 @@ export function simulateOdds(input: OddsInput): Odds {
     const w = start.map((r) => r.wins);
     const l = start.map((r) => r.losses);
     const t = start.map((r) => r.ties);
+    const chance = lasting > 0 ? seasonChances() : fixed;
     for (const week of input.weeks) {
       for (const [a, b] of week) {
         const p = chance[a]?.[b] ?? [];
@@ -177,6 +199,46 @@ export function playoffOdds(
     records: schedule.records,
     weeks: schedule.weeks,
     tally: schedule.tally,
+    spots: Math.min(setup.playoffs.teams, teams),
+    sims,
+    seasonShare: PARAMS['playoffs.season_share'][league],
+  });
+}
+
+/** The one "category" a points league's week is decided on. */
+const POINTS = 'fpts';
+
+/**
+ * A points league's playoff odds (#877): each team's projected fantasy points per game summed over
+ * its active players, each counted by the share of games he is expected to play. A week's margin
+ * between two teams is drawn normal around the gap between them, with a spread of
+ * `playoffs.points_spread_share` of the league's average team; one result a week. That spread is a
+ * prior nobody has measured yet (#891). Every team plays the same games a week here, so the games
+ * a week scale both the gap and the spread alike and drop out. Null outside a head-to-head league,
+ * until every team has half a roster in, or when no player has a projection.
+ */
+export function pointsPlayoffOdds(
+  setup: OddsLeague,
+  fpts: (id: string) => number,
+  availability: (id: string) => number,
+  schedule: { weeks: Week[]; records: (TeamRecord | null | undefined)[] },
+  sims?: number,
+): Odds | null {
+  if (setup.format !== 'h2h') return null;
+  const teams = setup.rosters.length;
+  if (rivals(setup.rosters, -1, setup.rosterSpots).length !== teams) return null;
+  const totals = setup.rosters.map((r) => ({
+    [POINTS]: r.filter((id) => !setup.il.includes(id)).reduce((s, id) => s + fpts(id) * availability(id), 0),
+  }));
+  const average = totals.reduce((s, t) => s + (t[POINTS] ?? 0), 0) / teams;
+  if (!(average > 0)) return null;
+  return simulateOdds({
+    totals,
+    spread: { [POINTS]: PARAMS['playoffs.points_spread_share'] * average },
+    cats: [POINTS],
+    records: schedule.records,
+    weeks: schedule.weeks,
+    tally: 'matchups',
     spots: Math.min(setup.playoffs.teams, teams),
     sims,
   });

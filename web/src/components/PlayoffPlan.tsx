@@ -4,7 +4,7 @@ import type { League } from '../lib/data';
 import { fmt } from '../lib/format';
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { fixedPlayoffs, leagueRecords } from '../lib/league-state';
-import { playoffOdds, type Week } from '../lib/playoff-odds';
+import { playoffOdds, pointsPlayoffOdds, type Week } from '../lib/playoff-odds';
 import { gamesPlace, oddsText, playoffLead, playoffTargets, playoffWindow, rosterGames, type TargetRow, type TeamWeek, weeksToPlay, windowGames, windowText } from '../lib/playoff-weeks';
 import { recordText } from '../lib/records';
 import { href } from '../lib/site';
@@ -30,6 +30,7 @@ export function PlayoffPlan({
   teamWeeks,
   cats,
   catValue,
+  fpts = null,
   perGame,
   owned,
   drops,
@@ -42,8 +43,10 @@ export function PlayoffPlan({
   teamWeeks: TeamWeek[];
   /** The categories the league counts (empty in a points league). */
   cats: string[];
-  /** The league's category values; null in a points league, which gets the plan without the odds. */
+  /** The league's category values; null in a points league, whose odds play out on `fpts`. */
   catValue: ((id: string) => Record<string, number> | undefined) | null;
+  /** A points league's projected fantasy points per game (#877); null in a category league. */
+  fpts?: ((id: string) => number) | null;
   perGame: (id: string) => number;
   owned: (id: string) => boolean;
   drops: readonly string[];
@@ -68,13 +71,14 @@ export function PlayoffPlan({
     const weeks: Week[] = espn?.fixtures ?? weeksToPlay(teamWeeks, window, today, setup.teams);
     return { weeks, records: recorded?.records ?? [], tally: recorded?.tally ?? 'categories' };
   }, [window, espn, teamWeeks, today, setup.teams, recorded]);
-  const odds = useMemo(
-    () =>
-      catValue && schedule
-        ? playoffOdds(league, setup, cats, catValue, (id) => byId.get(id)?.availability_multiplier ?? 1, schedule)
-        : null,
-    [catValue, schedule, league, setup, cats, byId],
-  );
+  const odds = useMemo(() => {
+    if (!schedule) return null;
+    const availability = (id: string) => byId.get(id)?.availability_multiplier ?? 1;
+    if (catValue) return playoffOdds(league, setup, cats, catValue, availability, schedule);
+    // a points league: each week on fantasy points, with a spread not yet validated (#877, #891)
+    return fpts ? pointsPlayoffOdds(setup, fpts, availability, schedule) : null;
+  }, [catValue, fpts, schedule, league, setup, cats, byId]);
+  const pointsOdds = !!odds && !catValue;
   const targets = useMemo(
     () =>
       playoffTargets({
@@ -110,7 +114,7 @@ export function PlayoffPlan({
     recorded?.from === 'espn' ? "ESPN's records at the last sync" : recorded?.from === 'yahoo' ? "Yahoo's records at the last import" : 'the records entered on the League page';
 
   return (
-    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? 872 : undefined}>
+    <Tile title="Playoffs" id="playoffs" testid="playoffs" issue={odds ? (pointsOdds ? 891 : 900) : undefined}>
       <p className="mt-1 text-sm" data-testid="playoff-line">
         <strong>{lead}</strong>
         {top && (
@@ -126,16 +130,15 @@ export function PlayoffPlan({
             <>
               The top {Math.min(setup.playoffs.teams, setup.teams)} of {setup.teams} make the playoffs. The odds play the regular season&apos;s{' '}
               {schedule?.weeks.length ?? 0} {schedule?.weeks.length === 1 ? 'week' : 'weeks'} left out{' '}
-              {espn?.fixtures ? "on ESPN's schedule" : 'as a round robin'}, each category of each matchup going to a side with the standings model&apos;s
-              chance, from {levelStart ? 'level records' : recordsText}.{' '}
+              {espn?.fixtures ? "on ESPN's schedule" : 'as a round robin'},{' '}
+              {pointsOdds
+                ? "each matchup going to a side by its projected fantasy points, with a week's swing that has not yet been measured,"
+                : "each category of each matchup going to a side with the standings model's chance, a projection's miss for each team carried through the whole season,"}{' '}
+              from {levelStart ? 'level records' : recordsText}.{' '}
               {levelStart && "Enter each team's record on the League page (or import the league from ESPN or run the Yahoo bookmark) to start from the real standings. "}
             </>
           ) : (
-            <>
-              {catValue
-                ? 'The odds need every team’s roster in (at least half of it) on the League page. '
-                : 'A points league has no odds yet: the standings model scores categories. '}
-            </>
+            <>The odds need every team’s roster in (at least half of it) on the League page. </>
           )}
           Games are each active player&apos;s team&apos;s games in {windowText(window)}; the targets are free agents ranked as Pickups ranks them, by value per
           game times those games, each with the player Moves would drop for him.{' '}

@@ -1778,6 +1778,72 @@ test('the Today card groups the active roster by plays, listed and no game, on M
   }
 });
 
+test("Today's call sends a player his team lists inactive to Out, though the injury report misses him, and starts the next one (#878)", async ({ page }) => {
+  type Row = { player_id: string; full_name: string | null; team_id: string | null; position: string | null; injury_group: string | null };
+  type Game = { game_date: string; home_team_id: string; away_team_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const games = (await (await page.request.get('/data/builds/fixture/schedule/nba.json')).json()) as Game[];
+  const counts = new Map<string, number>();
+  for (const g of games) counts.set(g.game_date, (counts.get(g.game_date) ?? 0) + 1);
+  const day = [...counts].sort((a, b) => b[1] - a[1])[0]![0];
+  await page.clock.setFixedTime(new Date(`${day}T16:00:00Z`));
+  const playing = new Set(games.filter((g) => g.game_date === day).flatMap((g) => [g.home_team_id, g.away_team_id]));
+  // two healthy players with a game today; the first, on the board's order the better, is scratched on the lineup
+  const [scratched, next] = board.filter((r) => r.full_name && r.team_id && playing.has(r.team_id) && !r.injury_group);
+  if (!scratched || !next) {
+    test.skip(true, 'the fixture has too few healthy players with a game');
+    return;
+  }
+  await page.route('**/board/nba.json', (route) =>
+    route.fulfill({ json: board.map((r) => (r.player_id === scratched.player_id ? { ...r, lineup_role: 'inactive', lineup_confirmed: true, lineup_date: day } : r)) }),
+  );
+  await page.goto('/league/?league=nba');
+  // one Util slot: only one of the two can start
+  for (const k of ['G', 'F', 'C']) await page.getByLabel(`${k} slots`).fill('0');
+  await page.getByLabel('Util slots').fill('1');
+  const cards = page.getByTestId('team-card');
+  await cards.nth(0).getByText('Paste a roster').click();
+  await page.getByLabel('Paste names for Team 1', { exact: true }).fill(`${scratched.full_name}\n${next.full_name}`);
+  await cards.nth(0).getByRole('button', { name: 'Add pasted players' }).click();
+  await expect(cards.nth(0).getByTestId('paste-result')).toContainText('Added 2');
+  await page.goto('/team/?league=nba');
+  const calls = page.getByTestId('today').getByTestId('today-calls');
+  await expect(calls.getByTestId('today-start').locator(`[data-player="${next.player_id}"]`)).toBeVisible();
+  await expect(calls.getByTestId('today-start').locator(`[data-player="${scratched.player_id}"]`)).toHaveCount(0);
+  const out = calls.getByTestId('today-out').locator(`[data-player="${scratched.player_id}"]`);
+  await expect(out).toContainText(`${scratched.full_name} (inactive on the team's lineup)`);
+  await expect(page.getByTestId('today-summary')).toContainText('1 of your 2 active players play today, and 1 more is on the injury report or inactive');
+});
+
+test("an ESPN import puts the players in ESPN's IR slot on the injured list (#878)", async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { full_name: string }[];
+  const entry = (i: number, slot = 0) => ({ lineupSlotId: slot, playerPoolEntry: { player: { fullName: board[i]!.full_name } } });
+  const league = {
+    settings: {
+      name: 'Hoops Club',
+      size: 4,
+      rosterSettings: { lineupSlotCounts: { '0': 1, '1': 1, '2': 1, '3': 1, '4': 1, '5': 1, '6': 1, '11': 3, '12': 3, '13': 1 } },
+      scoringSettings: { scoringType: 'H2H_MOST_CATEGORIES', scoringItems: [0, 6, 3, 2, 1, 17, 19, 20, 11].map((statId) => ({ statId, points: 0 })) },
+    },
+    teams: [
+      { name: 'Brick City', roster: { entries: [entry(0), entry(1, 13)] } },
+      { name: 'Second', roster: { entries: [entry(2), entry(3, 12)] } },
+      { name: 'Third', roster: { entries: [entry(4)] } },
+      { name: 'Fourth', roster: { entries: [entry(5)] } },
+    ],
+  };
+  await page.route('https://lm-api-reads.fantasy.espn.com/**', (route) => route.fulfill({ json: league }));
+  await page.route('https://site.api.espn.com/**', (route) => route.fulfill({ json: { events: [] } }));
+  await page.goto('/league/?league=nba');
+  const card = page.getByTestId('espn-import');
+  await card.getByLabel('ESPN league address or ID').fill('123456');
+  await card.getByRole('button', { name: 'Import' }).click();
+  await expect(card.getByTestId('espn-note')).toContainText("1 on ESPN's IR, so on the injured list here.");
+  await expect(page.getByLabel(`Injured list: ${board[1]!.full_name}`)).toHaveAttribute('aria-pressed', 'true');
+  // the bench (slot 12) is not IR
+  await expect(page.getByLabel(`Injured list: ${board[3]!.full_name}`)).toHaveAttribute('aria-pressed', 'false');
+});
+
 test('a roster of the two best players is told it is optimized as is', async ({ page }) => {
   await page.goto('/');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');
@@ -1821,8 +1887,9 @@ test('My Team shows the chance of beating the league in each kept category, and 
   await expect(cats.locator('[data-cat="z_points"]')).toHaveCount(0);
   await expect(cats).toContainText('Punted: PTS');
   await expect(cats.getByTestId('cat-chance').first()).toContainText(/\d+%\s*(1st|2nd) of 2/);
-  // the default league is rotisserie, whose chances failed their backtest before the season (#755)
-  await expect(cats.getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/866$/);
+  // the default league is rotisserie, whose chances failed their backtest before the season (#755),
+  // and a spread by the games left did not fix it (#866): the badge links the next rework
+  await expect(cats.getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/898$/);
   await expect(page.getByTestId('roster-table').locator('tbody tr')).toHaveCount(3);
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(results.violations).toEqual([]);
@@ -2250,8 +2317,8 @@ test("My Team leads a head-to-head league with its playoff odds, its games in th
   await expect(line).toHaveText(
     new RegExp(`^(\\d+%|under 1%|over 99%) to make it; ${mine} games in the playoff weeks \\(${day(from)} to ${day(to)}\\), \\d(st|nd|rd|th) of 4: target .+ \\(\\d+ games\\)$`),
   );
-  // the odds build on the standings model's weekly chances; their own test is #872
-  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/872$/);
+  // the odds beat the coin and the naive manager but fail their calibration (#872): the rework is #900
+  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/900$/);
   // the target is a free agent, linked to his page
   await expect(line.getByTestId('playoff-target')).toHaveAttribute('href', /\/p\/nba\/\d+\/$/);
   // every team's odds and the next targets are one click down; two spots of four, so the odds sum to 200%
@@ -2445,17 +2512,19 @@ async function espnLeagueAndCopy(
   then = Date.now() - 2 * 60 * 60 * 1000,
   // ESPN's scoreboard at each read (#875): by default a day with no games
   scoreboard: (read: number) => unknown = () => ({ events: [] }),
+  // the league ESPN answers with, from the recorded one (a points league, #877)
+  shape: (league: Record<string, unknown>) => Record<string, unknown> = (l) => l,
 ) {
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string; full_name: string; season: string }[];
   const made = ['Player Zero', 'Player One', 'Player Two', 'Player Three', 'Player Four', 'Player Five', 'Player Six'];
   const swap = (name: string) => (made.includes(name) ? board[made.indexOf(name)]!.full_name : name);
-  const league = {
+  const league = shape({
     ...espnFixture,
     teams: espnFixture.teams.map((t) => ({
       ...t,
       roster: { entries: t.roster.entries.map((e) => ({ ...e, playerPoolEntry: { player: { fullName: swap(e.playerPoolEntry.player.fullName) } } })) },
     })),
-  };
+  });
   const id = (i: number) => board[i]!.player_id;
   // two hours ago Brick City had board player 5 where ESPN now lists player 6
   const imported = [[id(0), id(1), id(5)], [id(2)], [id(3)], [id(4)]];
@@ -2557,6 +2626,78 @@ test("an ESPN category league's matchup starts from the score so far and leads w
   const points = card.getByTestId('matchup-row').filter({ hasText: 'PTS' });
   expect(Number(await points.locator('td').nth(1).innerText())).toBeGreaterThanOrEqual(1000);
   await expect(points).toContainText('win');
+});
+
+test("an ESPN points league's matchup starts from the fantasy points so far (#877)", async ({ page }) => {
+  const now = new Date('2026-11-02T16:00:00Z').getTime();
+  await page.clock.setFixedTime(now);
+  type Side = { teamId: number };
+  // the recorded league as a points league: each side of this week's matchups has its fantasy points so far
+  const so = new Map([[1, 412], [3, 388], [2, 301], [4, 275]]);
+  const points = (l: Record<string, unknown>) => {
+    const f = l as { settings: Record<string, unknown>; schedule: { matchupPeriodId: number; home: Side; away: Side }[] };
+    const scoringItems = [[0, 1], [6, 1], [3, 2], [2, 4], [1, 4], [11, -2]].map(([statId, value]) => ({ statId, points: value }));
+    const side = (s: Side) => ({ teamId: s.teamId, totalPoints: so.get(s.teamId) });
+    return {
+      ...f,
+      settings: { ...f.settings, scoringSettings: { scoringType: 'H2H_POINTS', scoringItems } },
+      schedule: f.schedule.map((m) => (m.matchupPeriodId === 2 ? { ...m, home: side(m.home), away: side(m.away) } : m)),
+    };
+  };
+  await espnLeagueAndCopy(page, undefined, now - 2 * 60 * 60 * 1000, undefined, points);
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('sync-summary')).toContainText('Synced just now');
+  const card = page.getByTestId('matchup');
+  await expect(card.getByLabel("This week's opponent")).toHaveValue('2');
+  // Brick City has 412 so far to Third's 388: the projected final adds the games each lineup starts
+  const summary = card.getByTestId('matchup-summary');
+  await expect(summary).toContainText("From the score so far, 412 to 388, plus the games each lineup starts, you project");
+  expect(Number((await summary.locator('strong').innerText()).replace(/[^\d]/g, ''))).toBeGreaterThanOrEqual(412);
+  await expect(card.getByTestId('matchup-read')).toContainText('Score so far from ESPN at');
+  await expect(card.getByTestId('matchup-basis')).toHaveCount(0);
+});
+
+test('a head-to-head points league gets playoff odds from its fantasy points, badged as not yet validated (#877)', async ({ page }) => {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];
+  await page.clock.setFixedTime(new Date('2026-11-02T16:00:00Z'));
+  // four teams of three, entered by hand: two of them make the playoffs
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const copy = {
+    version: 9,
+    teams: 4,
+    rosterSpots: 6,
+    scoring: 'points',
+    format: 'h2h',
+    punts: [],
+    names: ['Mine', 'Second', 'Third', 'Fourth'],
+    rosters,
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    playoffs: { teams: 2, weeks: 3, start: null },
+    standings: { records: [], tally: 'matchups' },
+  };
+  await page.addInitScript((stored) => {
+    if (sessionStorage.getItem('seeded')) return;
+    localStorage.setItem('fantasyscout:league:nba', stored);
+    sessionStorage.setItem('seeded', '1');
+  }, JSON.stringify(copy));
+  await page.goto('/team/?league=nba');
+  const tile = page.getByTestId('playoffs');
+  await expect(tile.getByTestId('playoff-line')).toHaveText(/^(\d+%|under 1%|over 99%) to make it; \d+ games in the playoff weeks/);
+  // the weekly points spread is a prior: its test is #891
+  await expect(tile.getByRole('link', { name: 'Not yet validated' })).toHaveAttribute('href', /\/issues\/891$/);
+  const details = tile.getByTestId('playoff-details');
+  await details.locator('summary').click();
+  await expect(details.getByTestId('playoff-basis')).toContainText("each matchup going to a side by its projected fantasy points, with a week's swing that has not yet been measured");
+  const odds = (await details.getByTestId('playoff-row').locator('td:nth-child(2)').allInnerTexts()).map((s) =>
+    s.startsWith('under') ? 0 : s.startsWith('over') ? 100 : Number(s.replace('%', '')),
+  );
+  expect(odds).toHaveLength(4);
+  expect(odds.reduce((s, p) => s + p, 0)).toBeGreaterThanOrEqual(198);
+  expect(odds.reduce((s, p) => s + p, 0)).toBeLessThanOrEqual(202);
 });
 
 test("the evening matchup reads ESPN's scoreboard with the score and says how many of today's games it holds (#875)", async ({ page }) => {
@@ -3684,50 +3825,142 @@ test('"Clear all" on the board clears every punt, not only the last', async ({ p
   await expect(board.locator('thead [data-cat]')).toHaveCount(9);
 });
 
-test("a flagged player's one-line note shows under him on My Team while it holds, and nothing when it does not (#823)", async ({ page }) => {
+/** A league's notes file as the player-notes workflow publishes it (#823, #879), one line. */
+function notesFile(league: 'nba' | 'wnba', playerId: string, note: Record<string, unknown>, extra: Record<string, unknown> = {}) {
+  return {
+    league,
+    label: 'AI-written from FantasyScout data and the news',
+    model: 'qwen3:8b',
+    as_of: '2026-12-20',
+    drafted_at: '2026-12-20T17:20:00Z',
+    run: { at: '2026-12-20T17:20:00Z', mode: 'daily', flagged: 1, asked: 1, model_away: false },
+    notes: {
+      [playerId]: {
+        action: 'hold',
+        line: 'Out, expected to miss 9.4 games per the board.',
+        sources: [{ what: 'expected_games_missed', value: '9.4', row_ref: `mart_board/${league}/${playerId}/2026-12-20` }],
+        written_at: '2026-12-20T17:20:00Z',
+        injury_status: 'Out',
+        injury_group: 'out',
+        news_flag: null,
+        news_date: null,
+        says: 'sits',
+        ...note,
+      },
+    },
+    ...extra,
+  };
+}
+
+test("a flagged player's note leads with its call on My Team, marks a change and is withdrawn when contradicted (#823, #879)", async ({ page }) => {
   // a day with no games in the fixture schedule: no Today card, so the line sits in the roster
-  await page.clock.setFixedTime(new Date('2026-12-20T16:00:00Z'));
+  await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
   const copy = { version: 7, teams: 4, rosterSpots: 13, scoring: 'cats9', format: 'roto', punts: [], rosters: [['1630169', '203999'], [], [], []], mine: 0, il: [], drafting: false, picks: [], opponent: null };
   await page.addInitScript((stored) => {
     if (sessionStorage.getItem('seeded')) return;
     localStorage.setItem('fantasyscout:league:nba', stored);
     sessionStorage.setItem('seeded', '1');
   }, JSON.stringify(copy));
-  const line = 'Out, expected to miss 4.6 games per the board; hold him.';
-  let asOf = '2026-12-20';
-  let status = 'Out';
-  await page.route('**/data/notes/players/nba.json', (route) =>
-    route.fulfill({
-      json: {
-        league: 'nba',
-        label: 'AI-written from FantasyScout data and the news',
-        model: 'qwen3:8b',
-        as_of: asOf,
-        notes: {
-          '1630169': { line, sources: [{ what: 'expected_games_missed', value: '4.6', row_ref: 'mart_board/nba/1630169/2026-12-20' }], injury_status: status, news_flag: null },
-        },
-      },
-    }),
-  );
-  await page.goto('/team/?league=nba');
+  // Haliburton is listed Out in the fixture; each pass writes the line on another listing or day
+  let written: Record<string, unknown> = {};
+  await page.route('**/data/notes/players/nba.json', (route) => route.fulfill({ json: notesFile('nba', '1630169', written) }));
   const flagged = page.getByTestId('roster-table').locator('tr[data-player="1630169"]');
-  await expect(flagged.getByTestId('player-note')).toContainText(line);
-  // marked as AI-written, with each number's source on hover
-  await expect(flagged.getByTestId('player-note-label')).toHaveAttribute('title', /4\.6: expected_games_missed \(mart_board\/nba\/1630169\/2026-12-20\)/);
-  // the healthy player has no line
-  await expect(page.getByTestId('roster-table').locator('tr[data-player="203999"]').getByTestId('player-note')).toHaveCount(0);
-  // a line written on another listing, or two days ago, is not shown
-  for (const [nextStatus, nextAsOf] of [
-    ['Questionable', '2026-12-20'],
-    ['Out', '2026-12-18'],
-  ] as const) {
-    status = nextStatus;
-    asOf = nextAsOf;
+  const reread = async () => {
     const read = page.waitForResponse('**/data/notes/players/nba.json');
     await page.reload();
     await read;
     await expect(page.getByTestId('roster-table')).toBeVisible();
     await expect(page.getByTestId('il-candidates')).toBeVisible();
-    await expect(page.getByTestId('player-note')).toHaveCount(0);
-  }
+  };
+
+  await page.goto('/team/?league=nba');
+  const note = flagged.getByTestId('player-note');
+  await expect(note).toHaveAttribute('data-state', 'holds');
+  // the call first, then the line, marked as AI-written with when (12:20 Eastern), sources on hover
+  await expect(note.getByTestId('player-note-call')).toHaveText('Hold:');
+  await expect(note).toContainText('Out, expected to miss 9.4 games per the board.');
+  await expect(note.getByTestId('player-note-label')).toHaveText('AI note · 12:20 ET');
+  await expect(note.getByTestId('player-note-label')).toHaveAttribute('title', /9.4: expected_games_missed \(mart_board\/nba\/1630169\/2026-12-20\)/);
+  await expect(note.getByTestId('player-note-changed')).toHaveCount(0);
+  // the healthy player has no line
+  await expect(page.getByTestId('roster-table').locator('tr[data-player="203999"]').getByTestId('player-note')).toHaveCount(0);
+
+  // written while he was Questionable: still shown, with what changed
+  written = { injury_status: 'Questionable', injury_group: 'questionable', says: null };
+  await reread();
+  await expect(note).toHaveAttribute('data-state', 'changed');
+  await expect(note.getByTestId('player-note-changed')).toHaveText('May be out of date: listed Out (was Questionable).');
+
+  // a number it cites has moved since: shown, with the number now and then
+  written = { sources: [{ what: 'expected_games_missed', value: '4.6', row_ref: 'mart_board/nba/1630169/2026-12-20' }] };
+  await reread();
+  await expect(note.getByTestId('player-note-changed')).toHaveText('May be out of date: games expected to miss now 9.4 (was 4.6).');
+
+  // written while he was healthy, saying start him: now Out, so withdrawn, saying what and when
+  written = { action: 'start', injury_status: null, injury_group: null, says: 'plays' };
+  await reread();
+  await expect(note).toHaveAttribute('data-state', 'withdrawn');
+  await expect(note).toHaveText('AI note from 12:20 ET withdrawn: listed Out (was off the injury report).');
+  await expect(note).not.toContainText('expected to miss');
+
+  // written two days ago: nothing
+  written = { written_at: '2026-12-18T17:20:00Z' };
+  await reread();
+  await expect(page.getByTestId('player-note')).toHaveCount(0);
+});
+
+test("the board shows a flagged player's note in a row under his, in view on a phone (#879)", async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
+  await page.route('**/data/notes/players/nba.json', (route) => route.fulfill({ json: notesFile('nba', '1630169', {}) }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/?league=nba');
+  const board = page.getByTestId('board');
+  const row = board.locator('tbody tr[data-note-for="1630169"]');
+  await expect(row.getByTestId('player-note-call')).toHaveText('Hold:');
+  await expect(row.getByTestId('player-note')).toContainText('expected to miss 9.4 games');
+  // the note row follows his row, and no other player has one
+  await expect(board.locator('tbody tr[data-player="1630169"] + tr')).toHaveAttribute('data-note-for', '1630169');
+  await expect(board.locator('tbody tr[data-note-for]')).toHaveCount(1);
+  // on a phone the whole line is in view, without scrolling the table sideways
+  const box = await row.getByTestId('player-note').boundingBox();
+  expect(box && box.x >= 0 && box.x + box.width <= 390).toBe(true);
+  await row.scrollIntoViewIfNeeded();
+  await expect(row.getByTestId('player-note-call')).toBeInViewport();
+  // a desktop gets the same row
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expect(row.getByTestId('player-note')).toBeVisible();
+});
+
+test("the player page leads with a flagged player's note, before the outlook (#879)", async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
+  // Aliyah Boston is listed Out in the fixture
+  await page.route('**/data/notes/players/wnba.json', (route) => route.fulfill({ json: notesFile('wnba', '1641648', {}) }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/p/wnba/1641648/');
+  const note = page.getByTestId('player-page-note');
+  await expect(note.getByTestId('player-note-call')).toHaveText('Hold:');
+  await expect(note).toContainText('AI note · 12:20 ET');
+  await expect(note).toBeInViewport();
+  // above the outlook in the page's order
+  const order = await page.evaluate(() => {
+    const a = document.querySelector('[data-testid="player-page-note"]');
+    const b = document.querySelector('[data-testid="player-outlook"]');
+    return a && b ? a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING : 0;
+  });
+  expect(order).toBeTruthy();
+  // another player has no note box
+  await page.goto('/p/wnba/1628932/');
+  await expect(page.getByTestId('player-name')).toBeVisible();
+  await expect(page.getByTestId('player-page-note')).toHaveCount(0);
+});
+
+test('data health says when the player notes were not drafted (#879)', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-12-21T01:00:00Z'));
+  await page.route('https://api.github.com/**', (route) => route.fulfill({ json: [] }));
+  const away = { run: { at: '2026-12-21T00:40:00Z', mode: 'changed', flagged: 1, asked: 1, model_away: true } };
+  await page.route('**/data/notes/players/nba.json', (route) => route.fulfill({ json: notesFile('nba', '1630169', {}, away) }));
+  await page.goto('/health/');
+  const line = page.getByTestId('status-player-notes');
+  await expect(line).toContainText('Player notes not drafted. NBA: the local model was away at the last run, Dec 21, 00:40 UTC');
+  await expect(line).toContainText('the lines drafted Dec 20, 17:20 UTC stand until the day after');
 });

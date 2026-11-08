@@ -1,13 +1,14 @@
 /**
  * This week's matchup on My Team (#490): the categories the manager projects to win, lose or split
  * against one opponent. It leads with the call (#817): the count, the swing category, and the open
- * days to stream into. An ESPN category league starts from the score so far.
+ * days to stream into. An ESPN league starts from the score so far: by category, or a points
+ * league's fantasy points (#877).
  */
 import { CATEGORY_LABELS, CATEGORY_WORDS, fmt } from '../lib/format';
 import type { League } from '../lib/data';
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { readLine, type ScoreRead } from '../lib/game-state';
-import { isRatio, matchupCall, swingCategory, type WeekMatchup } from '../lib/matchup';
+import { FPTS, isRatio, matchupCall, swingCategory, type WeekMatchup } from '../lib/matchup';
 import { type StreamMove, streamTargets } from '../lib/matchup-streams';
 import { pickupsPath } from '../lib/pickups-url';
 import { href } from '../lib/site';
@@ -103,8 +104,13 @@ export function Matchup({
   const show = (cat: string, v: number) => (isRatio(cat) ? `${fmt(v * 100, 1)}%` : fmt(v, 0));
   const tone = (r: WeekMatchup['cats'][number]['result']) => (r === 'win' ? 'text-good' : r === 'loss' ? 'text-bad' : 'text-muted');
   const swing = match && !points ? swingCategory(match) : null;
-  const note = points ? null : basisNote(basis, setup.source?.host);
+  const note = basisNote(basis, setup.source?.host);
   const live = !!basis?.live;
+  // a points league's score so far, as the sync read it (#877)
+  const scores = setup.source?.scores;
+  const pointsOf = (team: number | null) => (team === null ? undefined : scores?.[team]?.totals[FPTS]);
+  const [mineSoFar, theirsSoFar] = [pointsOf(setup.mine), pointsOf(setup.opponent)];
+  const soFar = points && live && mineSoFar !== undefined && theirsSoFar !== undefined ? [mineSoFar, theirsSoFar] : null;
   // Pickups for the open days, with the close and losing categories as need chips (#818)
   const pickups = href(pickupsPath(league, { week: true, open: openDays, need: match && !points ? streamTargets(match) : [] }));
   return (
@@ -139,10 +145,29 @@ export function Matchup({
           left this fantasy week (Monday to Sunday).
         </p>
       ) : points ? (
-        <p className="mt-1 text-sm" data-testid="matchup-summary">
-          You project <strong>{fmt(match.mine.fpts, 0)} fantasy points</strong> to {them}&apos;s {fmt(match.theirs.fpts, 0)} this week, over{' '}
-          {match.mine.games} games to their {match.theirs.games}.
-        </p>
+        <>
+          <p className="mt-1 text-sm" data-testid="matchup-summary">
+            {soFar ? (
+              <>
+                From the score so far, {fmt(soFar[0], 0)} to {fmt(soFar[1], 0)}, plus the games each lineup starts, you project{' '}
+              </>
+            ) : (
+              'You project '
+            )}
+            <strong>{fmt(match.mine.fpts, 0)} fantasy points</strong> to {them}&apos;s {fmt(match.theirs.fpts, 0)} this week. Games left: you{' '}
+            {gamesLeft(match.mine.games)}, {them} {gamesLeft(match.theirs.games)}.
+          </p>
+          {basis?.live && basis.read && (
+            <p className="mt-1 text-xs text-muted" data-testid="matchup-read">
+              {readLine(basis.read, setup.source?.host)}
+            </p>
+          )}
+          {note && (
+            <p className="mt-1 text-xs text-muted" data-testid="matchup-basis">
+              {note}
+            </p>
+          )}
+        </>
       ) : (
         <>
           <p className="mt-1 text-base font-medium" data-testid="matchup-call">

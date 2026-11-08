@@ -122,6 +122,11 @@ export const PARAMS = {
     "wnba": 2
   },
   "playoffs.simulations": 2000,
+  "playoffs.season_share": {
+    "nba": 0.3,
+    "wnba": 0.2
+  },
+  "playoffs.points_spread_share": 0.17,
   "fit.thirds": {
     "weak": 1.5,
     "middle": 1.0,
@@ -129,6 +134,8 @@ export const PARAMS = {
   },
   "matchup.closeness": 0.05,
   "sync.every_minutes": 15,
+  "notes.stand_days": 1,
+  "notes.late_hours": 30,
   "trade.value_limits": {
     "bad": -0.15,
     "terrible": -0.3
@@ -478,8 +485,8 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "A projection's own error per category and player, added to a rotisserie season's spread.",
-    "evidence": "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed",
-    "validation": 866,
+    "evidence": "ops.standings_backtest fit on the same tuning seasons with the spread scale fixed, grid 0 to 1.5: rotisserie log loss NBA 0.569 at the assumed 0.3 to 0.518, WNBA 0.587 to 0.565. Judged (ADR 0021): calibrated in season, too wide at the first game day (slope 1.8 to 2.4), so rotisserie chances failed. The rework by games left (#866, ADR 0022) found no horizon in it: refitted leaving one tuning season out, the part that falls with the games left came out 0 in all six folds, and the first game day stayed too timid (pooled slope 1.52)",
+    "validation": 898,
     "value": {
       "nba": 0.8,
       "wnba": 0.8
@@ -519,6 +526,27 @@ export const PARAMETERS = [
     "value": 2000
   },
   {
+    "id": "playoffs.season_share",
+    "kind": "model",
+    "status": "measured",
+    "what": "The playoff odds (#872): the share of a week's category spread that lasts all season (a projection's miss repeats every week). Each simulated season draws one shift per team and category from it; 0 draws every week independently.",
+    "evidence": "ops.playoff_backtest fit on the tuning seasons (the #755 runs' inputs), grid 0 to 0.8, the lowest mean log loss of the odds over the checkpoints and both tallies: NBA 0.6057 at 0 to 0.5961, WNBA 0.5585 to 0.5552. At 0 the tuning slopes were 0.31 to 1.13, mostly under 0.8: independent weeks made the odds too sure. Judged (ADR 0025, runs 42498681135, 42498686229, 42498692099, 42498697513): the odds beat the coin and the naive manager everywhere, but the matchups tally is too timid in three of four seasons (slopes up to 1.41) and the categories tally too sure in WNBA 2025 (0.75)",
+    "validation": 900,
+    "value": {
+      "nba": 0.3,
+      "wnba": 0.2
+    }
+  },
+  {
+    "id": "playoffs.points_spread_share",
+    "kind": "model",
+    "status": "assumed",
+    "what": "A points league's playoff odds (#877): the standard deviation of a week's fantasy-points margin between two teams, as a share of the league's average team.",
+    "evidence": "an unmeasured prior: a game's fantasy points vary by about a third of the player's mean, so over about 35 started games a week the margin varies by sqrt(2) x 0.35 / sqrt(35) = 0.084 of a team's week; doubled for what the projection misses, as the category model needed (standings.spread_scale 2.0, ADR 0021)",
+    "validation": 891,
+    "value": 0.17
+  },
+  {
     "id": "fit.thirds",
     "kind": "model",
     "status": "assumed",
@@ -550,11 +578,29 @@ export const PARAMETERS = [
     "value": 15
   },
   {
+    "id": "notes.stand_days",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Days after the day a player's note was written (Eastern) that the pages still show it, marked with when it was written: the daily run replaces it, so a day's grace covers one run the model missed.",
+    "evidence": "none; the daily cadence of the player-notes workflow",
+    "validation": 879,
+    "value": 1
+  },
+  {
+    "id": "notes.late_hours",
+    "kind": "threshold",
+    "status": "assumed",
+    "what": "Hours since the last daily run drafted the player notes before Data Health says they were not drafted.",
+    "evidence": "none; a day between daily runs, plus GitHub's schedule lag (runs observed up to about three hours late, ingest.yml) and the run itself",
+    "validation": 879,
+    "value": 30
+  },
+  {
     "id": "trade.value_limits",
     "kind": "threshold",
     "status": "assumed",
     "what": "Value lens: the share given away that makes a trade bad or terrible.",
-    "evidence": "judged on #756 (ADR 0022): the declared fit set them from the meaningful gain and collapsed to 0 in the NBA (-0.03 and -0.07 in the WNBA); they failed out of sample, so these assumed values stay. Trades they call bad or terrible lost in every judged season",
+    "evidence": "judged on #756 (ADR 0023): the declared fit set them from the meaningful gain and collapsed to 0 in the NBA (-0.03 and -0.07 in the WNBA); they failed out of sample, so these assumed values stay. Trades they call bad or terrible lost in every judged season",
     "validation": 886,
     "value": {
       "bad": -0.15,
@@ -566,7 +612,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Market lens: the share given away that makes a trade bad or terrible.",
-    "evidence": "judged on #756 (ADR 0022): the declared fit collapsed them to 0 in the NBA and they failed out of sample, so these assumed values stay",
+    "evidence": "judged on #756 (ADR 0023): the declared fit collapsed them to 0 in the NBA and they failed out of sample, so these assumed values stay",
     "validation": 886,
     "value": {
       "bad": -0.2,
@@ -578,7 +624,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Category lens: expected categories lost that make a trade bad or terrible.",
-    "evidence": "the scale the lens limits were fitted on in #756 (ADR 0022); trades the lenses call bad or terrible lost in every judged season",
+    "evidence": "the scale the lens limits were fitted on in #756 (ADR 0023); trades the lenses call bad or terrible lost in every judged season",
     "validation": 886,
     "value": {
       "bad": 2,
@@ -590,7 +636,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Gap between the value and market lenses that is called a disagreement.",
-    "evidence": "reported in #756 (ADR 0022): what happened went the value lens's way in 38% to 51% of NBA disagreements",
+    "evidence": "reported in #756 (ADR 0023): what happened went the value lens's way in 38% to 51% of NBA disagreements",
     "validation": 886,
     "value": 0.35
   },
@@ -599,7 +645,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "The band within which each lens calls a trade even.",
-    "evidence": "judged on #756 (ADR 0022): the declared fit called nothing even in the NBA and missed its band in the WNBA. At these assumed values, WNBA even trades were calibrated (reported, not gated)",
+    "evidence": "judged on #756 (ADR 0023): the declared fit called nothing even in the NBA and missed its band in the WNBA. At these assumed values, WNBA even trades were calibrated (reported, not gated)",
     "validation": 886,
     "value": {
       "value": 0.1,
@@ -611,7 +657,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "A category's win chance must move this much to be listed as up or down.",
-    "evidence": "judged on #756 (ADR 0022): a category listed up gained share against the rivals and one listed down lost it, with intervals clear of zero in every judged season",
+    "evidence": "judged on #756 (ADR 0023): a category listed up gained share against the rivals and one listed down lost it, with intervals clear of zero in every judged season",
     "validation": 756,
     "value": 0.02
   },
@@ -620,7 +666,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Win chances below or above which a category is conceded or locked.",
-    "evidence": "judged on #756 (ADR 0022): conceded categories were won 15% to 23% of the time and locked ones 76% to 85%, close to their chances, in every judged season",
+    "evidence": "judged on #756 (ADR 0023): conceded categories were won 15% to 23% of the time and locked ones 76% to 85%, close to their chances, in every judged season",
     "validation": 756,
     "value": {
       "conceding": 0.25,
@@ -632,7 +678,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Expected categories a trade must add to count (per rival in rotisserie).",
-    "evidence": "judged on #756 (ADR 0022): the declared replay fit picked 0.00 in the NBA (runs 42478335636, 42478338072, 42478340676) and 0.01 in the WNBA (runs 42478343718, 42478346505, 42478349501), the grid's edge. Judged out of sample, the verdict failed, so this assumed value stays",
+    "evidence": "judged on #756 (ADR 0023): the declared replay fit picked 0.00 in the NBA (runs 42478335636, 42478338072, 42478340676) and 0.01 in the WNBA (runs 42478343718, 42478346505, 42478349501), the grid's edge. Judged out of sample, the verdict failed, so this assumed value stays",
     "validation": 886,
     "value": 0.05
   },
@@ -641,7 +687,7 @@ export const PARAMETERS = [
     "kind": "threshold",
     "status": "assumed",
     "what": "Suggestions: how far from even a package may be, and the least it must gain.",
-    "evidence": "judged on #756 (ADR 0022): the suggestions lost to the naive manager's package in NBA 2023-24 and both WNBA seasons",
+    "evidence": "judged on #756 (ADR 0023): the suggestions lost to the naive manager's package in NBA 2023-24 and both WNBA seasons",
     "validation": 887,
     "value": {
       "tolerance": 0.15,
@@ -653,7 +699,7 @@ export const PARAMETERS = [
     "kind": "search",
     "status": "assumed",
     "what": "How many players a suggestion adds (fewer when both sides are already set), and how many it and the finder try.",
-    "evidence": "judged as part of the finder and the suggestions on #756 (ADR 0022)",
+    "evidence": "judged as part of the finder and the suggestions on #756 (ADR 0023)",
     "validation": 888,
     "value": {
       "max_add": 3,

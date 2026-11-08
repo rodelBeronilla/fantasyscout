@@ -68,12 +68,12 @@ ESPN points leagues score as "other leagues" in jobs 2 and 8: no score so far an
    - **Other leagues:** these get only the projected table, whose order is the failed power rankings. That leaves them behind every platform that shows the real standings. The hosts show them to the same manager, and Basketball Monster and League Winner show them through a sync.
 7. **Your own team: ahead of Basketball Monster and Hashtag (was at par).**
    - A head-to-head league's category win chances passed their backtest (ADR 0021). The tile lost its badge. None of the other platforms publishes a test of its team analysis.
-   - Rotisserie chances keep theirs (#866). So do:
+   - Rotisserie chances keep theirs: a projection spread by the games left did not fix the first game day (#866, ADR 0022; next #898). So do:
      - the week's lineup (#759);
      - the roster review and Build your team (#757).
 8. **Playoff push: ahead of Hashtag and League Winner for an ESPN category league (was behind).**
    - My Team leads with the odds of making the playoffs, your games in the playoff weeks, and one target (#859).
-   - The odds are not yet validated (#872). League Winner's free odds give the same kind of answer.
+   - The odds beat the current standings out of sample but are not yet calibrated (#872, ADR 0025; next #900). League Winner's free odds give the same kind of answer.
    - The playoff-week plan is factual and League Winner has none. Hashtag's free playoff schedule counts each NBA team's games, not your roster's in your league's weeks.
    - **Other leagues:**
      - The odds start every team level.
@@ -105,7 +105,7 @@ ESPN points leagues score as "other leagues" in jobs 2 and 8: no score so far an
 | 6 | No word on who takes the minutes | #853 | Alerts (#876); validation (#763) |
 | 7 | No playoff odds or playoff-week plan | #859 | Other leagues' weeks and records (#874); points leagues (#877); validation (#872) |
 | 8 | No real standings | #852 | Other leagues (#874) |
-| 9 | Thin per-player news notes | #860 | After a late change, and on more pages (#879) |
+| 9 | Thin per-player news notes | #860; #879: a call first, a rerun after each build, kept and marked when an input changes, withdrawn when contradicted, on the player page and the Board, missed runs on Data Health | Validation of the calls |
 
 ## Gaps, ranked by how often the job comes up times how far behind
 
@@ -137,4 +137,4 @@ FantasyScout carries:
 - weekly AI notes whose every number is traced;
 - a one-line note for each flagged player, every number and quote traced (#860).
 
-Those player notes come once a day, from the home server's local model, for flagged players in the board's top 200 (NBA) or 120 (WNBA). They are hidden as soon as the player's status changes, so a late scratch has none (#879). The qualitative-signals epic (#812) covers their inputs.
+Those player notes come from the home server's local model, for flagged players in the board's top 200 (NBA) or 120 (WNBA): every one once a day, and again after each build for those whose listing or headline changed, so a late scratch gets a line before tip-off (#879). Each leads with its call (start, sit, add, drop, hold or watch). A note whose inputs changed stays, saying what changed; one the listing now contradicts is withdrawn, saying so. The qualitative-signals epic (#812) covers their inputs.

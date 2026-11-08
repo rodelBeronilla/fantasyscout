@@ -1,4 +1,4 @@
-# 0022. The Trade page, judged on simulated leagues
+# 0023. The Trade page, judged on simulated leagues
 
 Date: 2026-11-08
 Status: Accepted

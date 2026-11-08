@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 
-import { fetchBuildJson, getLatest, type Latest } from '../lib/data';
+import { fetchBuildJson, getLatest, type Latest, type League } from '../lib/data';
 import { day, int, pct, when } from '../lib/format';
 import { Badge, Card, Loading, Problem, Td, Th } from './ui';
 import { freshness, type Incident, openIncidents, runbookHref } from '../lib/health-status';
+import { fetchPlayerNotes, notesHealth, type PlayerNotes } from '../lib/player-notes';
 
 const minutes = (seconds: number | null) => (seconds === null ? '–' : `${(seconds / 60).toFixed(1)} min`);
 
@@ -139,6 +140,17 @@ function statusTone(status: string): 'good' | 'warn' | 'bad' | 'muted' {
   return 'muted';
 }
 
+const NOTE_TONE = { good: 'text-good', warn: 'font-semibold text-warn', muted: 'text-muted' } as const;
+
+/** The status list's line on the player notes (#879). */
+function NotesStatus({ status }: { status: ReturnType<typeof notesHealth> }) {
+  return (
+    <li data-testid="status-player-notes">
+      <span className={NOTE_TONE[status.tone]}>{status.text}</span>
+    </li>
+  );
+}
+
 export default function Health() {
   const [health, setHealth] = useState<HealthFile | null>(null);
   const [latest, setLatest] = useState<Latest | null>(null);
@@ -149,6 +161,15 @@ export default function Health() {
   useEffect(() => {
     let live = true;
     openIncidents().then((list) => live && setIncidents(list));
+    return () => {
+      live = false;
+    };
+  }, []);
+  // The player notes' files (#879): when they were last drafted, and whether the last run had the model.
+  const [notes, setNotes] = useState<[League, PlayerNotes | null][] | null>(null);
+  useEffect(() => {
+    let live = true;
+    Promise.all((['nba', 'wnba'] as const).map(async (l): Promise<[League, PlayerNotes | null]> => [l, await fetchPlayerNotes(l)])).then((n) => live && setNotes(n));
     return () => {
       live = false;
     };
@@ -247,6 +268,7 @@ export default function Health() {
               Runbook
             </a>
           </li>
+          {notes && <NotesStatus status={notesHealth(notes, new Date())} />}
         </ul>
       </section>
       <Card title="This build" id={`build-${health.build_id}`}>

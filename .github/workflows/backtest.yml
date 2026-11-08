@@ -42,12 +42,16 @@ on:
         description: Judge the Trade page's verdict, suggestions and finder on simulated leagues too (#756)
         type: boolean
         default: false
+      playoffs:
+        description: Judge the playoff odds on the same leagues too (#872; needs standings)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: backtest-${{ inputs.league }}-${{ inputs.judge }}-${{ inputs.seasons }}-${{ inputs.market_prior }}-${{ inputs.standings }}-${{ inputs.trades }}
+  group: backtest-${{ inputs.league }}-${{ inputs.judge }}-${{ inputs.seasons }}-${{ inputs.market_prior }}-${{ inputs.standings }}-${{ inputs.playoffs }}-${{ inputs.trades }}
   cancel-in-progress: false
 
 jobs:
@@ -158,4 +162,17 @@ jobs:
             trades.json
             trades-cache.json
             standings/
+          retention-days: 90
+      # The playoff odds (#872): the standings model's leagues with a schedule, a record so far and
+      # a cut, from the inputs the standings judgement reads.
+      - name: Judge the playoff odds
+        if: inputs.judge != '' && inputs.standings && inputs.playoffs
+        run: |
+          set -o pipefail
+          uv run python -m ops.playoff_backtest judge standings --out playoffs.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && inputs.judge != '' && inputs.standings && inputs.playoffs
+        with:
+          name: playoffs-${{ inputs.league }}-${{ inputs.judge }}
+          path: playoffs.json
           retention-days: 90
