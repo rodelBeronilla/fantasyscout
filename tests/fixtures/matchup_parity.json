@@ -166,7 +166,7 @@
       "edge": 3,
       "share": 0.011450381679389313,
       "chance": 0.5305865731562069,
-      "result": "win"
+      "result": "close"
      },
      {
       "cat": "z_steals",
@@ -211,9 +211,9 @@
       "result": "loss"
      }
     ],
-    "wins": 4,
+    "wins": 3,
     "losses": 5,
-    "close": 0
+    "close": 1
    },
    {
     "cats": [

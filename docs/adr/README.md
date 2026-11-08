@@ -28,6 +28,7 @@ One record per real decision, written when the decision is made. Numbered; a lat
 | [0023](0023-trade-page-judged.md) | The Trade page, judged on simulated leagues | 2026-11-08 | Accepted |  |  |
 | [0024](0024-roster-review-judged.md) | My Team's roster review, judged on simulated leagues | 2026-11-08 | Accepted |  |  |
 | [0025](0025-playoff-odds-judged.md) | The playoff odds, judged on simulated leagues | 2026-11-08 | Accepted |  |  |
+| [0026](0026-matchup-card-chances-judged.md) | The matchup card's chances, judged week by week; its too-close band not validated | 2026-11-08 | Accepted |  |  |
 ## Addenda
 A record is not edited after acceptance, but it may grow **addenda**: dated sections that add evidence, record a measurement, or note what happened when the decision met real data. An addendum may not change the decision; a changed decision is a new record that says what it supersedes, and the old record gets a one-line pointer where the superseded text stands (in italics, so the original reads as written). When a record's addenda become a subject of their own, they move to a new record with the text unchanged and a pointer left behind; the new record's header says `Moved from:` instead of `Supersedes:`, because a move changes no decision. ADR 0003 did this on 2026-11-01 (0009 to 0012).
 Template:

@@ -37,7 +37,7 @@ describe('the head-to-head week', () => {
   });
 
   it('calls each category won, lost or too close, turnovers to the lower total', () => {
-    const m = matchup('nba', cats, weekTotals(mine, cats), weekTotals(theirs, cats));
+    const m = matchup('nba', cats, weekTotals(mine, cats), weekTotals(theirs, cats), 0); // no band: the call is the projected leader
     expect(m.cats.map((r) => [r.cat, r.result])).toEqual([
       ['z_points', 'win'], // 80 to 75
       ['z_turnovers', 'loss'], // 11 to 6: more turnovers

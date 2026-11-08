@@ -232,15 +232,15 @@ parameters:
     kind: model
     status: measured
     what: "The week's matchup card (#869): one game's spread of a player's output per category, in the category's own unit (a percentage's as makes minus the pool's rate times attempts), behind each category's chance. It carries what the projection misses over a week, not only the game's own noise."
-    evidence: "ops.closeness_backtest fit on the tuning seasons, each category's lowest log loss on a grid of 0.01 to 100 in 2.5% steps: NBA 2020-21 to 2022-23 (runs 42494531714, 42494538368, 42494544319, 71 weeks), log loss 0.539 to 0.654 by category against a coin's 0.693; WNBA 2021 to 2023 (runs 42494550191, 42494555493, 42494560975, 51 weeks), 0.530 to 0.669"
+    evidence: "ops.closeness_backtest fit on the tuning seasons, each category's lowest log loss on a grid of 0.01 to 100 in 2.5% steps: NBA 2020-21 to 2022-23 (runs 42494531714, 42494538368, 42494544319, 71 weeks), log loss 0.539 to 0.654 by category against a coin's 0.693; WNBA 2021 to 2023 (runs 42494550191, 42494555493, 42494560975, 51 weeks), 0.530 to 0.669. Judged (ADR 0026), the card's chances beat a coin flip and the naive manager in NBA 2023-24, 2024-25 and WNBA 2024, 2025 (runs 42503278616, 42503283927, 42503289028, 42503294592), calibration slope 0.82 to 0.99"
     validation: 869
   - id: matchup.closeness
-    value: {nba: 0.0, wnba: 0.4}
+    value: {nba: 0.05, wnba: 0.05}
     kind: threshold
     status: assumed
     what: "The week's matchup card (#869): a category whose chance of being won lies within this of 50% is called too close."
-    evidence: "none; the week's matchup card, which #755's simulated leagues do not exercise"
-    validation: 869
+    evidence: "none: the value the share rule used, read as a chance band. The rule declared on #869 fitted the band by a stream replay, which proved degenerate (ADR 0026): it picked 0 (NBA) and 0.40, the grid's edge (WNBA), and failed out of sample in NBA 2024-25 and WNBA 2025. The replay measures need-chip targeting, not a coin flip"
+    validation: 902
 
   # ---- keeping an imported league current (web/src/lib/league-sync.ts, components/LeagueSync.tsx)
   - id: sync.every_minutes
