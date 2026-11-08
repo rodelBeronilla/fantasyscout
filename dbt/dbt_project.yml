@@ -100,7 +100,7 @@ vars:
   # value per game is blended toward its own value of his rank in ESPN's draft order, at weight
   # falling linearly to nothing by fade_games games (mart_board). Off unless enabled; the walk-forward
   # harness judges it off and on (ops/walk_forward.py).
-  market_prior: {enabled: false, weight: 0.5, fade_games: 5}
+  market_prior: {enabled: false, weight: 0.45, fade_games: 20}
   # Matchups (mart_schedule_upcoming): value per game per standard deviation of the opponent's
   # defensive rating and of the expected pace, from replaying past seasons (ADR 0003); team
   # ratings blend this season to date with last season, last season counting as prior_games.

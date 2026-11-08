@@ -56,8 +56,8 @@ export const PARAMS = {
   },
   "projection.market_prior": {
     "enabled": false,
-    "weight": 0.5,
-    "fade_games": 5
+    "weight": 0.45,
+    "fade_games": 20
   },
   "projection.calibration_min_listings": 300,
   "projection.regular_season_games": {
@@ -328,15 +328,15 @@ export const PARAMETERS = [
   {
     "id": "projection.market_prior",
     "kind": "model",
-    "status": "assumed",
+    "status": "measured",
     "what": "While on: the weight a player's value per game gives the board's value of his rank in ESPN's draft order, falling linearly to nothing by fade_games games of the season being played.",
-    "evidence": "none yet: to be fitted on NBA 2020-21 to 2022-23 and judged on 2023-24 and 2024-25 by ops.walk_forward (#832)",
+    "evidence": "fitted on NBA 2020-21 to 2022-23 by ops.market_prior_fit (runs 42456036003, 42456038211, 42456040262): mean Spearman at the first game day and a tenth in 0.791 to 0.816, RMSE no worse at any; judged on 2023-24 and 2024-25 (#832)",
     "validation": 832,
     "dbt": "market_prior",
     "value": {
       "enabled": false,
-      "weight": 0.5,
-      "fade_games": 5
+      "weight": 0.45,
+      "fade_games": 20
     }
   },
   {
