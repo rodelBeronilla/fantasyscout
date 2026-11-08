@@ -8,15 +8,20 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { href } from '../lib/site';
 import { type BoardAvailability, type BoardView, readBoardFilters, writeBoardFilters } from '../lib/board-url';
+import { type Basis, BASIS_HELP, lineColumns, VIEWS } from '../lib/board-views';
 import { useWatchlist } from '../lib/watchlist';
 import { noteFor, usePlayerNotes } from '../lib/player-notes';
 import { easternDate } from '../lib/today';
 import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
-import { categoryReplacement, categoryValues, fitWeights, pointValues, type Tier } from '../lib/league-value';
+import { categoryReplacement, categoryValues, fitWeights, pointValues } from '../lib/league-value';
 import { leagueStandings } from '../lib/standings';
+import { BoardCompare, COMPARE_MAX } from './BoardCompare';
+import { BoardHead, type CategoryColumn } from './BoardHead';
+import { BoardOptions, select } from './BoardOptions';
+import { TierHead } from './BoardTierHead';
 import { DraftBar, LeagueBar } from './LeagueParts';
 import { PlayerNoteLine } from './PlayerNoteLine';
-import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, SortTh, Star, TagLegend, Td, Th, TrendTag, Unvalidated } from './ui';
+import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, Star, TagLegend, Td, TrendTag, Unvalidated } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 import { isLine, num, rankAndTier, scoreRows, zKey } from '../lib/board-model';
 
@@ -88,49 +93,6 @@ type BoardRow = ExportedRow<BoardColumn, BoardRowFields>;
 
 type View = BoardView;
 
-const VIEWS: { id: View; label: string; help: string }[] = [
-  {
-    id: 'value',
-    label: 'Value',
-    help: 'Value per game above replacement in your league, from each player’s projected line, times the share of games they are projected to play. Zero is a player you could pick up for free.',
-  },
-  { id: 'season', label: 'This season', help: 'Category z-scores over this season’s games.' },
-  { id: 'last20', label: 'Last 20', help: 'Category z-scores over each player’s last twenty games this season.' },
-  { id: 'recent', label: 'Last 10', help: 'Category z-scores over each player’s last ten games this season.' },
-  {
-    id: 'projected',
-    label: 'Projected line',
-    help: 'The per-game line the value is scored on: production per minute (seasons weighted by minutes played) times projected minutes, recent seasons counting more, starting from a replacement-level player.',
-  },
-  { id: 'pergame', label: 'Season line', help: 'This season’s per-game line; percentages are makes over attempts.' },
-];
-
-const LINE: { key: string; label: string; kind: 'num' | 'pct' }[] = [
-  { key: 'minutes_pg', label: 'MIN', kind: 'num' },
-  { key: 'points_pg', label: 'PTS', kind: 'num' },
-  { key: 'rebounds_total_pg', label: 'REB', kind: 'num' },
-  { key: 'assists_pg', label: 'AST', kind: 'num' },
-  { key: 'steals_pg', label: 'STL', kind: 'num' },
-  { key: 'blocks_pg', label: 'BLK', kind: 'num' },
-  { key: 'three_pointers_made_pg', label: '3PM', kind: 'num' },
-  { key: 'field_goal_pct', label: 'FG%', kind: 'pct' },
-  { key: 'free_throw_pct', label: 'FT%', kind: 'pct' },
-  { key: 'turnovers_pg', label: 'TO', kind: 'num' },
-];
-
-/** The columns of a line view: this season's line, or the projection's (proj_ prefix). */
-function lineColumns(view: View): { key: string; label: string; kind: 'num' | 'pct' }[] {
-  return LINE.map((c) => ({ ...c, key: view === 'projected' ? `proj_${c.key}` : c.key }));
-}
-
-/** What the value counts (#714): a game, the season's games played, or the games left. */
-type Basis = 'pergame' | 'season' | 'rest';
-const BASIS_HELP: Record<Basis, string> = {
-  pergame: 'Per game: what one game is worth, however often the player plays.',
-  season: 'Season: per game, times the share of games the player is projected to play.',
-  rest: 'Rest of season: per game, over the games left the player is expected to play.',
-};
-
 type Availability = BoardAvailability;
 type Show = 'available' | 'mine' | 'rostered' | 'all';
 
@@ -140,40 +102,6 @@ const FIRST_ROWS = 25;
 
 /** How widely ESPN leagues roster a player, in words (fct_market_value buckets). */
 const OWNED_LABEL: Record<string, string> = { most: 'most', many: 'many', some: 'some', few: 'few', rare: 'almost no' };
-const COMPARE_MAX = 4;
-
-const select = 'rounded border border-line bg-card px-2 py-1';
-
-/** A row of mutually exclusive buttons. */
-function roundsLabel(t: Tier): string {
-  return t.firstRound === t.lastRound ? `round ${t.firstRound}` : `rounds ${t.firstRound}–${t.lastRound}`;
-}
-
-/** The row that opens a tier: where its picks fall in a draft, its value range, and how many are left. */
-function TierHead({ tier, columns, left, size }: { tier: Tier | null; columns: number; left: number | null; size: number }) {
-  return (
-    <tr className="border-t-2 border-accent bg-bg" data-testid="tier-head">
-      <td colSpan={columns} className="px-2 pt-2 pb-1 text-xs">
-        <span className="sticky left-2 inline-block">
-          {tier ? (
-            <>
-              <strong className="text-accent">Tier {tier.tier}</strong>{' '}
-              <span className="text-muted">
-                · {tier.start === tier.end ? `pick ${tier.start + 1}` : `picks ${tier.start + 1}–${tier.end + 1}`} ({roundsLabel(tier)}) · value {tier.start === tier.end ? fmt(tier.high, 1) : `${fmt(tier.high, 1)} to ${fmt(tier.low, 1)}`}
-                {left !== null ? ` · ${left} of ${size} available` : ''}
-              </span>
-            </>
-          ) : (
-            <>
-              <strong>Beyond the rostered pool</strong>{' '}
-              <span className="text-muted">· players a league this size leaves on waivers</span>
-            </>
-          )}
-        </span>
-      </td>
-    </tr>
-  );
-}
 
 export default function Board() {
   const [league] = useState<League>(() => currentLeague());
@@ -373,8 +301,7 @@ export default function Board() {
     setCountGames(next !== 'pergame');
     setRestOfSeason(next === 'rest');
   };
-  type Column = { key: string; label: string; kind: 'num' | 'pct' | 'z' | 'fpts'; category?: string };
-  const categoryColumns: Column[] = isLine(view)
+  const categoryColumns: CategoryColumn[] = isLine(view)
     ? lineColumns(view).map((c) => ({ key: c.key, label: c.label, kind: c.kind }))
     : view === 'value' && points
       ? [{ key: 'fpts', label: 'FPts/G', kind: 'fpts' }, ...lineColumns('projected').map((c) => ({ key: c.key, label: c.label, kind: c.kind }))]
@@ -711,103 +638,34 @@ export default function Board() {
       </div>
 
       {optionsOpen && (
-        <div id="board-options" className="grid gap-4 rounded-lg border border-line bg-card p-3 text-sm md:grid-cols-2" data-testid="board-options">
-          <fieldset className="grid content-start gap-2">
-            <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Players</legend>
-            <div className="flex flex-wrap items-center gap-3">
-              <label>
-                <span className="sr-only">NBA or WNBA team</span>
-                <select value={team} onChange={(e) => setTeam(e.target.value)} className={select} aria-label="Team">
-                  <option value="">All teams</option>
-                  {meta.teams.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                <span className="sr-only">Health</span>
-                <select value={availability} onChange={(e) => setAvailability(e.target.value as Availability)} className={select} aria-label="Health">
-                  <option value="all">Any health</option>
-                  <option value="no_out">Hide players ruled out</option>
-                  <option value="healthy">Healthy only</option>
-                </select>
-              </label>
-              <label>
-                Min games{' '}
-                <select value={minGames} onChange={(e) => setMinGames(Number(e.target.value))} className={select}>
-                  {[0, 5, 10, 20].map((g) => (
-                    <option key={g} value={g}>
-                      {g}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label title="Projected minutes per game">
-                Min MPG{' '}
-                <select value={minMinutes} onChange={(e) => setMinMinutes(Number(e.target.value))} className={select}>
-                  {[0, 15, 20, 25, 30].map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="flex flex-wrap items-center gap-4">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={rookiesOnly} onChange={(e) => setRookiesOnly(e.target.checked)} />
-                Rookies only
-              </label>
-              <label className="flex items-center gap-2" title="Players whose current team differs from last season's">
-                <input type="checkbox" checked={movedOnly} onChange={(e) => setMovedOnly(e.target.checked)} />
-                Changed teams
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={watchOnly} onChange={(e) => setWatchOnly(e.target.checked)} />
-                Watchlist only ({watched.size})
-              </label>
-            </div>
-          </fieldset>
-          {!isLine(view) && !points && (
-            <fieldset className="grid content-start gap-2">
-              <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Punt (your league&apos;s setting)</legend>
-              {!points && (
-                <div className="flex flex-wrap gap-1">
-                  {CATEGORIES.map((c) => (
-                    <Chip
-                      key={c}
-                      checked={punted.has(c)}
-                      strike
-                      onChange={() => setPunts(toggle(punts, c))}
-                      disabled={setup.scoring === 'cats8' && c === 'z_turnovers'}
-                      title={setup.scoring === 'cats8' && c === 'z_turnovers' ? 'An 8-category league does not count turnovers: there is nothing to punt' : undefined}
-                    >
-                      {CATEGORY_LABELS[c]}
-                    </Chip>
-                  ))}
-                </div>
-              )}
-            </fieldset>
-          )}
-          <fieldset className="grid content-start gap-2 md:col-span-2">
-            <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Columns and export</legend>
-            <div className="flex flex-wrap items-center gap-4">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={scheduleCols} onChange={(e) => setScheduleCols(e.target.checked)} />
-                Schedule and health columns (age, games played{showNext7 ? ', games in the next 7 days and this week' : ''})
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={rangeCols} onChange={(e) => setRangeCols(e.target.checked)} />
-                Consistency columns (a bad game, a good game, and the spread between games)
-              </label>
-              <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-bg" data-testid="board-csv">
-                Export what the board shows as CSV
-              </button>
-            </div>
-          </fieldset>
-        </div>
+        <BoardOptions
+          teams={meta.teams}
+          team={team}
+          setTeam={setTeam}
+          availability={availability}
+          setAvailability={setAvailability}
+          minGames={minGames}
+          setMinGames={setMinGames}
+          minMinutes={minMinutes}
+          setMinMinutes={setMinMinutes}
+          rookiesOnly={rookiesOnly}
+          setRookiesOnly={setRookiesOnly}
+          movedOnly={movedOnly}
+          setMovedOnly={setMovedOnly}
+          watchOnly={watchOnly}
+          setWatchOnly={setWatchOnly}
+          watchedCount={watched.size}
+          showPunts={!isLine(view) && !points}
+          punted={punted}
+          onTogglePunt={(c) => setPunts(toggle(punts, c))}
+          cats8={setup.scoring === 'cats8'}
+          scheduleCols={scheduleCols}
+          setScheduleCols={setScheduleCols}
+          rangeCols={rangeCols}
+          setRangeCols={setRangeCols}
+          showNext7={showNext7}
+          onExport={exportCsv}
+        />
       )}
 
       {active.length > 0 && (
@@ -832,160 +690,26 @@ export default function Board() {
       )}
 
       {compared.length > 0 && (
-        <section className="min-w-0 rounded-lg border border-line bg-card p-3" aria-labelledby="compare-h" data-testid="compare">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="compare-h" className="text-sm font-medium tracking-wide text-muted uppercase">
-              Compare ({compared.length}/{COMPARE_MAX})
-            </h2>
-            <button type="button" onClick={() => setCompare([])} className="rounded border border-line px-2 py-0.5 text-xs hover:bg-bg">
-              Clear
-            </button>
-          </div>
-          <div className="table-scroll mt-2 max-h-[70vh] overflow-auto" tabIndex={0} role="region" aria-label="Player comparison">
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <Th>{isLine(view) ? 'Value view' : (VIEWS.find((v) => v.id === view)?.label ?? '')}</Th>
-                  {compared.map((r) => (
-                    <Th key={r.player_id} right>
-                      {r.full_name}
-                    </Th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ...CATEGORIES.map((c) => ({
-                    label: CATEGORY_LABELS[c] ?? c,
-                    get: (r: BoardRow) => (punted.has(c) ? null : (leagueCats?.get(r.player_id)?.[c] ?? num(r, zKey(isLine(view) ? 'value' : view, c)))),
-                    kind: 'z',
-                  })),
-                  { label: 'Total', get: (r: BoardRow) => (isLine(view) ? r.value_total : (valueOf.get(r.player_id) ?? null)), kind: 'z' },
-                  { label: 'GP%', get: (r: BoardRow) => r.games_share, kind: 'pct' },
-                  ...LINE.map((l) => ({ label: `${l.label} (proj)`, get: (r: BoardRow) => num(r, `proj_${l.key}`), kind: l.kind })),
-                ].map((m) => {
-                  const values = compared.map((r) => m.get(r));
-                  const better = m.label.startsWith('TO (') ? Math.min : Math.max;
-                  const known = values.filter((v): v is number => typeof v === 'number');
-                  const best = known.length > 1 ? better(...known) : null;
-                  return (
-                    <tr key={m.label} className="border-t border-line">
-                      <Td>{m.label}</Td>
-                      {values.map((v, i) => (
-                        <Td key={compared[i]?.player_id} right>
-                          <span className={best !== null && v === best ? 'font-semibold' : ''}>
-                            {m.kind === 'z' ? <Signed value={v} /> : m.kind === 'pct' ? pct(v) : fmt(v)}
-                          </span>
-                        </Td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <BoardCompare compared={compared} view={view} punted={punted} leagueCats={leagueCats} valueOf={valueOf} onClear={() => setCompare([])} />
       )}
 
       <TagLegend />
       <div className="table-scroll max-h-[70vh] overflow-auto rounded-lg border border-line" tabIndex={0} role="region" aria-label="Player board">
         <table className="w-full text-sm" data-testid="board">
-          <thead className="bg-card">
-            <tr>
-              <Th right pin="first">#</Th>
-              <SortTh active={sortKey === 'name'} dir={sortDir} onClick={() => sortBy('name', 'asc')} pin="second">
-                Player
-              </SortTh>
-              {!isLine(view) && (
-                <SortTh right active={sortKey === 'value'} dir={sortDir} onClick={() => sortBy('value')} title={BASIS_HELP[basis]}>
-                  Value
-                </SortTh>
-              )}
-              {showMarket && (
-                <SortTh
-                  right
-                  active={sortKey === 'market_rank'}
-                  dir={sortDir}
-                  onClick={() => sortBy('market_rank', 'asc')}
-                  title="Where ESPN fantasy drafters take the player (by average draft position); the tooltip says how widely ESPN leagues roster the player"
-                >
-                  Mkt
-                </SortTh>
-              )}
-              {showMarket && (
-                <SortTh
-                  right
-                  active={sortKey === 'market_gap'}
-                  dir={sortDir}
-                  onClick={() => sortBy('market_gap')}
-                  title="Market rank minus the player's rank on this board with your league's settings: positive when drafters take the player later than the value here (a bargain), negative when they reach"
-                >
-                  vs Mkt
-                </SortTh>
-              )}
-              {showFit && (
-                <SortTh
-                  right
-                  active={sortKey === 'fit'}
-                  dir={sortDir}
-                  onClick={() => sortBy('fit')}
-                  title={
-                    standings
-                      ? "Value with each category weighted by how much a gain there raises your chance of beating the league's other teams in it: close categories count most, ones won or lost against everyone by a wide margin least"
-                      : 'Value with each category weighted by where your team is weak (1.5 for the weakest third, 1 the middle, 0.5 the strongest)'
-                  }
-                >
-                  Fit
-                </SortTh>
-              )}
-              {categoryColumns.map((c) => (
-                <SortTh key={c.key} right active={sortKey === c.key} dir={sortDir} onClick={() => sortBy(c.key, c.label === 'TO' && c.kind !== 'z' ? 'asc' : 'desc')}>
-                  <span data-cat={c.category}>{c.label}</span>
-                </SortTh>
-              ))}
-              {scheduleCols && (
-                <SortTh right active={sortKey === 'age'} dir={sortDir} onClick={() => sortBy('age', 'asc')}>
-                  Age
-                </SortTh>
-              )}
-              {scheduleCols && (
-                <SortTh right active={sortKey === 'games_current'} dir={sortDir} onClick={() => sortBy('games_current')} title="Games this season">
-                  GP
-                </SortTh>
-              )}
-              {scheduleCols && view === 'value' && (
-                <SortTh right active={sortKey === 'games_share'} dir={sortDir} onClick={() => sortBy('games_share')} title="Projected share of team games played">
-                  GP%
-                </SortTh>
-              )}
-              {scheduleCols && showNext7 && (
-                <SortTh right active={sortKey === 'games_next_7'} dir={sortDir} onClick={() => sortBy('games_next_7')} title="Team games in the next 7 days">
-                  Next 7
-                </SortTh>
-              )}
-              {scheduleCols && showNext7 && (
-                <SortTh right active={sortKey === 'games_this_week'} dir={sortDir} onClick={() => sortBy('games_this_week')} title="Team games left this fantasy week (Monday to Sunday)">
-                  Wk
-                </SortTh>
-              )}
-              {rangeCols && (
-                <SortTh right active={sortKey === 'game_floor'} dir={sortDir} onClick={() => sortBy('game_floor')} title="A bad game: the player's 20th-percentile game this season, on the value scale, above replacement level">
-                  Floor
-                </SortTh>
-              )}
-              {rangeCols && (
-                <SortTh right active={sortKey === 'game_ceiling'} dir={sortDir} onClick={() => sortBy('game_ceiling')} title="A good game: the player's 80th-percentile game this season, on the value scale, above replacement level">
-                  Ceiling
-                </SortTh>
-              )}
-              {rangeCols && (
-                <SortTh right active={sortKey === 'game_value_sd'} dir={sortDir} onClick={() => sortBy('game_value_sd', 'asc')} title="How much one game differs from the next (standard deviation): low is steady, high is boom or bust">
-                  Spread
-                </SortTh>
-              )}
-              <Th>Cmp</Th>
-            </tr>
-          </thead>
+          <BoardHead
+            sortKey={sortKey}
+            sortDir={sortDir}
+            sortBy={sortBy}
+            view={view}
+            basis={basis}
+            showMarket={showMarket}
+            showFit={showFit}
+            byStandings={!!standings}
+            categoryColumns={categoryColumns}
+            scheduleCols={scheduleCols}
+            showNext7={showNext7}
+            rangeCols={rangeCols}
+          />
           <tbody>{body}</tbody>
         </table>
       </div>
