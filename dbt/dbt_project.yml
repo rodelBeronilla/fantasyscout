@@ -107,7 +107,7 @@ vars:
   # Fitted on NBA 2020-21 to 2022-23 and judged out of sample on 2023-24 and 2024-25 by
   # ops/walk_forward.py; the WNBA has no past market to test on, so it is not listed.
   market_prior: {leagues: [nba], weight: 0.45, fade_games: 20}
-  # The projection's advanced-stat features (#771, ADR 0029, mart_player_projection), per league.
+  # The projection's advanced-stat features (#771, ADR 0030, mart_player_projection), per league.
   # Each is off at its neutral value (pace 0, usage_weight 1, the shrinkages 0,
   # other_team_production 1) unless it passed walk-forward (ops/projection_features.py): fitted on
   # NBA 2020-21 to 2022-23 and WNBA 2021 to 2023, judged on NBA 2023-24 and 2024-25, WNBA 2024 and
