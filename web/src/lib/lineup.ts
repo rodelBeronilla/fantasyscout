@@ -106,6 +106,13 @@ export function weekPlan(players: LineupPlayer[], dates: string[], plays: (id: s
   return { days, started, lost, openSlots: days.reduce((s, d) => s + d.open.length, 0), games: started + lost };
 }
 
+/** Each player's started games over the plan: what a head-to-head week counts (#817). */
+export function startsByPlayer(plan: WeekPlan): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const day of plan.days) for (const id of day.started.keys()) out.set(id, (out.get(id) ?? 0) + 1);
+  return out;
+}
+
 /** The fantasy week's days from `today` to its Sunday (Monday-to-Sunday weeks), as ISO dates. */
 export function daysLeftInWeek(today: string): string[] {
   const d = new Date(`${today}T12:00:00Z`);

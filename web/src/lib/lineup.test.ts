@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { bestLineup, daysLeftInWeek, normalizeSlots, slotList, weekPlan } from './lineup';
+import { bestLineup, startsByPlayer, daysLeftInWeek, normalizeSlots, slotList, weekPlan } from './lineup';
 
 const slots = { G: 1, F: 1, C: 1, UTIL: 1 };
 
@@ -60,6 +60,11 @@ describe('weekPlan (#735)', () => {
     expect(plan.days[1]!.open).toEqual(['C']);
     expect(plan.openSlots).toBe(1);
     expect(plan.games).toBe(4);
+  });
+
+  it("counts each player's started games: what the week's matchup counts (#817)", () => {
+    const plan = weekPlan(players, Object.keys(games), (id, d) => games[d]!.includes(id), slotList({ G: 1, F: 0, C: 1, UTIL: 0 }));
+    expect(Object.fromEntries(startsByPlayer(plan))).toEqual({ a: 2, c: 1 }); // b sat for want of a guard slot
   });
 });
 

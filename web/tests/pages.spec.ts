@@ -1524,9 +1524,18 @@ test('the Trade page can judge a trade for this fantasy week and counts the game
 });
 
 test('a head-to-head league picks this week\'s opponent on My Team and sees the categories it projects to win', async ({ page }) => {
-  // Everyone has three games left this week.
-  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { games_this_week: number | null }[];
-  await page.route('**/board/nba.json', (route) => route.fulfill({ json: board.map((r) => ({ ...r, games_this_week: 3 })) }));
+  // The fixture's week of Monday 2 November: each side counts the games its lineup starts (#817).
+  type Row = { player_id: string; full_name: string | null; team_id: string | null; injury_group: string | null };
+  type Game = { game_date: string; home_team_id: string; away_team_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const games = (await (await page.request.get('/data/builds/fixture/schedule/nba.json')).json()) as Game[];
+  await page.clock.setFixedTime(new Date('2026-11-02T16:00:00Z'));
+  const week = games.filter((g) => g.game_date >= '2026-11-02' && g.game_date <= '2026-11-08');
+  const gamesFor = (name: string) => {
+    const r = board.find((b) => b.full_name === name);
+    if (!r || ['out', 'doubtful'].includes(r.injury_group ?? '')) return 0;
+    return week.filter((g) => g.home_team_id === r.team_id || g.away_team_id === r.team_id).length;
+  };
   await page.goto('/?league=nba');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');
   await expect(rows.first()).toBeVisible();
@@ -1549,7 +1558,9 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
   await matchupCard.getByLabel("This week's opponent").selectOption({ label: 'Team 2' });
   // three of the best against one player far down the board: most categories are won; turnovers go the other way
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText(/win [5-9] of 9 categories against Team 2/);
-  await expect(matchupCard.getByTestId('matchup-summary')).toContainText('Games left this week: you 9, Team 2 3');
+  // three players fill three of the ten slots, so each starts every game his team has left
+  const mine = names.slice(0, 3).reduce((s, name) => s + gamesFor(name), 0);
+  await expect(matchupCard.getByTestId('matchup-summary')).toContainText(`Games left this week: you ${mine}, Team 2 ${gamesFor(names[3] ?? '')}`);
   await expect(matchupCard.getByTestId('matchup-row')).toHaveCount(9);
   await expect(matchupCard.getByTestId('matchup-row').filter({ hasText: 'TO' })).toContainText('loss');
   // a head-to-head review defaults to this week

@@ -2,7 +2,9 @@
  * A head-to-head week (#490): each team's projected category totals for the games left this
  * fantasy week (Monday to Sunday), category by category against one opponent. A total is the
  * projected per-game line (the line the board's value is scored on) times each player's games
- * left; a percentage is made over attempted. Turnovers go to the lower total.
+ * counted: on My Team his started games from the week's lineup plan, which fills the league's
+ * slots and leaves out and doubtful players out (#817), so a bench player's games and an injured
+ * player's do not count; a percentage is made over attempted. Turnovers go to the lower total.
  */
 import type { PointWeights } from './fantasy-league';
 import { fantasyPoints, thirdsWeights } from './league-value';
@@ -43,8 +45,10 @@ export interface WeekTotals {
 }
 
 /** A team's projected totals for the games left this week, from the rows of its active players. */
-export function weekTotals(rows: Row[], cats: string[], weights?: PointWeights): WeekTotals {
-  const games = (r: Row) => n(r, 'games_this_week');
+export function weekTotals(rows: Row[], cats: string[], weights?: PointWeights, gamesOf?: (row: Row) => number): WeekTotals {
+  // the games a player is counted for: his started games when the lineup plan is known (#817),
+  // else every game his team has left this week
+  const games = gamesOf ?? ((r: Row) => n(r, 'games_this_week'));
   const out: Record<string, number> = {};
   for (const c of cats) {
     const counting = COUNTING[c];
