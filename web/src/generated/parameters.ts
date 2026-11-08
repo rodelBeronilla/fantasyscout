@@ -61,6 +61,26 @@ export const PARAMS = {
     "weight": 0.45,
     "fade_games": 20
   },
+  "projection.features.pace": {
+    "nba": 0.0,
+    "wnba": 1.5
+  },
+  "projection.features.usage_weight": {
+    "nba": 8.0,
+    "wnba": 1.0
+  },
+  "projection.features.fg_shrink": {
+    "nba": 50,
+    "wnba": 50
+  },
+  "projection.features.ft_shrink": {
+    "nba": 25,
+    "wnba": 10
+  },
+  "projection.features.other_team_production": {
+    "nba": 1.0,
+    "wnba": 1.0
+  },
   "projection.calibration_min_listings": 300,
   "projection.regular_season_games": {
     "nba": 82
@@ -416,6 +436,71 @@ export const PARAMETERS = [
       ],
       "weight": 0.45,
       "fade_games": 20
+    }
+  },
+  {
+    "id": "projection.features.pace",
+    "kind": "model",
+    "status": "measured",
+    "what": "The pace feature: each per-minute counting rate is multiplied by (the current team's expected pace / the pace of the games the rates were made in) to this power. 0 is off.",
+    "evidence": "ADR 0030: fitted on WNBA 2021 to 2023 and NBA 2020-21 to 2022-23, judged on WNBA 2024 and 2025 and NBA 2023-24 and 2024-25 (runs 42518229324 to 42518238385 WNBA, 42518215822 to 42518225161 NBA). Pooled RMSE of value per game, on minus off, 95% paired bootstrap: WNBA 1.5 enters, -0.0097 (-0.0154 to -0.0043), upper bound below zero in 20 of 20 bootstrap seeds, no checkpoint worse past 0.010; NBA 1.0 fails, +0.0034 (+0.0004 to +0.0061), so it is off there. 1.5 is the grid's edge",
+    "validation": 771,
+    "dbt": "projection_features.*.pace",
+    "value": {
+      "nba": 0.0,
+      "wnba": 1.5
+    }
+  },
+  {
+    "id": "projection.features.usage_weight",
+    "kind": "model",
+    "status": "measured",
+    "what": "The usage feature: the current season's usage rate counts this many times its production weight, and the volume categories (points, threes, turnovers, shots, free throws) move with the ratio of that usage to the production-weighted one. 1 is off.",
+    "evidence": "ADR 0030 (seasons and runs as projection.features.pace): NBA 8 enters, pooled RMSE -0.0042 (-0.0076 to -0.0007), upper bound below zero in 20 of 20 bootstrap seeds, Spearman +0.0006 (-0.0003 to +0.0013); WNBA 8 fails, +0.0004 (-0.0099 to +0.0101), and +0.018 at 2024's tenth, so it is off there. 8 is the grid's edge",
+    "validation": 771,
+    "dbt": "projection_features.*.usage_weight",
+    "value": {
+      "nba": 8.0,
+      "wnba": 1.0
+    }
+  },
+  {
+    "id": "projection.features.fg_shrink",
+    "kind": "model",
+    "status": "measured",
+    "what": "The efficiency feature, field goals: attempts at the league's percentage added to a player's weighted makes and attempts. 0 is off.",
+    "evidence": "ADR 0030 (seasons and runs as projection.features.pace), fitted and judged with ft_shrink: NBA 50 and 25 enter, pooled RMSE -0.0161 (-0.0219 to -0.0104), upper bound below zero in 20 of 20 bootstrap seeds, Spearman +0.0030 (+0.0016 to +0.0044); WNBA 50 and 10 enter marginally, -0.0204 (-0.0397 to -0.0010), below zero in 18 of 20 seeds, and as built on its own scale they cost Spearman -0.0056 (-0.0096 to -0.0014), which #915 is to re-judge first",
+    "validation": 771,
+    "dbt": "projection_features.*.fg_shrink",
+    "value": {
+      "nba": 50,
+      "wnba": 50
+    }
+  },
+  {
+    "id": "projection.features.ft_shrink",
+    "kind": "model",
+    "status": "measured",
+    "what": "The efficiency feature, free throws: attempts at the league's percentage added to a player's weighted makes and attempts. 0 is off.",
+    "evidence": "ADR 0030: fitted and judged with fg_shrink (see projection.features.fg_shrink)",
+    "validation": 771,
+    "dbt": "projection_features.*.ft_shrink",
+    "value": {
+      "nba": 25,
+      "wnba": 10
+    }
+  },
+  {
+    "id": "projection.features.other_team_production",
+    "kind": "model",
+    "status": "measured",
+    "what": "The role-change feature: the share of its production weight a past season spent mostly on another team keeps. 1 is off.",
+    "evidence": "ADR 0030 (seasons and runs as projection.features.pace): no grid point lowered the tuning RMSE in either league, so it was not judged and stays off",
+    "validation": 771,
+    "dbt": "projection_features.*.other_team_production",
+    "value": {
+      "nba": 1.0,
+      "wnba": 1.0
     }
   },
   {

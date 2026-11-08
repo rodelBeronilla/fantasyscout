@@ -22,6 +22,9 @@ fs-export = "export.cli:main"
 fs-dev = "ops.dev:main"
 
 [dependency-groups]
+benchmark = [
+    "scikit-learn>=1.5",
+]
 dbt = [
     "dbt-core>=1.10",
     "dbt-databricks>=1.10",
@@ -77,6 +80,12 @@ ignore_missing_imports = true
 # libraries that ship no types (PyYAML, pandas; their stub packages are not dependencies).
 [[tool.mypy.overrides]]
 module = ["boxscore", "fs", "sheets", "yaml", "pandas"]
+ignore_missing_imports = true
+
+# scikit-learn is in the benchmark group only (the projection's ML challenger, #771), which the
+# CI type check does not install.
+[[tool.mypy.overrides]]
+module = ["sklearn", "sklearn.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

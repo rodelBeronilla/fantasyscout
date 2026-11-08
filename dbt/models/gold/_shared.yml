@@ -34,6 +34,18 @@ models:
         description: "The headline"
       - name: news_date
         description: "The headline's publish date (Eastern)"
+  - name: int_player_projection_parts
+    description: "The parts of the projection (mart_player_projection), one row per player on a current roster: projected minutes, the games share, and the weighted sums its per-minute rates are made of (wsum_<stat>, rate_weight_<season>), with the production from past seasons on another team summed apart (wsum_other_<stat>, rate_weight_other_<season>), usage and pace by the production weights, the current team's expected pace, the replacement-level prior and the league's shooting percentages. The walk-forward harness exports it so ops.projection_features can apply any setting of the advanced-stat features (#771) with the mart's arithmetic."
+    columns:
+      - name: league
+        description: "nba or wnba"
+        data_tests: [not_null]
+      - name: player_id
+        description: "League player id"
+        data_tests: [not_null]
+      - name: proj_minutes_pg
+        description: "Projected minutes per game (see mart_player_projection)"
+        data_tests: [not_null]
   - name: int_market_prior
     description: "The market's draft order for the season being played, the input of the board's market prior (#832): one row per league and player with an ESPN draft position that season, his rank by it, and his regular-season games so far. A season counts from the day before its first regular-season game through its last, so between seasons there are no rows."
     columns:

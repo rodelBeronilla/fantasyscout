@@ -1267,7 +1267,7 @@ models:
         description: "Value per game above replacement level: the sum of the nine category values, a missing one counting as 0"
 
   - name: mart_player_projection
-    description: "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes) and are cut for a player still out or just back from an absence (fantasy_return_ramp)."
+    description: "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes) and are cut for a player still out or just back from an absence (fantasy_return_ramp). The advanced-stat features (projection_features, #771: pace, usage, shooting shrinkage, role change) adjust the rates in the leagues where they passed walk-forward; the parts are int_player_projection_parts."
     columns:
       - name: projection_sk
         description: "Surrogate key: one row per league and player"
@@ -1340,6 +1340,24 @@ models:
         description: "Games the player has played for the current team since that absence; 0 while still out; null without an absence"
       - name: return_minutes_factor
         description: "Share of projected minutes kept by the return ramp (fantasy_return_ramp): in season, with 5+ games this season, 1 minus 1% per game of the absence (at most 50%) while still out, half that cut after the first game back, 1 otherwise"
+        data_tests: [not_null]
+      - name: pace_target
+        meta: {unit: possessions per regulation game, null_when: the team has no pace this season or last}
+        description: "The pace the player's current team is expected to play at (#771): its pace this season, regressed toward last season's by fantasy_matchup.prior_games games"
+      - name: pace_basis
+        meta: {unit: possessions per regulation game, null_when: no season in the projection has a pace}
+        description: "The pace of the games the per-minute rates were made in: each season's team pace in the player's games, by the production weights, with the replacement band's at the prior's minutes"
+      - name: pace_factor
+        description: "What the pace feature (projection_features.<league>.pace) multiplies every per-minute counting rate by: (pace_target / pace_basis) to that power; 1 while it is off"
+        data_tests: [not_null]
+      - name: usage_target
+        meta: {null_when: no season in the projection has a usage rate}
+        description: "Usage rate with the current season counted projection_features.<league>.usage_weight times its production weight (decimal 0-1)"
+      - name: usage_basis
+        meta: {null_when: no season in the projection has a usage rate}
+        description: "Usage rate by the production weights, the replacement band's at the prior's minutes (decimal 0-1)"
+      - name: usage_factor
+        description: "What the usage feature multiplies the volume categories by (points, threes, turnovers, shots and free throws): usage_target / usage_basis; 1 while it is off"
         data_tests: [not_null]
       - name: proj_points_pg
         description: "Projected points per game: the weighted per-minute rate times proj_minutes_pg"

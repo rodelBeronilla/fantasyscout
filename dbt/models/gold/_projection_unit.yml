@@ -8,7 +8,7 @@ unit_tests:
       seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth
       game, which is no absence. p6 has missed six after four games: under five games this season,
       so no cut. Projected minutes are the blended minutes (30) times the share kept.
-    model: mart_player_projection
+    model: int_player_projection_parts
     overrides:
       vars:
         as_of: '2026-01-15'
@@ -81,6 +81,13 @@ unit_tests:
           - {league: nba, roster_season: '2025-26', team_id: A, player_id: p4, age: 25, is_rookie: false}
           - {league: nba, roster_season: '2025-26', team_id: A, player_id: p5, age: 25, is_rookie: false}
           - {league: nba, roster_season: '2025-26', team_id: A, player_id: p6, age: 25, is_rookie: false}
+      - input: ref('fct_team_game')
+        format: sql
+        rows: |
+          select 'nba' as league, '2025-26' as season, '0022500001' as game_id, 'A' as team_id,
+            cast(null as double) as pace, 240.0 as team_minutes, 80 as field_goals_attempted,
+            20 as free_throws_attempted, 12 as turnovers
+          where false
       - input: ref('schedule')
         rows:
           - {league: nba, season: '2024-25', game_type: regular, game_status: 3, game_date_est: 2025-01-10}
@@ -97,3 +104,31 @@ unit_tests:
           - {player_id: p4, absence_games: 3, games_since_return: 7, return_minutes_factor: 1.0, proj_minutes_pg: 30}
           - {player_id: p5, absence_games: null, games_since_return: null, return_minutes_factor: 1.0, proj_minutes_pg: 30}
           - {player_id: p6, absence_games: 6, games_since_return: 0, return_minutes_factor: 1.0, proj_minutes_pg: 30}
+
+  - name: projection_features_adjust_the_rates
+    description: >
+      The advanced-stat features (#771), on in the NBA and off in the WNBA, the same arithmetic as
+      ops/projection_features.lines (tests/test_projection_features.py holds the two equal on
+      these rows). n1: a past season on another team keeps half its production weight, so
+      weighted minutes are 300 + (400 - 200) + 100 = 600 and points 400 - 100 = 300, a rate of
+      0.5 over 32 minutes. Pace 125 against 100 at power 1 scales every rate by 1.25; usage
+      counted twice this season is 0.3125 against 0.25, scaling the volume categories by 1.25
+      more: points 16 x 1.25 x 1.25 = 25, rebounds 8 x 1.25 = 10. 100 attempts at the league's
+      0.5 take field goals from 200 of 300 to 250 of 400 (0.625), and 50 free throws at 0.75
+      take 125 of 150 to 162.5 of 200 (0.8125). w1, in the WNBA, is the plain projection: 400
+      points over 800 weighted minutes, 16 a game.
+    model: mart_player_projection
+    overrides:
+      vars:
+        projection_features:
+          nba: {pace: 1.0, usage_weight: 2.0, fg_shrink: 100, ft_shrink: 50, other_team_production: 0.5}
+          wnba: {pace: 0.0, usage_weight: 1.0, fg_shrink: 0, ft_shrink: 0, other_team_production: 1.0}
+    given:
+      - input: ref('int_player_projection_parts')
+        rows:
+          - {league: nba, season: '2025-26', player_id: n1, team_id: A, prior_games: 2, prior_minutes: 100.0, proj_minutes_pg: 32.0, rate_weight_cur: 300.0, rate_weight_prev: 400.0, rate_weight_prev2: 0.0, rate_weight_other_prev: 400.0, rate_weight_other_prev2: 0.0, wsum_points: 400.0, wsum_other_points: 200.0, prior_points_pg: 0.0, wsum_rebounds_total: 150.0, wsum_other_rebounds_total: 0.0, prior_rebounds_total_pg: 0.0, wsum_turnovers: 75.0, wsum_other_turnovers: 0.0, prior_turnovers_pg: 0.0, wsum_fgm: 200.0, wsum_other_fgm: 0.0, prior_fgm_pg: 0.0, wsum_fga: 300.0, wsum_other_fga: 0.0, prior_fga_pg: 0.0, wsum_ftm: 125.0, wsum_other_ftm: 0.0, prior_ftm_pg: 0.0, wsum_fta: 150.0, wsum_other_fta: 0.0, prior_fta_pg: 0.0, pace_target: 125.0, pace_wsum: 70000.0, pace_weight: 700.0, prior_pace: 100.0, usage_wsum: 75.0, usage_weight: 300.0, usage_wsum_cur: 56.25, usage_weight_cur: 100.0, prior_usage_rate: 0.25, league_field_goal_pct: 0.5, league_free_throw_pct: 0.75}
+          - {league: wnba, season: '2026', player_id: w1, team_id: B, prior_games: 2, prior_minutes: 100.0, proj_minutes_pg: 32.0, rate_weight_cur: 300.0, rate_weight_prev: 400.0, rate_weight_prev2: 0.0, rate_weight_other_prev: 400.0, rate_weight_other_prev2: 0.0, wsum_points: 400.0, wsum_other_points: 200.0, prior_points_pg: 0.0, pace_target: 125.0, pace_wsum: 70000.0, pace_weight: 700.0, prior_pace: 100.0, usage_wsum: 75.0, usage_weight: 300.0, usage_wsum_cur: 56.25, usage_weight_cur: 100.0, prior_usage_rate: 0.25, league_field_goal_pct: 0.5, league_free_throw_pct: 0.75}
+    expect:
+      rows:
+        - {player_id: n1, pace_factor: 1.25, usage_factor: 1.25, proj_points_pg: 25.0, proj_rebounds_total_pg: 10.0, proj_turnovers_pg: 6.25, proj_fga_pg: 25.0, proj_fgm_pg: 15.625, proj_field_goal_pct: 0.625, proj_fta_pg: 12.5, proj_ftm_pg: 10.15625}
+        - {player_id: w1, pace_factor: 1.0, usage_factor: 1.0, proj_points_pg: 16.0, proj_rebounds_total_pg: null, proj_turnovers_pg: null, proj_fga_pg: null, proj_fgm_pg: null, proj_field_goal_pct: null, proj_fta_pg: null, proj_ftm_pg: null}

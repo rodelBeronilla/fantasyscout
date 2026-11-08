@@ -62,6 +62,12 @@ on:
         description: Judge a points league's playoff odds on the same leagues too (#891; needs standings)
         type: boolean
         default: false
+      # The projection's advanced-stat features (#771): every judged run writes their inputs
+      # (walk_forward_features.csv); this judges the board as built with a setting off and on.
+      features:
+        description: Projection features to judge off and on, as JSON (e.g. {"pace":1.0}; empty for none, #771)
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -132,6 +138,8 @@ jobs:
               "select count(*) as board_rows, sum(in_pool::int) as in_pool from gold.mart_board where league = ?",
               "select returned, censored, count(*) as spells from gold.fct_injury_spell where league = ? group by all order by all",
               "select season, count(*) as players, sum(walk_year::int) as walk_years, sum((walk_year and re_signed)::int) as re_signed from gold.fct_walk_year where league = ? group by 1 order by 1",
+              # the advanced lines' coverage of the games played, for the projection's features (#771)
+              "select season, count(*) as played, round(avg((usage_percentage is not null)::int), 3) as usage, round(avg((player_pace is not null)::int), 3) as pace, round(avg((team_share_points is not null)::int), 3) as team_share from gold.fct_player_game where league = ? and played group by 1 order by 1",
           ):
               print(con.execute(sql, [league]).fetchdf().to_string(index=False), end="\n\n")
           EOF
@@ -147,10 +155,12 @@ jobs:
           TRADES: ${{ inputs.trades }}
           ROSTER: ${{ inputs.roster }}
           BUY_SELL: ${{ inputs.buy_sell }}
+          FEATURES: ${{ inputs.features }}
           FS_LANDING_ROOT: ${{ runner.temp }}/landing
         run: |
           set -o pipefail
-          args=()
+          args=(--features-out walk_forward_features.csv)
+          if [ -n "$FEATURES" ]; then args+=(--features "$FEATURES"); fi
           if [ "$MARKET_PRIOR" = "true" ]; then args+=(--market-prior); fi
           if [ -n "$PRIOR_WEIGHT" ]; then args+=(--prior-weight "$PRIOR_WEIGHT"); fi
           if [ -n "$PRIOR_FADE" ]; then args+=(--prior-fade "$PRIOR_FADE"); fi
@@ -242,4 +252,14 @@ jobs:
         with:
           name: points-${{ inputs.league }}-${{ inputs.judge }}
           path: points.json
+          retention-days: 90
+      # The projection's advanced-stat features (#771): the inputs ops.projection_features fits and
+      # judges them on, and with the features input the board judged off and on.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && inputs.judge != ''
+        with:
+          name: features-${{ inputs.league }}-${{ inputs.judge }}${{ inputs.features != '' && '-judged' || '' }}
+          path: |
+            walk_forward_features.csv
+            walk_forward.json
           retention-days: 90

@@ -107,6 +107,20 @@ vars:
   # Fitted on NBA 2020-21 to 2022-23 and judged out of sample on 2023-24 and 2024-25 by
   # ops/walk_forward.py; the WNBA has no past market to test on, so it is not listed.
   market_prior: {leagues: [nba], weight: 0.45, fade_games: 20}
+  # The projection's advanced-stat features (#771, ADR 0030, mart_player_projection), per league.
+  # Each is off at its neutral value (pace 0, usage_weight 1, the shrinkages 0,
+  # other_team_production 1) unless it passed walk-forward (ops/projection_features.py): fitted on
+  # NBA 2020-21 to 2022-23 and WNBA 2021 to 2023, judged on NBA 2023-24 and 2024-25, WNBA 2024 and
+  # 2025. Entered: NBA usage and efficiency, WNBA efficiency and pace; role entered nowhere.
+  # - pace: per-minute counting rates times (expected team pace / the pace they were made at)^pace;
+  # - usage_weight: the current season's usage counts this many times its production weight, and
+  #   the volume categories (points, threes, turnovers, shots, free throws) move with usage;
+  # - fg_shrink, ft_shrink: attempts at the league's percentage added to a player's shooting;
+  # - other_team_production: the share of its weight production from a season mostly on another
+  #   team keeps.
+  projection_features:
+    nba: {pace: 0.0, usage_weight: 8.0, fg_shrink: 50, ft_shrink: 25, other_team_production: 1.0}
+    wnba: {pace: 1.5, usage_weight: 1.0, fg_shrink: 50, ft_shrink: 10, other_team_production: 1.0}
   # Matchups (mart_schedule_upcoming): value per game per standard deviation of the opponent's
   # defensive rating and of the expected pace, from replaying past seasons (ADR 0003); team
   # ratings blend this season to date with last season, last season counting as prior_games.

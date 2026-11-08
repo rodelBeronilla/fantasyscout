@@ -395,7 +395,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 463,
+ "generic_tests": 468,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -14966,7 +14966,7 @@
       "int_known_roster",
       "int_league_season_state",
       "int_market_prior",
-      "mart_player_projection",
+      "int_player_projection_parts",
       "mart_schedule_upcoming",
       "player_props",
       "schedule_team_games"
@@ -19924,9 +19924,9 @@
       "int_league_season_state",
       "int_market_prior",
       "int_player_game_value",
+      "int_player_projection_parts",
       "int_player_window_lines",
       "mart_minutes_redistribution",
-      "mart_player_projection",
       "mart_player_rolling",
       "mart_streamers"
      ],
@@ -22542,6 +22542,7 @@
       "fct_absence_spell",
       "fct_official_listing",
       "fct_referee_tendency",
+      "int_player_projection_parts",
       "mart_minutes_redistribution",
       "mart_schedule_upcoming"
      ],
@@ -23436,7 +23437,7 @@
       "A point-in-time build cannot. Rosters count as known only from the day they were landed (ADR 0018), and every past season's were landed by a backfill long after it, so a backtest of a past date would project nobody. It rebuilds the roster from what was known before the cut instead: each player's latest event among the games he played (this season and the last) and the league's official signings, trades (the receiving team) and waiver claims. A player whose latest event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from games alone. The roster season is the newest season on the schedule that starts within about six months of the cut, so an offseason date projects the coming season. Age and the rookie flag are unknown here; mart_board takes the age from the birth date."
      ],
      "read_by": [
-      "mart_player_projection"
+      "int_player_projection_parts"
      ],
      "read_by_pages": [],
      "reads": [
@@ -23537,7 +23538,7 @@
      "read_by": [
       "fct_team_stakes",
       "feed_freshness",
-      "mart_player_projection",
+      "int_player_projection_parts",
       "mart_streamers"
      ],
      "read_by_pages": [],
@@ -23784,6 +23785,612 @@
      "checks": [],
      "columns": [
       {
+       "description": "nba or wnba",
+       "meta": {},
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "games_current",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "games_prev",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "games_prev2",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "minutes_current",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "minutes_prev",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "minutes_prev2",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "sample_weight",
+       "tests": [],
+       "type": "decimal(38,2)"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "regular_games_weight",
+       "tests": [],
+       "type": "decimal(38,2)"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "team_games_weight",
+       "tests": [],
+       "type": "decimal(38,2)"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "team_games_current",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "minutes_games_weight",
+       "tests": [],
+       "type": "decimal(38,4)"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "minutes_weighted",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "rate_weight_cur",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "rate_weight_prev",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "rate_weight_prev2",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_rebounds_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_fgm",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_fga",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_ftm",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_fta",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "rate_weight_other_prev",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "rate_weight_other_prev2",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_points",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_rebounds_total",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_assists",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_steals",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_blocks",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_three_pointers_made",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_turnovers",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_fgm",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_fga",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_ftm",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "wsum_other_fta",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "usage_weight",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "usage_wsum",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "usage_weight_cur",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "usage_wsum_cur",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "pace_weight",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "pace_wsum",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prev_team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "team_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "roster_season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "age",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "is_rookie",
+       "tests": [],
+       "type": "boolean"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_games",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_minutes",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Projected minutes per game (see mart_player_projection)",
+       "meta": {},
+       "name": "proj_minutes_pg",
+       "tests": [
+        "not_null"
+       ],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "proj_minutes_season_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "minutes_last5_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "absence_games",
+       "tests": [],
+       "type": "bigint"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "games_since_return",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "return_minutes_factor",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "games_share",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "games_share_healthy",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_points_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_rebounds_total_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_assists_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_steals_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_blocks_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_three_pointers_made_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_turnovers_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_fgm_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_fga_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_ftm_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_fta_pg",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_usage_rate",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "prior_pace",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "pace_target",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "league_field_goal_pct",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "",
+       "meta": {},
+       "name": "league_free_throw_pct",
+       "tests": [],
+       "type": "double"
+      }
+     ],
+     "description": "The parts of the projection (mart_player_projection), one row per player on a current roster: projected minutes, the games share, and the weighted sums its per-minute rates are made of (wsum_<stat>, rate_weight_<season>), with the production from past seasons on another team summed apart (wsum_other_<stat>, rate_weight_other_<season>), usage and pace by the production weights, the current team's expected pace, the replacement-level prior and the league's shooting percentages. The walk-forward harness exports it so ops.projection_features can apply any setting of the advanced-stat features (#771) with the mart's arithmetic.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "int_player_projection_parts",
+     "notes": [
+      "The parts of the projection (mart_player_projection), one row per player on a current roster: projected minutes, the games share, and the weighted sums its per-minute rates are made of. The mart turns them into the projected line and applies the advanced-stat features (#771); the walk-forward harness reads these parts so ops.projection_features can apply any setting of the features in Python, the same formulas as the mart.",
+      "The projection separates how much a player plays from what they do while playing:",
+      "- Minutes per game: each season's minutes per game counted by games played times a minutes recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in the current season shows within a few games where the league's roles move a lot (WNBA). A past season spent mostly on another team counts for var fantasy_team_change (0.25) of its minutes weight: the role was a different team's. Per-minute production carries over. In season, with five or more games for the current team, the figure is blended with the player's last five games at var fantasy_recent_minutes (0.5), so a role change shows at once.",
+      "- Return ramp: in season, for a player with five or more games this season who is still out, or just back, after three or more straight games of the current team missed, minutes per game are cut by 1% per game of that absence (at most 50%) while the player is out, half that after the first game back and none from the second (var fantasy_return_ramp). Players come back on reduced minutes, and the last five games only show it once they have been played. The team's games count from the player's first game for it this season, or from its first game when it was their main team last season, so an injury carried over from last season counts.",
+      "- Production per minute: each season's totals over its minutes, counted by minutes played times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of 60 games at 8 minutes counts for far less than 60 games at 34.",
+      "- Per-game line: production per minute times projected minutes.",
+      "- Seasons are regular-season lines (int_player_window_lines, #767): playoff games are not fantasy games and do not move a player's minutes or production.",
+      "- Games share (durability): the share of their team's regular-season games a player played in the seasons they appeared in, by the same recency, regressed toward a typical share by durability_games games (var fantasy.<league>.durability_games, fantasy_durability). Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out.",
+      "Every projection also starts from prior_games games of a replacement-level player (var fantasy: 3 NBA, 5 WNBA), at that player's minutes and per-minute production, so a short sample moves a projection only part of the way and a missing season adds nothing. All settings were chosen by backtest (ADR 0003).",
+      "The replacement-level line is the average line of the players just outside a fantasy league's rosters by total minutes (ranks pool_size + 1 to pool_size + teams) in the league's latest complete regular season.",
+      "Current roster: the player is on their team's latest roster landing for the league's latest roster season (int_known_roster; a point-in-time build rebuilds it from what was known before its cut). A player waived or released drops off with the next landing, and a retired player is on no roster at all, so neither is projected. Only players with at least one game in the three seasons are projected.",
+      "The features' inputs (#771), from games already cut by the build's date:",
+      "- Usage and pace per player-season: the advanced line's usage rate and his team's pace (fct_team_game: possessions per regulation game) in the regular-season games he played, each weighted by his minutes. They are summed over the seasons by the production weights (recency x games x minutes), with the replacement band's averages at the prior's minutes.",
+      "- The pace he is expected to play at: his current team's pace this season, regressed toward its pace last season by fantasy_matchup.prior_games games, as the matchup ratings do.",
+      "- The production from past seasons spent mostly on another team, summed apart.",
+      "- The league's shooting percentages in the reference season, for the efficiency shrinkage."
+     ],
+     "read_by": [
+      "mart_player_projection"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "fct_player_game",
+      "fct_team_game",
+      "int_known_roster",
+      "int_league_season_state",
+      "int_player_window_lines",
+      "schedule"
+     ],
+     "unit_tests": [
+      {
+       "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",
+       "name": "projection_return_ramp_cuts_minutes_after_an_absence"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
        "description": "season, last_20 or last_10",
        "meta": {},
        "name": "window_name",
@@ -23975,9 +24582,9 @@
      ],
      "read_by": [
       "int_league_season_state",
+      "int_player_projection_parts",
       "int_value_scale",
       "mart_category_zscores",
-      "mart_player_projection",
       "mart_streamers"
      ],
      "read_by_pages": [],
@@ -26147,6 +26754,62 @@
        "type": "double"
       },
       {
+       "description": "The pace the player's current team is expected to play at (#771): its pace this season, regressed toward last season's by fantasy_matchup.prior_games games",
+       "meta": {
+        "null_when": "the team has no pace this season or last",
+        "unit": "possessions per regulation game"
+       },
+       "name": "pace_target",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The pace of the games the per-minute rates were made in: each season's team pace in the player's games, by the production weights, with the replacement band's at the prior's minutes",
+       "meta": {
+        "null_when": "no season in the projection has a pace",
+        "unit": "possessions per regulation game"
+       },
+       "name": "pace_basis",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "What the pace feature (projection_features.<league>.pace) multiplies every per-minute counting rate by: (pace_target / pace_basis) to that power; 1 while it is off",
+       "meta": {},
+       "name": "pace_factor",
+       "tests": [
+        "not_null"
+       ],
+       "type": "double"
+      },
+      {
+       "description": "Usage rate with the current season counted projection_features.<league>.usage_weight times its production weight (decimal 0-1)",
+       "meta": {
+        "null_when": "no season in the projection has a usage rate"
+       },
+       "name": "usage_target",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Usage rate by the production weights, the replacement band's at the prior's minutes (decimal 0-1)",
+       "meta": {
+        "null_when": "no season in the projection has a usage rate"
+       },
+       "name": "usage_basis",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "What the usage feature multiplies the volume categories by (points, threes, turnovers, shots and free throws): usage_target / usage_basis; 1 while it is off",
+       "meta": {},
+       "name": "usage_factor",
+       "tests": [
+        "not_null"
+       ],
+       "type": "double"
+      },
+      {
        "description": "Projected points per game: the weighted per-minute rate times proj_minutes_pg",
        "meta": {},
        "name": "proj_points_pg",
@@ -26244,7 +26907,7 @@
        "type": "double"
       }
      ],
-     "description": "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes) and are cut for a player still out or just back from an absence (fantasy_return_ramp).",
+     "description": "One projected per-game line per player on a current roster: per-minute production from the current season and the two before, weighted by minutes times recency, times projected minutes, each from a replacement-level prior; in season, projected minutes blend with the last five games (fantasy_recent_minutes) and are cut for a player still out or just back from an absence (fantasy_return_ramp). The advanced-stat features (projection_features, #771: pace, usage, shooting shrinkage, role change) adjust the rates in the leagues where they passed walk-forward; the parts are int_player_projection_parts.",
      "exported_as": [
       "mart_player_projection.parquet"
      ],
@@ -26260,16 +26923,15 @@
      "name": "mart_player_projection",
      "notes": [
       "One projected line per player on a current roster: what the board scores.",
-      "The projection separates how much a player plays from what they do while playing:",
-      "- Minutes per game: each season's minutes per game counted by games played times a minutes recency weight (per league, var fantasy.<league>.minutes_recency), so a change of role in the current season shows within a few games where the league's roles move a lot (WNBA). A past season spent mostly on another team counts for var fantasy_team_change (0.25) of its minutes weight: the role was a different team's. Per-minute production carries over. In season, with five or more games for the current team, the figure is blended with the player's last five games at var fantasy_recent_minutes (0.5), so a role change shows at once.",
-      "- Return ramp: in season, for a player with five or more games this season who is still out, or just back, after three or more straight games of the current team missed, minutes per game are cut by 1% per game of that absence (at most 50%) while the player is out, half that after the first game back and none from the second (var fantasy_return_ramp). Players come back on reduced minutes, and the last five games only show it once they have been played. The team's games count from the player's first game for it this season, or from its first game when it was their main team last season, so an injury carried over from last season counts.",
-      "- Production per minute: each season's totals over its minutes, counted by minutes played times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08). A season of 60 games at 8 minutes counts for far less than 60 games at 34.",
+      "The projection separates how much a player plays from what they do while playing. Its parts (int_player_projection_parts) are projected minutes, the games share and the weighted sums the per-minute rates are made of; see that model for how each is measured. Here:",
+      "- Production per minute: each season's totals over its minutes, counted by minutes played times the production recency weight (var fantasy_recency: 1.0, 0.25, 0.08), from prior_games games of a replacement-level player (var fantasy: 3 NBA, 5 WNBA).",
       "- Per-game line: production per minute times projected minutes.",
-      "- Seasons are regular-season lines (int_player_window_lines, #767): playoff games are not fantasy games and do not move a player's minutes or production.",
-      "- Games share (durability): the share of their team's regular-season games a player played in the seasons they appeared in, by the same recency, regressed toward a typical share by durability_games games (var fantasy.<league>.durability_games, fantasy_durability). Regular season only: playoff games would make every team that missed the playoffs look as if its players sat out.",
-      "Every projection also starts from prior_games games of a replacement-level player (var fantasy: 3 NBA, 5 WNBA), at that player's minutes and per-minute production, so a short sample moves a projection only part of the way and a missing season adds nothing. All settings were chosen by backtest (ADR 0003).",
-      "The replacement-level line is the average line of the players just outside a fantasy league's rosters by total minutes (ranks pool_size + 1 to pool_size + teams) in the league's latest complete regular season.",
-      "Current roster: the player is on their team's latest roster landing for the league's latest roster season (int_known_roster; a point-in-time build rebuilds it from what was known before its cut). A player waived or released drops off with the next landing, and a retired player is on no roster at all, so neither is projected. Only players with at least one game in the three seasons are projected."
+      "The advanced-stat features (#771, var projection_features, per league) then adjust the rates. Each is off at its neutral value until the walk-forward harness judges it, and on only in the leagues where it passed (ops/projection_features.py holds the same formulas in Python):",
+      "- pace: every per-minute counting rate times (pace_target / pace_basis)^pace, where pace_basis is the pace of the games the rates were made in (by the production weights, the prior at the replacement band's) and pace_target the current team's expected pace.",
+      "- usage_weight: the current season's usage counts usage_weight times its production weight in usage_target, against usage_basis at the production weights; the volume categories (points, threes, turnovers, shots and free throws) are scaled by usage_target / usage_basis.",
+      "- fg_shrink, ft_shrink: that many attempts at the league's percentage (the reference season's) are added to the player's weighted makes and attempts; his attempts are unchanged.",
+      "- other_team_production: a past season spent mostly on another team keeps this share of its production weight (minutes already keep fantasy_team_change).",
+      "At the neutral values every expression reduces to the projection without features exactly."
      ],
      "read_by": [
       "int_value_scale",
@@ -26277,16 +26939,12 @@
      ],
      "read_by_pages": [],
      "reads": [
-      "fct_player_game",
-      "int_known_roster",
-      "int_league_season_state",
-      "int_player_window_lines",
-      "schedule"
+      "int_player_projection_parts"
      ],
      "unit_tests": [
       {
-       "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",
-       "name": "projection_return_ramp_cuts_minutes_after_an_absence"
+       "description": "The advanced-stat features (#771), on in the NBA and off in the WNBA, the same arithmetic as ops/projection_features.lines (tests/test_projection_features.py holds the two equal on these rows). n1: a past season on another team keeps half its production weight, so weighted minutes are 300 + (400 - 200) + 100 = 600 and points 400 - 100 = 300, a rate of 0.5 over 32 minutes. Pace 125 against 100 at power 1 scales every rate by 1.25; usage counted twice this season is 0.3125 against 0.25, scaling the volume categories by 1.25 more: points 16 x 1.25 x 1.25 = 25, rebounds 8 x 1.25 = 10. 100 attempts at the league's 0.5 take field goals from 200 of 300 to 250 of 400 (0.625), and 50 free throws at 0.75 take 125 of 150 to 162.5 of 200 (0.8125). w1, in the WNBA, is the plain projection: 400 points over 800 weighted minutes, 16 a game.",
+       "name": "projection_features_adjust_the_rates"
       }
      ]
     },
@@ -29389,6 +30047,11 @@
    "name": "game_value_on_the_value_scale"
   },
   {
+   "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",
+   "model": "int_player_projection_parts",
+   "name": "projection_return_ramp_cuts_minutes_after_an_absence"
+  },
+  {
    "description": "Thirty projected players in a two-team, five-spot league (pool of ten, replacement level the next two; #767). Only points vary. Minutes equal points except for two players: p05 scores like a pool player but plays five minutes, p11 plays forty but scores like a replacement. Pass one, which pools by minutes, takes p11 and not p05 (a points mean of 19.5); pass two pools by pass-one value, so the pool is the ten highest scorers, p05 in and p11 out, and the scale's points mean is theirs, 20. A past season's line with no projection is the realized season's own scale; a playoff line never reaches it (int_player_window_lines).",
    "model": "int_value_scale",
    "name": "value_scale_pool_is_chosen_in_two_passes"
@@ -29439,9 +30102,9 @@
    "name": "consistency_spread_floor_and_ceiling"
   },
   {
-   "description": "Team A has played ten games. p1 missed five in a row (one listed as did not play) and has played one game back: the cut of 0.125 a game missed reaches the 0.5 cap and is halved, keeping 0.75 of the minutes. p2 has missed the last three: still out, 0.625 kept. p3 missed two, too few to count. p4, on team A last season, missed the first three games and has played seven since: the absence is reported but no longer cuts. p5 joined the team at its sixth game, which is no absence. p6 has missed six after four games: under five games this season, so no cut. Projected minutes are the blended minutes (30) times the share kept.",
+   "description": "The advanced-stat features (#771), on in the NBA and off in the WNBA, the same arithmetic as ops/projection_features.lines (tests/test_projection_features.py holds the two equal on these rows). n1: a past season on another team keeps half its production weight, so weighted minutes are 300 + (400 - 200) + 100 = 600 and points 400 - 100 = 300, a rate of 0.5 over 32 minutes. Pace 125 against 100 at power 1 scales every rate by 1.25; usage counted twice this season is 0.3125 against 0.25, scaling the volume categories by 1.25 more: points 16 x 1.25 x 1.25 = 25, rebounds 8 x 1.25 = 10. 100 attempts at the league's 0.5 take field goals from 200 of 300 to 250 of 400 (0.625), and 50 free throws at 0.75 take 125 of 150 to 162.5 of 200 (0.8125). w1, in the WNBA, is the plain projection: 400 points over 800 weighted minutes, 16 a game.",
    "model": "mart_player_projection",
-   "name": "projection_return_ramp_cuts_minutes_after_an_absence"
+   "name": "projection_features_adjust_the_rates"
   },
   {
    "description": "The curve above: a quarter of the spells had ended by 2 games and half by 3; three quarters never had, so that percentile is null rather than guessed.",
