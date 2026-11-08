@@ -116,7 +116,7 @@
    ]
   },
   {
-   "about": "One value scale (#767, ADR 0019). Fails on any of: game_mean     a player's mean regular-season game value is not their season z_total (the scale is linear in a game's numbers, so the two are the same figure) replacement   the board's replacement band (the `teams` players after the pool, by value) does not average zero: value is above replacement level playoff_game  a playoff or play-in game is valued (fantasy windows are the regular season)",
+   "about": "One value scale (#767, ADR 0019). Fails on any of: game_mean     a player's mean regular-season game value is not their season z_total (the scale is linear in a game's numbers, so the two are the same figure) replacement   the board's replacement band (the `teams` players after the pool, by the projection's value) does not average zero: value is above replacement level playoff_game  a playoff or play-in game is valued (fantasy windows are the regular season)",
    "name": "assert_one_value_scale",
    "reads": [
     "int_player_game_value",
@@ -395,7 +395,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 454,
+ "generic_tests": 463,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -10079,7 +10079,9 @@
       "- Only a real draft position counts: ESPN gives some players 0. The rank breaks ties by player.",
       "- The final ownership ESPN shows for a past season is end-of-season knowledge and is left out."
      ],
-     "read_by": [],
+     "read_by": [
+      "int_market_prior"
+     ],
      "read_by_pages": [],
      "reads": [
       "espn_fantasy_adp",
@@ -14101,6 +14103,7 @@
       "dim_player",
       "fct_availability",
       "fct_market_value",
+      "int_market_prior",
       "player_game_reconciliation",
       "player_news",
       "player_props",
@@ -14954,6 +14957,7 @@
       "game_officials",
       "int_known_roster",
       "int_league_season_state",
+      "int_market_prior",
       "mart_player_projection",
       "mart_schedule_upcoming",
       "player_props",
@@ -17202,6 +17206,7 @@
       "fct_player_youtube_item",
       "fct_waiver_trend",
       "mart_board",
+      "mart_minutes_redistribution",
       "mart_streamers"
      ],
      "read_by_pages": [
@@ -19066,6 +19071,7 @@
      "read_by": [
       "fct_board_history",
       "mart_board",
+      "mart_minutes_redistribution",
       "mart_streamers"
      ],
      "read_by_pages": [],
@@ -19906,8 +19912,10 @@
       "fct_walk_year",
       "int_known_roster",
       "int_league_season_state",
+      "int_market_prior",
       "int_player_game_value",
       "int_player_window_lines",
+      "mart_minutes_redistribution",
       "mart_player_projection",
       "mart_player_rolling",
       "mart_streamers"
@@ -22524,6 +22532,7 @@
       "fct_absence_spell",
       "fct_official_listing",
       "fct_referee_tendency",
+      "mart_minutes_redistribution",
       "mart_schedule_upcoming"
      ],
      "read_by_pages": [],
@@ -23530,6 +23539,82 @@
      "unit_tests": []
     },
     {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Natural key: league and player id",
+       "meta": {},
+       "name": "market_prior_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "meta": {},
+       "name": "league",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The season being played",
+       "meta": {},
+       "name": "season",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "The player's rank by ESPN average draft position that season (silver.espn_preseason_adp)",
+       "meta": {},
+       "name": "adp_rank",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Regular-season games the player has played that season so far",
+       "meta": {},
+       "name": "games",
+       "tests": [],
+       "type": "integer"
+      }
+     ],
+     "description": "The market's draft order for the season being played, the input of the board's market prior (#832): one row per league and player with an ESPN draft position that season, his rank by it, and his regular-season games so far. A season counts from the day before its first regular-season game through its last, so between seasons there are no rows.",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "int_market_prior",
+     "notes": [
+      "The market's draft order for the season being played (#832): the input of the board's market prior (the market_prior var, mart_board). One row per league and player with an ESPN draft position that season (silver.espn_preseason_adp through the id crosswalk), with his rank by it and his regular-season games so far that season, which fade the prior.",
+      "The season is the one under way: from the day before its first regular-season game, when its draft order is known, through its last. Between seasons there is none, so a past season's draft order is never read as this one's, and a season whose draft order was never landed has no rows."
+     ],
+     "read_by": [
+      "mart_board"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "espn_preseason_adp",
+      "fct_player_game",
+      "player_xwalk",
+      "schedule"
+     ],
+     "unit_tests": [
+      {
+       "description": "As of 2025-11-01 the 2025-26 season is under way, so its draft order is read and 2024-25's is not. p1 (drafted first) has played two regular-season games: a game he sat out, a preseason game and last season's game do not count. p2 has not played. ESPN's e3 has no league id, so he has no row.",
+       "name": "market_prior_reads_the_season_being_played"
+      }
+     ]
+    },
+    {
      "checks": [
       "assert_one_value_scale"
      ],
@@ -24432,7 +24517,7 @@
        "type": "double"
       },
       {
-       "description": "Sum of the nine z_ category values: projected value per game above replacement (value_per_game)",
+       "description": "Projected value per game above replacement (value_per_game): the sum of the nine z_ category values, blended toward market_prior_value at market_prior_weight (the market prior, ADR 0020)",
        "meta": {},
        "name": "z_total",
        "tests": [],
@@ -24994,6 +25079,34 @@
        "type": "bigint"
       },
       {
+       "description": "The player's rank in ESPN's draft order for the season being played (int_market_prior); null when undrafted, between seasons or when that season's draft order was never landed",
+       "meta": {},
+       "name": "preseason_adp_rank",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The board's own value per game (the sum of the nine categories) of the player at preseason_adp_rank: the market's rank priced on the board's scale; null without a rank or for a rank beyond the board",
+       "meta": {},
+       "name": "market_prior_value",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The player's regular-season games so far in the season being played, which fade the market prior",
+       "meta": {},
+       "name": "market_prior_games",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The weight z_total gives market_prior_value: market_prior.weight falling linearly to 0 by market_prior.fade_games games, and 0 in a league the prior is off for (the WNBA) or without a market value (ADR 0020)",
+       "meta": {},
+       "name": "market_prior_weight",
+       "tests": [],
+       "type": "double"
+      },
+      {
        "description": "The player's 20th-percentile game this season, valued on the z_total scale (mart_player_consistency); null before a game",
        "meta": {},
        "name": "game_floor",
@@ -25176,7 +25289,8 @@
       "Value is scored once, on each player's projected per-game line (mart_player_projection: per-minute production times projected minutes), on the season's value scale (int_value_scale, ADR 0019): the pool_size players a league rosters, chosen in two passes over the projected lines, set each category's mean and spread. Counting categories are z-scores of the projected per-game numbers (turnovers negative); percentages are makes above the pool's percentage on the attempts, standardised over the pool. The season, last twenty and last ten columns are on the same scale (mart_category_zscores), so they compare directly with the value.",
       "Every category then has replacement level subtracted: the average category score of the next `teams` players after the pool. Zero is a freely available player, so the nine values sum to value per game above replacement (value_per_game) and a punt build is the sum without the punted columns. value_total counts games: value per game times the projected share of team games the player plays (games_share), since a missed game is filled by a replacement-level player; a value below replacement is left as it is.",
       "Alongside the value the row carries the current season's z-scores over the whole season and the last twenty and ten games, the per-game line, the projected line itself, and the player's age and rookie status from the roster, so the app can rank on recent form or raw production too and filter the way a fantasy manager does.",
-      "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current status. The games a listed player is expected to miss are calibrated on history (fct_official_listing): the average, over past injury listings with the same status, of the games the player then missed, capped at the games the team has left, with the same reason (an official Out for rest is averaged over rest listings, not injuries). The status is the official report's for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable); the history is fct_status_calibration's histogram, the league's own listings once it has 300 for the status and reason, else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the games before it instead, and a note that the player is out for the season counts them all. Without any history the old charges apply (out: every game; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. A regular (fantasy_rest_risk.min_minutes projected) on a team with nothing left to play for (fct_team_stakes.rest_risk) is expected to sit out fantasy_rest_risk.extra_sit_out more of the games left, measured point in time in notebook 03 (#494): the multiplier keeps the rest. games_next_7 counts playoff games too."
+      "Rest of season counts regular-season games only, the games fantasy leagues score. While some remain, ros_factor is the team's remaining share of its regular season times the availability multiplier, the share of those games the player is expected to play given the current status. The games a listed player is expected to miss are calibrated on history (fct_official_listing): the average, over past injury listings with the same status, of the games the player then missed, capped at the games the team has left, with the same reason (an official Out for rest is averaged over rest listings, not injuries). The status is the official report's for the next game, else ESPN's listing in the report's words (day-to-day reads as questionable); the history is fct_status_calibration's histogram, the league's own listings once it has 300 for the status and reason, else the NBA's. ESPN's expected return date, when given for a player ruled out, counts the games before it instead, and a note that the player is out for the season counts them all. Without any history the old charges apply (out: every game; doubtful 0.75 of a game, questionable 0.5, day-to-day 0.25). value_rest_of_season scales value above replacement by it; a value below replacement is left as it is, since a missing game from a player not worth rostering costs nothing. Once the regular season is over (playoffs or the off-season) season_complete is true and ros_factor is 1. A regular (fantasy_rest_risk.min_minutes projected) on a team with nothing left to play for (fct_team_stakes.rest_risk) is expected to sit out fantasy_rest_risk.extra_sit_out more of the games left, measured point in time in notebook 03 (#494): the multiplier keeps the rest. games_next_7 counts playoff games too.",
+      "The market prior (var market_prior, #832, ADR 0020): in the leagues it is on for, while a player has few games in the season being played, value per game is blended toward the board's own value of his rank in the market's draft order (int_market_prior), at market_prior.weight falling linearly to nothing by market_prior.fade_games games. The nine category columns stay the projection's; z_total carries the blend."
      ],
      "read_by": [
       "fct_board_history",
@@ -25187,6 +25301,7 @@
       "/draft/",
       "/league/",
       "/p/",
+      "/streamers/",
       "/team/",
       "/trade/"
      ],
@@ -25197,6 +25312,7 @@
       "fct_starting_lineup",
       "fct_status_calibration",
       "fct_team_stakes",
+      "int_market_prior",
       "int_player_news_latest",
       "int_value_scale",
       "mart_category_zscores",
@@ -25218,6 +25334,10 @@
       {
        "description": "Thirty players on one team in a two-team, five-spot league (pool of ten). The board scores each projected line on the season's value scale (int_value_scale, whose two-pass pool is pinned by value_scale_pool_is_chosen_in_two_passes): only points vary, so value is the points z-score, and the pool is the ten the scale values most, p05 (five minutes) in and p11 (forty minutes, a replacement's points) out. rank_total follows value, equal points broken by player id.",
        "name": "board_pool_is_chosen_in_two_passes"
+      },
+      {
+       "description": "Five players whose values are 2, 1, 0, -1 and -2 (points only), with the prior on at weight 0.5, fading by four games. e (value -2, drafted first, no games) is priced at the board's best value, 2, and blended half way: 0. a (value 2, drafted third, two games) is priced at 0 at a quarter weight: 1.5. b (drafted second) has played four games, so the prior has faded and his value stays 1. c is undrafted and d is drafted beyond the board's last player, so neither has a market price and both keep their own values. The prior is on for the NBA only: the WNBA's v, drafted first, is priced at the WNBA board's best value but not moved.",
+       "name": "market_prior_prices_the_draft_rank_and_fades"
       }
      ]
     },
@@ -25470,6 +25590,206 @@
       {
        "description": "The season and the last ten games are scored on the same scale, the season's (#767): points mean 20, spread 5, replacement level 0.4. A player at 25 a game over the season and 30 over the last ten is worth 0.6 and 1.6 a game above replacement; their last ten compare directly with the season. Shooting is makes above the pool's percentage on the attempts: 6 of 10 against a pool's 50% is one make over, a spread of 2 makes it 0.5.",
        "name": "every_window_is_on_the_season_scale"
+      }
+     ]
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, team, player and teammate",
+       "meta": {},
+       "name": "minutes_redistribution_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "meta": {},
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The team both are on now",
+       "meta": {},
+       "name": "team_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API id of the rotation player whose absences are measured",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "His name (dim_player's current stint)",
+       "meta": {},
+       "name": "full_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Team games over this season and last he played for the team",
+       "meta": {},
+       "name": "games_played",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Team games over this season and last he missed while on the team, whatever the reason",
+       "meta": {},
+       "name": "games_missed",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "His average minutes in the games he played",
+       "meta": {
+        "unit": "minutes"
+       },
+       "name": "minutes_played",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "League stats API id of the teammate",
+       "meta": {},
+       "name": "teammate_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The teammate's name (dim_player's current stint)",
+       "meta": {},
+       "name": "teammate_name",
+       "tests": [],
+       "type": "varchar"
+      },
+      {
+       "description": "Games the player played that the teammate was there for (played, or sat by the coach)",
+       "meta": {},
+       "name": "teammate_games_with",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "Games the player missed that the teammate was there for",
+       "meta": {},
+       "name": "teammate_games_without",
+       "tests": [],
+       "type": "integer"
+      },
+      {
+       "description": "The teammate's average minutes in the games the player played (a coach's DNP counts 0)",
+       "meta": {
+        "unit": "minutes"
+       },
+       "name": "minutes_with",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The teammate's average minutes in the games the player missed",
+       "meta": {
+        "unit": "minutes"
+       },
+       "name": "minutes_without",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "minutes_without less minutes_with: the minutes a game the teammate gained without him",
+       "meta": {
+        "unit": "minutes"
+       },
+       "name": "minutes_gained",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "1 for the teammate who gained the most minutes without him, then down",
+       "meta": {},
+       "name": "gain_rank",
+       "tests": [
+        "not_null"
+       ],
+       "type": "integer"
+      },
+      {
+       "description": "The share of ESPN leagues rostering the teammate (fct_market_value); null when ESPN has none",
+       "meta": {
+        "unit": "percent"
+       },
+       "name": "teammate_percent_owned",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "The latest team game counted, before a point-in-time build's date",
+       "meta": {},
+       "name": "last_game_date",
+       "tests": [],
+       "type": "date"
+      }
+     ],
+     "description": "Who takes a player's minutes when he misses games (#820): for each team and each rotation player on it now, the minutes each current teammate averaged in the team's regular-season games the player missed against the games he played, over this season and last. My Team names the top gainer beside an out player, and the pickup when he is free in the manager's league. An average, not yet validated (#763).",
+     "exported_as": [
+      "mart_minutes_redistribution.parquet",
+      "minutes/<league>.json"
+     ],
+     "grain": {
+      "columns": [
+       "league",
+       "team_id",
+       "player_id",
+       "teammate_id"
+      ],
+      "key": "minutes_redistribution_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "mart_minutes_redistribution",
+     "notes": [
+      "Who takes a player's minutes when he misses games (#820): for each team and each rotation player on it now, the minutes each current teammate averaged in the team's regular-season games the player missed, against the games he played, over this season and last.",
+      "- A player is on a team from his first game listed with it to his last, or to the end of the team's season when it is his last team that season (as notebook 07 counts rosters). A team game in that span without minutes is a game he missed, whatever the reason.",
+      "- A rotation player averaged minutes_redistribution.rotation_minutes or more in the games he played for the team, and has missed and played minutes_redistribution.min_games_missed of its games or more.",
+      "- A teammate's minutes count in the games he was there for: those he played, and those the box score says the coach sat him (a DNP - Coach's Decision, as 0). A game he missed himself for any other reason counts in neither average, so his own injury does not read as a loss. Each split needs min_games_missed of his games.",
+      "- Both are on the team now (dim_player's current stint), so the row is about today's roster.",
+      "- A game played on or after a point-in-time build's date is left out (the facts already cut it).",
+      "minutes_gained is minutes_without less minutes_with; gain_rank orders the player's teammates by it, largest first. An average, not a model: who started, the opponent and blowouts are not held apart (#763 will test it)."
+     ],
+     "read_by": [],
+     "read_by_pages": [
+      "/team/"
+     ],
+     "reads": [
+      "dim_player",
+      "fct_market_value",
+      "fct_player_game",
+      "fct_team_game"
+     ],
+     "unit_tests": [
+      {
+       "description": "a plays 30 minutes in the team's games 1 to 5 and misses 6 to 8. Without him e, whom the coach sat in games 1 to 5, plays 10 (+10); b goes from 20 to 28 (+8); c from 10 to 12 (+2). d missed 6 to 8 himself and is in neither split; g has moved to another team. A third season back is left out: a's absence in 2023-24 does not count.",
+       "name": "minutes_go_to_the_teammates_who_played_more_without_him"
+      },
+      {
+       "description": "As of 2025-11-13, a's fourth missed game (that day) has not been played: three missed games count, and the latest game counted is 2025-11-11.",
+       "name": "minutes_redistribution_stops_before_a_point_in_time_builds_date"
       }
      ]
     },
@@ -28347,6 +28667,7 @@
   },
   {
    "reads": [
+    "board",
     "dim_team",
     "schedule",
     "streamers",
@@ -28358,6 +28679,7 @@
   {
    "reads": [
     "board",
+    "minutes",
     "schedule"
    ],
    "route": "/team/"
@@ -29035,6 +29357,11 @@
    "name": "a_point_in_time_roster_is_rebuilt_from_what_was_known"
   },
   {
+   "description": "As of 2025-11-01 the 2025-26 season is under way, so its draft order is read and 2024-25's is not. p1 (drafted first) has played two regular-season games: a game he sat out, a preseason game and last season's game do not count. p2 has not played. ESPN's e3 has no league id, so he has no row.",
+   "model": "int_market_prior",
+   "name": "market_prior_reads_the_season_being_played"
+  },
+  {
    "description": "Each regular-season game is valued on the season's value scale, less replacement level (#747, #767). The scale has a points mean of 10, a spread of 10 and a points replacement level of 0.5, and no spread in the other categories, so a's games of 10, 20 and 30 points are worth -0.5, 0.5 and 1.5 and b's scoreless game -1.5. A playoff game (third id character 4) and a play-in game (5) are not fantasy games and are left out; a game not played has no value.",
    "model": "int_player_game_value",
    "name": "game_value_on_the_value_scale"
@@ -29065,9 +29392,24 @@
    "name": "board_pool_is_chosen_in_two_passes"
   },
   {
+   "description": "Five players whose values are 2, 1, 0, -1 and -2 (points only), with the prior on at weight 0.5, fading by four games. e (value -2, drafted first, no games) is priced at the board's best value, 2, and blended half way: 0. a (value 2, drafted third, two games) is priced at 0 at a quarter weight: 1.5. b (drafted second) has played four games, so the prior has faded and his value stays 1. c is undrafted and d is drafted beyond the board's last player, so neither has a market price and both keep their own values. The prior is on for the NBA only: the WNBA's v, drafted first, is priced at the WNBA board's best value but not moved.",
+   "model": "mart_board",
+   "name": "market_prior_prices_the_draft_rank_and_fades"
+  },
+  {
    "description": "The season and the last ten games are scored on the same scale, the season's (#767): points mean 20, spread 5, replacement level 0.4. A player at 25 a game over the season and 30 over the last ten is worth 0.6 and 1.6 a game above replacement; their last ten compare directly with the season. Shooting is makes above the pool's percentage on the attempts: 6 of 10 against a pool's 50% is one make over, a spread of 2 makes it 0.5.",
    "model": "mart_category_zscores",
    "name": "every_window_is_on_the_season_scale"
+  },
+  {
+   "description": "a plays 30 minutes in the team's games 1 to 5 and misses 6 to 8. Without him e, whom the coach sat in games 1 to 5, plays 10 (+10); b goes from 20 to 28 (+8); c from 10 to 12 (+2). d missed 6 to 8 himself and is in neither split; g has moved to another team. A third season back is left out: a's absence in 2023-24 does not count.",
+   "model": "mart_minutes_redistribution",
+   "name": "minutes_go_to_the_teammates_who_played_more_without_him"
+  },
+  {
+   "description": "As of 2025-11-13, a's fourth missed game (that day) has not been played: three missed games count, and the latest game counted is 2025-11-11.",
+   "model": "mart_minutes_redistribution",
+   "name": "minutes_redistribution_stops_before_a_point_in_time_builds_date"
   },
   {
    "description": "A player's games worth 0, 1 and 2 have a mean of 1, a spread of 1, and 20th and 80th percentile games of 0.4 and 1.6 (#747); a player with one game has no spread.",
