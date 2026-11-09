@@ -11,6 +11,7 @@ import {
   fetchEspnLeague,
   hasManualEdits,
   rosterChanges,
+  staleOpponent,
   weeksCovered,
   SYNC_EVERY_MS,
   syncDue,
@@ -172,8 +173,10 @@ describe("this week's score so far from ESPN (#817)", () => {
     const s = imported();
     const score = weekScore(s, '2026-11-05', day);
     expect(typeof score === 'object' && [score.mine.totals['z_steals'], score.theirs.totals['z_steals']]).toEqual([40, 5]);
-    // synced yesterday: the days since are missing from it
-    expect(weekScore(s, '2026-11-06', day)).toBe('stale');
+    // synced earlier in the same fantasy week: it still holds, and the games since are projected on
+    // top of it from the read's time (#927); from the next Monday it is last week's
+    expect(typeof weekScore(s, '2026-11-08', day)).toBe('object');
+    expect(weekScore(s, '2026-11-09', day)).toBe('stale');
     // a team on a bye, or no opponent picked
     expect(weekScore({ ...s, source: { ...s.source!, scores: [s.source!.scores![0]!, null, null, null] } }, '2026-11-05', day)).toBe('no-score');
     expect(weekScore({ ...s, opponent: null }, '2026-11-05', day)).toBe('no-score');
@@ -302,5 +305,22 @@ describe("the playoffs from ESPN's settings and schedule (#821)", () => {
     const plain = { ...fixture, settings: { ...fixture.settings, scheduleSettings: {} } };
     const previous = { ...imported(), playoffs: { teams: 3, weeks: 2, start: '2027-03-15' } };
     expect(espnSetup(fromEspnLeague(plain), players, at, previous).setup.playoffs).toEqual({ teams: 3, weeks: 2, start: '2027-03-15' });
+  });
+});
+
+describe("a Yahoo import's opponent after its week (#927)", () => {
+  const synced = Date.parse('2026-11-05T17:00:00Z');
+  const day = (ms: number) => (ms === synced ? '2026-11-05' : 'never');
+  const setup = (opponent: number | null): LeagueSetup => {
+    const base = normalize({ teams: 4 }, DEFAULT_SETTINGS.nba);
+    return { ...base, mine: 0, opponent, source: { ...yahooSource('12345', [[], [], [], []], synced), opponents: [1, 0, 3, 2] } };
+  };
+  it('holds through the Sunday of the week it was imported in, and not after', () => {
+    expect(staleOpponent(setup(1), '2026-11-08', day)).toBe(false);
+    expect(staleOpponent(setup(1), '2026-11-09', day)).toBe(true);
+  });
+  it('keeps an opponent the manager picked by hand, or none at all', () => {
+    expect(staleOpponent(setup(2), '2026-11-09', day)).toBe(false);
+    expect(staleOpponent(setup(null), '2026-11-09', day)).toBe(false);
   });
 });

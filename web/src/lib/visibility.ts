@@ -23,4 +23,9 @@ export const MY_TEAM_SHOWS = {
   streams: false,
   /** The "too close" band: its fit was degenerate (ADR 0026). Back with #902. */
   tooClose: false,
+  /**
+   * The games-missed estimate and the IL threshold on it: not judged (#770, #763). Until then the
+   * IL moves follow the injury report's listing and show only the report's own return date.
+   */
+  injuryEstimate: false,
 } as const;

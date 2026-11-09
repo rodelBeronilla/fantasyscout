@@ -18,7 +18,7 @@ import { expectedWins, leagueStandings, type LeagueStandings, powerRankings } fr
 import { leagueRecords, recordsFromText } from '../lib/league-state';
 import { standingsOf } from '../lib/records';
 import { hasWeekGames, type ValueUnit } from '../lib/week-value';
-import { ilMoves } from '../lib/il-moves';
+import { ilMoves, ilMovesByListing } from '../lib/il-moves';
 import { minutesByPlayer, minutesGoTo, type MinutesRow } from '../lib/minutes-go-to';
 import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, startsByPlayer, weekPlan, type WeekPlan } from '../lib/lineup';
 import { easternDate, gamesToCome, sitsOut, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
@@ -36,7 +36,7 @@ import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
 import { MY_TEAM_SHOWS } from '../lib/visibility';
 import { SyncLine, useEspnSync } from './LeagueSync';
-import { weekScore } from '../lib/league-sync';
+import { staleOpponent, weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
 
 interface TeamRow extends ModelRow {
@@ -342,37 +342,46 @@ export default function MyTeam() {
     return left;
   }, [games]);
 
-  // the week's lineup (#735): the days left, who plays each, and the slots they fill
-  const lineupPlans = useMemo(() => {
+  // this week's opponent: one a Yahoo import set last week no longer holds (#927)
+  const opponent = useMemo(
+    () => (staleOpponent(setup, easternDate(), (ms) => easternDate(new Date(ms))) ? null : setup.opponent),
+    [setup],
+  );
+
+  // the week's lineup (#735): the days left from a moment, who plays each, and the slots they fill
+  const planFrom = useMemo(() => {
     if (!games || !rows || myTeam.length === 0) return null;
-    // one clock (#927): only games still to tip off, and only the days that have one, so a day
-    // with no games is never an open slot and a game under way is no longer a start to make
-    const toCome = gamesToCome(games, Date.now());
-    const week = daysLeftInWeek(easternDate());
-    const playing = new Map<string, Set<string>>();
-    for (const g of toCome) {
-      if (!week.includes(g.game_date)) continue;
-      for (const t of [g.home_team_id, g.away_team_id]) playing.set(`${g.game_date}|${t}`, new Set());
-    }
-    if (playing.size === 0) return null;
-    const dates = week.filter((d) => toCome.some((g) => g.game_date === d));
-    const plays = (id: string, date: string) => {
-      const r = byId.get(id);
-      // out, doubtful, or inactive on the team's lineup that day (#878): no start
-      return !!r && !sitsOut(r, date) && playing.has(`${date}|${r.team_id}`);
+    return (since: number) => {
+      // one clock (#927): only games still to tip off at `since`, and only the days that have one,
+      // so a day with no games is never an open slot and a game under way is no longer a start
+      const toCome = gamesToCome(games, since);
+      const week = daysLeftInWeek(easternDate(new Date(since)));
+      const playing = new Map<string, Set<string>>();
+      for (const g of toCome) {
+        if (!week.includes(g.game_date)) continue;
+        for (const t of [g.home_team_id, g.away_team_id]) playing.set(`${g.game_date}|${t}`, new Set());
+      }
+      if (playing.size === 0) return null;
+      const dates = week.filter((d) => toCome.some((g) => g.game_date === d));
+      const plays = (id: string, date: string) => {
+        const r = byId.get(id);
+        // out, doubtful, or inactive on the team's lineup that day (#878): no start
+        return !!r && !sitsOut(r, date) && playing.has(`${date}|${r.team_id}`);
+      };
+      const slots = slotList(setup.lineup);
+      const plan = (team: TeamRow[]) => weekPlan(team.map((r) => ({ id: r.player_id, position: r.position, value: perGame(r.player_id) })), dates, plays, slots);
+      const theirs = !h2h || opponent === null ? null : rows.filter((r) => owner.get(r.player_id) === opponent && !setup.il.includes(r.player_id));
+      return { mine: plan(myTeam), theirs: theirs && theirs.length ? plan(theirs) : null };
     };
-    const slots = slotList(setup.lineup);
-    const plan = (team: TeamRow[]) => weekPlan(team.map((r) => ({ id: r.player_id, position: r.position, value: perGame(r.player_id) })), dates, plays, slots);
-    const theirs =
-      !h2h || setup.opponent === null ? null : rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
-    return { mine: plan(myTeam), theirs: theirs && theirs.length ? plan(theirs) : null };
-  }, [games, rows, myTeam, byId, setup.lineup, setup.opponent, setup.il, owner, perGame, h2h]);
+  }, [games, rows, myTeam, byId, setup.lineup, opponent, setup.il, owner, perGame, h2h]);
+  // the lineup from now: Today's and the lineup tile's
+  const lineupPlans = useMemo(() => planFrom?.(Date.now()) ?? null, [planFrom]);
   // The week's matchup: each side's projected totals over the games its lineup will start (#817),
   // from the lineup plans above, so benched and out players' games no longer count. An ESPN
   // league read today starts from the score so far: by category, or in fantasy points (#877).
   const weekMatch = useMemo<{ match: WeekMatchup; basis: MatchupBasis } | null>(() => {
-    if (!h2h || setup.opponent === null || !weekAvailable || myTeam.length === 0 || !rows) return null;
-    const theirs = rows.filter((r) => owner.get(r.player_id) === setup.opponent && !setup.il.includes(r.player_id));
+    if (!h2h || opponent === null || !weekAvailable || myTeam.length === 0 || !rows) return null;
+    const theirs = rows.filter((r) => owner.get(r.player_id) === opponent && !setup.il.includes(r.player_id));
     const scoring = points ? setup.weights : undefined;
     const today = easternDate();
     const score = usableScore(weekScore(setup, today, (ms) => easternDate(new Date(ms))), points);
@@ -380,14 +389,17 @@ export default function MyTeam() {
     const source = setup.source;
     const read = typeof score === 'string' || !source ? null : tonight(games ?? [], today, source.games, source.syncedAt);
     const toCome = (id: string, date: string) => (read && date === today ? (read.left.get(byId.get(id)?.team_id ?? '') ?? 1) : 1);
+    // with a score so far, the rest of the week runs from the moment it was read, so the games
+    // played since (a Yahoo import from earlier in the week) are projected, not lost (#927)
+    const plans = read && source ? (planFrom?.(source.syncedAt) ?? null) : lineupPlans;
     const counted = (plan: WeekPlan | null | undefined) => {
       if (!plan) return undefined;
       const starts = startsByPlayer(plan, toCome);
       return (r: Record<string, unknown>) => starts.get(String(r['player_id'])) ?? 0;
     };
     const rest = {
-      mine: weekTotals(myTeam, scoredCats, scoring, counted(lineupPlans?.mine)),
-      theirs: weekTotals(theirs, scoredCats, scoring, counted(lineupPlans?.theirs)),
+      mine: weekTotals(myTeam, scoredCats, scoring, counted(plans?.mine)),
+      theirs: weekTotals(theirs, scoredCats, scoring, counted(plans?.theirs)),
     };
     const cats = points ? [] : scoredCats;
     // no "too close" band while its fit is unjudged (ADR 0026): each category reads won or lost
@@ -396,7 +408,7 @@ export default function MyTeam() {
     if (typeof score === 'string' || !read) return { match: week(rest.mine, rest.theirs), basis: { live: false, reason: typeof score === 'string' ? score : 'not-espn' } };
     const live = liveWeek(cats, score, rest);
     return { match: week(live.mine, live.theirs), basis: { live: true, projectedOnly: live.projectedOnly, read } };
-  }, [h2h, setup, weekAvailable, myTeam, rows, owner, points, activeCats, scoredCats, lineupPlans, games, byId, league]);
+  }, [h2h, setup, opponent, weekAvailable, myTeam, rows, owner, points, activeCats, scoredCats, lineupPlans, planFrom, games, byId, league]);
   // Today's start and sit (#816): the best lineup the slots hold from today's players, by the same
   // per-game values the week's plan uses.
   const verdict = useMemo(() => {
@@ -508,7 +520,8 @@ export default function MyTeam() {
     );
   }
 
-  const moves = ilMoves(rows, roster, setup.il);
+  // the report's listing until the games-missed estimate is judged (#763, #770)
+  const moves = MY_TEAM_SHOWS.injuryEstimate ? ilMoves(rows, roster, setup.il) : ilMovesByListing(rows, roster, setup.il);
   // Today's card shows on a game day (a verdict needs one) when no draft is under way
   const todayShown = !!verdict && !setup.drafting;
   const showMatchup = h2h && owner.size > 0 && !setup.drafting && weekAvailable;

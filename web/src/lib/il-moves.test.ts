@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ilMoves } from './il-moves';
+import { ilMoves, ilMovesByListing } from './il-moves';
 
 const rows = [
   { player_id: 'star', injury_group: null, injury_status: null, expected_games_missed: 0 },
@@ -26,5 +26,15 @@ describe('IL moves', () => {
   it('respects the threshold and ignores players the board does not know', () => {
     expect(ilMoves(rows, ['hurt', 'ghost'], [], 10).toIl).toEqual([]);
     expect(ilMoves(rows, ['ghost'], ['ghost']).back).toEqual([]);
+  });
+});
+
+describe('IL moves from the injury report alone (#927)', () => {
+  const row = (player_id: string, injury_group: string | null) => ({ player_id, injury_group, injury_status: null, expected_games_missed: 9 });
+  it('moves a player listed out, never one only expected to miss games, and brings back one no longer listed', () => {
+    const rows = [row('out', 'out'), row('doubtful', 'doubtful'), row('questionable', 'questionable'), row('healthy', null), row('back', null), row('still', 'out')];
+    const moves = ilMovesByListing(rows, ['out', 'doubtful', 'questionable', 'healthy', 'back', 'still'], ['back', 'still']);
+    expect(moves.toIl).toEqual(['out']);
+    expect(moves.back).toEqual(['back']);
   });
 });

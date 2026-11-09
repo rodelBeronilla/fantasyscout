@@ -12,6 +12,7 @@
 import { espnLeagueUrl, fromEspnLeague, type ImportedLeague } from './espn-league';
 import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, normalize } from './fantasy-league';
 import { fetchGamesRead, type GamesRead } from './game-state';
+import { daysLeftInWeek } from './lineup';
 import type { ScoreSoFar } from './matchup';
 import { easternDate } from './today';
 import { PARAMS } from '../generated/parameters';
@@ -274,7 +275,25 @@ export function weekScore(
   const mine = source.scores?.[setup.mine];
   const theirs = setup.opponent === null ? null : source.scores?.[setup.opponent];
   if (!mine || !theirs) return 'no-score';
-  return dateOf(source.syncedAt) === today ? { mine, theirs } : 'stale';
+  // a score holds for the fantasy week it was read in (#927): the games since the read are
+  // projected on top of it, from the read's own time, rather than the score being dropped
+  return sameFantasyWeek(dateOf(source.syncedAt), today) ? { mine, theirs } : 'stale';
+}
+
+/** Whether two Eastern dates fall in the same Monday-to-Sunday fantasy week. */
+function sameFantasyWeek(a: string, b: string): boolean {
+  return a <= b ? daysLeftInWeek(a).includes(b) : daysLeftInWeek(b).includes(a);
+}
+
+/**
+ * The opponent an import set, once its week is over (#927): an import names this week's opponent,
+ * so after the week changes it no longer holds until the next import. One the manager picked by
+ * hand is kept.
+ */
+export function staleOpponent(setup: LeagueSetup, today: string, dateOf: (ms: number) => string): boolean {
+  const source = setup.source;
+  if (!source || setup.opponent === null || source.host !== 'yahoo') return false;
+  return source.opponents?.[setup.mine] === setup.opponent && !sameFantasyWeek(dateOf(source.syncedAt), today);
 }
 
 /** The league after the manager picks their team: this week's opponent follows from ESPN's schedule when it is known. */
