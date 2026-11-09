@@ -34,7 +34,8 @@ export function TradeCategoryBreakdown({
   partnerName,
   nameList,
   weekMatch,
-  net,
+  partnerValue,
+  partnerCats,
   scale,
   needs,
   marketGive,
@@ -52,8 +53,10 @@ export function TradeCategoryBreakdown({
   partnerName: string;
   nameList: (ids: string[]) => string;
   weekMatch: WeekMatch | null;
-  /** The value the manager gains: what they get less what they give. */
-  net: number;
+  /** The value the partner gains, under the partner's build: what they get less what they give (#938). */
+  partnerValue: number;
+  /** The categories the partner's build counts: every one the league scores (no team's punts are kept); null in a points league. */
+  partnerCats: number | null;
   /** The larger side's value, at least 1. */
   scale: number;
   needs: { mine: TeamNeeds; partner: TeamNeeds } | null;
@@ -144,8 +147,13 @@ export function TradeCategoryBreakdown({
               <Signed value={impact.partner.gain} digits={1} />)
             </>
           )}{' '}
-          and <Signed value={-net} digits={1} /> in value.{calls && <span className="text-muted"> {acceptance(impact.partner.gain, -net, scale)}</span>}
+          and <Signed value={partnerValue} digits={1} /> in value.{calls && <span className="text-muted"> {acceptance(impact.partner.gain, partnerValue, scale)}</span>}
         </p>
+        {partnerCats !== null && (
+          <p className="text-xs text-muted" data-testid="trade-partner-build">
+            {partnerName}&apos;s side is valued on all {partnerCats} categories your league scores: FantasyScout keeps no punts but yours, and guesses none from a roster.
+          </p>
+        )}
         {(impact.partnerUps.length > 0 || impact.partnerDowns.length > 0) && <p><CatMoves ups={impact.partnerUps} downs={impact.partnerDowns} /></p>}
         {(impact.sides.partner.dropped.length > 0 || impact.sides.partner.added.length > 0) && (
           <p className="text-muted">

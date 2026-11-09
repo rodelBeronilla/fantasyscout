@@ -8,19 +8,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORY_LABELS } from '../lib/format';
 import { currentLeague } from '../lib/league';
-import { categoryWeights, DEFAULT_SETTINGS, isDefaultSettings, keptCategories, owners, useLeague, weightedSum } from '../lib/fantasy-league';
-import { categoryValues, marketPriorShift, pointValues, scaleValue } from '../lib/league-value';
-import { acceptable, type FairnessModel, leagueState, marketMap, playerWorth, tradeLenses, type Worth } from '../lib/league-model';
+import { categoryWeights, DEFAULT_SETTINGS, isDefaultSettings, owners, useLeague, weightedSum } from '../lib/fantasy-league';
+import { acceptable, type FairnessModel, leagueState, marketMap, tradeLenses, type Worth } from '../lib/league-model';
+import { bothBuilds, bothNeeds, partnerSide, worthUnder } from '../lib/trade-partner';
+import { leagueValues, partnerSettings } from '../lib/valuation';
 import { href } from '../lib/site';
 import { matchup, weekTotals } from '../lib/matchup';
-import { type LeagueState, leagueStandings, meaningful, objective, rostersAfter, teamNeeds, tradeImpact } from '../lib/trade-impact';
+import { type LeagueState, leagueStandings, meaningful, objective, rostersAfter, tradeImpact } from '../lib/trade-impact';
 import { median, ranks, tradeChips, tradeTargets } from '../lib/punt-chips';
 import { buySell } from '../lib/buy-sell';
 import { rivals } from '../lib/standings';
 import { judge } from '../lib/trade-fairness';
 import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { NO_WORTH, teamChange, timingNotes, type TradePlayer, tradeSide } from '../lib/trade-players';
-import { hasWeekGames, recentForm, type ValueUnit } from '../lib/week-value';
+import { hasWeekGames, type ValueUnit } from '../lib/week-value';
 import { SHOWS, showsBuyLow } from '../lib/visibility';
 import { BuySellCard } from './BuySellCard';
 import { describeSettings } from './LeagueParts';
@@ -94,31 +95,24 @@ export default function TradeAnalyzer() {
   const byId = useMemo(() => new Map((rows ?? []).map((r) => [r.player_id, r])), [rows]);
   const pool = setup.teams * setup.rosterSpots;
   const points = setup.scoring === 'points';
-  // The league's categories less its punts (#661): a punted category counts for nothing in a trade.
-  const cats = useMemo(() => keptCategories(setup), [setup]);
   // The kept categories each count once; punted ones not at all (#661).
   const catWeight = useMemo(() => categoryWeights(setup), [setup]);
   const punted = points ? [] : setup.punts;
-  const catValues = useMemo(() => (rows && !points ? categoryValues(rows, cats, pool, setup.teams) : null), [rows, points, cats, pool, setup.teams]);
-  const pointVals = useMemo(() => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null), [rows, points, pool, setup.teams, setup.weights]);
   // The week unit is offered while the week has games left; it re-measures the categories on last-ten form.
   const weekAvailable = useMemo(() => !!rows && hasWeekGames(rows), [rows]);
   const week = unit === 'week' && weekAvailable;
   // After the last game the season's value is the projection for the next one (#450).
   const complete = !!rows?.length && rows.every((r) => r.season_complete);
   const REST = week ? UNIT_TEXT.week : complete ? 'next season' : UNIT_TEXT.rest;
-  const recentCats = useMemo(
-    () => (rows && !points && week ? categoryValues(recentForm(rows, cats), cats, pool, setup.teams, rows) : null),
-    [rows, points, week, cats, pool, setup.teams],
-  );
 
   // The partner defaults to the first team that is not the manager's.
   const partnerTeam = partner ?? setup.names.findIndex((_, i) => i !== setup.mine);
 
-  const worth = useMemo(
-    () => playerWorth(rows ?? [], { points, cats, catWeight, catValues, pointValues: pointVals, recentCats }),
-    [rows, catValues, pointVals, points, cats, recentCats, catWeight],
-  );
+  // Each player's worth under the league's settings and the manager's punts (valuation.ts, #938);
+  // `cats` are the kept categories: a punted one counts for nothing in a trade (#661).
+  const { worth, cats, values } = useMemo(() => worthUnder(rows ?? [], setup), [rows, setup]);
+  // The values under every category the league scores: the partner's build (#938), and how the rest of the league ranks a player.
+  const everyCat = useMemo(() => (rows ? leagueValues(rows, partnerSettings(setup)) : null), [rows, setup]);
 
   const options = useMemo(() => new Map((rows ?? []).map((p) => [optionLabel(p), p.player_id])), [rows]);
 
@@ -131,6 +125,12 @@ export default function TradeAnalyzer() {
     [rows, points, worth, week, league, setup.format, setup.rosters, setup.il, setup.rosterSpots, cats, owner],
   );
   const standings = useMemo(() => (state ? leagueStandings(state, setup.mine) : null), [state, setup.mine]);
+  // The partner's side under the partner's own build (#938): every category the league scores.
+  const theirs = useMemo(
+    () => (rows && state && punted.length ? partnerSide(rows, { league, setup, owner, partner: partnerTeam, week }) : null),
+    [rows, state, punted.length, league, setup, owner, partnerTeam, week],
+  );
+  const partnerWorth = theirs?.worth ?? worth;
   const marketPrices = useMemo(() => (rows ? marketMap(rows, worth) : new Map<string, number>()), [rows, worth]);
   const fairness = useMemo<FairnessModel>(
     () => ({
@@ -157,7 +157,7 @@ export default function TradeAnalyzer() {
   // league's scoring, for every rostered player. Categories leagues only: the form is in z-scores.
   const swings = useMemo(() => {
     if (!rows || points || !hasRosters) return null;
-    const form = categoryValues(recentForm(rows, cats), cats, pool, setup.teams, rows);
+    const recent = values.recentCats;
     const mine = (setup.rosters[setup.mine] ?? []).filter((id) => !setup.il.includes(id));
     const projected = (id: string) => worth.get(id)?.perGame ?? 0;
     return buySell({
@@ -165,20 +165,16 @@ export default function TradeAnalyzer() {
       mine: setup.mine,
       owner: new Map([...owner].filter(([id]) => !setup.il.includes(id))),
       projected,
-      recent: (id) => weightedSum(form.get(id), catWeight),
+      recent: (id) => weightedSum(recent?.get(id), catWeight),
       healthy: (id) => !['out', 'doubtful'].includes(byId.get(id)?.injury_group ?? ''),
       // good enough to start for you: at least your median player's projection
       startLine: median(mine.map(projected)),
     });
-  }, [league, rows, points, hasRosters, cats, pool, setup.teams, setup.rosters, setup.mine, setup.il, owner, worth, catWeight, byId]);
+  }, [league, rows, points, hasRosters, setup.rosters, setup.mine, setup.il, values, owner, worth, catWeight, byId]);
 
   const chipsAndTargets = useMemo(() => {
-    if (!rows || points || !hasRosters || !punted.length) return null;
-    const counted = keptCategories({ scoring: setup.scoring, punts: [] });
-    const everyCat = categoryValues(rows, counted, pool, setup.teams);
-    const allValue = new Map(
-      rows.map((r) => [r.player_id, scaleValue(counted.reduce((s, c) => s + (everyCat.get(r.player_id)?.[c] ?? 0), 0) + marketPriorShift(r), r)]),
-    );
+    if (!rows || points || !hasRosters || !punted.length || !everyCat) return null;
+    const allValue = everyCat.restValue;
     const ids = rows.map((r) => r.player_id);
     const league = ranks(ids, (id) => allValue.get(id) ?? 0);
     const build = ranks(ids, (id) => worth.get(id)?.rest ?? 0);
@@ -188,7 +184,7 @@ export default function TradeAnalyzer() {
       chips: tradeChips(mine, league, build, { pool, minGap: setup.teams }),
       targets: tradeTargets(elsewhere, league, build, { ceiling: median(mine.map((id) => build.get(id) ?? Infinity)), minGap: setup.teams }),
     };
-  }, [rows, points, hasRosters, punted, setup.scoring, setup.rosters, setup.mine, setup.il, setup.teams, pool, worth]);
+  }, [rows, points, hasRosters, punted, everyCat, setup.rosters, setup.mine, setup.il, setup.teams, pool, worth]);
 
   // The trade finder (#664): on request, the best trades with every partner. The search tries a
   // few thousand trades, so it runs when asked rather than on every change.
@@ -235,7 +231,9 @@ export default function TradeAnalyzer() {
   // category ranks they gain the manager; without rosters, players worth about the same as the target.
   const ready = giving.players.length > 0 || getting.players.length > 0;
   // What the trade does to both teams' categories (#663); null without the standings.
-  const impact = state && standings && ready && partnerTeam >= 0 ? tradeImpact(state, standings, setup.mine, partnerTeam, give, get) : null;
+  const impact = state && standings && ready && partnerTeam >= 0 ? bothBuilds(state, standings, theirs, setup.mine, partnerTeam, give, get) : null;
+  // What the partner gives up and gets, valued under the partner's build
+  const partnerValue = tradeSide(give, byId, partnerWorth, theirs?.cats ?? cats, week).value - tradeSide(get, byId, partnerWorth, theirs?.cats ?? cats, week).value;
   const threshold = state ? meaningful(state, setup.mine) : 0;
   const h2h = setup.format === 'h2h';
   const partnerName = setup.names[partnerTeam] ?? 'Your partner';
@@ -246,7 +244,7 @@ export default function TradeAnalyzer() {
   const settledNote = lenses?.settled && (lenses.settled.dropped.length > 0 || lenses.settled.added.length > 0);
   // Both sides in the same depth (#682): each team's needs from the standings, and the trade
   // judged by both teams' change in expected categories.
-  const needs = impact && state && standings ? { mine: teamNeeds(state, standings, setup.mine), partner: teamNeeds(state, standings, partnerTeam) } : null;
+  const needs = impact && state && standings ? bothNeeds(state, standings, theirs, setup.mine, partnerTeam) : null;
   const verdictBoth = impact && state ? objective(impact.mine.gain, impact.partner.gain, threshold) : null;
 
   // This week's matchup before and after (#674): a head-to-head league with an opponent set and
@@ -574,7 +572,8 @@ export default function TradeAnalyzer() {
                 partnerName={partnerName}
                 nameList={nameList}
                 weekMatch={weekMatch}
-                net={net}
+                partnerValue={partnerValue}
+                partnerCats={points ? null : (theirs?.cats ?? cats).length}
                 scale={scale}
                 needs={needs}
                 marketGive={market(give)}

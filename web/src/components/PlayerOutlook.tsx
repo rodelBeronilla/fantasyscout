@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { League } from '../lib/data';
 import { fmt, nextSeason, pct } from '../lib/format';
 import type { PlayerFile } from '../lib/player-file';
+import type { PlayerLeagueValue } from '../lib/player-league';
 import { href } from '../lib/site';
 import { assign, owners, useLeague } from '../lib/fantasy-league';
 import { SHOWS } from '../lib/visibility';
@@ -34,7 +35,20 @@ function Fact({ label, value, hint }: { label: string; value: ReactNode; hint?: 
 }
 
 /** What the board projects for the player and the context it shows beside the value. */
-export function OutlookCard({ board, league, season, status }: { board: NonNullable<PlayerFile['board']>; league: League; season: string | null; status: ReactNode }) {
+export function OutlookCard({
+  board,
+  league,
+  yours,
+  season,
+  status,
+}: {
+  board: NonNullable<PlayerFile['board']>;
+  league: League;
+  /** The player under the manager's league settings and punts (#938), with them in words; null for the default league. */
+  yours: (PlayerLeagueValue & { words: string }) | null;
+  season: string | null;
+  status: ReactNode;
+}) {
   const line: [string, string][] = [
     ['MIN', fmt(board.proj_minutes_pg)],
     ['PTS', fmt(board.proj_points_pg)],
@@ -60,21 +74,29 @@ export function OutlookCard({ board, league, season, status }: { board: NonNulla
       )}
       <div className="grid gap-x-8 gap-y-4 md:grid-cols-2" data-testid="player-outlook">
         <dl className="text-sm">
-          <Fact label="Board rank (default league)" value={`#${board.rank_total}`} />
+          {yours ? (
+            <Fact label="Rank in your league" value={<span data-testid="league-rank">#{yours.rank}</span>} />
+          ) : (
+            <Fact label="Board rank (default league)" value={`#${board.rank_total}`} />
+          )}
           <Fact
             label="Value per game"
-            value={<Signed value={board.value_per_game} />}
-            hint="Category value per game above replacement, summed over the nine categories"
+            value={<Signed value={yours ? yours.perGame : board.value_per_game} />}
+            hint={
+              yours
+                ? `Value per game above replacement in your league, summed over the ${yours.activeCats.length} categories it counts`
+                : 'Category value per game above replacement, summed over the nine categories'
+            }
           />
           <Fact
             label="Season value"
-            value={<Signed value={board.value_total} />}
+            value={<Signed value={yours ? yours.season : board.value_total} />}
             hint="Value per game times the projected share of regular-season games"
           />
           {!board.season_complete && (
             <Fact
               label="Rest of season"
-              value={<Signed value={board.value_rest_of_season} />}
+              value={<Signed value={yours ? yours.rest : board.value_rest_of_season} />}
               hint="Value over the games left, scaled by availability"
             />
           )}
@@ -138,9 +160,15 @@ export function OutlookCard({ board, league, season, status }: { board: NonNulla
           ))}
         </dl>
       </div>
-      <p className="mt-3 text-xs text-muted">
-        Values are for the default league ({league === 'nba' ? '12 teams of 13' : '10 teams of 10'}); the Board re-scores
-        them for your league&apos;s settings.
+      <p className="mt-3 text-xs text-muted" data-testid="outlook-league">
+        {yours ? (
+          <>Values are for your league ({yours.words}), the same as on Rankings.</>
+        ) : (
+          <>
+            Values are for the default league ({league === 'nba' ? '12 teams of 13' : '10 teams of 10'}); set up your league on the League page
+            to value players for it.
+          </>
+        )}
       </p>
     </Card>
   );

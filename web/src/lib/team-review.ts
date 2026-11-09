@@ -1,53 +1,22 @@
 /**
- * The manager's values and roster review, as My Team works them out (#819): the league's
- * category or point values, each player's rest-of-season value, and the review that names who to
- * drop. Pickups reads the same review, so its top adds drop the player My Team's Moves would.
+ * The manager's roster review, as My Team works it out (#819): the review that names who to drop,
+ * on the league's values (valuation.ts). Pickups reads the same review, so its top adds drop the
+ * player My Team's Moves would.
  */
 import type { League } from './data';
-import { CATEGORIES } from './format';
 import { type LeagueSetup, owners } from './fantasy-league';
-import { categoryValues, marketPriorShift, pointValues } from './league-value';
-import { type ModelRow, restValues } from './board-model';
+import type { ModelRow } from './board-model';
 import { dropRule, type DropRow, reviewRoster, type RosterReview } from './roster-upgrades';
-import { recentForm, weekValue } from './week-value';
+import type { LeagueValuation } from './valuation';
+import { weekValue } from './week-value';
 
 /** A board row as the review reads it. */
 export interface ReviewRow extends ModelRow, DropRow {
   games_this_week?: number | null;
 }
 
-type ValueSettings = Pick<LeagueSetup, 'scoring' | 'punts' | 'weights' | 'teams' | 'rosterSpots'>;
-
-export interface TeamValues {
-  points: boolean;
-  /** The categories the league counts: punts out, and turnovers in an 8-category league. */
-  activeCats: string[];
-  leagueCats: Map<string, Record<string, number>> | null;
-  leaguePoints: Map<string, { fpts: number; value: number }> | null;
-  /** Last-ten form's category values, for the week unit (#466). */
-  recentCats: Map<string, Record<string, number>> | null;
-  restValue: Map<string, number>;
-  /** Value per game under the league's scoring; recent reads the last ten. */
-  perGame: (id: string, recent?: boolean) => number;
-}
-
-export function teamValues(rows: ReviewRow[], s: ValueSettings): TeamValues {
-  const points = s.scoring === 'points';
-  const punted = s.scoring === 'cats8' ? [...s.punts, 'z_turnovers'] : s.punts;
-  const activeCats = CATEGORIES.filter((c) => !punted.includes(c));
-  const pool = s.teams * s.rosterSpots;
-  const leagueCats = points ? null : categoryValues(rows, activeCats, pool, s.teams);
-  const leaguePoints = points ? pointValues(rows, s.weights, pool, s.teams) : null;
-  const recentCats = points ? null : categoryValues(recentForm(rows, activeCats), activeCats, pool, s.teams, rows);
-  const restValue = restValues(rows, { points, leaguePoints, leagueCats, activeCats });
-  // the projection's value carries the market prior's shift (#848); last-ten form does not
-  const prior = new Map(points ? [] : rows.map((r) => [r.player_id, marketPriorShift(r)]));
-  const perGame = (id: string, recent = false) =>
-    points
-      ? (leaguePoints?.get(id)?.value ?? 0)
-      : activeCats.reduce((sum, c) => sum + ((recent ? recentCats : leagueCats)?.get(id)?.[c] ?? 0), 0) + (recent ? 0 : (prior.get(id) ?? 0));
-  return { points, activeCats, leagueCats, leaguePoints, recentCats, restValue, perGame };
-}
+/** The league's values the review reads (valuation.ts, leagueValues). */
+type TeamValues = Pick<LeagueValuation, 'points' | 'activeCats' | 'leagueCats' | 'recentCats' | 'restValue' | 'perGame'>;
 
 export interface TeamReview {
   review: RosterReview;

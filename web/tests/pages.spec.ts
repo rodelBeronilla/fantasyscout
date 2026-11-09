@@ -214,17 +214,25 @@ test('the board ranks players and links to player pages', async ({ page }) => {
   await expect(firstLink).toHaveAttribute('href', /\/p\/wnba\/\d+\//);
 });
 
-test('punting a category removes it from the total', async ({ page }) => {
+test('a punt set on the League page takes its category out of the board and its value (#938)', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
   await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
+  const name = await board.locator('tbody tr[data-player]').first().locator('a').innerText();
   const before = await board.locator('tbody tr[data-player]').first().getByTestId('value').innerText();
-  await page.getByTestId('board-options-toggle').click();
-  await page.locator('fieldset label', { hasText: /^PTS$/ }).click();
+  await expect(page.getByTestId('punt-chip')).toHaveCount(0);
+  await page.goto('/league/');
+  await page.getByLabel('Punt PTS').check({ force: true });
+  await page.goto('/');
   await expect(board.locator('thead [data-cat="z_points"]')).toHaveCount(0);
-  await expect(page.getByTestId('active-filters')).toContainText('Punt PTS');
-  const after = await board.locator('tbody tr[data-player]').first().getByTestId('value').innerText();
+  const after = await board.locator('tbody tr[data-player]', { hasText: name }).first().getByTestId('value').innerText();
   expect(after).not.toBe(before);
+  // the board says the league punts, and edits nothing itself
+  await expect(page.getByTestId('punt-chip')).toHaveText('Your league: punting PTS · Edit on League');
+  await expect(page.getByTestId('punt-chip').getByRole('link', { name: 'Edit on League' })).toHaveAttribute('href', /\/league\/\?league=wnba#settings$/);
+  await page.getByTestId('board-options-toggle').click();
+  await expect(page.getByTestId('board-options')).not.toContainText('Punt');
+  await expect(page.getByTestId('active-filters')).toHaveCount(0);
 });
 
 test('the visible value switch weighs a game against the season, and the schedule columns are optional (#714)', async ({ page }) => {
@@ -930,10 +938,8 @@ for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/notebo
 }
 
 test('a punted category is struck through on its chip', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByTestId('board').locator('tbody tr').first()).toBeVisible();
-  await page.getByTestId('board-options-toggle').click();
-  const chip = page.locator('fieldset label', { hasText: /^PTS$/ });
+  await page.goto('/league/');
+  const chip = page.getByTestId('league-punts').locator('label', { hasText: /^PTS$/ });
   expect(await chip.evaluate((el) => getComputedStyle(el).textDecorationLine)).not.toContain('line-through');
   await chip.click();
   expect(await chip.evaluate((el) => getComputedStyle(el).textDecorationLine)).toContain('line-through');
@@ -3406,7 +3412,7 @@ test('punts are a league setting: chosen on the League page, they reach the boar
   await expect(table.locator('tbody tr[data-player]').first()).toBeVisible();
   await expect(table.locator('thead [data-cat]')).toHaveCount(7);
   await expect(page.getByTestId('league-summary')).toContainText('punting PTS, AST');
-  await expect(page).toHaveURL(/[?&]punt=pts-ast(&|$)/);
+  await expect(page.getByTestId('punt-chip')).toContainText('Your league: punting PTS, AST');
 
   await page.goto('/trade/');
   await page.getByLabel('Add a player you give').fill(label(board[1]!));
@@ -3414,13 +3420,12 @@ test('punts are a league setting: chosen on the League page, they reach the boar
   await expect(page.getByTestId('trade-punts')).toContainText('Punting PTS, AST');
   await expect(page.getByTestId('trade-categories').locator('tbody tr')).toHaveCount(7);
 
-  // The board's chips edit the same setting.
+  // Rankings edits none of it: its chip leads to the one editor, on the League page (#938)
   await page.goto('/');
-  await expect(table.locator('tbody tr[data-player]').first()).toBeVisible();
-  await page.getByTestId('active-filters').getByRole('button', { name: 'Clear all' }).click();
-  await page.goto('/league/');
-  await expect(page.getByLabel('Punt PTS')).not.toBeChecked();
-  await expect(page.getByLabel('Punt AST')).not.toBeChecked();
+  await page.getByTestId('punt-chip').getByRole('link', { name: 'Edit on League' }).click();
+  await expect(page).toHaveURL(/\/league\//);
+  await expect(page.getByLabel('Punt PTS')).toBeChecked();
+  await expect(page.getByLabel('Punt AST')).toBeChecked();
 });
 
 test('signed in to a Yahoo account, the League page takes the account’s newer setup and saves each change to it (#684)', async ({ page }) => {
@@ -3846,47 +3851,42 @@ test('the injury card, the starters filter and the punt chips say only what hold
 
   await page.goto('/league/');
   await page.getByLabel('Scoring').selectOption('cats8');
-  await page.goto('/');
-  await page.getByTestId('board').locator('tbody tr').first().waitFor();
-  await page.getByTestId('board-options-toggle').click();
-  const chip = page.locator('fieldset label', { hasText: /^TO$/ });
+  const chip = page.getByTestId('league-punts').locator('label', { hasText: /^TO$/ });
   await expect(chip.locator('input')).toBeDisabled();
   await expect(chip).toHaveAttribute('title', /does not count turnovers/);
 });
 
-test('the board keeps its punts and filters in the URL, through a reload and a copied link', async ({ page }) => {
+test('the board keeps its filters in the URL, through a reload and a copied link; the punts stay the league\u2019s (#938)', async ({ page }) => {
   await page.goto('/');
   const board = page.getByTestId('board');
   await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
   await page.getByTestId('board-options-toggle').click();
-  await page.locator('fieldset label', { hasText: /^PTS$/ }).click();
-  await expect(page).toHaveURL(/[?&]punt=pts(&|$)/);
+  await page.getByLabel('Health', { exact: true }).selectOption('healthy');
+  await expect(page).toHaveURL(/[?&]avail=healthy(&|$)/);
   await page.reload();
-  await expect(page.getByTestId('active-filters')).toContainText('Punt PTS');
-  await expect(board.locator('thead [data-cat="z_points"]')).toHaveCount(0);
+  await expect(page.getByTestId('active-filters')).toContainText('Healthy only');
 
-  // a link someone copied: punt FT%, 20+ MPG, healthy only
+  // a link someone copied: 20+ MPG, healthy only, and an old ?punt= that no longer sets the league's punts
   await page.goto('/?punt=ft&mpg=20&avail=healthy');
   const chips = page.getByTestId('active-filters');
-  await expect(chips).toContainText('Punt FT%');
   await expect(chips).toContainText('20+ MPG');
   await expect(chips).toContainText('Healthy only');
+  await expect(chips).not.toContainText('Punt');
+  await expect(board.locator('thead [data-cat="z_free_throw_pct"]')).toHaveCount(1);
+  await expect(page).not.toHaveURL(/punt=/);
   await page.getByRole('button', { name: 'Remove 20+ MPG' }).click();
   await expect(page).not.toHaveURL(/mpg=/);
-  await expect(page).toHaveURL(/punt=ft/);
+  await page.goto('/league/');
+  await expect(page.getByLabel('Punt FT%')).not.toBeChecked();
 });
 
-test('"Clear all" on the board clears every punt, not only the last', async ({ page }) => {
-  await page.goto('/');
+test('"Clear all" on the board clears every filter, not only the last', async ({ page }) => {
+  await page.goto('/?mpg=20&avail=healthy&rookies=1');
   const board = page.getByTestId('board');
-  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
-  await page.getByTestId('board-options-toggle').click();
-  await page.locator('fieldset label', { hasText: /^PTS$/ }).click();
-  await page.locator('fieldset label', { hasText: /^AST$/ }).click();
-  await expect(board.locator('thead [data-cat]')).toHaveCount(7);
+  await expect(page.getByTestId('active-filters').getByRole('button', { name: /^Remove / })).toHaveCount(3);
   await page.getByTestId('active-filters').getByRole('button', { name: 'Clear all' }).click();
   await expect(page.getByTestId('active-filters')).toHaveCount(0);
-  await expect(board.locator('thead [data-cat]')).toHaveCount(9);
+  await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
 });
 
 /** A league's notes file as the player-notes workflow publishes it (#823, #879), one line. */

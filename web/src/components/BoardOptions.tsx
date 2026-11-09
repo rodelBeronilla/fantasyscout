@@ -1,7 +1,5 @@
-/** The board's options behind the Filters button: which players, the league's punts, extra columns and the export. */
-import { CATEGORIES, CATEGORY_LABELS } from '../lib/format';
+/** The board's options behind the Filters button: which players, extra columns and the export. The punts are the League page's (#938). */
 import type { BoardAvailability } from '../lib/board-url';
-import { Chip } from './ui';
 
 export const select = 'rounded border border-line bg-card px-2 py-1';
 
@@ -22,10 +20,6 @@ export function BoardOptions({
   watchOnly,
   setWatchOnly,
   watchedCount,
-  showPunts,
-  punted,
-  onTogglePunt,
-  cats8,
   scheduleCols,
   setScheduleCols,
   showRange,
@@ -52,13 +46,6 @@ export function BoardOptions({
   setWatchOnly: (on: boolean) => void;
   /** Players on the watchlist. */
   watchedCount: number;
-  /** The punt chips: a value view in a categories league. */
-  showPunts: boolean;
-  /** The categories that count for nothing: the punts, and turnovers in an 8-category league. */
-  punted: Set<string>;
-  onTogglePunt: (category: string) => void;
-  /** An 8-category league: turnovers do not count, so there is nothing to punt. */
-  cats8: boolean;
   scheduleCols: boolean;
   setScheduleCols: (on: boolean) => void;
   /** The consistency columns can be picked: off while consistency is not judged (#761). */
@@ -129,25 +116,6 @@ export function BoardOptions({
           </label>
         </div>
       </fieldset>
-      {showPunts && (
-        <fieldset className="grid content-start gap-2">
-          <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Punt (your league&apos;s setting)</legend>
-          <div className="flex flex-wrap gap-1">
-            {CATEGORIES.map((c) => (
-              <Chip
-                key={c}
-                checked={punted.has(c)}
-                strike
-                onChange={() => onTogglePunt(c)}
-                disabled={cats8 && c === 'z_turnovers'}
-                title={cats8 && c === 'z_turnovers' ? 'An 8-category league does not count turnovers: there is nothing to punt' : undefined}
-              >
-                {CATEGORY_LABELS[c]}
-              </Chip>
-            ))}
-          </div>
-        </fieldset>
-      )}
       <fieldset className="grid content-start gap-2 md:col-span-2">
         <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Columns and export</legend>
         <div className="flex flex-wrap items-center gap-4">

@@ -5,7 +5,7 @@ import { restValues, scoreRows } from './board-model';
 import { CATEGORIES } from './format';
 import { categoryReplacement, categoryValues, fantasyPoints, fitWeights, leagueTiers, marketPriorShift, naturalBreaks, pointValues, primaryPosition, replacementLevel, scaleValue } from './league-value';
 import { playerWorth } from './league-model';
-import { teamValues } from './team-review';
+import { leagueValues } from './valuation';
 
 const rows = [10, 8, 6, 4, 2].map((v, i) => ({ player_id: `p${i + 1}`, v, w: v / 2 }));
 
@@ -157,11 +157,11 @@ describe('the market prior on the league scale (#848, ADR 0020)', () => {
     const worth = playerWorth(board, { points: false, cats: CATEGORIES, catWeight, catValues: leagueCats, pointValues: null, recentCats: null });
     expect(worth.get('a')?.perGame).toBeCloseTo(1.5);
     const settings = { scoring: 'cats9' as const, punts: [], weights: DEFAULT_SETTINGS.nba.weights, teams, rosterSpots: pool };
-    const v = teamValues(board, settings);
+    const v = leagueValues(board, settings);
     expect(v.perGame('a')).toBeCloseTo(1.5);
     expect(v.perGame('a', true)).toBeCloseTo(2);
     const off = board.map((r) => ({ ...r, market_prior_weight: 0 }));
     const points = { ...settings, scoring: 'points' as const };
-    expect(teamValues(board, points).perGame('e')).toBe(teamValues(off, points).perGame('e'));
+    expect(leagueValues(board, points).perGame('e')).toBe(leagueValues(off, points).perGame('e'));
   });
 });

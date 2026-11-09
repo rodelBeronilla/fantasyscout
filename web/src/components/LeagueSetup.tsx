@@ -6,10 +6,10 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { fetchBuildJson, type League } from '../lib/data';
-import { CATEGORIES, fmt } from '../lib/format';
+import { fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
-import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum } from '../lib/fantasy-league';
-import { categoryValues, marketPriorShift, pointValues, scaleValue } from '../lib/league-value';
+import { assign, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague } from '../lib/fantasy-league';
+import { leagueValues } from '../lib/valuation';
 import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { chooseMine } from '../lib/league-sync';
 import { href } from '../lib/site';
@@ -125,22 +125,15 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   const owner = useMemo(() => owners(setup), [setup]);
   const byId = useMemo(() => new Map((rows ?? []).map((r) => [r.player_id, r])), [rows]);
   const pool = setup.teams * setup.rosterSpots;
-  const points = setup.scoring === 'points';
-  const cats = useMemo(() => CATEGORIES.filter((c) => setup.scoring !== 'cats8' || c !== 'z_turnovers'), [setup.scoring]);
-  // The draft list's value counts the league's punts out (#661).
-  const catWeight = useMemo(() => categoryWeights({ ...setup, scoring: setup.scoring === 'points' ? 'cats9' : setup.scoring }), [setup]);
-  const catValues = useMemo(() => (rows && !points ? categoryValues(rows, cats, pool, setup.teams) : null), [rows, points, cats, pool, setup.teams]);
-  const pointVals = useMemo(() => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null), [rows, points, setup.weights, pool, setup.teams]);
 
-  /** Value for the draft list: the board's value, per game above replacement times the share of games played. */
+  /**
+   * Value for the draft list: the board's value under the league's settings and punts (valuation.ts,
+   * #938), per game above replacement times the share of games played.
+   */
   const valueOf = useMemo(() => {
-    const out = new Map<string, number>();
-    for (const r of rows ?? []) {
-      const perGame = points ? (pointVals?.get(r.player_id)?.value ?? 0) : weightedSum(catValues?.get(r.player_id), catWeight) + marketPriorShift(r);
-      out.set(r.player_id, scaleValue(perGame, r, { restOfSeason: false }));
-    }
-    return out;
-  }, [rows, points, pointVals, catValues, catWeight]);
+    const v = leagueValues(rows ?? [], { scoring: setup.scoring, punts: setup.punts, weights: setup.weights, teams: setup.teams, rosterSpots: setup.rosterSpots });
+    return new Map((rows ?? []).map((r) => [r.player_id, v.seasonValue(r.player_id)]));
+  }, [rows, setup.scoring, setup.punts, setup.weights, setup.teams, setup.rosterSpots]);
 
   // auction prices (#741) over the whole board's values, for a league this size
   const prices = useMemo(() => auctionValues(valueOf, { teams: setup.teams, rosterSpots: setup.rosterSpots }), [valueOf, setup.teams, setup.rosterSpots]);

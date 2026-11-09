@@ -158,7 +158,7 @@ export function LeagueSettingsForm({
       {setup.scoring !== 'points' && (
         <fieldset className="grid gap-2" data-testid="league-punts">
           <legend className="text-xs text-muted">
-            Punt: categories you give up on. The board, Trade, roster upgrades and Streamers value players without them.
+            Punt: categories you give up on. Every page values players without them: Rankings, the player pages, Pickups, Trade and My Team. They are set here only.
           </legend>
           <div className="flex flex-wrap gap-1">
             {CATEGORIES.map((c) => {

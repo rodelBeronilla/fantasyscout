@@ -10,7 +10,8 @@ import { acceptable, type FairnessModel, leagueState, marketMap, playerWorth } f
 import { type BuildPlan, buildPlan } from '../lib/build-plan';
 import { leagueStandings as tradeStandings } from '../lib/trade-impact';
 import { dropRule, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
-import { teamReview, teamValues } from '../lib/team-review';
+import { teamReview } from '../lib/team-review';
+import { leagueValues } from '../lib/valuation';
 import { streamMove, streamTargets } from '../lib/matchup-streams';
 import { tonight } from '../lib/game-state';
 import { liveWeek, matchup, usableScore, type WeekMatchup, type WeekTotals, weekTotals } from '../lib/matchup';
@@ -300,7 +301,7 @@ export default function MyTeam() {
   // the league's values, shared with Pickups' top adds (#819): category or point values, the
   // rest-of-season value, and last-ten form for the week unit (#466)
   const values = useMemo(
-    () => teamValues(rows ?? [], { scoring: setup.scoring, punts: setup.punts, weights: setup.weights, teams: setup.teams, rosterSpots: setup.rosterSpots }),
+    () => leagueValues(rows ?? [], { scoring: setup.scoring, punts: setup.punts, weights: setup.weights, teams: setup.teams, rosterSpots: setup.rosterSpots }),
     [rows, setup.scoring, setup.punts, setup.weights, setup.teams, setup.rosterSpots],
   );
   const { restValue, perGame } = values;

@@ -13,13 +13,15 @@ import { useWatchlist } from '../lib/watchlist';
 import { noteFor, usePlayerNotes } from '../lib/player-notes';
 import { easternDate } from '../lib/today';
 import { draftPick, owners, undoPick, useLeague } from '../lib/fantasy-league';
-import { categoryReplacement, categoryValues, fitWeights, pointValues } from '../lib/league-value';
+import { fitWeights } from '../lib/league-value';
+import { leagueValues } from '../lib/valuation';
 import { leagueStandings } from '../lib/standings';
 import { BoardCompare, COMPARE_MAX } from './BoardCompare';
 import { BoardHead, type CategoryColumn } from './BoardHead';
 import { BoardOptions, select } from './BoardOptions';
 import { TierHead } from './BoardTierHead';
 import { DraftBar, LeagueBar } from './LeagueParts';
+import { PuntChip } from './PuntChip';
 import { PlayerNoteLine } from './PlayerNoteLine';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, Star, TagLegend, Td, TrendTag, Unvalidated } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
@@ -118,8 +120,8 @@ export default function Board() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<BoardRow[] | null>(null);
   const [error, setError] = useState<unknown>(null);
-  // The view, punts and filters start from the URL and are written back to it, so a reload keeps
-  // them and a copied link reproduces them (#461).
+  // The view and filters start from the URL and are written back to it, so a reload keeps them and a
+  // copied link reproduces them (#461). The punts are the league's, set on the League page only (#938).
   const [fromUrl] = useState(() => readBoardFilters(window.location.search));
   // a hidden page's address sends its visitor here (#936): say in a line why
   const [pausedFrom] = useState(() => pausedPage(window.location.search));
@@ -153,35 +155,21 @@ export default function Board() {
   // a flagged player's one-line note, in a row under his (#879)
   const notes = usePlayerNotes(league);
   const [setup, updateLeague] = useLeague(league);
-  // Punts are the league's (#661): these chips edit the setting the League page does, and the
-  // Trade page, the upgrades and Streamers read it.
-  const punts = useMemo(() => new Set(setup.punts), [setup.punts]);
-  const setPunts = useCallback(
-    (change: Set<string> | ((current: Set<string>) => Set<string>)) =>
-      updateLeague((s) => ({ ...s, punts: [...(typeof change === 'function' ? change(new Set(s.punts)) : change)] })),
-    [updateLeague],
-  );
-  // A link carrying ?punt= applies its punts to the league, so a copied link still reproduces them.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).has('punt')) setPunts(fromUrl.punts);
-  }, [fromUrl, setPunts]);
-  useEffect(() => {
-    const filters = { view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly };
+    // no punts in the address: they are the league's setting, not the board's (an old link's ?punt= is dropped)
+    const filters = { view, punts: new Set<string>(), restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly };
     // the hidden page's ?from= has said its line: it is not a filter to keep
     const search = new URLSearchParams(window.location.search);
     search.delete('from');
     const qs = writeBoardFilters(search.toString(), filters);
     if (qs !== window.location.search) window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs}${window.location.hash}`);
-  }, [view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly]);
+  }, [view, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly]);
   const owner = useMemo(() => owners(setup), [setup]);
   const hasRosters = owner.size > 0;
   // With rosters in, the board starts on the players still available.
   const show: Show = showChoice ?? (hasRosters ? 'available' : 'all');
   const points = setup.scoring === 'points';
   const pool = setup.teams * setup.rosterSpots;
-  // 8-cat leagues drop turnovers; on top of that, the manager's own punts.
-  const punted = useMemo(() => (setup.scoring === 'cats8' ? new Set([...punts, 'z_turnovers']) : punts), [punts, setup.scoring]);
-  const activeCats = useMemo(() => CATEGORIES.filter((c) => !punted.has(c)), [punted]);
   const views = points ? VIEWS.filter((v) => v.id === 'value' || v.id === 'projected') : VIEWS;
   useEffect(() => {
     if (points && view !== 'value' && view !== 'projected') setView('value');
@@ -208,20 +196,18 @@ export default function Board() {
     return { season, complete, maxGames, remaining, teams, injured };
   }, [rows]);
 
-  // Category values above this league's replacement level, and points if the league scores points.
-  const leagueCats = useMemo(
-    () => (rows && !points ? categoryValues(rows, activeCats, pool, setup.teams) : null),
-    [rows, points, activeCats, pool, setup.teams],
+  // Every value under the league's settings and punts (valuation.ts, #938): category values above
+  // this league's replacement level, or points; the same replacement level for the season,
+  // last-twenty and last-ten views (ADR 0019).
+  const values = useMemo(
+    () => leagueValues(rows ?? [], { scoring: setup.scoring, punts: setup.punts, weights: setup.weights, teams: setup.teams, rosterSpots: setup.rosterSpots }),
+    [rows, setup.scoring, setup.punts, setup.weights, setup.teams, setup.rosterSpots],
   );
-  const leaguePoints = useMemo(
-    () => (rows && points ? pointValues(rows, setup.weights, pool, setup.teams) : null),
-    [rows, points, setup.weights, pool, setup.teams],
-  );
-  // The same replacement level for the season, last-twenty and last-ten views (ADR 0019).
-  const replacement = useMemo(
-    () => (rows && !points ? categoryReplacement(rows, activeCats, pool, setup.teams) : null),
-    [rows, points, activeCats, pool, setup.teams],
-  );
+  const punted = useMemo(() => new Set(values.punted), [values.punted]);
+  const activeCats = values.activeCats;
+  const leagueCats = rows ? values.leagueCats : null;
+  const leaguePoints = rows ? values.leaguePoints : null;
+  const replacement = rows ? values.replacement : null;
 
   // The manager's team: its category totals set how much each category counts in Fit.
   // The manager's team, without players parked on the injured list.
@@ -352,7 +338,6 @@ export default function Board() {
 
   // Filters and options behind the Filters button, each shown as a chip while it applies.
   const active: { label: string; clear: () => void }[] = [
-    ...(!isLine(view) && !points ? [...punts].map((c) => ({ label: `Punt ${CATEGORY_LABELS[c] ?? c}`, clear: () => setPunts((p) => toggle(p, c)) })) : []),
     ...(team ? [{ label: `Team ${team}`, clear: () => setTeam('') }] : []),
     ...(minGames ? [{ label: `${minGames}+ games`, clear: () => setMinGames(0) }] : []),
     ...(minMinutes ? [{ label: `${minMinutes}+ MPG`, clear: () => setMinMinutes(0) }] : []),
@@ -570,6 +555,7 @@ export default function Board() {
       )}
 
       <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={[]} quiet />
+      {!points && <PuntChip punts={setup.punts} league={league} />}
       {SHOWS.draft && setup.drafting && (
         <DraftBar
           setup={setup}
@@ -676,10 +662,6 @@ export default function Board() {
           watchOnly={watchOnly}
           setWatchOnly={setWatchOnly}
           watchedCount={watched.size}
-          showPunts={!isLine(view) && !points}
-          punted={punted}
-          onTogglePunt={(c) => setPunts(toggle(punts, c))}
-          cats8={setup.scoring === 'cats8'}
           scheduleCols={scheduleCols}
           setScheduleCols={setScheduleCols}
           showRange={SHOWS.consistency}

@@ -148,8 +148,8 @@ export function TradeValueBreakdown({
       )}
       {punted.length > 0 && (
         <p className="text-muted" data-testid="trade-punts">
-          Punting {punted.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}: values and categories leave {punted.length === 1 ? 'it' : 'them'} out
-          (change the punts on the <a href={href('/league/')} className="underline underline-offset-4">League page</a> or the board).
+          Punting {punted.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}: your side&apos;s values and categories leave {punted.length === 1 ? 'it' : 'them'} out
+          (change the punts on the <a href={href('/league/')} className="underline underline-offset-4">League page</a>).
         </p>
       )}
       {points && (

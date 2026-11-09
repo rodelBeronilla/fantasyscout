@@ -26,6 +26,7 @@ const MODULES = [
   'pickups-top.ts',
   'player-notes.ts',
   'playoff-odds.ts',
+  'player-league.ts',
   'playoff-weeks.ts',
   'punt-chips.ts',
   'records.ts',
@@ -34,8 +35,10 @@ const MODULES = [
   'team-review.ts',
   'trade-fairness.ts',
   'trade-impact.ts',
+  'trade-partner.ts',
   'trade-players.ts',
   'trade-suggest.ts',
+  'valuation.ts',
   'week-value.ts',
 ];
 const ALLOWED = new Set(['0', '1', '-1']);

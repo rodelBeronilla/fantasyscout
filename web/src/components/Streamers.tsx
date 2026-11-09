@@ -15,11 +15,13 @@ import { fantasyPoints } from '../lib/league-value';
 import { topAdds } from '../lib/pickups-top';
 import { daysFromParam, needsFromParam, withNeeds } from '../lib/pickups-url';
 import { readRaw, storageKey, writeRaw } from '../lib/storage';
-import { type ReviewRow, teamReview, teamValues } from '../lib/team-review';
+import { type ReviewRow, teamReview } from '../lib/team-review';
+import { leagueValues, puntedCategories } from '../lib/valuation';
 import { hasWeekGames } from '../lib/week-value';
 import { SHOWS } from '../lib/visibility';
 import { addDays, dayLabel, type Game, type Move, RecentMoves, type TeamWeek, weekday, WeekGrid, WeeksGrid } from './PickupsSchedule';
 import { type Candidate, PickupsTable, type StreamerRow } from './PickupsTable';
+import { PuntChip } from './PuntChip';
 import { type ReviewState, TopAdds } from './TopAdds';
 import { Chip, lineupDay, Loading, Note, Problem, Segmented, TagLegend, Unvalidated } from './ui';
 
@@ -116,7 +118,7 @@ export default function Streamers() {
   // the lineup planner's link (#735): ?open=<days> picks the open days
   const [pickedDays, setPickedDays] = useState<Set<string>>(() => new Set(daysFromParam(new URLSearchParams(window.location.search).get('open'))));
   // the matchup's link (#818): ?need=<categories> preselects the need chips, close and losing ones first
-  const [needs, setNeeds] = useState<Set<string>>(() => new Set(needsFromParam(new URLSearchParams(window.location.search).get('need'))));
+  const [needChoice, setNeeds] = useState<Set<string>>(() => new Set(needsFromParam(new URLSearchParams(window.location.search).get('need'))));
   const [positions, setPositions] = useState<Set<PositionLetter>>(new Set());
   const [team, setTeam] = useState('');
   const [minGames, setMinGames] = useState(0);
@@ -129,7 +131,7 @@ export default function Streamers() {
   // Sorted by window value while games are scheduled (the streamer signals notebook found it the
   // best guide to the week's pickups), else by the minutes trend; a header click overrides. Needs
   // picked from the URL sort by the fit in them, as picking them here does.
-  const [sortChoice, setSortKey] = useState<string | null>(() => (needs.size ? 'fit' : null));
+  const [sortChoice, setSortKey] = useState<string | null>(() => (needChoice.size ? 'fit' : null));
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [shown, setShown] = useState(PAGE);
   const [exploreOpen, setExploreOpen] = useState(() => readRaw(EXPLORE_KEY) === 'open');
@@ -193,7 +195,7 @@ export default function Streamers() {
   const values = useMemo(
     () =>
       boardRows
-        ? teamValues(boardRows, { scoring: setup.scoring, punts: setup.punts, weights: setup.weights, teams: setup.teams, rosterSpots: setup.rosterSpots })
+        ? leagueValues(boardRows, { scoring: setup.scoring, punts: setup.punts, weights: setup.weights, teams: setup.teams, rosterSpots: setup.rosterSpots })
         : null,
     [boardRows, setup.scoring, setup.punts, setup.weights, setup.teams, setup.rosterSpots],
   );
@@ -206,7 +208,6 @@ export default function Streamers() {
 
   // Each team's next game, for the blowout flag on its starters (#486).
   const nextByTeam = useMemo(() => nextGames(games), [games]);
-  const sortKey = sortChoice ?? (games.some((g) => g.days_ahead <= 6) ? 'window_value' : 'minutes_trend');
   const days = useMemo(
     () => (period ? daysBetween(period.from, period.to) : Array.from({ length: horizon }, (_, i) => addDays(start, i))),
     [start, horizon, period],
@@ -271,9 +272,14 @@ export default function Streamers() {
     [weights],
   );
   // The categories the league does not count: its punts (#661), and turnovers in an 8-category
-  // league. Their parts come out of the last-ten value and production (#666).
+  // league (valuation.ts, the one list every page reads). Their parts come out of the last-ten
+  // value and production (#666).
   const kept = useMemo(() => keptCategories(setup), [setup]);
-  const dropped = useMemo(() => (points ? [] : CATEGORIES.filter((c) => !kept.includes(c))), [kept, points]);
+  const dropped = useMemo(() => puntedCategories(setup), [setup]);
+  // A punted category is conceded, never a need (#938): it has no chip, and a link's need for it is dropped.
+  const needCats = useMemo(() => (points ? CATEGORIES : kept), [points, kept]);
+  const needs = useMemo(() => new Set([...needChoice].filter((c) => needCats.includes(c))), [needChoice, needCats]);
+  const sortKey = (sortChoice === 'fit' && !needs.size ? null : sortChoice) ?? (games.some((g) => g.days_ahead <= 6) ? 'window_value' : 'minutes_trend');
   const value10 = useCallback(
     (r: StreamerRow): number | null => {
       if (points) return last10Points(r);
@@ -586,9 +592,10 @@ export default function Streamers() {
             </div>
           )}
           <div className="mb-3 grid gap-3">
+            {!points && <PuntChip punts={setup.punts} league={league} />}
             <fieldset className="flex flex-wrap items-center gap-1" data-testid="needs">
               <legend className="mb-1 text-xs font-medium tracking-wide text-muted uppercase">Categories you need (rank by last-ten value in them)</legend>
-              {CATEGORIES.map((c) => (
+              {needCats.map((c) => (
                 <Chip key={c} label={`Need ${CATEGORY_LABELS[c]}`} checked={needs.has(c)} onChange={() => toggleNeed(c)}>
                   {CATEGORY_LABELS[c]}
                 </Chip>

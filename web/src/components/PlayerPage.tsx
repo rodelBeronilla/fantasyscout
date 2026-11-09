@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { fetchBuildJson, type League } from '../lib/data';
+import type { ModelRow } from '../lib/board-model';
+import { fetchBuildJson, fetchPageRows, type League } from '../lib/data';
+import { useLeague } from '../lib/fantasy-league';
 import { CATEGORIES, CATEGORY_LABELS, day, fmt, pct } from '../lib/format';
 import { isLeague } from '../lib/league';
 import type { PlayerFile, Upcoming, Zscore } from '../lib/player-file';
+import { ownSettings, playerLeagueValue } from '../lib/player-league';
 import { href } from '../lib/site';
+import { puntedCategories } from '../lib/valuation';
 import { PlayerNoteBox } from './PlayerNoteLine';
 import { LeagueStatus, OutlookCard } from './PlayerOutlook';
 import { InjuryCard, NewsCard, NextGames } from './PlayerStatusCards';
 import ShotChart from './ShotChart';
 import TrendChart from './TrendChart';
+import { PuntChip } from './PuntChip';
 import { Card, Loading, Problem, Signed, Td, Th } from './ui';
 
 /** The z-score windows the player file carries, in the order the page lists them. */
@@ -62,6 +67,27 @@ export default function PlayerPage() {
     };
   }, [target]);
 
+  // The manager's league (#938): with settings of its own, the player is valued under them, from
+  // the board every page values on; the published file is the default league's.
+  const [setup] = useLeague(target?.league ?? 'wnba');
+  const own = !!target && ownSettings(target.league, setup);
+  const [boardRows, setBoardRows] = useState<ModelRow[] | null>(null);
+  useEffect(() => {
+    if (!target || !own) return;
+    let live = true;
+    fetchPageRows<ModelRow>(`board/${target.league}`)
+      .then((rows) => live && setBoardRows(rows))
+      .catch(() => live && setBoardRows(null));
+    return () => {
+      live = false;
+    };
+  }, [target, own]);
+  const yours = useMemo(() => (own && boardRows && target ? playerLeagueValue(boardRows, setup, target.playerId) : null), [own, boardRows, target, setup]);
+  // a punted category counts for nothing in the league's value: struck through, and out of the total
+  const punted = useMemo(() => new Set(own ? puntedCategories(setup) : []), [own, setup]);
+  const keptTotal = (z: Zscore) => CATEGORIES.filter((c) => !punted.has(c)).reduce((s, c) => s + (typeof z[c] === 'number' ? (z[c] as number) : 0), 0);
+  const leagueWords = `${setup.teams} teams × ${setup.rosterSpots}${punted.size && setup.punts.length ? `, punting ${setup.punts.map((c) => CATEGORY_LABELS[c] ?? c).join(', ')}` : ''}`;
+
   const seasonLog = useMemo(() => (player?.game_log ?? []).filter((g) => g.season === season).slice().reverse(), [player, season]);
   const seasonZ = useMemo(() => (player?.zscores ?? []).filter((z) => z.season === player?.current_season), [player]);
 
@@ -92,7 +118,7 @@ export default function PlayerPage() {
           {[player.position, player.height, player.weight_lbs ? `${player.weight_lbs} lb` : null, player.school]
             .filter(Boolean)
             .join(' · ')}
-          {player.board ? ` · Board rank #${player.board.rank_total} (default league)` : ''}
+          {yours ? ` · Rank #${yours.rank} in your league` : player.board ? ` · Board rank #${player.board.rank_total} (default league)` : ''}
           {player.last_game_date ? ` · Last game ${day(player.last_game_date)}` : ''}
         </p>
       </header>
@@ -104,26 +130,38 @@ export default function PlayerPage() {
         <OutlookCard
           board={player.board}
           league={target.league}
+          yours={yours ? { ...yours, words: leagueWords } : null}
           season={player.current_season}
           status={<LeagueStatus league={target.league} playerId={player.player_id} name={player.name ?? 'this player'} />}
         />
       )}
 
       <Card title="Category strengths and drags (season z-scores)" id="categories">
+        {punted.size > 0 && (
+          <div className="mb-2">
+            <PuntChip punts={setup.punts} league={target.league} />
+          </div>
+        )}
         {strengths ? (
           <ul className="grid grid-cols-3 gap-2 text-sm sm:grid-cols-5 lg:grid-cols-9" data-testid="categories">
             {CATEGORIES.map((c) => (
-              <li key={c} className="rounded border border-line p-2 text-center">
-                <div className="text-xs text-muted">{CATEGORY_LABELS[c]}</div>
+              <li
+                key={c}
+                className={`rounded border border-line p-2 text-center ${punted.has(c) ? 'text-muted' : ''}`}
+                data-cat={c}
+                data-punted={punted.has(c) ? '' : undefined}
+                title={punted.has(c) ? 'Punted in your league: it counts for nothing in the value' : undefined}
+              >
+                <div className={`text-xs text-muted ${punted.has(c) ? 'line-through' : ''}`}>{CATEGORY_LABELS[c]}</div>
                 <div className="font-medium">
                   <Signed value={strengths[c] as number | null} />
                 </div>
               </li>
             ))}
             <li className="rounded border border-accent p-2 text-center">
-              <div className="text-xs text-muted">Total</div>
-              <div className="font-medium">
-                <Signed value={strengths.z_total} />
+              <div className="text-xs text-muted">{punted.size ? `Total, your ${CATEGORIES.length - punted.size}` : 'Total'}</div>
+              <div className="font-medium" data-testid="categories-total">
+                <Signed value={punted.size ? keptTotal(strengths) : strengths.z_total} />
               </div>
             </li>
           </ul>
@@ -139,10 +177,10 @@ export default function PlayerPage() {
                   <Th right>GP</Th>
                   {CATEGORIES.map((c) => (
                     <Th key={c} right>
-                      {CATEGORY_LABELS[c]}
+                      <span className={punted.has(c) ? 'text-muted line-through' : ''}>{CATEGORY_LABELS[c]}</span>
                     </Th>
                   ))}
-                  <Th right>Total</Th>
+                  <Th right>{punted.size ? `Total, your ${CATEGORIES.length - punted.size}` : 'Total'}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -156,7 +194,7 @@ export default function PlayerPage() {
                       </Td>
                     ))}
                     <Td right>
-                      <Signed value={z.z_total} />
+                      <Signed value={punted.size ? keptTotal(z) : z.z_total} />
                     </Td>
                   </tr>
                 ))}

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SETTINGS, normalize } from './fantasy-league';
-import { type ReviewRow, teamReview, teamValues } from './team-review';
+import { type ReviewRow, teamReview } from './team-review';
+import { leagueValues } from './valuation';
 
 // one category carries the value: the higher z_points, the better the player
 const row = (id: string, z: number, rank: number, position = 'G', games = 3): ReviewRow => ({
@@ -28,7 +29,7 @@ const setup = normalize(
 
 describe('the team review Pickups and My Team share (#819)', () => {
   it('judges the active roster and never names a ranked starter or a player on the IL to drop', () => {
-    const v = teamValues(rows, setup);
+    const v = leagueValues(rows, setup);
     const out = teamReview('nba', rows, setup, v, false);
     expect(out?.mine).toEqual(['star', 'mid', 'low']);
     expect(out?.review.rostered).toBe(3);
@@ -40,19 +41,19 @@ describe('the team review Pickups and My Team share (#819)', () => {
   });
 
   it('the week unit drops only from the two lowest for the rest of the season', () => {
-    const v = teamValues(rows, setup);
+    const v = leagueValues(rows, setup);
     const out = teamReview('nba', rows, setup, v, true);
     expect(out?.drops.every((id) => ['low', 'mid'].includes(id))).toBe(true);
   });
 
   it('waits while a draft is under way, and has nothing without a team', () => {
-    const v = teamValues(rows, setup);
+    const v = leagueValues(rows, setup);
     expect(teamReview('nba', rows, { ...setup, drafting: true }, v, false)).toBeNull();
     expect(teamReview('nba', rows, { ...setup, rosters: setup.rosters.map(() => []) }, v, false)).toBeNull();
   });
 
   it('a points league values by fantasy points, with no category values', () => {
-    const v = teamValues(rows, { ...setup, scoring: 'points' });
+    const v = leagueValues(rows, { ...setup, scoring: 'points' });
     expect(v.points).toBe(true);
     expect(v.leagueCats).toBeNull();
     expect(v.leaguePoints?.size).toBe(rows.length);
@@ -60,7 +61,7 @@ describe('the team review Pickups and My Team share (#819)', () => {
   });
 
   it('a category league leaves its punts out of the values', () => {
-    const v = teamValues(rows, { ...setup, punts: ['z_points'] });
+    const v = leagueValues(rows, { ...setup, punts: ['z_points'] });
     expect(v.activeCats).not.toContain('z_points');
     expect(v.perGame('star')).toBe(v.perGame('low'));
   });
