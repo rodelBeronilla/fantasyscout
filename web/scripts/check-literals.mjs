@@ -36,6 +36,7 @@ const MODULES = [
   'trade-impact.ts',
   'trade-players.ts',
   'trade-suggest.ts',
+  'value-phase.ts',
   'week-value.ts',
 ];
 const ALLOWED = new Set(['0', '1', '-1']);

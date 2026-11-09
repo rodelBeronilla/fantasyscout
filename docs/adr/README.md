@@ -33,6 +33,7 @@ One record per real decision, written when the decision is made. Numbered; a lat
 | [0028](0028-playoff-share-per-tally-rejected.md) | A lasting share per tally for the playoff odds, tried and rejected | 2026-11-08 | Accepted |  |  |
 | [0029](0029-points-playoff-odds-judged.md) | A points league's playoff odds: the weekly spread measured, the odds judged | 2026-11-08 | Accepted |  |  |
 | [0030](0030-advanced-stats-in-the-projection.md) | Advanced stats in the projection, each judged walk-forward | 2026-11-08 | Accepted |  |  |
+| [0031](0031-board-value-validated-in-season.md) | Board value, validated in season; preseason value badged until judged | 2026-11-09 | Accepted (by the owner, #936) |  |  |
 ## Addenda
 A record is not edited after acceptance, but it may grow **addenda**: dated sections that add evidence, record a measurement, or note what happened when the decision met real data. An addendum may not change the decision; a changed decision is a new record that says what it supersedes, and the old record gets a one-line pointer where the superseded text stands (in italics, so the original reads as written). When a record's addenda become a subject of their own, they move to a new record with the text unchanged and a pointer left behind; the new record's header says `Moved from:` instead of `Supersedes:`, because a move changes no decision. ADR 0003 did this on 2026-11-01 (0009 to 0012).
 Template:
