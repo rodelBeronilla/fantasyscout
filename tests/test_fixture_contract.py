@@ -55,6 +55,20 @@ def test_the_fixture_league_has_a_populated_board_and_its_player_files() -> None
         assert (FIXTURE / "players" / fixture.LEAGUE / f"{row['player_id']}.json").is_file()
 
 
+def test_the_other_league_has_the_player_files_of_the_top_of_its_board() -> None:
+    """#942: the NBA player page is tested against real files, not a 404."""
+    board = _load(f"board/{fixture.OTHER_LEAGUE}.json")
+    assert isinstance(board, list) and len(board) >= fixture.OTHER_PLAYERS
+    for row in board[: fixture.OTHER_PLAYERS]:
+        player = _load(f"players/{fixture.OTHER_LEAGUE}/{row['player_id']}.json")
+        assert isinstance(player, dict) and player["league"] == fixture.OTHER_LEAGUE
+        assert player["current_season"] == fixture.OTHER_SEASON
+    # the manifest counts every player file the fixture carries
+    manifest = _load("manifest.json")
+    committed = [p for p in fixture.committed_files() if p.startswith("players/")]
+    assert isinstance(manifest, dict) and manifest["players"]["count"] == len(committed)
+
+
 def test_board_and_streamer_files_carry_exactly_the_layout_columns() -> None:
     for league in layout.LEAGUES:
         board = _load(f"board/{league}.json")

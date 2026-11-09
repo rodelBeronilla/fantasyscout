@@ -16,7 +16,8 @@ DBT_DB = ROOT / "dbt" / "fantasyscout.duckdb"
 
 def test_keeps_only_what_the_pages_read() -> None:
     assert fixture.keeps("board/nba.json")
-    assert fixture.keeps("players/wnba/1.json") and not fixture.keeps("players/nba/1.json")
+    assert fixture.keeps("players/wnba/1.json") and fixture.keeps("players/nba/1.json")
+    assert not fixture.keeps("players/other/1.json") and not fixture.keeps("players/nba/1.csv")
     assert fixture.keeps("dim_team.parquet")
     assert fixture.keeps(f"fct_shot/{fixture.LEAGUE}-{fixture.SEASON}.parquet")
     assert not fixture.keeps("fct_shot/nba-2025-26.parquet")
@@ -51,6 +52,36 @@ def test_trim_player_keeps_every_key_and_recent_history() -> None:
     assert out["game_log"][-1]["game_id"] == "29"
     assert len(out["shots"]) == fixture.RECENT_SHOTS
     assert out["board"] == {"rank_total": 1}
+
+
+def test_player_files_are_the_top_of_each_board_and_the_fixture_streamers() -> None:
+    """#942: the other league's player page is tested too, from the top of its board."""
+
+    def rows(ids: range) -> bytes:
+        return to_json([{"player_id": str(i)} for i in ids])
+
+    files = {
+        f"board/{fixture.LEAGUE}.json": rows(range(100)),
+        f"streamers/{fixture.LEAGUE}.json": rows(range(500, 600)),
+        f"board/{fixture.OTHER_LEAGUE}.json": rows(range(1000, 1100)),
+    }
+    paths = fixture.player_paths(files)
+    league = {p for p in paths if p.startswith(f"players/{fixture.LEAGUE}/")}
+    other = {p for p in paths if p.startswith(f"players/{fixture.OTHER_LEAGUE}/")}
+    assert len(league) == fixture.BOARD_PLAYERS + fixture.STREAMER_PLAYERS
+    assert other == {
+        f"players/{fixture.OTHER_LEAGUE}/{i}.json"
+        for i in range(1000, 1000 + fixture.OTHER_PLAYERS)
+    }
+    assert fixture.player_paths({}) == set()
+
+
+def test_each_player_file_is_cut_to_its_own_leagues_season() -> None:
+    assert fixture.season_of(f"players/{fixture.LEAGUE}/1.json") == fixture.SEASON
+    assert fixture.season_of(f"players/{fixture.OTHER_LEAGUE}/1.json") == fixture.OTHER_SEASON
+    player = {"seasons": [{"season": "2025-26", "g": 1}, {"season": fixture.OTHER_SEASON, "g": 2}]}
+    out = json.loads(fixture.trim_player(to_json(player), fixture.OTHER_SEASON))
+    assert out["seasons"] == [{"season": fixture.OTHER_SEASON, "g": 2}]
 
 
 @pytest.mark.skipif(not DBT_DB.exists(), reason="dbt sample not built")

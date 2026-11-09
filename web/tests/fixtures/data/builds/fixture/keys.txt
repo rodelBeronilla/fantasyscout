@@ -42,6 +42,14 @@ builds/fixture/mart_schedule_upcoming.parquet
 builds/fixture/mart_streamers.parquet
 builds/fixture/minutes/nba.json
 builds/fixture/minutes/wnba.json
+builds/fixture/players/nba/1626157.json
+builds/fixture/players/nba/1627750.json
+builds/fixture/players/nba/1628983.json
+builds/fixture/players/nba/1629029.json
+builds/fixture/players/nba/1630169.json
+builds/fixture/players/nba/1630178.json
+builds/fixture/players/nba/1641705.json
+builds/fixture/players/nba/203999.json
 builds/fixture/players/wnba/1627668.json
 builds/fixture/players/wnba/1627673.json
 builds/fixture/players/wnba/1627674.json
