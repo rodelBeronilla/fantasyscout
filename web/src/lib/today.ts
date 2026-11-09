@@ -14,6 +14,18 @@ export interface TodayGame {
   away_team_tricode: string;
 }
 
+/**
+ * The games still to tip off at `now`: one clock for the page. A game with no tip-off time stays
+ * in, since only the clock can say it has started. Lineups lock at tip-off, so a game under way or
+ * final is no longer a start to make or a slot to stream into.
+ */
+export function gamesToCome<G extends TodayGame>(games: G[], now: number): G[] {
+  return games.filter((g) => {
+    const tip = g.game_datetime_utc ? Date.parse(g.game_datetime_utc) : Number.NaN;
+    return Number.isNaN(tip) || tip > now;
+  });
+}
+
 export interface TodayPlayer {
   player_id: string;
   team_id?: string | null;
