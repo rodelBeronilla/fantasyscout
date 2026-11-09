@@ -116,8 +116,35 @@ test('the sources page names every source with what is published from it, and th
   await expect(page.getByRole('link', { name: 'open an issue' })).toHaveAttribute('href', /github\.com/);
 });
 
+test('the methodology page leads with the verdict on every feature, and when each is next judged', async ({ page }) => {
+  await page.goto('/methodology/');
+  const table = page.getByTestId('verdicts');
+  await expect(table).toBeVisible();
+  // The table comes before the folded number registry.
+  const tableTop = (await table.boundingBox())!.y;
+  const registryTop = (await page.getByTestId('registry').boundingBox())!.y;
+  expect(tableTop).toBeLessThan(registryTop);
+  await expect(page.getByTestId('registry').getByTestId('parameters')).toBeHidden();
+  // The board's value passed in season (ADR 0031) and shows.
+  const value = table.locator('[data-feature="board-value"]');
+  await expect(value).toHaveAttribute('data-verdict', 'validated');
+  await expect(value).toHaveAttribute('data-shown', 'shown');
+  await expect(value.getByRole('link', { name: 'ADR 0031' })).toHaveAttribute('href', /docs\/adr\/0031-board-value-validated-in-season\.md$/);
+  // A hidden week-level call names its two looks and links its pass bar.
+  const streams = table.locator('[data-feature="streams"]');
+  await expect(streams).toHaveAttribute('data-shown', 'hidden');
+  await expect(streams).toContainText('18 January and 15 March 2027');
+  await expect(streams.getByRole('link', { name: 'the bar' })).toHaveAttribute('href', /issues\/902#issuecomment-/);
+  // A failed call is never listed as shown without a badge.
+  for (const row of await table.locator('[data-verdict="failed"]').all()) await expect(row).not.toHaveAttribute('data-shown', 'shown');
+  // The counts add up to the rows.
+  const counts = await page.getByTestId('verdict-counts').locator('.font-medium').allTextContents();
+  expect(counts.reduce((n, c) => n + Number.parseInt(c, 10), 0)).toBe(await table.locator('tbody tr').count());
+});
+
 test('the methodology page lists every registered number with how it was set and the issue that tests it', async ({ page }) => {
   await page.goto('/methodology/');
+  await page.getByTestId('registry').locator('summary').click();
   const params = page.getByTestId('parameters').locator('article');
   expect(await params.count()).toBeGreaterThanOrEqual(30);
   // A measured projection weight and an assumed trade threshold, each linked to its backtest.
