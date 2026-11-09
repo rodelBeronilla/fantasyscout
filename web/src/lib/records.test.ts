@@ -84,6 +84,59 @@ describe('the standings and the line that leads My Team', () => {
     expect(standingsOf([rec(1, 3, 0, 1), rec(3, 1, 0, 1)])!.map((s) => s.team)).toEqual([1, 0]);
   });
 
+  it('measures games back from the best record: the leader 0, every other team at or above it (#943)', () => {
+    // a seeded Yahoo league whose 4th and 5th seeds disagree with their records
+    const wl: [number, number, number][] = [
+      [12, 5, 1],
+      [11, 7, 0],
+      [10, 7, 1],
+      [10, 8, 0],
+      [10, 7, 1],
+      [9, 8, 1],
+      [9, 9, 0],
+      [8, 9, 1],
+      [8, 10, 0],
+      [7, 10, 1],
+      [6, 12, 0],
+      [5, 12, 1],
+    ];
+    const table = standingsOf(wl.map(([w, l, t], i) => rec(w, l, t, i + 1)))!;
+    expect(table[0]).toMatchObject({ team: 0, place: 1, back: 0 });
+    expect(table.map((s) => s.back)).toEqual([0, 1.5, 2, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6.5, 7]);
+    // the records put 10-7-1 above 10-8; the seed breaks the tie between the two 10-7-1 teams
+    expect(table.map((s) => s.team)).toEqual([0, 1, 2, 4, 3, 5, 6, 7, 8, 9, 10, 11]);
+    for (const [i, s] of table.entries()) if (i > 0) expect(s.back).toBeGreaterThanOrEqual(table[i - 1]!.back);
+    expect(standingLine(table, 4)).toBe('4th, level with 3rd and 2 games back of 1st');
+    expect(standingLine(table, 3)).toBe('5th, half a game back of 4th and 2.5 games back of 1st');
+  });
+
+  it('never gives a team a gap below the leader, whatever the seeds say', () => {
+    // the league seeds the worse record first (a division winner, say): the better record leads
+    const table = standingsOf([rec(8, 10, 0, 1), rec(12, 6, 0, 2), rec(10, 8, 0, 3)])!;
+    expect(table.map((s) => [s.team, s.place, s.back])).toEqual([
+      [1, 1, 0],
+      [2, 2, 2],
+      [0, 3, 4],
+    ]);
+    expect(table.every((s) => s.back >= 0)).toBe(true);
+    expect(standingLine(table, 1)).toBe('1st, 2 games ahead of 2nd');
+  });
+
+  it('counts a tie as half a game', () => {
+    const table = standingsOf([rec(9, 8, 1), rec(10, 8, 0), rec(10, 7, 1), rec(11, 7, 0)])!;
+    expect(table.map((s) => [s.team, s.back])).toEqual([
+      [3, 0],
+      [2, 0.5],
+      [1, 1],
+      [0, 1.5],
+    ]);
+    expect(standingLine(table, 2)).toBe('2nd, half a game back of 1st');
+    // two teams level at the top both read 0, and the line says level
+    const level = standingsOf([rec(10, 7, 1), rec(10, 7, 1), rec(9, 9)])!;
+    expect(level.map((s) => s.back)).toEqual([0, 0, 1.5]);
+    expect(standingLine(level, 1)).toBe('2nd, level with 1st');
+  });
+
   it('has no standings before a game, or with one team', () => {
     expect(standingsOf([rec(0, 0), rec(0, 0)])).toBeNull();
     expect(standingsOf([rec(3, 1)])).toBeNull();
