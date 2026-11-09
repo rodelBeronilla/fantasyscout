@@ -8,6 +8,7 @@ import { DataType } from 'apache-arrow';
 import { useEffect, useRef, useState } from 'react';
 
 import { absoluteBuildUrl, dataHref, getLatest, getManifest, type Latest, type Manifest } from '../lib/data';
+import { rememberOwner } from '../lib/owner';
 
 declare const __DUCKDB_VERSION__: string;
 const DUCKDB_VERSION: string = __DUCKDB_VERSION__;
@@ -129,6 +130,10 @@ async function openDatabase(latest: Latest, manifest: Manifest): Promise<{ conn:
   return { conn, views: views.sort() };
 }
 
+/**
+ * The console. The engine is tens of megabytes, so nothing of it loads with the page: the first
+ * Run (or saved query) downloads it, opens the build's tables and then runs the query (#940).
+ */
 function Console() {
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   const [error, setError] = useState<unknown>(null);
@@ -138,33 +143,43 @@ function Console() {
   const [rows, setRows] = useState<unknown[][]>([]);
   const [elapsed, setElapsed] = useState<number | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
-  const connRef = useRef<Connection | null>(null);
-
+  const opening = useRef<Promise<Connection> | null>(null);
+  const mounted = useRef(true);
   useEffect(() => {
-    let live = true;
-    setState('loading');
-    (async () => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  /** The connection, opening the engine and the views on the first call only. */
+  const connection = (): Promise<Connection> => {
+    opening.current ??= (async () => {
+      setState('loading');
       const latest = await getLatest();
       const manifest = await getManifest();
       if (!latest || !manifest) throw new (await import('../lib/data')).NoBuildError();
       const { conn, views } = await openDatabase(latest, manifest);
-      if (!live) return;
-      connRef.current = conn;
-      setViews(views);
-      setState('ready');
-    })().catch((e: unknown) => {
-      if (!live) return;
-      setError(e);
-      setState('failed');
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
+      if (mounted.current) {
+        setViews(views);
+        setState('ready');
+      }
+      return conn;
+    })();
+    return opening.current;
+  };
 
   const run = async (text: string) => {
-    const conn = connRef.current;
-    if (!conn) return;
+    let conn: Connection;
+    try {
+      conn = await connection();
+    } catch (e: unknown) {
+      if (!mounted.current) return;
+      setError(e);
+      setState('failed');
+      return;
+    }
+    if (!mounted.current) return;
     setQueryError(null);
     const started = performance.now();
     try {
@@ -205,7 +220,8 @@ function Console() {
             <li key={q.title}>
               <button
                 type="button"
-                className="w-full rounded border border-line px-2 py-1 text-left text-sm hover:bg-card"
+                disabled={state === 'loading'}
+                className="w-full rounded border border-line px-2 py-1 text-left text-sm hover:bg-card disabled:opacity-50"
                 onClick={() => {
                   setSql(q.sql);
                   void run(q.sql);
@@ -217,8 +233,8 @@ function Console() {
           ))}
         </ul>
         <h2 className="mt-4 text-sm font-medium tracking-wide text-muted uppercase">Tables</h2>
-        <p className="mt-1 font-mono text-xs text-muted" data-testid="sql-views">
-          {views.join(', ')}
+        <p className={`mt-1 text-xs text-muted ${views.length ? 'font-mono' : ''}`} data-testid="sql-views">
+          {views.length ? views.join(', ') : 'Listed once the first query has loaded the engine.'}
         </p>
       </aside>
       <div>
@@ -236,14 +252,19 @@ function Console() {
         <div className="mt-2 flex items-center gap-3">
           <button
             type="button"
-            disabled={state !== 'ready'}
+            disabled={state === 'loading'}
             onClick={() => void run(sql)}
             className="rounded bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg disabled:opacity-50"
             data-testid="sql-run"
           >
             Run
           </button>
-          {state === 'loading' && <Loading what="DuckDB and the build's tables" />}
+          {state === 'idle' && (
+            <span className="text-sm text-muted" data-testid="sql-engine-note">
+              The first run downloads the engine (tens of megabytes, once), then the query runs.
+            </span>
+          )}
+          {state === 'loading' && <Loading what="the DuckDB engine and the build's tables, then the query" />}
           {elapsed !== null && (
             <span className="text-sm text-muted" data-testid="sql-elapsed">
               {rows.length} row{rows.length === 1 ? '' : 's'} in {elapsed.toFixed(0)} ms
@@ -320,7 +341,11 @@ export default function SqlConsole() {
   useEffect(() => {
     fetch(href('/api/owner/status'), { headers: { accept: 'application/json' } })
       .then((res) => (res.ok ? (res.json() as Promise<{ configured: boolean; owner: boolean }>) : Promise.reject(new Error(String(res.status)))))
-      .then((s) => setAccess(s.owner ? 'owner' : s.configured ? 'signin' : 'closed'))
+      .then((s) => {
+        // what the Worker says decides whether the nav shows this page's link (#940)
+        rememberOwner(s.owner);
+        setAccess(s.owner ? 'owner' : s.configured ? 'signin' : 'closed');
+      })
       .catch(() => setAccess('owner'));
   }, []);
 
@@ -353,7 +378,11 @@ export default function SqlConsole() {
   return (
     <div className="grid gap-2">
       <Console />
-      <a href={href('/auth/owner/logout')} className="justify-self-start text-xs text-muted underline underline-offset-4">
+      <a
+        href={href('/auth/owner/logout')}
+        onClick={() => rememberOwner(false)}
+        className="justify-self-start text-xs text-muted underline underline-offset-4"
+      >
         Sign out
       </a>
     </div>

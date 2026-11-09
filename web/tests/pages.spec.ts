@@ -593,20 +593,6 @@ test('data health lists each source feed with how fresh it is', async ({ page })
   await expect(feeds.locator('tbody tr').filter({ hasText: 'WNBA' })).toContainText('Never landed');
 });
 
-test('the SQL console runs a saved query in the browser', async ({ page, browserName }) => {
-  test.skip(browserName !== 'chromium', 'DuckDB-WASM is exercised on Chromium');
-  test.setTimeout(120_000);
-  await page.goto('/sql/');
-  await expect(page.getByTestId('sql-run')).toBeEnabled({ timeout: 90_000 });
-  await expect(page.getByTestId('sql-views')).toContainText('dim_team');
-  await page.getByTestId('sql-input').fill('select count(*) as teams from dim_team');
-  await page.getByTestId('sql-run').click();
-  await expect(page.getByTestId('sql-results').locator('tbody tr').first()).toHaveText(/^[1-9]\d*$/);
-  await page.getByTestId('sql-input').fill('select max(game_date) as last_game from dim_game');
-  await page.getByTestId('sql-run').click();
-  await expect(page.getByTestId('sql-results').locator('tbody tr').first()).toHaveText(/^\d{4}-\d{2}-\d{2}$/);
-});
-
 test('the league toggle switches the board to the NBA', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('group', { name: 'League' }).getByRole('link', { name: 'NBA', exact: true }).click();
@@ -1074,9 +1060,11 @@ test('the fantasy pages sit flat in the nav, the data pages under one header tha
   const data = page.getByTestId('nav-behind-the-data');
   await expect(data).not.toHaveAttribute('open', '');
   await data.locator('summary').click();
-  for (const item of ['Notebooks', 'Dashboards', 'Data Health', 'Pipeline', 'Schema', 'Docs (opens in a new tab)', 'SQL console (owner only)', 'Sources and terms']) {
+  for (const item of ['Notebooks', 'Dashboards', 'Data Health', 'Pipeline', 'Schema', 'Docs (opens in a new tab)', 'Sources and terms']) {
     await expect(data.getByRole('link', { name: item, exact: true })).toBeVisible();
   }
+  // the owner's SQL console is not in the public nav (#940, tests/sql.spec.ts)
+  await expect(data.getByRole('link', { name: 'SQL console (owner only)' })).toHaveCount(0);
   // it stays on the screen, and a click elsewhere closes it
   const box = (await data.locator('ul').boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
