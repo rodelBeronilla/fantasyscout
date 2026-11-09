@@ -18,3 +18,29 @@ unit_tests:
         - {player_id: '2', height: '7-0', height_inches: 84, birth_date: 1996-06-10}
         - {player_id: '3', height: null, height_inches: null, birth_date: null}
         - {player_id: '4', height: '6', height_inches: null, birth_date: null}
+
+  - name: birth_dates_are_reference_data_a_point_in_time_build_keeps
+    description: >
+      A birth date is fixed before a player's first game, so a point-in-time build keeps every
+      roster landing's, even one landed after its date (#918), where silver.rosters keeps only
+      the landings known before it. The newest landing that gives a date wins, so a corrected date
+      replaces a wrong one; a date that does not parse is skipped, not taken.
+    model: player_birth_dates
+    overrides:
+      vars:
+        as_of: '2024-01-15'
+        point_in_time: true
+    given:
+      - input: ref('stats_commonteamroster')
+        rows:
+          - {league: nba, player_id: '1', birth_date: 'MAR 03, 1996', _ingest_date: 2026-10-20, _source_file: a.json}
+          - {league: nba, player_id: '2', birth_date: 'JUN 10, 1995', _ingest_date: 2026-10-20, _source_file: a.json}
+          - {league: nba, player_id: '2', birth_date: 'JUN 10, 1996', _ingest_date: 2026-10-25, _source_file: b.json}
+          - {league: nba, player_id: '3', birth_date: 'JAN 05, 2001', _ingest_date: 2026-10-20, _source_file: a.json}
+          - {league: nba, player_id: '3', birth_date: 'not a date', _ingest_date: 2026-10-25, _source_file: b.json}
+          - {league: nba, player_id: '4', birth_date: null, _ingest_date: 2026-10-20, _source_file: a.json}
+    expect:
+      rows:
+        - {league: nba, player_id: '1', birth_date: 1996-03-03}
+        - {league: nba, player_id: '2', birth_date: 1996-06-10}
+        - {league: nba, player_id: '3', birth_date: 2001-01-05}

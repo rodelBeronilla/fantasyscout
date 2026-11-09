@@ -323,7 +323,7 @@ assembled as (
         nm.player_sk,
         nm.full_name,
         nm.position,
-        coalesce(cast(floor({{ days_between('nm.birth_date', as_of_date()) }} / 365.25) as integer), v.age) as age_years,
+        coalesce({{ age_years('nm.birth_date', as_of_date()) }}, v.age) as age_years,
         coalesce(t.abbreviation, t_prev.abbreviation) as team_abbreviation,
         pt.abbreviation as prev_team_abbreviation,
         cast(coalesce(r.games_remaining, 0) as integer) as games_remaining,

@@ -6,7 +6,7 @@ from datetime import date
 
 import duckdb
 
-from ops.point_in_time_check import DATED, dropped, leaks
+from ops.point_in_time_check import DATED, cut_reference, dropped, leaks
 
 AS_OF = date(2026, 1, 10)
 
@@ -54,3 +54,23 @@ def test_a_game_cut_too_far_back_is_named() -> None:
         "gold.fct_player_game: 1 rows before 2026-01-10, the full build has 2"
     ]
     assert dropped(full, full, AS_OF) == []
+
+
+def _birth_dates(rows: int) -> duckdb.DuckDBPyConnection:
+    con = duckdb.connect(":memory:")
+    con.execute("create schema silver")
+    con.execute("create table silver.player_birth_dates (player_id varchar, birth_date date)")
+    for i in range(rows):
+        con.execute("insert into silver.player_birth_dates values (?, date '2000-01-01')", [str(i)])
+    return con
+
+
+def test_reference_data_cut_by_the_build_is_named() -> None:
+    full = _birth_dates(2)
+    assert cut_reference(_birth_dates(2), full) == []
+    assert cut_reference(_birth_dates(0), full) == [
+        "silver.player_birth_dates: 0 rows, the full build has 2, but it is never cut"
+    ]
+    assert cut_reference(duckdb.connect(":memory:"), full) == [
+        "silver.player_birth_dates: missing from the build"
+    ]

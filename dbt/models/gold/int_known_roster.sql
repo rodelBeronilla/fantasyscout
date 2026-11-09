@@ -12,14 +12,17 @@
   league's official signings, trades (the receiving team) and waiver claims. A player whose latest
   event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from
   games alone. The roster season is the newest season on the schedule that starts within about
-  six months of the cut, so an offseason date projects the coming season. Age and the rookie flag
-  are unknown here; mart_board takes the age from the birth date.
+  six months of the cut, so an offseason date projects the coming season. The age is the player's
+  age in whole years on the cut, from the stats rosters' birth date (player_birth_dates, which is
+  reference data and not cut: a birth date is fixed before a player's first game, #918), worked
+  out as mart_board works out its own; null when no roster gives one. The rookie flag is unknown.
 #}
 
 -- depends_on: {{ ref('schedule') }}
 -- depends_on: {{ ref('fct_player_game') }}
 -- depends_on: {{ ref('transactions') }}
 -- depends_on: {{ ref('rosters') }}
+-- depends_on: {{ ref('player_birth_dates') }}
 
 {% if point_in_time() %}
 
@@ -91,10 +94,11 @@ select
     r.roster_season,
     l.team_id,
     l.player_id,
-    cast(null as integer) as age,
+    {{ age_years('b.birth_date', as_of_date()) }} as age,
     false as is_rookie
 from latest as l
 join roster_season as r on r.league = l.league
+left join {{ ref('player_birth_dates') }} as b on b.league = l.league and b.player_id = l.player_id
 where l.team_id is not null
 
 {% else %}
