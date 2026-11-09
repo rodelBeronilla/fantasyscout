@@ -1,3 +1,8 @@
+import { isRememberedOwner } from '../lib/owner';
+
+// The owner's links (the SQL console) show only in a browser that has signed in as the owner (#940).
+if (isRememberedOwner()) for (const item of document.querySelectorAll<HTMLElement>('[data-owner-only]')) item.hidden = false;
+
 // One nav dropdown open at a time, and none once the reader clicks or tabs elsewhere.
 const groups = Array.from(document.querySelectorAll<HTMLDetailsElement>('details[data-nav-group]'));
 for (const group of groups) {

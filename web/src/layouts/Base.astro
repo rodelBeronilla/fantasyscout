@@ -21,6 +21,8 @@ interface Props {
 
 const { title, description, preload, redirect } = Astro.props;
 const currentBase = href('data/current/');
+/** The one nav link only the site's owner sees (#940). */
+const OWNER_ONLY = '/sql/';
 
 // The nav (#724): the fantasy pages flat, in the order a manager uses them, and the pages about the
 // data under one header. The header opens as a dropdown (a details element, so it works without
@@ -44,8 +46,9 @@ const nav: { label: string; path?: string; items?: readonly (readonly [string, s
       ['Pipeline', '/pipeline/'],
       ['Schema', '/schema/'],
       ['Docs', '/docs/'],
-      // The console loads the full tables, which only the site's owner may read (ADR 0008).
-      ['SQL console (owner only)', '/sql/'],
+      // The console loads the full tables, which only the site's owner may read (ADR 0008), so its
+      // link is hidden unless this browser has signed in as the owner (scripts/nav.ts, #940).
+      ['SQL console (owner only)', OWNER_ONLY],
       ['Sources and terms', '/sources/'],
     ],
   },
@@ -150,7 +153,7 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
                     <ul class="absolute left-0 z-20 mt-1 min-w-44 rounded border border-line bg-card p-1 shadow">
                       {
                         group.items?.map(([label, path]) => (
-                          <li>
+                          <li hidden={path === OWNER_ONLY} data-owner-only={path === OWNER_ONLY || undefined}>
                             <a
                               href={href(path)}
                               class:list={[
