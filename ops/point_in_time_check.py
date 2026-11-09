@@ -10,6 +10,8 @@ Rebuilds the lakehouse from scratch twice into new DuckDB files, with ``point_in
   keep every row the full build has before it, so an over-cut (a game log cut by the day a
   backfill landed it) fails too.
 
+In both, a reference table no build cuts (birth dates) must keep every row the full build has.
+
 A dated table or column the build lacks is a failure, not a skip; a table the sample leaves empty
 is named, since it proves nothing. Exits 1 on any failure.
 """
@@ -90,6 +92,9 @@ EVENTS: frozenset[str] = frozenset(
 )
 # Sources that keep only their newest file hold nothing about an earlier day.
 EMPTY: tuple[str, ...] = ("gold.fct_waiver_trend",)
+# Reference data no build cuts (ADR 0018), however late it landed: a birth date is fixed before a
+# player's first game (#918). A point-in-time build keeps every row the full build has.
+REFERENCE: tuple[str, ...] = ("silver.player_birth_dates",)
 
 
 def _columns(con: duckdb.DuckDBPyConnection, table: str) -> set[str]:
@@ -141,11 +146,25 @@ def dropped(
     return found
 
 
+def cut_reference(cut: duckdb.DuckDBPyConnection, full: duckdb.DuckDBPyConnection) -> list[str]:
+    """Reference tables that lost rows or are missing: the build cut what it must not."""
+    found: list[str] = []
+    for table in REFERENCE:
+        if not _columns(cut, table):
+            found.append(f"{table}: missing from the build")
+            continue
+        sql = f"select count(*) from {table}"
+        want, got = _count(full, sql), _count(cut, sql)
+        if got != want:
+            found.append(f"{table}: {got} rows, the full build has {want}, but it is never cut")
+    return found
+
+
 def idle(full: duckdb.DuckDBPyConnection) -> list[str]:
     """Checked tables the sample leaves empty: they prove nothing either way."""
     return [
         t
-        for t in dict.fromkeys(t for t, _ in DATED)
+        for t in dict.fromkeys([*(t for t, _ in DATED), *REFERENCE])
         if _count(full, f"select count(*) from {t}") == 0
     ]
 
@@ -187,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:
                     continue
                 with duckdb.connect(str(db), read_only=True) as cut:
                     problems += leaks(cut, as_of)
+                    problems += cut_reference(cut, full)
                     if keep:
                         problems += dropped(cut, full, as_of)
         unexercised = idle(full)

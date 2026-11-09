@@ -31,6 +31,8 @@ unit_tests:
           - {league: nba, source: nba, player_id: d, team_id: C, transaction_type: Signing, transaction_date: '2023-07-10'}
       - input: ref('rosters')
         rows: []
+      - input: ref('player_birth_dates')
+        rows: []
     expect:
       rows:
         - {player_id: a, team_id: B, roster_season: '2023-24'}
@@ -55,7 +57,50 @@ unit_tests:
         rows: []
       - input: ref('transactions')
         rows: []
+      - input: ref('player_birth_dates')
+        rows: []
     expect:
       rows:
         - {player_id: p1, team_id: B, roster_season: '2025-26', is_rookie: false}
         - {player_id: p2, team_id: A, roster_season: '2025-26', is_rookie: true}
+
+  - name: a_point_in_time_roster_has_each_players_age_on_the_cut
+    description: >
+      As of 2024-01-15 the rebuilt roster gives each player's age in whole years on the cut from
+      the birth date (#918), the formula mart_board's age uses (age_years: whole days over 365.25,
+      rounded down): a turns 24 on the cut, b turns 24 the day after it and is still 23, d is 28.
+      The birth dates may come from roster landings made long after the cut, since a birth date is
+      fixed before a player's first game. The only birth date under e's id is a WNBA player's, so
+      e has no age.
+    model: int_known_roster
+    overrides:
+      vars:
+        as_of: '2024-01-15'
+        point_in_time: true
+    given:
+      - input: ref('schedule')
+        rows:
+          - {league: nba, season: '2022-23', game_type: regular, game_date_est: '2022-10-18'}
+          - {league: nba, season: '2023-24', game_type: regular, game_date_est: '2023-10-24'}
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, player_id: a, team_id: A, game_date: '2023-12-01', played: true}
+          - {league: nba, player_id: b, team_id: A, game_date: '2024-01-10', played: true}
+          - {league: nba, player_id: d, team_id: B, game_date: '2024-01-12', played: true}
+          - {league: nba, player_id: e, team_id: B, game_date: '2024-01-12', played: true}
+      - input: ref('transactions')
+        rows: []
+      - input: ref('rosters')
+        rows: []
+      - input: ref('player_birth_dates')
+        rows:
+          - {league: nba, player_id: a, birth_date: '2000-01-15'}
+          - {league: nba, player_id: b, birth_date: '2000-01-16'}
+          - {league: nba, player_id: d, birth_date: '1995-07-10'}
+          - {league: wnba, player_id: e, birth_date: '1990-01-01'}
+    expect:
+      rows:
+        - {player_id: a, team_id: A, age: 24}
+        - {player_id: b, team_id: A, age: 23}
+        - {player_id: d, team_id: B, age: 28}
+        - {player_id: e, team_id: B, age: null}

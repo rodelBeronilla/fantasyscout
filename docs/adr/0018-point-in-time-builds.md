@@ -26,7 +26,7 @@ A build with `point_in_time: true` and `as_of: <date>` sees the world at the sta
   For past seasons nothing was observed, so these are honestly absent rather than borrowed from today.
 - **Sources that keep only their newest file** (Sleeper's trending list) are empty.
 - **A game is played** only if it fell before `as_of`, whatever its status says now (`is_final`).
-- **Identity reference data is not cut:** names, ids, team abbreviations, positions and the published schedule.
+- **Identity reference data is not cut:** names, ids, team abbreviations, positions, birth dates (`player_birth_dates`, #918) and the published schedule. A birth date is fixed before a player's first game, so a roster landed after the cut says nothing about it that wasn't so before; the check requires every birth date the full build has.
 
 `as_of` alone keeps its older meaning, the run's date that tests pin. The cut needs both vars:
 

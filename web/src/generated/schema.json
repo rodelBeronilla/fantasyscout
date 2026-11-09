@@ -395,7 +395,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 468,
+ "generic_tests": 473,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -4933,6 +4933,7 @@
      ],
      "read_by": [
       "feed_freshness",
+      "player_birth_dates",
       "rosters"
      ],
      "read_by_pages": [],
@@ -11626,6 +11627,70 @@
       "league_injury_report"
      ],
      "unit_tests": []
+    },
+    {
+     "checks": [],
+     "columns": [
+      {
+       "description": "wnba or nba",
+       "meta": {},
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League stats API player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Natural key: league and player id; one row per player per league",
+       "meta": {},
+       "name": "player_key",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Date of birth from the newest roster landing that gives one",
+       "meta": {},
+       "name": "birth_date",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      }
+     ],
+     "description": "One row per player per league with the stats rosters' birth date: reference data a point-in-time build keeps (#918).",
+     "exported_as": [],
+     "grain": null,
+     "landing": [],
+     "materialized": "table",
+     "name": "player_birth_dates",
+     "notes": [
+      "One row per player per league with the birth date the stats rosters give (#918). Identity reference data, like a name or an id, so a point-in-time build does not cut it (ADR 0018): it reads every roster landing, whatever day it landed, where silver.rosters keeps only the landings known before the cut. A birth date is fixed before a player's first game, so a landing from after the cut tells nothing that wasn't so before it, and the build only looks up players it already knows from games and moves before the cut (int_known_roster). The newest landing that gives a date wins, so a corrected date replaces a wrong one."
+     ],
+     "read_by": [
+      "int_known_roster"
+     ],
+     "read_by_pages": [],
+     "reads": [
+      "stats_commonteamroster"
+     ],
+     "unit_tests": [
+      {
+       "description": "A birth date is fixed before a player's first game, so a point-in-time build keeps every roster landing's, even one landed after its date (#918), where silver.rosters keeps only the landings known before it. The newest landing that gives a date wins, so a corrected date replaces a wrong one; a date that does not parse is skipped, not taken.",
+       "name": "birth_dates_are_reference_data_a_point_in_time_build_keeps"
+      }
+     ]
     },
     {
      "checks": [
@@ -23434,7 +23499,7 @@
      "notes": [
       "Who is on which team, as the build knows it (#796): what mart_player_projection projects.",
       "A normal build reads the official rosters: each league's latest roster season, each team's latest landing, and for a player on two teams' latest landings the newer one, with the age and rookie flag the roster gives.",
-      "A point-in-time build cannot. Rosters count as known only from the day they were landed (ADR 0018), and every past season's were landed by a backfill long after it, so a backtest of a past date would project nobody. It rebuilds the roster from what was known before the cut instead: each player's latest event among the games he played (this season and the last) and the league's official signings, trades (the receiving team) and waiver claims. A player whose latest event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from games alone. The roster season is the newest season on the schedule that starts within about six months of the cut, so an offseason date projects the coming season. Age and the rookie flag are unknown here; mart_board takes the age from the birth date."
+      "A point-in-time build cannot. Rosters count as known only from the day they were landed (ADR 0018), and every past season's were landed by a backfill long after it, so a backtest of a past date would project nobody. It rebuilds the roster from what was known before the cut instead: each player's latest event among the games he played (this season and the last) and the league's official signings, trades (the receiving team) and waiver claims. A player whose latest event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from games alone. The roster season is the newest season on the schedule that starts within about six months of the cut, so an offseason date projects the coming season. The age is the player's age in whole years on the cut, from the stats rosters' birth date (player_birth_dates, which is reference data and not cut: a birth date is fixed before a player's first game, #918), worked out as mart_board works out its own; null when no roster gives one. The rookie flag is unknown."
      ],
      "read_by": [
       "int_player_projection_parts"
@@ -23442,6 +23507,7 @@
      "read_by_pages": [],
      "reads": [
       "fct_player_game",
+      "player_birth_dates",
       "rosters",
       "schedule",
       "transactions"
@@ -23450,6 +23516,10 @@
       {
        "description": "Without a point-in-time cut the roster is the latest roster season's latest landings; a player on two teams' latest landings belongs to the newer one, and R marks a rookie.",
        "name": "a_normal_build_reads_the_official_rosters"
+      },
+      {
+       "description": "As of 2024-01-15 the rebuilt roster gives each player's age in whole years on the cut from the birth date (#918), the formula mart_board's age uses (age_years: whole days over 365.25, rounded down): a turns 24 on the cut, b turns 24 the day after it and is still 23, d is 28. The birth dates may come from roster landings made long after the cut, since a birth date is fixed before a player's first game. The only birth date under e's id is a WNBA player's, so e has no age.",
+       "name": "a_point_in_time_roster_has_each_players_age_on_the_cut"
       },
       {
        "description": "As of 2024-01-15 no roster landing is known (#796). The roster is each player's latest event before the cut: a plays for A, then is traded to B (B receives him), so he is on B; b's last game is for A, so he is on A; c is waived and on no roster; d signs with C in the offseason before playing; e last played two seasons before the cut, outside the window, so he is on no roster. The roster season is 2023-24, the season under way.",
@@ -30032,6 +30102,11 @@
    "name": "a_normal_build_reads_the_official_rosters"
   },
   {
+   "description": "As of 2024-01-15 the rebuilt roster gives each player's age in whole years on the cut from the birth date (#918), the formula mart_board's age uses (age_years: whole days over 365.25, rounded down): a turns 24 on the cut, b turns 24 the day after it and is still 23, d is 28. The birth dates may come from roster landings made long after the cut, since a birth date is fixed before a player's first game. The only birth date under e's id is a WNBA player's, so e has no age.",
+   "model": "int_known_roster",
+   "name": "a_point_in_time_roster_has_each_players_age_on_the_cut"
+  },
+  {
    "description": "As of 2024-01-15 no roster landing is known (#796). The roster is each player's latest event before the cut: a plays for A, then is traded to B (B receives him), so he is on B; b's last game is for A, so he is on A; c is waived and on no roster; d signs with C in the offseason before playing; e last played two seasons before the cut, outside the window, so he is on no roster. The roster season is 2023-24, the season under way.",
    "model": "int_known_roster",
    "name": "a_point_in_time_roster_is_rebuilt_from_what_was_known"
@@ -30120,6 +30195,11 @@
    "description": "Tonight's game has its crew from the assignments page. The crew chief worked 20 games this season and last, 2 free-throw attempts and 1 possession above the league's average game, so shrunk as if 20 average games more, 1 and 0.5; the referee worked 60 games last season 4 attempts below and at the average pace (-3 and 0; the season before does not count); the umpire worked 20 games 1 attempt and 2 possessions above (0.5 and 1). The crew sits half an attempt below the average game and half a possession above it. The alternate does not count. A game without a crew yet has none.",
    "model": "mart_schedule_upcoming",
    "name": "schedule_upcoming_crew_tendency"
+  },
+  {
+   "description": "A birth date is fixed before a player's first game, so a point-in-time build keeps every roster landing's, even one landed after its date (#918), where silver.rosters keeps only the landings known before it. The newest landing that gives a date wins, so a corrected date replaces a wrong one; a date that does not parse is skipped, not taken.",
+   "model": "player_birth_dates",
+   "name": "birth_dates_are_reference_data_a_point_in_time_build_keeps"
   },
   {
    "description": "An item extracted again replaces every claim of its older landing: the role claim the model no longer makes goes with it. The same player and kind twice in one item keeps the more confident one, and a row with no player is dropped. Values are typed.",

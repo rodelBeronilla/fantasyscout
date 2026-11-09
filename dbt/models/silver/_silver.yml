@@ -852,6 +852,22 @@ models:
       - name: _source_file
         description: "Path of the landed payload the row was parsed from"
 
+  - name: player_birth_dates
+    description: "One row per player per league with the stats rosters' birth date: reference data a point-in-time build keeps (#918)."
+    columns:
+      - name: league
+        description: "wnba or nba"
+        data_tests: [not_null]
+      - name: player_id
+        description: "League stats API player id"
+        data_tests: [not_null]
+      - name: player_key
+        description: "Natural key: league and player id; one row per player per league"
+        data_tests: [unique, not_null]
+      - name: birth_date
+        description: "Date of birth from the newest roster landing that gives one"
+        data_tests: [not_null]
+
   - name: team_xwalk
     description: "League stats API team id to ESPN team id, one row per stats team (ADR 0005)."
     columns:

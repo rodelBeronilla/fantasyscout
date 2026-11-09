@@ -67,6 +67,15 @@
 {%- endmacro %}
 
 
+{#
+  Age in whole years on a date from the birth date: whole days over 365.25, rounded down. The
+  board's age and a point-in-time roster's (#918) both use it, so they agree.
+#}
+{% macro age_years(birth_date, on_date) -%}
+  cast(floor({{ days_between(birth_date, on_date) }} / 365.25) as integer)
+{%- endmacro %}
+
+
 {# Monday of the week containing the date. #}
 {% macro week_start(col) -%}
   cast(date_trunc('week', {{ col }}) as date)
