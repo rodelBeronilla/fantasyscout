@@ -3,8 +3,21 @@ import { useEffect, useState } from 'react';
 import { fetchBuildJson, getLatest, type Latest, type League } from '../lib/data';
 import { day, int, pct, when } from '../lib/format';
 import { Badge, Card, Loading, Problem, Td, Th } from './ui';
-import { freshness, type Incident, openIncidents, runbookHref } from '../lib/health-status';
+import {
+  type BuildAttempt,
+  freshness,
+  type Incident,
+  latestAttempt,
+  latestBuildRun,
+  openIncidents,
+  outcomeWord,
+  runbookHref,
+  summarizeFailures,
+} from '../lib/health-status';
 import { fetchPlayerNotes, notesHealth, type PlayerNotes } from '../lib/player-notes';
+
+/** "2026-11-09 03:08" from an ISO time, in UTC. */
+const utcMinute = (iso: string) => new Date(iso).toISOString().slice(0, 16).replace('T', ' ');
 
 const minutes = (seconds: number | null) => (seconds === null ? '–' : `${(seconds / 60).toFixed(1)} min`);
 
@@ -151,6 +164,27 @@ function NotesStatus({ status }: { status: ReturnType<typeof notesHealth> }) {
   );
 }
 
+/** "12 failed fetches in the last 7 days, by source: espn NBA 9 · stats WNBA 3" (#941). */
+function FailureLine({ failures }: { failures: FetchFailure[] }) {
+  const f = summarizeFailures(failures);
+  return (
+    <p className="text-sm" data-testid="fetch-failures-summary">
+      {f.recent === 0 ? (
+        'No failed fetches in the last 7 days'
+      ) : (
+        <>
+          <strong>
+            {int(f.recent)} failed fetch{f.recent === 1 ? '' : 'es'} in the last 7 days
+          </strong>
+          , by source: {f.bySource.map(([source, n]) => `${source} ${int(n)}`).join(' · ')}
+          {f.missing > 0 && <span className="text-muted"> ({int(f.missing)} missing at the source, the source&apos;s gap)</span>}
+        </>
+      )}
+      {f.older > 0 && <span className="text-muted">; {int(f.older)} older in the list</span>}.
+    </p>
+  );
+}
+
 export default function Health() {
   const [health, setHealth] = useState<HealthFile | null>(null);
   const [latest, setLatest] = useState<Latest | null>(null);
@@ -161,6 +195,16 @@ export default function Health() {
   useEffect(() => {
     let live = true;
     openIncidents().then((list) => live && setIncidents(list));
+    return () => {
+      live = false;
+    };
+  }, []);
+  // The newest finished build run, read live from GitHub (#941): a failed build publishes nothing, so
+  // this build's own log cannot say it failed (undefined: reading; null: not read).
+  const [buildRun, setBuildRun] = useState<BuildAttempt | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    latestBuildRun().then((run) => live && setBuildRun(run));
     return () => {
       live = false;
     };
@@ -200,10 +244,13 @@ export default function Health() {
     if (!lastRunBySource.has(key)) lastRunBySource.set(key, r);
   }
 
-  // The morning's answers first (#418): on time, how the last build ended, what is open.
-  const fresh = freshness(latest?.created_at ?? health.created_at, health.feeds);
-  const lastBuild = health.builds?.[0];
+  // The morning's answers first (#418): on time, how the latest build attempt ended (#941), what is open.
+  const published = latest?.created_at ?? health.created_at;
+  const fresh = freshness(published, health.feeds);
+  const lastBuild = buildRun === undefined ? undefined : latestAttempt(buildRun, health.builds?.[0]);
   const lastFailed = !!lastBuild && lastBuild.outcome !== 'success';
+  // a failed attempt after the live build: the site still serves the last build that published
+  const stillServing = lastFailed && !!lastBuild.finished_at && new Date(lastBuild.finished_at) > new Date(published);
   const tone = fresh.late || lastFailed || (incidents?.length ?? 0) > 0 ? 'border-bad' : 'border-good';
   const ago = fresh.hours < 1 ? `${Math.round(fresh.hours * 60)} minutes` : `${fresh.hours.toFixed(1)} hours`;
 
@@ -221,18 +268,26 @@ export default function Health() {
               Runbook
             </a>
           </li>
-          {lastBuild && (
-            <li data-testid="status-last-build">
-              <span className={lastFailed ? 'font-semibold text-bad' : 'text-good'}>{lastFailed ? 'Last build failed: ' : 'Last build passed: '}</span>
-              {lastBuild.light ? 'a light build' : 'a full build'}
-              {lastBuild.finished_at ? ` that finished ${lastBuild.finished_at.slice(0, 16).replace('T', ' ')} UTC` : ''}
-              {lastBuild.gate_reason ? `; ${lastBuild.gate_reason}` : ''}.{' '}
-              {lastBuild.run_url && (
-                <a href={lastBuild.run_url} className="underline underline-offset-4">
-                  The run
-                </a>
-              )}
+          {lastBuild === undefined ? (
+            <li data-testid="status-last-build" className="text-muted">
+              Reading the latest build…
             </li>
+          ) : (
+            lastBuild && (
+              <li data-testid="status-last-build">
+                <span className={lastFailed ? 'font-semibold text-bad' : 'text-good'}>Last build {outcomeWord(lastBuild.outcome)}: </span>
+                {lastBuild.light === undefined ? 'the run' : lastBuild.light ? 'a light build' : 'a full build'}
+                {lastBuild.finished_at ? ` that finished ${utcMinute(lastBuild.finished_at)} UTC` : ''}
+                {lastBuild.gate_reason ? `; ${lastBuild.gate_reason}` : ''}.{' '}
+                {stillServing && <>The site still serves the build published {utcMinute(published)} UTC. </>}
+                {lastBuild.run_url && (
+                  <a href={lastBuild.run_url} className="underline underline-offset-4">
+                    The run
+                  </a>
+                )}
+                {buildRun === null && <span className="text-muted"> (from this build&apos;s log: GitHub&apos;s run list could not be read)</span>}
+              </li>
+            )
           )}
           <li data-testid="status-incidents">
             {incidents === undefined ? (
@@ -401,44 +456,49 @@ export default function Health() {
       {health.fetch_failures && health.fetch_failures.length > 0 && (
         <Card title="Failed fetches" id="fetch-failures">
           <p className="mb-2 text-xs"><a href={runbookHref('Replay failed fetches')} className="underline underline-offset-4">Runbook: Replay failed fetches</a></p>
-          <p className="mb-3 text-sm text-muted">
-            Requests the recent ingest runs could not land, newest first: the endpoint and key to replay (runbook, &ldquo;Replay failed
-            fetches&rdquo;) and why. A payload missing at the source is the source&apos;s gap, not ours.
-          </p>
-          <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Failed fetches">
-            <table className="w-full text-sm" data-testid="fetch-failures">
-              <thead>
-                <tr>
-                  <Th>Run started</Th>
-                  <Th>Source</Th>
-                  <Th>Kind</Th>
-                  <Th>Endpoint</Th>
-                  <Th>Key</Th>
-                  <Th>Reason</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {health.fetch_failures.map((f, i) => (
-                  <tr key={`${f.run_id}-${f.endpoint}-${f.request_key}-${i}`} className="border-t border-line">
-                    <Td>{when(f.started_at)}</Td>
-                    <Td>
-                      {f.source} {f.league.toUpperCase()}
-                    </Td>
-                    <Td>
-                      <Badge tone={f.kind === 'failed' ? 'bad' : 'muted'}>{f.kind}</Badge>
-                    </Td>
-                    <Td>{f.endpoint}</Td>
-                    <Td>
-                      <span className="font-mono text-xs">{f.request_key}</span>
-                    </Td>
-                    <Td>
-                      <span className="text-xs text-muted">{f.reason ?? ''}</span>
-                    </Td>
+          <FailureLine failures={health.fetch_failures} />
+          {/* the list runs to a hundred rows: one tap away, so it does not fill a phone (#941) */}
+          <details className="mt-2" data-testid="fetch-failures-details">
+            <summary className="cursor-pointer text-xs text-muted">Every failed fetch in the list ({int(health.fetch_failures.length)})</summary>
+            <p className="my-2 text-sm text-muted">
+              Requests the recent ingest runs could not land, newest first: the endpoint and key to replay (runbook, &ldquo;Replay failed
+              fetches&rdquo;) and why. A payload missing at the source is the source&apos;s gap, not ours.
+            </p>
+            <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Failed fetches">
+              <table className="w-full text-sm" data-testid="fetch-failures">
+                <thead>
+                  <tr>
+                    <Th>Run started</Th>
+                    <Th>Source</Th>
+                    <Th>Kind</Th>
+                    <Th>Endpoint</Th>
+                    <Th>Key</Th>
+                    <Th>Reason</Th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {health.fetch_failures.map((f, i) => (
+                    <tr key={`${f.run_id}-${f.endpoint}-${f.request_key}-${i}`} className="border-t border-line">
+                      <Td>{when(f.started_at)}</Td>
+                      <Td>
+                        {f.source} {f.league.toUpperCase()}
+                      </Td>
+                      <Td>
+                        <Badge tone={f.kind === 'failed' ? 'bad' : 'muted'}>{f.kind}</Badge>
+                      </Td>
+                      <Td>{f.endpoint}</Td>
+                      <Td>
+                        <span className="font-mono text-xs">{f.request_key}</span>
+                      </Td>
+                      <Td>
+                        <span className="text-xs text-muted">{f.reason ?? ''}</span>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
         </Card>
       )}
 
