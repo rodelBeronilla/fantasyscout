@@ -154,6 +154,11 @@ export interface WeekMatchup {
   close: number;
   mine: WeekTotals;
   theirs: WeekTotals;
+  /**
+   * The categories the manager plays for. A punted category still counts in the week's record,
+   * as the league scores it, but is never the swing category or a stream target.
+   */
+  kept?: readonly string[];
 }
 
 /**
@@ -188,7 +193,14 @@ const fromEven = (r: CategoryEdge) => Math.abs(r.chance - 1 / 2); // def: a coin
  * Category by category against the opponent: a category whose chance lies within `closeness` of
  * 50% is too close to call (#869).
  */
-export function matchup(league: League, cats: string[], mine: WeekTotals, theirs: WeekTotals, closeness: number = PARAMS['matchup.closeness'][league]): WeekMatchup {
+export function matchup(
+  league: League,
+  cats: string[],
+  mine: WeekTotals,
+  theirs: WeekTotals,
+  closeness: number = PARAMS['matchup.closeness'][league],
+  kept: readonly string[] = cats,
+): WeekMatchup {
   const rows = cats.map((cat): CategoryEdge => {
     const a = mine.cats[cat] ?? 0;
     const b = theirs.cats[cat] ?? 0;
@@ -205,12 +217,22 @@ export function matchup(league: League, cats: string[], mine: WeekTotals, theirs
     close: rows.filter((r) => r.result === 'close').length,
     mine,
     theirs,
+    kept,
   };
 }
 
-/** The category closest to turning either way, its chance nearest a coin flip: where the week's moves count most (#817). */
+/** The rows of the categories the manager plays for: all of them unless some are punted. */
+export function keptRows(m: WeekMatchup): CategoryEdge[] {
+  const kept = m.kept;
+  return kept ? m.cats.filter((r) => kept.includes(r.cat)) : m.cats;
+}
+
+/**
+ * The kept category closest to turning either way, its chance nearest a coin flip: where the
+ * week's moves count most (#817). A punted category is never the swing.
+ */
 export function swingCategory(m: WeekMatchup): string | null {
-  return m.cats.reduce<CategoryEdge | null>((best, r) => (best === null || fromEven(r) < fromEven(best) ? r : best), null)?.cat ?? null;
+  return keptRows(m).reduce<CategoryEdge | null>((best, r) => (best === null || fromEven(r) < fromEven(best) ? r : best), null)?.cat ?? null;
 }
 
 /** The chances "too close" covers, as the card names them: "45% to 55%". */
@@ -227,7 +249,9 @@ export function byCloseness(rows: CategoryEdge[]): CategoryEdge[] {
 /** The week's call, e.g. "Winning 5, losing 3, 1 too close: steals is the swing category" (#817). */
 export function matchupCall(m: WeekMatchup, name: (cat: string) => string): string {
   const swing = swingCategory(m);
-  return `Winning ${m.wins}, losing ${m.losses}${m.close ? `, ${m.close} too close` : ''}${swing ? `: ${name(swing)} is the swing category` : ''}`;
+  const punted = m.cats.length - keptRows(m).length;
+  const counting = punted > 0 ? ` of ${m.cats.length}, counting the ${punted} you punt` : '';
+  return `Winning ${m.wins}, losing ${m.losses}${m.close ? `, ${m.close} too close` : ''}${counting}${swing ? `: ${name(swing)} is the swing category` : ''}`;
 }
 
 /**
