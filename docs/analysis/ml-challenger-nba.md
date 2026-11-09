@@ -93,9 +93,9 @@ The other big moves are upward: starters already at 32 to 36 minutes this season
 
 The challenger's gain over the transparent model is 0.39 in MSE, so the transparent scores are its backbone.
 
-The single raw inputs that matter most are games share (0.092), games this season (0.043), this season's minutes (0.032) and the last five games' minutes (0.030). Per category, the transparent score of that category dominates every model. The next inputs are that category's own per-minute rates this season and last, and games share.
+The single raw inputs that matter most are games share (0.092), games this season (0.043), this season's minutes (0.032) and the last five games' minutes (0.030). Per category (an exploratory run of the same importance on each category model), the transparent score of that category dominates every model. The next inputs are that category's own per-minute rates this season and last, and games share.
 
-Age plays no part. It is empty in every point-in-time export: the roster rebuilt from games carries no birth dates. So neither model could use it, and an aging term cannot be judged on these exports.
+Age plays no part. It is empty in every point-in-time export (#918): the roster rebuilt from games carries no birth dates. So neither model could use it, and an aging term cannot be judged on these exports.
 
 **Partial dependence** (the challenger's value with each input set across its range, transparent scores held as they are, averaged over the folds; relative to the highest point):
 
