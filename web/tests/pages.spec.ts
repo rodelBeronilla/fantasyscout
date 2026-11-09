@@ -1985,6 +1985,7 @@ test('without rival rosters Build your team ranks targets by need-weighted value
 });
 
 test('My Team plans the week lineup under the league slots: starts, games lost to a full lineup, and open slots to stream (#735)', async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.lineup, 'hidden on My Team until validated (#759)');
   type Row = { player_id: string; full_name: string | null; team_id: string | null; team_abbreviation: string; position: string; injury_group: string | null };
   type Game = { game_date: string; days_ahead: number; home_team_id: string; away_team_id: string };
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
