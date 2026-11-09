@@ -302,7 +302,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "Weights of the current season and the two before it in per-minute production.",
-    "evidence": "ADR 0009: in-sample grid; out of sample [1, 0.5, 0.25] made no difference",
+    "evidence": "ADR 0009: in-sample grid; out of sample [1, 0.5, 0.25] made no difference; walk-forward (#754), the value per game it feeds passed in season against the naive manager (ADR 0031)",
     "validation": 754,
     "dbt": "fantasy_recency",
     "value": [
@@ -316,7 +316,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "Games of a replacement-level player every projection starts from; a past season's line is shrunk by the same before it sets that season's value scale (ADR 0019).",
-    "evidence": "ADR 0009",
+    "evidence": "ADR 0009; walk-forward (#754), the value per game it feeds passed in season against the naive manager (ADR 0031)",
     "validation": 754,
     "dbt": "fantasy.*.prior_games",
     "value": {
@@ -329,7 +329,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "Weights of the current season and the two before it in minutes per game.",
-    "evidence": "ADR 0009",
+    "evidence": "ADR 0009; walk-forward (#754), the value per game it feeds passed in season against the naive manager (ADR 0031)",
     "validation": 754,
     "dbt": "fantasy.*.minutes_recency",
     "value": {
@@ -350,7 +350,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "Games that regress the share of team games played toward typical_share.",
-    "evidence": "ADR 0009 (WNBA: every value from 5 to 120 scored within a tenth)",
+    "evidence": "ADR 0009 (WNBA: every value from 5 to 120 scored within a tenth); not judged walk-forward: #754 measured value per game, and this sets the games share the totals multiply it by (ADR 0031)",
     "validation": 754,
     "dbt": "fantasy.*.durability_games",
     "value": {
@@ -363,7 +363,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "assumed",
     "what": "The share of team games a player is regressed toward.",
-    "evidence": "none: no fit shown",
+    "evidence": "none: no fit shown; not judged walk-forward: #754 measured value per game, and this sets the games share the totals multiply it by (ADR 0031)",
     "validation": 754,
     "dbt": "fantasy_durability.typical_share",
     "value": 0.8
@@ -373,7 +373,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "The share of its minutes weight a past season spent mostly on another team keeps.",
-    "evidence": "ADR 0009",
+    "evidence": "ADR 0009; walk-forward (#754), the value per game it feeds passed in season against the naive manager (ADR 0031)",
     "validation": 754,
     "dbt": "fantasy_team_change",
     "value": 0.25
@@ -383,7 +383,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "Weight of the last five games in projected minutes, in season.",
-    "evidence": "ADR 0009 (next-ten-game minutes error 3.98 to 3.44 NBA)",
+    "evidence": "ADR 0009 (next-ten-game minutes error 3.98 to 3.44 NBA); walk-forward (#754), the value per game it feeds passed in season against the naive manager (ADR 0031)",
     "validation": 754,
     "dbt": "fantasy_recent_minutes",
     "value": 0.5
@@ -393,7 +393,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "Minutes cut for a player back from three or more straight games missed.",
-    "evidence": "ADR 0009 (grid, out of sample)",
+    "evidence": "ADR 0009 (grid, out of sample); walk-forward (#754), the value per game it feeds passed in season against the naive manager (ADR 0031)",
     "validation": 754,
     "dbt": "fantasy_return_ramp",
     "value": {
@@ -408,7 +408,7 @@ export const PARAMETERS = [
     "kind": "model",
     "status": "measured",
     "what": "Extra share of games a regular sits on a team with nothing to play for.",
-    "evidence": "ADR 0010, notebook 03 (NBA +29 points, 22 to 36). The 28-minute cut was not optimised",
+    "evidence": "ADR 0010, notebook 03 (NBA +29 points, 22 to 36). The 28-minute cut was not optimised; not judged walk-forward: #754 measured value per game, and this sets the games share the totals multiply it by (ADR 0031)",
     "validation": 754,
     "dbt": "fantasy_rest_risk",
     "value": {
