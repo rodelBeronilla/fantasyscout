@@ -34,7 +34,7 @@ import { PlayoffPlan } from './PlayoffPlan';
 import type { TeamWeek } from '../lib/playoff-weeks';
 import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
-import { MY_TEAM_SHOWS } from '../lib/visibility';
+import { SHOWS } from '../lib/visibility';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { staleOpponent, weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
@@ -403,7 +403,7 @@ export default function MyTeam() {
     };
     const cats = points ? [] : scoredCats;
     // no "too close" band while its fit is unjudged (ADR 0026): each category reads won or lost
-    const closeness = MY_TEAM_SHOWS.tooClose ? undefined : 0;
+    const closeness = SHOWS.tooClose ? undefined : 0;
     const week = (mine: WeekTotals, theirs: WeekTotals) => matchup(league, cats, mine, theirs, closeness, points ? [] : activeCats);
     if (typeof score === 'string' || !read) return { match: week(rest.mine, rest.theirs), basis: { live: false, reason: typeof score === 'string' ? score : 'not-espn' } };
     const live = liveWeek(cats, score, rest);
@@ -521,7 +521,7 @@ export default function MyTeam() {
   }
 
   // the report's listing until the games-missed estimate is judged (#763, #770)
-  const moves = MY_TEAM_SHOWS.injuryEstimate ? ilMoves(rows, roster, setup.il) : ilMovesByListing(rows, roster, setup.il);
+  const moves = SHOWS.injuryEstimate ? ilMoves(rows, roster, setup.il) : ilMovesByListing(rows, roster, setup.il);
   // Today's card shows on a game day (a verdict needs one) when no draft is under way
   const todayShown = !!verdict && !setup.drafting;
   const showMatchup = h2h && owner.size > 0 && !setup.drafting && weekAvailable;
@@ -577,7 +577,7 @@ export default function MyTeam() {
         </p>
       )}
       {/* the playoff push leads a head-to-head league (#821): the odds, the playoff weeks' games and the target */}
-      {MY_TEAM_SHOWS.playoffs && h2h && teamWeeks && !setup.drafting && (
+      {SHOWS.playoffs && h2h && teamWeeks && !setup.drafting && (
         <PlayoffPlan
           league={league}
           setup={setup}
@@ -601,14 +601,14 @@ export default function MyTeam() {
           games={games}
           date={easternDate()}
           verdict={verdict}
-          need={MY_TEAM_SHOWS.streams ? targets : []}
-          minutesFor={MY_TEAM_SHOWS.minutes ? minutesLine : undefined}
-          notes={MY_TEAM_SHOWS.notes ? notes : null}
+          need={SHOWS.streams ? targets : []}
+          minutesFor={SHOWS.minutes ? minutesLine : undefined}
+          notes={SHOWS.notes ? notes : null}
         />
       )}
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
-      <div className={`grid items-start gap-3 ${showMatchup && !points && MY_TEAM_SHOWS.categories ? 'lg:grid-cols-2' : ''}`}>
+      <div className={`grid items-start gap-3 ${showMatchup && !points && SHOWS.categories ? 'lg:grid-cols-2' : ''}`}>
         {showMatchup && (
           <Matchup
             setup={setup}
@@ -616,16 +616,16 @@ export default function MyTeam() {
             basis={weekMatch?.basis ?? null}
             points={points}
             league={league}
-            openDays={MY_TEAM_SHOWS.streams ? (lineupPlans?.mine.days.filter((d) => d.open.length > 0).map((d) => d.date) ?? []) : []}
-            stream={MY_TEAM_SHOWS.streams ? stream : null}
+            openDays={SHOWS.streams ? (lineupPlans?.mine.days.filter((d) => d.open.length > 0).map((d) => d.date) ?? []) : []}
+            stream={SHOWS.streams ? stream : null}
             nameOf={name}
             onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))}
           />
         )}
-        {MY_TEAM_SHOWS.categories && !points && <Categories standings={standings} mine={setup.mine} cats={activeCats} punted={punted} h2h={h2h} totals={myTotals} />}
+        {SHOWS.categories && !points && <Categories standings={standings} mine={setup.mine} cats={activeCats} punted={punted} h2h={h2h} totals={myTotals} />}
       </div>
 
-      {MY_TEAM_SHOWS.lineup && lineupPlans && !setup.drafting && (
+      {SHOWS.lineup && lineupPlans && !setup.drafting && (
         <LineupTile
           plan={lineupPlans.mine}
           theirs={lineupPlans.theirs}
@@ -642,7 +642,7 @@ export default function MyTeam() {
           missed={(id) => byId.get(id)?.expected_games_missed ?? 0}
           back={(id) => byId.get(id)?.expected_return}
           // each IL move with the pickup for the spot it opens (#820)
-          minutes={(id) => (MY_TEAM_SHOWS.minutes ? minutesLine(id, (add) => updateLeague((s) => assign(toggleIl(s, id), add, s.mine))) : null)}
+          minutes={(id) => (SHOWS.minutes ? minutesLine(id, (add) => updateLeague((s) => assign(toggleIl(s, id), add, s.mine))) : null)}
           onToggle={(id) => updateLeague((s) => toggleIl(s, id))}
         />
         <div className="table-scroll mt-2 overflow-auto" tabIndex={0} role="region" aria-label="Your roster">
@@ -684,7 +684,7 @@ export default function MyTeam() {
                         {onIl && <span className="rounded border border-line px-1 text-[10px]">IL</span>}
                         {r && <InjuryTag group={r.injury_group} status={r.injury_status} detail={injuryDetail(r)} />}
                         {/* the line sits in Today's card on a game day, here otherwise (#823) */}
-                        {MY_TEAM_SHOWS.notes && r && !onIl && !todayShown && <PlayerNoteLine notes={notes} row={r} />}
+                        {SHOWS.notes && r && !onIl && !todayShown && <PlayerNoteLine notes={notes} row={r} />}
                       </span>
                     </Td>
                     <Td right>
@@ -715,9 +715,9 @@ export default function MyTeam() {
       </Tile>
 
       {/* the standings, after the moves to make: where the team stands, not what to do today */}
-      {real && <Standings table={real} mine={setup.mine} names={setup.names} power={MY_TEAM_SHOWS.power ? powerTable : null} from={recordsFromText(recorded?.from ?? 'entered')} />}
+      {real && <Standings table={real} mine={setup.mine} names={setup.names} power={SHOWS.power ? powerTable : null} from={recordsFromText(recorded?.from ?? 'entered')} />}
 
-      {MY_TEAM_SHOWS.swaps && shown && (
+      {SHOWS.swaps && shown && (
         <Upgrades
           league={league}
           review={shown}
@@ -730,7 +730,7 @@ export default function MyTeam() {
         />
       )}
 
-      {MY_TEAM_SHOWS.build && plan && (
+      {SHOWS.build && plan && (
         <BuildYourTeam
           plan={plan}
           league={league}
@@ -741,7 +741,7 @@ export default function MyTeam() {
         />
       )}
 
-      {MY_TEAM_SHOWS.power && !real && powerTable}
+      {SHOWS.power && !real && powerTable}
     </div>
   );
 }

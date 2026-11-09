@@ -24,6 +24,7 @@ function SwingRow({ s, name, team, action, onAction }: { s: FormSwing; name: str
 
 export function BuySellCard({
   swings,
+  sellHigh,
   league,
   nameOf,
   teamName,
@@ -31,6 +32,8 @@ export function BuySellCard({
   onAskFor,
 }: {
   swings: ReturnType<typeof buySell>;
+  /** Sell high shows: it failed its check (#903), so it is off for now. */
+  sellHigh: boolean;
   league: League;
   nameOf: (id: string) => string;
   /** A team's name, by index. */
@@ -41,12 +44,13 @@ export function BuySellCard({
   onAskFor: (team: number, id: string) => void;
 }) {
   return (
-    <Card title="Buy low, sell high" id="buy-sell">
+    <Card title={sellHigh ? 'Buy low, sell high' : 'Buy low'} id="buy-sell">
       <p className="mb-3 text-sm text-muted">
         Recent form against the projection, in value per game above replacement under your league&apos;s scoring. Managers price players on the box
-        scores they have just seen: a hot run sells for more than the projection says, a slump buys for less.
+        scores they have just seen: {sellHigh ? 'a hot run sells for more than the projection says, a slump buys for less' : 'a slump buys for less than the projection says'}.
       </p>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={`grid gap-4 ${sellHigh ? 'md:grid-cols-2' : ''}`}>
+        {sellHigh && (
         <div>
           <h3 className="mb-1 text-sm font-semibold">
             Sell high: yours, running hot
@@ -62,6 +66,7 @@ export function BuySellCard({
             <p className="text-sm text-muted">None of your players is running {fmt(PARAMS['buysell.min_swing'][league], 1)} a game or more above the projection.</p>
           )}
         </div>
+        )}
         <div>
           <h3 className="mb-1 text-sm font-semibold">
             Buy low: theirs, in a slump

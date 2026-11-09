@@ -24,6 +24,7 @@ import { PlayerNoteLine } from './PlayerNoteLine';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, Star, TagLegend, Td, TrendTag, Unvalidated } from './ui';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 import { isLine, num, rankAndTier, scoreRows, zKey } from '../lib/board-model';
+import { SHOWS } from '../lib/visibility';
 
 interface BoardRowFields {
   player_id: string;
@@ -103,6 +104,16 @@ const FIRST_ROWS = 25;
 /** How widely ESPN leagues roster a player, in words (fct_market_value buckets). */
 const OWNED_LABEL: Record<string, string> = { most: 'most', many: 'many', some: 'some', few: 'few', rare: 'almost no' };
 
+/** The pages that are off for now and send their visitors to Rankings (#936), and the line Rankings says. */
+const PAUSED = {
+  draft: 'Draft tools return before the 2027-28 drafts.',
+  notes: 'Scouting notes are off until their calls are judged; the Last 10 view shows who is rising and falling.',
+} as const;
+const pausedPage = (search: string): keyof typeof PAUSED | null => {
+  const from = new URLSearchParams(search).get('from');
+  return from === 'draft' || from === 'notes' ? from : null;
+};
+
 export default function Board() {
   const [league] = useState<League>(() => currentLeague());
   const [rows, setRows] = useState<BoardRow[] | null>(null);
@@ -110,6 +121,8 @@ export default function Board() {
   // The view, punts and filters start from the URL and are written back to it, so a reload keeps
   // them and a copied link reproduces them (#461).
   const [fromUrl] = useState(() => readBoardFilters(window.location.search));
+  // a hidden page's address sends its visitor here (#936): say in a line why
+  const [pausedFrom] = useState(() => pausedPage(window.location.search));
   const [view, setView] = useState<View>(fromUrl.view);
   const [restOfSeason, setRestOfSeason] = useState(fromUrl.restOfSeason);
   const [countGames, setCountGames] = useState(fromUrl.countGames);
@@ -132,8 +145,9 @@ export default function Board() {
   const [optionsOpen, setOptionsOpen] = useState(false);
   // Age, games played, games share and the schedule: an optional column set (#714)
   const [scheduleCols, setScheduleCols] = useState(false);
-  // each player's game range this season (#747): an optional column set
-  const [rangeCols, setRangeCols] = useState(false);
+  // each player's game range this season (#747): an optional column set, while consistency is not judged hidden (#761)
+  const [rangeChoice, setRangeCols] = useState(false);
+  const rangeCols = SHOWS.consistency && rangeChoice;
   const [showChoice, setShowChoice] = useState<Show | null>(null);
   const { watched, toggleWatched } = useWatchlist(league);
   // a flagged player's one-line note, in a row under his (#879)
@@ -153,7 +167,10 @@ export default function Board() {
   }, [fromUrl, setPunts]);
   useEffect(() => {
     const filters = { view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly };
-    const qs = writeBoardFilters(window.location.search, filters);
+    // the hidden page's ?from= has said its line: it is not a filter to keep
+    const search = new URLSearchParams(window.location.search);
+    search.delete('from');
+    const qs = writeBoardFilters(search.toString(), filters);
     if (qs !== window.location.search) window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs}${window.location.hash}`);
   }, [view, punts, restOfSeason, countGames, team, positions, minGames, minMinutes, availability, rookiesOnly, movedOnly, watchOnly]);
   const owner = useMemo(() => owners(setup), [setup]);
@@ -221,11 +238,12 @@ export default function Board() {
   // The league standings (#662): every team's totals and the chance of beating each rival in each
   // kept category; they weigh Fit. This week's matchup and the roster's moves are on My Team.
   const standings = useMemo(() => {
-    if (!rows || !leagueCats || myTeam.length === 0) return null;
+    // only Fit reads them, and Fit failed its check (#868)
+    if (!SHOWS.fit || !rows || !leagueCats || myTeam.length === 0) return null;
     const availability = new Map(rows.map((r) => [r.player_id, r.availability_multiplier ?? 1]));
     return leagueStandings(league, setup, activeCats, (id) => leagueCats.get(id), (id) => availability.get(id) ?? 1, meta.remaining);
   }, [rows, leagueCats, myTeam.length, setup, activeCats, league, meta.remaining]);
-  const weights = standings?.weights ?? rotoWeights;
+  const weights = SHOWS.fit ? (standings?.weights ?? rotoWeights) : null;
 
   const scored = useMemo(
     () => scoreRows(rows ?? [], { view, points, activeCats, countGames, restOfSeason, leagueCats, leaguePoints, weights, replacement }),
@@ -313,7 +331,7 @@ export default function Board() {
     if (view === 'value' && leagueCats) return leagueCats.get(row.player_id)?.[c] ?? null;
     return num(row, zKey(view, c));
   };
-  const showFit = view === 'value' && !points && myTeam.length > 0;
+  const showFit = SHOWS.fit && view === 'value' && !points && myTeam.length > 0;
   const showTiers = tiers !== null && sortKey === 'value' && sortDir === 'desc';
   const fitOf = new Map(scored.map((s) => [s.row.player_id, s.fit]));
   const byId = new Map(rows.map((r) => [r.player_id, r]));
@@ -404,7 +422,7 @@ export default function Board() {
         </Td>
         <Td pin="second">
           <span className="flex items-center gap-1 whitespace-nowrap">
-            {setup.drafting && !held && (
+            {SHOWS.draft && setup.drafting && !held && (
               <button
                 type="button"
                 onClick={() => updateLeague((s) => draftPick(s, row.player_id))}
@@ -547,9 +565,12 @@ export default function Board() {
           The {LEAGUE_LABEL[league]} {meta.season} regular season is over: values project next season.
         </Note>
       ) : null}
+      {pausedFrom && (
+        <Note testid="paused-page">{PAUSED[pausedFrom]}</Note>
+      )}
 
       <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={[]} quiet />
-      {setup.drafting && (
+      {SHOWS.draft && setup.drafting && (
         <DraftBar
           setup={setup}
           lastName={lastPick ? (byId.get(lastPick.player)?.full_name ?? null) : null}
@@ -593,8 +614,8 @@ export default function Board() {
           <p className="text-xs text-muted" data-testid="validation-status">
             <span className="text-warn">Not yet validated</span> out of sample, each until its test passes:
             <Unvalidated issue={754} what="The value" label="value" />
-            <Unvalidated issue={868} what="Fit" label="Fit" />
-            <Unvalidated issue={761} what="Consistency" label="consistency" />
+            {SHOWS.fit && <Unvalidated issue={868} what="Fit" label="Fit" />}
+            {SHOWS.consistency && <Unvalidated issue={761} what="Consistency" label="consistency" />}
           </p>
         )}
       </div>
@@ -661,6 +682,7 @@ export default function Board() {
           cats8={setup.scoring === 'cats8'}
           scheduleCols={scheduleCols}
           setScheduleCols={setScheduleCols}
+          showRange={SHOWS.consistency}
           rangeCols={rangeCols}
           setRangeCols={setRangeCols}
           showNext7={showNext7}

@@ -1,20 +1,40 @@
 ---
 import Notes from '../../components/Notes';
 import Base from '../../layouts/Base.astro';
+import { href } from '../../lib/site';
+import { SHOWS } from '../../lib/visibility';
+
+// The notes' calls ("Start him", "Sit") are not judged (#879's follow-up): until they are, the page
+// sends its visitor to Rankings' Last 10 view, the same risers and fallers as data (#936).
+const rankings = href('/?from=notes&view=recent');
 ---
 
-<Base
-  title="Scouting notes"
-  description="Weekly AI-drafted scouting notes on the board's risers, fallers and availability changes, every number traced to the data."
->
-  <section>
-    <h1 class="text-2xl font-semibold tracking-tight">Scouting notes</h1>
-    <p class="mt-1 text-sm text-muted">
-      Every Monday: the week's biggest risers and fallers on the board, availability changes and minutes shifts, each in a few plain sentences.
-    </p>
-    <!-- a screen tall while the island loads, so the footer starts below the fold and nothing shifts (#436) -->
-    <div class="mt-6 min-h-screen">
-      <Notes client:only="react" />
-    </div>
-  </section>
-</Base>
+{
+  SHOWS.notes ? (
+    <Base
+      title="Scouting notes"
+      description="Weekly AI-drafted scouting notes on the board's risers, fallers and availability changes, every number traced to the data."
+    >
+      <section>
+        <h1 class="text-2xl font-semibold tracking-tight">Scouting notes</h1>
+        <p class="mt-1 text-sm text-muted">
+          Every Monday: the week's biggest risers and fallers on the board, availability changes and minutes shifts, each in a few plain sentences.
+        </p>
+        <!-- a screen tall while the island loads, so the footer starts below the fold and nothing shifts (#436) -->
+        <div class="mt-6 min-h-screen">
+          <Notes client:only="react" />
+        </div>
+      </section>
+    </Base>
+  ) : (
+    <Base title="Scouting notes" description="The scouting notes are off until their calls are judged." redirect={rankings}>
+      <section>
+        <h1 class="text-2xl font-semibold tracking-tight">Scouting notes</h1>
+        <p class="mt-1 text-sm text-muted" data-testid="paused">
+          The scouting notes are off until their calls are judged. <a href={rankings} class="underline underline-offset-4">Rankings' Last 10 view</a> shows who
+          is rising and falling.
+        </p>
+      </section>
+    </Base>
+  )
+}

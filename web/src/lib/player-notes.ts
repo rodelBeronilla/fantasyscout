@@ -19,6 +19,7 @@ import { PARAMS } from '../generated/parameters';
 import { dataHref, type League } from './data';
 import { easternClock, when } from './format';
 import { easternDate, sitsOut } from './today';
+import { SHOWS } from './visibility';
 
 /** One fact a line states: the number or quotation, what it is, and the row it comes from. */
 interface NoteSource {
@@ -207,10 +208,14 @@ export async function fetchPlayerNotes(league: League, get: typeof fetch = fetch
   }
 }
 
-/** The league's notes, read once per league; null until read and when there are none. */
+/**
+ * The league's notes, read once per league; null until read and when there are none. Null on every
+ * page while the notes' calls are hidden (SHOWS.notes): no page shows a line, so none is read.
+ */
 export function usePlayerNotes(league: League): PlayerNotes | null {
   const [file, setFile] = useState<PlayerNotes | null>(null);
   useEffect(() => {
+    if (!SHOWS.notes) return;
     let live = true;
     void fetchPlayerNotes(league).then((f) => live && setFile(f));
     return () => {

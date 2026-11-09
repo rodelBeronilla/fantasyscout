@@ -30,6 +30,7 @@ export function TradeCategoryBreakdown({
   h2h,
   catCount,
   verdictBoth,
+  calls,
   partnerName,
   nameList,
   weekMatch,
@@ -46,6 +47,8 @@ export function TradeCategoryBreakdown({
   /** The categories the league counts, less its punts. */
   catCount: number;
   verdictBoth: Objective | null;
+  /** The verdict's calls show ("wins you categories", "about even", whether the partner would accept): they failed their check (#886). */
+  calls: boolean;
   partnerName: string;
   nameList: (ids: string[]) => string;
   weekMatch: WeekMatch | null;
@@ -61,9 +64,13 @@ export function TradeCategoryBreakdown({
   return (
     <div className="grid gap-1" data-testid="trade-category-verdict">
       <p className="text-base">
-        <strong>
-          {impact.mine.gain >= threshold ? 'Wins you categories' : impact.mine.gain <= -threshold ? 'Costs you categories' : 'About even in categories'}:
-        </strong>{' '}
+        {calls && (
+          <>
+            <strong>
+              {impact.mine.gain >= threshold ? 'Wins you categories' : impact.mine.gain <= -threshold ? 'Costs you categories' : 'About even in categories'}:
+            </strong>{' '}
+          </>
+        )}
         {h2h ? (
           <>
             you would expect to win {fmt(impact.mine.scoreAfter, 2)} of your {catCount} categories in an average week against your league,
@@ -137,7 +144,7 @@ export function TradeCategoryBreakdown({
               <Signed value={impact.partner.gain} digits={1} />)
             </>
           )}{' '}
-          and <Signed value={-net} digits={1} /> in value. <span className="text-muted">{acceptance(impact.partner.gain, -net, scale)}</span>
+          and <Signed value={-net} digits={1} /> in value.{calls && <span className="text-muted"> {acceptance(impact.partner.gain, -net, scale)}</span>}
         </p>
         {(impact.partnerUps.length > 0 || impact.partnerDowns.length > 0) && <p><CatMoves ups={impact.partnerUps} downs={impact.partnerDowns} /></p>}
         {(impact.sides.partner.dropped.length > 0 || impact.sides.partner.added.length > 0) && (

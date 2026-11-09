@@ -14,6 +14,7 @@ import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
 import { chooseMine } from '../lib/league-sync';
 import { href } from '../lib/site';
 import { auctionValues } from '../lib/auction';
+import { SHOWS } from '../lib/visibility';
 import { DraftBar, LeagueSettingsForm, describeSettings } from './LeagueParts';
 import { PlayerPicker } from './PlayerPicker';
 import { Card, Loading, Problem, Unvalidated } from './ui';
@@ -306,7 +307,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
       {/* the records by hand, where no import brings them (#874) */}
       {setup.format === 'h2h' && !setup.source?.records?.some(Boolean) && <StandingsEntry setup={setup} onChange={update} />}
 
-      {setup.drafting && (
+      {SHOWS.draft && setup.drafting && (
         <p className="rounded-lg border border-accent bg-card px-3 py-2 text-sm" data-testid="draft-link">
           A draft is under way:{' '}
           <a href={href('/draft/')} className="font-medium text-accent underline-offset-4 hover:underline">

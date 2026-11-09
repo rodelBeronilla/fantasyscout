@@ -28,6 +28,7 @@ export function BoardOptions({
   cats8,
   scheduleCols,
   setScheduleCols,
+  showRange,
   rangeCols,
   setRangeCols,
   showNext7,
@@ -60,6 +61,8 @@ export function BoardOptions({
   cats8: boolean;
   scheduleCols: boolean;
   setScheduleCols: (on: boolean) => void;
+  /** The consistency columns can be picked: off while consistency is not judged (#761). */
+  showRange: boolean;
   rangeCols: boolean;
   setRangeCols: (on: boolean) => void;
   /** The season has games left: the next-7-days and this-week columns. */
@@ -152,10 +155,12 @@ export function BoardOptions({
             <input type="checkbox" checked={scheduleCols} onChange={(e) => setScheduleCols(e.target.checked)} />
             Schedule and health columns (age, games played{showNext7 ? ', games in the next 7 days and this week' : ''})
           </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={rangeCols} onChange={(e) => setRangeCols(e.target.checked)} />
-            Consistency columns (a bad game, a good game, and the spread between games)
-          </label>
+          {showRange && (
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={rangeCols} onChange={(e) => setRangeCols(e.target.checked)} />
+              Consistency columns (a bad game, a good game, and the spread between games)
+            </label>
+          )}
           <button type="button" onClick={onExport} className="rounded border border-line px-3 py-1 text-sm hover:bg-bg" data-testid="board-csv">
             Export what the board shows as CSV
           </button>

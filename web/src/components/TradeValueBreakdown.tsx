@@ -8,6 +8,7 @@ import { Signed } from './ui';
 
 export function TradeValueBreakdown({
   fair,
+  calls,
   settled,
   partnerName,
   nameList,
@@ -23,6 +24,8 @@ export function TradeValueBreakdown({
   points,
 }: {
   fair: Fairness | null;
+  /** The verdict's calls show: even or not, and which side the value favours. They failed their check (#886). */
+  calls: boolean;
   /** The manager's drop or pickup the value counts, when the trade leaves the roster spots uneven. */
   settled: SideAfter | null;
   partnerName: string;
@@ -46,13 +49,15 @@ export function TradeValueBreakdown({
     <>
       {fair && (
         <div className="grid gap-0.5 rounded border border-line p-2" data-testid="trade-fairness">
-          <p className="font-medium">
-            {fair.even
-              ? 'Even: projected value, the market and your categories all agree.'
-              : fair.disagree
-                ? 'Not clearly even: our projections and the market point opposite ways.'
-                : 'Not even.'}
-          </p>
+          {calls && (
+            <p className="font-medium">
+              {fair.even
+                ? 'Even: projected value, the market and your categories all agree.'
+                : fair.disagree
+                  ? 'Not clearly even: our projections and the market point opposite ways.'
+                  : 'Not even.'}
+            </p>
+          )}
           <p>
             <span className="text-muted">Projected value{settled ? ', roster spots counted' : ''}: </span>
             you give <Signed value={fair.value.give} digits={1} />, get <Signed value={fair.value.get} digits={1} /> (
@@ -67,7 +72,7 @@ export function TradeValueBreakdown({
               {Math.round(Math.abs(fair.market.share) * 100)}%)
             </p>
           )}
-          {fair.disagree && (
+          {calls && fair.disagree && (
             <p className="text-muted" data-testid="trade-fairness-disagree">
               Our projections favour {fair.value.net >= 0 ? 'you' : partnerName}; the market favours {fair.market && fair.market.net >= 0 ? 'you' : partnerName}.
               The market pays for stars and for names, the projections for production and games played: a trade between them is a bet that the
@@ -82,6 +87,7 @@ export function TradeValueBreakdown({
           )}
         </div>
       )}
+      {calls && (
       <p className={hasImpact ? 'text-muted' : 'text-base'}>
         {hasImpact ? 'In value: ' : ''}
         {fair?.even ? (
@@ -96,8 +102,9 @@ export function TradeValueBreakdown({
           </>
         )}
       </p>
+      )}
       <p className="text-muted">
-        You give <Signed value={giving.value} digits={1} /> and get <Signed value={getting.value} digits={1} />:{' '}
+        You give <Signed value={giving.value} digits={1} /> and get <Signed value={getting.value} digits={1} /> for the {rest}:{' '}
         {week ? (
           <>
             each player&apos;s last-ten form above a replacement-level player under your league&apos;s scoring, counted over the games left

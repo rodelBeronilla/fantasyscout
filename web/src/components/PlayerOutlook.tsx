@@ -6,6 +6,7 @@ import { fmt, nextSeason, pct } from '../lib/format';
 import type { PlayerFile } from '../lib/player-file';
 import { href } from '../lib/site';
 import { assign, owners, useLeague } from '../lib/fantasy-league';
+import { SHOWS } from '../lib/visibility';
 import { Card, Signed, Unvalidated } from './ui';
 
 const OWNED: Record<string, string> = {
@@ -78,7 +79,7 @@ export function OutlookCard({ board, league, season, status }: { board: NonNulla
             />
           )}
           <Fact label="Projected games share" value={pct(board.games_share)} hint="Share of regular-season games the player is projected to play" />
-          {typeof board.game_floor === 'number' && typeof board.game_ceiling === 'number' && (
+          {SHOWS.consistency && typeof board.game_floor === 'number' && typeof board.game_ceiling === 'number' && (
             <Fact
               label="Game range"
               value={
@@ -89,14 +90,14 @@ export function OutlookCard({ board, league, season, status }: { board: NonNulla
               hint="A bad game to a good one this season (the 20th to the 80th percentile), on the nine-category z-score scale; a narrow range is a steady player"
             />
           )}
-          {typeof board.availability_multiplier === 'number' && board.availability_multiplier < 1 && (
+          {SHOWS.injuryEstimate && typeof board.availability_multiplier === 'number' && board.availability_multiplier < 1 && (
             <Fact
               label="Available for"
               value={pct(board.availability_multiplier)}
               hint="Share of the remaining regular-season games the player is expected to play"
             />
           )}
-          {typeof board.expected_games_missed === 'number' && !board.expected_return && (
+          {SHOWS.injuryEstimate && typeof board.expected_games_missed === 'number' && !board.expected_return && (
             <Fact
               label="Expected to miss"
               value={`${fmt(board.expected_games_missed)} games`}
@@ -147,7 +148,8 @@ export function OutlookCard({ board, league, season, status }: { board: NonNulla
 
 /**
  * Where the player stands in the manager's league (#726): on their team, free, or on another team,
- * with the next step from here: offer them in a trade, add them, or trade for them.
+ * with the next step from here: add them, or evaluate a trade with them on the Trade page (it names
+ * no trade worth making: its trade calls are not judged, #936).
  */
 export function LeagueStatus({ league, playerId, name }: { league: League; playerId: string; name: string }) {
   const [setup, update] = useLeague(league);
@@ -167,8 +169,8 @@ export function LeagueStatus({ league, playerId, name }: { league: League; playe
       ) : t === setup.mine ? (
         <>
           <strong className="text-good">On your team</strong>
-          <a href={q('give')} className={link}>
-            Offer in a trade
+          <a href={q('give')} className={link} data-testid="evaluate-trade">
+            Evaluate a trade
           </a>
           <a href={href('/team/')} className="underline-offset-4 hover:underline">
             My Team →
@@ -192,8 +194,8 @@ export function LeagueStatus({ league, playerId, name }: { league: League; playe
       ) : (
         <>
           <strong>On {setup.names[t]}</strong>
-          <a href={q('get')} className={link}>
-            Trade for {name}
+          <a href={q('get')} className={link} data-testid="evaluate-trade">
+            Evaluate a trade
           </a>
         </>
       )}
