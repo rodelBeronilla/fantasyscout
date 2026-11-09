@@ -21,7 +21,7 @@ import { hasWeekGames, type ValueUnit } from '../lib/week-value';
 import { ilMoves } from '../lib/il-moves';
 import { minutesByPlayer, minutesGoTo, type MinutesRow } from '../lib/minutes-go-to';
 import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, startsByPlayer, weekPlan, type WeekPlan } from '../lib/lineup';
-import { easternDate, sitsOut, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
+import { easternDate, gamesToCome, sitsOut, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
 import type { ModelRow } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Today, type TodayRow, Upgrades } from './LeagueParts';
 import { Matchup, type MatchupBasis } from './MatchupCard';
@@ -329,16 +329,33 @@ export default function MyTeam() {
   const [unit, setUnit] = useState<ValueUnit>(h2h ? 'week' : 'rest');
   const week = unit === 'week' && weekAvailable;
 
+  // each team's games still to tip off this fantasy week, on the page's one clock (#927): the
+  // roster's "games this week", which the build froze at its own time before
+  const teamGamesLeft = useMemo(() => {
+    if (!games) return null;
+    const week = daysLeftInWeek(easternDate());
+    const left = new Map<string, number>();
+    for (const g of gamesToCome(games, Date.now())) {
+      if (!week.includes(g.game_date)) continue;
+      for (const t of [g.home_team_id, g.away_team_id]) left.set(t, (left.get(t) ?? 0) + 1);
+    }
+    return left;
+  }, [games]);
+
   // the week's lineup (#735): the days left, who plays each, and the slots they fill
   const lineupPlans = useMemo(() => {
     if (!games || !rows || myTeam.length === 0) return null;
-    const dates = daysLeftInWeek(easternDate());
+    // one clock (#927): only games still to tip off, and only the days that have one, so a day
+    // with no games is never an open slot and a game under way is no longer a start to make
+    const toCome = gamesToCome(games, Date.now());
+    const week = daysLeftInWeek(easternDate());
     const playing = new Map<string, Set<string>>();
-    for (const g of games) {
-      if (!dates.includes(g.game_date)) continue;
+    for (const g of toCome) {
+      if (!week.includes(g.game_date)) continue;
       for (const t of [g.home_team_id, g.away_team_id]) playing.set(`${g.game_date}|${t}`, new Set());
     }
     if (playing.size === 0) return null;
+    const dates = week.filter((d) => toCome.some((g) => g.game_date === d));
     const plays = (id: string, date: string) => {
       const r = byId.get(id);
       // out, doubtful, or inactive on the team's lineup that day (#878): no start
@@ -384,7 +401,8 @@ export default function MyTeam() {
   // per-game values the week's plan uses.
   const verdict = useMemo(() => {
     if (!games || !myTeam.length) return null;
-    const groups = todayGroups(myTeam as unknown as TodayRow[], games, easternDate());
+    // today's games still to tip off: once tonight's have started there is no start to make (#927)
+    const groups = todayGroups(myTeam as unknown as TodayRow[], gamesToCome(games, Date.now()), easternDate());
     if (!groups.leagueGames) return null;
     return todayVerdict(groups, slotList(setup.lineup), perGame, (id) => byId.get(id)?.position);
   }, [games, myTeam, setup.lineup, perGame, byId]);
@@ -675,7 +693,7 @@ export default function MyTeam() {
                         </span>
                       </Td>
                     )}
-                    {weekAvailable && <Td right>{onIl ? '–' : (r?.games_this_week ?? 0)}</Td>}
+                    {weekAvailable && <Td right>{onIl ? '–' : teamGamesLeft ? (teamGamesLeft.get(r?.team_id ?? '') ?? 0) : (r?.games_this_week ?? 0)}</Td>}
                   </tr>
                 );
               })}

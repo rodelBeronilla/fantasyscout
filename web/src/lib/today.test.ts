@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { easternDate, sitsOut, todayGroups, todayVerdict } from './today';
+import { easternDate, gamesToCome, sitsOut, todayGroups, todayVerdict } from './today';
 
 const games = [
   { game_date: '2026-11-02', game_datetime_utc: '2026-11-03T00:30:00Z', home_team_id: 'BOS', away_team_id: 'NYK', home_team_tricode: 'BOS', away_team_tricode: 'NYK' },
@@ -84,5 +84,28 @@ describe('the game day', () => {
     expect(sitsOut(p, '2026-11-03')).toBe(false);
     expect(sitsOut({ ...p, lineup_role: 'bench' }, '2026-11-02')).toBe(false);
     expect(sitsOut({ ...p, lineup_role: null, injury_group: 'doubtful' }, '2026-11-03')).toBe(true);
+  });
+});
+
+describe('one clock for the page (#927)', () => {
+  const game = (date: string, utc: string | null) => ({
+    game_date: date,
+    game_datetime_utc: utc,
+    home_team_id: 'h',
+    away_team_id: 'a',
+    home_team_tricode: 'HOM',
+    away_team_tricode: 'AWY',
+  });
+  it('keeps only the games still to tip off, and a game with no tip-off time', () => {
+    // Sunday 9:25 pm Eastern is 02:25 UTC on Monday: the 7 pm and 8:30 pm games have started, a
+    // 10:30 pm one has not, and one with no time stays in
+    const now = Date.parse('2026-11-09T02:25:00Z');
+    const games = [
+      game('2026-11-08', '2026-11-09T00:00:00Z'),
+      game('2026-11-08', '2026-11-09T01:30:00Z'),
+      game('2026-11-08', '2026-11-09T03:30:00Z'),
+      game('2026-11-08', null),
+    ];
+    expect(gamesToCome(games, now).map((g) => g.game_datetime_utc)).toEqual(['2026-11-09T03:30:00Z', null]);
   });
 });
