@@ -6,11 +6,12 @@
 The Playwright tests serve ``web/tests/fixtures/data`` as the site's data, so the pages are tested
 against the files and keys the export produces. The fixture keeps what the pages read: every JSON
 file of the build, with the per-league and history files trimmed to the fixture league's current
-season, and that league's player files. The Parquet mirror, which the Worker serves to the owner
-alone, comes from the dbt sample's export instead (the SQL console only needs its shape); the
-play-by-play is left out to keep the fixture small. The build id, timestamp and commit are
-pinned so a refresh changes only what the data changed. ``tests/test_fixture_contract.py`` fails
-when the committed fixture and the export disagree on files or keys.
+season, that league's player files and a few of the other league's. The Parquet mirror, which
+the Worker serves to the owner alone, comes from the dbt sample's export instead (the SQL console
+only needs its shape); the play-by-play is left out to keep the fixture small. The build id,
+timestamp and commit are pinned so a refresh changes only what the data changed.
+``tests/test_fixture_contract.py`` fails when the committed fixture and the export disagree on
+files or keys.
 """
 
 from __future__ import annotations
@@ -41,9 +42,15 @@ BUILD_ID = "fixture"
 CREATED_AT = "2026-10-29T18:33:44+00:00"
 GIT_SHA = "fixture"
 # The league whose player files and history rows the fixture carries; the other league keeps its
-# per-league JSON (the pages read both) but no player files.
+# per-league JSON (the pages read both) and the player files of the top of its board.
 LEAGUE = "wnba"
 SEASON = "2026"
+# The other league's player files (#942): the top of its board, so its player page is tested too.
+# The e2e opens the first; the notes tests name a player in the top eight.
+OTHER_LEAGUE = "nba"
+OTHER_SEASON = "2026-27"
+OTHER_PLAYERS = 8
+SEASONS = {LEAGUE: SEASON, OTHER_LEAGUE: OTHER_SEASON}
 # Files left out of the fixture: the play-by-play (large, read by no page) and the Parquet of other
 # league-seasons. The Parquet that stays is trimmed to the fixture league's season, so the SQL
 # console has every table at a fraction of the size.
@@ -64,7 +71,7 @@ def keeps(path: str) -> bool:
     if path.startswith(SKIP_PREFIXES):
         return False
     if path.startswith("players/"):
-        return path.startswith(f"players/{LEAGUE}/") and path.endswith(".json")
+        return path.startswith(tuple(f"players/{lg}/" for lg in SEASONS)) and path.endswith(".json")
     if path.endswith(".parquet"):
         # Partitioned facts: the fixture league's season only.
         return "/" not in path or path.endswith(f"/{LEAGUE}-{SEASON}.parquet")
@@ -109,24 +116,35 @@ def trim(path: str, body: bytes) -> bytes:
     return to_json(rows)
 
 
-def player_ids(files: dict[str, bytes]) -> set[str]:
-    """Players whose files the fixture carries: the top of the board and of the streamers."""
-    ids: set[str] = set()
-    for name, count in (("board", BOARD_PLAYERS), ("streamers", STREAMER_PLAYERS)):
-        body = files.get(f"{name}/{LEAGUE}.json")
+def player_paths(files: dict[str, bytes]) -> set[str]:
+    """Player files the fixture carries: the top of the fixture league's board and streamers,
+    and the top of the other league's board."""
+    lists = (
+        (LEAGUE, "board", BOARD_PLAYERS),
+        (LEAGUE, "streamers", STREAMER_PLAYERS),
+        (OTHER_LEAGUE, "board", OTHER_PLAYERS),
+    )
+    paths: set[str] = set()
+    for league, name, count in lists:
+        body = files.get(f"{name}/{league}.json")
         for row in (json.loads(body) if body else [])[:count]:
-            ids.add(str(row["player_id"]))
-    return ids
+            paths.add(f"players/{league}/{row['player_id']}.json")
+    return paths
 
 
-def trim_player(body: bytes) -> bytes:
-    """A player file with its history cut to the fixture season; every key stays."""
+def season_of(path: str) -> str:
+    """The season a player file's history is cut to: its league's current season."""
+    return SEASONS[path.split("/")[1]]
+
+
+def trim_player(body: bytes, season: str = SEASON) -> bytes:
+    """A player file with its history cut to the season; every key stays."""
     player = json.loads(body)
     for section, rows in player.items():
         if not isinstance(rows, list) or not rows:
             continue
         if isinstance(rows[0], dict) and "season" in rows[0]:
-            kept = [r for r in rows if str(r.get("season")) == SEASON] or rows[-1:]
+            kept = [r for r in rows if str(r.get("season")) == season] or rows[-1:]
             player[section] = kept if section == "seasons" else kept[-RECENT_GAMES:]
         elif section == "shots":
             player[section] = rows[-RECENT_SHOTS:]
@@ -145,11 +163,10 @@ def from_live(site: str, log: Callable[[str], None] = print) -> dict[str, bytes]
         # The Parquet mirror is served to the owner alone; the sample supplies it.
         for path in sorted(p for p in manifest["files"] if keeps(p) and not p.endswith(".parquet")):
             files[path] = trim(path, client.get(base + prefix + path).raise_for_status().content)
-        for pid in sorted(player_ids(files)):
-            path = f"players/{LEAGUE}/{pid}.json"
+        for path in sorted(player_paths(files)):
             response = client.get(base + prefix + path)
             if response.status_code == 200:
-                files[path] = trim_player(response.content)
+                files[path] = trim_player(response.content, season_of(path))
         for index in SIDE_FILES:
             response = client.get(base + prefix + index)
             if response.status_code != 200:
@@ -265,14 +282,14 @@ def from_duckdb(
 ) -> dict[str, bytes]:
     """A local lakehouse's export, as the fixture keeps it (or just its Parquet)."""
     build = export_of(path, log)
-    wanted = player_ids(build.files)
+    wanted = player_paths(build.files)
     files: dict[str, bytes] = {}
     for name, body in build.files.items():
         if not keeps(name) or (parquet_only and not name.endswith(".parquet")):
             continue
         if name.startswith("players/"):
-            if name.removeprefix(f"players/{LEAGUE}/").removesuffix(".json") in wanted:
-                files[name] = trim_player(body)
+            if name in wanted:
+                files[name] = trim_player(body, season_of(name))
         else:
             files[name] = trim(name, body)
     return files
