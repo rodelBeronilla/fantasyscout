@@ -1,6 +1,6 @@
 /**
- * The league's real standings (#822): each team's won-lost record and place, as ESPN keeps them,
- * read with every sync of an ESPN league. My Team leads with the manager's place and how far back
+ * The league's real standings (#822): each team's won-lost record, as ESPN or Yahoo keeps them, read
+ * with every sync or import, and its place by those records. My Team leads with the manager's place and how far back
  * of the team above and of first they are; the projected power table sits one click down.
  */
 import { ordinal } from './format';
@@ -16,10 +16,10 @@ export interface TeamRecord {
 
 export interface Standing {
   team: number;
-  /** 1 for first, by ESPN's seed where it gives one, else by winning share. */
+  /** 1 for first, by the records: games back of the best record, the league's seed breaking a tie (#943). */
   place: number;
   record: TeamRecord;
-  /** Games back of first: half the gap in wins plus half the gap in losses. */
+  /** Games back of the best record: half the gap in wins plus half the gap in losses; 0 for the leader, never below. */
   back: number;
 }
 
@@ -45,19 +45,27 @@ const share = (r: TeamRecord) => {
 };
 
 /**
- * The standings from the records, by team index: ESPN's order when every team has a seed and no
- * two share one, else by winning share, then wins. Null until a game is in the records.
+ * The standings from the records, by team index. The leader is the best record, the one every other
+ * team is furthest behind, and each team's games back is measured from it, so the leader is 0 and the
+ * rest are at or above it (#943). The table follows the records: games back, then winning share, then
+ * the league's seed (ESPN's or Yahoo's tiebreakers) where every team has its own, then wins. A league's
+ * seed alone never puts a team above one with a better record. Null until a game is in the records.
  */
 export function standingsOf(records: (TeamRecord | null | undefined)[] | undefined): Standing[] | null {
   const teams = (records ?? []).flatMap((r, team) => (r ? [{ team, record: r }] : []));
   if (teams.length < 2 || !teams.some((t) => t.record.wins + t.record.losses + t.record.ties > 0)) return null; // def: standings need two teams
   const seeds = teams.map((t) => t.record.seed);
   const seeded = seeds.every((s) => s !== null) && new Set(seeds).size === seeds.length;
-  const order = [...teams].sort((a, b) =>
-    seeded ? (a.record.seed ?? 0) - (b.record.seed ?? 0) : share(b.record) - share(a.record) || b.record.wins - a.record.wins || a.team - b.team,
+  const rows = teams.map((t) => ({ ...t, back: Math.max(...teams.map((o) => gamesBack(t.record, o.record))) }));
+  const order = [...rows].sort(
+    (a, b) =>
+      a.back - b.back ||
+      share(b.record) - share(a.record) ||
+      (seeded ? (a.record.seed ?? 0) - (b.record.seed ?? 0) : 0) ||
+      b.record.wins - a.record.wins ||
+      a.team - b.team,
   );
-  const first = order[0]!.record;
-  return order.map((t, i) => ({ team: t.team, place: i + 1, record: t.record, back: gamesBack(t.record, first) }));
+  return order.map((t, i) => ({ team: t.team, place: i + 1, record: t.record, back: t.back }));
 }
 
 /** "12-8" or "12-8-1". */

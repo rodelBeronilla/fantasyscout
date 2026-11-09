@@ -44,7 +44,7 @@ export function Standings({
                   <span title="Won, lost and tied, as the league counts them: matchups, or categories in a league that scores each one">W-L-T</span>
                 </Th>
                 <Th right>
-                  <span title="Games back of first: half the gap in wins plus half the gap in losses">GB</span>
+                  <span title="Games back of the best record: half the gap in wins plus half the gap in losses, a tie counting half">GB</span>
                 </Th>
               </tr>
             </thead>
