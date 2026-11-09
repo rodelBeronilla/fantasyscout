@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { POINT_PRESETS } from './fantasy-league';
 import { CATEGORY_WORDS } from './format';
 import { categoryChance, closeBand, liveWeek, matchup, matchupCall, matchupWeights, swingCategory, usableScore, type WeekTotals, weekTotals } from './matchup';
+import { streamTargets } from './matchup-streams';
 import { normalCdf } from './standings';
 import { PARAMS } from '../generated/parameters';
 
@@ -143,6 +144,30 @@ describe('the head-to-head week', () => {
     const clear = matchup('nba', ['z_points'], totals({ z_points: 100 }), totals({ z_points: 50 }));
     expect(matchupCall(clear, (c) => CATEGORY_WORDS[c] ?? c)).toBe('Winning 1, losing 0: points is the swing category');
     expect(swingCategory(matchup('nba', [], totals({}), totals({})))).toBeNull();
+  });
+
+  it('counts a punted category as the league scores it, but never targets it', () => {
+    const totals = (c: Record<string, number>) => ({ cats: c, games: 10, fpts: 0 });
+    // a punter of points: well behind in points, ahead in steals and blocks, level-ish in turnovers
+    const cats = ['z_points', 'z_steals', 'z_blocks', 'z_turnovers'];
+    const kept = ['z_steals', 'z_blocks', 'z_turnovers'];
+    const m = matchup(
+      'nba',
+      cats,
+      totals({ z_points: 60, z_steals: 30, z_blocks: 20, z_turnovers: 40 }),
+      totals({ z_points: 140, z_steals: 20, z_blocks: 10, z_turnovers: 41 }),
+      0,
+      kept,
+    );
+    // the punted category is in the record as a loss: the week reads out of four, not three
+    expect(m.cats.map((r) => r.cat)).toEqual(cats);
+    expect(m.losses).toBe(1);
+    expect(m.wins).toBe(3);
+    // the swing is the kept category nearest even, never the punted one
+    expect(swingCategory(m)).toBe('z_turnovers');
+    expect(matchupCall(m, (c) => CATEGORY_WORDS[c] ?? c)).toBe('Winning 3, losing 1 of 4, counting the 1 you punt: turnovers is the swing category');
+    // a stream never chases a punted category
+    expect(streamTargets(m)).not.toContain('z_points');
   });
 
   it('weights the closest third of the categories most and the blowouts least', () => {

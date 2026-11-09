@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { expect, test } from './fixtures';
+import { MY_TEAM_SHOWS } from '../src/lib/visibility';
 
 /** ESPN's league API as recorded for the tests (#815): the views the import asks for, a made-up league. */
 const espnFixture = JSON.parse(readFileSync(new URL('./fixtures/espn/league.json', import.meta.url), 'utf8')) as {
@@ -1259,6 +1260,7 @@ test('a league built by hand takes its records and its first playoff week on the
 
   await page.goto('/team/?league=nba');
   await expect(page.getByTestId('standing-line')).toHaveText('2nd, 1 game back of 1st (5-3, as entered on the League page)');
+  if (!MY_TEAM_SHOWS.playoffs) return;
   await expect(page.getByTestId('playoff-line')).toContainText(`games in the playoff weeks (${day(monday)} to ${day(end)})`);
   const details = page.getByTestId('playoff-details');
   await details.locator('summary').click();
@@ -1534,8 +1536,8 @@ test('rosters on the League page give the board who is available, owners, Fit an
   await cards.nth(1).getByRole('button', { name: 'Add pasted players' }).click();
   await expect(cards.nth(1).getByTestId('roster')).toContainText(b ?? '');
   await page.goto('/team/');
-  await expect(page.getByTestId('team-strength')).toContainText('Rivals');
-  await expect(page.getByTestId('category-profile')).toBeVisible();
+  if (MY_TEAM_SHOWS.power) await expect(page.getByTestId('team-strength')).toContainText('Rivals');
+  if (MY_TEAM_SHOWS.categories) await expect(page.getByTestId('category-profile')).toBeVisible();
   await page.goto('/');
   await expect(page.getByTestId('league-bar')).toContainText('Team 1 (2/10)');
   await expect(page.getByRole('radio', { name: 'Available' })).toHaveAttribute('aria-checked', 'true');
@@ -1567,6 +1569,7 @@ async function deepBench(page: Page, league: 'nba' | 'wnba'): Promise<string> {
 }
 
 test('with rosters set up, the board recommends roster upgrades from the available players and applies one', async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.swaps, 'hidden on My Team until validated (#895)');
   await page.goto('/');
   const board = page.getByTestId('board');
   const rows = board.locator('tbody tr[data-player]');
@@ -1605,6 +1608,7 @@ test('with rosters set up, the board recommends roster upgrades from the availab
 });
 
 test('the roster review can be judged for this fantasy week: recent form over the games left', async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.swaps, 'hidden on My Team until validated (#895)');
   // A doctored NBA board: everyone has three games left this week except the best player on the board, who has none.
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { full_name: string | null; games_this_week: number | null }[];
   const weak = await deepBench(page, 'nba');
@@ -1707,7 +1711,7 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText(/win [5-9] of 9 categories against Team 2/);
   // the call leads (#817): the count and the swing category, then the open days to stream it
   await expect(matchupCard.getByTestId('matchup-call')).toContainText(/^Winning [5-9], losing \d(, \d too close)?: .+ is the swing category\./);
-  await expect(matchupCard.getByTestId('matchup-stream')).toHaveAttribute('href', /\/streamers\/\?league=nba&window=week&open=2026-11-0\d/);
+  if (MY_TEAM_SHOWS.streams) await expect(matchupCard.getByTestId('matchup-stream')).toHaveAttribute('href', /\/streamers\/\?league=nba&window=week&open=2026-11-0\d/);
   // a league entered here has no score so far
   await expect(matchupCard.getByTestId('matchup-basis')).toHaveText('The week projects from the games left: an ESPN import, or the Yahoo bookmark on the League page, brings the score so far.');
   // three players fill three of the ten slots, so each starts every game his team has left
@@ -1716,7 +1720,7 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
   await expect(matchupCard.getByTestId('matchup-row')).toHaveCount(9);
   await expect(matchupCard.getByTestId('matchup-row').filter({ hasText: 'TO' })).toContainText('loss');
   // a head-to-head review defaults to this week
-  await expect(page.getByTestId('upgrades').getByRole('radio', { name: 'This week' })).toHaveAttribute('aria-checked', 'true');
+  if (MY_TEAM_SHOWS.swaps) await expect(page.getByTestId('upgrades').getByRole('radio', { name: 'This week' })).toHaveAttribute('aria-checked', 'true');
   // the opponent survives a reload and can be cleared
   await page.reload();
   await expect(matchupCard.getByTestId('matchup-row')).toHaveCount(9);
@@ -1854,6 +1858,7 @@ test("an ESPN import puts the players in ESPN's IR slot on the injured list (#87
 });
 
 test('a roster of the two best players is told it is optimized as is', async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.swaps, 'hidden on My Team until validated (#895)');
   await page.goto('/');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');
   await expect(rows.first()).toBeVisible();
@@ -1872,6 +1877,7 @@ test('a roster of the two best players is told it is optimized as is', async ({ 
 });
 
 test('My Team shows the chance of beating the league in each kept category, and says where to start when the team is empty (#712)', async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.categories, 'hidden on My Team until validated (the punts fix)');
   await page.goto('/team/');
   await expect(page.getByTestId('team-empty')).toContainText('Your team is empty');
   await page.goto('/');
@@ -1905,6 +1911,7 @@ test('My Team shows the chance of beating the league in each kept category, and 
 });
 
 test('Build your team lists targets and players to let go, each with a move and a link to the Trade page prefilled (#809)', async ({ page, isMobile }) => {
+  test.skip(!MY_TEAM_SHOWS.build, 'hidden on My Team until validated (#886)');
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   await page.goto('/league/');
@@ -1952,6 +1959,7 @@ test('Build your team lists targets and players to let go, each with a move and 
 });
 
 test('without rival rosters Build your team ranks targets by need-weighted value and says importing adds the deals; a points league has none (#809)', async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.build, 'hidden on My Team until validated (#886)');
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   await page.goto('/league/');
@@ -2125,6 +2133,7 @@ test('Pickups opens with the need chips a link names, and keeps them in the addr
 });
 
 test('My Team names the stream that flips a losing category, and its links open Pickups with those needs (#818)', async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.streams, 'hidden on My Team until validated (#902)');
   type Row = { player_id: string; full_name: string | null; team_abbreviation: string; position: string; rank_total: number; injury_group: string | null };
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
   // the fixture build's own day, so My Team's week and Pickups' window are the same days
@@ -2198,6 +2207,7 @@ test('the lineup setting resets with the rest, and a Pickups link with a day out
 });
 
 test('My Team ranks every team by projection: matchup win rates in head-to-head, roto points in rotisserie (#743)', async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.power, 'hidden on My Team until validated (#867)');
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   await page.goto('/league/');
@@ -2230,6 +2240,7 @@ test('My Team ranks every team by projection: matchup win rates in head-to-head,
 });
 
 test("My Team says who takes an out player's minutes, and pairs the IL move with the pickup (#820)", async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.minutes, 'hidden on My Team until validated (#763)');
   const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
     player_id: string;
     full_name: string | null;
@@ -2294,6 +2305,7 @@ test("My Team says who takes an out player's minutes, and pairs the IL move with
 });
 
 test("My Team leads a head-to-head league with its playoff odds, its games in the playoff weeks and the free agent to target (#821)", async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.playoffs, 'hidden on My Team until validated (#907)');
   type Row = { player_id: string; team_id: string | null };
   type TeamWeek = { team_id: string; week_start: string; week_end: string; games: number; game_dates: string | null };
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
@@ -2608,6 +2620,7 @@ test("an ESPN league leads My Team with the real standings, the whole league and
   await expect(rows.nth(0)).toHaveText(/^1\s*Third\s*14-4-1\s*–$/);
   await expect(rows.nth(2)).toHaveText(/^3\s*Brick City\s*10-8-1\s*4$/);
   // the projected table is one click down, and needs no note to import from ESPN
+  if (!MY_TEAM_SHOWS.power) return;
   const power = page.getByTestId('power-details');
   await expect(power.getByTestId('league-table')).toBeHidden();
   await power.locator('summary').click({ position: { x: 4, y: 4 } });
@@ -2667,6 +2680,7 @@ test("an ESPN points league's matchup starts from the fantasy points so far (#87
 });
 
 test('a head-to-head points league gets playoff odds from its fantasy points, badged as not yet validated (#877)', async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.playoffs, 'hidden on My Team until validated (#913)');
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];
   await page.clock.setFixedTime(new Date('2026-11-02T16:00:00Z'));
   // four teams of three, entered by hand: two of them make the playoffs
@@ -2816,7 +2830,7 @@ test('the League page leads with the Yahoo import only while the league is empty
   // the league table is on My Team now
   await expect(page.getByTestId('team-strength')).toHaveCount(0);
   await page.goto('/team/?league=nba');
-  await expect(page.getByTestId('team-strength').locator('tbody tr')).toHaveCount(4);
+  if (MY_TEAM_SHOWS.power) await expect(page.getByTestId('team-strength').locator('tbody tr')).toHaveCount(4);
 });
 
 test('the Yahoo import shows as coming soon until it is live, then imports settings, teams and rosters', async ({ page }) => {
@@ -3862,6 +3876,7 @@ function notesFile(league: 'nba' | 'wnba', playerId: string, note: Record<string
 }
 
 test("a flagged player's note leads with its call on My Team, marks a change and is withdrawn when contradicted (#823, #879)", async ({ page }) => {
+  test.skip(!MY_TEAM_SHOWS.notes, 'hidden on My Team until validated (#879)');
   // a day with no games in the fixture schedule: no Today card, so the line sits in the roster
   await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
   const copy = { version: 7, teams: 4, rosterSpots: 13, scoring: 'cats9', format: 'roto', punts: [], rosters: [['1630169', '203999'], [], [], []], mine: 0, il: [], drafting: false, picks: [], opponent: null };

@@ -4,12 +4,15 @@
  * player to drop for him, and the categories the swap turns into wins. Pure, for My Team and the
  * tests.
  */
-import { byCloseness, matchup, type WeekMatchup, type WeekTotals, weekTotals } from './matchup';
+import { byCloseness, keptRows, matchup, type WeekMatchup, type WeekTotals, weekTotals } from './matchup';
 import { topAdds, type AddRow } from './pickups-top';
 
-/** The categories close or being lost, the closest first: the need chips Pickups opens with. */
+/**
+ * The kept categories close or being lost, the closest first: the need chips Pickups opens with.
+ * A punted category is never a target.
+ */
 export function streamTargets(m: WeekMatchup): string[] {
-  return byCloseness(m.cats.filter((r) => r.result !== 'win')).map((r) => r.cat);
+  return byCloseness(keptRows(m).filter((r) => r.result !== 'win')).map((r) => r.cat);
 }
 
 /**
