@@ -84,7 +84,7 @@ features:
     what: "Buy low in an NBA league: players whose last ten games ran below their projection"
     page: trade
     verdict: validated
-    shown: shown
+    switch: buyLowNba
     adr: 27
     issue: 758
     parameters: [buysell.min_swing]
@@ -142,7 +142,7 @@ features:
     what: "Fit: value weighted to your team's needs"
     page: rankings
     verdict: failed
-    shown: badged
+    switch: fit
     adr: 21
     issue: 868
     parameters: [fit.thirds]
@@ -151,7 +151,7 @@ features:
     what: "The trade verdict's even, fair and favours calls"
     page: trade
     verdict: failed
-    shown: badged
+    switch: tradeVerdict
     adr: 23
     issue: 886
     parameters: [trade.even, trade.meaningful_gain, trade.disagreement]
@@ -160,7 +160,7 @@ features:
     what: "Suggested trades"
     page: trade
     verdict: failed
-    shown: badged
+    switch: tradeSuggestions
     adr: 23
     issue: 887
     parameters: [trade.suggest]
@@ -169,7 +169,7 @@ features:
     what: "The trade finder: trades across your league"
     page: trade
     verdict: failed
-    shown: badged
+    switch: tradeFinder
     adr: 23
     issue: 888
     parameters: [trade.search]
@@ -178,11 +178,30 @@ features:
     what: "Sell high: players whose last ten games ran above their projection"
     page: trade
     verdict: failed
-    shown: badged
+    switch: sellHigh
     adr: 27
     issue: 903
     parameters: [buysell.min_swing]
     next: "Season-level: the locked seasons (#769)"
+
+  - id: explain-trade
+    what: "Explain this trade: the local model's account of the trade verdict"
+    page: trade
+    verdict: failed
+    switch: explainTrade
+    adr: 17
+    issue: 886
+    parameters: []
+    next: "With the trade verdict it explains: the locked seasons (#769), or NBA 2026-27's end (April 2027)"
+  - id: trade-chips
+    what: "Trade chips: a protected player listed as trade, don't drop, and the trade targets for a punt build"
+    page: team
+    verdict: failed
+    switch: tradeChips
+    adr: 24
+    issue: 896
+    parameters: [trade.form_hot, trade.profile_cut]
+    next: "Season-level: after a rework, on the locked seasons (#769)"
 
   # ---- not yet judged
   - id: preseason-value
@@ -239,7 +258,7 @@ features:
     what: "Pickups' \"this week\" ranking presented as advice: Top 3 adds"
     page: pickups
     verdict: open
-    shown: badged
+    switch: topAdds
     adr: 11
     issue: 762
     parameters: [matchup.weights, blowout.spread, blowout.minutes_per_5_points]
@@ -289,7 +308,7 @@ features:
     what: "Buy low in a WNBA league: its lists were too thin to judge"
     page: trade
     verdict: open
-    shown: badged
+    switch: buyLowWnba
     adr: 27
     issue: 904
     parameters: [buysell.min_swing]
@@ -298,15 +317,15 @@ features:
     what: "Consistency: a player's game-to-game range"
     page: rankings
     verdict: open
-    shown: badged
+    switch: consistency
     issue: 761
     parameters: []
     next: "Season-level: the locked seasons (#769)"
   - id: auction-values
-    what: "Draft values and auction prices"
+    what: "The Draft page, the draft room and Rankings' draft mode, with their values and auction prices"
     page: draft
     verdict: open
-    shown: badged
+    switch: draft
     issue: 760
     parameters: [auction.budget, auction.min_bid]
     next: "Before the 2027-28 drafts"

@@ -4,10 +4,10 @@
  */
 import { FEATURES, PAGES, type Feature } from '../generated/features';
 import { PARAMETERS } from '../generated/parameters';
-import { MY_TEAM_SHOWS } from './visibility';
+import { SHOWS } from './visibility';
 
 /** The site's switches by key: true shows the feature. */
-export const SWITCHES: Readonly<Record<string, boolean>> = MY_TEAM_SHOWS;
+export const SWITCHES: Readonly<Record<string, boolean>> = SHOWS;
 
 export type Verdict = Feature['verdict'];
 export type Shown = 'shown' | 'badged' | 'hidden';

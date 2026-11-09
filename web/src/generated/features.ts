@@ -59,6 +59,7 @@ export const PAGES: Readonly<Record<string, Page>> = {
 /** The file of each ADR a feature names, by number, in docs/adr. */
 export const ADR_FILES: Readonly<Record<string, string>> = {
   "11": "0011-streamers-sort.md",
+  "17": "0017-local-language-model.md",
   "19": "0019-one-value-scale.md",
   "20": "0020-preseason-market-prior.md",
   "21": "0021-standings-model-validated.md",
@@ -170,7 +171,7 @@ export const FEATURES: readonly Feature[] = [
     "what": "Buy low in an NBA league: players whose last ten games ran below their projection",
     "page": "trade",
     "verdict": "validated",
-    "shown": "shown",
+    "switch": "buyLowNba",
     "adr": 27,
     "issue": 758,
     "parameters": [
@@ -259,7 +260,7 @@ export const FEATURES: readonly Feature[] = [
     "what": "Fit: value weighted to your team's needs",
     "page": "rankings",
     "verdict": "failed",
-    "shown": "badged",
+    "switch": "fit",
     "adr": 21,
     "issue": 868,
     "parameters": [
@@ -272,7 +273,7 @@ export const FEATURES: readonly Feature[] = [
     "what": "The trade verdict's even, fair and favours calls",
     "page": "trade",
     "verdict": "failed",
-    "shown": "badged",
+    "switch": "tradeVerdict",
     "adr": 23,
     "issue": 886,
     "parameters": [
@@ -287,7 +288,7 @@ export const FEATURES: readonly Feature[] = [
     "what": "Suggested trades",
     "page": "trade",
     "verdict": "failed",
-    "shown": "badged",
+    "switch": "tradeSuggestions",
     "adr": 23,
     "issue": 887,
     "parameters": [
@@ -300,7 +301,7 @@ export const FEATURES: readonly Feature[] = [
     "what": "The trade finder: trades across your league",
     "page": "trade",
     "verdict": "failed",
-    "shown": "badged",
+    "switch": "tradeFinder",
     "adr": 23,
     "issue": 888,
     "parameters": [
@@ -313,13 +314,38 @@ export const FEATURES: readonly Feature[] = [
     "what": "Sell high: players whose last ten games ran above their projection",
     "page": "trade",
     "verdict": "failed",
-    "shown": "badged",
+    "switch": "sellHigh",
     "adr": 27,
     "issue": 903,
     "parameters": [
       "buysell.min_swing"
     ],
     "next": "Season-level: the locked seasons (#769)"
+  },
+  {
+    "id": "explain-trade",
+    "what": "Explain this trade: the local model's account of the trade verdict",
+    "page": "trade",
+    "verdict": "failed",
+    "switch": "explainTrade",
+    "adr": 17,
+    "issue": 886,
+    "parameters": [],
+    "next": "With the trade verdict it explains: the locked seasons (#769), or NBA 2026-27's end (April 2027)"
+  },
+  {
+    "id": "trade-chips",
+    "what": "Trade chips: a protected player listed as trade, don't drop, and the trade targets for a punt build",
+    "page": "team",
+    "verdict": "failed",
+    "switch": "tradeChips",
+    "adr": 24,
+    "issue": 896,
+    "parameters": [
+      "trade.form_hot",
+      "trade.profile_cut"
+    ],
+    "next": "Season-level: after a rework, on the locked seasons (#769)"
   },
   {
     "id": "preseason-value",
@@ -406,7 +432,7 @@ export const FEATURES: readonly Feature[] = [
     "what": "Pickups' \"this week\" ranking presented as advice: Top 3 adds",
     "page": "pickups",
     "verdict": "open",
-    "shown": "badged",
+    "switch": "topAdds",
     "adr": 11,
     "issue": 762,
     "parameters": [
@@ -496,7 +522,7 @@ export const FEATURES: readonly Feature[] = [
     "what": "Buy low in a WNBA league: its lists were too thin to judge",
     "page": "trade",
     "verdict": "open",
-    "shown": "badged",
+    "switch": "buyLowWnba",
     "adr": 27,
     "issue": 904,
     "parameters": [
@@ -509,17 +535,17 @@ export const FEATURES: readonly Feature[] = [
     "what": "Consistency: a player's game-to-game range",
     "page": "rankings",
     "verdict": "open",
-    "shown": "badged",
+    "switch": "consistency",
     "issue": 761,
     "parameters": [],
     "next": "Season-level: the locked seasons (#769)"
   },
   {
     "id": "auction-values",
-    "what": "Draft values and auction prices",
+    "what": "The Draft page, the draft room and Rankings' draft mode, with their values and auction prices",
     "page": "draft",
     "verdict": "open",
-    "shown": "badged",
+    "switch": "draft",
     "issue": 760,
     "parameters": [
       "auction.budget",
