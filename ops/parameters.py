@@ -1,7 +1,10 @@
 """The parameter registry (#765): methodology/parameters.yml, checked and turned into TypeScript.
 
-    uv run python -m ops.parameters          # write web/src/generated/parameters.ts
-    uv run python -m ops.parameters --check  # exit 1: the file is stale or the registry wrong
+    uv run python -m ops.parameters          # write web/src/generated/parameters.ts and features.ts
+    uv run python -m ops.parameters --check  # exit 1: a file is stale, or the inputs are wrong
+
+The feature list (methodology/features.yml, ``ops.features``) is checked against the registry and
+written with it.
 
 Every number the site's models and decisions use is registered with how it was set (measured,
 assumed, convention, arithmetic), the evidence and the issue that will validate it. The web
@@ -18,6 +21,8 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
+from ops import features
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "methodology" / "parameters.yml"
@@ -104,28 +109,38 @@ def render(params: list[dict[str, Any]]) -> str:
     )
 
 
+def _emit(out: Path, text: str, what: str, check: bool) -> bool:
+    """Write the generated module, or with ``check`` say whether it is current."""
+    name = out.relative_to(ROOT)
+    if not check:
+        out.write_text(text, encoding="utf-8", newline="\n")
+        print(f"wrote {name}: {what}")
+        return True
+    if out.exists() and out.read_text(encoding="utf-8") == text:
+        print(f"{name} is current ({what})")
+        return True
+    print(f"{name} is stale: run uv run python -m ops.parameters", file=sys.stderr)
+    return False
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args(argv)
     params = load()
+    listed = features.load()
     wrong = problems(params) + dbt_mismatches(params)
     if wrong:
         print("the parameter registry is wrong:", *wrong, sep="\n  ", file=sys.stderr)
         return 1
-    text = render(params)
-    if args.check:
-        if not OUT.exists() or OUT.read_text(encoding="utf-8") != text:
-            print(
-                f"{OUT.relative_to(ROOT)} is stale: run uv run python -m ops.parameters",
-                file=sys.stderr,
-            )
-            return 1
-        print(f"{OUT.relative_to(ROOT)} is current ({len(params)} parameters)")
-        return 0
-    OUT.write_text(text, encoding="utf-8", newline="\n")
-    print(f"wrote {OUT.relative_to(ROOT)}: {len(params)} parameters")
-    return 0
+    if wrong := features.problems(listed, {str(p["id"]) for p in params}):
+        print("the feature list is wrong:", *wrong, sep="\n  ", file=sys.stderr)
+        return 1
+    ok = _emit(OUT, render(params), f"{len(params)} parameters", args.check)
+    ok &= _emit(
+        features.OUT, features.render(listed), f"{len(listed['features'])} features", args.check
+    )
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
