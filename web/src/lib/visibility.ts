@@ -28,4 +28,6 @@ export const MY_TEAM_SHOWS = {
    * IL moves follow the injury report's listing and show only the report's own return date.
    */
   injuryEstimate: false,
+  /** The week's lineup plan, who sits a full lineup and the open slots to stream: not judged. Back with #759. */
+  lineup: false,
 } as const;

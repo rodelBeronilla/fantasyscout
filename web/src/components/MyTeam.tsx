@@ -593,7 +593,6 @@ export default function MyTeam() {
           today={easternDate()}
         />
       )}
-      {real && <Standings table={real} mine={setup.mine} names={setup.names} power={MY_TEAM_SHOWS.power ? powerTable : null} from={recordsFromText(recorded?.from ?? 'entered')} />}
 
       {games && myTeam.length > 0 && !setup.drafting && (
         <Today
@@ -626,7 +625,7 @@ export default function MyTeam() {
         {MY_TEAM_SHOWS.categories && !points && <Categories standings={standings} mine={setup.mine} cats={activeCats} punted={punted} h2h={h2h} totals={myTotals} />}
       </div>
 
-      {lineupPlans && !setup.drafting && (
+      {MY_TEAM_SHOWS.lineup && lineupPlans && !setup.drafting && (
         <LineupTile
           plan={lineupPlans.mine}
           theirs={lineupPlans.theirs}
@@ -714,6 +713,9 @@ export default function MyTeam() {
           </table>
         </div>
       </Tile>
+
+      {/* the standings, after the moves to make: where the team stands, not what to do today */}
+      {real && <Standings table={real} mine={setup.mine} names={setup.names} power={MY_TEAM_SHOWS.power ? powerTable : null} from={recordsFromText(recorded?.from ?? 'entered')} />}
 
       {MY_TEAM_SHOWS.swaps && shown && (
         <Upgrades
