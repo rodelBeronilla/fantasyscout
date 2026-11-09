@@ -60,16 +60,24 @@ export function TradeValueBreakdown({
           )}
           <p>
             <span className="text-muted">Projected value{settled ? ', roster spots counted' : ''}: </span>
-            you give <Signed value={fair.value.give} digits={1} />, get <Signed value={fair.value.get} digits={1} /> (
-            {fair.value.net >= 0 ? 'you +' : 'partner +'}
-            {Math.round(Math.abs(fair.value.share) * 100)}%)
+            you give <Signed value={fair.value.give} digits={1} />, get <Signed value={fair.value.get} digits={1} />
+            {calls && (
+              <>
+                {' '}({fair.value.net >= 0 ? 'you +' : 'partner +'}
+                {Math.round(Math.abs(fair.value.share) * 100)}%)
+              </>
+            )}
           </p>
           {fair.market && (
             <p data-testid="trade-fairness-market">
               <span className="text-muted">The market (ESPN ranks, priced on this board): </span>
-              you give <Signed value={fair.market.give} digits={1} />, get <Signed value={fair.market.get} digits={1} /> (
-              {fair.market.net >= 0 ? 'you +' : 'partner +'}
-              {Math.round(Math.abs(fair.market.share) * 100)}%)
+              you give <Signed value={fair.market.give} digits={1} />, get <Signed value={fair.market.get} digits={1} />
+              {calls && (
+                <>
+                  {' '}({fair.market.net >= 0 ? 'you +' : 'partner +'}
+                  {Math.round(Math.abs(fair.market.share) * 100)}%)
+                </>
+              )}
             </p>
           )}
           {calls && fair.disagree && (

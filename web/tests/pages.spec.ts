@@ -3530,7 +3530,10 @@ test('a trade the market calls lopsided is not called even: the lenses are shown
   await expect(warning).toBeVisible();
   await expect(warning).toContainText('terrible trade for you');
   await expect(warning).toContainText("ESPN's ranks");
-  await expect(page.getByTestId('trade-fairness-market')).toContainText('partner +');
+  // the market's numbers are data; its lean is a call (#886)
+  await expect(page.getByTestId('trade-fairness-market')).toContainText('The market (ESPN ranks, priced on this board): you give');
+  if (SHOWS.tradeVerdict) await expect(page.getByTestId('trade-fairness-market')).toContainText('partner +');
+  else await expect(page.getByTestId('trade-fairness')).not.toContainText(/(you|partner) \+\d+%/);
   // the bad call passed its check (ADR 0023) and shows; "even" and the lenses' leans failed (#886)
   await expect(page.getByTestId('trade-call')).toHaveText('Bad for you');
   await expect(page.getByTestId('trade-verdict')).not.toContainText('About even');

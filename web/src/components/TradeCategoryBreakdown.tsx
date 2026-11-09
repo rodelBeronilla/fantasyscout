@@ -73,13 +73,13 @@ export function TradeCategoryBreakdown({
         )}
         {h2h ? (
           <>
-            you would expect to win {fmt(impact.mine.scoreAfter, 2)} of your {catCount} categories in an average week against your league,
+            {calls ? 'you' : 'You'} would expect to win {fmt(impact.mine.scoreAfter, 2)} of your {catCount} categories in an average week against your league,
             from {fmt(impact.mine.scoreBefore, 2)} (<Signed value={impact.mine.gain} digits={2} />
             ).
           </>
         ) : (
           <>
-            your expected rotisserie points over your {catCount} categories go from {fmt(impact.mine.scoreBefore, 1)} to{' '}
+            {calls ? 'your' : 'Your'} expected rotisserie points over your {catCount} categories go from {fmt(impact.mine.scoreBefore, 1)} to{' '}
             {fmt(impact.mine.scoreAfter, 1)} (<Signed value={impact.mine.gain} digits={1} />
             ).
           </>
