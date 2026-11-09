@@ -55,7 +55,8 @@ export function TopAdds({
   dropsLeft: boolean;
   nameOf: (id: string) => string;
   detailOf: (id: string) => string;
-  onApply: (add: string, drop: string) => void;
+  /** Records the swap; null while the paired swaps are hidden (they failed, ADR 0024): the drop is named, not applied. */
+  onApply: ((add: string, drop: string) => void) | null;
   onExplore: () => void;
   /** Open days are picked: the adds must play on one. */
   openDays: boolean;
@@ -91,17 +92,19 @@ export function TopAdds({
           {player(drop, nameOf(drop))}
           {detailOf(drop) ? <span className="text-muted"> ({detailOf(drop)})</span> : null}
         </span>
-        <button
-          type="button"
-          className={button}
-          onClick={() => {
-            onApply(add, drop);
-            setApplied({ add, drop });
-          }}
-          data-testid="top-add-apply"
-        >
-          Apply
-        </button>
+        {onApply && (
+          <button
+            type="button"
+            className={button}
+            onClick={() => {
+              onApply(add, drop);
+              setApplied({ add, drop });
+            }}
+            data-testid="top-add-apply"
+          >
+            Apply
+          </button>
+        )}
       </>
     );
   };

@@ -4,6 +4,7 @@ import { DataUnavailableError, NoBuildError } from '../lib/data';
 import { day, easternClock } from '../lib/format';
 import { easternDate } from '../lib/today';
 import { REPO_URL } from '../lib/site';
+import { SHOWS } from '../lib/visibility';
 
 export function Loading({ what }: { what: string }) {
   return (
@@ -379,7 +380,8 @@ export function injuryDetail(row: InjuryFields): string {
     row.injury_type,
     row.injury_since ? `since ${day(row.injury_since)}` : null,
     row.expected_return ? `return ${day(row.expected_return)}` : null,
-    typeof row.expected_games_missed === 'number' && !row.expected_return
+    // the games-missed estimate is not judged (SHOWS.injuryEstimate): the report's own return date only
+    SHOWS.injuryEstimate && typeof row.expected_games_missed === 'number' && !row.expected_return
       ? `players listed like this missed ${row.expected_games_missed.toFixed(1)} games on average`
       : null,
     row.injury_news || row.injury_note,

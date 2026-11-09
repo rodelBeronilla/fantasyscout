@@ -17,6 +17,7 @@ import { daysFromParam, needsFromParam, withNeeds } from '../lib/pickups-url';
 import { readRaw, storageKey, writeRaw } from '../lib/storage';
 import { type ReviewRow, teamReview, teamValues } from '../lib/team-review';
 import { hasWeekGames } from '../lib/week-value';
+import { SHOWS } from '../lib/visibility';
 import { addDays, dayLabel, type Game, type Move, RecentMoves, type TeamWeek, weekday, WeekGrid, WeeksGrid } from './PickupsSchedule';
 import { type Candidate, PickupsTable, type StreamerRow } from './PickupsTable';
 import { type ReviewState, TopAdds } from './TopAdds';
@@ -373,8 +374,10 @@ export default function Streamers() {
 
   const season = rows[0]?.season ?? '';
   const complete = rows.length > 0 && rows.every((r) => r.season_complete);
-  // the page leads with the top adds while the window has games; else the list is the answer
-  const leads = !scheduleError && inWeek && !complete;
+  // the page leads with the top adds while the window has games; else the list is the answer. The top
+  // adds are a call that is not judged (#762), so for now the list is the answer either way (#936).
+  const scheduled = !scheduleError && inWeek && !complete;
+  const leads = SHOWS.topAdds && scheduled;
   const teamOptions = [...new Set(rows.map((r) => r.team_abbreviation).filter((t): t is string => !!t))].sort();
   const sortBy = (key: string, dir: SortDir = 'desc') => {
     if (sortKey === key) setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
@@ -466,7 +469,7 @@ export default function Streamers() {
           dropsLeft={(reviewed?.drops.length ?? 0) > 0}
           nameOf={nameOf}
           detailOf={detailOf}
-          onApply={(add, drop) => updateLeague((s) => assign(assign(s, drop, null), add, s.mine))}
+          onApply={SHOWS.swaps ? (add, drop) => updateLeague((s) => assign(assign(s, drop, null), add, s.mine)) : null}
           onExplore={openExplore}
           openDays={activePicked.size > 0}
           notes={notes}
@@ -484,14 +487,22 @@ export default function Streamers() {
         }}
       >
         <summary className="cursor-pointer text-sm font-medium tracking-wide text-muted uppercase" data-testid="explore-summary">
-          {leads ? 'Explore all players' : scheduleError ? 'Trending up' : 'Finished strong'}
+          {leads ? 'Explore all players' : scheduled ? 'Players by window value' : scheduleError ? 'Trending up' : 'Finished strong'}
           {leads && <span className="ml-2 text-xs font-normal tracking-normal normal-case">the window, open days, needs, filters and the full table ({list.length} players)</span>}
         </summary>
         <div className="mt-3">
-          <p className="mb-3 text-xs text-muted">
-            The window value and the ranking on it:
-            <Unvalidated issue={762} what="The window value" />
-          </p>
+          {scheduled && !leads ? (
+            <p className="mb-3 text-sm" data-testid="pickups-table-label">
+              {rostered === -1 ? 'Free agents in your league' : 'Players'} by window value {windowText} in your league&apos;s {points ? 'scoring' : 'categories'}: games in
+              the window times last-ten production{points ? '' : ', plus each game’s matchup'}. A table to sort, not a pick list: the ranking is not yet judged
+              <Unvalidated issue={762} what="The window value's ranking" />
+            </p>
+          ) : (
+            <p className="mb-3 text-xs text-muted">
+              The window value and the ranking on it:
+              <Unvalidated issue={762} what="The window value" />
+            </p>
+          )}
           {inWeek && (
             <div data-testid="window-controls">
               <div className="mb-3 flex flex-wrap items-center gap-3">

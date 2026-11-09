@@ -21,6 +21,7 @@ import { judge } from '../lib/trade-fairness';
 import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openSide, type Suggestion, suggestTrades } from '../lib/trade-suggest';
 import { NO_WORTH, teamChange, timingNotes, type TradePlayer, tradeSide } from '../lib/trade-players';
 import { hasWeekGames, recentForm, type ValueUnit } from '../lib/week-value';
+import { SHOWS, showsBuyLow } from '../lib/visibility';
 import { BuySellCard } from './BuySellCard';
 import { describeSettings } from './LeagueParts';
 import { useEspnSync } from './LeagueSync';
@@ -270,7 +271,7 @@ export default function TradeAnalyzer() {
   const active = (t: number) => (setup.rosters[t] ?? []).filter((id) => !setup.il.includes(id));
   const open = openSide(give, get, restOf);
   const suggestions =
-    ready && hasRosters && partnerTeam >= 0
+    SHOWS.tradeSuggestions && ready && hasRosters && partnerTeam >= 0
       ? suggestTrades({
           give,
           get,
@@ -291,7 +292,7 @@ export default function TradeAnalyzer() {
         })
       : [];
   const targetSide: Side = get.length ? 'get' : 'give';
-  const nearest = ready && !hasRosters ? nearestInValue(targetSide === 'get' ? get : give, restOf, [...give, ...get]) : [];
+  const nearest = SHOWS.tradeSuggestions && ready && !hasRosters ? nearestInValue(targetSide === 'get' ? get : give, restOf, [...give, ...get]) : [];
   const nameOf = (id: string) => byId.get(id)?.full_name ?? id;
   const nameList = (ids: string[]) => ids.map(nameOf).join(' + ');
   const applySuggestion = (s: Suggestion) => {
@@ -406,13 +407,20 @@ export default function TradeAnalyzer() {
       }
     : null;
 
-  const hasChips = !!chipsAndTargets && (chipsAndTargets.chips.length > 0 || chipsAndTargets.targets.length > 0);
-  const hasSwings = !!swings && (swings.buyLow.length > 0 || swings.sellHigh.length > 0);
+  // only the calls that passed their check show (#936): buy low in an NBA league (ADR 0027); sell high
+  // (#903), buy low in the WNBA (#904), the chips (#896) and the finder (#888) failed
+  const shown = swings ? { ...swings, buyLow: showsBuyLow(league) ? swings.buyLow : [], sellHigh: SHOWS.sellHigh ? swings.sellHigh : [] } : null;
+  const hasChips = SHOWS.tradeChips && !!chipsAndTargets && (chipsAndTargets.chips.length > 0 || chipsAndTargets.targets.length > 0);
+  const hasSwings = !!shown && (shown.buyLow.length > 0 || shown.sellHigh.length > 0);
   const tabs: { id: Tab; label: string; title: string }[] = [
-    { id: 'build', label: 'Build', title: 'Pick the players each side gives and see the verdict' },
-    ...(standings ? [{ id: 'find' as const, label: 'Find', title: 'Trades across your league that win you categories' }] : []),
+    { id: 'build', label: 'Build', title: 'Pick the players each side gives and see what the trade does' },
+    ...(SHOWS.tradeFinder && standings ? [{ id: 'find' as const, label: 'Find', title: 'Trades across your league that win you categories' }] : []),
     ...(hasChips || hasSwings
-      ? [{ id: 'chips' as const, label: 'Buy & sell', title: 'Players to buy low and sell high on form, and the chips and targets your punts make' }]
+      ? [
+          SHOWS.sellHigh || hasChips
+            ? { id: 'chips' as const, label: 'Buy & sell', title: 'Players to buy low and sell high on form, and the chips and targets your punts make' }
+            : { id: 'chips' as const, label: 'Buy low', title: 'Players elsewhere in a slump, who would start for you' },
+        ]
       : []),
   ];
   // a tab whose tool has gone (no rival rosters, no punts) falls back to Build
@@ -444,7 +452,7 @@ export default function TradeAnalyzer() {
         </div>
       )}
 
-      {current === 'find' && standings && (
+      {current === 'find' && SHOWS.tradeFinder && standings && (
         <TradeFinder
           found={found}
           winWin={winWin}
@@ -462,9 +470,10 @@ export default function TradeAnalyzer() {
         />
       )}
 
-      {current === 'chips' && swings && hasSwings && (
+      {current === 'chips' && shown && hasSwings && (
         <BuySellCard
-          swings={swings}
+          swings={shown}
+          sellHigh={SHOWS.sellHigh}
           league={league}
           nameOf={nameOf}
           teamName={(team) => setup.names[team] ?? null}
@@ -502,7 +511,11 @@ export default function TradeAnalyzer() {
       )}
 
       {current === 'build' && ready && (
-        <Card title="Verdict" id="verdict" badge={<Unvalidated issue={886} what="The trade verdict" />}>
+        <Card
+          title={SHOWS.tradeVerdict ? 'Verdict' : 'What the trade does'}
+          id="verdict"
+          badge={SHOWS.tradeVerdict ? <Unvalidated issue={886} what="The trade verdict" /> : undefined}
+        >
           {weekAvailable && (
             <div className="mb-2">
               <Segmented
@@ -534,9 +547,19 @@ export default function TradeAnalyzer() {
               </div>
             )}
             {fair && (
-              <TradeScorecard fair={fair} impact={impact} needs={needs} objective={verdictBoth} partnerName={partnerName} h2h={h2h} nameList={nameList} threshold={threshold} />
+              <TradeScorecard
+                fair={fair}
+                impact={impact}
+                needs={needs}
+                objective={SHOWS.tradeVerdict ? verdictBoth : null}
+                calls={SHOWS.tradeVerdict}
+                partnerName={partnerName}
+                h2h={h2h}
+                nameList={nameList}
+                threshold={threshold}
+              />
             )}
-            {aiFacts && <ExplainTrade facts={aiFacts} />}
+            {SHOWS.explainTrade && aiFacts && <ExplainTrade facts={aiFacts} />}
             <details className="rounded-lg border border-line p-2" data-testid="trade-details">
               <summary className="cursor-pointer text-sm font-medium">The full breakdown: how this is worked out</summary>
               <div className="mt-2 grid gap-2">
@@ -546,7 +569,8 @@ export default function TradeAnalyzer() {
                 threshold={threshold}
                 h2h={h2h}
                 catCount={cats.length}
-                verdictBoth={verdictBoth}
+                verdictBoth={SHOWS.tradeVerdict ? verdictBoth : null}
+                calls={SHOWS.tradeVerdict}
                 partnerName={partnerName}
                 nameList={nameList}
                 weekMatch={weekMatch}
@@ -559,6 +583,7 @@ export default function TradeAnalyzer() {
             )}
             <TradeValueBreakdown
               fair={fair}
+              calls={SHOWS.tradeVerdict}
               settled={settledNote ? (lenses?.settled ?? null) : null}
               partnerName={partnerName}
               nameList={nameList}
@@ -579,7 +604,7 @@ export default function TradeAnalyzer() {
         </Card>
       )}
 
-      {current === 'build' && ready && hasRosters && (
+      {current === 'build' && ready && hasRosters && SHOWS.tradeSuggestions && (
         <TradeSuggestions
           suggestions={suggestions}
           byStandings={!!standings}
@@ -598,7 +623,7 @@ export default function TradeAnalyzer() {
         />
       )}
 
-      {current === 'build' && ready && !hasRosters && nearest.length > 0 && (
+      {current === 'build' && ready && !hasRosters && SHOWS.tradeSuggestions && nearest.length > 0 && (
         <Card title="Players worth about the same" id="suggestions">
           <ul className="flex flex-wrap gap-1" data-testid="trade-nearest">
             {nearest.map(({ id, diff }) => (

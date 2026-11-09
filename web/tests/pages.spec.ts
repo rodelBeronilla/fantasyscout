@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { expect, test } from './fixtures';
-import { MY_TEAM_SHOWS } from '../src/lib/visibility';
+import { SHOWS } from '../src/lib/visibility';
 
 /** ESPN's league API as recorded for the tests (#815): the views the import asks for, a made-up league. */
 const espnFixture = JSON.parse(readFileSync(new URL('./fixtures/espn/league.json', import.meta.url), 'utf8')) as {
@@ -1068,8 +1068,11 @@ test('/trade/ has no accessibility violations once a trade is on the page', asyn
 test('the fantasy pages sit flat in the nav, the data pages under one header that opens on its pages (#724)', async ({ page }) => {
   await page.goto('/');
   const nav = page.getByRole('navigation', { name: 'Primary' });
-  const flat = ['Rankings', 'My Team', 'Trade', 'Pickups', 'League', 'Draft', 'Notes'];
+  const flat = ['Rankings', 'My Team', 'Trade', 'Pickups', 'League', ...(SHOWS.draft ? ['Draft'] : []), ...(SHOWS.notes ? ['Notes'] : [])];
   for (const name of flat) await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
+  // a page that is off for now leaves the nav (#936)
+  if (!SHOWS.draft) await expect(nav.getByRole('link', { name: 'Draft', exact: true })).toHaveCount(0);
+  if (!SHOWS.notes) await expect(nav.getByRole('link', { name: 'Notes', exact: true })).toHaveCount(0);
   await expect(nav.getByRole('link', { name: 'Rankings', exact: true })).toHaveAttribute('aria-current', 'page');
   const data = page.getByTestId('nav-behind-the-data');
   await expect(data).not.toHaveAttribute('open', '');
@@ -1260,7 +1263,7 @@ test('a league built by hand takes its records and its first playoff week on the
 
   await page.goto('/team/?league=nba');
   await expect(page.getByTestId('standing-line')).toHaveText('2nd, 1 game back of 1st (5-3, as entered on the League page)');
-  if (!MY_TEAM_SHOWS.playoffs) return;
+  if (!SHOWS.playoffs) return;
   await expect(page.getByTestId('playoff-line')).toContainText(`games in the playoff weeks (${day(monday)} to ${day(end)})`);
   const details = page.getByTestId('playoff-details');
   await details.locator('summary').click();
@@ -1286,7 +1289,8 @@ test('the Trade page values both sides for the rest of the season and gives a ve
   await page.getByLabel('Add a player you get').fill(label(board[2]!));
   await expect(page.getByTestId('picked-give').locator('li')).toHaveCount(1);
   await expect(page.getByTestId('picked-get').locator('li')).toHaveCount(2);
-  await expect(page.getByTestId('trade-verdict')).toContainText('Favours you');
+  if (SHOWS.tradeVerdict) await expect(page.getByTestId('trade-verdict')).toContainText('Favours you');
+  else await expect(page.getByTestId('trade-verdict')).not.toContainText(/Favours|Even|Fair/);
   await expect(page.getByTestId('trade-spots')).toContainText('you would drop 1');
   await expect(page.getByTestId('trade-players').locator('tbody tr')).toHaveCount(5);
   await expect(page.getByTestId('trade-categories').locator('tbody tr')).toHaveCount(9);
@@ -1296,6 +1300,10 @@ test('the Trade page values both sides for the rest of the season and gives a ve
   // Without rosters, players worth about the same as the target are offered; one tap puts one on the other side.
   await page.getByTestId('picked-get').getByRole('button', { name: board[2]!.full_name }).click();
   const nearest = page.getByTestId('trade-nearest');
+  if (!SHOWS.tradeSuggestions) {
+    await expect(nearest).toHaveCount(0);
+    return;
+  }
   await expect(nearest.locator('li')).toHaveCount(8);
   await nearest.getByRole('button').first().click();
   await expect(page.getByTestId('picked-get').locator('li')).toHaveCount(1);
@@ -1318,7 +1326,12 @@ test("with league rosters set up, the Trade page picks from them and shows the m
   await page.getByTestId('roster-get').getByRole('checkbox').first().check();
   // A wide screen gets the table; a phone a stacked list whose buttons are on screen (#455).
   const width = page.viewportSize()!.width;
-  if (width >= 768) {
+  if (!SHOWS.tradeSuggestions) {
+    // the suggestions failed their check (#887): the manager picks the give side
+    await expect(page.getByTestId('trade-suggestions')).toHaveCount(0);
+    await expect(page.getByTestId('trade-suggestions-list')).toHaveCount(0);
+    await page.getByTestId('roster-give').getByRole('checkbox').first().check();
+  } else if (width >= 768) {
     const suggestions = page.getByTestId('trade-suggestions');
     await expect(suggestions.locator('tbody tr').first()).toBeVisible();
     // one team's roster alone has no rival to judge categories against: value only
@@ -1337,7 +1350,7 @@ test("with league rosters set up, the Trade page picks from them and shows the m
     expect(box.x + box.width).toBeLessThanOrEqual(width);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
-  await page.getByRole('button', { name: 'Use this trade' }).first().click();
+  if (SHOWS.tradeSuggestions) await page.getByRole('button', { name: 'Use this trade' }).first().click();
   await expect(page.getByTestId('picked-give').locator('li').first()).toBeVisible();
   await expect(page.getByTestId('trade-verdict')).toBeVisible();
   const cats = page.getByTestId('trade-categories');
@@ -1366,11 +1379,12 @@ test('with rival rosters in, the Trade page judges a trade by the categories it 
   await expect(verdict).toContainText(/of your 9 categories/);
   await expect(page.getByTestId('trade-roster-moves')).toContainText('To make room you would drop');
   await expect(page.getByTestId('trade-partner')).toContainText('For Team 2');
-  await expect(page.getByTestId('trade-verdict')).toContainText('In value');
+  if (SHOWS.tradeVerdict) await expect(page.getByTestId('trade-verdict')).toContainText('In value');
   await expect(page.getByTestId('trade-spots')).toHaveCount(0);
   await expect(page.getByTestId('trade-categories').locator('thead')).toContainText('Win chance');
   // both sides in the same depth (#682): the objective verdict, each team's needs, the partner's win chances
-  await expect(page.getByTestId('trade-objective')).toHaveText(/^(Win-win|Good for you only|Good for Team 2 only|Neither team)/);
+  if (SHOWS.tradeVerdict) await expect(page.getByTestId('trade-objective')).toHaveText(/^(Win-win|Good for you only|Good for Team 2 only|Neither team)/);
+  else await expect(page.getByTestId('trade-objective')).toHaveCount(0);
   await expect(page.getByTestId('trade-partner')).toContainText('expected categories a week');
   await expect(page.getByTestId('trade-needs').locator('thead')).toContainText('Team 2');
   await expect(page.getByTestId('trade-needs').locator('tbody tr')).toHaveCount(3);
@@ -1379,13 +1393,14 @@ test('with rival rosters in, the Trade page judges a trade by the categories it 
   await page.getByTestId('roster-get').getByRole('checkbox').nth(1).uncheck();
   await page.getByTestId('roster-give').getByRole('checkbox').first().uncheck();
   const width = page.viewportSize()!.width;
-  if (width >= 768) {
+  if (SHOWS.tradeSuggestions && width >= 768) {
     const head = page.locator('#suggestions');
     await expect(head).toContainText(/raise the categories you expect to win/);
   }
 });
 
 test('the trade finder lists trades across the league that win the manager categories, and loads one (#664)', async ({ page }) => {
+  test.skip(!SHOWS.tradeFinder, 'hidden until validated (#888)');
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   await page.goto('/league/');
@@ -1414,6 +1429,7 @@ test('the trade finder lists trades across the league that win the manager categ
 });
 
 test('with punts set, the Trade page lists the chips the league ranks above the build, and offers one (#671)', async ({ page }) => {
+  test.skip(!SHOWS.tradeChips, 'hidden until validated (#896)');
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   await page.goto('/league/');
@@ -1435,6 +1451,7 @@ test('with punts set, the Trade page lists the chips the league ranks above the 
 });
 
 test('Buy & sell lists your hot players to sell and slumping players elsewhere to buy, and loads one into a trade (#739)', async ({ page }) => {
+  test.skip(!SHOWS.sellHigh, 'hidden until validated (#903)');
   type Row = { player_id: string; full_name: string; team_abbreviation: string; position: string; [k: string]: unknown };
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as Row[];
   const cats = ['z_points', 'z_rebounds_total', 'z_assists', 'z_steals', 'z_blocks', 'z_three_pointers_made', 'z_field_goal_pct', 'z_free_throw_pct', 'z_turnovers'];
@@ -1536,15 +1553,16 @@ test('rosters on the League page give the board who is available, owners, Fit an
   await cards.nth(1).getByRole('button', { name: 'Add pasted players' }).click();
   await expect(cards.nth(1).getByTestId('roster')).toContainText(b ?? '');
   await page.goto('/team/');
-  if (MY_TEAM_SHOWS.power) await expect(page.getByTestId('team-strength')).toContainText('Rivals');
-  if (MY_TEAM_SHOWS.categories) await expect(page.getByTestId('category-profile')).toBeVisible();
+  if (SHOWS.power) await expect(page.getByTestId('team-strength')).toContainText('Rivals');
+  if (SHOWS.categories) await expect(page.getByTestId('category-profile')).toBeVisible();
   await page.goto('/');
   await expect(page.getByTestId('league-bar')).toContainText('Team 1 (2/10)');
   await expect(page.getByRole('radio', { name: 'Available' })).toHaveAttribute('aria-checked', 'true');
   await expect(rows.first()).toBeVisible();
   await expect(board.locator('tbody')).not.toContainText(a ?? '');
   await expect(board.locator('tbody')).not.toContainText(b ?? '');
-  await expect(board.locator('thead')).toContainText('Fit');
+  if (SHOWS.fit) await expect(board.locator('thead')).toContainText('Fit');
+  else await expect(board.locator('thead')).not.toContainText('Fit');
   await expect(board.getByTestId('tier-head').first()).toContainText('available');
   await page.getByRole('radio', { name: 'My team' }).click();
   await expect(rows).toHaveCount(2);
@@ -1569,7 +1587,7 @@ async function deepBench(page: Page, league: 'nba' | 'wnba'): Promise<string> {
 }
 
 test('with rosters set up, the board recommends roster upgrades from the available players and applies one', async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.swaps, 'hidden on My Team until validated (#895)');
+  test.skip(!SHOWS.swaps, 'hidden on My Team until validated (#895)');
   await page.goto('/');
   const board = page.getByTestId('board');
   const rows = board.locator('tbody tr[data-player]');
@@ -1608,7 +1626,7 @@ test('with rosters set up, the board recommends roster upgrades from the availab
 });
 
 test('the roster review can be judged for this fantasy week: recent form over the games left', async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.swaps, 'hidden on My Team until validated (#895)');
+  test.skip(!SHOWS.swaps, 'hidden on My Team until validated (#895)');
   // A doctored NBA board: everyone has three games left this week except the best player on the board, who has none.
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { full_name: string | null; games_this_week: number | null }[];
   const weak = await deepBench(page, 'nba');
@@ -1711,7 +1729,7 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
   await expect(matchupCard.getByTestId('matchup-summary')).toContainText(/win [5-9] of 9 categories against Team 2/);
   // the call leads (#817): the count and the swing category, then the open days to stream it
   await expect(matchupCard.getByTestId('matchup-call')).toContainText(/^Winning [5-9], losing \d(, \d too close)?: .+ is the swing category\./);
-  if (MY_TEAM_SHOWS.streams) await expect(matchupCard.getByTestId('matchup-stream')).toHaveAttribute('href', /\/streamers\/\?league=nba&window=week&open=2026-11-0\d/);
+  if (SHOWS.streams) await expect(matchupCard.getByTestId('matchup-stream')).toHaveAttribute('href', /\/streamers\/\?league=nba&window=week&open=2026-11-0\d/);
   // a league entered here has no score so far
   await expect(matchupCard.getByTestId('matchup-basis')).toHaveText('The week projects from the games left: an ESPN import, or the Yahoo bookmark on the League page, brings the score so far.');
   // three players fill three of the ten slots, so each starts every game his team has left
@@ -1720,7 +1738,7 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
   await expect(matchupCard.getByTestId('matchup-row')).toHaveCount(9);
   await expect(matchupCard.getByTestId('matchup-row').filter({ hasText: 'TO' })).toContainText('loss');
   // a head-to-head review defaults to this week
-  if (MY_TEAM_SHOWS.swaps) await expect(page.getByTestId('upgrades').getByRole('radio', { name: 'This week' })).toHaveAttribute('aria-checked', 'true');
+  if (SHOWS.swaps) await expect(page.getByTestId('upgrades').getByRole('radio', { name: 'This week' })).toHaveAttribute('aria-checked', 'true');
   // the opponent survives a reload and can be cleared
   await page.reload();
   await expect(matchupCard.getByTestId('matchup-row')).toHaveCount(9);
@@ -1729,6 +1747,7 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
 });
 
 test('with rival rosters in, Fit weighs the categories by the league standings and the bar names the least likely wins (#662)', async ({ page }) => {
+  test.skip(!SHOWS.fit, 'hidden until validated (#868)');
   await page.goto('/');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');
   await expect(rows.first()).toBeVisible();
@@ -1858,7 +1877,7 @@ test("an ESPN import puts the players in ESPN's IR slot on the injured list (#87
 });
 
 test('a roster of the two best players is told it is optimized as is', async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.swaps, 'hidden on My Team until validated (#895)');
+  test.skip(!SHOWS.swaps, 'hidden on My Team until validated (#895)');
   await page.goto('/');
   const rows = page.getByTestId('board').locator('tbody tr[data-player]');
   await expect(rows.first()).toBeVisible();
@@ -1877,7 +1896,7 @@ test('a roster of the two best players is told it is optimized as is', async ({ 
 });
 
 test('My Team shows the chance of beating the league in each kept category, and says where to start when the team is empty (#712)', async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.categories, 'hidden on My Team until validated (the punts fix)');
+  test.skip(!SHOWS.categories, 'hidden on My Team until validated (the punts fix)');
   await page.goto('/team/');
   await expect(page.getByTestId('team-empty')).toContainText('Your team is empty');
   await page.goto('/');
@@ -1911,7 +1930,7 @@ test('My Team shows the chance of beating the league in each kept category, and 
 });
 
 test('Build your team lists targets and players to let go, each with a move and a link to the Trade page prefilled (#809)', async ({ page, isMobile }) => {
-  test.skip(!MY_TEAM_SHOWS.build, 'hidden on My Team until validated (#886)');
+  test.skip(!SHOWS.build, 'hidden on My Team until validated (#886)');
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   await page.goto('/league/');
@@ -1959,7 +1978,7 @@ test('Build your team lists targets and players to let go, each with a move and 
 });
 
 test('without rival rosters Build your team ranks targets by need-weighted value and says importing adds the deals; a points league has none (#809)', async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.build, 'hidden on My Team until validated (#886)');
+  test.skip(!SHOWS.build, 'hidden on My Team until validated (#886)');
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   await page.goto('/league/');
@@ -1985,7 +2004,7 @@ test('without rival rosters Build your team ranks targets by need-weighted value
 });
 
 test('My Team plans the week lineup under the league slots: starts, games lost to a full lineup, and open slots to stream (#735)', async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.lineup, 'hidden on My Team until validated (#759)');
+  test.skip(!SHOWS.lineup, 'hidden on My Team until validated (#759)');
   type Row = { player_id: string; full_name: string | null; team_id: string | null; team_abbreviation: string; position: string; injury_group: string | null };
   type Game = { game_date: string; days_ahead: number; home_team_id: string; away_team_id: string };
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
@@ -2021,6 +2040,7 @@ test('My Team plans the week lineup under the league slots: starts, games lost t
 });
 
 test('Pickups leads with the top three adds for the league, each with why and who to drop; the filters are one click down (#819)', async ({ page }) => {
+  test.skip(!SHOWS.topAdds, 'hidden until validated (#762)');
   const season = await leagueInSeason(page);
   test.skip(season?.league !== 'nba', 'the fixture NBA has no game in the next seven days');
   type Row = { player_id: string; full_name: string | null; team_abbreviation: string; position: string; rank_total: number };
@@ -2134,7 +2154,7 @@ test('Pickups opens with the need chips a link names, and keeps them in the addr
 });
 
 test('My Team names the stream that flips a losing category, and its links open Pickups with those needs (#818)', async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.streams, 'hidden on My Team until validated (#902)');
+  test.skip(!SHOWS.streams, 'hidden on My Team until validated (#902)');
   type Row = { player_id: string; full_name: string | null; team_abbreviation: string; position: string; rank_total: number; injury_group: string | null };
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
   // the fixture build's own day, so My Team's week and Pickups' window are the same days
@@ -2208,7 +2228,7 @@ test('the lineup setting resets with the rest, and a Pickups link with a day out
 });
 
 test('My Team ranks every team by projection: matchup win rates in head-to-head, roto points in rotisserie (#743)', async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.power, 'hidden on My Team until validated (#867)');
+  test.skip(!SHOWS.power, 'hidden on My Team until validated (#867)');
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   await page.goto('/league/');
@@ -2241,7 +2261,7 @@ test('My Team ranks every team by projection: matchup win rates in head-to-head,
 });
 
 test("My Team says who takes an out player's minutes, and pairs the IL move with the pickup (#820)", async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.minutes, 'hidden on My Team until validated (#763)');
+  test.skip(!SHOWS.minutes, 'hidden on My Team until validated (#763)');
   const rows = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as {
     player_id: string;
     full_name: string | null;
@@ -2306,7 +2326,7 @@ test("My Team says who takes an out player's minutes, and pairs the IL move with
 });
 
 test("My Team leads a head-to-head league with its playoff odds, its games in the playoff weeks and the free agent to target (#821)", async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.playoffs, 'hidden on My Team until validated (#907)');
+  test.skip(!SHOWS.playoffs, 'hidden on My Team until validated (#907)');
   type Row = { player_id: string; team_id: string | null };
   type TeamWeek = { team_id: string; week_start: string; week_end: string; games: number; game_dates: string | null };
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
@@ -2396,6 +2416,7 @@ test('My Team suggests IL moves from the board availability and applies them', a
 });
 
 test('a draft on the Draft page snakes pick by pick, here and on the board, with undo', async ({ page }) => {
+  test.skip(!SHOWS.draft, 'hidden until validated (#760)');
   await page.goto('/league/');
   await page.getByLabel('Teams in the league').fill('4');
   await expect(page.getByTestId('draft-panel')).toHaveCount(0);
@@ -2425,6 +2446,7 @@ test('a draft on the Draft page snakes pick by pick, here and on the board, with
 });
 
 test('the Draft page prices players for an auction; Rankings carries no price (#741, #825)', async ({ page }) => {
+  test.skip(!SHOWS.draft, 'hidden until validated (#760)');
   await page.goto('/');
   const board = page.getByTestId('board');
   await expect(board.locator('tbody tr[data-player]').first()).toBeVisible();
@@ -2436,6 +2458,7 @@ test('the Draft page prices players for an auction; Rankings carries no price (#
 });
 
 test('Rankings shows each player game range on demand, and the player page the range in the outlook (#747)', async ({ page }) => {
+  test.skip(!SHOWS.consistency, 'hidden until validated (#761)');
   await page.route('**/board/wnba*.json', async (route) => {
     const body = (await (await route.fetch()).json()) as Record<string, unknown>[] | Record<string, unknown[]>;
     if (Array.isArray(body)) {
@@ -2621,7 +2644,7 @@ test("an ESPN league leads My Team with the real standings, the whole league and
   await expect(rows.nth(0)).toHaveText(/^1\s*Third\s*14-4-1\s*–$/);
   await expect(rows.nth(2)).toHaveText(/^3\s*Brick City\s*10-8-1\s*4$/);
   // the projected table is one click down, and needs no note to import from ESPN
-  if (!MY_TEAM_SHOWS.power) return;
+  if (!SHOWS.power) return;
   const power = page.getByTestId('power-details');
   await expect(power.getByTestId('league-table')).toBeHidden();
   await power.locator('summary').click({ position: { x: 4, y: 4 } });
@@ -2681,7 +2704,7 @@ test("an ESPN points league's matchup starts from the fantasy points so far (#87
 });
 
 test('a head-to-head points league gets playoff odds from its fantasy points, badged as not yet validated (#877)', async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.playoffs, 'hidden on My Team until validated (#913)');
+  test.skip(!SHOWS.playoffs, 'hidden on My Team until validated (#913)');
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];
   await page.clock.setFixedTime(new Date('2026-11-02T16:00:00Z'));
   // four teams of three, entered by hand: two of them make the playoffs
@@ -2795,15 +2818,17 @@ test('an ESPN league edited by hand is not re-synced until the manager asks, and
 });
 
 test('/league/ and /draft/ have no accessibility violations', async ({ page }) => {
-  await page.goto('/draft/');
-  await page.getByRole('button', { name: 'Start a draft' }).click();
-  const best = page.getByTestId('best-available').locator('li');
-  await best.first().getByRole('button', { name: /^Draft / }).click();
-  await best.first().getByRole('button', { name: /^Draft / }).click();
-  await expect(page.getByTestId('pick-log').locator('li')).toHaveCount(2);
-  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([]);
+  if (SHOWS.draft) {
+    await page.goto('/draft/');
+    await page.getByRole('button', { name: 'Start a draft' }).click();
+    const best = page.getByTestId('best-available').locator('li');
+    await best.first().getByRole('button', { name: /^Draft / }).click();
+    await best.first().getByRole('button', { name: /^Draft / }).click();
+    await expect(page.getByTestId('pick-log').locator('li')).toHaveCount(2);
+    expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([]);
+  }
   await page.goto('/league/');
-  await expect(page.getByTestId('draft-link')).toBeVisible();
+  if (SHOWS.draft) await expect(page.getByTestId('draft-link')).toBeVisible();
   await expect(page.getByTestId('team-card').first()).toBeVisible();
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()).violations).toEqual([]);
 });
@@ -2831,7 +2856,7 @@ test('the League page leads with the Yahoo import only while the league is empty
   // the league table is on My Team now
   await expect(page.getByTestId('team-strength')).toHaveCount(0);
   await page.goto('/team/?league=nba');
-  if (MY_TEAM_SHOWS.power) await expect(page.getByTestId('team-strength').locator('tbody tr')).toHaveCount(4);
+  if (SHOWS.power) await expect(page.getByTestId('team-strength').locator('tbody tr')).toHaveCount(4);
 });
 
 test('the Yahoo import shows as coming soon until it is live, then imports settings, teams and rosters', async ({ page }) => {
@@ -3191,6 +3216,7 @@ test("streamers follow the league's scoring and size", async ({ page }) => {
 });
 
 test("an injured player's tooltip says how many games players listed like this went on to miss", async ({ page }) => {
+  test.skip(!SHOWS.injuryEstimate, 'hidden until validated (#770)');
   await page.route('**/board/wnba.json', async (route) => {
     const rows = (await (await route.fetch()).json()) as Record<string, unknown>[];
     await route.fulfill({
@@ -3424,6 +3450,7 @@ test('not signed in, the League page offers the Yahoo sign-in that saves the lea
 });
 
 test('the scouting notes show each note with the numbers it states traced to the board history, the rejections and the eval (phase 7)', async ({ page }) => {
+  test.skip(!SHOWS.notes, 'hidden until validated (#879)');
   const rowRef = 'fct_board_history/wnba/1628932/2026-09-01..2026-09-08';
   await page.route('**/data/notes/wnba.json', (route) =>
     route.fulfill({
@@ -3471,6 +3498,7 @@ test('the scouting notes show each note with the numbers it states traced to the
 });
 
 test('before the first notes, the notes page says when they come (phase 7)', async ({ page }) => {
+  test.skip(!SHOWS.notes, 'hidden until validated (#879)');
   await page.goto('/notes/');
   await expect(page.getByTestId('notes-none')).toContainText('drafted every Monday');
 });
@@ -3502,14 +3530,24 @@ test('a trade the market calls lopsided is not called even: the lenses are shown
   await expect(warning).toBeVisible();
   await expect(warning).toContainText('terrible trade for you');
   await expect(warning).toContainText("ESPN's ranks");
-  await expect(page.getByTestId('trade-fairness')).toContainText('Not clearly even');
-  await expect(page.getByTestId('trade-fairness-market')).toContainText('partner +');
-  await expect(page.getByTestId('trade-fairness-disagree')).toHaveCount(1);
-  // the scorecard leads with the call and the lenses (#694)
+  // the market's numbers are data; its lean is a call (#886)
+  await expect(page.getByTestId('trade-fairness-market')).toContainText('The market (ESPN ranks, priced on this board): you give');
+  if (SHOWS.tradeVerdict) await expect(page.getByTestId('trade-fairness-market')).toContainText('partner +');
+  else await expect(page.getByTestId('trade-fairness')).not.toContainText(/(you|partner) \+\d+%/);
+  // the bad call passed its check (ADR 0023) and shows; "even" and the lenses' leans failed (#886)
   await expect(page.getByTestId('trade-call')).toHaveText('Bad for you');
-  await expect(page.getByTestId('lens-market')).toContainText('Team 2 +');
-  await expect(page.getByTestId('lens-value')).toContainText('you +');
   await expect(page.getByTestId('trade-verdict')).not.toContainText('About even');
+  if (SHOWS.tradeVerdict) {
+    await expect(page.getByTestId('trade-fairness')).toContainText('Not clearly even');
+    await expect(page.getByTestId('trade-fairness-disagree')).toHaveCount(1);
+    await expect(page.getByTestId('lens-market')).toContainText('Team 2 +');
+    await expect(page.getByTestId('lens-value')).toContainText('you +');
+  } else {
+    await expect(page.getByTestId('trade-fairness')).not.toContainText('even');
+    await expect(page.getByTestId('trade-fairness-disagree')).toHaveCount(0);
+    await expect(page.getByTestId('lens-market')).toHaveCount(0);
+    await expect(page.getByTestId('lens-value')).toHaveCount(0);
+  }
 });
 
 for (const league of ['wnba', 'nba']) {
@@ -3542,6 +3580,7 @@ test('UI polish: a phone sees each value beside the name, a day without games ha
 });
 
 test('live AI: a signed-in manager has the trade explained from its own numbers; others are asked to sign in (#702)', async ({ page }) => {
+  test.skip(!SHOWS.explainTrade, 'hidden until validated (#886)');
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   let sent: { facts?: Record<string, unknown> } = {};
@@ -3659,7 +3698,7 @@ test('the player picker finds a player from part of a name and Enter adds the be
 
 // Columns the export ships are shown (#463): games played beside Min (5) on Streamers, and the
 // season's z-scores beside the last twenty and last ten games' on the player page.
-test('the player page says where the player stands in your league and takes the next step: add, or trade for (#726)', async ({ page }) => {
+test('the player page says where the player stands in your league and takes the next step: add, or evaluate a trade (#726)', async ({ page }) => {
   const board = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as { player_id: string; full_name: string; team_abbreviation: string; position: string }[];
   const label = (p: (typeof board)[number]) => `${p.full_name} · ${p.team_abbreviation} · ${p.position}`;
   const player = board.find((r) => r.player_id === '1628932')!;
@@ -3677,15 +3716,16 @@ test('the player page says where the player stands in your league and takes the 
   await expect(status).toContainText('Available in your league');
   await status.getByRole('button', { name: 'Add to Team 1' }).click();
   await expect(status).toContainText('On your team');
-  await expect(status.getByRole('link', { name: 'Offer in a trade' })).toHaveAttribute('href', '/trade/?league=wnba&give=1628932');
-  // on another team: Trade for opens the Trade page with the player asked for and that team as the partner
+  await expect(status.getByRole('link', { name: 'Evaluate a trade' })).toHaveAttribute('href', '/trade/?league=wnba&give=1628932');
+  // on another team: Evaluate a trade opens the Trade page with the player asked for and that team as the partner
   await page.goto('/league/');
   const mine = page.getByTestId('team-card').nth(0).getByTestId('roster').locator('li').filter({ hasText: player.full_name });
   await mine.getByRole('button', { name: /^Remove / }).click();
   await page.getByLabel('Add a player to Team 2', { exact: true }).fill(label(player));
   await page.goto('/p/wnba/1628932/');
   await expect(status).toContainText('On Team 2');
-  await status.getByRole('link', { name: /^Trade for / }).click();
+  await expect(status).not.toContainText('Trade for');
+  await status.getByRole('link', { name: 'Evaluate a trade' }).click();
   await expect(page).toHaveURL(/\/trade\/\?league=wnba&get=1628932$/);
   await expect(page.getByTestId('picked-get')).toContainText(player.full_name);
   await expect(page.getByLabel('Trade partner')).toHaveValue('1');
@@ -3756,10 +3796,10 @@ test('every feature not yet backtested says so and links the issue that will val
   await page.goto('/');
   await expect(page.getByTestId('board').locator('tbody tr[data-player]').first()).toBeVisible();
   const status = page.getByTestId('validation-status');
-  await expect(status.getByTestId('unvalidated')).toHaveCount(3);
-  for (const [issue, label] of [[754, 'value'], [868, 'Fit'], [761, 'consistency']] as const) {
-    await expect(status.locator(`a[href$="/issues/${issue}"]`)).toHaveText(label);
-  }
+  // a hidden feature has no badge: it is not on the page (#936)
+  const badged = ([[754, 'value', true], [868, 'Fit', SHOWS.fit], [761, 'consistency', SHOWS.consistency]] as const).filter(([, , shown]) => shown);
+  await expect(status.getByTestId('unvalidated')).toHaveCount(badged.length);
+  for (const [issue, label] of badged) await expect(status.locator(`a[href$="/issues/${issue}"]`)).toHaveText(label);
   await page.goto('/streamers/');
   await expect(page.locator('#trending').getByTestId('unvalidated')).toHaveAttribute('href', /\/issues\/762$/);
   await page.goto('/p/wnba/1628932/');
@@ -3877,7 +3917,7 @@ function notesFile(league: 'nba' | 'wnba', playerId: string, note: Record<string
 }
 
 test("a flagged player's note leads with its call on My Team, marks a change and is withdrawn when contradicted (#823, #879)", async ({ page }) => {
-  test.skip(!MY_TEAM_SHOWS.notes, 'hidden on My Team until validated (#879)');
+  test.skip(!SHOWS.notes, 'hidden on My Team until validated (#879)');
   // a day with no games in the fixture schedule: no Today card, so the line sits in the roster
   await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
   const copy = { version: 7, teams: 4, rosterSpots: 13, scoring: 'cats9', format: 'roto', punts: [], rosters: [['1630169', '203999'], [], [], []], mine: 0, il: [], drafting: false, picks: [], opponent: null };
@@ -3935,6 +3975,7 @@ test("a flagged player's note leads with its call on My Team, marks a change and
 });
 
 test("the board shows a flagged player's note in a row under his, in view on a phone (#879)", async ({ page }) => {
+  test.skip(!SHOWS.notes, 'hidden until validated (#879)');
   await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
   await page.route('**/data/notes/players/nba.json', (route) => route.fulfill({ json: notesFile('nba', '1630169', {}) }));
   await page.setViewportSize({ width: 390, height: 844 });
@@ -3957,6 +3998,7 @@ test("the board shows a flagged player's note in a row under his, in view on a p
 });
 
 test("the player page leads with a flagged player's note, before the outlook (#879)", async ({ page }) => {
+  test.skip(!SHOWS.notes, 'hidden until validated (#879)');
   await page.clock.setFixedTime(new Date('2026-12-20T21:00:00Z'));
   // Aliyah Boston is listed Out in the fixture
   await page.route('**/data/notes/players/wnba.json', (route) => route.fulfill({ json: notesFile('wnba', '1641648', {}) }));

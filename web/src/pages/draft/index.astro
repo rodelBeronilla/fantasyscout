@@ -1,19 +1,37 @@
 ---
 import LeagueSetup from '../../components/LeagueSetup';
 import Base from '../../layouts/Base.astro';
+import { href } from '../../lib/site';
+import { SHOWS } from '../../lib/visibility';
+
+// The draft is off in season (#936): the page sends its visitor to Rankings, which says when it returns.
+const rankings = href('/?from=draft');
 ---
 
-<Base title="Draft" description="Run a snake draft on your league, pick by pick, with the best available players by value under your league's scoring.">
-  <section>
-    <h1 class="text-2xl font-semibold tracking-tight">
-      Draft <span class="ml-1 align-middle rounded-full border border-accent px-2 py-0.5 text-xs font-medium text-accent">Coming soon</span>
-    </h1>
-    <p class="mt-1 max-w-3xl text-sm text-muted">
-      A full draft room is coming for the next season's drafts. Today it is a snake draft you run by hand: teams pick in
-      the League page's order, the order reverses every round, and every pick can be undone.
-    </p>
-    <div class="mt-6">
-      <LeagueSetup mode="draft" client:only="react" />
-    </div>
-  </section>
-</Base>
+{
+  SHOWS.draft ? (
+    <Base title="Draft" description="Run a snake draft on your league, pick by pick, with the best available players by value under your league's scoring.">
+      <section>
+        <h1 class="text-2xl font-semibold tracking-tight">
+          Draft <span class="ml-1 align-middle rounded-full border border-accent px-2 py-0.5 text-xs font-medium text-accent">Coming soon</span>
+        </h1>
+        <p class="mt-1 max-w-3xl text-sm text-muted">
+          A full draft room is coming for the next season's drafts. Today it is a snake draft you run by hand: teams pick in
+          the League page's order, the order reverses every round, and every pick can be undone.
+        </p>
+        <div class="mt-6">
+          <LeagueSetup mode="draft" client:only="react" />
+        </div>
+      </section>
+    </Base>
+  ) : (
+    <Base title="Draft" description="Draft tools return before the 2027-28 drafts." redirect={rankings}>
+      <section>
+        <h1 class="text-2xl font-semibold tracking-tight">Draft</h1>
+        <p class="mt-1 text-sm text-muted" data-testid="paused">
+          Draft tools return before the 2027-28 drafts. <a href={rankings} class="underline underline-offset-4">Rankings</a> values every player for your league.
+        </p>
+      </section>
+    </Base>
+  )
+}

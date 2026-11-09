@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { entries } from '../lib/schema-page';
+import { SHOWS } from '../lib/visibility';
 
 /**
  * The static pages, one URL each, built from the pages folder so a new page joins without a list to
@@ -15,6 +16,8 @@ export const GET: APIRoute = () => {
     .map((file) => file.replace(/^\.\//, '').replace(/(^|\/)index\.astro$/, '/').replace(/\.astro$/, '/'))
     .map((route) => (route.startsWith('/') ? route : `/${route}`))
     .filter((route) => !['/404/', '/sql/', '/p/'].includes(route) && !route.includes('['))
+    // a page that is off for now only sends its visitor to Rankings (#936)
+    .filter((route) => (route !== '/draft/' || SHOWS.draft) && (route !== '/notes/' || SHOWS.notes))
     .concat(entries.map((e) => `/schema/${e.name}/`))
     .sort();
   const urls = routes.map((r) => `  <url><loc>${SITE}${r}</loc><changefreq>daily</changefreq></url>`).join('\n');

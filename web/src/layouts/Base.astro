@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import { BUILD_ID, LEAGUES, REPO_URL, href } from '../lib/site';
+import { SHOWS } from '../lib/visibility';
 
 interface Props {
   title: string;
@@ -11,9 +12,14 @@ interface Props {
    * data/current/, with {league} for the league.
    */
   preload?: readonly string[];
+  /**
+   * A page that is off for now (#936) sends its visitor here at once: the address of the page that
+   * says why. The page keeps a link for a browser that does not follow the refresh.
+   */
+  redirect?: string;
 }
 
-const { title, description, preload } = Astro.props;
+const { title, description, preload, redirect } = Astro.props;
 const currentBase = href('data/current/');
 
 // The nav (#724): the fantasy pages flat, in the order a manager uses them, and the pages about the
@@ -25,8 +31,9 @@ const nav: { label: string; path?: string; items?: readonly (readonly [string, s
   { label: 'Trade', path: '/trade/' },
   { label: 'Pickups', path: '/streamers/' },
   { label: 'League', path: '/league/' },
-  { label: 'Draft', path: '/draft/' },
-  { label: 'Notes', path: '/notes/' },
+  // Draft and Notes are off for now (#936): the draft until the 2027-28 drafts, the notes until their calls are judged
+  ...(SHOWS.draft ? [{ label: 'Draft', path: '/draft/' }] : []),
+  ...(SHOWS.notes ? [{ label: 'Notes', path: '/notes/' }] : []),
   {
     label: 'Behind the data',
     items: [
@@ -56,6 +63,8 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title} · FantasyScout</title>
     <meta name="description" content={description} />
+    {redirect && <meta http-equiv="refresh" content={`0; url=${redirect}`} />}
+    {redirect && <meta name="robots" content="noindex" />}
     <link rel="canonical" href={canonical} />
     <meta property="og:site_name" content="FantasyScout" />
     <meta property="og:type" content="website" />

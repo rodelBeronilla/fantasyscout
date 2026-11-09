@@ -52,6 +52,7 @@ export function TradeScorecard({
   impact,
   needs,
   objective,
+  calls,
   partnerName,
   h2h,
   nameList,
@@ -61,6 +62,11 @@ export function TradeScorecard({
   impact: TradeImpact | null;
   needs: { mine: TeamNeeds; partner: TeamNeeds } | null;
   objective: Objective | null;
+  /**
+   * The verdict's calls show: "fair", "favours" and the value and market leans. They failed their
+   * check (#886), so only "Bad for you" shows, beside the warning (ADR 0023).
+   */
+  calls: boolean;
   partnerName: string;
   h2h: boolean;
   nameList: (ids: string[]) => string;
@@ -85,8 +91,10 @@ export function TradeScorecard({
         neither: 'Neither team gains categories.',
       }[objective]
     : null;
+  const callShown = calls || call === 'bad';
   return (
     <div className="grid gap-3" data-testid="trade-scorecard">
+      {callShown && (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className={`rounded-full border-2 px-3 py-0.5 text-sm font-semibold ${TONE[call]}`} data-testid="trade-call">
           {{ fair: 'Fair', you: 'Favours you', partner: `Favours ${partnerName}`, judgment: 'Judgment call', bad: 'Bad for you' }[call]}
@@ -94,7 +102,8 @@ export function TradeScorecard({
         <p className="text-base">{headline[call]}</p>
         {both && <p className="text-sm text-muted">{both}</p>}
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      )}
+      <div className={`grid gap-2 ${calls ? 'grid-cols-3' : 'grid-cols-1'}`}>
         {impact && fair.categories !== null ? (
           <Tile
             testid="lens-categories"
@@ -114,6 +123,7 @@ export function TradeScorecard({
         ) : (
           <Tile testid="lens-categories" label="Your categories" tone="text-muted" value="–" sub="Enter a second team's roster on the League page" />
         )}
+        {calls && (
         <Tile
           testid="lens-value"
           label="Projected value"
@@ -125,7 +135,8 @@ export function TradeScorecard({
             </>
           }
         />
-        {fair.market ? (
+        )}
+        {calls && (fair.market ? (
           <Tile
             testid="lens-market"
             label="The market"
@@ -135,7 +146,7 @@ export function TradeScorecard({
           />
         ) : (
           <Tile testid="lens-market" label="The market" tone="text-muted" value="–" sub="ESPN ranks none of these players" />
-        )}
+        ))}
       </div>
       {impact && needs && (
         <div className="table-scroll overflow-auto" tabIndex={0} role="region" aria-label="Both teams">

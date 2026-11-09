@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { fmt } from '../lib/format';
 import { IL_MIN_GAMES, type IlMoves as Moves } from '../lib/il-moves';
-import { MY_TEAM_SHOWS } from '../lib/visibility';
+import { SHOWS } from '../lib/visibility';
 import { Unvalidated } from './ui';
 
 const button = 'rounded border border-line px-2 py-0.5 text-xs hover:bg-bg';
@@ -37,7 +37,7 @@ export function IlMoves({
       {moves.toIl.length > 0 && (
         <div data-testid="il-candidates">
           <span className="text-muted">
-            {MY_TEAM_SHOWS.injuryEstimate ? `To the IL (expected to miss ${IL_MIN_GAMES}+ games): ` : 'To the IL (listed out on the injury report): '}
+            {SHOWS.injuryEstimate ? `To the IL (expected to miss ${IL_MIN_GAMES}+ games): ` : 'To the IL (listed out on the injury report): '}
           </span>
           {anyMinutes && <Unvalidated issue={763} what="Who takes an out player's minutes" />}
           <ul className="mt-1 grid gap-1">
@@ -45,7 +45,7 @@ export function IlMoves({
               <li key={id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5" data-player={id}>
                 {link(id)}
                 <span className="text-xs text-muted">
-                  {MY_TEAM_SHOWS.injuryEstimate ? `${fmt(missed(id), 1)} games${back(id) ? `, back ${back(id)}` : ''}` : back(id) ? `back ${back(id)}, per the report` : ''}
+                  {SHOWS.injuryEstimate ? `${fmt(missed(id), 1)} games${back(id) ? `, back ${back(id)}` : ''}` : back(id) ? `back ${back(id)}, per the report` : ''}
                 </span>
                 <button type="button" className={button} onClick={() => onToggle(id)} data-testid="il-move">
                   Move to IL
