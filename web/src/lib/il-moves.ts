@@ -24,6 +24,23 @@ export const IL_MIN_GAMES: number = PARAMS['il.min_games'];
 
 const LISTED_OUT = new Set(['out', 'doubtful']);
 
+/**
+ * The IL moves from the injury report alone, no estimate (#927): a player the report lists out goes
+ * on the IL, since the spot he frees costs nothing while he cannot play, and one on the IL comes
+ * off once the report no longer lists him out or doubtful. My Team uses this until the games-missed
+ * estimate and its threshold are judged (#763).
+ */
+export function ilMovesByListing(rows: IlCandidate[], mine: string[], il: string[]): IlMoves {
+  const byId = new Map(rows.map((r) => [r.player_id, r]));
+  const onIl = new Set(il);
+  const toIl = mine.filter((id) => !onIl.has(id) && byId.get(id)?.injury_group === 'out');
+  const back = mine.filter((id) => {
+    const row = byId.get(id);
+    return onIl.has(id) && !!row && !LISTED_OUT.has(row.injury_group ?? '');
+  });
+  return { toIl, back };
+}
+
 export function ilMoves(rows: IlCandidate[], mine: string[], il: string[], minGames = IL_MIN_GAMES): IlMoves {
   const byId = new Map(rows.map((r) => [r.player_id, r]));
   const onIl = new Set(il);
