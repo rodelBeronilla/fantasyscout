@@ -3,6 +3,7 @@ import Diagram from '../../components/Diagram.astro';
 import Base from '../../layouts/Base.astro';
 import schema from '../../generated/schema.json';
 import { dailyRun, dataFlowCollect, dataFlowPublish, deploymentCollect, deploymentPublish, valueActivity } from '../../lib/pipeline-diagrams';
+import { checkHref, checksHref } from '../../lib/schema-page';
 import { href } from '../../lib/site';
 
 interface Model {
@@ -428,14 +429,14 @@ const deployLegend =
           dbt builds and tests together, layer by layer, so a failing test skips the models downstream of it. The build runs{' '}
           {schema.generic_tests} column tests (keys, not null, relationships, accepted values), all blocking,{' '}
           {unitTests.length} dbt unit tests that pin logic on hand-made rows, and {checks.length}{' '}
-          <a href={href('/schema/#checks')} class={link}>data-quality checks</a>.
+          <a href={checksHref} class={link}>data-quality checks</a>.
         </p>
         <ul class="mt-2 list-disc space-y-1 pl-5">
           <li>
             <strong>{errorChecks.length} blocking:</strong>{' '}
             {errorChecks.map((c, i) => (
               <>
-                {i > 0 && ', '}<a href={href(`/schema/#check-${c.name}`)} class={link}><code>{c.name}</code></a>
+                {i > 0 && ', '}<a href={checkHref(c.name)} class={link}><code>{c.name}</code></a>
               </>
             ))}. The last fails only in a chaos drill, to prove the gate and the incident path.
           </li>
@@ -443,7 +444,7 @@ const deployLegend =
             <strong>{warnChecks.length} warnings</strong>, reported and never blocking:{' '}
             {warnChecks.map((c, i) => (
               <>
-                {i > 0 && ', '}<a href={href(`/schema/#check-${c.name}`)} class={link}><code>{c.name}</code></a>
+                {i > 0 && ', '}<a href={checkHref(c.name)} class={link}><code>{c.name}</code></a>
               </>
             ))}. Two cover injury links: <code>warn_injury_links</code> for ESPN's listing and{' '}
             <code>warn_official_injury_links</code> for the official report.
