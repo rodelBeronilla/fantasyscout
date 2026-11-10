@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Literal
 
 from ingest import complete
@@ -360,6 +360,77 @@ def games_in_window(
     ]
 
 
+# The counting stats a game's box score and the season game log must agree on, as (game-log
+# column, box-score statistic). Turnovers are left out: a team's total holds team turnovers
+# that no player is charged with. The publish gate holds the same sums (assert_box_closure).
+CLOSURE_STATS = (
+    ("PTS", "points"),
+    ("FGM", "fieldGoalsMade"),
+    ("FGA", "fieldGoalsAttempted"),
+    ("FG3M", "threePointersMade"),
+    ("FG3A", "threePointersAttempted"),
+    ("FTM", "freeThrowsMade"),
+    ("FTA", "freeThrowsAttempted"),
+    ("OREB", "reboundsOffensive"),
+    ("DREB", "reboundsDefensive"),
+    ("REB", "reboundsTotal"),
+    ("AST", "assists"),
+    ("STL", "steals"),
+    ("BLK", "blocks"),
+    ("PF", "foulsPersonal"),
+)
+# How far back a landed game is held against the game log. The league posts stat corrections
+# in the days after a game; anything older is for the resettle sweep.
+CORRECTION_DAYS = 14
+
+Totals = tuple[int, ...]
+
+
+def _count(value: object) -> int:
+    return int(value) if isinstance(value, int | float) else 0
+
+
+def gamelog_team_totals(payload: bytes) -> dict[tuple[str, str], Totals]:
+    """Each team-game's counting stats in a team ``leaguegamelog`` payload, by (game, team)."""
+    return {
+        (str(row.get("GAME_ID", "")), str(row.get("TEAM_ID", ""))): tuple(
+            _count(row.get(column)) for column, _ in CLOSURE_STATS
+        )
+        for row in parse_result_set(payload)
+    }
+
+
+def box_player_totals(payload: bytes) -> dict[str, Totals]:
+    """Each team's counting stats in a traditional box score, summed over its players."""
+    box = json.loads(payload).get("boxScoreTraditional") or {}
+    totals: dict[str, Totals] = {}
+    for side in ("homeTeam", "awayTeam"):
+        team = box.get(side) or {}
+        lines = [player.get("statistics") or {} for player in team.get("players") or []]
+        if team.get("teamId") is None or not lines:
+            continue
+        totals[str(team["teamId"])] = tuple(
+            sum(_count(line.get(stat)) for line in lines) for _, stat in CLOSURE_STATS
+        )
+    return totals
+
+
+def box_behind_the_log(
+    log_totals: dict[tuple[str, str], Totals], game_id: str, box_payload: bytes
+) -> bool:
+    """True when a landed box score no longer adds up to the game log's rows for its game.
+
+    The game log is landed again every run, so it has a late stat correction; a box score landed
+    before the correction does not. Only a team in both is compared, and a payload that cannot
+    be read is not behind: fetching it again is for a known difference, not for a doubt.
+    """
+    try:
+        players = box_player_totals(box_payload)
+    except (ValueError, AttributeError, TypeError):
+        return False
+    return any(log_totals.get((game_id, team), total) != total for team, total in players.items())
+
+
 def teams_in_payload(payload: bytes | None) -> set[str]:
     """Every team id in a payload's first result set (a season game log, the player directory).
 
@@ -397,16 +468,17 @@ class StatsIngestor:
         return self._now or datetime.now(UTC)
 
     def fetch(
-        self, request: Request, played: date | None = None
+        self, request: Request, played: date | None = None, *, again: bool = False
     ) -> tuple[LandResult | None, bytes | None]:
         """Land one request. Returns (result, body); result is None when it was skipped.
 
         A request is skipped when it already landed today, or, for a game played on ``played``,
-        when its payload is settled (landed at least two days after the game).
+        when its payload is settled (landed at least two days after the game). ``again`` asks
+        for a settled game once more, because the game log has moved past its box score.
         """
         league = self.planner.league
         scope = Scope(SOURCE, request.endpoint, league, self.planner.season)
-        if played is not None and self.landing.settled(scope, request.key, played):
+        if played is not None and not again and self.landing.settled(scope, request.key, played):
             return None, None
         if self.landing.already_landed_today(scope, request.key):
             return None, self.landing.read_latest(scope, request.key)
@@ -430,7 +502,12 @@ class StatsIngestor:
         return result, response.content
 
     def _try(
-        self, request: Request, summary: RunSummary, played: date | None = None
+        self,
+        request: Request,
+        summary: RunSummary,
+        played: date | None = None,
+        *,
+        again: bool = False,
     ) -> bytes | None:
         if (
             self.only is not None
@@ -439,7 +516,7 @@ class StatsIngestor:
         ):
             return None  # a replay limited to other keys
         try:
-            result, body = self.fetch(request, played)
+            result, body = self.fetch(request, played, again=again)
         except CircuitOpenError:
             raise  # the host stopped answering: stop the run rather than hammer it
         except Exception as exc:  # a failed request never fails the run
@@ -474,11 +551,23 @@ class StatsIngestor:
             else []
         )
         summary.games = len(games)
+        corrected = self._corrected(gamelog_body, until) if gamelog_body is not None else []
+        if corrected:
+            ids = ", ".join(game.game_id for game in corrected)
+            print(
+                f"corrections {SOURCE} {self.planner.league} {self.planner.season}: "
+                f"{len(corrected)} game{'' if len(corrected) == 1 else 's'} landed before a stat "
+                f"correction, to fetch again ({ids})",
+                flush=True,
+            )
+        again = {game.game_id for game in corrected}
+        in_window = {game.game_id for game in games}
         team_ids: set[str] = set()
         for game in games:
             team_ids |= game.team_ids
+        for game in [*games, *(g for g in corrected if g.game_id not in in_window)]:
             for request in self.planner.game_requests(game.game_id):
-                self._try(request, summary, played=game.game_date)
+                self._try(request, summary, played=game.game_date, again=game.game_id in again)
         # Tracking and hustle by game date, settled like the games of that date.
         for day in sorted({game.game_date for game in games}):
             for request in self.planner.day_requests(day):
@@ -492,3 +581,27 @@ class StatsIngestor:
         all_teams = team_ids | teams_in_payload(gamelog_body) | teams_in_payload(directory_body)
         for request in self.planner.roster_requests(all_teams):
             self._try(request, summary)
+
+    def _corrected(self, gamelog_body: bytes, until: date | None) -> list[GameRef]:
+        """Recent games whose landed box score the game log has moved past (a stat correction).
+
+        Looked for over the last ``CORRECTION_DAYS`` days whatever the run's window, since a
+        correction can be posted after a game has left it. A box score that cannot be read is
+        left alone: the check must never fail the run.
+        """
+        today = self._clock().date()
+        recent = games_in_window(
+            gamelog_body, since=today - timedelta(days=CORRECTION_DAYS), until=until
+        )
+        log_totals = gamelog_team_totals(gamelog_body)
+        behind: list[GameRef] = []
+        for game in recent:
+            box = self.planner.game_requests(game.game_id)[0]
+            scope = Scope(SOURCE, box.endpoint, self.planner.league, self.planner.season)
+            try:
+                landed = self.landing.read_latest(scope, box.key)
+            except Exception:  # a box score that cannot be read is not compared
+                continue
+            if landed is not None and box_behind_the_log(log_totals, game.game_id, landed):
+                behind.append(game)
+        return behind

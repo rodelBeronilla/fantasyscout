@@ -12,9 +12,13 @@ from ingest.http import League, Throttle, ThrottledClient
 from ingest.land import LandOptions, plan_lines
 from ingest.run import describe
 from ingest.stats import (
+    CLOSURE_STATS,
     TRACKING_MEASURES,
     StatsIngestor,
     StatsPlanner,
+    box_behind_the_log,
+    box_player_totals,
+    gamelog_team_totals,
     games_in_window,
     parse_result_set,
     season_label,
@@ -326,14 +330,56 @@ def test_progress_heartbeat_is_printed(tmp_path: Path, capsys: pytest.CaptureFix
         assert "progress" not in out
 
 
-def counting_client() -> tuple[ThrottledClient, dict[str, int]]:
-    """The fixture client, counting requests per endpoint."""
+BOX_GAME = "1022600330"  # the game the recorded box score is of
+PER_GAME = ("boxscoretraditionalv3", "playbyplayv3", "shotchartdetail")
+
+
+def gamelog_matching_the_box(box: bytes | None = None) -> bytes:
+    """The recorded game log, agreeing with the recorded box score (or with ``box``) on its game.
+
+    The recorded box score is cut to a few players, so it does not add up to the recorded log.
+    It is also served for every game; the other games' rows name other teams, so they have
+    nothing to compare.
+    """
+    log = json.loads(fixture("leaguegamelog"))
+    headers = log["resultSets"][0]["headers"]
+    sums = box_player_totals(box if box is not None else fixture("boxscoretraditionalv3"))
+    for row in log["resultSets"][0]["rowSet"]:
+        if row[headers.index("GAME_ID")] != BOX_GAME:
+            continue
+        team = str(row[headers.index("TEAM_ID")])
+        for (column, _), value in zip(CLOSURE_STATS, sums[team], strict=True):
+            row[headers.index(column)] = value
+    return json.dumps(log).encode()
+
+
+def box_with_one_more(stat: str) -> bytes:
+    """The recorded box score after a correction: one more of ``stat`` for a home player."""
+    box = json.loads(fixture("boxscoretraditionalv3"))
+    box["boxScoreTraditional"]["homeTeam"]["players"][0]["statistics"][stat] += 1
+    return json.dumps(box).encode()
+
+
+def counting_client(
+    payloads: dict[str, bytes] | None = None, *, box_game: bytes | None = None
+) -> tuple[ThrottledClient, dict[str, int]]:
+    """The fixture client, counting requests per endpoint.
+
+    ``payloads`` replaces an endpoint's recording; ``box_game`` is the box score served for the
+    game the recording is of, while every other game keeps the recording.
+    """
     calls: dict[str, int] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         endpoint = request.url.path.rsplit("/", 1)[-1]
         calls[endpoint] = calls.get(endpoint, 0) + 1
-        return httpx.Response(200, content=fixture_for(request))
+        if (
+            box_game is not None
+            and endpoint == "boxscoretraditionalv3"
+            and request.url.params.get("GameID") == BOX_GAME
+        ):
+            return httpx.Response(200, content=box_game)
+        return httpx.Response(200, content=(payloads or {}).get(endpoint) or fixture_for(request))
 
     client = ThrottledClient(
         Throttle(max_retries=0),
@@ -352,7 +398,7 @@ def test_a_finished_game_is_fetched_until_settled_then_left_alone(tmp_path: Path
     per_game = ("boxscoretraditionalv3", "playbyplayv3", "shotchartdetail")
 
     def run_on(day: date, *, full_refresh: bool = False) -> dict[str, int]:
-        client, calls = counting_client()
+        client, calls = counting_client({"leaguegamelog": gamelog_matching_the_box()})
         now = datetime(day.year, day.month, day.day, 12, tzinfo=UTC)
         landing = Landing(LocalBackend(tmp_path), ingest_date=day, full_refresh=full_refresh)
         summary = StatsIngestor(client, landing, planner, now=now).run()
@@ -367,6 +413,94 @@ def test_a_finished_game_is_fetched_until_settled_then_left_alone(tmp_path: Path
     assert later.get("leaguegamelog") == 1 and later.get("commonteamroster")
     refreshed = run_on(date(2026, 9, 28), full_refresh=True)
     assert all(refreshed.get(e) == games for e in per_game), refreshed
+
+
+def test_box_and_game_log_totals_are_compared_on_every_counting_stat_but_turnovers() -> None:
+    box = fixture("boxscoretraditionalv3")
+    sums = box_player_totals(box)
+    assert set(sums) == {"1611661317", "1611661319"}
+    assert "TOV" not in {column for column, _ in CLOSURE_STATS}
+    assert all(len(total) == len(CLOSURE_STATS) for total in sums.values())
+    log = gamelog_team_totals(gamelog_matching_the_box())
+    assert log[(BOX_GAME, "1611661317")] == sums["1611661317"]
+    assert not box_behind_the_log(log, BOX_GAME, box)
+    # The league credits one more steal: the log has it, the box landed before it does not.
+    corrected = gamelog_team_totals(gamelog_matching_the_box(box_with_one_more("steals")))
+    assert box_behind_the_log(corrected, BOX_GAME, box)
+    # A turnover moved is not a difference (a team's total holds turnovers no player has), and
+    # a game the log does not have, or a payload that is not a box score, cannot be compared.
+    assert not box_behind_the_log(log, BOX_GAME, box_with_one_more("turnovers"))
+    assert not box_behind_the_log(log, "1022600999", box)
+    assert not box_behind_the_log(corrected, BOX_GAME, b"not json")
+    assert not box_behind_the_log(corrected, BOX_GAME, b'{"boxScoreTraditional": null}')
+
+
+def run_stats(
+    tmp_path: Path,
+    day: date,
+    log: bytes,
+    *,
+    box_game: bytes | None = None,
+    since: date | None = None,
+) -> dict[str, int]:
+    """One run on ``day`` with the season game log ``log``; requests counted per endpoint."""
+    client, calls = counting_client({"leaguegamelog": log}, box_game=box_game)
+    now = datetime(day.year, day.month, day.day, 12, tzinfo=UTC)
+    landing = Landing(LocalBackend(tmp_path), ingest_date=day)
+    summary = StatsIngestor(client, landing, StatsPlanner("wnba", "2026"), now=now).run(
+        since=since, until=day
+    )
+    assert summary.ok, summary.failures
+    return calls
+
+
+def test_a_settled_game_the_game_log_has_moved_past_is_fetched_again(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The league corrects a stat days after the game: the log has it, the settled box does not."""
+    before = gamelog_matching_the_box()
+    for day in (date(2026, 9, 25), date(2026, 9, 26)):
+        run_stats(tmp_path, day, before)
+    settled = run_stats(tmp_path, date(2026, 9, 27), before)
+    assert not any(settled.get(e) for e in PER_GAME)
+    capsys.readouterr()
+    # The correction is posted. The game is out of the run's window by now, and still looked at.
+    corrected_box = box_with_one_more("steals")
+    after = gamelog_matching_the_box(corrected_box)
+    calls = run_stats(
+        tmp_path, date(2026, 10, 2), after, box_game=corrected_box, since=date(2026, 9, 26)
+    )
+    assert all(calls.get(e) == 1 for e in PER_GAME), calls
+    said = capsys.readouterr().out
+    assert "corrections stats wnba 2026: 1 game" in said and BOX_GAME in said
+    # The box landed now has the correction, so the next run leaves the game alone.
+    later = run_stats(
+        tmp_path, date(2026, 10, 3), after, box_game=corrected_box, since=date(2026, 9, 27)
+    )
+    assert not any(later.get(e) for e in PER_GAME)
+
+
+def test_a_correction_the_box_score_does_not_have_yet_is_asked_for_once_a_day(
+    tmp_path: Path,
+) -> None:
+    before = gamelog_matching_the_box()
+    for day in (date(2026, 9, 25), date(2026, 9, 26)):
+        run_stats(tmp_path, day, before)
+    # The log is corrected first; the box score still answers with the old numbers.
+    after = gamelog_matching_the_box(box_with_one_more("blocks"))
+    for _ in range(2):
+        calls = run_stats(tmp_path, date(2026, 10, 2), after, since=date(2026, 9, 26))
+    assert not any(calls.get(e) for e in PER_GAME), "asked once that day, not on every run"
+    again = run_stats(tmp_path, date(2026, 10, 3), after, since=date(2026, 9, 27))
+    assert all(again.get(e) == 1 for e in PER_GAME), again
+
+
+def test_a_correction_is_looked_for_only_in_the_last_two_weeks(tmp_path: Path) -> None:
+    for day in (date(2026, 9, 25), date(2026, 9, 26)):
+        run_stats(tmp_path, day, gamelog_matching_the_box())
+    after = gamelog_matching_the_box(box_with_one_more("blocks"))
+    late = run_stats(tmp_path, date(2026, 10, 20), after, since=date(2026, 10, 14))
+    assert not any(late.get(e) for e in PER_GAME), "an older game is the resettle sweep's job"
 
 
 def test_usage_and_misc_game_logs_are_one_call_per_season_in_both_leagues() -> None:

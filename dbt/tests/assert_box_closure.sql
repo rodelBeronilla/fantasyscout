@@ -3,7 +3,15 @@
 -- The player rows of a team-game add up to the team row for every counting stat except
 -- turnovers: the team total includes team turnovers (shot-clock and 8-second violations,
 -- inbound violations) that belong to no player, so turnovers are checked separately
--- (warn_team_turnovers).
+-- (warn_team_turnovers). A row that fails usually means the league corrected a stat after the
+-- game's box score settled: the season game log (the team row) is landed again every day, the
+-- box score (the player rows) is not. The ingestor fetches such a game again by itself, and
+-- the `differs` column names the stats that moved.
+{% set closed = [
+    'points', 'field_goals_made', 'field_goals_attempted', 'three_pointers_made',
+    'three_pointers_attempted', 'free_throws_made', 'free_throws_attempted', 'rebounds_offensive',
+    'rebounds_defensive', 'rebounds_total', 'assists', 'steals', 'blocks', 'fouls_personal',
+] %}
 with player_sums as (
 
     select
@@ -34,6 +42,12 @@ with player_sums as (
 
 select
     t.team_game_key,
+    concat_ws(
+        ', ',
+        {%- for stat in closed %}
+        case when t.{{ stat }} <> p.{{ stat }} then concat('{{ stat }}: team ', cast(t.{{ stat }} as string), ', players ', cast(p.{{ stat }} as string)) end{{ ',' if not loop.last }}
+        {%- endfor %}
+    ) as differs,
     t.points as team_points, p.points as player_points,
     t.rebounds_total as team_rebounds, p.rebounds_total as player_rebounds,
     t.assists as team_assists, p.assists as player_assists,
@@ -43,17 +57,6 @@ join player_sums as p
     on p.league = t.league and p.game_id = t.game_id and p.team_id = t.team_id
 where p.null_stats > 0
     or t.points is null or t.rebounds_total is null or t.assists is null or t.turnovers is null
-    or t.points <> p.points
-    or t.field_goals_made <> p.field_goals_made
-    or t.field_goals_attempted <> p.field_goals_attempted
-    or t.three_pointers_made <> p.three_pointers_made
-    or t.three_pointers_attempted <> p.three_pointers_attempted
-    or t.free_throws_made <> p.free_throws_made
-    or t.free_throws_attempted <> p.free_throws_attempted
-    or t.rebounds_offensive <> p.rebounds_offensive
-    or t.rebounds_defensive <> p.rebounds_defensive
-    or t.rebounds_total <> p.rebounds_total
-    or t.assists <> p.assists
-    or t.steals <> p.steals
-    or t.blocks <> p.blocks
-    or t.fouls_personal <> p.fouls_personal
+    {%- for stat in closed %}
+    or t.{{ stat }} <> p.{{ stat }}
+    {%- endfor %}

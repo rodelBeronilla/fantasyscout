@@ -35,7 +35,7 @@
    ]
   },
   {
-   "about": "The player rows of a team-game add up to the team row for every counting stat except turnovers: the team total includes team turnovers (shot-clock and 8-second violations, inbound violations) that belong to no player, so turnovers are checked separately (warn_team_turnovers).",
+   "about": "The player rows of a team-game add up to the team row for every counting stat except turnovers: the team total includes team turnovers (shot-clock and 8-second violations, inbound violations) that belong to no player, so turnovers are checked separately (warn_team_turnovers). A row that fails usually means the league corrected a stat after the game's box score settled: the season game log (the team row) is landed again every day, the box score (the player rows) is not. The ingestor fetches such a game again by itself, and the `differs` column names the stats that moved.",
    "name": "assert_box_closure",
    "reads": [
     "fct_player_game",
