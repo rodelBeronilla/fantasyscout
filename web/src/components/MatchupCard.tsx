@@ -116,7 +116,7 @@ export function Matchup({
   return (
     <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="matchup-h" data-testid="matchup">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="matchup-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+        <h2 id="matchup-h" className="label-caps">
           {/* each category's chance of being won passed its out-of-sample check (ADR 0026) */}
           This week&apos;s matchup
         </h2>

@@ -214,7 +214,7 @@ function Console() {
   return (
     <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
       <aside>
-        <h2 className="text-sm font-medium tracking-wide text-muted uppercase">Saved queries</h2>
+        <h2 className="label-caps">Saved queries</h2>
         <ul className="mt-2 grid gap-1">
           {SAVED_QUERIES.map((q) => (
             <li key={q.title}>
@@ -232,7 +232,7 @@ function Console() {
             </li>
           ))}
         </ul>
-        <h2 className="mt-4 text-sm font-medium tracking-wide text-muted uppercase">Tables</h2>
+        <h2 className="mt-4 label-caps">Tables</h2>
         <p className={`mt-1 text-xs text-muted ${views.length ? 'font-mono' : ''}`} data-testid="sql-views">
           {views.length ? views.join(', ') : 'Listed once the first query has loaded the engine.'}
         </p>
@@ -369,7 +369,7 @@ export default function SqlConsole() {
             {note}
           </p>
         )}
-        <a href={href('/auth/owner/start')} className="justify-self-start rounded border border-accent bg-accent px-3 py-1 text-accent-fg">
+        <a href={href('/auth/owner/start')} className="justify-self-start rounded-full border border-accent bg-accent px-4 py-1.5 font-semibold text-accent-fg">
           Sign in with Yahoo
         </a>
       </div>

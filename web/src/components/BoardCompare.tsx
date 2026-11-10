@@ -36,10 +36,10 @@ export function BoardCompare({
   return (
     <section className="min-w-0 rounded-lg border border-line bg-card p-3" aria-labelledby="compare-h" data-testid="compare">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="compare-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+        <h2 id="compare-h" className="label-caps">
           Compare ({compared.length}/{COMPARE_MAX})
         </h2>
-        <button type="button" onClick={onClear} className="rounded border border-line px-2 py-0.5 text-xs hover:bg-bg">
+        <button type="button" onClick={onClear} className="rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg">
           Clear
         </button>
       </div>

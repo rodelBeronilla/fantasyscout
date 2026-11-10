@@ -15,7 +15,7 @@ function SwingRow({ s, name, team, action, onAction }: { s: FormSwing; name: str
       <span className="text-xs text-muted" title="Value per game above replacement: the last ten games against the projection">
         {fmt(s.recent, 1)} lately vs {fmt(s.projected, 1)} projected
       </span>
-      <button type="button" className="rounded border border-line px-2 py-1 text-xs hover:bg-bg" onClick={onAction}>
+      <button type="button" className="rounded-full border border-line px-3 py-1 text-xs hover:bg-bg" onClick={onAction}>
         {action}
       </button>
     </li>

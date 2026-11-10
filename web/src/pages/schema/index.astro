@@ -80,7 +80,7 @@ const rows = 'mt-3 grid grid-cols-[minmax(0,1fr)] gap-2 *:min-w-0 *:rounded-lg *
   description="Every model in the lakehouse by layer: what it holds, its grain, how it is computed, its columns with types and tests, what it reads and which published files carry it."
 >
   <section>
-    <h1 class="text-2xl font-semibold tracking-tight">Schema</h1>
+    <h1 class="title-page">Schema</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">
       Every model in the lakehouse, generated from the dbt project: {models.length} models in {count(layers.length)} layers ({
         list(layers.map((l) => l.name))
@@ -145,7 +145,7 @@ const rows = 'mt-3 grid grid-cols-[minmax(0,1fr)] gap-2 *:min-w-0 *:rounded-lg *
     </section>
 
     <section id="er" class="mt-8">
-      <h2 class="text-lg font-semibold tracking-tight">Gold entity-relationship diagrams</h2>
+      <h2 class="title-section">Gold entity-relationship diagrams</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">
         What the app, the notebooks and the dashboards read, by subject area: facts, dimensions and marts (each header names its
         kind and has its own colour), with primary keys, foreign keys and natural keys. Every entity links to its row below.
@@ -170,7 +170,7 @@ const rows = 'mt-3 grid grid-cols-[minmax(0,1fr)] gap-2 *:min-w-0 *:rounded-lg *
     </section>
 
     <section id="lineage" class="mt-8">
-      <h2 class="text-lg font-semibold tracking-tight">Lineage</h2>
+      <h2 class="title-section">Lineage</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">
         Every model and what it is built from, left to right: the landing folders the ingestors write (each bronze model reads
         one through <code class="font-mono">landing_files(source, endpoint)</code>), the seeds, then bronze, silver, gold and ops.
@@ -209,7 +209,7 @@ const rows = 'mt-3 grid grid-cols-[minmax(0,1fr)] gap-2 *:min-w-0 *:rounded-lg *
     {
       layers.map((l) => (
         <section id={l.name} class="mt-8" data-testid={`layer-${l.name}`} data-schema-group>
-          <h2 class="text-lg font-semibold tracking-tight">{l.name}</h2>
+          <h2 class="title-section">{l.name}</h2>
           <p class="mt-1 max-w-3xl text-sm text-muted">{LAYER_ABOUT[l.name]}</p>
           {l.name === 'bronze' && (
             <div class="table-scroll mt-3 max-h-[60vh] overflow-auto" tabindex="0" role="region" aria-label="Bronze sources" data-testid="sources">
@@ -266,7 +266,7 @@ const rows = 'mt-3 grid grid-cols-[minmax(0,1fr)] gap-2 *:min-w-0 *:rounded-lg *
     }
 
     <section id="seeds" class="mt-8" data-schema-group>
-      <h2 class="text-lg font-semibold tracking-tight">Seeds</h2>
+      <h2 class="title-section">Seeds</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">Small reference tables kept in the repository and loaded by dbt.</p>
       <ul class={rows}>
         {
@@ -284,7 +284,7 @@ const rows = 'mt-3 grid grid-cols-[minmax(0,1fr)] gap-2 *:min-w-0 *:rounded-lg *
     </section>
 
     <section id="checks" class="mt-8 max-w-3xl" data-testid="checks-summary">
-      <h2 class="text-lg font-semibold tracking-tight">Checks and unit tests</h2>
+      <h2 class="title-section">Checks and unit tests</h2>
       <p class="mt-1 text-sm text-muted">
         {checks.length} data-quality checks run on the real data after every build ({errorChecks} of them close the publish gate
         when they fail), and {unitTests.length} dbt unit tests pin a model's logic on hand-made rows on every pull request.

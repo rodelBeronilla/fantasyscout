@@ -448,7 +448,7 @@ export default function Streamers() {
             Games ahead, matchups and the window value need it; the list below is sorted by minutes trend until it loads.
             Reload in a moment.
           </p>
-          <button type="button" className="mt-2 rounded border border-line px-3 py-1 text-sm" onClick={() => window.location.reload()}>
+          <button type="button" className="mt-2 rounded-full border border-line px-4 py-1 text-sm" onClick={() => window.location.reload()}>
             Reload
           </button>
         </div>
@@ -486,7 +486,7 @@ export default function Streamers() {
           if (leads && e.currentTarget.open !== exploreOpen) rememberExplore(e.currentTarget.open);
         }}
       >
-        <summary className="cursor-pointer text-sm font-medium tracking-wide text-muted uppercase" data-testid="explore-summary">
+        <summary className="cursor-pointer label-caps" data-testid="explore-summary">
           {leads ? 'Explore all players' : scheduled ? 'Players by window value' : scheduleError ? 'Trending up' : 'Finished strong'}
           {leads && <span className="ml-2 text-xs font-normal tracking-normal normal-case">the window, open days, needs, filters and the full table ({list.length} players)</span>}
         </summary>
@@ -560,10 +560,10 @@ export default function Streamers() {
                         className="rounded border border-line bg-bg px-2 py-1"
                       />
                     </label>
-                    <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 6) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
+                    <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 6) })} className="rounded-full border border-line px-3 py-1 text-xs hover:bg-bg">
                       Next week
                     </button>
-                    <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 4) })} className="rounded border border-line px-2 py-1 text-xs hover:bg-bg">
+                    <button type="button" onClick={() => pickPeriod({ from: nextMonday(start), to: addDays(nextMonday(start), 4) })} className="rounded-full border border-line px-3 py-1 text-xs hover:bg-bg">
                       Next week, Mon to Fri
                     </button>
                     {lastScheduled && period.to > lastScheduled && (
@@ -679,7 +679,7 @@ export default function Streamers() {
                 More columns
               </label>
               <span className="text-sm text-muted">{list.length} players</span>
-              <button type="button" onClick={exportCsv} className="rounded border border-line px-3 py-1 text-sm hover:bg-card" data-testid="streamers-csv">
+              <button type="button" onClick={exportCsv} className="rounded-full border border-line px-4 py-1 text-sm hover:bg-card" data-testid="streamers-csv">
                 Export CSV
               </button>
             </div>
@@ -706,7 +706,7 @@ export default function Streamers() {
             toggleWatched={toggleWatched}
           />
           {list.length > shown && (
-            <button type="button" onClick={() => setShown(shown + PAGE)} className="mt-3 rounded border border-line px-3 py-1 text-sm hover:bg-card">
+            <button type="button" onClick={() => setShown(shown + PAGE)} className="mt-3 rounded-full border border-line px-4 py-1 text-sm hover:bg-card">
               Show {Math.min(PAGE, list.length - shown)} more
             </button>
           )}
@@ -730,7 +730,7 @@ export default function Streamers() {
 
       {scheduleViews.length > 0 && (
         <details className="rounded-lg border border-line bg-card p-3" data-testid="schedule-card" id="schedule">
-          <summary className="cursor-pointer text-sm font-medium tracking-wide text-muted uppercase">
+          <summary className="cursor-pointer label-caps">
             Schedule:{' '}
             {[
               inWeek ? (periodTitle ?? (horizonChoice === 'week' ? 'games left this fantasy week' : `games in the next ${horizon} days`)) : null,

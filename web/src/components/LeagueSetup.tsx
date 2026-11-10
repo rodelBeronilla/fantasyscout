@@ -41,7 +41,7 @@ interface PlayerRowFields {
 type PlayerRow = ExportedRow<BoardColumn, PlayerRowFields>;
 
 const input = 'rounded border border-line bg-bg px-2 py-1 text-sm';
-const button = 'rounded border border-line px-2 py-1 text-xs hover:bg-bg disabled:opacity-50';
+const button = 'rounded-full border border-line px-3 py-1 text-xs hover:bg-bg disabled:opacity-50';
 
 const optionLabel = (p: PlayerRow) => `${p.full_name ?? p.player_id} · ${p.team_abbreviation ?? 'FA'} · ${p.position ?? '–'}`;
 
@@ -226,7 +226,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
               <button
                 type="button"
                 onClick={() => update((s) => ({ ...s, drafting: true }))}
-                className="rounded border border-accent bg-accent px-3 py-1 text-sm text-accent-fg"
+                className="rounded-full border border-accent bg-accent px-4 py-1.5 font-semibold text-sm text-accent-fg"
               >
                 {setup.picks.length ? `Continue the draft at pick ${onTheClock(setup).overall}` : 'Start a draft'}
               </button>
@@ -327,7 +327,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
 
       <section className="grid gap-3" aria-labelledby="teams-h">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="teams-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+          <h2 id="teams-h" className="label-caps">
             Teams and rosters
           </h2>
           <p className="text-xs text-muted">

@@ -257,7 +257,7 @@ export default function Health() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <section className={`rounded-lg border-2 ${tone} bg-card p-4`} aria-labelledby="status-h" data-testid="health-status">
-        <h2 id="status-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+        <h2 id="status-h" className="label-caps">
           Status
         </h2>
         <ul className="mt-2 grid gap-1 text-sm">
@@ -407,7 +407,7 @@ export default function Health() {
         <button
           type="button"
           onClick={() => setShowAllChecks((v) => !v)}
-          className="mt-3 rounded border border-line px-3 py-1 text-sm hover:bg-card"
+          className="mt-3 rounded-full border border-line px-4 py-1 text-sm hover:bg-card"
         >
           {showAllChecks ? 'Show only flagged checks' : `Show all ${health.checks.length} checks`}
         </button>

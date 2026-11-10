@@ -16,7 +16,7 @@ const rankings = href('/?from=notes&view=recent');
       description="Weekly AI-drafted scouting notes on the board's risers, fallers and availability changes, every number traced to the data."
     >
       <section>
-        <h1 class="text-2xl font-semibold tracking-tight">Scouting notes</h1>
+        <h1 class="title-page">Scouting notes</h1>
         <p class="mt-1 text-sm text-muted">
           Every Monday: the week's biggest risers and fallers on the board, availability changes and minutes shifts, each in a few plain sentences.
         </p>
@@ -29,7 +29,7 @@ const rankings = href('/?from=notes&view=recent');
   ) : (
     <Base title="Scouting notes" description="The scouting notes are off until their calls are judged." redirect={rankings}>
       <section>
-        <h1 class="text-2xl font-semibold tracking-tight">Scouting notes</h1>
+        <h1 class="title-page">Scouting notes</h1>
         <p class="mt-1 text-sm text-muted" data-testid="paused">
           The scouting notes are off until their calls are judged. <a href={rankings} class="underline underline-offset-4">Rankings' Last 10 view</a> shows who
           is rising and falling.

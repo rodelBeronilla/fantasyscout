@@ -19,6 +19,7 @@ import { BoardCompare, COMPARE_MAX } from './BoardCompare';
 import { BoardHead, type CategoryColumn } from './BoardHead';
 import { BoardOptions, select } from './BoardOptions';
 import { TierHead } from './BoardTierHead';
+import { barShare, tierTone, type BarTone } from '../lib/value-bar';
 import { DraftBar, LeagueBar } from './LeagueParts';
 import { PlayerNoteLine } from './PlayerNoteLine';
 import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag, NewTeam, Note, Problem, Segmented, Signed, Star, TagLegend, Td, TrendTag, Unvalidated } from './ui';
@@ -100,6 +101,12 @@ type Show = 'available' | 'mine' | 'rostered' | 'all';
 const PAGE = 100;
 /** Rows in the first paint, before the rest of the page renders in idle time (#436). */
 const FIRST_ROWS = 25;
+/** A value bar's fill, by tone: a short ramp of the tier's colour, as the brand card draws it (#963). */
+const BAR: Record<BarTone, string> = {
+  accent: 'text-accent',
+  'accent-2': 'text-accent-2',
+  muted: 'text-muted',
+};
 
 /** How widely ESPN leagues roster a player, in words (fct_market_value buckets). */
 const OWNED_LABEL: Record<string, string> = { most: 'most', many: 'many', some: 'some', few: 'few', rare: 'almost no' };
@@ -390,6 +397,7 @@ export default function Board() {
   };
 
   const body: ReactNode[] = [];
+  const topValue = ranked.reduce((top, s) => Math.max(top, s.value ?? 0), 0);
   const today = easternDate();
   let currentTier: number | undefined;
   ranked.slice(0, warm ? shown : Math.min(shown, FIRST_ROWS)).forEach(({ row, value }, i) => {
@@ -477,7 +485,18 @@ export default function Board() {
         </Td>
         {!isLine(view) && (
           <Td right col="value">
-            <strong data-testid="value">{fmt(value, 2)}</strong>
+            <span className="inline-flex items-center justify-end gap-2">
+              {/* the value drawn against the top one on show, in the tier's colour (#963) */}
+              <span className="block h-1.5 w-10 overflow-hidden rounded-full bg-line sm:w-20" aria-hidden="true" data-testid="value-bar">
+                <span
+                  className={`bar-fill block h-full rounded-full ${BAR[showTiers ? tierTone(tiers.of.get(row.player_id)) : 'accent']}`}
+                  style={{ width: `${Math.round(barShare(value, topValue) * 100)}%` }}
+                />
+              </span>
+              <strong className="min-w-10" data-testid="value">
+                {fmt(value, 2)}
+              </strong>
+            </span>
           </Td>
         )}
         {showMarket && (
@@ -745,7 +764,7 @@ export default function Board() {
         <button
           type="button"
           onClick={() => setShown(shown + PAGE)}
-          className="justify-self-start rounded border border-line px-3 py-1 text-sm hover:bg-card"
+          className="justify-self-start rounded-full border border-line px-4 py-1 text-sm hover:bg-card"
           data-testid="board-more"
         >
           Show {Math.min(PAGE, ranked.length - shown)} more

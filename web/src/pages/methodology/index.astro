@@ -67,7 +67,7 @@ const dot = 'text-muted md:hidden';
   title="Methodology"
   description="What FantasyScout has validated out of sample, what failed and what waits to be judged, feature by feature, and every number the projections and calls use."
 >
-  <h1 class="text-2xl font-semibold">Methodology: what passed, and every number</h1>
+  <h1 class="title-page">Methodology: what passed, and every number</h1>
   <p class="mt-2 max-w-3xl text-sm text-muted">
     A call shows only once it has passed an out-of-sample check. A failed or unjudged call is hidden or badged, and the table says which and when it is next
     judged. Plain facts and arithmetic on them show as data. The table is built from{' '}
@@ -75,7 +75,7 @@ const dot = 'text-muted md:hidden';
   </p>
 
   <section class="mt-5" aria-labelledby="verdicts-h">
-    <h2 id="verdicts-h" class="text-sm font-medium tracking-wide text-muted uppercase">Every feature, and its verdict</h2>
+    <h2 id="verdicts-h" class="label-caps">Every feature, and its verdict</h2>
     <p class="mt-1 text-sm" data-testid="verdict-counts">
       {tally.map(({ v, n }, i) => (
         <span data-verdict={v}>
@@ -165,7 +165,7 @@ const dot = 'text-muted md:hidden';
     </p>
 
     <section class="mt-6 max-w-3xl" aria-labelledby="status-h">
-      <h2 id="status-h" class="text-sm font-medium tracking-wide text-muted uppercase">How each was set</h2>
+      <h2 id="status-h" class="label-caps">How each was set</h2>
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="status-counts">
         {
           Object.entries(STATUS_HELP).map(([s, help]) => (
@@ -185,7 +185,7 @@ const dot = 'text-muted md:hidden';
       {
         groups.map((g) => (
           <section aria-labelledby={`${g.key}-h`} data-area={g.key}>
-            <h2 id={`${g.key}-h`} class="text-sm font-medium tracking-wide text-muted uppercase">
+            <h2 id={`${g.key}-h`} class="label-caps">
               {g.label}
             </h2>
             <div class="mt-3 grid gap-3">

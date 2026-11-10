@@ -22,7 +22,7 @@ export function Problem({ error }: { error: unknown }) {
         <p className="mt-1 text-sm text-muted">
           The published data could not be read just now. It is still there: reload in a moment.
         </p>
-        <button type="button" className="mt-2 rounded border border-line px-3 py-1 text-sm" onClick={() => window.location.reload()}>
+        <button type="button" className="mt-2 rounded-full border border-line px-4 py-1 text-sm" onClick={() => window.location.reload()}>
           Reload
         </button>
       </div>
@@ -71,7 +71,7 @@ export function Unvalidated({ issue, what, label = 'Not yet validated' }: { issu
 export function Tile({ title, id, children, testid, issue }: { title: string; id: string; children: ReactNode; testid?: string; issue?: number }) {
   return (
     <section className="min-w-0 rounded-lg border border-line bg-card p-3" aria-labelledby={`${id}-h`} data-testid={testid}>
-      <h2 id={`${id}-h`} className="text-sm font-medium tracking-wide text-muted uppercase">
+      <h2 id={`${id}-h`} className="label-caps">
         {title}
         {issue && <Unvalidated issue={issue} what={title} />}
       </h2>
@@ -83,7 +83,7 @@ export function Tile({ title, id, children, testid, issue }: { title: string; id
 export function Card({ title, children, id, badge }: { title: string; children: ReactNode; id?: string; badge?: ReactNode }) {
   return (
     <section id={id} className="min-w-0 rounded-lg border border-line bg-card p-4" aria-labelledby={id ? `${id}-h` : undefined}>
-      <h2 id={id ? `${id}-h` : undefined} className="text-sm font-medium tracking-wide text-muted uppercase">
+      <h2 id={id ? `${id}-h` : undefined} className="label-caps">
         {title}
         {badge}
       </h2>
@@ -98,7 +98,7 @@ export type Pin = 'first' | 'second';
 
 export function Th({ children, right = false, pin }: { children: ReactNode; right?: boolean; pin?: Pin }) {
   return (
-    <th scope="col" className={`px-2 py-1.5 text-xs font-medium whitespace-nowrap text-muted ${right ? 'text-right' : 'text-left'} ${pinClass(pin)}`}>
+    <th scope="col" className={`px-2 py-2 text-[11px] font-semibold tracking-wider whitespace-nowrap text-muted uppercase ${right ? 'text-right' : 'text-left'} ${pinClass(pin)}`}>
       {children}
     </th>
   );
@@ -177,14 +177,14 @@ export function SortTh({
     <th
       scope="col"
       aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-      className={`px-2 py-1.5 text-xs font-medium whitespace-nowrap ${right ? 'text-right' : 'text-left'} ${pinClass(pin)}`}
+      className={`px-2 py-2 text-[11px] font-semibold tracking-wider whitespace-nowrap uppercase ${right ? 'text-right' : 'text-left'} ${pinClass(pin)}`}
     >
       <button
         type="button"
         onClick={onClick}
         title={title}
         // At least 24 by 24 to tap (#457); the negative margin keeps the header row's height.
-        className={`-my-1 inline-block min-w-6 py-1 underline-offset-4 hover:underline ${active ? 'text-fg' : 'text-muted'}`}
+        className={`-my-1 inline-block min-h-6 min-w-6 py-1 tracking-wider uppercase underline-offset-4 hover:underline ${active ? 'text-fg' : 'text-muted'}`}
       >
         {children}
         {active ? (dir === 'asc' ? ' ▲' : ' ▼') : ''}
@@ -489,7 +489,7 @@ export function Segmented<T extends string>({
   onChange: (id: T) => void;
 }) {
   return (
-    <div className="inline-flex flex-wrap rounded-lg border border-line bg-card p-0.5" role="radiogroup" aria-label={label}>
+    <div className="inline-flex flex-wrap rounded-[1.25rem] border border-line bg-card p-1" role="radiogroup" aria-label={label}>
       {options.map((o) => (
         <button
           key={o.id}
@@ -498,7 +498,7 @@ export function Segmented<T extends string>({
           aria-checked={value === o.id}
           title={o.title}
           onClick={() => onChange(o.id)}
-          className={`rounded-md px-3 py-1 text-sm ${value === o.id ? 'bg-accent text-accent-fg' : 'text-muted hover:text-fg'}`}
+          className={`rounded-full px-3 py-1 text-sm ${value === o.id ? 'bg-accent font-semibold text-accent-fg' : 'text-muted hover:text-fg'}`}
         >
           {o.label}
         </button>

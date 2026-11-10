@@ -126,7 +126,7 @@ export function LeagueSettingsForm({
           <button
             type="button"
             onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts, lineup: d.lineup, playoffs: d.playoffs }))}
-            className="rounded border border-line px-2 py-1 text-xs hover:bg-bg"
+            className="rounded-full border border-line px-3 py-1 text-xs hover:bg-bg"
           >
             Reset settings
           </button>
@@ -194,7 +194,7 @@ export function LeagueSettingsForm({
                 key={id}
                 type="button"
                 onClick={() => onChange((s) => ({ ...s, weights: p.weights }))}
-                className="ml-1 rounded border border-line px-2 py-0.5 text-xs hover:bg-bg"
+                className="ml-1 rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg"
               >
                 {p.label}
               </button>
@@ -333,7 +333,7 @@ export function Upgrades({
   return (
     <section id="upgrades" className="rounded-lg border border-line bg-card p-3" aria-labelledby="upgrades-h" data-testid="upgrades">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="upgrades-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+        <h2 id="upgrades-h" className="label-caps">
           Moves
           <Unvalidated issue={895} what="The roster review" />
         </h2>
@@ -425,7 +425,7 @@ export function Upgrades({
             <button
               type="button"
               onClick={() => onApply(u)}
-              className="rounded border border-line px-2 py-0.5 text-xs hover:bg-bg"
+              className="rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg"
               title={`Add ${nameOf(u.add)} and drop ${nameOf(u.drop)} in the league kept here`}
               data-testid="upgrade-apply"
             >
@@ -504,7 +504,7 @@ export function Today({
   );
   return (
     <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="today-h" data-testid="today">
-      <h2 id="today-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+      <h2 id="today-h" className="label-caps">
         Today, {day}
       </h2>
       <p className="mt-1 text-sm" data-testid="today-summary">
@@ -667,11 +667,11 @@ export function DraftBar({
           type="button"
           onClick={onUndo}
           disabled={!setup.picks.length}
-          className="rounded border border-line px-2 py-0.5 text-xs hover:bg-bg disabled:opacity-50"
+          className="rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg disabled:opacity-50"
         >
           Undo last pick
         </button>
-        <button type="button" onClick={onEnd} className="rounded border border-line px-2 py-0.5 text-xs hover:bg-bg">
+        <button type="button" onClick={onEnd} className="rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg">
           End draft
         </button>
       </span>

@@ -75,6 +75,8 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta name="twitter:card" content="summary" />
+    {/* the browser's own bars take the page's ground (#963); the toggle's script keeps it in step */}
+    <meta name="theme-color" content="#0b111c" />
     <link rel="icon" href={href('favicon.svg')} type="image/svg+xml" />
     {/* Every island starts from the build pointer: fetch it with the HTML, not after React hydrates. */}
     <link rel="preload" as="fetch" href={href('data/latest.json')} crossorigin="anonymous" />
@@ -121,9 +123,19 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
         class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3"
         aria-label="Primary"
       >
-        <a href={href('/')} class="text-lg font-semibold tracking-tight">FantasyScout</a>
+        <a href={href('/')} class="flex items-center gap-2 text-lg font-extrabold tracking-tight sm:text-xl" aria-label="FantasyScout">
+          <svg viewBox="0 0 32 32" class="size-6 shrink-0 sm:size-7" aria-hidden="true">
+            <circle cx="16" cy="16" r="15" class="fill-accent"></circle>
+            <path
+              d="M16 1v30M1 16h30M6.5 4.6c5 6.6 5 16.2 0 22.8M25.5 4.6c-5 6.6-5 16.2 0 22.8"
+              fill="none"
+              class="stroke-bg"
+              stroke-width="2.2"></path>
+          </svg>
+          <span>Fantasy<span class="text-accent">Scout</span></span>
+        </a>
         <!-- on a phone the logo and the league toggle share the first row, the menu the second (#696) -->
-        <ul class="order-3 -ml-2 flex w-full flex-wrap items-center gap-1 text-sm sm:order-none sm:ml-0 sm:w-auto">
+        <ul class="order-3 -ml-1 flex w-full flex-wrap items-center gap-0.5 text-sm sm:order-none sm:ml-0 sm:w-auto sm:gap-1">
           {
             nav.map((group) =>
               group.path ? (
@@ -131,8 +143,8 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
                   <a
                     href={href(group.path)}
                     class:list={[
-                      'rounded px-2 py-1 underline-offset-4 hover:underline',
-                      current === group.path ? 'font-semibold' : 'text-muted',
+                      'block rounded-full px-3 py-1',
+                      current === group.path ? 'bg-accent font-semibold text-accent-fg' : 'text-muted hover:bg-card hover:text-fg',
                     ]}
                     aria-current={current === group.path ? 'page' : undefined}
                   >
@@ -144,21 +156,21 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
                   <details data-nav-group data-current={within(group.items) || undefined} data-testid={`nav-${group.label.toLowerCase().replace(/\s+/g, '-')}`}>
                     <summary
                       class:list={[
-                        'cursor-pointer list-none rounded px-2 py-1 underline-offset-4 hover:underline',
-                        within(group.items) ? 'font-semibold' : 'text-muted',
+                        'cursor-pointer list-none rounded-full px-3 py-1',
+                        within(group.items) ? 'bg-accent font-semibold text-accent-fg' : 'text-muted hover:bg-card hover:text-fg',
                       ]}
                     >
                       {group.label} <span aria-hidden="true" class="text-xs">▾</span>
                     </summary>
-                    <ul class="absolute left-0 z-20 mt-1 min-w-44 rounded border border-line bg-card p-1 shadow">
+                    <ul class="absolute left-0 z-20 mt-1 min-w-48 rounded-lg border border-line bg-card p-1.5 shadow">
                       {
                         group.items?.map(([label, path]) => (
                           <li hidden={path === OWNER_ONLY} data-owner-only={path === OWNER_ONLY || undefined}>
                             <a
                               href={href(path)}
                               class:list={[
-                                'block rounded px-2 py-1 underline-offset-4 hover:underline',
-                                current === path ? 'font-semibold' : 'text-muted',
+                                'block rounded px-2.5 py-1.5 hover:bg-bg hover:text-fg',
+                                current === path ? 'font-semibold text-accent' : 'text-muted',
                               ]}
                               aria-current={current === path ? 'page' : undefined}
                               target={path === '/docs/' ? '_blank' : undefined}
@@ -178,13 +190,13 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
           }
         </ul>
         <div class="order-2 flex items-center gap-2 sm:order-none">
-          <div class="flex items-center gap-1 rounded-full border border-line p-1" role="group" aria-label="League">
+          <div class="flex items-center gap-1 rounded-full border border-line bg-card p-1" role="group" aria-label="League">
             {
               LEAGUES.map((l) => (
                 <a
                   href={`?league=${l.id}`}
                   data-league={l.id}
-                  class="rounded-full px-3 py-1 text-sm text-muted aria-[current=true]:bg-accent aria-[current=true]:text-accent-fg"
+                  class="rounded-full px-2.5 py-1 text-sm text-muted hover:text-fg sm:px-3 aria-[current=true]:bg-line aria-[current=true]:font-semibold aria-[current=true]:text-fg"
                 >
                   {l.label}
                 </a>
@@ -194,7 +206,7 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
           <button
             type="button"
             data-theme-toggle
-            class="rounded-full border border-line px-3 py-1 text-sm text-muted"
+            class="rounded-full border border-line bg-card px-3 py-1.5 text-sm text-muted hover:text-fg"
             aria-label="Toggle dark or light theme"
             title="Toggle theme"
           >
