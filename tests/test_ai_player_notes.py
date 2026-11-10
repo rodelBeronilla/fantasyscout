@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import urllib.error
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -10,7 +11,7 @@ from typing import Any
 import duckdb
 import pytest
 
-from ai import client, player_notes
+from ai import client, notes, player_notes
 from ai.player_note_check import check, text_numbers
 
 INP: dict[str, Any] = {
@@ -345,6 +346,29 @@ def test_a_changed_run_asks_only_for_the_players_whose_line_no_longer_holds(
     ):
         notes["p1"] = held | change
         assert asked() == ["p1", "p2"]
+
+
+def test_the_published_file_is_read_from_the_site_by_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A changed run reads the published lines; the site refuses a nameless reader (#968)."""
+    from tests.test_ai_notes import site
+
+    asked = site(
+        monkeypatch,
+        {
+            "/data/notes/players/nba.json": b'{"notes": {"7": {"line": "a line"}}}',
+            "/data/notes/players/wnba.json": 404,
+        },
+    )
+    assert player_notes.published_notes("nba") == {"notes": {"7": {"line": "a line"}}}
+    # no file yet is not an error: every flagged player is then asked for
+    assert player_notes.published_notes("wnba") is None
+    assert all(r.get_header("User-agent") == notes.USER_AGENT for r in asked)
+    # any other refusal stops the run: asking the model for everyone again is not a fallback
+    site(monkeypatch, {"/data/notes/players/nba.json": 403})
+    with pytest.raises(urllib.error.HTTPError):
+        player_notes.published_notes("nba")
 
 
 def test_a_run_merges_its_lines_into_the_published_file(tmp_path: Path) -> None:
