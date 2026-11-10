@@ -375,6 +375,33 @@ def test_a_run_merges_its_lines_into_the_published_file(tmp_path: Path) -> None:
     assert doc["drafted_at"] == "2026-11-08T17:24:00Z"
 
 
+def test_every_run_keeps_a_dated_copy_of_its_file_where_the_site_does_not_serve_it(
+    tmp_path: Path,
+) -> None:
+    drafted = {
+        "model": "m",
+        "drafts": [{"league": "nba", "player_id": "7", "note": line("Miss 4.6 games.")}],
+    }
+    history = tmp_path / "private" / "notes" / "players" / "history" / "nba"
+    player_notes.publish(_inputs(OUT), drafted, store_kind="local", out=tmp_path)
+    first = history / "2026-11-08T17-24-00Z.json"
+    assert json.loads(first.read_text(encoding="utf-8")) == _published(tmp_path)
+    # a later run rewrites the current file and adds its own copy; the earlier one is untouched
+    later = _inputs(OUT | {"player_id": "8"}) | {"made_at": "2026-11-08T23:05:00Z"}
+    player_notes.publish(later, {"model": "m", "drafts": []}, store_kind="local", out=tmp_path)
+    assert sorted(p.name for p in history.iterdir()) == [
+        "2026-11-08T17-24-00Z.json",
+        "2026-11-08T23-05-00Z.json",
+    ]
+    assert sorted(json.loads(first.read_text(encoding="utf-8"))["notes"]) == ["7"]
+    assert "7" not in _published(tmp_path)["notes"]
+    # every key is under private/, which the data route refuses; a run without a time keeps none
+    key = player_notes.history_key("wnba", "2026-11-08T17:24:00+00:00")
+    assert key == "private/notes/players/history/wnba/2026-11-08T17-24-00+00-00.json"
+    assert player_notes.history_key("nba", None) is None
+    assert player_notes.history_key("nba", "") is None
+
+
 def test_nothing_is_drafted_while_the_model_is_away_and_the_file_says_so(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

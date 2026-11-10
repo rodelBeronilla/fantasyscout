@@ -437,6 +437,7 @@ ADR 0008 commits the site to complying when a source objects to its use here, an
    ```bash
    databricks fs rm -r dbfs:/Volumes/fantasyscout/raw/landing/<source>
    ```
+   The player notes may quote a headline: the dated copies of their runs under `private/notes/players/history/` in the R2 bucket are not rebuilt, so delete those written since the source was first used (`npx wrangler r2 object delete`), or the whole folder when in doubt; the calls judged from them (#951) then start again from that day.
 4. **Republish without it.** The next full build publishes a build without the source's data; the kept builds still hold it for up to seven days, so `uv run fs-export prune --store r2 --keep 1` removes those copies at once (it never deletes the live build or a pinned one); roll back is then not possible past that build, which the issue should say.
 5. **Record it.** An ADR 0008 addendum naming the source, the date of the request and what was removed; the `/sources/` entry goes, and the footer's credit with it.
 

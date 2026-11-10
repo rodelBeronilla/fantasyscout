@@ -85,6 +85,7 @@ The app has its own subdomain, `fantasyscout.beronilla.rodeo`, bound to the Work
 | Lakehouse tables (bronze, silver, gold, ops) | Derived rows | Rebuilt from the landing on every build; `fct_board_history` and the ops ledgers grow one row per day and are never pruned |
 | Published builds (R2, `builds/<id>/`) | The derived JSON and Parquet the site serves | The newest seven, plus any build a rollback pinned; pruned by the export after each publish (ADR 0006) |
 | Notebook renders and findings | HTML and aggregates per build | With the build they belong to (seven builds) |
+| The player notes' runs (R2, `private/notes/players/history/<league>/`) | Each run's notes file as it was written: the one-line notes and the call each makes | Kept until the calls are judged (#951), since the model cannot make a past day's calls again; never served (the data route answers 404 under `private/`), and a source's removal deletes the copies that cite it |
 | The Tableau extract's Google Sheet | Three CSVs of aggregates | Overwritten by each full build |
 | GitHub Actions logs and artifacts | Run output, the ingest plan, the web build | GitHub's default retention (90 days for logs) |
 
