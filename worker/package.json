@@ -18,9 +18,9 @@
     "predeploy": "npm run csp"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "^1.5.1",
-    "@cloudflare/workers-types": "^5.20261031.1",
-    "knip": "6.44.1",
+    "@cloudflare/vitest-plugin": "^1.6.0",
+    "@cloudflare/workers-types": "^5.20261107.1",
+    "knip": "6.44.2",
     "typescript": "^5.9.0",
     "vitest": "^5.1.0",
     "wrangler": "^4.153.0"
