@@ -483,12 +483,24 @@ def merge(
     }
 
 
+def history_key(league: str, made_at: object) -> str | None:
+    """Where a run's file is kept for good: private/notes/players/history/<league>/<made_at>.json,
+    named by the time the inputs were made, with its colons made safe for a key. The site's data
+    route serves nothing under private/, so the copies are the owner's alone. None without a
+    time."""
+    if not isinstance(made_at, str) or not made_at:
+        return None
+    stamp = re.sub(r"[^0-9A-Za-z.+-]", "-", made_at)
+    return f"private/notes/players/history/{league}/{stamp}.json"
+
+
 def publish(
     inputs: dict[str, Any], drafts: dict[str, Any], *, store_kind: str, out: Path
 ) -> dict[str, Any]:
     """The lines that pass, merged into notes/players/<league>.json (R2, and a copy under
     ``out``). Every league's file is written, also when the model was away: its lines stand and
-    its run says the model was away, for Data Health. The log says the counts and each
+    its run says the model was away, for Data Health. Each run's file is also kept under its
+    time (``history_key``), so the calls can be judged later. The log says the counts and each
     rejection's reasons, which name numbers and word counts, never a source's words."""
     from export.cli import make_store
     from export.encode import to_json
@@ -508,8 +520,14 @@ def publish(
         old = json.loads(held) if held else None
         doc = merge(old, reviewed.get(league), s, inputs, drafts)
         body = to_json(doc)
+        # a dated copy of every run's file, kept where the site does not serve it (#951): the
+        # current file is rewritten each run and the model's calls cannot be made again for a
+        # past day, so without the copies they could never be judged
+        dated = history_key(league, doc["run"].get("at"))
         for store in stores:
             store.put(key, body)
+            if dated:
+                store.put(dated, body)
         leagues[league] = doc
         c = doc["counts"]
         print(
