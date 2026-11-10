@@ -334,6 +334,13 @@ describe('data', () => {
     expect(res.headers.get('cache-control')).toBe('public, max-age=60');
   });
 
+  it("never serves the dated copies of the notes' runs, kept for judging their calls (#951)", async () => {
+    const key = 'private/notes/players/history/nba/2026-11-08T17-24-00Z.json';
+    await env.DATA.put(key, '{"notes":{}}', { httpMetadata: { contentType: 'application/json' } });
+    expect((await SELF.fetch(`${ORIGIN}/data/${key}`)).status).toBe(404);
+    expect((await SELF.fetch(`${ORIGIN}/data/notes/players/history/nba/2026-11-08T17-24-00Z.json`)).status).toBe(404);
+  });
+
   it('serves builds.json with a short cache too', async () => {
     const res = await SELF.fetch(`${ORIGIN}/data/builds.json`);
     expect(res.status).toBe(200);
