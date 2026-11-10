@@ -146,7 +146,7 @@ export function TradeNumbers({
 
   return (
     <details className="rounded-lg border border-line bg-card p-3" data-testid="trade-numbers">
-      <summary className="cursor-pointer text-sm font-medium tracking-wide text-muted uppercase">
+      <summary className="cursor-pointer label-caps">
         The numbers: {points ? 'the players' : change ? 'the players and your categories' : 'the players and the categories'}
       </summary>
       {!points && (

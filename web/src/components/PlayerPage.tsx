@@ -85,7 +85,7 @@ export default function PlayerPage() {
         <p className="text-sm font-medium tracking-wide text-accent uppercase">
           {target.league.toUpperCase()} · {player.team.abbreviation ?? '–'} {player.team.name ?? ''}
         </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight" data-testid="player-name">
+        <h1 className="mt-1 title-page" data-testid="player-name">
           {player.name ?? player.player_id}
         </h1>
         <p className="mt-2 text-sm text-muted">

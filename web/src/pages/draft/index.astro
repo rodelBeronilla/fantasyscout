@@ -12,7 +12,7 @@ const rankings = href('/?from=draft');
   SHOWS.draft ? (
     <Base title="Draft" description="Run a snake draft on your league, pick by pick, with the best available players by value under your league's scoring.">
       <section>
-        <h1 class="text-2xl font-semibold tracking-tight">
+        <h1 class="title-page">
           Draft <span class="ml-1 align-middle rounded-full border border-accent px-2 py-0.5 text-xs font-medium text-accent">Coming soon</span>
         </h1>
         <p class="mt-1 max-w-3xl text-sm text-muted">
@@ -27,7 +27,7 @@ const rankings = href('/?from=draft');
   ) : (
     <Base title="Draft" description="Draft tools return before the 2027-28 drafts." redirect={rankings}>
       <section>
-        <h1 class="text-2xl font-semibold tracking-tight">Draft</h1>
+        <h1 class="title-page">Draft</h1>
         <p class="mt-1 text-sm text-muted" data-testid="paused">
           Draft tools return before the 2027-28 drafts. <a href={rankings} class="underline underline-offset-4">Rankings</a> values every player for your league.
         </p>

@@ -19,7 +19,7 @@ const link = 'underline underline-offset-4';
       <a href={href('/schema/')} class={link}>Schema</a>
       <span aria-hidden="true"> / </span>checks
     </p>
-    <h1 class="mt-1 text-2xl font-semibold tracking-tight">Checks and unit tests</h1>
+    <h1 class="mt-1 title-page">Checks and unit tests</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">
       {checks.length} <a href="#checks" class={link}>data-quality checks</a> on the real data and {unitTests.length}{' '}
       <a href="#unit-tests" class={link}>unit tests</a> on fixed rows. The column tests (keys, not null, relationships,
@@ -27,7 +27,7 @@ const link = 'underline underline-offset-4';
     </p>
 
     <section id="checks" class="mt-6" data-testid="checks-list">
-      <h2 class="text-lg font-semibold tracking-tight">Data-quality checks</h2>
+      <h2 class="title-section">Data-quality checks</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">
         Checks run after every build on the real data. An error-severity failure closes the publish gate: nothing is exported
         and an incident issue opens with samples of the failing rows. A warning is recorded and shown on Data Health. Column
@@ -60,7 +60,7 @@ const link = 'underline underline-offset-4';
     </section>
 
     <section id="unit-tests" class="mt-8" data-testid="unit-tests-list">
-      <h2 class="text-lg font-semibold tracking-tight">Unit tests</h2>
+      <h2 class="title-section">Unit tests</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">
         dbt unit tests run a model's SQL on fixed input rows and compare the result with the rows expected, on every pull
         request, so a rule that is easy to break (a ranking, a rest-day count, a name link) is pinned down with a worked case.

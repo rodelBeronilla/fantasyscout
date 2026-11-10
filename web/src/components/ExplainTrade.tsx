@@ -61,7 +61,7 @@ export default function ExplainTrade({ facts }: { facts: Record<string, unknown>
           type="button"
           onClick={() => void ask()}
           disabled={state.loading}
-          className="justify-self-start rounded border border-accent px-3 py-1 text-sm font-medium text-accent hover:bg-accent hover:text-accent-fg disabled:opacity-60"
+          className="justify-self-start rounded-full border border-accent px-4 py-1.5 text-sm font-semibold text-accent hover:bg-accent hover:text-accent-fg disabled:opacity-60"
         >
           {state.loading ? 'Explaining…' : 'Explain this trade'}
         </button>

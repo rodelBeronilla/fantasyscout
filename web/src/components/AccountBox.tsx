@@ -38,7 +38,7 @@ export default function AccountBox({ league }: { league: League }) {
           <a href="/auth/account/logout" className="underline underline-offset-4">
             Sign out
           </a>
-          <button type="button" className="rounded border border-line px-2 py-0.5 text-xs hover:bg-bg" onClick={() => void forget()}>
+          <button type="button" className="rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg" onClick={() => void forget()}>
             Delete my saved data
           </button>
         </>

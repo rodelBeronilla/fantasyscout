@@ -3,7 +3,7 @@ import { CATEGORY_LABELS } from '../lib/format';
 import type { CategoryEffect } from '../lib/trade-suggest';
 import { Signed } from './ui';
 
-export const button = 'rounded border border-line px-2 py-1 text-xs hover:bg-bg disabled:opacity-50';
+export const button = 'rounded-full border border-line px-3 py-1 text-xs hover:bg-bg disabled:opacity-50';
 
 const catList = (list: string[]) => list.map((c) => CATEGORY_LABELS[c] ?? c).join(', ');
 

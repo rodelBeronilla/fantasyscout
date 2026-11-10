@@ -10,7 +10,7 @@ import type { LeagueSetup } from '../lib/fantasy-league';
 import { espnSetup, readEspn } from '../lib/league-sync';
 
 const field = 'rounded border border-line bg-bg px-2 py-1 text-sm';
-const button = 'rounded border border-accent bg-accent px-3 py-1 text-sm text-accent-fg disabled:opacity-50';
+const button = 'rounded-full border border-accent bg-accent px-4 py-1.5 font-semibold text-sm text-accent-fg disabled:opacity-50';
 
 export default function EspnImport({
   season,

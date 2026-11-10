@@ -637,6 +637,20 @@ test('the theme toggle flips between dark and light', async ({ page }) => {
   expect(await html.getAttribute('data-theme')).not.toBe(first);
 });
 
+// The site's own look is the dark one, whatever the system asks for; light is the toggle's (#963).
+test('a first visit opens in the dark look, and the toggle paints the browser bars with the light one', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  const ground = () => page.evaluate(() => getComputedStyle(document.documentElement).backgroundColor);
+  const bars = page.locator('meta[name="theme-color"]');
+  expect(await ground()).toBe('rgb(11, 17, 28)');
+  await expect(bars).toHaveAttribute('content', '#0b111c');
+  await page.getByRole('button', { name: /toggle dark or light theme/i }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  expect(await ground()).toBe('rgb(246, 242, 234)');
+  await expect(bars).toHaveAttribute('content', '#f6f2ea');
+});
+
 for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/']) {
   test(`${path} has no accessibility violations`, async ({ page }) => {
     await page.goto(path);
@@ -2531,6 +2545,13 @@ test('the value view groups the board into tiers by pick and round, and ranks pl
   const heads = board.getByTestId('tier-head');
   await expect(heads.first()).toContainText(/^Tier 1 · (pick 1 \(round 1\) · value [\d.]+$|picks 1–\d+ \(rounds? 1)/);
   expect(await heads.count()).toBeGreaterThan(1);
+  // tiers alternate the two brand colours, and each value has a bar: the top player's is full (#963)
+  await expect(heads.nth(0)).toHaveAttribute('data-tone', 'accent');
+  await expect(heads.nth(1)).toHaveAttribute('data-tone', 'accent-2');
+  const bars = board.locator('tbody tr[data-player]').getByTestId('value-bar').locator('span');
+  expect(await bars.first().evaluate((el) => (el as HTMLElement).style.width)).toBe('100%');
+  const last = Number.parseFloat(await bars.last().evaluate((el) => (el as HTMLElement).style.width));
+  expect(last).toBeLessThan(100);
   await expect(page.getByTestId('tier-note')).toContainText('natural breaks');
   await expect(board.getByTestId('pos-rank').first()).toHaveText(/^\([GFC]1\)$/);
   await page.getByRole('radio', { name: 'Season line' }).click();

@@ -161,7 +161,7 @@ export function BoardOptions({
               Consistency columns (a bad game, a good game, and the spread between games)
             </label>
           )}
-          <button type="button" onClick={onExport} className="rounded border border-line px-3 py-1 text-sm hover:bg-bg" data-testid="board-csv">
+          <button type="button" onClick={onExport} className="rounded-full border border-line px-4 py-1 text-sm hover:bg-bg" data-testid="board-csv">
             Export what the board shows as CSV
           </button>
         </div>

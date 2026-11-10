@@ -18,7 +18,7 @@ export type ReviewState = 'no-rosters' | 'loading' | 'ready' | 'no-team' | 'fail
 
 const label = (c: string) => CATEGORY_LABELS[c] ?? c;
 const link = 'font-medium underline-offset-4 hover:underline';
-const button = 'rounded border border-line px-2 py-0.5 text-xs hover:bg-bg';
+const button = 'rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg';
 
 /** The reasons in one line: games in the window and on the open days, minutes, a teammate out, categories. */
 function whyLine(a: TopAdd<Candidate>, windowText: string): string {
@@ -110,7 +110,7 @@ export function TopAdds({
   };
   return (
     <section id="top-adds" className="min-w-0 rounded-lg border border-line bg-card p-4" aria-labelledby="top-adds-h" data-testid="top-adds">
-      <h2 id="top-adds-h" className="text-sm font-medium tracking-wide text-muted uppercase">
+      <h2 id="top-adds-h" className="label-caps">
         Top 3 adds for your league {windowText}
         <Unvalidated issue={762} what="The window value" />
       </h2>

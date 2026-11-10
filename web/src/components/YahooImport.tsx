@@ -30,7 +30,7 @@ interface YahooLeague {
   teams: { name: string; mine: boolean; players: { name: string; team: string; position: string }[] }[];
 }
 
-const button = 'rounded border border-line px-2 py-1 text-xs hover:bg-bg disabled:opacity-50';
+const button = 'rounded-full border border-line px-3 py-1 text-xs hover:bg-bg disabled:opacity-50';
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(href(path), { headers: { accept: 'application/json' } });
@@ -255,7 +255,7 @@ export default function YahooImport({
               Sign in to Yahoo to bring in a league&apos;s settings, team names and every roster. FantasyScout only reads your leagues, and the sign-in
               stays in a cookie that only this site&apos;s server can read.
             </p>
-            <a href={href('/auth/yahoo/start')} className="justify-self-start rounded border border-accent bg-accent px-3 py-1 text-accent-fg">
+            <a href={href('/auth/yahoo/start')} className="justify-self-start rounded-full border border-accent bg-accent px-4 py-1.5 font-semibold text-accent-fg">
               Sign in with Yahoo
             </a>
           </>

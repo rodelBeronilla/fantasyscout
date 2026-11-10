@@ -155,7 +155,7 @@ export function LeagueStatus({ league, playerId, name }: { league: League; playe
   const [setup, update] = useLeague(league);
   const owner = owners(setup);
   const t = owner.get(playerId);
-  const link = 'rounded border border-accent px-2 py-0.5 text-sm font-medium text-accent hover:bg-accent hover:text-accent-fg';
+  const link = 'rounded-full border border-accent px-3 py-0.5 text-sm font-semibold text-accent hover:bg-accent hover:text-accent-fg';
   const q = (side: 'give' | 'get') => href(`/trade/?league=${league}&${side}=${playerId}`);
   return (
     <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-line bg-bg px-3 py-2 text-sm" data-testid="league-status">

@@ -69,7 +69,7 @@ const deployLegend =
   description="How data moves from six source families to this site: data-flow and deployment diagrams, the sequence of a day's runs, how board value is computed, and each of the seven stages in detail."
 >
   <section>
-    <h1 class="text-2xl font-semibold tracking-tight">Pipeline</h1>
+    <h1 class="title-page">Pipeline</h1>
     <p class="mt-1 max-w-3xl text-sm text-muted">
       End to end, from six source families to this site. Ingest runs four times a day, on a schedule at 09:27 UTC, 22:41 UTC, 23:47 UTC and 02:17 UTC and from the home server at 04:30, 17:15, 18:45 and 21:15 Eastern, and lands each
       response in a Databricks volume. After each run, dbt models what landed on Databricks through bronze, silver and gold,
@@ -89,7 +89,7 @@ const deployLegend =
     </nav>
 
     <section id="data-flow" class="mt-8">
-      <h2 class="text-lg font-semibold tracking-tight">Data flow</h2>
+      <h2 class="title-section">Data flow</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">Two diagrams: collecting and modelling (stages 1 to 3), then publishing and serving (stages 4 to 7).</p>
       <div id="dfd-collect">
         <Diagram id="dfd-collect" svg={collect} title="Data-flow diagram 1 of 2: sources to the gate" caption={dfdLegend} />
@@ -105,7 +105,7 @@ const deployLegend =
     </section>
 
     <section id="deployment" class="mt-8">
-      <h2 class="text-lg font-semibold tracking-tight">Deployment</h2>
+      <h2 class="title-section">Deployment</h2>
       <p class="mt-1 max-w-3xl text-sm text-muted">
         Where each piece runs, in the same two halves. The other workflows (CI, Export data, Probe sources, Query the
         lakehouse, Run the notebooks) run on the same hosted runners.
@@ -120,7 +120,7 @@ const deployLegend =
     </section>
 
     <section id="daily-run" class="mt-8">
-      <h2 class="text-lg font-semibold tracking-tight">A day</h2>
+      <h2 class="title-section">A day</h2>
       <Diagram
         id="sequence"
         svg={sequence}
@@ -130,7 +130,7 @@ const deployLegend =
     </section>
 
     <section id="value" class="mt-8">
-      <h2 class="text-lg font-semibold tracking-tight">How board value is computed</h2>
+      <h2 class="title-section">How board value is computed</h2>
       <Diagram
         id="activity"
         svg={activity}
@@ -148,7 +148,7 @@ const deployLegend =
 
     <div id="stages" class="mt-10 grid max-w-3xl grid-cols-[minmax(0,1fr)] gap-8 text-sm leading-relaxed" data-testid="pipeline-stages">
       <section id="ingest">
-        <h2 class="text-lg font-semibold tracking-tight">1. Ingest</h2>
+        <h2 class="title-section">1. Ingest</h2>
 
         <h3 id="sources" class="mt-3 font-semibold">Sources</h3>
         <p class="mt-1">Six source families, each fetched by its own module of the <code>ingest</code> package:</p>
@@ -253,7 +253,7 @@ const deployLegend =
       </section>
 
       <section id="model">
-        <h2 class="text-lg font-semibold tracking-tight">2. Model</h2>
+        <h2 class="title-section">2. Model</h2>
         <p class="mt-2">
           The Build workflow starts when an Ingest or Backfill run finishes, even with a failed job (not when it is
           cancelled), on a GitHub-hosted runner, one build at a time. It makes sure every landing folder exists, then runs{' '}
@@ -424,7 +424,7 @@ const deployLegend =
       </section>
 
       <section id="gate">
-        <h2 class="text-lg font-semibold tracking-tight">3. Gate</h2>
+        <h2 class="title-section">3. Gate</h2>
         <p class="mt-2">
           dbt builds and tests together, layer by layer, so a failing test skips the models downstream of it. The build runs{' '}
           {schema.generic_tests} column tests (keys, not null, relationships, accepted values), all blocking,{' '}
@@ -462,7 +462,7 @@ const deployLegend =
       </section>
 
       <section id="export">
-        <h2 class="text-lg font-semibold tracking-tight">4. Export</h2>
+        <h2 class="title-section">4. Export</h2>
         <p class="mt-2">
           A passing build is read from the warehouse as Arrow (ADR 0006) and written to R2 as <code>builds/&lt;id&gt;/</code>:
         </p>
@@ -498,7 +498,7 @@ const deployLegend =
       </section>
 
       <section id="analysis">
-        <h2 class="text-lg font-semibold tracking-tight">5. Analyse</h2>
+        <h2 class="title-section">5. Analyse</h2>
         <p class="mt-2">
           The analysis notebooks are executed against every staged build. A GitHub runner reads the build by id over HTTPS,
           with the CI reader key the private Parquet needs, and adds the rendered pages and their findings to the build;
@@ -516,7 +516,7 @@ const deployLegend =
       </section>
 
       <section id="promote">
-        <h2 class="text-lg font-semibold tracking-tight">6. Promote</h2>
+        <h2 class="title-section">6. Promote</h2>
         <p class="mt-2">
           Promotion writes <code>builds.json</code> and then <code>latest.json</code>, so the live build is always complete,
           and prunes old builds: seven are kept, about three and a half days at two passing builds a day, and the build{' '}
@@ -528,7 +528,7 @@ const deployLegend =
       </section>
 
       <section id="serving">
-        <h2 class="text-lg font-semibold tracking-tight">7. Serve</h2>
+        <h2 class="title-section">7. Serve</h2>
         <p class="mt-2">
           Cloudflare's asset layer serves this static Astro site, with the security headers from the build's <code>_headers</code> file and the
           content-hashed bundles cached for a year. A Worker runs only for <code>/data/</code> (the R2 bucket, with range requests), the
@@ -559,7 +559,7 @@ const deployLegend =
     </div>
 
     <section id="workflows" class="mt-10 max-w-3xl text-sm leading-relaxed" data-testid="other-workflows">
-      <h2 class="text-lg font-semibold tracking-tight">Other workflows</h2>
+      <h2 class="title-section">Other workflows</h2>
       <ul class="mt-2 list-disc space-y-1 pl-5">
         <li>
           <strong>CI</strong>, on every pull request and every push to <code>main</code> and <code>preprod</code>: a secret

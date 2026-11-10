@@ -15,21 +15,21 @@ const list = sources.sources as Source[];
 ---
 
 <Base title="Sources" description="Where FantasyScout's data comes from, what is published from each source, how often it is collected, how long it is kept, and how a source can object.">
-  <h1 class="text-2xl font-semibold">Sources, terms and what is published</h1>
+  <h1 class="title-page">Sources, terms and what is published</h1>
   <p class="mt-2 max-w-3xl text-sm text-muted">
     Every number on this site derives from a public feed of one of the organisations below. This page says what is taken from each, how often, what is published
     from it and how long it is kept. Last reviewed {sources.updated}.
   </p>
 
   <section class="mt-6 max-w-3xl" aria-labelledby="principles-h">
-    <h2 id="principles-h" class="text-sm font-medium tracking-wide text-muted uppercase">What is and is not published</h2>
+    <h2 id="principles-h" class="label-caps">What is and is not published</h2>
     <ul class="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="principles">
       {sources.principles.map((p) => <li>{p}</li>)}
     </ul>
   </section>
 
   <section class="mt-8" aria-labelledby="sources-h">
-    <h2 id="sources-h" class="text-sm font-medium tracking-wide text-muted uppercase">Each source</h2>
+    <h2 id="sources-h" class="label-caps">Each source</h2>
     <div class="mt-3 grid gap-4" data-testid="sources">
       {
         list.map((s) => (
@@ -60,7 +60,7 @@ const list = sources.sources as Source[];
   </section>
 
   <section class="mt-8 max-w-3xl" aria-labelledby="retention-h">
-    <h2 id="retention-h" class="text-sm font-medium tracking-wide text-muted uppercase">Retention and privacy</h2>
+    <h2 id="retention-h" class="label-caps">Retention and privacy</h2>
     <ul class="mt-2 list-disc space-y-1 pl-5 text-sm" data-testid="retention">
       {sources.retention.map((r) => <li>{r}</li>)}
     </ul>
@@ -71,7 +71,7 @@ const list = sources.sources as Source[];
   </section>
 
   <section class="mt-8 max-w-3xl" aria-labelledby="object-h">
-    <h2 id="object-h" class="text-sm font-medium tracking-wide text-muted uppercase">To object</h2>
+    <h2 id="object-h" class="label-caps">To object</h2>
     <p class="mt-2 text-sm">
       FantasyScout is free, non-commercial and not affiliated with the NBA, the WNBA, ESPN, Sleeper, The Odds API or any bookmaker. If you operate one of
       these sources and object to how it is used here, <a href={sources.contact} class="underline underline-offset-4">open an issue</a> and the site will

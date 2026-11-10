@@ -5,7 +5,7 @@ import { IL_MIN_GAMES, type IlMoves as Moves } from '../lib/il-moves';
 import { SHOWS } from '../lib/visibility';
 import { Unvalidated } from './ui';
 
-const button = 'rounded border border-line px-2 py-0.5 text-xs hover:bg-bg';
+const button = 'rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg';
 
 /**
  * The roster's IL moves: who goes on the IL, each with who takes their minutes and the pickup for
