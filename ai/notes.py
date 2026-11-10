@@ -33,20 +33,34 @@ LEAGUES = ("nba", "wnba")
 PROMPT = Path(__file__).resolve().parent / "prompts" / "notes.md"
 SITE = os.environ.get("FS_SITE_URL", "https://fantasyscout.beronilla.rodeo").rstrip("/")
 LABEL = "AI-drafted from FantasyScout data"
+# Who is asking, said on every read of the site: its edge answers 403 to a library's default
+# user agent, which failed every run that read a published file (#968).
+USER_AGENT = "fantasyscout-notes/1.0 (+https://github.com/rodelBeronilla/fantasyscout)"
 
 
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+def site_json(path: str) -> Any:
+    """A JSON file of the published site, asked for by name (``USER_AGENT``)."""
+    request = urllib.request.Request(
+        f"{SITE}/{path.lstrip('/')}", headers={"User-Agent": USER_AGENT}
+    )
+    with urllib.request.urlopen(request, timeout=30) as r:
+        return json.load(r)
+
+
 def build_id() -> str | None:
+    """The published build the run reads: pinned by FS_BUILD_ID, else the site's pointer. None
+    when the site cannot be read, and the log says why."""
     pinned = os.environ.get("FS_BUILD_ID")
     if pinned:
         return pinned
     try:
-        with urllib.request.urlopen(f"{SITE}/data/latest.json", timeout=30) as r:
-            return str(json.load(r).get("build_id"))
-    except Exception:
+        return str(site_json("data/latest.json").get("build_id"))
+    except Exception as e:  # the run goes on without the id
+        print(f"the build id was not read from {SITE}: {e}", file=sys.stderr)
         return None
 
 
