@@ -681,7 +681,7 @@ async function loadSchemaDiagrams(page: Page): Promise<void> {
 }
 
 // Static pages. The schema overview is checked with its diagrams loaded, and a model's own page too.
-for (const path of ['/pipeline/', '/schema/', '/schema/mart_board/', '/schema/category_config/', '/sources/', '/methodology/']) {
+for (const path of ['/pipeline/', '/schema/', '/schema/checks/', '/schema/mart_board/', '/schema/category_config/', '/sources/', '/methodology/']) {
   test(`${path} has no accessibility violations`, async ({ page }) => {
     // The lineage drawing is large: axe needs longer than the default.
     test.setTimeout(90_000);
@@ -748,7 +748,7 @@ test('the dashboards page explains the workbook and lists the extract', async ({
   await expect(page.getByTestId('tableau-files').locator('li')).toHaveCount(3);
 });
 
-for (const path of ['/', '/team/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notes/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/', '/schema/mart_board/', '/methodology/']) {
+for (const path of ['/', '/team/', '/league/', '/streamers/', '/trade/', '/health/', '/p/wnba/1628932/', '/sql/', '/notes/', '/notebooks/', '/dashboards/', '/pipeline/', '/schema/', '/schema/checks/', '/schema/mart_board/', '/methodology/']) {
   test(`${path} has no horizontal scroll on a phone`, async ({ page, isMobile }) => {
     test.skip(!isMobile, 'mobile project only');
     await page.goto(path);
@@ -845,13 +845,31 @@ test('the schema overview lists every model and seed as a row, small enough to l
   await expect(fact).toContainText('7 checks');
   await expect(fact.getByTestId('coverage')).toContainText(/\d+\/\d+ described/);
   await expect(page.locator('#seed-category_config')).toHaveAttribute('data-testid', 'seed');
-  await expect(page.getByTestId('checks-list').locator('tbody tr').first()).toBeVisible();
-  await expect(page.locator('#check-assert_box_closure')).toBeAttached();
-  await expect(page.getByTestId('unit-tests-list').locator('tbody tr')).not.toHaveCount(0);
+  // The checks and the unit tests are a link away, on their own page (#935).
+  await expect(page.getByTestId('checks-summary')).toContainText(/\d+ data-quality checks/);
+  await expect(page.locator('#check-assert_box_closure, [data-testid="unit-tests-list"]')).toHaveCount(0);
   // The columns live on each model's page, not here: the page's own markup stays small (#449).
   await expect(page.locator('tr[data-column], details[data-model]')).toHaveCount(0);
   const own = await page.evaluate(() => document.querySelectorAll('body *').length - document.querySelectorAll('svg *').length);
   expect(own).toBeLessThan(3000);
+});
+
+test('the checks and the unit tests have their own page, and a link kept from the overview follows them', async ({ page }) => {
+  await page.goto('/schema/');
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('link', { name: /^checks · \d+$/ }).click();
+  await expect(page).toHaveURL(/\/schema\/checks\/$/);
+  await expect(page.locator('h1')).toHaveText('Checks and unit tests');
+  await expect(page.getByTestId('checks-list').locator('tbody tr').first()).toBeVisible();
+  await expect(page.locator('#check-assert_box_closure')).toContainText('error');
+  await expect(page.getByTestId('unit-tests-list').locator('tbody tr')).not.toHaveCount(0);
+  await expect(page.getByTestId('unit-tests-list').getByRole('link', { name: 'fct_market_value', exact: true }).first()).toHaveAttribute(
+    'href',
+    /\/schema\/fct_market_value\/$/,
+  );
+  // The address a check had on the overview before the move.
+  await page.goto('/schema/#check-assert_box_closure');
+  await expect(page).toHaveURL(/\/schema\/checks\/#check-assert_box_closure$/);
+  await expect(page.locator('#check-assert_box_closure')).toBeInViewport();
 });
 
 test('each schema model and seed has its own page with its notes, grain, links and columns', async ({ page }) => {
@@ -872,11 +890,11 @@ test('each schema model and seed has its own page with its notes, grain, links a
   await expect(fact.getByTestId('grain')).toContainText('One row per league, game_id and player_id');
   await expect(fact.getByTestId('exported')).toContainText('players/<league>/<player_id>.json');
   await expect(fact.getByTestId('read-by-pages')).not.toBeEmpty();
-  // What it reads and its checks link to their own page and to the overview's checks.
+  // What it reads and its checks link to their own page and to the page of checks.
   await expect(fact.getByTestId('reads').getByRole('link', { name: 'dim_player', exact: true })).toHaveAttribute('href', /\/schema\/dim_player\/$/);
   await expect(fact.getByTestId('checked-by').getByRole('link', { name: 'assert_box_closure' })).toHaveAttribute(
     'href',
-    /\/schema\/#check-assert_box_closure$/,
+    /\/schema\/checks\/#check-assert_box_closure$/,
   );
   await expect(fact.locator('tr[data-column="player_game_sk"]')).toContainText('unique');
   await fact.getByTestId('reads').getByRole('link', { name: 'dim_player', exact: true }).click();
@@ -931,7 +949,7 @@ test('the board header stays in view while its rows scroll', async ({ page }) =>
   expect(Math.abs((headBox?.y ?? 0) - (regionBox?.y ?? -100))).toBeLessThan(2);
 });
 
-for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/notebooks/', '/schema/', '/schema/mart_board/']) {
+for (const path of ['/', '/streamers/', '/health/', '/p/wnba/1628932/', '/notebooks/', '/schema/', '/schema/checks/', '/schema/mart_board/']) {
   test(`every table on ${path} keeps its header in view`, async ({ page }) => {
     await page.goto(path);
     await expect(page.locator('main table').first()).toBeAttached();

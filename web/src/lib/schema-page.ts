@@ -64,8 +64,11 @@ export const rowId = (name: string) => (seedNames.has(name) ? `seed-${name}` : `
 export const rowHref = (name: string) => href(`/schema/#${rowId(name)}`);
 /** A model's or seed's own page. */
 export const pageHref = (name: string) => href(`/schema/${name}/`);
-/** A data-quality check's row on the overview. */
-export const checkHref = (name: string) => href(`/schema/#check-${name}`);
+/** The page of data-quality checks and unit tests, and the unit tests on it. */
+export const checksHref = href('/schema/checks/');
+export const unitTestsHref = `${checksHref}#unit-tests`;
+/** A data-quality check's row on that page. */
+export const checkHref = (name: string) => `${checksHref}#check-${name}`;
 export const docsHref = (name: string) => href(`/docs/#!/model/model.fantasyscout.${name}`);
 
 /** The meta badges of a column: its time zone, unit, or when it is null by design. */
