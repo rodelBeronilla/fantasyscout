@@ -40,7 +40,7 @@ foreach ($t in @(@{ Name = 'FantasyScout morning ingest'; At = '04:30'; Source =
                  @{ Name = 'FantasyScout evening reports'; At = '17:15'; Source = 'reports' },
                  @{ Name = 'FantasyScout late reports 1'; At = '18:45'; Source = 'reports' },
                  @{ Name = 'FantasyScout late reports 2'; At = '21:15'; Source = 'reports' })) {
-  $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`" -Source $($t.Source)"
+  $action = New-ScheduledTaskAction -Execute 'conhost.exe' -Argument "--headless powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$script`" -Source $($t.Source)"
   Register-ScheduledTask -TaskName $t.Name -Action $action -Trigger (New-ScheduledTaskTrigger -Daily -At $t.At) -Settings $settings -Principal $principal -Force
 }
 ```
@@ -48,12 +48,26 @@ foreach ($t in @(@{ Name = 'FantasyScout morning ingest'; At = '04:30'; Source =
 `-StartWhenAvailable` runs a missed start as soon as the host is back, so a reboot over 04:30 still
 dispatches the morning run.
 
+The action starts PowerShell under `conhost.exe --headless`, which creates no console window. With
+`powershell.exe -WindowStyle Hidden` alone, a task running as the signed-in user opens a console
+window and hides it a moment later, and that flash takes focus from a fullscreen application
+(#985). Two things follow from conhost being the task's process:
+
+- The task's last result is conhost's, always 0, whatever the script did: read the log (below).
+- Ending the task ends conhost but not the script, so `-ExecutionTimeLimit` no longer stops a hung
+  run. The script gives `gh` its own deadline (`-TimeoutSeconds`, 120 by default) and logs a
+  `FAILED` line when it passes.
+
+To move tasks registered with the older `powershell.exe` action, copy the new script over the old
+one and run the block above again (`-Force` replaces each task in place).
+
 ## Check
 
-- `Get-ScheduledTask -TaskName 'FantasyScout*' | Get-ScheduledTaskInfo` shows the last and next run
-  and the last result (0 is success).
 - `dispatch-ingest.log` beside the script has one line per run: `dispatched` with the run's URL, or
-  `FAILED` with gh's message (usually an expired sign-in: `gh auth login` again).
+  `FAILED` with gh's message (usually an expired sign-in: `gh auth login` again) or with the
+  deadline it passed. This is the record of how a run went.
+- `Get-ScheduledTask -TaskName 'FantasyScout*' | Get-ScheduledTaskInfo` shows the last and next run.
+  Its last result is always 0 (see above), so it says the task started, not that the dispatch worked.
 - The Actions tab lists the run with the event `workflow_dispatch` a few minutes after the task time.
 
 ## Remove
