@@ -8,7 +8,7 @@
 import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, mondayOf, normalize } from './fantasy-league';
 import { weekStart, yahooSource } from './league-sync';
 import { easternDate } from './today';
-import { cleanYahooPages, type YahooPages, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
+import { cleanYahooPages, type YahooPages, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
 
 interface YahooPlayer {
   name: string;
@@ -354,6 +354,9 @@ function yahooState(payload: YahooPayload, mine: number, now: number): { source:
     source.playoffWeeks = { periods: playoffs.periods, from: playoffs.from, to: playoffs.to };
     settings.playoffs = { teams: playoffs.teams, weeks: playoffs.weeks, start: playoffs.from };
   }
+  // the trade deadline, the trade review and the tie-breaker (#1025)
+  const rules = yahooLeagueRules(payload.settings?.rows ?? []);
+  if (Object.keys(rules).length) source.rules = rules;
   // the lineup, roster spots, IL slots, adds and waivers (#1022)
   Object.assign(settings, yahooRosterRules(payload.settings?.rows ?? [], payload.teams.map((t) => t.players.map((p) => p.slot ?? '').filter(Boolean))));
   const scoring = payload.settings?.scoring ? yahooScoring(payload.settings.scoring) : null;

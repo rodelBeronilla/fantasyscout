@@ -1249,6 +1249,10 @@ test("the Yahoo bookmarklet brings the standings, this week's opponent and score
   await expect(page.getByLabel('Injured-list slots')).toHaveValue('2');
   await expect(page.getByLabel('Adds a team may make each week')).toHaveValue('4');
   await expect(page.getByLabel('Days a dropped player waits on waivers')).toHaveValue('2');
+  // the trade deadline, the trade review and the tie-breaker, as Yahoo words them (#1025)
+  await expect(page.getByTestId('league-rules')).toHaveText(
+    "From Yahoo's settings: trade deadline Thursday, March 4, 2027; trade review: League Votes; playoff tie-breaker: Higher seed wins.",
+  );
   const lineup = page.getByTestId('league-lineup');
   for (const [slot, n] of [['G', '3'], ['F', '3'], ['C', '1'], ['Util', '3']] as const) await expect(lineup.getByLabel(`${slot} slots`, { exact: true })).toHaveValue(n);
   // a roster counts its IL players apart, as the host does
