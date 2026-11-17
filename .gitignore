@@ -64,3 +64,6 @@ tableau/extract/
 
 # The owner's own league pages and files (#1030): never committed, fixtures are built from them scrubbed
 private/
+
+# Tools set up by tools/dev/setup.sh
+.tools/
