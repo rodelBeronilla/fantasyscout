@@ -130,6 +130,26 @@
    ]
   },
   {
+   "about": "Projected minutes are the season-weighted figure, or in season a blend of it with the last five games (var fantasy_recent_minutes): never outside the two once the return ramp's cut (var fantasy_return_ramp) is taken back out. The ramp keeps between 1 - max_cut and all of them.",
+   "name": "assert_projected_minutes_blend",
+   "reads": [
+    "mart_player_projection"
+   ],
+   "severity": "error",
+   "tags": [
+    "board"
+   ]
+  },
+  {
+   "about": "The chaos switch: `--vars '{chaos: true}'` makes this error-severity check fail on purpose, so the publish gate and the incident path can be exercised end to end on demand.",
+   "name": "chaos_deliberate_failure",
+   "reads": [],
+   "severity": "error",
+   "tags": [
+    "chaos"
+   ]
+  },
+  {
    "about": "A player's games scheduled agree with his team's week in fct_team_week_games (#997), in every week that table has (the current week on), for a player on one team all week. Two weeks are left out by design: a week in which a stint of his begins after the Monday (a trade, a signing: each team counts on its own days), and a week in which his team also has a playoff game, which fct_team_week_games counts and a regular-season table does not.",
    "name": "assert_player_week_games_scheduled",
    "reads": [
@@ -154,26 +174,6 @@
    "severity": "warn",
    "tags": [
     "player"
-   ]
-  },
-  {
-   "about": "Projected minutes are the season-weighted figure, or in season a blend of it with the last five games (var fantasy_recent_minutes): never outside the two once the return ramp's cut (var fantasy_return_ramp) is taken back out. The ramp keeps between 1 - max_cut and all of them.",
-   "name": "assert_projected_minutes_blend",
-   "reads": [
-    "mart_player_projection"
-   ],
-   "severity": "error",
-   "tags": [
-    "board"
-   ]
-  },
-  {
-   "about": "The chaos switch: `--vars '{chaos: true}'` makes this error-severity check fail on purpose, so the publish gate and the incident path can be exercised end to end on demand.",
-   "name": "chaos_deliberate_failure",
-   "reads": [],
-   "severity": "error",
-   "tags": [
-    "chaos"
    ]
   },
   {
