@@ -242,6 +242,8 @@ When the warehouse answers again, its build runs "Carry the fallback's ledger ro
 
 **The daily drill** proves the two roads agree. Every day at 13:23 UTC, Build fallback runs in `compare` mode when the newest published build is the warehouse's and under eight hours old. It builds the same road, exports to the runner without publishing, and compares the result with that build (`uv run python -m ops.fallback compare --candidate site`). Every table's row count must match, and every numeric column of `gold.mart_board` must agree to 1e-9, the walk-forward check's tolerance. The ledgers each road adds its own run to are listed but not judged. The run's summary has the table. A disagreement is a warning on the run and a table in its summary; it opens no incident (#995 tracks the known differences). Run it by hand from the Actions tab (Build fallback, mode `compare`, or `dry-run` to print without judging). Neither mode publishes. `uv run python -m ops.fallback newest` names the newest published build and its engine.
 
+**A deliberate drill** proves the road publishes. Run Build lakehouse by hand with `fallback_drill` checked, in quiet hours (after the late reports run, before the morning ingest). It skips the warehouse and publishes from the Build fallback job, and the Health page's "Built by" line names the DuckDB road. The next normal build runs on the warehouse, carries the drill's ledger rows back, and publishes over it.
+
 Nothing on this road becomes a workflow artifact: the mirror and the exported files hold source text, so the mirror is deleted after dbt and the drill's export stays on the runner.
 
 ## Query the lakehouse
