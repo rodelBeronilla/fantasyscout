@@ -5,9 +5,10 @@
  * names and player names to the League page in the URL fragment (which never reaches a server).
  * The League page matches the names to players and fills the rosters.
  */
-import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, normalize } from './fantasy-league';
-import { yahooSource } from './league-sync';
-import { cleanYahooPages, type YahooPages, yahooPlayoffs, yahooRecord, yahooScore, yahooScoring } from './yahoo-pages';
+import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, mondayOf, normalize } from './fantasy-league';
+import { weekStart, yahooSource } from './league-sync';
+import { easternDate } from './today';
+import { cleanYahooPages, type YahooPages, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
 
 interface YahooPlayer {
   name: string;
@@ -353,6 +354,8 @@ function yahooState(payload: YahooPayload, mine: number, now: number): { source:
     source.playoffWeeks = { periods: playoffs.periods, from: playoffs.from, to: playoffs.to };
     settings.playoffs = { teams: playoffs.teams, weeks: playoffs.weeks, start: playoffs.from };
   }
+  // the lineup, roster spots, IL slots, adds and waivers (#1022)
+  Object.assign(settings, yahooRosterRules(payload.settings?.rows ?? [], payload.teams.map((t) => t.players.map((p) => p.slot ?? '').filter(Boolean))));
   const scoring = payload.settings?.scoring ? yahooScoring(payload.settings.scoring) : null;
   if (scoring) {
     source.tally = scoring.tally;
@@ -382,6 +385,14 @@ export function applyYahooImport(
     il.push(...matchNames(t.players.filter((p) => p.il).map((p) => p.name).join('\n'), players).matched);
     return result.matched;
   });
+  // each player's slot as set on Yahoo when the bookmark ran (#1022), by player id
+  const slots: Record<string, string> = {};
+  for (const t of payload.teams) {
+    for (const p of t.players) {
+      const id = p.slot ? matchNames(p.name, players).matched[0] : undefined;
+      if (id && p.slot) slots[id] = p.slot;
+    }
+  }
   const mine = Math.max(0, payload.teams.findIndex((t) => t.id === payload.mine));
   const state = yahooState(payload, mine, now);
   const next = normalize(
@@ -389,7 +400,16 @@ export function applyYahooImport(
     DEFAULT_SETTINGS['nba'],
   );
   return {
-    setup: { ...next, source: { ...yahooSource(payload.leagueId, next.rosters, now), ...state.source } },
+    setup: {
+      ...next,
+      source: {
+        ...yahooSource(payload.leagueId, next.rosters, now, setup.source),
+        ...state.source,
+        ...(Object.keys(slots).length ? { slots } : {}),
+        // the manager's roster at the week's first import, for the adds made since (#1022)
+        week: weekStart(setup.source, payload.leagueId, mondayOf(easternDate(new Date(now))), next.rosters[next.mine] ?? []),
+      },
+    },
     matched,
     unmatched,
     il: next.il.length,

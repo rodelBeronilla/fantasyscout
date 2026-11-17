@@ -122,3 +122,79 @@ export function yahooScoring(line: string): { format: Format; tally: Tally } | n
   // "Head-to-Head - Categories" scores each category; "One Win" and "Points" one result a week
   return { format: 'h2h', tally: /categor/i.test(line) && !/one win/i.test(line) ? 'categories' : 'matchups' };
 }
+
+/** Yahoo's roster slots folded into the planner's: PG and SG are guards, SF and PF forwards (#1022). */
+const SLOT_FOLD: Record<string, 'G' | 'F' | 'C' | 'UTIL' | 'BN' | 'IL'> = {
+  PG: 'G',
+  SG: 'G',
+  G: 'G',
+  SF: 'F',
+  PF: 'F',
+  F: 'F',
+  C: 'C',
+  UTIL: 'UTIL',
+  BN: 'BN',
+  IL: 'IL',
+  'IL+': 'IL',
+  IR: 'IL',
+  'IR+': 'IL',
+  NA: 'IL',
+};
+
+/** The roster's shape from slot labels, each counted once per slot: the lineup, the bench and the IL. */
+function shapeOf(labels: string[]): { lineup: { G: number; F: number; C: number; UTIL: number }; rosterSpots: number; ilSlots: number } | null {
+  const count = { G: 0, F: 0, C: 0, UTIL: 0, BN: 0, IL: 0 };
+  for (const l of labels) {
+    const k = SLOT_FOLD[l.trim().toUpperCase()];
+    if (k) count[k] += 1;
+  }
+  const active = count.G + count.F + count.C + count.UTIL;
+  if (!active) return null;
+  return { lineup: { G: count.G, F: count.F, C: count.C, UTIL: count.UTIL }, rosterSpots: active + count.BN, ilSlots: count.IL };
+}
+
+/** "Util (3)" or "Util x3" as three labels; "Util" as one. */
+function expand(token: string): string[] {
+  const m = token.trim().match(/^([A-Za-z+]+)\s*(?:\((\d+)\)|[x×]\s*(\d+))?$/);
+  if (!m) return [];
+  return Array.from({ length: Number(m[2] ?? m[3] ?? 1) }, () => m[1]!);
+}
+
+const rowValue = (rows: [string, string][], label: RegExp) => rows.find(([l]) => label.test(l))?.[1] ?? null;
+
+/**
+ * The league's roster and transaction rules from a version 4 bookmark (#1022): the lineup slots,
+ * the roster spots (lineup plus bench) and the IL slots, from the settings page's roster positions,
+ * else from the slots the Starting Rosters page shows (each team's Pos column, the most of each
+ * label any team fills); the adds a week and the waiver days from the settings page.
+ */
+export function yahooRosterRules(
+  rows: [string, string][],
+  slotsByTeam: string[][],
+): Partial<{ lineup: { G: number; F: number; C: number; UTIL: number }; rosterSpots: number; ilSlots: number; addsPerWeek: number | null; waiverDays: number | null }> {
+  const out: ReturnType<typeof yahooRosterRules> = {};
+  const positions = rowValue(rows, /^roster positions$/i);
+  let shape = positions ? shapeOf(positions.split(',').flatMap(expand)) : null;
+  if (!shape) {
+    // the Pos column: a slot a team leaves empty has no player row, so take the most of each label
+    const most = new Map<string, number>();
+    for (const labels of slotsByTeam) {
+      const n = new Map<string, number>();
+      for (const l of labels) n.set(l.toUpperCase(), (n.get(l.toUpperCase()) ?? 0) + 1);
+      for (const [l, c] of n) most.set(l, Math.max(most.get(l) ?? 0, c));
+    }
+    shape = shapeOf([...most].flatMap(([l, c]) => Array.from({ length: c }, () => l)));
+  }
+  if (shape) Object.assign(out, shape);
+  const adds = rowValue(rows, /acquisitions per week|adds per week|weekly adds/i);
+  if (adds !== null) {
+    const n = adds.match(/\d+/);
+    out.addsPerWeek = n ? Number(n[0]) : null; // "No maximum" and the like: no limit
+  }
+  const waiver = rowValue(rows, /^waiver time$/i);
+  if (waiver !== null) {
+    const n = waiver.match(/\d+/);
+    out.waiverDays = n ? Number(n[0]) : /none|no waiver/i.test(waiver) ? 0 : null;
+  }
+  return out;
+}

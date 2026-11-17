@@ -24,7 +24,7 @@ import { hasWeekGames, recentForm, type ValueUnit } from '../lib/week-value';
 import { SHOWS, showsBuyLow } from '../lib/visibility';
 import { BuySellCard } from './BuySellCard';
 import { describeSettings } from './LeagueParts';
-import { useEspnSync } from './LeagueSync';
+import { CopyAge, useEspnSync } from './LeagueSync';
 import { PlayerPicker } from './PlayerPicker';
 import ExplainTrade from './ExplainTrade';
 import { TradeCategoryBreakdown } from './TradeCategoryBreakdown';
@@ -428,6 +428,7 @@ export default function TradeAnalyzer() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+      <CopyAge setup={setup} league={league} />
 
       {!hasRosters && (
         <p className="text-sm text-muted" data-testid="trade-no-league">

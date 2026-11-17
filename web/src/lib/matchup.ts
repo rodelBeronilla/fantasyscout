@@ -247,6 +247,26 @@ export function byCloseness(rows: CategoryEdge[]): CategoryEdge[] {
 }
 
 /** The week's call, e.g. "Winning 5, losing 3, 1 too close: steals is the swing category" (#817). */
+/**
+ * A category's score so far for one side (#1022): its total, or a percentage made over attempted;
+ * null when the host gave none.
+ */
+export function soFarValue(score: ScoreSoFar | null | undefined, cat: string): number | null {
+  if (!score) return null;
+  if (isRatio(cat)) {
+    const shots = score.shots[cat];
+    return shots && shots[1] > 0 ? shots[0] / shots[1] : null;
+  }
+  const v = score.totals[cat];
+  return typeof v === 'number' ? v : null;
+}
+
+/** Who leads a category on the score so far (#1022): turnovers go to the lower total. */
+export function soFarResult(cat: string, mine: number, theirs: number): 'win' | 'loss' | 'tie' {
+  if (mine === theirs) return 'tie';
+  return (mine > theirs) !== LOWER_WINS.has(cat) ? 'win' : 'loss';
+}
+
 export function matchupCall(m: WeekMatchup, name: (cat: string) => string): string {
   const swing = swingCategory(m);
   const punted = m.cats.length - keptRows(m).length;

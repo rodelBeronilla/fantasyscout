@@ -8,7 +8,7 @@ import { CATEGORY_LABELS, CATEGORY_WORDS, fmt } from '../lib/format';
 import type { League } from '../lib/data';
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { readLine, type ScoreRead } from '../lib/game-state';
-import { closeBand, FPTS, isRatio, matchupCall, swingCategory, type WeekMatchup } from '../lib/matchup';
+import { closeBand, FPTS, isRatio, matchupCall, soFarResult, soFarValue, swingCategory, type WeekMatchup } from '../lib/matchup';
 import { type StreamMove, streamTargets } from '../lib/matchup-streams';
 import { pickupsPath } from '../lib/pickups-url';
 import { href } from '../lib/site';
@@ -49,6 +49,32 @@ function basisNote(basis: MatchupBasis | null, host: 'espn' | 'yahoo' | undefine
   return 'ESPN has no score for this matchup yet, so the week projects from the games left.';
 }
 
+/**
+ * Games left this week, said two ways when the host's lineups are known (#1022): the best lineup
+ * each roster can field (every healthy player who fits a slot starts each day; out, doubtful and
+ * inactive players start none, on both sides), which the projection uses, and the lineups as each
+ * manager had them set when the host was read, kept for the rest of the week, which is what Yahoo
+ * counts as games remaining.
+ */
+function GamesLeft({ mine, theirs, them, asSet, host }: { mine: number; theirs: number; them: string; asSet: { mine: number; theirs: number } | null; host: 'espn' | 'yahoo' | undefined }) {
+  return (
+    <p className="mt-1 text-sm" data-testid="matchup-games">
+      Games left this week{asSet ? ', best lineup' : ''}: you {gamesLeft(mine)}, {them} {gamesLeft(theirs)}.
+      {asSet && (
+        <>
+          {' '}
+          As set on {host === 'espn' ? 'ESPN' : 'Yahoo'}: you {gamesLeft(asSet.mine)}, {them} {gamesLeft(asSet.theirs)}.
+        </>
+      )}
+      <span className="block text-xs text-muted" data-testid="matchup-games-note">
+        {asSet
+          ? `Best lineup: every healthy player who fits a slot starts each day; out, doubtful and inactive players count no games, on both sides. As set: the lineups each manager had set when the bookmark ran, kept for the rest of the week, with the same players out. The projection uses the best lineup.`
+          : 'Each lineup is the best its roster can field: every healthy player who fits a slot starts each day; out, doubtful and inactive players count no games, on both sides.'}
+      </span>
+    </p>
+  );
+}
+
 /** "Add Jones, drop Lee: flips steals, 2 games on your open days", with every stream one click down (#818). */
 function StreamLine({ stream, league, nameOf, pickups }: { stream: StreamMove; league: League; nameOf: (id: string) => string; pickups: string }) {
   const player = (id: string) => (
@@ -87,6 +113,7 @@ export function Matchup({
   stream = null,
   nameOf = (id) => id,
   onOpponent,
+  asSet = null,
 }: {
   setup: LeagueSetup;
   match: WeekMatchup | null;
@@ -97,6 +124,8 @@ export function Matchup({
   openDays: string[];
   /** The best stream for the close and losing categories, with its drop (#818). */
   stream?: StreamMove | null;
+  /** Games left with the lineups as each manager had set them on the host when it was read (#1022); null when not known. */
+  asSet?: { mine: number; theirs: number } | null;
   nameOf?: (id: string) => string;
   onOpponent: (team: number | null) => void;
 }) {
@@ -111,6 +140,26 @@ export function Matchup({
   const pointsOf = (team: number | null) => (team === null ? undefined : scores?.[team]?.totals[FPTS]);
   const [mineSoFar, theirsSoFar] = [pointsOf(setup.mine), pointsOf(setup.opponent)];
   const soFar = points && live && mineSoFar !== undefined && theirsSoFar !== undefined ? [mineSoFar, theirsSoFar] : null;
+  // the score so far by category beside the projected final (#1022): only while it is this week's
+  const mineScore = setup.source?.scores?.[setup.mine];
+  const theirScore = setup.opponent === null ? undefined : setup.source?.scores?.[setup.opponent];
+  const now =
+    match && !points && live && mineScore && theirScore
+      ? new Map(
+          match.cats.flatMap((r) => {
+            const a = soFarValue(mineScore, r.cat);
+            const b = soFarValue(theirScore, r.cat);
+            return a === null || b === null ? [] : [[r.cat, { mine: a, theirs: b, result: soFarResult(r.cat, a, b) }] as const];
+          }),
+        )
+      : null;
+  const tally = (results: string[]) => {
+    const n = (r: string) => results.filter((x) => x === r).length;
+    return { won: n('win'), lost: n('loss'), even: n('tie') + n('close') };
+  };
+  const nowTally = now ? tally([...now.values()].map((v) => v.result)) : null;
+  const finalTally = match ? tally(match.cats.map((r) => r.result)) : null;
+  const count = (t: { won: number; lost: number; even: number }) => `${t.won}–${t.lost}${t.even ? `–${t.even}` : ''}`;
   // Pickups for the open days, with the close and losing categories as need chips (#818)
   const pickups = href(pickupsPath(league, { week: true, open: openDays, need: match && !points ? streamTargets(match) : [] }));
   return (
@@ -154,9 +203,9 @@ export function Matchup({
             ) : (
               'You project '
             )}
-            <strong>{fmt(match.mine.fpts, 0)} fantasy points</strong> to {them}&apos;s {fmt(match.theirs.fpts, 0)} this week. Games left: you{' '}
-            {gamesLeft(match.mine.games)}, {them} {gamesLeft(match.theirs.games)}.
+            <strong>{fmt(match.mine.fpts, 0)} fantasy points</strong> to {them}&apos;s {fmt(match.theirs.fpts, 0)} this week.
           </p>
+          <GamesLeft mine={match.mine.games} theirs={match.theirs.games} them={them} asSet={asSet} host={setup.source?.host} />
           {basis?.live && basis.read && (
             <p className="mt-1 text-xs text-muted" data-testid="matchup-read">
               {readLine(basis.read, setup.source?.host)}
@@ -196,9 +245,9 @@ export function Matchup({
             ) : (
               ''
             )}
-            . Games left this week: you {gamesLeft(match.mine.games)}, {them}{' '}
-            {gamesLeft(match.theirs.games)}.
+            .
           </p>
+          <GamesLeft mine={match.mine.games} theirs={match.theirs.games} them={them} asSet={asSet} host={setup.source?.host} />
           {basis?.live && basis.read && (
             <p className="mt-1 text-xs text-muted" data-testid="matchup-read">
               {readLine(basis.read, setup.source?.host)}
@@ -209,13 +258,40 @@ export function Matchup({
               {note}
             </p>
           )}
+          {finalTally && (
+            <p className="mt-2 text-sm" data-testid="matchup-tally">
+              {nowTally && (
+                <>
+                  <span className="text-muted">Score so far:</span> <strong>{count(nowTally)}</strong>
+                  {' · '}
+                </>
+              )}
+              <span className="text-muted">Projected final:</span> <strong>{count(finalTally)}</strong>
+              <span className="text-xs text-muted"> (categories you win, lose{finalTally.even || nowTally?.even ? ' and tie' : ''})</span>
+            </p>
+          )}
           <div className="table-scroll mt-2 overflow-auto" tabIndex={0} role="region" aria-label="Matchup, category by category">
             <table className="w-full text-sm" data-testid="matchup-table">
               <thead>
+                {now && (
+                  <tr>
+                    <Th>{''}</Th>
+                    <Th right colSpan={2}>
+                      So far
+                    </Th>
+                    <Th right colSpan={2}>
+                      Projected final
+                    </Th>
+                    <Th>{''}</Th>
+                    <Th>{''}</Th>
+                  </tr>
+                )}
                 <tr>
                   <Th>Category</Th>
-                  <Th right>You</Th>
-                  <Th right>{them}</Th>
+                  {now && <Th right>You</Th>}
+                  {now && <Th right>{them}</Th>}
+                  <Th right>{now ? 'You' : 'You, projected'}</Th>
+                  <Th right>{now ? them : `${them}, projected`}</Th>
                   <Th right>Edge</Th>
                   <Th>{''}</Th>
                 </tr>
@@ -227,6 +303,8 @@ export function Matchup({
                       {CATEGORY_LABELS[r.cat] ?? r.cat}
                       {r.cat === swing && <span className="ml-1 text-xs text-muted">swing</span>}
                     </Td>
+                    {now && <Td right>{now.get(r.cat) ? show(r.cat, now.get(r.cat)!.mine) : '–'}</Td>}
+                    {now && <Td right>{now.get(r.cat) ? show(r.cat, now.get(r.cat)!.theirs) : '–'}</Td>}
                     <Td right>{show(r.cat, r.mine)}</Td>
                     <Td right>{show(r.cat, r.theirs)}</Td>
                     <Td right>

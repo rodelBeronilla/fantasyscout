@@ -1244,6 +1244,15 @@ test("the Yahoo bookmarklet brings the standings, this week's opponent and score
   await expect(page.getByLabel('Teams that make the playoffs')).toHaveValue('4');
   await expect(page.getByLabel('The first playoff week (its Monday)')).toHaveValue('2027-03-15');
   await expect(page.getByLabel('The first playoff week (its Monday)')).toBeDisabled();
+  // the roster's shape, the adds and the waivers from Yahoo's settings page (#1022)
+  await expect(page.getByLabel('Roster spots')).toHaveValue('13');
+  await expect(page.getByLabel('Injured-list slots')).toHaveValue('2');
+  await expect(page.getByLabel('Adds a team may make each week')).toHaveValue('4');
+  await expect(page.getByLabel('Days a dropped player waits on waivers')).toHaveValue('2');
+  const lineup = page.getByTestId('league-lineup');
+  for (const [slot, n] of [['G', '3'], ['F', '3'], ['C', '1'], ['Util', '3']] as const) await expect(lineup.getByLabel(`${slot} slots`, { exact: true })).toHaveValue(n);
+  // a roster counts its IL players apart, as the host does
+  await expect(page.getByTestId('roster-count').first()).toContainText(/^\d+\/13 players · \d\/2 IL$/);
 
   await page.goto('/team/?league=nba');
   await expect(page.getByTestId('sync-summary')).toHaveText('Last synced just now from Yahoo · this week vs Triple Doubles');
@@ -1254,6 +1263,12 @@ test("the Yahoo bookmarklet brings the standings, this week's opponent and score
     await expect(matchup.getByTestId('matchup-summary')).toContainText('From the score so far plus the games each lineup starts');
     // noon ET, before the day's first tip-off: the line names Yahoo and the read time (#875)
     await expect(matchup.getByTestId('matchup-read')).toContainText("Score so far from Yahoo at 12:00 ET, before today's");
+    // the score so far beside the projected final, each labelled, with both tallies (#1022)
+    await expect(matchup.getByTestId('matchup-tally')).toContainText(/^Score so far: \d–\d(–\d)? · Projected final: \d–\d(–\d)?/);
+    await expect(matchup.getByTestId('matchup-table').locator('thead')).toContainText('So far');
+    await expect(matchup.getByTestId('matchup-table').locator('thead')).toContainText('Projected final');
+    // games left both ways, the lineups as set on Yahoo beside the best lineup
+    await expect(matchup.getByTestId('matchup-games')).toContainText(/Games left this week, best lineup: you [\d.]+, Triple Doubles [\d.]+\. As set on Yahoo: you [\d.]+, Triple Doubles [\d.]+\./);
   }
 });
 
@@ -1783,7 +1798,9 @@ test('a head-to-head league picks this week\'s opponent on My Team and sees the 
   await expect(matchupCard.getByTestId('matchup-basis')).toHaveText('The week projects from the games left: an ESPN import, or the Yahoo bookmark on the League page, brings the score so far.');
   // three players fill three of the ten slots, so each starts every game his team has left
   const mine = names.slice(0, 3).reduce((s, name) => s + gamesFor(name), 0);
-  await expect(matchupCard.getByTestId('matchup-summary')).toContainText(`Games left this week: you ${mine}, Team 2 ${gamesFor(names[3] ?? '')}`);
+  // the games each lineup starts, on their own line with the assumption (#1022); no host, so no "as set"
+  await expect(matchupCard.getByTestId('matchup-games')).toContainText(`Games left this week: you ${mine}, Team 2 ${gamesFor(names[3] ?? '')}.`);
+  await expect(matchupCard.getByTestId('matchup-games-note')).toContainText('out, doubtful and inactive players count no games, on both sides');
   await expect(matchupCard.getByTestId('matchup-row')).toHaveCount(9);
   await expect(matchupCard.getByTestId('matchup-row').filter({ hasText: 'TO' })).toContainText('loss');
   // a head-to-head review defaults to this week
@@ -4131,4 +4148,141 @@ test('an older Yahoo bookmark imports nothing and asks to be added again (#1018)
   await expect(page.getByRole('status').filter({ hasText: 'out of date' })).toContainText('This Yahoo bookmark is out of date, so nothing was imported. Add the bookmark again');
   await expect(page.getByTestId('team-card').filter({ hasText: 'Old' })).toHaveCount(0);
   await expect(page).toHaveURL(/\/league\/\?league=nba$/);
+});
+
+test('every page that uses an imported league says how old its copy is, and asks for a new one past a day in season (#1001)', async ({ page }) => {
+  type Row = { player_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  // the fixture's NBA data is as of 2026-10-31: three days later the league is in season
+  const now = new Date('2026-11-03T16:00:00Z');
+  await page.clock.setFixedTime(now);
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const copy = (hoursOld: number) => ({
+    version: 7,
+    teams: 4,
+    rosterSpots: 6,
+    scoring: 'cats9',
+    format: 'h2h',
+    punts: [],
+    names: ['Mine', 'Second', 'Third', 'Fourth'],
+    rosters,
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    source: { host: 'yahoo', leagueId: '99', syncedAt: now.getTime() - hoursOld * 3_600_000, rosters, changes: null },
+  });
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy(30)));
+  for (const path of ['/?league=nba', '/streamers/?league=nba', '/trade/?league=nba', '/league/?league=nba', `/p/nba/${board[0]!.player_id}/`]) {
+    await page.goto(path);
+    const line = page.getByTestId('copy-age');
+    await expect(line, path).toContainText('Your Yahoo league as of 1 day ago.');
+    await expect(line.getByTestId('copy-age-rerun'), path).toHaveText('It is over a day old: run the Yahoo bookmark again →');
+    await expect(line.getByTestId('copy-age-rerun'), path).toHaveAttribute('href', /\/league\/#yahoo$/);
+  }
+  // the warning reads in both themes
+  await page.goto('/streamers/?league=nba');
+  await expect(page.getByTestId('copy-age-rerun')).toBeVisible();
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+    const found = await new AxeBuilder({ page }).include('[data-testid="copy-age"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(found.violations, theme).toEqual([]);
+  }
+  // My Team's own line asks the same
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('yahoo-resync')).toBeVisible();
+});
+
+test('a copy under a day old, or any copy out of season, is not asked for again (#1001)', async ({ page }) => {
+  type Row = { player_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const seed = async (now: Date, hoursOld: number) => {
+    await page.clock.setFixedTime(now);
+    const copy = {
+      version: 7, teams: 4, rosterSpots: 6, scoring: 'cats9', format: 'h2h', punts: [], names: ['Mine', 'Second', 'Third', 'Fourth'],
+      rosters, mine: 0, il: [], drafting: false, picks: [], opponent: 1,
+      source: { host: 'yahoo', leagueId: '99', syncedAt: now.getTime() - hoursOld * 3_600_000, rosters, changes: null },
+    };
+    await page.evaluate((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+  };
+  await page.goto('/?league=nba');
+  await seed(new Date('2026-11-03T16:00:00Z'), 3);
+  await page.reload();
+  await expect(page.getByTestId('copy-age')).toHaveText('Your Yahoo league as of 3 hours ago.');
+  // three weeks after the league's newest data it is out of season: an old copy only says its age
+  await seed(new Date('2026-11-21T16:00:00Z'), 72);
+  await page.reload();
+  await expect(page.getByTestId('copy-age')).toHaveText('Your Yahoo league as of 3 days ago.');
+  await expect(page.getByTestId('copy-age-rerun')).toHaveCount(0);
+});
+
+test("My Team shows the score so far beside the projected final, games left both ways, and the adds left (#1022)", async ({ page }) => {
+  type Row = { player_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const now = new Date('2026-11-02T16:00:00Z');
+  await page.clock.setFixedTime(now);
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const score = (pts: number) => ({
+    totals: { z_points: pts, z_rebounds_total: 49, z_assists: 23, z_steals: 7, z_blocks: 7, z_three_pointers_made: 14, z_turnovers: 12 },
+    shots: { z_field_goal_pct: [41, 88], z_free_throw_pct: [14, 17] },
+  });
+  // the manager's first player sits on the bench on Yahoo; everyone else is in a starting slot
+  const slots = Object.fromEntries(rosters.flat().map((id) => [id, id === rosters[0]![0] ? 'BN' : 'UTIL']));
+  const copy = {
+    version: 10,
+    teams: 4,
+    rosterSpots: 13,
+    scoring: 'cats9',
+    format: 'h2h',
+    punts: [],
+    names: ['Mine', 'Second', 'Third', 'Fourth'],
+    rosters,
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    lineup: { G: 3, F: 3, C: 1, UTIL: 3 },
+    ilSlots: 2,
+    addsPerWeek: 4,
+    waiverDays: 2,
+    source: {
+      host: 'yahoo',
+      leagueId: '99',
+      syncedAt: now.getTime() - 3_600_000,
+      rosters,
+      changes: null,
+      opponents: [1, 0, 3, 2],
+      scores: [score(110), score(91), null, null],
+      slots,
+      // one player on the roster now was added since the week's first import
+      week: { monday: '2026-11-02', roster: rosters[0]!.slice(1) },
+    },
+  };
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+  await page.goto('/team/?league=nba');
+  const matchup = page.getByTestId('matchup');
+  await expect(matchup.getByTestId('matchup-tally')).toContainText(/^Score so far: 1–0(–8)? · Projected final: \d–\d/);
+  const head = matchup.getByTestId('matchup-table').locator('thead');
+  await expect(head).toContainText('So far');
+  await expect(head).toContainText('Projected final');
+  // the points so far, as Yahoo had them, beside the projection
+  await expect(matchup.getByTestId('matchup-row').filter({ hasText: 'PTS' })).toContainText('110');
+  await expect(matchup.getByTestId('matchup-row').filter({ hasText: 'PTS' })).toContainText('91');
+  // the benched player's games are in the best lineup and not in the lineup as set
+  const games = matchup.getByTestId('matchup-games');
+  await expect(games).toContainText(/best lineup: you (\d+), Second (\d+)\. As set on Yahoo: you (\d+), Second (\d+)\./);
+  const [, best, , asSet] = (await games.textContent())!.match(/best lineup: you (\d+), Second (\d+)\. As set on Yahoo: you (\d+), Second (\d+)/)!.map(Number);
+  expect(asSet).toBeLessThan(best!);
+  await expect(page.getByTestId('matchup-games-note')).toContainText('The projection uses the best lineup.');
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+    const found = await new AxeBuilder({ page }).include('[data-testid="matchup"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(found.violations, theme).toEqual([]);
+  }
+  // three of four adds left; the open slots say so
+  const open = page.getByTestId('today-open');
+  if (await open.count()) await expect(open.getByTestId('today-adds-left')).toContainText('3 adds left this week');
 });

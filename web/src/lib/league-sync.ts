@@ -10,7 +10,7 @@
  * so the matchup knows which of today's games the score so far already holds.
  */
 import { espnLeagueUrl, fromEspnLeague, type ImportedLeague } from './espn-league';
-import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, normalize } from './fantasy-league';
+import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, mondayOf, normalize } from './fantasy-league';
 import { fetchGamesRead, type GamesRead } from './game-state';
 import { daysLeftInWeek } from './lineup';
 import type { ScoreSoFar } from './matchup';
@@ -25,6 +25,12 @@ const DAY = 24 * HOUR; // def: hours in a day
 export const SYNC_EVERY_MS = PARAMS['sync.every_minutes'] * MINUTE;
 /** How old a Yahoo copy gets before the page offers to re-sync it. */
 export const YAHOO_STALE_MS = DAY;
+/** In season, how old any imported copy gets before every page that uses it asks for a re-run (#1001). */
+export const COPY_STALE_MS = DAY;
+/** How many import times a setup keeps (#1001): about two months of daily imports. */
+export const IMPORTS_KEPT = 60;
+/** A league whose newest data is at most this many days old is in season (#1001). */
+const IN_SEASON_DAYS = 7;
 
 type Players = { player_id: string; full_name: string | null }[];
 
@@ -237,6 +243,8 @@ export function espnSetup(
     changes,
     // the players in ESPN's IR slot at this read (#878), so the next one can tell who came off it
     ir,
+    imports: withImport(previous?.source, at.now, at.leagueId),
+    week: weekStart(previous?.source, at.leagueId, mondayOf(easternDate(new Date(at.now))), setup.rosters[setup.mine] ?? []),
     opponents,
     // this week's score so far, by stat or in fantasy points, for the matchup to start from (#817, #877)
     ...(league.scores.size > 0 ? { scores: teamIds.map((id) => (id === null ? null : (league.scores.get(id) ?? null))) } : {}),
@@ -303,8 +311,8 @@ export function chooseMine(setup: LeagueSetup, mine: number): LeagueSetup {
 }
 
 /** A Yahoo bookmarklet import's record: when it ran and the rosters it brought. */
-export function yahooSource(leagueId: string, rosters: string[][], now: number): LeagueSource {
-  return { host: 'yahoo', leagueId, syncedAt: now, rosters, changes: null };
+export function yahooSource(leagueId: string, rosters: string[][], now: number, previous?: LeagueSource): LeagueSource {
+  return { host: 'yahoo', leagueId, syncedAt: now, rosters, changes: null, imports: withImport(previous, now, leagueId) };
 }
 
 /** How long ago a time was, in words: "just now", "4 min ago", "3 hours ago", "2 days ago". */
@@ -331,4 +339,52 @@ export function espnSyncLine(source: LeagueSource, now: number): string {
 /** Whether a Yahoo copy is old enough to offer a re-sync. */
 export function yahooStale(source: LeagueSource, now: number): boolean {
   return now - source.syncedAt >= YAHOO_STALE_MS;
+}
+
+/**
+ * The import times after one more at `now` (#1001): the previous copy's times (its own sync time
+ * when it kept none), then this one, the newest IMPORTS_KEPT. A copy of another league starts over.
+ */
+export function withImport(previous: LeagueSource | undefined, now: number, leagueId?: string): number[] {
+  const same = previous && (leagueId === undefined || previous.leagueId === leagueId);
+  const before = same ? (previous.imports?.length ? previous.imports : [previous.syncedAt]) : [];
+  return [...before.filter((t) => t < now), now].slice(-IMPORTS_KEPT);
+}
+
+/**
+ * The manager's roster at the fantasy week's first import (#1022): kept from the copy it replaces
+ * while it is the same league and week, else the roster this import brings.
+ */
+export function weekStart(previous: LeagueSource | undefined, leagueId: string, monday: string, roster: string[]): { monday: string; roster: string[] } {
+  const kept = previous?.leagueId === leagueId ? previous.week : undefined;
+  return kept && kept.monday === monday ? kept : { monday, roster: [...roster] };
+}
+
+/**
+ * Adds left this week (#1022): the league's limit less the players on the manager's roster now who
+ * were not on it at the week's first import. Null when the league sets no limit; adds made before
+ * that first import are not seen, so it can only overcount what is left.
+ */
+export function addsLeft(setup: LeagueSetup, monday: string): number | null {
+  if (setup.addsPerWeek === null) return null;
+  const week = setup.source?.week;
+  const now = setup.rosters[setup.mine] ?? [];
+  const made = week && week.monday === monday ? now.filter((id) => !week.roster.includes(id)).length : 0;
+  return Math.max(0, setup.addsPerWeek - made);
+}
+
+/** Whether a league is in season: its newest published data is at most IN_SEASON_DAYS before today (Eastern dates). */
+export function inSeasonFrom(dataAsOf: string | undefined, today: string): boolean {
+  if (!dataAsOf) return false;
+  const days = (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${dataAsOf}T12:00:00Z`)) / DAY;
+  return Number.isFinite(days) && days <= IN_SEASON_DAYS;
+}
+
+/**
+ * What a page says about the league copy it uses (#1001): where it came from and how old it is,
+ * and, in season once it is COPY_STALE_MS old, that it should be taken again.
+ */
+export function copyAge(source: LeagueSource, now: number, inSeason: boolean): { text: string; stale: boolean } {
+  const host = source.host === 'yahoo' ? 'Yahoo' : 'ESPN';
+  return { text: `Your ${host} league as of ${ago(source.syncedAt, now)}`, stale: inSeason && now - source.syncedAt >= COPY_STALE_MS };
 }

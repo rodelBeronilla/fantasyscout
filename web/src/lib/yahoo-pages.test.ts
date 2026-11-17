@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, normalize } from './fantasy-league';
 import { fixedPlayoffs, leagueRecords, recordsFromText } from './league-state';
 import { weekScore } from './league-sync';
 import { applyYahooImport, parseYahooHash } from './yahoo-bookmarklet';
-import { yahooPlayoffs, yahooRecord, yahooScore, yahooScoring } from './yahoo-pages';
+import { yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
 
 // The text of a public Yahoo league's pages on 8 November 2026, as the bookmark reads them
 const LABELS = ['Team', 'FGM/A*', 'FG%', 'FTM/A*', 'FT%', '3PTM', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO', ''];
@@ -129,5 +129,41 @@ describe('a league built by hand (#874)', () => {
     expect(fixedPlayoffs(base)).toBeNull();
     const set = { ...base, playoffs: { teams: 4, weeks: 3, start: '2027-03-08' } };
     expect(fixedPlayoffs(set)).toEqual({ from: '2027-03-08', to: '2027-03-28', periods: null });
+  });
+});
+
+describe("a league's roster rules from the bookmark (#1022)", () => {
+  it('reads the lineup, bench and IL from the roster positions, Util (3) or Util, Util, Util alike', () => {
+    const owner = 'PG, SG, G, SF, PF, F, C, Util, Util, Util, BN, BN, BN, IL, IL';
+    expect(yahooRosterRules([['Roster Positions', owner]], [])).toEqual({ lineup: { G: 3, F: 3, C: 1, UTIL: 3 }, rosterSpots: 13, ilSlots: 2 });
+    expect(yahooRosterRules([['Roster Positions', 'PG, SG, G, SF, PF, F, C, Util (3), BN (3), IL (2)']], [])).toMatchObject({ rosterSpots: 13, ilSlots: 2 });
+  });
+
+  it("falls back to the Starting Rosters page's Pos column, the most of each slot any team fills", () => {
+    const team = ['PG', 'SG', 'G', 'SF', 'PF', 'F', 'C', 'UTIL', 'UTIL', 'UTIL', 'BN', 'BN', 'BN', 'IL', 'IL'];
+    // one team leaves a Util and a bench slot empty, so it has no row for them
+    const short = ['PG', 'SG', 'G', 'SF', 'PF', 'F', 'C', 'UTIL', 'UTIL', 'BN', 'BN', 'IL'];
+    expect(yahooRosterRules([], [short, team])).toEqual({ lineup: { G: 3, F: 3, C: 1, UTIL: 3 }, rosterSpots: 13, ilSlots: 2 });
+    expect(yahooRosterRules([], [])).toEqual({});
+  });
+
+  it('reads the adds a week and the waiver days', () => {
+    expect(yahooRosterRules([['Max Acquisitions per Week', '4'], ['Waiver Time', '2 days']], [])).toEqual({ addsPerWeek: 4, waiverDays: 2 });
+    expect(yahooRosterRules([['Max Acquisitions per Week', 'No maximum'], ['Waiver Time', 'None']], [])).toEqual({ addsPerWeek: null, waiverDays: 0 });
+  });
+
+  it('sets them, and each player’s slot as set, on an import', () => {
+    const payload = parseYahooHash(
+      hash({
+        ...v3,
+        teams: v3.teams.map((t, i) => ({ ...t, players: t.players.map((p) => ({ ...p, slot: i === 1 ? 'BN' : 'Util' })) })),
+        settings: { ...v3.settings, rows: [['Roster Positions', 'PG, SG, G, SF, PF, F, C, Util, Util, Util, BN, BN, BN, IL, IL'], ['Max Acquisitions per Week', '4'], ['Waiver Time', '2 days']] },
+      }),
+    )!;
+    const { setup } = applyYahooImport(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), payload, players, NOV_8);
+    expect([setup.lineup, setup.rosterSpots, setup.ilSlots, setup.addsPerWeek, setup.waiverDays]).toEqual([{ G: 3, F: 3, C: 1, UTIL: 3 }, 13, 2, 4, 2]);
+    expect(setup.source?.slots).toEqual({ '1': 'UTIL', '2': 'BN', '3': 'UTIL', '4': 'UTIL' });
+    // the manager's roster at the week's first import, for the adds made since
+    expect(setup.source?.week).toEqual({ monday: '2026-11-02', roster: ['2'] });
   });
 });

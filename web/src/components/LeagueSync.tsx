@@ -4,9 +4,11 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { getLatest, type League } from '../lib/data';
 import type { LeagueSetup } from '../lib/fantasy-league';
-import { ago, espnSetup, espnSyncLine, readEspn, SYNC_EVERY_MS, syncDue, yahooStale } from '../lib/league-sync';
+import { ago, copyAge, espnSetup, espnSyncLine, inSeasonFrom, readEspn, SYNC_EVERY_MS, syncDue } from '../lib/league-sync';
 import { href } from '../lib/site';
+import { easternDate } from '../lib/today';
 
 type Players = { player_id: string; full_name: string | null }[];
 
@@ -74,7 +76,8 @@ export function useEspnSync(setup: LeagueSetup, update: (change: (current: Leagu
 const button = 'rounded border border-accent px-2 py-0.5 text-xs font-medium text-accent hover:bg-bg disabled:opacity-50';
 
 /** The line that leads My Team: when the league was last synced, what changed, and the way to sync again. */
-export function SyncLine({ setup, sync }: { setup: LeagueSetup; sync: SyncState }) {
+export function SyncLine({ setup, sync, league }: { setup: LeagueSetup; sync: SyncState; league: League }) {
+  const inSeason = useInSeason(league);
   const [now, setNow] = useState(() => Date.now());
   const source = setup.source;
   useEffect(() => {
@@ -94,7 +97,7 @@ export function SyncLine({ setup, sync }: { setup: LeagueSetup; sync: SyncState 
         <span data-testid="sync-summary">
           Last synced {ago(source.syncedAt, now)} from Yahoo{versus ? ` · this week vs ${versus}` : ''}
         </span>
-        {yahooStale(source, now) && (
+        {copyAge(source, now, inSeason).stale && (
           <a href={href('/league/#yahoo')} className="font-medium text-accent underline-offset-4 hover:underline" data-testid="yahoo-resync">
             Re-sync
           </a>
@@ -134,5 +137,52 @@ export function SyncLine({ setup, sync }: { setup: LeagueSetup; sync: SyncState 
         </button>
       )}
     </div>
+  );
+}
+
+/** Whether a league is in season (#1001): its newest published data is at most a week old. */
+function useInSeason(league: League): boolean {
+  const [inSeason, setInSeason] = useState(false);
+  useEffect(() => {
+    let live = true;
+    getLatest()
+      .then((latest) => live && setInSeason(inSeasonFrom(latest?.data_as_of[league], easternDate())))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [league]);
+  return inSeason;
+}
+
+/**
+ * The line every page that uses an imported league carries (#1001): where the copy came from and
+ * how old it is, and in season, once it is a day old, the way to take it again: the bookmark for a
+ * Yahoo league, a re-import for an ESPN one. Nothing for a league built by hand.
+ */
+export function CopyAge({ setup, league }: { setup: LeagueSetup; league: League }) {
+  const inSeason = useInSeason(league);
+  const [now, setNow] = useState(() => Date.now());
+  const source = setup.source;
+  useEffect(() => {
+    const tick = window.setInterval(() => setNow(Date.now()), 60 * 1000); // def: a minute, in ms
+    return () => window.clearInterval(tick);
+  }, []);
+  useEffect(() => setNow(Date.now()), [source?.syncedAt]);
+  if (!source) return null;
+  const { text, stale } = copyAge(source, now, inSeason);
+  return (
+    <p className={stale ? 'text-sm text-warn' : 'text-sm text-muted'} data-testid="copy-age" data-stale={stale || undefined}>
+      {text}.{' '}
+      {stale && (
+        <a
+          href={href(source.host === 'yahoo' ? '/league/#yahoo' : '/league/')}
+          className="font-medium text-accent underline-offset-4 hover:underline"
+          data-testid="copy-age-rerun"
+        >
+          {source.host === 'yahoo' ? 'It is over a day old: run the Yahoo bookmark again' : 'It is over a day old: import it again'} →
+        </a>
+      )}
+    </p>
   );
 }
