@@ -36,6 +36,10 @@ on:
         description: Chaos drill, fail one error-severity check on purpose to prove the gate and the incident path
         type: boolean
         default: false
+      fallback_drill:
+        description: Fallback drill, build and publish on DuckDB as if the warehouse had refused (#989); the next build returns to the warehouse
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -58,7 +62,7 @@ jobs:
   dbt:
     name: dbt build on Databricks
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && !inputs.fallback_drill) ||
       github.event.workflow_run.conclusion == 'success' ||
       github.event.workflow_run.conclusion == 'failure' ||
       github.event.workflow_run.conclusion == 'cancelled' ||
@@ -381,9 +385,11 @@ jobs:
   fallback:
     name: Build fallback
     needs: dbt
+    # or on purpose, by hand: the fallback drill (#989) skips the warehouse and publishes from here
     if: >-
       always() &&
-      (needs.dbt.outputs.warehouse == 'failure' || needs.dbt.outputs.context == 'failure')
+      (needs.dbt.outputs.warehouse == 'failure' || needs.dbt.outputs.context == 'failure' ||
+      (github.event_name == 'workflow_dispatch' && inputs.fallback_drill))
     uses: ./.github/workflows/build-fallback.yml
     with:
       mode: publish
