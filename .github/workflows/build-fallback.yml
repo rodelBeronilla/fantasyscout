@@ -13,7 +13,9 @@ name: Build fallback
 #   publish  called by Build lakehouse when its warehouse would not start; goes live.
 #   compare  the daily drill, and by hand: the same road without publishing, judged against the
 #            warehouse's newest build (row counts, and the board's values to 1e-9). It runs only
-#            when that build is the warehouse's and fresh; a disagreement opens an incident.
+#            when that build is the warehouse's and fresh. A disagreement is reported in the run's
+#            summary and as a warning; it opens no incident (the owner's decision, 2026-11-16: a
+#            data-incident issue reaches his phone, and a known difference is not an incident).
 #   dry-run  a pull request that changes the road: the same road without publishing; the
 #            comparison is printed, not judged.
 
@@ -192,7 +194,8 @@ jobs:
           set -o pipefail
           uv run fs-export build --engine duckdb --store local --out "$RUNNER_TEMP/site" 2>&1 | tail -5
           args=(compare --candidate "$RUNNER_TEMP/site")
-          [ "$MODE" = "dry-run" ] && args+=(--report-only)
+          # Neither mode fails on a disagreement: the summary carries it, and the step below warns.
+          args+=(--report-only)
           uv run python -m ops.fallback "${args[@]}" 2>&1 | tee -a land.log
 
       - name: Decide the outcome and record the build
@@ -247,10 +250,11 @@ jobs:
 
       - name: Report the drill
         if: always() && env.MODE == 'compare' && steps.run.outputs.go == 'true'
-        uses: ./.github/actions/incident
-        with:
-          title: "Fallback build disagrees with the warehouse"
-          outcome: ${{ steps.compare.outcome == 'success' && 'success' || 'failure' }}
-          detail: "The daily drill built the warehouse's morning on DuckDB and compared the two builds (row counts per table, the board's values to 1e-9); the run's summary has the table."
-          priority: P2-medium
-          token: ${{ github.token }}
+        env:
+          AGREES: ${{ steps.compare.outputs.agrees }}
+        run: |
+          if [ "$AGREES" = "true" ]; then
+            echo "The two roads agree."
+          else
+            echo "::warning title=The two roads disagree::The daily drill's DuckDB build differs from the warehouse's (#995). The run's summary has the table. No incident is opened."
+          fi
