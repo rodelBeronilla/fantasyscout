@@ -67,11 +67,12 @@
   {{ return(adapter.dispatch('name_similarity', 'fantasyscout')(a, b)) }}
 {%- endmacro %}
 
+{#
+  One rule on both engines (#995): the normalised Levenshtein ratio, which both have. DuckDB used
+  Jaro-Winkler with its own thresholds before, so the two engines paired different players and the
+  DuckDB road's crosswalk, market values and backtests differed from the warehouse's.
+#}
 {% macro default__name_similarity(a, b) -%}
-  jaro_winkler_similarity({{ a }}, {{ b }})
-{%- endmacro %}
-
-{% macro databricks__name_similarity(a, b) -%}
   (1.0 - levenshtein({{ a }}, {{ b }}) / greatest(length({{ a }}), length({{ b }}), 1))
 {%- endmacro %}
 
@@ -80,10 +81,6 @@
 {%- endmacro %}
 
 {% macro default__name_similarity_threshold() -%}
-  0.92
-{%- endmacro %}
-
-{% macro databricks__name_similarity_threshold() -%}
   0.75
 {%- endmacro %}
 
@@ -93,10 +90,6 @@
 {%- endmacro %}
 
 {% macro default__name_similarity_threshold_with_birthdate() -%}
-  0.85
-{%- endmacro %}
-
-{% macro databricks__name_similarity_threshold_with_birthdate() -%}
   0.65
 {%- endmacro %}
 

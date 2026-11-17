@@ -31,3 +31,8 @@ The league stats API is the primary source and ESPN's public JSON the second (SP
 - `ops.reconciliation` is a snapshot of the current comparison, not a history; the summary table is what Data Health shows, and `ops.test_results` keeps the history of the coverage check.
 - A player ESPN lists under a different name entirely (a nickname, a marriage) shows up in the review table and needs one seed row; the games before the override are matched retroactively on the next build.
 - The engine-specific similarity function means the fuzzy pass can pair slightly differently on DuckDB and Databricks; the exact pass, which covers nearly every player, is identical on both.
+
+## Addendum (2026-11-17): one similarity rule on both engines (#995)
+
+The per-engine rule above made the two build roads disagree. The DuckDB fallback (ADR 0032), compared row for row with the warehouse, lacked two market rows: two players the warehouse's Levenshtein ratio paired by name alone (0.75 and 0.77) and DuckDB's Jaro-Winkler at 0.92 did not. Both engines now use the normalised Levenshtein ratio with the warehouse's thresholds, 0.75 and 0.65 with a matching birthdate. The warehouse's crosswalk does not change. DuckDB's does, so the fallback, CI's sample and the walk-forward backtests now link players exactly as production does.
+
