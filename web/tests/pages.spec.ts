@@ -4296,7 +4296,7 @@ test('the capture bookmark saves the Yahoo pages it read as one file on the devi
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
   const code = (await page.getByTestId('yahoo-capture-code').inputValue()) ?? '';
-  expect(code.startsWith('javascript:')).toBe(true);
+  expect(code).toMatch(/^javascript:/);
   const uploads: string[] = [];
   page.on('request', (r) => {
     if (r.method() !== 'GET') uploads.push(`${r.method()} ${r.url()}`);

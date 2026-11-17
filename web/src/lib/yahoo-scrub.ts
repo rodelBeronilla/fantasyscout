@@ -26,9 +26,10 @@ const textOf = (html: string) =>
   html
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&#39;|&#x27;|&apos;/g, "'")
     .replace(/&quot;/g, '"')
+    // last, so an escaped entity such as &amp;#39; stays as the page wrote it
+    .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim();
 const hrefOf = (attrs: string) => attrs.match(/href\s*=\s*"([^"]*)"/i)?.[1] ?? '';
