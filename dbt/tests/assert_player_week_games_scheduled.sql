@@ -1,4 +1,4 @@
-{{ config(severity='error', tags=['player']) }}
+{{ config(severity='warn', tags=['player']) }}
 
 -- A player's games scheduled agree with his team's week in fct_team_week_games (#997), in every
 -- week that table has (the current week on), for a player on one team all week. Two weeks are

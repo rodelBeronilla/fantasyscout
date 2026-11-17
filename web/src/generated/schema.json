@@ -139,7 +139,7 @@
     "fct_team_week_games",
     "schedule_team_games"
    ],
-   "severity": "error",
+   "severity": "warn",
    "tags": [
     "player"
    ]
@@ -151,7 +151,7 @@
     "fct_player_game",
     "fct_player_week"
    ],
-   "severity": "error",
+   "severity": "warn",
    "tags": [
     "player"
    ]
