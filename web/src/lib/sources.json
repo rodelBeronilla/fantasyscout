@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-08",
+  "updated": "2026-11-17",
   "contact": "https://github.com/rodelBeronilla/fantasyscout/issues",
   "principles": [
     "Raw payloads are never redistributed. What the site publishes is derived: per-game and per-player tables, the board's values and projections, the schedule with context, aggregates in the notebooks.",
@@ -122,6 +122,7 @@
     "Landed payloads stay on the lakehouse volume as the record of what each source said each day; pruning of superseded daily snapshots is written down for when it passes 50 GB and has not been needed.",
     "The published builds the site serves are the newest seven, plus any build a rollback pinned; older ones are deleted after each publish.",
     "A visitor's watchlist, theme and league choice live in their own browser and nowhere else. The league setup does too, unless the visitor signs in with Yahoo to save it: then the setup is stored on the server under an account id derived from the Yahoo id (never the Yahoo id itself), and \"Delete my saved data\" on the League page removes it. Sign-ins keep a signed cookie and no token.",
+    "The site's owner keeps a private log of his own use of the site, written only while he is signed in as the owner: each page he opens, each league import (every team's roster, the lineup slots set on the host, the records, and when it ran) and each call shown to him (its date, kind, subject and value, what the naive manager would have said, and the build it came from). It is stored on the server, one file a day, under a prefix the public data route never serves; only his signed-in browser can write or read it, and it is never in the repository or a workflow's output. \"Your data\" on the League page, shown to him alone, downloads it or deletes all of it. Nobody else's use is logged.",
     "The data holds no personal information beyond what the sources publish about public athletes, coaches and officials; a request to remove a source, or a person's rows, goes through the repository's issues and the runbook's procedure."
   ]
 }

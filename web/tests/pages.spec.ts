@@ -112,7 +112,9 @@ test('the sources page names every source with what is published from it, and th
     await expect(card.locator('dt', { hasText: 'Published' })).toBeVisible();
   }
   await expect(page.getByTestId('principles').locator('li')).toHaveCount(5);
-  await expect(page.getByTestId('retention').locator('li')).toHaveCount(4);
+  await expect(page.getByTestId('retention').locator('li')).toHaveCount(5);
+  // the owner's private log says what it holds, who sees it and how it is deleted (#1032)
+  await expect(page.getByTestId('retention').locator('li', { hasText: 'private log of his own use' })).toContainText('deletes all of it');
   await expect(page.getByRole('link', { name: 'open an issue' })).toHaveAttribute('href', /github\.com/);
 });
 
@@ -3524,6 +3526,69 @@ test('not signed in, the League page offers the Yahoo sign-in that saves the lea
   await page.route('**/api/account/status', (route) => route.fulfill({ json: { configured: true, signedIn: false } }));
   await page.goto('/league/');
   await expect(page.getByTestId('account-signin')).toHaveAttribute('href', '/auth/account/start?league=wnba');
+});
+
+/** A current Yahoo bookmark's payload for a made-up two-team league, with the slots set on Yahoo (#1032). */
+const OWNER_LOG_IMPORT = {
+  v: 4,
+  leagueId: '12345',
+  mine: 1,
+  teams: [
+    { id: 1, name: 'Team A', players: [{ name: 'Nikola Jokić', slot: 'C' }, { name: 'Victor Wembanyama', slot: 'BN' }] },
+    { id: 2, name: 'Team B', players: [{ name: 'Shai Gilgeous-Alexander', slot: 'PG' }] },
+  ],
+  rejected: [],
+};
+
+test("a signed-out manager's pages ask nothing of the owner's log and show nothing new, an import included (#1032)", async ({ page }) => {
+  const asked: string[] = [];
+  page.on('request', (r) => asked.push(new URL(r.url()).pathname));
+  // with the Worker: sign-in is available, and this browser is not signed in
+  await page.route('**/api/account/status', (route) => route.fulfill({ json: { configured: true, signedIn: false } }));
+  for (const path of ['/', '/trade/', '/sources/', '/league/']) {
+    await page.goto(path);
+    await expect(page.locator('main')).toBeVisible();
+  }
+  await page.goto(`/league/?league=nba#yahoo=${encodeURIComponent(JSON.stringify(OWNER_LOG_IMPORT))}`);
+  await expect(page.getByRole('status').filter({ hasText: 'Imported 2 teams' })).toBeVisible();
+  await expect(page.getByTestId('account-signin')).toBeVisible();
+  await expect(page.getByTestId('owner-data')).toHaveCount(0);
+  expect(asked.filter((p) => p.startsWith('/api/owner/'))).toEqual([]);
+});
+
+test('signed in as the owner, each page and import goes to his private log, and "Your data" downloads or deletes it (#1032)', async ({ page }) => {
+  const events: Record<string, unknown>[] = [];
+  let deleted = false;
+  // this browser signed in as the owner before, and the Worker says the cookie still holds
+  await page.addInitScript(() => localStorage.setItem('fantasyscout:owner', '1'));
+  await page.route('**/api/owner/status', (route) => route.fulfill({ json: { configured: true, owner: true } }));
+  await page.route('**/api/account/status', (route) => route.fulfill({ json: { configured: true, signedIn: false } }));
+  await page.route('**/api/owner/log', (route) => {
+    if (route.request().method() === 'POST') events.push(route.request().postDataJSON() as Record<string, unknown>);
+    if (route.request().method() === 'DELETE') deleted = true;
+    return route.fulfill({ json: { ok: true } });
+  });
+  await page.goto(`/league/?league=nba#yahoo=${encodeURIComponent(JSON.stringify(OWNER_LOG_IMPORT))}`);
+  await expect(page.getByRole('status').filter({ hasText: 'Imported 2 teams' })).toBeVisible();
+  await expect.poll(() => events.map((e) => e['kind'])).toEqual(['page', 'import']);
+  expect(events[0]).toEqual({ kind: 'page', path: '/league/' });
+  expect(events[1]).toMatchObject({
+    kind: 'import',
+    host: 'yahoo',
+    mine: 0,
+    slots: { '203999': 'C', '1641705': 'BN', '1628983': 'PG' },
+  });
+  // the rosters as the setup holds them, the two teams' first
+  expect((events[1]!['rosters'] as string[][]).slice(0, 2)).toEqual([['203999', '1641705'], ['1628983']]);
+  expect(events[1]!['time']).toEqual(expect.any(Number));
+  expect(events[1]!['records']).toEqual(expect.any(Array));
+  const yours = page.getByTestId('owner-data');
+  await expect(yours).toContainText('Your data');
+  await expect(yours.getByRole('link', { name: 'Download the log' })).toHaveAttribute('href', '/api/owner/log');
+  page.once('dialog', (d) => void d.accept());
+  await yours.getByRole('button', { name: 'Delete the log' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Deleted: your log is empty now.' })).toBeVisible();
+  expect(deleted).toBe(true);
 });
 
 test('the scouting notes show each note with the numbers it states traced to the board history, the rejections and the eval (phase 7)', async ({ page }) => {

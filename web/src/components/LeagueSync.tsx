@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getLatest, type League } from '../lib/data';
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { ago, copyAge, espnSetup, espnSyncLine, inSeasonFrom, readEspn, SYNC_EVERY_MS, syncDue } from '../lib/league-sync';
+import { logImport } from '../lib/owner-log';
 import { href } from '../lib/site';
 import { easternDate } from '../lib/today';
 
@@ -44,7 +45,14 @@ export function useEspnSync(setup: LeagueSetup, update: (change: (current: Leagu
     setError(null);
     const { leagueId, season } = source;
     readEspn(leagueId, season, Date.now())
-      .then(({ league, games }) => update((current) => espnSetup(league, players, { leagueId, season, now: Date.now(), games }, current).setup))
+      .then(({ league, games }) =>
+        update((current) => {
+          const next = espnSetup(league, players, { leagueId, season, now: Date.now(), games }, current).setup;
+          // the owner's private log (#1032), once per import however often React runs this; nothing is sent for anyone else
+          void logImport(next);
+          return next;
+        }),
+      )
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => {
         running.current = false;

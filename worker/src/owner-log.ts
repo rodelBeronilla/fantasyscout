@@ -1,0 +1,195 @@
+/**
+ * The owner's log (#1032): a private record of the owner's own use of the site, which he approved
+ * on 2026-11-17, written only while he is signed in as the owner. Each event is one JSON line in
+ * one file a day (the Eastern date) under PRIVATE_PREFIX, which the public data route never
+ * serves. Only the owner's session cookie opens these routes; CI's reader key does not.
+ *
+ *   POST   /api/owner/log  -> append one event (a page opened, an import, a call shown)
+ *   GET    /api/owner/log  -> download every day's file, oldest first, as one JSON Lines file
+ *   DELETE /api/owner/log  -> delete every day's file
+ */
+import { PRIVATE_PREFIX } from './account';
+import { hasOwnerCookie, type OwnerEnv } from './owner';
+
+interface OwnerLogEnv extends OwnerEnv {
+  DATA: R2Bucket;
+}
+
+const PATH = '/api/owner/log';
+/** Where the days' files live in the bucket: under the prefix the /data/ route answers 404 for. */
+const LOG_PREFIX = `${PRIVATE_PREFIX}owner-log/`;
+/** One event: an import of a 20-team league's rosters, slots and records is well under this. */
+const MAX_EVENT_BYTES = 64 * 1024;
+/** A day's file stops growing here: hundreds of pages and dozens of imports a day fit. */
+const MAX_DAY_BYTES = 4 * 1024 * 1024;
+
+/** The methods the log takes beyond GET; the Worker otherwise answers GET and HEAD only. */
+export function isOwnerLogWrite(request: Request): boolean {
+  return new URL(request.url).pathname === PATH && (request.method === 'POST' || request.method === 'DELETE');
+}
+
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store' },
+  });
+}
+
+/** The Eastern date of a moment, YYYY-MM-DD: the day's file an event goes in. */
+export function easternDay(ms: number): string {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(
+    new Date(ms),
+  );
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+type Json = Record<string, unknown>;
+const isObject = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
+const short = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > 0 && v.length <= max;
+const count = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10_000;
+const onlyKeys = (o: Json, keys: string[]) => Object.keys(o).every((k) => keys.includes(k));
+
+const isRoster = (v: unknown) => Array.isArray(v) && v.length <= 80 && v.every((id) => short(id, 64));
+const isRecord = (v: unknown) =>
+  v === null ||
+  (isObject(v) && onlyKeys(v, ['wins', 'losses', 'ties', 'seed']) && count(v['wins']) && count(v['losses']) && count(v['ties']) && (v['seed'] === null || count(v['seed'])));
+const isSlots = (v: unknown) => isObject(v) && Object.keys(v).length <= 2000 && Object.entries(v).every(([id, slot]) => short(id, 64) && short(slot, 16));
+const isValue = (v: unknown) => (typeof v === 'number' && Number.isFinite(v)) || short(v, 200);
+
+/** The event as it is stored, or null when it is not one of the three kinds in their shapes. */
+function validEvent(v: unknown): Json | null {
+  if (!isObject(v)) return null;
+  switch (v['kind']) {
+    case 'page':
+      return onlyKeys(v, ['kind', 'path']) && short(v['path'], 300) && v['path'].startsWith('/') ? { kind: 'page', path: v['path'] } : null;
+    case 'import': {
+      const { host, mine, time, rosters, slots, records } = v;
+      const ok =
+        onlyKeys(v, ['kind', 'host', 'mine', 'time', 'rosters', 'slots', 'records']) &&
+        (host === 'yahoo' || host === 'espn') &&
+        (mine === null || count(mine)) &&
+        typeof time === 'number' &&
+        Number.isFinite(time) &&
+        time > 0 &&
+        Array.isArray(rosters) &&
+        rosters.length <= 40 &&
+        rosters.every(isRoster) &&
+        isSlots(slots) &&
+        Array.isArray(records) &&
+        records.length <= 40 &&
+        records.every(isRecord);
+      return ok ? { kind: 'import', host, mine, time, rosters, slots, records } : null;
+    }
+    case 'call': {
+      const { date, call, subject, value, naive, build } = v;
+      const ok =
+        onlyKeys(v, ['kind', 'date', 'call', 'subject', 'value', 'naive', 'build']) &&
+        typeof date === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+        short(call, 40) &&
+        /^[a-z0-9-]+$/.test(call) &&
+        short(subject, 120) &&
+        isValue(value) &&
+        (naive === null || isValue(naive)) &&
+        short(build, 64) &&
+        /^[\w.:-]+$/.test(build);
+      return ok ? { kind: 'call', date, call, subject, value, naive, build } : null;
+    }
+    default:
+      return null;
+  }
+}
+
+/** Every day's file, oldest first (the keys sort by date). */
+async function logKeys(env: OwnerLogEnv): Promise<string[]> {
+  const keys: string[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await env.DATA.list({ prefix: LOG_PREFIX, cursor, limit: 1000 });
+    keys.push(...page.objects.map((o) => o.key));
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+  return keys.sort();
+}
+
+/** Appends a line to the day's file; R2 has no append, so a write that lost a race is tried again. */
+async function append(env: OwnerLogEnv, key: string, line: string): Promise<'ok' | 'full' | 'busy'> {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const current = await env.DATA.get(key);
+    const before = current ? await current.text() : '';
+    if (before.length + line.length > MAX_DAY_BYTES) return 'full';
+    const options: R2PutOptions = { httpMetadata: { contentType: 'application/x-ndjson' } };
+    if (current) options.onlyIf = { etagMatches: current.etag };
+    if (await env.DATA.put(key, before + line, options)) return 'ok';
+  }
+  return 'busy';
+}
+
+/** Handles the log's routes; anything else returns null. */
+export async function handleOwnerLog(request: Request, env: OwnerLogEnv, now = Date.now()): Promise<Response | null> {
+  const url = new URL(request.url);
+  if (url.pathname !== PATH) return null;
+  // the owner's browser alone: nothing below runs, and nothing is written, without the cookie
+  if (!(await hasOwnerCookie(request, env, now))) return json(401, { error: 'the owner only' });
+
+  if (request.method === 'POST' || request.method === 'DELETE') {
+    // writes come from this site's own pages, never a cross-site form or script
+    if (request.headers.get('origin') !== url.origin) return json(403, { error: 'cross-site write' });
+  }
+
+  if (request.method === 'POST') {
+    if (!(request.headers.get('content-type') ?? '').includes('application/json')) return json(415, { error: 'JSON only' });
+    if (Number(request.headers.get('content-length') ?? 0) > MAX_EVENT_BYTES) return json(413, { error: 'event too large' });
+    const body = await request.text();
+    if (body.length > MAX_EVENT_BYTES) return json(413, { error: 'event too large' });
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      return json(400, { error: 'not JSON' });
+    }
+    const event = validEvent(parsed);
+    if (!event) return json(400, { error: 'expected a page, import or call event' });
+    const day = easternDay(now);
+    const written = await append(env, `${LOG_PREFIX}${day}.jsonl`, `${JSON.stringify({ at: new Date(now).toISOString(), ...event })}\n`);
+    if (written === 'full') return json(413, { error: "today's log is full" });
+    if (written === 'busy') return json(503, { error: 'try again' });
+    return json(200, { logged: true, day });
+  }
+
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    const keys = await logKeys(env);
+    const headers = {
+      'content-type': 'application/x-ndjson; charset=utf-8',
+      'cache-control': 'private, no-store',
+      'content-disposition': `attachment; filename="fantasyscout-owner-log-${easternDay(now)}.jsonl"`,
+    };
+    if (request.method === 'HEAD') return new Response(null, { headers });
+    // one day's file in memory at a time
+    const body = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        const key = keys.shift();
+        if (key === undefined) {
+          controller.close();
+          return;
+        }
+        const object = await env.DATA.get(key);
+        if (object) controller.enqueue(new Uint8Array(await object.arrayBuffer()));
+      },
+    });
+    return new Response(body, { headers });
+  }
+
+  if (request.method === 'DELETE') {
+    let deleted = 0;
+    // listed again until nothing is left, so a day written during the delete goes too
+    for (let pass = 0, keys = await logKeys(env); keys.length && pass < 5; pass += 1, keys = await logKeys(env)) {
+      for (let i = 0; i < keys.length; i += 1000) await env.DATA.delete(keys.slice(i, i + 1000));
+      deleted += keys.length;
+    }
+    return json(200, { deleted: true, days: deleted });
+  }
+
+  return json(405, { error: 'method not allowed' });
+}
