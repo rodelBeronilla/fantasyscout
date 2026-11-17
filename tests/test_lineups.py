@@ -66,3 +66,23 @@ def test_no_games_today_lands_nothing_and_the_wnba_asks_for_nothing(tmp_path: Pa
         raise AssertionError("the WNBA has no lineups file")
 
     assert run_at(tmp_path, datetime(2026, 7, 1, 13, tzinfo=UTC), refuse, league="wnba").landed == 0
+
+
+def test_a_day_not_published_yet_redirects_to_the_error_page_and_lands_nothing(
+    tmp_path: Path,
+) -> None:
+    """At 04:30 Eastern the day's file does not exist, and the host answers 302 to its error page
+    rather than 404 (#1000). That is "not published yet", not a failure."""
+
+    def unpublished(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(302, headers={"location": "https://stats.nba.com/error/"})
+
+    morning = run_at(tmp_path, datetime(2026, 11, 16, 9, 30, tzinfo=UTC), unpublished)
+    assert morning.ok and morning.landed == 0
+    # any other redirect is not a known answer, so it still fails the job
+    elsewhere = run_at(
+        tmp_path,
+        datetime(2026, 11, 16, 22, 15, tzinfo=UTC),
+        lambda r: httpx.Response(302, headers={"location": "https://stats.nba.com/somewhere/"}),
+    )
+    assert not elsewhere.ok
