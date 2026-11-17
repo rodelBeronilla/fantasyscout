@@ -1,6 +1,6 @@
 # Project state: FantasyScout
 
-Last rewritten: 2026-11-17, from scratch (#991). Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
+Last rewritten: 2026-11-17, from scratch (#991); updated the same evening for step 3. Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
 
 Read with it: [pillars.md](pillars.md) for what wins when priorities collide, and [CONTRIBUTING.md](../CONTRIBUTING.md) for how a change is made and checked.
 
@@ -18,6 +18,8 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 - **Across the two build paths (2026-11-16, #995).** Board values may differ by up to 1e-4 if the board's ranking is identical. Missing rows are not tolerated: each is traced to a cause and fixed. Until then, the comparison reports them.
 - **The owner's real league (2026-11-16).** His Yahoo league was imported by bookmark within the week before. He does not punt, and checks that his saved setup has no punts marked.
 - **No alerts (2026-11-17).** The owner wants none; #876 is out of the plan.
+- **The owner's log and Yahoo (2026-11-17).** His private log of his own use is kept until he deletes it, and the sources page says so. The extra owner-status check per page and a rare lost log event are accepted. No Yahoo credentials are stored or used by any agent, ever. Any fixture built from his real pages waits for his approval before it is committed.
+- **All-play counts categories (2026-11-17).** A week's all-play record is each category against each other team: 63 results a week in his league.
 - **Owner preview (2026-11-16, design in step 3, not built).** Unjudged and failed calls will show to the signed-in owner only, each logged with the call, what he did and what happened. Public pages keep the rule below.
 - **Calls need a passed check; data can show (2026-11-09, #936).** A recommendation shows publicly only after its out-of-sample check passes. The same numbers in a labelled, sortable table are data and may show. Switches in `web/src/lib/visibility.ts`; verdicts in `methodology/features.yml`.
 - **Board value is validated in season on its error against the naive manager (2026-11-09, ADR 0031).** Preseason value is badged until judged.
@@ -31,7 +33,7 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 1. **The site cannot go stale unnoticed again, and the repo says how work is chosen.** Done on 2026-11-17, apart from the fallback, which moved to step 2.
 2. **The fallback proven for real, and the data at the manager's grain** (player, week, category). Done on 2026-11-17, apart from the import age (PR #1007), which waits for the owner. The fallback published for real and agrees with the warehouse; `fct_player_week` is built on both paths.
    Not started until the planner specifies them after the owner's feedback: the league-by-category view, the graded card, the owner preview and any study.
-3. The owner preview and its log, designed first.
+3. **The owner's league, week by week** (started 2026-11-17). Item 0, the capture of his Yahoo pages for fixtures, and item 3, his private log, are merged. Then, one pull request each, in order, each waiting for the owner: item 1, every week's matchup totals in the import; item 2, the league week by week; item 4, the owner preview; item 5, last week graded.
 
 The redesign epic (#936) and the methodology epic (#751) still hold the longer list. Where they conflict with [pillars.md](pillars.md), the pillars win.
 
@@ -39,16 +41,15 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 | Item | Where | Next |
 | --- | --- | --- |
-| The owner's league as Yahoo has it, with the import age folded in | #1022, #1001; PR #1023 | **Waits for the owner** (changes what a manager sees). The import fixes (#1018) merged in #1019. |
+| Every week's matchup totals in the import (step 3, item 1) | — | Waits for a capture of his real pages in the ignored `private/` folder: it shows which page lists the weeks and whether one page holds every matchup's totals. |
+| The league, week by week (step 3, item 2) | branch `ai/feat/league-weeks-design`, a draft at `/league/weeks-draft/` on the preview | **Waits for the owner's reaction**; never merged as it stands. It reads item 1's weeks. |
+| A first visit: imports on the WNBA, sign-in on the preview | #1036; PR #1037 | **Waits for the owner** (changes what a first-time visitor sees). |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
-| The owner's private log (step 3, item 3): pages, imports, calls shown; download and delete under "Your data" | #1032; PR #1033 | **Waits for the owner** (adds a line to the sources page). `logCall` is ready for item 4 and wired to nothing. |
 
 ## Waiting on the owner
 
-- Reviewing PR #1023: lineup slots, roster count, score so far, games left, adds, IL moves and the import age (#1022, #1001).
-- Adding the new bookmark again and running it on his league.
-- Reviewing the stacked PRs #1026 (Yahoo's trade rules on the League page) and #1028 (adds counted since the week's first import), after #1023.
-- Reviewing PR #1033, his private log of his own use (#1032).
+- Running the capture bookmark on his league's Starting Rosters page and putting the saved file in `private/`; then approving the scrubbed fixtures built from it.
+- Reviewing PR #1037 and the week-by-week draft on the preview.
 - Re-registering the host's four ingest tasks with the new action (#985).
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
 - Narrower credentials (#424, #425, #426) and branch protection (#432).
