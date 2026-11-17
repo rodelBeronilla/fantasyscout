@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import io
+import urllib.error
+import urllib.request
 from typing import Any
 
 import duckdb
@@ -221,3 +224,50 @@ def test_review_publishes_passing_notes_logs_rejections_and_scores_the_eval() ->
     summary = notes.eval_summary(result["evals"], "qwen3:8b")["leagues"]["nba"]
     assert summary["claim_accuracy"] == 0.5
     assert summary["rejection_rate"] == 1.0
+
+
+def site(
+    monkeypatch: pytest.MonkeyPatch, answers: dict[str, bytes | int]
+) -> list[urllib.request.Request]:
+    """Stand in for the site: each path answers its bytes, or fails with its status. The site's
+    edge refuses a library's default user agent (#968), and so does this."""
+    asked: list[urllib.request.Request] = []
+
+    def urlopen(request: Any, timeout: float = 0) -> io.BytesIO:
+        assert isinstance(request, urllib.request.Request), "asked without saying who is asking"
+        asked.append(request)
+        agent = request.get_header("User-agent") or ""
+        answer = answers[request.full_url.removeprefix(notes.SITE)]
+        status = 403 if not agent or agent.startswith("Python-urllib") else answer
+        if isinstance(status, int):
+            raise urllib.error.HTTPError(request.full_url, status, "refused", {}, None)  # type: ignore[arg-type]
+        return io.BytesIO(status)
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    return asked
+
+
+def test_the_site_is_read_by_name_since_its_edge_refuses_a_librarys_default_user_agent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asked = site(monkeypatch, {"/data/latest.json": b'{"build_id": "20261110T184440Z-0fb2316"}'})
+    assert notes.site_json("data/latest.json") == {"build_id": "20261110T184440Z-0fb2316"}
+    agent = asked[0].get_header("User-agent")
+    assert agent == notes.USER_AGENT
+    assert agent.startswith("fantasyscout-") and "github.com/rodelBeronilla/fantasyscout" in agent
+
+
+def test_the_build_id_is_read_from_the_site_and_a_failure_is_said_not_swallowed(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv("FS_BUILD_ID", raising=False)
+    site(monkeypatch, {"/data/latest.json": b'{"build_id": "b7"}'})
+    assert notes.build_id() == "b7"
+    assert capsys.readouterr().err == ""
+    # the site is away: no build id, and the log says why instead of leaving the field empty
+    site(monkeypatch, {"/data/latest.json": 503})
+    assert notes.build_id() is None
+    assert "503" in capsys.readouterr().err
+    # a pinned build is not looked up
+    monkeypatch.setenv("FS_BUILD_ID", "pinned")
+    assert notes.build_id() == "pinned"

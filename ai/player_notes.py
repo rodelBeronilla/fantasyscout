@@ -31,7 +31,6 @@ import re
 import sys
 import time
 import urllib.error
-import urllib.request
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -40,7 +39,7 @@ from typing import Any
 from ai import client
 from ai.claim_schema import RSS_PREFIX
 from ai.inputs import MAX_RANK, connect
-from ai.notes import LEAGUES, SITE, build_id
+from ai.notes import LEAGUES, build_id, site_json
 from ai.player_note_check import PlayerNote, check, line_schema
 from ingest.landing import eastern_today
 
@@ -267,8 +266,7 @@ def holds(inp: dict[str, Any], note: dict[str, Any]) -> bool:
 def published_notes(league: str) -> dict[str, Any] | None:
     """The league's published notes file, read from the site; None when there is none."""
     try:
-        with urllib.request.urlopen(f"{SITE}/data/notes/players/{league}.json", timeout=30) as r:
-            data = json.load(r)
+        data = site_json(f"data/notes/players/{league}.json")
     except urllib.error.HTTPError as e:
         if e.code == 404:
             return None
