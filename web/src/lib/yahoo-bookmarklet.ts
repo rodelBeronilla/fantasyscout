@@ -322,5 +322,5 @@ export function applyYahooImport(
     { ...setup, ...state.settings, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },
     DEFAULT_SETTINGS['nba'],
   );
-  return { setup: { ...next, source: { ...yahooSource(payload.leagueId, next.rosters, now), ...state.source } }, matched, unmatched, il: next.il.length };
+  return { setup: { ...next, source: { ...yahooSource(payload.leagueId, next.rosters, now, setup.source), ...state.source } }, matched, unmatched, il: next.il.length };
 }

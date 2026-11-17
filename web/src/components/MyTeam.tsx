@@ -506,7 +506,7 @@ export default function MyTeam() {
   if (roster.length === 0) {
     return (
       <div className="grid gap-3" data-testid="team-empty">
-        <SyncLine setup={setup} sync={sync} />
+        <SyncLine setup={setup} sync={sync} league={league} />
         <LeagueBar setup={setup} rostered={owner.size} myCount={0} weakest={[]} />
         <p className="rounded-lg border border-line bg-card p-3 text-sm">
           Your team is empty. Set up your league on the{' '}
@@ -565,7 +565,7 @@ export default function MyTeam() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-      <SyncLine setup={setup} sync={sync} />
+      <SyncLine setup={setup} sync={sync} league={league} />
       <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={[]} />
       {setup.drafting && (
         <p className="rounded-lg border border-accent bg-card p-3 text-sm" data-testid="team-drafting">

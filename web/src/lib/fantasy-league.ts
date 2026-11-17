@@ -124,6 +124,8 @@ export interface LeagueSource {
   games?: GamesRead;
   /** The players in ESPN's IR slot at `syncedAt` (#878): they join the injured list, and leave it when ESPN activates them. */
   ir?: string[];
+  /** When each import ran (ms since the epoch), oldest first, the newest kept (#1001): saved with the account. */
+  imports?: number[];
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -279,6 +281,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     ...(s.tally === 'categories' || s.tally === 'matchups' ? { tally: s.tally } : {}),
     ...(games ? { games } : {}),
     ...(isIds(s.ir) ? { ir: s.ir } : {}),
+    ...(Array.isArray(s.imports) ? { imports: s.imports.filter((t): t is number => typeof t === 'number' && Number.isFinite(t)) } : {}),
   };
 }
 

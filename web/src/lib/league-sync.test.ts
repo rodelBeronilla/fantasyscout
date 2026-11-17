@@ -6,6 +6,11 @@ import { DEFAULT_SETTINGS, type LeagueSetup, normalize } from './fantasy-league'
 import {
   ago,
   chooseMine,
+  copyAge,
+  COPY_STALE_MS,
+  IMPORTS_KEPT,
+  inSeasonFrom,
+  withImport,
   espnSetup,
   espnSyncLine,
   fetchEspnLeague,
@@ -240,6 +245,46 @@ describe('the synced line (#815)', () => {
     const y = yahooSource('99', [], at.now);
     expect(yahooStale(y, at.now + YAHOO_STALE_MS - 1)).toBe(false);
     expect(yahooStale(y, at.now + YAHOO_STALE_MS)).toBe(true);
+  });
+});
+
+describe('the age of an imported copy (#1001)', () => {
+  it('keeps the time of each import, the newest IMPORTS_KEPT, and starts over for another league', () => {
+    const first = yahooSource('99', [], at.now);
+    expect(first.imports).toEqual([at.now]);
+    const second = yahooSource('99', [], at.now + 5 * MIN, first);
+    expect(second.imports).toEqual([at.now, at.now + 5 * MIN]);
+    // a copy saved before import times were kept counts its own sync time
+    const older = { ...first, imports: undefined };
+    expect(withImport(older, at.now + MIN, '99')).toEqual([at.now, at.now + MIN]);
+    expect(withImport(first, at.now + MIN, '42')).toEqual([at.now + MIN]);
+    let source = first;
+    for (let i = 1; i <= IMPORTS_KEPT + 5; i += 1) source = yahooSource('99', [], at.now + i * MIN, source);
+    expect(source.imports).toHaveLength(IMPORTS_KEPT);
+    expect(source.imports?.at(-1)).toBe(at.now + (IMPORTS_KEPT + 5) * MIN);
+  });
+
+  it('an ESPN re-import adds its time to the copy it replaces', () => {
+    const one = espnSetup(fromEspnLeague(fixture), players, at, null).setup;
+    const two = espnSetup(fromEspnLeague(fixture), players, { ...at, now: at.now + 20 * MIN }, one).setup;
+    expect(two.source?.imports).toEqual([at.now, at.now + 20 * MIN]);
+  });
+
+  it('says where the copy came from and how old it is, and asks for a new one past a day in season', () => {
+    const y = yahooSource('99', [], at.now);
+    expect(copyAge(y, at.now + 3 * 60 * MIN, true)).toEqual({ text: 'Your Yahoo league as of 3 hours ago', stale: false });
+    expect(copyAge(y, at.now + COPY_STALE_MS, true).stale).toBe(true);
+    // out of season an old copy is not asked for again
+    expect(copyAge(y, at.now + 3 * COPY_STALE_MS, false).stale).toBe(false);
+    const e = imported().source!;
+    expect(copyAge(e, at.now + MIN, true).text).toBe('Your ESPN league as of 1 min ago');
+  });
+
+  it('counts a league in season while its newest data is at most a week old', () => {
+    expect(inSeasonFrom('2026-11-15', '2026-11-17')).toBe(true);
+    expect(inSeasonFrom('2026-11-10', '2026-11-17')).toBe(true);
+    expect(inSeasonFrom('2026-10-31', '2026-11-17')).toBe(false);
+    expect(inSeasonFrom(undefined, '2026-11-17')).toBe(false);
   });
 });
 

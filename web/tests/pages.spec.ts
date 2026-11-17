@@ -4087,3 +4087,71 @@ test('data health says when the player notes were not drafted (#879)', async ({ 
   await expect(line).toContainText('Player notes not drafted. NBA: the local model was away at the last run, Dec 21, 00:40 UTC');
   await expect(line).toContainText('the lines drafted Dec 20, 17:20 UTC stand until the day after');
 });
+
+test('every page that uses an imported league says how old its copy is, and asks for a new one past a day in season (#1001)', async ({ page }) => {
+  type Row = { player_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  // the fixture's NBA data is as of 2026-10-31: three days later the league is in season
+  const now = new Date('2026-11-03T16:00:00Z');
+  await page.clock.setFixedTime(now);
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const copy = (hoursOld: number) => ({
+    version: 7,
+    teams: 4,
+    rosterSpots: 6,
+    scoring: 'cats9',
+    format: 'h2h',
+    punts: [],
+    names: ['Mine', 'Second', 'Third', 'Fourth'],
+    rosters,
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    source: { host: 'yahoo', leagueId: '99', syncedAt: now.getTime() - hoursOld * 3_600_000, rosters, changes: null },
+  });
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy(30)));
+  for (const path of ['/?league=nba', '/streamers/?league=nba', '/trade/?league=nba', '/league/?league=nba', `/p/nba/${board[0]!.player_id}/`]) {
+    await page.goto(path);
+    const line = page.getByTestId('copy-age');
+    await expect(line, path).toContainText('Your Yahoo league as of 1 day ago.');
+    await expect(line.getByTestId('copy-age-rerun'), path).toHaveText('It is over a day old: run the Yahoo bookmark again →');
+    await expect(line.getByTestId('copy-age-rerun'), path).toHaveAttribute('href', /\/league\/#yahoo$/);
+  }
+  // the warning reads in both themes
+  await page.goto('/streamers/?league=nba');
+  await expect(page.getByTestId('copy-age-rerun')).toBeVisible();
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+    const found = await new AxeBuilder({ page }).include('[data-testid="copy-age"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(found.violations, theme).toEqual([]);
+  }
+  // My Team's own line asks the same
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('yahoo-resync')).toBeVisible();
+});
+
+test('a copy under a day old, or any copy out of season, is not asked for again (#1001)', async ({ page }) => {
+  type Row = { player_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const rosters = [0, 1, 2, 3].map((t) => [t, t + 4, t + 8].map((i) => board[i]!.player_id));
+  const seed = async (now: Date, hoursOld: number) => {
+    await page.clock.setFixedTime(now);
+    const copy = {
+      version: 7, teams: 4, rosterSpots: 6, scoring: 'cats9', format: 'h2h', punts: [], names: ['Mine', 'Second', 'Third', 'Fourth'],
+      rosters, mine: 0, il: [], drafting: false, picks: [], opponent: 1,
+      source: { host: 'yahoo', leagueId: '99', syncedAt: now.getTime() - hoursOld * 3_600_000, rosters, changes: null },
+    };
+    await page.evaluate((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+  };
+  await page.goto('/?league=nba');
+  await seed(new Date('2026-11-03T16:00:00Z'), 3);
+  await page.reload();
+  await expect(page.getByTestId('copy-age')).toHaveText('Your Yahoo league as of 3 hours ago.');
+  // three weeks after the league's newest data it is out of season: an old copy only says its age
+  await seed(new Date('2026-11-21T16:00:00Z'), 72);
+  await page.reload();
+  await expect(page.getByTestId('copy-age')).toHaveText('Your Yahoo league as of 3 days ago.');
+  await expect(page.getByTestId('copy-age-rerun')).toHaveCount(0);
+});
