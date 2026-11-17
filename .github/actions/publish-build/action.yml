@@ -1,6 +1,6 @@
 name: Publish a data build
 description: >
-  The one way a build goes live, shared by the nightly build and the hand-run export: stage the
+  The one way a build goes live, shared by the nightly build, its DuckDB fallback and the hand-run export: stage the
   export to R2, add the analysis notebooks and the Tableau extract to the staged build (unless
   the build is light), then promote it so latest.json points at it. The notebooks and the
   extract never hold back the day's data: a failure there is reported in the outputs and the
@@ -8,7 +8,15 @@ description: >
 
 inputs:
   databricks-token:
-    required: true
+    description: The warehouse's token (the warehouse road; the fallback reads DuckDB and needs none)
+    required: false
+    default: ""
+  engine:
+    description: >-
+      Where the export reads gold from: databricks (the warehouse) or duckdb (the fallback road,
+      #989, which builds dbt/fantasyscout.duckdb on the runner)
+    required: false
+    default: databricks
   cloudflare-api-token:
     required: true
   cloudflare-account-id:
@@ -57,10 +65,11 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare-api-token }}
         CLOUDFLARE_ACCOUNT_ID: ${{ inputs.cloudflare-account-id }}
         SKIP: ${{ inputs.skip }}
+        ENGINE: ${{ inputs.engine }}
       run: |
         set -o pipefail
         echo "outcome=failure" >> "$GITHUB_OUTPUT"
-        uv run fs-export build --engine databricks --store r2 --skip "$SKIP" --stage 2>&1 | tee export.log | tee -a land.log
+        uv run fs-export build --engine "$ENGINE" --store r2 --skip "$SKIP" --stage 2>&1 | tee export.log | tee -a land.log
         echo "build_id=$(sed -n 's/^staged //p' export.log | tail -1)" >> "$GITHUB_OUTPUT"
         echo "outcome=success" >> "$GITHUB_OUTPUT"
 

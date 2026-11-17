@@ -1,0 +1,256 @@
+name: Build fallback
+
+# The second road (#989, ADR 0032): when the SQL warehouse refuses to start, Build lakehouse calls
+# this to build on DuckDB on a GitHub-hosted runner and publish through the same gate. It mirrors
+# every season of the landing volume through the Files API (no warehouse time), seeds the ledgers a
+# rebuild cannot recreate (the board history, the gate and build logs) from the newest published
+# build, runs `dbt build` with every quality check, decides the publish gate on the result, and
+# publishes with the same export, notebooks, extract and promotion as the warehouse road. The
+# exported files never become an artifact: some hold source text (headlines), and artifacts on a
+# public repository are anyone's to download.
+#
+# Modes:
+#   publish  called by Build lakehouse when its warehouse would not start; goes live.
+#   compare  the daily drill, and by hand: the same road without publishing, judged against the
+#            warehouse's newest build (row counts, and the board's values to 1e-9). It runs only
+#            when that build is the warehouse's and fresh; a disagreement opens an incident.
+#   dry-run  a pull request that changes the road: the same road without publishing; the
+#            comparison is printed, not judged.
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        type: string
+        default: publish
+      trigger_run_id:
+        description: The ingest run that triggered the build (for ops.build_log)
+        type: string
+        default: ""
+      trigger_run_url:
+        type: string
+        default: ""
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: compare (judge against the warehouse's newest build) or dry-run (print only); neither publishes
+        type: choice
+        options: [compare, dry-run]
+        default: compare
+  schedule:
+    # the drill, a few hours after the morning build (the home host starts the ingest at 04:30 ET)
+    - cron: "23 13 * * *"
+  pull_request:
+    paths:
+      - .github/workflows/build-fallback.yml
+      - ops/fallback.py
+      - ops/landing_sync.py
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+jobs:
+  duckdb:
+    name: Build on DuckDB
+    runs-on: ubuntu-latest
+    # mirror about 40 minutes, dbt about 15, export, notebooks and extract about 30
+    timeout-minutes: 180
+    environment: lakehouse
+    env:
+      MODE: ${{ inputs.mode || (github.event_name == 'pull_request' && 'dry-run') || 'compare' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-uv
+        with:
+          groups: "dbt"
+
+      - name: The newest published build
+        id: newest
+        run: |
+          set -o pipefail
+          uv run python -m ops.fallback newest
+          echo "road: $MODE" | tee land.log
+
+      # The drill compares like with like: the warehouse's build of the same morning. During an
+      # outage the newest build is this road's own, and there is nothing to judge it against.
+      - name: Decide whether to run
+        id: run
+        env:
+          ENGINE: ${{ steps.newest.outputs.engine }}
+          AGE: ${{ steps.newest.outputs.age_hours }}
+        run: |
+          go=true
+          if [ "$MODE" = "compare" ]; then
+            if [ "$ENGINE" != "databricks" ]; then
+              go=false
+              echo "::notice::the newest build is the $ENGINE road's; the drill compares with a warehouse build, so it waits for one"
+            elif ! awk -v a="$AGE" 'BEGIN { exit !(a != "" && a < 8) }'; then
+              go=false
+              echo "::notice::the warehouse's newest build is ${AGE} hours old; ingests have landed since, so the roads would differ by the landing, not by the engine"
+            fi
+          fi
+          echo "go=$go" >> "$GITHUB_OUTPUT"
+
+      - name: Mirror the landing volume (every season, the run logs)
+        if: steps.run.outputs.go == 'true'
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
+        run: |
+          set -o pipefail
+          df -h "$RUNNER_TEMP" | tee -a land.log
+          uv run python -m ops.landing_sync --league nba --league wnba --season all --ops --no-sidecars \
+            --out "$RUNNER_TEMP/landing" --workers 16 2>&1 | tee -a land.log
+          du -sh "$RUNNER_TEMP/landing" | tee -a land.log
+          df -h "$RUNNER_TEMP" | tee -a land.log
+
+      - name: Seed the ledgers from the newest published build
+        if: steps.run.outputs.go == 'true'
+        run: |
+          set -o pipefail
+          uv run python -m ops.fallback seed --duckdb dbt/fantasyscout.duckdb --landing "$RUNNER_TEMP/landing" 2>&1 | tee -a land.log
+
+      # Every model and every check, quality included, as on the warehouse road; dbt exits non-zero
+      # on a failed check and the gate step decides what that means.
+      - name: dbt build
+        id: build
+        if: steps.run.outputs.go == 'true'
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+          FS_LANDING_ROOT: ${{ runner.temp }}/landing
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          runs=$(gh run list -R "$GITHUB_REPOSITORY" -w backfill.yml -L 20 --json status,displayTitle) || runs='[]'
+          vars=$(echo "$runs" | (cd .. && uv run python -m ops.backfilling)) || vars='{"backfilling": []}'
+          uv run dbt build --target duckdb --vars "$vars" 2>&1 | tee -a ../land.log | tail -60 || true
+
+      - name: Record results and decide the publish gate
+        id: gate
+        if: steps.build.outcome == 'success'
+        run: |
+          set -o pipefail
+          uv run python -m ops.results --engine duckdb --duckdb dbt/fantasyscout.duckdb --target-dir dbt/target 2>&1 | tee -a land.log
+
+      - name: Reconciliation summary (match and conflict rates per league and season)
+        if: steps.build.outcome == 'success'
+        run: uv run python -m ops.summary --engine duckdb --duckdb dbt/fantasyscout.duckdb --table ops.reconciliation_summary
+
+      # The export reads the DuckDB file only; the mirror (several GB, with source text) goes.
+      - name: Drop the landing mirror
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/landing"
+
+      - name: Warnings that persist across builds
+        id: chronic
+        if: env.MODE == 'publish' && steps.gate.outcome == 'success'
+        run: uv run python -m ops.chronic --engine duckdb --duckdb dbt/fantasyscout.duckdb
+      - name: Report warnings that persist
+        if: env.MODE == 'publish' && steps.chronic.outcome == 'success'
+        uses: ./.github/actions/incident
+        with:
+          title: "Build warnings that persist"
+          outcome: ${{ steps.chronic.outputs.checks == '' && 'success' || 'failure' }}
+          detail: ${{ steps.chronic.outputs.detail }}
+          area: area:quality
+          priority: P2-medium
+          log: chronic.log
+          token: ${{ github.token }}
+
+      - name: Publish the build (stage, notebooks, extract, promote)
+        id: publish
+        if: env.MODE == 'publish' && steps.gate.outcome == 'success'
+        uses: ./.github/actions/publish-build
+        with:
+          engine: duckdb
+          cloudflare-api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          reader-key: ${{ secrets.CI_READER_KEY }}
+
+      - name: Push the extract to the League Pulse Google Sheet
+        id: sheets
+        if: steps.publish.outputs.promote == 'success' && steps.publish.outputs.extract == 'success'
+        continue-on-error: true
+        env:
+          TABLEAU_SHEET_ID: ${{ vars.TABLEAU_SHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: uv run python tableau/sheets.py --extract tableau/extract
+
+      # Not publishing: the build goes to a folder on this runner, which the job never uploads,
+      # and is compared with the newest published build.
+      - name: Export to the runner and compare with the published build
+        id: compare
+        if: env.MODE != 'publish' && steps.gate.outcome != 'skipped'
+        run: |
+          set -o pipefail
+          uv run fs-export build --engine duckdb --store local --out "$RUNNER_TEMP/site" 2>&1 | tail -5
+          args=(compare --candidate "$RUNNER_TEMP/site")
+          [ "$MODE" = "dry-run" ] && args+=(--report-only)
+          uv run python -m ops.fallback "${args[@]}" 2>&1 | tee -a land.log
+
+      - name: Decide the outcome and record the build
+        if: always() && env.MODE == 'publish'
+        env:
+          S_BUILD: ${{ steps.build.outcome }}
+          S_GATE: ${{ steps.gate.outcome }}
+          S_EXPORT: ${{ steps.publish.outputs.export || steps.publish.outcome }}
+          S_NOTEBOOKS: ${{ steps.publish.outputs.notebooks || 'skipped' }}
+          S_EXTRACT: ${{ steps.publish.outputs.extract || 'skipped' }}
+          S_PROMOTE: ${{ steps.publish.outputs.promote || steps.publish.outcome }}
+          S_SHEETS: ${{ steps.sheets.outcome }}
+          GH_TOKEN: ${{ github.token }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
+          DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_INGEST_TOKEN || secrets.DATABRICKS_TOKEN }}
+          BUILD_ID: ${{ steps.publish.outputs.build_id }}
+          TRIGGER_RUN_ID: ${{ inputs.trigger_run_id }}
+          TRIGGER_RUN_URL: ${{ inputs.trigger_run_url }}
+          SITE: https://fantasyscout.beronilla.rodeo
+        run: |
+          set -euo pipefail
+          failed=""
+          for step in "dbt build:$S_BUILD" "publish gate:$S_GATE" "export:$S_EXPORT" "promote:$S_PROMOTE"; do
+            [ "${step##*:}" = "success" ] || failed="$failed, ${step%%:*} (${step##*:})"
+          done
+          for step in "notebooks:$S_NOTEBOOKS" "Tableau extract:$S_EXTRACT" "sheet push:$S_SHEETS"; do
+            [ "${step##*:}" = "failure" ] && failed="$failed, ${step%%:*} (failure)"
+          done
+          if [ -n "$failed" ]; then OUTCOME=failure; else OUTCOME=success; fi
+          DETAIL="The SQL warehouse would not start, so the build ran on DuckDB. Steps: dbt build $S_BUILD, gate $S_GATE, export $S_EXPORT, notebooks $S_NOTEBOOKS, extract $S_EXTRACT, promote $S_PROMOTE, sheet push $S_SHEETS."
+          [ -n "$failed" ] && DETAIL="Failed: ${failed#, }. $DETAIL"
+          echo "$DETAIL"
+          # The DuckDB file goes with the runner, so the row is kept in the landing volume too,
+          # where the next fallback's seed and the warehouse's carry-back find it.
+          OUTCOME="$OUTCOME" uv run python -m ops.build_log --engine duckdb --duckdb dbt/fantasyscout.duckdb \
+            --job-name "Build on DuckDB" --volume --summary \
+            || echo "::warning::the build log row was not recorded"
+          {
+            echo "BUILD_OUTCOME=$OUTCOME"
+            echo "BUILD_DETAIL=$DETAIL"
+          } >> "$GITHUB_ENV"
+      - name: Report
+        if: always() && env.MODE == 'publish'
+        uses: ./.github/actions/incident
+        with:
+          title: "Fallback build failure"
+          outcome: ${{ env.BUILD_OUTCOME || 'failure' }}
+          detail: ${{ env.BUILD_DETAIL }}
+          token: ${{ github.token }}
+
+      - name: Report the drill
+        if: always() && env.MODE == 'compare' && steps.run.outputs.go == 'true'
+        uses: ./.github/actions/incident
+        with:
+          title: "Fallback build disagrees with the warehouse"
+          outcome: ${{ steps.compare.outcome == 'success' && 'success' || 'failure' }}
+          detail: "The daily drill built the warehouse's morning on DuckDB and compared the two builds (row counts per table, the board's values to 1e-9); the run's summary has the table."
+          priority: P2-medium
+          token: ${{ github.token }}

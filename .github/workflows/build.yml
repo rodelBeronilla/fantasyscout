@@ -10,6 +10,9 @@ name: Build lakehouse
 # 23:00 UTC schedule) gets a light build: those feeds' models and everything downstream of them
 # (the board and streamers included), with every quality check; the notebooks and the Tableau
 # extract are carried from the last full build, which the morning's full build refreshes.
+# When the SQL warehouse will not start, the fallback job builds the same project on DuckDB on a
+# GitHub-hosted runner and publishes through the same gate (Build fallback, #989, ADR 0032); the
+# next build the warehouse runs carries the fallback's ledger rows back into the lakehouse.
 
 on:
   workflow_run:
@@ -63,6 +66,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     environment: lakehouse
+    # whether the warehouse answered: the fallback job below runs when it did not (#989)
+    outputs:
+      context: ${{ steps.context.outcome }}
+      warehouse: ${{ steps.warehouse.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-uv
@@ -99,6 +106,7 @@ jobs:
           echo "$RUN_NAME ended with a failed job: $RUN_URL. Building with what landed." >> land.log
 
       - name: Resolve the workspace host and SQL warehouse
+        id: context
         uses: ./.github/actions/databricks-context
         with:
           host: ${{ secrets.DATABRICKS_HOST }}
@@ -111,6 +119,7 @@ jobs:
       # up to twenty minutes with its reason logged, so a warehouse that is slow to come up no
       # longer fails the build at its first dbt session (#782).
       - name: Start the SQL warehouse and wait for it
+        id: warehouse
         env:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: uv run python -m ops.warehouse start --wait 1200
@@ -119,6 +128,22 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: uv run fs-ingest ensure-dirs --backend volume
+      # A fallback build published while the warehouse refused (#989): its days of the board
+      # ledger and its gate and build log rows go into the lakehouse before dbt merges today's
+      # board, so the history the site shows keeps them. Only the rows the lakehouse lacks are
+      # inserted, so it is a no-op once they are in; a failure does not stop the build but is
+      # named in its incident, and the next build tries again.
+      - name: Carry the fallback's ledger rows back
+        id: carry
+        continue-on-error: true
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_ORIGIN: https://${{ env.DBT_DATABRICKS_HOST }}
+          DATABRICKS_WAREHOUSE_ID: ${{ env.DBT_DATABRICKS_WAREHOUSE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: uv run python -m ops.fallback carry-back
 
       - name: dbt build
         id: build
@@ -240,6 +265,9 @@ jobs:
       - name: Decide the outcome and record the build
         if: always()
         env:
+          S_CONTEXT: ${{ steps.context.outcome }}
+          S_WAREHOUSE: ${{ steps.warehouse.outcome }}
+          S_CARRY: ${{ steps.carry.outcome }}
           S_BUILD: ${{ steps.build.outcome }}
           S_GATE: ${{ steps.gate.outcome }}
           S_EXPORT: ${{ steps.publish.outputs.export || steps.publish.outcome }}
@@ -269,6 +297,12 @@ jobs:
           for step in "notebooks:$S_NOTEBOOKS" "Tableau extract:$S_EXTRACT" "sheet push:$S_SHEETS"; do
             [ "${step##*:}" = "failure" ] && failed="$failed, ${step%%:*} (failure)"
           done
+          # the warehouse that would not start comes first, so it names the incident; the
+          # fallback job publishes in its place (#989)
+          for step in "warehouse:$S_WAREHOUSE" "warehouse:$S_CONTEXT"; do
+            [ "${step##*:}" = "failure" ] && failed=", warehouse (failure)$failed" && break
+          done
+          [ "$S_CARRY" = "failure" ] && failed="$failed, carry-back (failure)"
           if [ -n "$failed" ]; then OUTCOME=failure; else OUTCOME=success; fi
           # The incident names the first step that failed; its area and priority follow from the
           # name (.github/scripts/incident.py): a failure after the promotion is P2, the data is live (#422).
@@ -277,6 +311,7 @@ jobs:
           DETAIL="Steps: dbt build $S_BUILD, gate $S_GATE, export $S_EXPORT, notebooks $S_NOTEBOOKS, extract $S_EXTRACT, promote $S_PROMOTE, sheet push $S_SHEETS."
           [ "${PLAN_LIGHT:-}" = "true" ] && DETAIL="Light build (the ingest landed the reports only; selector: $PLAN_SELECT). $DETAIL"
           [ -n "$failed" ] && DETAIL="Failed: ${failed#, }. $DETAIL"
+          case "$failed" in ", warehouse"*) DETAIL="The SQL warehouse would not start; the Build fallback job below builds on DuckDB and publishes instead (runbook, Fallback build on DuckDB). $DETAIL" ;; esac
           echo "$DETAIL"
           # One row per build in ops.build_log (run, trigger, gate, build id, step timings, rows)
           # and the same as this run's step summary. Never hides the incident.
@@ -339,6 +374,22 @@ jobs:
           outcome: failure
           area: area:ops
           detail: "${{ github.event.workflow_run.name }} ended ${{ github.event.workflow_run.conclusion }} (${{ github.event.workflow_run.html_url }}), so no build ran. A self-hosted job that found no runner is cancelled after a day in the queue: check the home runners (infra/runner). Run Ingest by hand with source espn (then reports) so a build runs without the runner, and source stats with since set to the first missed day once the runner is back (runbook, Home runner offline); the next passing build closes this."
+
+  # The second road (#989, ADR 0032): the warehouse would not start, so the same project builds on
+  # DuckDB on a hosted runner and publishes through the same gate. It holds this run's r2-publish
+  # group, so it never races another publish.
+  fallback:
+    name: Build fallback
+    needs: dbt
+    if: >-
+      always() &&
+      (needs.dbt.outputs.warehouse == 'failure' || needs.dbt.outputs.context == 'failure')
+    uses: ./.github/workflows/build-fallback.yml
+    with:
+      mode: publish
+      trigger_run_id: ${{ format('{0}', github.event.workflow_run.id) }}
+      trigger_run_url: ${{ github.event.workflow_run.html_url }}
+    secrets: inherit
 
   # The bundle is the paused fallback (ADR 0013): deployed on a dispatch that asks for it, never
   # after a nightly build, so a slow deploy can no longer hold a run open after the data went live.

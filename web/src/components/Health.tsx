@@ -5,6 +5,7 @@ import { day, int, pct, when } from '../lib/format';
 import { Badge, Card, Loading, Problem, Td, Th } from './ui';
 import {
   type BuildAttempt,
+  buildRoad,
   freshness,
   type Incident,
   latestAttempt,
@@ -91,6 +92,8 @@ interface BuildRun {
   queue_seconds: number | null;
   build_seconds: number | null;
   total_seconds: number | null;
+  /** The road that built it: databricks or duckdb (the fallback, #989); absent before. */
+  engine?: string | null;
 }
 
 /** A request an ingest run could not land (ops.fetch_failures; absent in older builds). */
@@ -248,6 +251,7 @@ export default function Health() {
   const published = latest?.created_at ?? health.created_at;
   const fresh = freshness(published, health.feeds);
   const lastBuild = buildRun === undefined ? undefined : latestAttempt(buildRun, health.builds?.[0]);
+  const road = buildRoad(health.engine);
   const lastFailed = !!lastBuild && lastBuild.outcome !== 'success';
   // a failed attempt after the live build: the site still serves the last build that published
   const stillServing = lastFailed && !!lastBuild.finished_at && new Date(lastBuild.finished_at) > new Date(published);
@@ -360,10 +364,14 @@ export default function Health() {
             </dd>
           </div>
           <div>
-            <dt className="text-muted">Engine · commit</dt>
-            <dd className="font-mono text-xs">
-              {health.engine} · {health.git_sha.slice(0, 7)}
+            <dt className="text-muted">Built by</dt>
+            <dd data-testid="health-road">
+              {road.fallback ? <Badge tone="warn">{road.label}</Badge> : road.label}
             </dd>
+          </div>
+          <div>
+            <dt className="text-muted">Commit</dt>
+            <dd className="font-mono text-xs">{health.git_sha.slice(0, 7)}</dd>
           </div>
           {latest?.rolled_back_from && (
             <div>
@@ -586,6 +594,12 @@ export default function Health() {
                         <>
                           {' '}
                           <Badge tone="muted">light</Badge>
+                        </>
+                      )}
+                      {buildRoad(b.engine).fallback && (
+                        <>
+                          {' '}
+                          <Badge tone="warn">DuckDB fallback</Badge>
                         </>
                       )}
                     </Td>

@@ -22,6 +22,18 @@ export function freshness(createdAt: string, feeds: { league: string; in_season?
   return { hours, limit, season, late: hours > limit };
 }
 
+/**
+ * Which road built a data build (#989): the Databricks SQL warehouse, or the fallback that builds the
+ * same project on DuckDB on a GitHub-hosted runner when the warehouse will not start. Builds name
+ * their engine in health.json and each Build lakehouse run in ops.build_log (older runs have none:
+ * they all ran on the warehouse).
+ */
+export function buildRoad(engine: string | null | undefined): { label: string; fallback: boolean } {
+  if (engine === 'duckdb') return { label: 'DuckDB fallback (the warehouse was unavailable)', fallback: true };
+  if (!engine || engine === 'databricks') return { label: 'Databricks SQL warehouse', fallback: false };
+  return { label: engine, fallback: false };
+}
+
 /** The runbook on GitHub, at a section's anchor. */
 export function runbookHref(section: string): string {
   const anchor = section

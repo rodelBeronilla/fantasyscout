@@ -8,6 +8,11 @@ build id, the selector of a light build, each step's outcome and duration (from 
 how long the job queued for a runner, and the rows per table the build published (from its
 manifest). ``--summary`` writes the same facts as Markdown to ``$GITHUB_STEP_SUMMARY``, so a run's
 page says what the build did without opening a log. Data Health shows the recent rows.
+
+The fallback build on DuckDB (#989) records its row with ``--engine duckdb --volume``: the DuckDB
+file is gone when the job ends, so the row is also written as JSON to the landing volume
+(``landing/_ops/build_log/``), where the next fallback's seed and the warehouse's carry-back find
+it (``ops.fallback``). Every row names its ``engine``, the road that built it.
 """
 
 from __future__ import annotations
@@ -20,7 +25,7 @@ import sys
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import httpx
@@ -66,7 +71,9 @@ create table if not exists {schema}.build_log (
 
 # Columns added after the table first existed; each is added if the table lacks it, so the row
 # can be inserted by name on both engines (#385).
-BUILD_LOG_ADDED_COLUMNS = (("schedule_delay_seconds", "double"),)
+BUILD_LOG_ADDED_COLUMNS = (("schedule_delay_seconds", "double"), ("engine", "string"))
+# Where the fallback's rows are kept for the next build (ops.fallback reads them).
+VOLUME_DIR = PurePosixPath("landing/_ops/build_log")
 
 # The ingest's daily crons, read from the workflow so a moved cron moves the measure with it;
 # the constant is the fallback for a checkout without the file.
@@ -133,6 +140,8 @@ class BuildRecord:
     # How late the scheduled ingest that triggered this build fired, against its cron; None for
     # a dispatched or unknown trigger.
     schedule_delay_seconds: float | None = None
+    # The road that built it: databricks (the warehouse) or duckdb (the fallback, #989).
+    engine: str = "databricks"
 
 
 def _ts(value: object) -> datetime | None:
@@ -150,8 +159,18 @@ def _seconds(start: datetime | None, end: datetime | None) -> float | None:
 def job_timings(
     run: Mapping[str, Any] | None, jobs: list[Mapping[str, Any]] | None, job_name: str = JOB_NAME
 ) -> tuple[datetime | None, float | None, dict[str, dict[str, object]]]:
-    """The job's start, its queue time, and each named step's outcome and duration."""
-    job = next((j for j in jobs or [] if j.get("name") == job_name), None)
+    """The job's start, its queue time, and each named step's outcome and duration.
+
+    A job of a called workflow is listed as "<caller job> / <job>", so either name matches.
+    """
+    job = next(
+        (
+            j
+            for j in jobs or []
+            if j.get("name") == job_name or str(j.get("name", "")).endswith(f" / {job_name}")
+        ),
+        None,
+    )
     if job is None:
         return None, None, {}
     started = _ts(job.get("started_at"))
@@ -186,6 +205,8 @@ def collect(
     fetch_json: Callable[[str], Mapping[str, Any] | None],
     target_dirs: list[Path],
     now: datetime | None = None,
+    engine: str = "databricks",
+    job_name: str = JOB_NAME,
 ) -> BuildRecord:
     """Everything the row holds, from the environment, the Actions API and the build manifest."""
     now = now or datetime.now(UTC)
@@ -195,7 +216,7 @@ def collect(
     run = api(f"/repos/{repo}/actions/runs/{run_id}") if repo and run_id != "local" else None
     jobs_body = api(f"/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100") if run else None
     jobs = list(jobs_body.get("jobs", [])) if isinstance(jobs_body, Mapping) else None
-    started, queue, steps = job_timings(run, jobs)
+    started, queue, steps = job_timings(run, jobs, job_name)
     for part, var in PUBLISH_PARTS.items():
         outcome = env.get(var, "").strip()
         if outcome and outcome != "skipped":
@@ -245,23 +266,46 @@ def collect(
         steps=steps,
         rows=rows,
         schedule_delay_seconds=delay,
+        engine=engine,
     )
 
 
-def statements(schema: str, record: BuildRecord) -> list[str]:
-    values = dict(asdict(record))
-    values["run_at"] = record.run_at.replace(tzinfo=None) if record.run_at else None
-    values["finished_at"] = record.finished_at.replace(tzinfo=None)
-    values["steps"] = json.dumps(record.steps, sort_keys=True)
-    values["rows"] = json.dumps(record.rows, sort_keys=True)
-    columns = list(asdict(record))
-    literal = ", ".join(_sql_literal(values[k]) for k in columns)
+def ddl_statements(schema: str) -> list[str]:
+    """The table and every column added since, so a row can be inserted by name."""
     return [
         BUILD_LOG_DDL.format(schema=schema),
         *(
             f"alter table {schema}.build_log add column if not exists {name} {kind}"
             for name, kind in BUILD_LOG_ADDED_COLUMNS
         ),
+    ]
+
+
+def row_values(record: BuildRecord) -> dict[str, Any]:
+    """The row as the table holds it: naive UTC times, the steps and rows as JSON text."""
+    values = dict(asdict(record))
+    values["run_at"] = record.run_at.replace(tzinfo=None) if record.run_at else None
+    values["finished_at"] = record.finished_at.replace(tzinfo=None)
+    values["steps"] = json.dumps(record.steps, sort_keys=True)
+    values["rows"] = json.dumps(record.rows, sort_keys=True)
+    return values
+
+
+def row_json(record: BuildRecord) -> bytes:
+    """The row as the JSON file the fallback keeps in the volume (times as text)."""
+    values = row_values(record)
+    for name in ("run_at", "finished_at"):
+        if isinstance(values[name], datetime):
+            values[name] = values[name].strftime("%Y-%m-%d %H:%M:%S")
+    return json.dumps(values, sort_keys=True).encode("utf-8")
+
+
+def statements(schema: str, record: BuildRecord) -> list[str]:
+    values = row_values(record)
+    columns = list(asdict(record))
+    literal = ", ".join(_sql_literal(values[k]) for k in columns)
+    return [
+        *ddl_statements(schema),
         f"insert into {schema}.build_log ({', '.join(columns)}) values ({literal})",
     ]
 
@@ -278,6 +322,8 @@ def summary_markdown(record: BuildRecord) -> str:
         else ("passed" if record.gate_passed else "**blocked**")
     )
     kind = "light build" if record.light else "full build"
+    if record.engine == "duckdb":
+        kind = "fallback build on DuckDB (the warehouse refused)"
     if record.selected:
         kind += f" (`{record.selected}`)"
     lines = [
@@ -315,6 +361,24 @@ def summary_markdown(record: BuildRecord) -> str:
     return "\n".join(lines)
 
 
+def write_volume(record: BuildRecord, env: Mapping[str, str]) -> PurePosixPath:
+    """Keep the row in the landing volume, through the Files API (no warehouse)."""
+    from ingest.store import VolumeBackend, credentials_from_env
+
+    path = VOLUME_DIR / f"{record.run_id}-{record.engine}.json"
+    volume = VolumeBackend(
+        env.get("DATABRICKS_HOST", ""),
+        env.get("DATABRICKS_TOKEN", ""),
+        auth=credentials_from_env(env),
+    )
+    try:
+        volume.write_bytes(path, row_json(record))
+    finally:
+        volume.close()
+    print(f"kept build run {record.run_id} in the volume at {path}")
+    return path
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--engine", choices=("duckdb", "databricks"), required=True)
@@ -323,6 +387,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--schema", default="ops")
     parser.add_argument("--catalog", default="fantasyscout")
     parser.add_argument("--summary", action="store_true", help="append to $GITHUB_STEP_SUMMARY")
+    parser.add_argument("--job-name", default=JOB_NAME, help="the job whose steps are timed")
+    parser.add_argument(
+        "--volume",
+        action="store_true",
+        help="also keep the row as JSON in the landing volume (the fallback road, #989)",
+    )
     args = parser.parse_args(argv)
     env = os.environ
 
@@ -349,7 +419,16 @@ def main(argv: list[str] | None = None) -> int:
         return body if isinstance(body, Mapping) else None
 
     dirs = args.target_dir or [Path("dbt/target"), Path("dbt/target/quality")]
-    record = collect(env, api=api, fetch_json=fetch_json, target_dirs=dirs)
+    record = collect(
+        env,
+        api=api,
+        fetch_json=fetch_json,
+        target_dirs=dirs,
+        engine=args.engine,
+        job_name=args.job_name,
+    )
+    if args.volume:
+        write_volume(record, env)
     sql = statements(args.schema, record)
     if args.engine == "duckdb":
         write_duckdb(args.duckdb, sql)

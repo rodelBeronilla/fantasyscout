@@ -61,7 +61,13 @@ ROUTES: tuple[Route, ...] = (
         ("Rerun the notebooks or the sheet push",),
         AFTER_PROMOTE,
     ),
+    Route(
+        "Build failure: warehouse",
+        "area:ops",
+        ("Warehouse refuses statements", "Fallback build on DuckDB"),
+    ),
     Route("Build", "area:lakehouse", ("Quality checks, results table and the publish gate",)),
+    Route("Fallback build", "area:ops", ("Fallback build on DuckDB",)),
     Route("Export", "area:ops", ("Export and rollback", "Warehouse refuses statements")),
     Route("Warehouse", "area:lakehouse", ("Warehouse refuses statements",)),
     Route("Publish", "area:ops", ("Publish SLA and the watchdog",)),

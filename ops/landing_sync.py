@@ -10,6 +10,15 @@ present (a landed path never changes; a re-landing gets a new ingest date) and t
 own ``_index.json`` bookkeeping. It reads the volume through the Files API, so it uses no SQL
 warehouse time.
 
+The fallback build (#989) mirrors the whole landing instead, to build on DuckDB when the warehouse
+refuses: ``--season all`` takes every season folder each feed has, ``--ops`` adds the ingest's run
+logs and the fallback's own build rows under ``landing/_ops/`` (which ``ops.ingest_log`` and
+``ops.fetch_failures`` read), and ``--no-sidecars`` leaves out the ``.meta.json`` next to each
+payload, which no model reads, halving the requests.
+
+    uv run python -m ops.landing_sync --league nba --league wnba --season all --ops \
+        --no-sidecars --out landing
+
 Credentials come from the environment, as the ingest's do: ``DATABRICKS_HOST`` with either the
 service principal's ``DATABRICKS_CLIENT_ID`` and ``DATABRICKS_CLIENT_SECRET`` or a
 ``DATABRICKS_TOKEN``.
@@ -30,7 +39,10 @@ from typing import Protocol
 from ingest.store import VolumeBackend, credentials_from_env
 
 LANDING = PurePosixPath("landing")
+OPS = LANDING / "_ops"
 SKIPPED_NAMES = frozenset({"_index.json"})
+SIDECAR = ".meta.json"
+ALL_SEASONS = "all"
 # Rounds a failed read is retried in, and the first pause between them (doubling): #806.
 ROUNDS = 5
 FIRST_PAUSE = 30.0
@@ -61,19 +73,37 @@ def _subdirs(source: Source, directory: PurePosixPath) -> list[PurePosixPath]:
     ]
 
 
-def plan(source: Source, leagues: Iterable[str], seasons: Iterable[str]) -> list[PurePosixPath]:
-    """Every payload under landing/<source>/<endpoint>/<league>/<season>/ for the given ones."""
-    wanted = [(league, season) for league in leagues for season in seasons]
+def plan(
+    source: Source,
+    leagues: Iterable[str],
+    seasons: Iterable[str],
+    *,
+    ops: bool = False,
+    sidecars: bool = True,
+) -> list[PurePosixPath]:
+    """Every payload under landing/<source>/<endpoint>/<league>/<season>/ for the given ones.
+
+    A season of ``all`` takes every season folder the endpoint has for the league; ``ops`` adds
+    every file under landing/_ops/; ``sidecars=False`` leaves out each payload's .meta.json.
+    """
+    wanted = list(seasons)
+    every = ALL_SEASONS in wanted
     out: list[PurePosixPath] = []
     for feed in _subdirs(source, LANDING):
         for endpoint in _subdirs(source, feed):
-            for league, season in wanted:
-                out.extend(
-                    f
-                    for f in source.list_files(endpoint / league / season)
-                    if f.name not in SKIPPED_NAMES
+            for league in leagues:
+                folders = (
+                    _subdirs(source, endpoint / league)
+                    if every
+                    else [endpoint / league / season for season in wanted]
                 )
-    return sorted(out)
+                for folder in folders:
+                    out.extend(f for f in source.list_files(folder) if f.name not in SKIPPED_NAMES)
+    if ops:
+        out.extend(source.list_files(OPS))
+    if not sidecars:
+        out = [f for f in out if not f.name.endswith(SIDECAR)]
+    return sorted(set(out))
 
 
 def sync(
@@ -153,13 +183,19 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--league", action="append", required=True, choices=["nba", "wnba"])
-    parser.add_argument("--season", action="append", required=True)
+    parser.add_argument(
+        "--season", action="append", required=True, help="a season folder, or all for every one"
+    )
+    parser.add_argument("--ops", action="store_true", help="also the run logs under landing/_ops")
+    parser.add_argument(
+        "--no-sidecars", action="store_true", help="leave out each payload's .meta.json"
+    )
     parser.add_argument("--out", type=Path, default=Path("landing_mirror"))
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args(argv)
     volume = _volume_from_env(dict(os.environ))
     try:
-        files = plan(volume, args.league, args.season)
+        files = plan(volume, args.league, args.season, ops=args.ops, sidecars=not args.no_sidecars)
         result = sync(volume, args.out, files, workers=args.workers)
     finally:
         volume.close()
