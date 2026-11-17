@@ -161,7 +161,7 @@ def test_a_board_value_past_the_tolerance_or_a_missing_row_disagrees(tmp_path: P
         candidate,
         "d",
         "duckdb",
-        {"gold.mart_board": _board([3.0, 2.0 + 1e-6, 1.0]), "gold.dim_team": pa.table({"a": [1]})},
+        {"gold.mart_board": _board([3.0, 2.0 + 1e-3, 1.0]), "gold.dim_team": pa.table({"a": [1]})},
     )
     result = fallback.compare(live, candidate)
     assert not result.agrees
@@ -275,3 +275,86 @@ def test_the_command_line_names_the_newest_build(
     assert (
         fallback.main(["--published", str(tmp_path), "compare", "--candidate", str(tmp_path)]) == 0
     )
+
+
+def test_across_engines_values_within_the_tolerance_agree_only_with_the_same_ranking(
+    tmp_path: Path,
+) -> None:
+    """The owner's rule (#995): values may differ by up to 1e-4 if the ranking is identical."""
+    live, candidate = LocalStore(tmp_path / "live"), LocalStore(tmp_path / "candidate")
+    _publish(live, "w", "databricks", {"gold.mart_board": _board([3.0, 2.0, 1.0])})
+    _publish(candidate, "d", "duckdb", {"gold.mart_board": _board([3.0, 2.0 + 7.6e-6, 1.0])})
+    near = fallback.compare(live, candidate)
+    assert near.agrees and near.rank_moves == 0
+    assert "the ranking: identical" in fallback.render_comparison(near)
+    # the same values with two players' ranks swapped do not agree
+    swapped = _board([3.0, 2.0, 1.0]).set_column(2, "rank_total", pa.array([1, 3, 2]))
+    _publish(candidate, "d2", "duckdb", {"gold.mart_board": swapped})
+    moved = fallback.compare(live, candidate)
+    assert not moved.agrees and moved.rank_moves == 2
+    assert "the ranking: **differs**" in fallback.render_comparison(moved)
+
+
+def test_rows_one_build_lacks_are_named_by_the_tables_grain_per_partition(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(fallback, "table_keys", lambda t: ("league", "game_id", "action_number"))
+    live, candidate = LocalStore(tmp_path / "live"), LocalStore(tmp_path / "candidate")
+
+    def events(actions: list[int], game: str = "g1") -> pa.Table:
+        n = len(actions)
+        return pa.table(
+            {
+                "league": ["nba"] * n,
+                "game_id": [game] * n,
+                "action_number": actions,
+                "text": ["x"] * n,
+            }
+        )
+
+    def publish(store: LocalStore, build_id: str, engine: str, parts: dict[str, pa.Table]) -> None:
+        tables = {"gold.mart_board": _board([3.0, 2.0, 1.0])}
+        _publish(store, build_id, engine, tables)
+        manifest = json.loads(store.get(f"builds/{build_id}/manifest.json") or b"{}")
+        files: dict[str, object] = {}
+        for path, part in parts.items():
+            store.put(f"builds/{build_id}/{path}", _parquet(part))
+            files[path] = {"rows": part.num_rows}
+        manifest["tables"]["gold.fct_event"] = {
+            "rows": sum(p.num_rows for p in parts.values()),
+            "files": list(parts),
+        }
+        manifest["files"] = files
+        store.put(f"builds/{build_id}/manifest.json", json.dumps(manifest).encode())
+
+    publish(
+        live,
+        "w",
+        "databricks",
+        {
+            "fct_event/nba-a.parquet": events([1, 2]),
+            "fct_event/nba-b.parquet": events([1, 2, 3], "g2"),
+        },
+    )
+    publish(
+        candidate,
+        "d",
+        "duckdb",
+        {
+            "fct_event/nba-a.parquet": events([1, 2]),
+            "fct_event/nba-b.parquet": events([1, 4], "g2"),
+        },
+    )
+    result = fallback.compare(live, candidate)
+    # the partition whose counts match is not read; the other names its keys on each side
+    assert result.missing == (
+        ("gold.fct_event", "fct_event/nba-b.parquet", ("nba|g2|2", "nba|g2|3"), ("nba|g2|4",)),
+    )
+    assert not result.agrees
+    assert "nba|g2|2, nba|g2|3" in fallback.render_comparison(result)
+
+
+def test_a_published_tables_grain_comes_from_the_schema_file() -> None:
+    assert fallback.table_keys("gold.fct_event") == ("league", "game_id", "action_number")
+    assert fallback.table_keys("gold.fct_market_value") == ("league", "stats_player_id")
+    assert fallback.table_keys("gold.no_such_table") == ()

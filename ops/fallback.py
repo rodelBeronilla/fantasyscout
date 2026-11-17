@@ -35,7 +35,7 @@ import io
 import json
 import os
 import sys
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
@@ -55,6 +55,14 @@ RECOVER_DIR = PurePosixPath("landing/_recover/fallback")
 VOLUME_ROOT = "/Volumes/fantasyscout/raw"
 # The walk-forward harness's parity tolerance (ops/walk_forward.py, _check_parity).
 TOLERANCE = 1e-9
+# Across the two engines (the owner, 2026-11-16, #995): the board's values may differ by this much,
+# so long as its ranking is identical. The ranking is compared exactly.
+CROSS_ENGINE_TOLERANCE = 1e-4
+RANK_COLUMNS = ("rank_total",)
+# Each table's identity, for naming the rows one build has and the other lacks (#995).
+SCHEMA_FILE = Path(__file__).resolve().parent.parent / "web" / "src" / "generated" / "schema.json"
+# How many missing keys a summary names per side and partition.
+KEYS_SHOWN = 20
 # What the board comparison joins on.
 BOARD_KEYS = ("league", "player_id")
 
@@ -250,7 +258,11 @@ class Comparison:
     board_columns: list[tuple[str, float]]  # column, worst absolute difference
     board_only_live: int
     board_only_candidate: int
-    tolerance: float = TOLERANCE
+    tolerance: float = CROSS_ENGINE_TOLERANCE
+    # players whose rank differs between the builds (the ranking must be identical)
+    rank_moves: int = 0
+    # per partition whose rows differ: (table, file, keys only the warehouse has, only DuckDB has)
+    missing: tuple[tuple[str, str, tuple[str, ...], tuple[str, ...]], ...] = ()
 
     @property
     def count_mismatches(self) -> list[tuple[str, int | None, int | None]]:
@@ -258,7 +270,9 @@ class Comparison:
 
     @property
     def board_mismatches(self) -> list[tuple[str, float]]:
-        return [c for c in self.board_columns if not c[1] <= self.tolerance]
+        return [
+            c for c in self.board_columns if c[0] not in RANK_COLUMNS and not c[1] <= self.tolerance
+        ]
 
     @property
     def agrees(self) -> bool:
@@ -267,6 +281,7 @@ class Comparison:
             and not self.board_mismatches
             and not self.board_only_live
             and not self.board_only_candidate
+            and not self.rank_moves
         )
 
 
@@ -276,6 +291,96 @@ def _numeric(field: pa.Field) -> bool:
         or pa.types.is_floating(field.type)
         or pa.types.is_decimal(field.type)
     )
+
+
+def rank_moves(live: pa.Table, candidate: pa.Table) -> int:
+    """Players on both boards whose rank differs (a null on one side counts)."""
+    key = list(BOARD_KEYS)
+    cols = [c for c in RANK_COLUMNS if c in live.schema.names and c in candidate.schema.names]
+    moved = 0
+    for c in cols:
+        joined = live.select([*key, c]).join(
+            candidate.select([*key, c]), keys=key, right_suffix="__candidate"
+        )
+        a, b = joined.column(c), joined.column(f"{c}__candidate")
+        same = pc.or_(pc.fill_null(pc.equal(a, b), False), pc.and_(pc.is_null(a), pc.is_null(b)))
+        moved += joined.num_rows - int(pc.sum(pc.cast(same, pa.int64())).as_py() or 0)
+    return moved
+
+
+def table_keys(table: str) -> tuple[str, ...]:
+    """A published table's grain from the schema file (``layer.name``); empty when it has none."""
+    try:
+        schema = json.loads(SCHEMA_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ()
+    layer, _, name = table.partition(".")
+    for group in schema.get("layers", []):
+        if group.get("name") != layer:
+            continue
+        for model in group.get("models", []):
+            if model.get("name") == name:
+                cols = (model.get("grain") or {}).get("columns") or []
+                return tuple(c for c in cols if c.isidentifier())
+    return ()
+
+
+def _key_strings(table: pa.Table, keys: Sequence[str]) -> set[str]:
+    columns = [pc.cast(table.column(k), pa.string()).to_pylist() for k in keys]
+    return {
+        "|".join("" if v is None else str(v) for v in row) for row in zip(*columns, strict=True)
+    }
+
+
+def _parquet_files(manifest: Mapping[str, Any], table: str) -> set[str]:
+    files = manifest.get("tables", {}).get(table, {}).get("files") or []
+    return {str(f) for f in files if str(f).endswith(".parquet")}
+
+
+def _file_rows(manifest: Mapping[str, Any], path: str) -> int | None:
+    entry = (manifest.get("files") or {}).get(path)
+    return entry.get("rows") if isinstance(entry, dict) else None
+
+
+def missing_rows(
+    live: Store,
+    live_id: str,
+    live_manifest: Mapping[str, Any],
+    candidate: Store,
+    cand_id: str,
+    cand_manifest: Mapping[str, Any],
+    table: str,
+) -> list[tuple[str, str, tuple[str, ...], tuple[str, ...]]]:
+    """The rows one build has and the other lacks, by the table's grain, in each partition whose
+    row counts differ: the first KEYS_SHOWN of each side. Only the key columns are read."""
+    keys = table_keys(table)
+    if not keys:
+        return []
+    live_files, cand_files = (
+        _parquet_files(live_manifest, table),
+        _parquet_files(cand_manifest, table),
+    )
+
+    def read(store: Store, build_id: str, files: set[str], path: str) -> set[str]:
+        body = store.get(f"builds/{build_id}/{path}") if path in files else None
+        if body is None:
+            return set()
+        names = set(pq.ParquetFile(io.BytesIO(body)).schema_arrow.names)
+        if not set(keys) <= names:
+            return set()  # a table without its grain's columns cannot be told apart by them
+        return _key_strings(pq.read_table(io.BytesIO(body), columns=list(keys)), keys)
+
+    out: list[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = []
+    for path in sorted(live_files | cand_files):
+        rows = _file_rows(live_manifest, path)
+        if rows is not None and rows == _file_rows(cand_manifest, path):
+            continue
+        a = read(live, live_id, live_files, path)
+        b = read(candidate, cand_id, cand_files, path)
+        only_a, only_b = sorted(a - b), sorted(b - a)
+        if only_a or only_b:
+            out.append((table, path, tuple(only_a[:KEYS_SHOWN]), tuple(only_b[:KEYS_SHOWN])))
+    return out
 
 
 def compare_board(live: pa.Table, candidate: pa.Table) -> tuple[list[tuple[str, float]], int, int]:
@@ -321,11 +426,25 @@ def compare(live: Store, candidate: Store, *, live_build: str | None = None) -> 
         )
         for name in sorted(set(live_tables) | set(cand_tables))
     ]
-    board, only_live, only_candidate = compare_board(
-        read_table(live, live_id, live_manifest, "gold.mart_board"),
-        read_table(candidate, cand_id, cand_manifest, "gold.mart_board"),
+    live_board = read_table(live, live_id, live_manifest, "gold.mart_board")
+    cand_board = read_table(candidate, cand_id, cand_manifest, "gold.mart_board")
+    board, only_live, only_candidate = compare_board(live_board, cand_board)
+    missing = [
+        m
+        for name, a, b in counts
+        if a != b and name not in OWN_ROWS
+        for m in missing_rows(live, live_id, live_manifest, candidate, cand_id, cand_manifest, name)
+    ]
+    return Comparison(
+        live_id,
+        cand_id,
+        counts,
+        board,
+        only_live,
+        only_candidate,
+        rank_moves=rank_moves(live_board, cand_board),
+        missing=tuple(missing),
     )
-    return Comparison(live_id, cand_id, counts, board, only_live, only_candidate)
 
 
 def render_comparison(result: Comparison) -> str:
@@ -335,7 +454,8 @@ def render_comparison(result: Comparison) -> str:
         f"## The two roads {verdict}",
         "",
         f"Warehouse build `{result.live_build}` against the DuckDB build"
-        f" `{result.candidate_build}`; board values to {result.tolerance:g}. The ledgers each"
+        f" `{result.candidate_build}`; board values to {result.tolerance:g} with an identical"
+        " ranking (#995). The ledgers each"
         f" road adds its own run to ({', '.join(sorted(OWN_ROWS))}) are listed, not judged.",
         "",
         "| Table | Warehouse rows | DuckDB rows | |",
@@ -355,8 +475,24 @@ def render_comparison(result: Comparison) -> str:
         "| --- | ---: | --- |",
     ]
     for name, worst in result.board_columns:
-        mark = "ok" if worst <= result.tolerance else "**differs**"
+        if name in RANK_COLUMNS:
+            mark = "the ranking: **differs**" if result.rank_moves else "the ranking: identical"
+        else:
+            mark = "ok" if worst <= result.tolerance else "**differs**"
         lines.append(f"| {name} | {worst:.3g} | {mark} |")
+    lines += ["", f"Players whose rank differs: {result.rank_moves}."]
+    if result.missing:
+        lines += [
+            "",
+            "Rows one build has and the other lacks, by the table's grain (the first"
+            f" {KEYS_SHOWN} per side and partition; #995 traces each to a cause):",
+            "",
+            "| Table | Partition | Only in the warehouse build | Only in the DuckDB build |",
+            "| --- | --- | --- | --- |",
+        ]
+        for table, path, only_a, only_b in result.missing:
+            shown_a, shown_b = ", ".join(only_a) or "-", ", ".join(only_b) or "-"
+            lines.append(f"| {table} | {path} | {shown_a} | {shown_b} |")
     return "\n".join(lines) + "\n"
 
 
