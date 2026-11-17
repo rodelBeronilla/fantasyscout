@@ -130,6 +130,33 @@
    ]
   },
   {
+   "about": "A player's games scheduled agree with his team's week in fct_team_week_games (#997), in every week that table has (the current week on), for a player on one team all week. Two weeks are left out by design: a week in which a stint of his begins after the Monday (a trade, a signing: each team counts on its own days), and a week in which his team also has a playoff game, which fct_team_week_games counts and a regular-season table does not.",
+   "name": "assert_player_week_games_scheduled",
+   "reads": [
+    "dim_date",
+    "dim_player",
+    "fct_player_week",
+    "fct_team_week_games",
+    "schedule_team_games"
+   ],
+   "severity": "error",
+   "tags": [
+    "player"
+   ]
+  },
+  {
+   "about": "fct_player_week loses and adds nothing (#997): for every league, season and player, its weeks add up to fct_player_game's regular-season totals, exactly for the games and the counting columns. Minutes are fractions summed in another order, so they may differ in the last bits of a double and no more. Runs on every build, the sample's included.",
+   "name": "assert_player_week_totals",
+   "reads": [
+    "fct_player_game",
+    "fct_player_week"
+   ],
+   "severity": "error",
+   "tags": [
+    "player"
+   ]
+  },
+  {
    "about": "Projected minutes are the season-weighted figure, or in season a blend of it with the last five games (var fantasy_recent_minutes): never outside the two once the return ramp's cut (var fantasy_return_ramp) is taken back out. The ramp keeps between 1 - max_cut and all of them.",
    "name": "assert_projected_minutes_blend",
    "reads": [
@@ -147,33 +174,6 @@
    "severity": "error",
    "tags": [
     "chaos"
-   ]
-  },
-  {
-   "about": "A player's games scheduled agree with his team's week in fct_team_week_games (#997), in every week that table has (the current week on), for a player on one team all week. Two weeks are left out by design: a week in which a stint of his begins after the Monday (a trade, a signing: each team counts on its own days), and a week in which his team also has a playoff game, which fct_team_week_games counts and a regular-season table does not.",
-   "name": "assert_player_week_games_scheduled",
-   "reads": [
-    "dim_date",
-    "dim_player",
-    "fct_player_week",
-    "fct_team_week_games",
-    "schedule_team_games"
-   ],
-   "severity": "warn",
-   "tags": [
-    "player"
-   ]
-  },
-  {
-   "about": "fct_player_week loses and adds nothing (#997): for every league, season and player, its weeks add up to fct_player_game's regular-season totals, exactly for the games and the counting columns. Minutes are fractions summed in another order, so they may differ in the last bits of a double and no more. Runs on every build, the sample's included.",
-   "name": "assert_player_week_totals",
-   "reads": [
-    "fct_player_game",
-    "fct_player_week"
-   ],
-   "severity": "warn",
-   "tags": [
-    "player"
    ]
   },
   {
