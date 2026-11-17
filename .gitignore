@@ -61,3 +61,6 @@ notebooks/_build/
 
 # The Tableau extract is generated and published with each build
 tableau/extract/
+
+# The owner's own league pages and files (#1030): never committed, fixtures are built from them scrubbed
+private/

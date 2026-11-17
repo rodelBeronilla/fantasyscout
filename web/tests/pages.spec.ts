@@ -4290,3 +4290,38 @@ test("My Team shows the score so far beside the projected final, games left both
   const open = page.getByTestId('today-open');
   if (await open.count()) await expect(open.getByTestId('today-adds-left')).toContainText('3 of 4 adds left this week: 1 made since your first import this week'); 
 });
+
+test('the capture bookmark saves the Yahoo pages it read as one file on the device, then imports (#1030)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  const code = (await page.getByTestId('yahoo-capture-code').inputValue()) ?? '';
+  expect(code.startsWith('javascript:')).toBe(true);
+  const uploads: string[] = [];
+  page.on('request', (r) => {
+    if (r.method() !== 'GET') uploads.push(`${r.method()} ${r.url()}`);
+  });
+  await page.route(/\/nba\/12345\/(matchup\?.*|settings)?$/, (route) => {
+    const url = new URL(route.request().url());
+    const name = url.pathname.endsWith('/matchup') ? 'matchup' : url.pathname.endsWith('/settings') ? 'settings' : 'home';
+    return route.fulfill({ path: `tests/fixtures/data/yahoo/${name}.html` });
+  });
+  await page.goto('/data/yahoo/startingrosters.html');
+  page.once('dialog', (d) => {
+    expect(d.message()).toMatch(/^Saved the 4 Yahoo pages the import read as yahoo-pages-12345-\d{4}-\d{2}-\d{2}\.json on this device\. Go on to the import\?$/);
+    void d.accept();
+  });
+  const download = page.waitForEvent('download');
+  await page.evaluate(code.slice('javascript:'.length));
+  const saved = await download;
+  expect(saved.suggestedFilename()).toMatch(/^yahoo-pages-12345-\d{4}-\d{2}-\d{2}\.json$/);
+  const file = JSON.parse(await (await import('node:fs/promises')).readFile((await saved.path())!, 'utf8')) as { leagueId: string; pages: { url: string; status: number; html: string }[] };
+  expect(file.leagueId).toBe('12345');
+  // the page it ran on, then the league's home, the matchup and the settings, each as read
+  expect(file.pages.map((p) => new URL(p.url, 'https://x').pathname)).toEqual(['/data/yahoo/startingrosters.html', '/nba/12345/', '/nba/12345/matchup', '/nba/12345/settings']);
+  expect(file.pages.every((p) => p.status === 200 && p.html.length > 100)).toBe(true);
+  // and the import goes on, as the plain bookmark's does; nothing was sent anywhere
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
+  await expect(page.getByRole('status').filter({ hasText: 'Imported 4 teams' })).toBeVisible();
+  expect(uploads).toEqual([]);
+});
