@@ -45,7 +45,8 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 ## Waiting on the owner
 
 - Reviewing PR #1023: lineup slots, roster count, score so far, games left, adds, IL moves and the import age (#1022, #1001).
-- Confirming the facts held about his league (listed in the step 3 report), then adding the new bookmark again and running it.
+- Adding the new bookmark again and running it on his league.
+- Reviewing the stacked PRs #1026 (Yahoo's trade rules on the League page) and #1028 (adds counted since the week's first import), after #1023.
 - Re-registering the host's four ingest tasks with the new action (#985).
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
 - Narrower credentials (#424, #425, #426) and branch protection (#432).
@@ -53,12 +54,14 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 ## The owner's league
 
-Confirmed by the owner on 2026-11-17. A setup still on the defaults (12 teams, lineup G 3, F 3, C 2, Util 2) was once read as his league, which is where "twelve teams" and the punts came from (#925).
+Confirmed by the owner on 2026-11-17, every line below. A setup still on the defaults (12 teams, lineup G 3, F 3, C 2, Util 2) was once read as his league, which is where "twelve teams" and the punts came from (#925).
 
 - Yahoo, head-to-head, nine categories, **eight teams**, no punts.
 - 13 roster spots: PG, SG, G, SF, PF, F, C, three Util and three bench, plus two IL.
-- Playoffs: 6 teams over 3 weeks.
-- Four adds a week; standard waivers (a dropped player waits before he can be claimed).
+- Playoffs: 6 teams over 3 weeks (Yahoo weeks 18 to 20, 2027-03-01 to 2027-03-21).
+- Fantasy weeks run Monday to Sunday; lineups are set daily. Each category counts in the record.
+- Four adds a week. A dropped player waits 2 days on waivers. No weekly games cap.
+- Trades go to a league vote. The trade deadline and the playoff tie-breaker are read from Yahoo's settings page by the import (#1025), not asked.
 - He wants help with all four jobs: the daily lineup, using his adds, reading the matchup, and trades and the league. He decides at all times of day.
 - He wants no alerts.
 - Besides Yahoo he uses only social media and podcasts.
