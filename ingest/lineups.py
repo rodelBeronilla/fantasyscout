@@ -15,6 +15,8 @@ import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+import httpx
+
 from ingest.http import CircuitOpenError, ThrottledClient, stats_headers
 from ingest.landing import EASTERN, League
 from ingest.run import RunSummary
@@ -23,6 +25,16 @@ from ingest.store import Landing, Scope
 SOURCE = "league"
 ENDPOINT = "daily_lineups"
 URL = "https://stats.nba.com/js/data/leaders/00_daily_lineups_{day}.json"
+# A day's file that is not published yet (the morning run, before the teams post) is answered
+# with a redirect to the host's error page, not 404 (#1000): checked 2026-11-17.
+NOT_PUBLISHED = "https://stats.nba.com/error/"
+
+
+def not_published(response: httpx.Response) -> bool:
+    """No file for the day yet: 404, or a redirect to the host's error page."""
+    if response.status_code == 404:
+        return True
+    return response.is_redirect and response.headers.get("location", "").startswith(NOT_PUBLISHED)
 
 
 @dataclass
@@ -47,8 +59,8 @@ class LineupsIngestor:
                 summary.record(None)
                 return
             response = self.client.get(url, headers=stats_headers("nba"))
-            if response.status_code == 404:
-                return  # no games today
+            if not_published(response):
+                return  # no games today, or the day's file is not out yet
             if response.status_code != 200:
                 summary.fail(ENDPOINT, key, RuntimeError(f"HTTP {response.status_code}"))
                 return
