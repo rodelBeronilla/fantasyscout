@@ -240,6 +240,11 @@ def test_the_carry_back_offers_the_newest_fallback_build_and_the_volume_rows(
         "landing/_recover/fallback/d1/publish_gate.parquet",
     ]
     assert executed[0].strip().startswith("create table if not exists ops.build_log")
+    # Databricks does not take "add column if not exists" (#1009): only the missing column, its way
+    assert not any(
+        "if not exists schedule" in e or "add column if not exists" in e for e in executed
+    )
+    assert "alter table ops.build_log add columns (schedule_delay_seconds double)" in executed
     inserts = [s for s in executed if s.startswith("insert into")]
     assert len(inserts) == 4 and len(done) == 4
     assert all("where not exists" in s for s in inserts)

@@ -22,7 +22,7 @@ import json
 import os
 import re
 import sys
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
@@ -270,15 +270,45 @@ def collect(
     )
 
 
-def ddl_statements(schema: str) -> list[str]:
-    """The table and every column added since, so a row can be inserted by name."""
-    return [
-        BUILD_LOG_DDL.format(schema=schema),
-        *(
-            f"alter table {schema}.build_log add column if not exists {name} {kind}"
-            for name, kind in BUILD_LOG_ADDED_COLUMNS
-        ),
-    ]
+def ddl_statements(schema: str, have: Collection[str] | None = None) -> list[str]:
+    """The table and every column added since, so a row can be inserted by name.
+
+    ``have`` is the table's columns as the warehouse describes them: Databricks SQL does not take
+    ``add column if not exists`` (#1009), so there only the missing columns are added, with
+    ``add columns``. Without it (DuckDB, which does take it) every column is added if missing.
+    """
+    if have is None:
+        return [
+            BUILD_LOG_DDL.format(schema=schema),
+            *(
+                f"alter table {schema}.build_log add column if not exists {name} {kind}"
+                for name, kind in BUILD_LOG_ADDED_COLUMNS
+            ),
+        ]
+    known = {c.lower() for c in have}
+    missing = [(n, k) for n, k in BUILD_LOG_ADDED_COLUMNS if n.lower() not in known]
+    out = [BUILD_LOG_DDL.format(schema=schema)]
+    if known and missing:
+        cols = ", ".join(f"{name} {kind}" for name, kind in missing)
+        out.append(f"alter table {schema}.build_log add columns ({cols})")
+    return out
+
+
+def databricks_columns(
+    query: Callable[[str], tuple[list[str], list[list[object]]]], schema: str
+) -> list[str]:
+    """The build log's columns on Databricks; empty when the table does not exist yet."""
+    try:
+        _, rows = query(f"describe table {schema}.build_log")
+    except RuntimeError:
+        return []  # not created yet: the create statement makes it whole
+    out: list[str] = []
+    for row in rows:
+        name = str(row[0] or "").strip()
+        if not name or name.startswith("#"):
+            break
+        out.append(name)
+    return out
 
 
 def row_values(record: BuildRecord) -> dict[str, Any]:
@@ -300,12 +330,12 @@ def row_json(record: BuildRecord) -> bytes:
     return json.dumps(values, sort_keys=True).encode("utf-8")
 
 
-def statements(schema: str, record: BuildRecord) -> list[str]:
+def statements(schema: str, record: BuildRecord, have: Collection[str] | None = None) -> list[str]:
     values = row_values(record)
     columns = list(asdict(record))
     literal = ", ".join(_sql_literal(values[k]) for k in columns)
     return [
-        *ddl_statements(schema),
+        *ddl_statements(schema, have),
         f"insert into {schema}.build_log ({', '.join(columns)}) values ({literal})",
     ]
 
@@ -429,12 +459,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.volume:
         write_volume(record, env)
-    sql = statements(args.schema, record)
     if args.engine == "duckdb":
-        write_duckdb(args.duckdb, sql)
+        write_duckdb(args.duckdb, statements(args.schema, record))
     else:
+        from ops.summary import query_databricks
+
+        have = databricks_columns(
+            lambda q: query_databricks(
+                q,
+                origin=env["DATABRICKS_ORIGIN"],
+                token=env["DATABRICKS_TOKEN"],
+                warehouse_id=env["DATABRICKS_WAREHOUSE_ID"],
+                catalog=args.catalog,
+            ),
+            args.schema,
+        )
         write_databricks(
-            sql,
+            statements(args.schema, record, have),
             origin=env["DATABRICKS_ORIGIN"],
             token=env["DATABRICKS_TOKEN"],
             warehouse_id=env["DATABRICKS_WAREHOUSE_ID"],

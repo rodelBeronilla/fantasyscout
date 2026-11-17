@@ -204,3 +204,36 @@ def test_collect_records_how_late_a_scheduled_trigger_fired(tmp_path: Path) -> N
         ENV, api=_api, fetch_json=lambda _: MANIFEST, target_dirs=[target], now=NOW
     )
     assert dispatched.schedule_delay_seconds is None
+
+
+def test_on_databricks_only_the_missing_columns_are_added_in_a_form_it_takes() -> None:
+    """Databricks SQL rejects "add column if not exists" (#1009): the build log has recorded no
+    warehouse build since the first added column, so the columns it lacks are added by name."""
+    have = ["run_id", "run_url", "engine"]
+    ddl = build_log.ddl_statements("ops", have)
+    assert ddl[0].strip().startswith("create table if not exists ops.build_log")
+    assert ddl[1:] == ["alter table ops.build_log add columns (schedule_delay_seconds double)"]
+    # a table with every column needs no alter; a table not there yet is created whole
+    full = ["run_id", "schedule_delay_seconds", "engine"]
+    assert build_log.ddl_statements("ops", full)[1:] == []
+    assert build_log.ddl_statements("ops", [])[1:] == []
+    # DuckDB keeps "if not exists", which it takes
+    assert all("if not exists" in s for s in build_log.ddl_statements("ops")[1:])
+
+
+def test_databricks_columns_reads_describe_up_to_the_partition_block() -> None:
+    rows: list[list[object]] = [
+        ["run_id", "string"],
+        ["engine", "string"],
+        ["", ""],
+        ["# Partitioning", ""],
+    ]
+    assert build_log.databricks_columns(lambda q: (["col_name"], rows), "ops") == [
+        "run_id",
+        "engine",
+    ]
+
+    def missing(q: str) -> tuple[list[str], list[list[object]]]:
+        raise RuntimeError("TABLE_OR_VIEW_NOT_FOUND")
+
+    assert build_log.databricks_columns(missing, "ops") == []

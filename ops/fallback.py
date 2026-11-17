@@ -582,7 +582,9 @@ def carry_back(
     if not offers:
         log("no fallback build and no fallback build_log rows: nothing to carry back")
         return {}
-    for statement in ddl_statements("ops"):
+    from ops.build_log import databricks_columns
+
+    for statement in ddl_statements("ops", databricks_columns(query, "ops")):
         execute(statement)
     done: dict[str, str] = {}
     for ledger, table, file_name in offers:
