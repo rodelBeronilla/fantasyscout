@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { espnLeagueId } from '../lib/espn-league';
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { espnSetup, readEspn } from '../lib/league-sync';
+import { logImport } from '../lib/owner-log';
 
 const field = 'rounded border border-line bg-bg px-2 py-1 text-sm';
 const button = 'rounded-full border border-accent bg-accent px-4 py-1.5 font-semibold text-sm text-accent-fg disabled:opacity-50';
@@ -38,6 +39,8 @@ export default function EspnImport({
       const { league, games } = await readEspn(id, season, Date.now());
       const { setup, matched, total, unmatched } = espnSetup(league, players, { leagueId: id, season, now: Date.now(), games }, null);
       onImport(setup);
+      // the owner's private log (#1032); nothing is sent for anyone else
+      void logImport(setup);
       setNote(
         `Imported ${league.name}: ${league.teams.length} teams, ${matched} of ${total} players matched.` +
           (unmatched.length ? ` Not on the board: ${unmatched.join(', ')}.` : '') +

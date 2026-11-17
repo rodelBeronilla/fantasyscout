@@ -1,12 +1,15 @@
 /**
  * The League page's account line (#684): sign in with Yahoo to save the league's setup to an
  * account, or, signed in, sign out or delete what the account holds. Hidden where the site cannot
- * sign in (a preview, the tests).
+ * sign in (a preview, the tests). For the site's owner alone, "Your data" downloads or deletes his
+ * private log (#1032).
  */
 import { useEffect, useState } from 'react';
 
 import { accountStatus, type AccountStatus, deleteAccount } from '../lib/account';
 import type { League } from '../lib/data';
+import { isRememberedOwner } from '../lib/owner';
+import { deleteOwnerLog, OWNER_LOG_DOWNLOAD, ownerStatus } from '../lib/owner-log';
 
 const NOTICE: Record<string, string> = {
   signedin: 'Signed in: this league is saved to your Yahoo account and follows you to any device you sign in on.',
@@ -18,10 +21,14 @@ const NOTICE: Record<string, string> = {
 export default function AccountBox({ league }: { league: League }) {
   const [status, setStatus] = useState<AccountStatus | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [owner, setOwner] = useState(false);
   useEffect(() => {
     void accountStatus().then(setStatus);
     const said = new URLSearchParams(window.location.search).get('account');
     if (said && NOTICE[said]) setNotice(NOTICE[said]);
+    // The owner's "Your data" (#1032): asked only in a browser that signed in as the owner, or
+    // that has just signed in, which may be the owner. Nobody else's browser asks.
+    if (isRememberedOwner() || said === 'signedin') void ownerStatus().then(setOwner);
   }, []);
   if (!status?.configured) return null;
   const forget = async () => {
@@ -29,6 +36,11 @@ export default function AccountBox({ league }: { league: League }) {
     const ok = await deleteAccount();
     setNotice(ok ? 'Deleted: your account holds nothing now, and this browser is signed out.' : 'The delete did not go through. Try again.');
     setStatus(await accountStatus(true));
+  };
+  const forgetLog = async () => {
+    if (!window.confirm('Delete your whole log of pages, imports and calls? This cannot be undone.')) return;
+    const ok = await deleteOwnerLog();
+    setNotice(ok ? 'Deleted: your log is empty now.' : 'The delete did not go through. Try again.');
   };
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" data-testid="account-box">
@@ -49,6 +61,24 @@ export default function AccountBox({ league }: { league: League }) {
             Sign in with Yahoo to save it to your account
           </a>
         </>
+      )}
+      {owner && (
+        <div className="flex basis-full flex-wrap items-center gap-x-3 gap-y-1" data-testid="owner-data">
+          <span className="font-medium">Your data</span>
+          <span className="text-muted">
+            A private log of the pages you open, your imports and the calls shown to you, written only while you are signed in as the owner (
+            <a href="/sources/#retention-h" className="underline underline-offset-4">
+              what it holds
+            </a>
+            ).
+          </span>
+          <a href={OWNER_LOG_DOWNLOAD} download className="underline underline-offset-4">
+            Download the log
+          </a>
+          <button type="button" className="rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg" onClick={() => void forgetLog()}>
+            Delete the log
+          </button>
+        </div>
       )}
       {notice && (
         <p className="basis-full text-muted" role="status">

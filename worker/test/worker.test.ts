@@ -261,6 +261,120 @@ describe('accounts (#684)', () => {
   });
 });
 
+// The owner's private log of his own use (#1032). Every value below is made up.
+describe("the owner's log (#1032)", () => {
+  const LOG = `${ORIGIN}/api/owner/log`;
+  const ownerCookie = async (guid = 'OWNERGUID') => `fs_owner=${await sessionCookie('test-client-secret', guid)}`;
+  const post = (headers: Record<string, string>, body: unknown, origin = ORIGIN) =>
+    SELF.fetch(LOG, {
+      method: 'POST',
+      headers: { origin, 'content-type': 'application/json', ...headers },
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    });
+  const logged = async () => (await env.DATA.list({ prefix: 'private/owner-log/' })).objects.map((o) => o.key);
+  // the bucket outlives a test here, so each starts with no log at all
+  beforeEach(async () => {
+    const keys = await logged();
+    if (keys.length) await env.DATA.delete(keys);
+  });
+  const PAGE = { kind: 'page', path: '/league/' };
+  const IMPORT = {
+    kind: 'import',
+    host: 'yahoo',
+    mine: 0,
+    time: 1_763_400_000_000,
+    rosters: [['p1', 'p2'], ['p3']],
+    slots: { p1: 'PG', p2: 'BN' },
+    records: [{ wins: 3, losses: 1, ties: 0, seed: null }, null],
+  };
+  const CALL = { kind: 'call', date: '2026-11-17', call: 'start', subject: 'p1', value: 1.5, naive: 'bench', build: 'build-1' };
+
+  it("refuses every method without the owner's cookie, and writes nothing", async () => {
+    const someoneElse = await ownerCookie('SOMEONEELSE');
+    const account = (await accountCookie('test-client-secret', 'OWNERGUID')).split(';')[0]!;
+    const forged = (await ownerCookie()).replace(/\.[\w-]+$/, '.forged');
+    // no cookie, another account's owner cookie, the owner's account cookie alone, a forged cookie, and CI's reader key
+    for (const headers of [{}, { cookie: someoneElse }, { cookie: account }, { cookie: forged }, OWNER]) {
+      expect((await post(headers, PAGE)).status).toBe(401);
+      const get = await SELF.fetch(LOG, { headers });
+      expect(get.status).toBe(401);
+      expect(get.headers.get('cache-control')).toBe('private, no-store');
+      expect((await SELF.fetch(LOG, { method: 'DELETE', headers: { ...headers, origin: ORIGIN } })).status).toBe(401);
+    }
+    expect(await logged()).toEqual([]);
+  });
+
+  it('appends each event to one file a day, under the private prefix the data route never serves', async () => {
+    const cookie = await ownerCookie();
+    for (const event of [PAGE, IMPORT, CALL]) {
+      const res = await post({ cookie }, event);
+      expect(res.status).toBe(200);
+      expect(res.headers.get('cache-control')).toBe('private, no-store');
+    }
+    const keys = await logged();
+    expect(keys).toHaveLength(1);
+    expect(keys[0]).toMatch(/^private\/owner-log\/\d{4}-\d{2}-\d{2}\.jsonl$/);
+    const lines = (await (await env.DATA.get(keys[0]!))!.text()).trim().split('\n').map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(lines.map(({ at: _at, ...rest }) => rest)).toEqual([PAGE, IMPORT, CALL]);
+    expect(lines.every((l) => typeof l['at'] === 'string')).toBe(true);
+    // never through the public data route, however the path is written, the owner's cookie or not
+    for (const path of [keys[0]!, encodeURIComponent(keys[0]!), `builds/../${keys[0]!}`, 'private/owner-log/']) {
+      expect((await SELF.fetch(`${ORIGIN}/data/${path}`)).status, path).toBe(404);
+      expect((await SELF.fetch(`${ORIGIN}/data/${path}`, { headers: { cookie } })).status, path).toBe(404);
+    }
+    expect((await SELF.fetch(`${ORIGIN}/data/${keys[0]!}`, { headers: OWNER })).status).toBe(404);
+  });
+
+  it('refuses anything but a page, import or call event in its shape, and writes nothing then', async () => {
+    const cookie = await ownerCookie();
+    for (const body of [
+      { kind: 'note', text: 'x' },
+      { ...PAGE, extra: 1 },
+      { kind: 'page', path: 'league' },
+      { ...IMPORT, host: 'sleeper' },
+      { ...IMPORT, rosters: 'p1' },
+      { ...IMPORT, records: [{ wins: -1, losses: 0, ties: 0, seed: null }] },
+      { ...CALL, date: 'today' },
+      { ...CALL, build: undefined },
+      [PAGE],
+      'not json',
+    ]) {
+      expect((await post({ cookie }, body)).status, JSON.stringify(body)).toBe(400);
+    }
+    expect((await post({ cookie }, { kind: 'page', path: `/${'x'.repeat(70_000)}` })).status).toBe(413);
+    expect((await post({ cookie, 'content-type': 'text/plain' }, PAGE)).status).toBe(415);
+    expect((await post({ cookie }, PAGE, 'https://evil.example')).status).toBe(403);
+    expect((await SELF.fetch(LOG, { method: 'PUT', headers: { cookie, origin: ORIGIN } })).status).toBe(405);
+    expect(await logged()).toEqual([]);
+  });
+
+  it('downloads every day, oldest first, as one file for the owner alone', async () => {
+    await env.DATA.put('private/owner-log/2026-11-17.jsonl', '{"day":2}\n');
+    await env.DATA.put('private/owner-log/2026-11-16.jsonl', '{"day":1}\n');
+    const res = await SELF.fetch(LOG, { headers: { cookie: await ownerCookie() } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    expect(res.headers.get('content-disposition')).toMatch(/^attachment; filename="fantasyscout-owner-log-\d{4}-\d{2}-\d{2}\.jsonl"$/);
+    expect(await res.text()).toBe('{"day":1}\n{"day":2}\n');
+  });
+
+  it('deletes all of it, and nothing else', async () => {
+    const cookie = await ownerCookie();
+    await post({ cookie }, PAGE);
+    await env.DATA.put('private/owner-log/2020-01-01.jsonl', '{}\n');
+    await env.DATA.put('private/owner-log/2020-01-02.jsonl', '{}\n');
+    await env.DATA.put('private/accounts/0123456789abcdef0123456789abcdef/nba.json', '{}');
+    expect((await SELF.fetch(LOG, { method: 'DELETE', headers: { cookie, origin: 'https://evil.example' } })).status).toBe(403);
+    expect(await logged()).toHaveLength(3);
+    const res = await SELF.fetch(LOG, { method: 'DELETE', headers: { cookie, origin: ORIGIN } });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: true, days: 3 });
+    expect(await logged()).toEqual([]);
+    expect(await (await SELF.fetch(LOG, { headers: { cookie } })).text()).toBe('');
+    expect(await env.DATA.head('private/accounts/0123456789abcdef0123456789abcdef/nba.json')).not.toBeNull();
+  });
+});
+
 // The asset layer serves the pages and bundles without the Worker (#442): its _headers file must
 // give them exactly what the Worker gives the paths it serves.
 describe('the static-asset layer', () => {

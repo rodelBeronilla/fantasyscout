@@ -12,6 +12,7 @@ import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup 
 import { categoryValues, marketPriorShift, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash, YAHOO_OUTDATED, YAHOO_PAYLOAD_VERSION, yahooHashVersion, type YahooRejected } from '../lib/yahoo-bookmarklet';
 import { chooseMine } from '../lib/league-sync';
+import { logImport } from '../lib/owner-log';
 import { href } from '../lib/site';
 import { auctionValues } from '../lib/auction';
 import { SHOWS } from '../lib/visibility';
@@ -122,6 +123,8 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
     if (!payload) return;
     const result = applyYahooImport(setup, payload, rows);
     update(() => result.setup);
+    // the owner's private log (#1032); nothing is sent for anyone else
+    void logImport(result.setup);
     setRejected(result.rejected);
     setLoadNote(
       `Imported ${payload.teams.length} teams from Yahoo: ${result.matched} players matched` +

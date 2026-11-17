@@ -121,7 +121,17 @@ export async function isOwner(request: Request, env: OwnerEnv, now = Date.now())
   const secret = creds.YAHOO_CLIENT_SECRET;
   const auth = request.headers.get('authorization');
   if (auth?.startsWith('Bearer ')) return same(auth.slice(7), env.CI_READER_KEY || (await ciReaderKey(secret)), secret);
+  return hasOwnerCookie(request, env, now);
+}
+
+/**
+ * Whether the request carries the owner's signed session cookie: the owner in a browser, never
+ * CI's reader key. The owner's log (owner-log.ts) takes only this.
+ */
+export async function hasOwnerCookie(request: Request, env: OwnerEnv, now = Date.now()): Promise<boolean> {
+  const secret = credentials(env)?.YAHOO_CLIENT_SECRET;
   const guid = env.OWNER_YAHOO_GUID;
+  if (!secret) return false;
   const value = readCookie(request, COOKIE);
   if (!guid || !value) return false;
   const [expires, mac] = value.split('.');
