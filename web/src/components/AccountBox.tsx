@@ -10,6 +10,7 @@ import { accountStatus, type AccountStatus, deleteAccount } from '../lib/account
 import type { League } from '../lib/data';
 import { isRememberedOwner } from '../lib/owner';
 import { deleteOwnerLog, OWNER_LOG_DOWNLOAD, ownerStatus } from '../lib/owner-log';
+import { SignInLink } from './SignInLink';
 
 const NOTICE: Record<string, string> = {
   signedin: 'Signed in: this league is saved to your Yahoo account and follows you to any device you sign in on.',
@@ -57,9 +58,9 @@ export default function AccountBox({ league }: { league: League }) {
       ) : (
         <>
           <span className="text-muted">Your league lives in this browser only.</span>
-          <a href={`/auth/account/start?league=${league}`} className="font-medium text-accent underline-offset-4 hover:underline" data-testid="account-signin">
+          <SignInLink to={`/auth/account/start?league=${league}`} className="font-medium text-accent underline-offset-4 hover:underline" testId="account-signin">
             Sign in with Yahoo to save it to your account
-          </a>
+          </SignInLink>
         </>
       )}
       {owner && (
