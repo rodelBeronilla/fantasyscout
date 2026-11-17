@@ -1,0 +1,14 @@
+---
+import LeagueWeeksDraft from '../../../components/LeagueWeeksDraft';
+import Base from '../../../layouts/Base.astro';
+---
+
+<Base title="Week by week (draft)" description="A draft with an invented league, for review on the preview only.">
+  <section>
+    <h1 class="title-page">The league, week by week</h1>
+    <p class="mt-1 text-sm text-muted">A draft with an invented league of eight teams, four finished weeks and one under way. Not linked from the site.</p>
+    <div class="mt-6">
+      <LeagueWeeksDraft client:only="react" />
+    </div>
+  </section>
+</Base>
