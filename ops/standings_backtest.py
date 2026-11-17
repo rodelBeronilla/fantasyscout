@@ -10,9 +10,9 @@ There are no past fantasy leagues to replay, so the harness drafts them. At each
 size: a snake draft, each pick drawn at random from the ``backtest.standings_draft_choice`` best
 players left by the board's category value. The rosters are held for the rest of the season with
 every player active. The model's figures come from ops.standings, the web's arithmetic. What
-happened comes from the real regular-season box scores, in fantasy weeks (Monday to Sunday) after
-the cut: a category is won on raw totals (fewer turnovers; FG% and FT% as makes over attempts), a
-tie counting half; rotisserie compares the rest-of-season totals.
+happened comes from the real regular-season box scores, in fantasy weeks (Monday to Sunday,
+gold.fct_player_week) after the cut: a category is won on raw totals (fewer turnovers; FG% and FT%
+as makes over attempts), a tie counting half; rotisserie compares the rest-of-season totals.
 
 Each format, head-to-head and rotisserie, is judged on:
 
@@ -39,7 +39,7 @@ import json
 import math
 import sys
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -120,16 +120,16 @@ def export_checkpoint(cut: Any, league: str, season: str, as_of: date, out: Path
 
 
 def export_weeks(full: Any, league: str, season: str, first: date, out: Path) -> None:
-    """Every player's regular-season box-score totals per fantasy week (Monday to Sunday)."""
-    sums = ", ".join(f"sum(coalesce({s}, 0)) as {s}" for s in STATS)
+    """Every player's regular-season box-score totals per fantasy week (Monday to Sunday), read
+    from gold.fct_player_week (#997): the weeks he played in, from the week of ``first`` on."""
     sql = f"""
-        select player_id, date_trunc('week', game_date)::date as week, count(*) as games, {sums}
-        from gold.fct_player_game
-        where league = $league and season = $season and played
-            and substr(game_id, 3, 1) = '2' and game_date >= $first
-        group by all
+        select player_id, week_start as week, games_played as games, {", ".join(STATS)}
+        from gold.fct_player_week
+        where league = $league and season = $season and games_played > 0
+            and week_start >= $monday
     """
-    df = full.execute(sql, {"league": league, "season": season, "first": first}).fetchdf()
+    monday = first - timedelta(days=first.weekday())
+    df = full.execute(sql, {"league": league, "season": season, "monday": monday}).fetchdf()
     df.to_csv(out / "weeks.csv", index=False)
 
 

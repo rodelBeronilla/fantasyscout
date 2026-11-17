@@ -150,6 +150,33 @@
    ]
   },
   {
+   "about": "A player's games scheduled agree with his team's week in fct_team_week_games (#997), in every week that table has (the current week on), for a player on one team all week. Two weeks are left out by design: a week in which a stint of his begins after the Monday (a trade, a signing: each team counts on its own days), and a week in which his team also has a playoff game, which fct_team_week_games counts and a regular-season table does not.",
+   "name": "assert_player_week_games_scheduled",
+   "reads": [
+    "dim_date",
+    "dim_player",
+    "fct_player_week",
+    "fct_team_week_games",
+    "schedule_team_games"
+   ],
+   "severity": "warn",
+   "tags": [
+    "player"
+   ]
+  },
+  {
+   "about": "fct_player_week loses and adds nothing (#997): for every league, season and player, its weeks add up to fct_player_game's regular-season totals, exactly for the games and the counting columns. Minutes are fractions summed in another order, so they may differ in the last bits of a double and no more. Runs on every build, the sample's included.",
+   "name": "assert_player_week_totals",
+   "reads": [
+    "fct_player_game",
+    "fct_player_week"
+   ],
+   "severity": "warn",
+   "tags": [
+    "player"
+   ]
+  },
+  {
    "about": "Days the board ledger (fct_board_history) should hold a snapshot for but does not: every Eastern date in the last 45 days, from the league's first snapshot on, while the league was playing (a regular-season, play-in or playoff game within three days either side), with no row. A failed nightly build leaves exactly such a hole, and the ledger is the only history of the newer signals; the runbook (\"Fill a hole in the board ledger\") says how to put the day back from a kept build. The 45-day window is what the kept builds can still fill with margin to notice; an older hole is history.",
    "name": "warn_board_history_gaps",
    "reads": [
@@ -395,7 +422,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 473,
+ "generic_tests": 484,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -15043,7 +15070,9 @@
      "unit_tests": []
     },
     {
-     "checks": [],
+     "checks": [
+      "assert_player_week_games_scheduled"
+     ],
      "columns": [
       {
        "description": "nba or wnba",
@@ -15143,6 +15172,7 @@
      "read_by": [
       "fct_absence_spell",
       "fct_injury_spell",
+      "fct_player_week",
       "fct_team_game_context",
       "fct_team_stakes",
       "fct_team_week_games",
@@ -16791,6 +16821,7 @@
    "models": [
     {
      "checks": [
+      "assert_player_week_games_scheduled",
       "warn_board_history_gaps"
      ],
      "columns": [
@@ -16883,6 +16914,7 @@
       "One row per calendar date from the first backfilled season through 2030."
      ],
      "read_by": [
+      "fct_player_week",
       "fct_team_week_games"
      ],
      "read_by_pages": [],
@@ -17121,7 +17153,8 @@
     {
      "checks": [
       "assert_dim_player_one_current_stint",
-      "assert_dim_player_stints_do_not_overlap"
+      "assert_dim_player_stints_do_not_overlap",
+      "assert_player_week_games_scheduled"
      ],
      "columns": [
       {
@@ -17276,6 +17309,7 @@
       "fct_player_salary",
       "fct_player_status",
       "fct_player_tracking",
+      "fct_player_week",
       "fct_player_youtube_item",
       "fct_waiver_trend",
       "mart_board",
@@ -19507,6 +19541,7 @@
       "assert_box_closure",
       "assert_completeness",
       "assert_freshness_in_season",
+      "assert_player_week_totals",
       "warn_event_box_agreement",
       "warn_minutes_closure",
       "warn_team_turnovers"
@@ -19984,6 +20019,7 @@
       "fct_injury_spell",
       "fct_official_listing",
       "fct_player_salary",
+      "fct_player_week",
       "fct_walk_year",
       "int_known_roster",
       "int_league_season_state",
@@ -21346,6 +21382,228 @@
       "player_game_box"
      ],
      "unit_tests": []
+    },
+    {
+     "checks": [
+      "assert_player_week_games_scheduled",
+      "assert_player_week_totals"
+     ],
+     "columns": [
+      {
+       "description": "Surrogate key: one row per league, season, player and fantasy week",
+       "meta": {},
+       "name": "player_week_sk",
+       "tests": [
+        "not_null",
+        "unique"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "nba or wnba",
+       "meta": {},
+       "name": "league",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Season label",
+       "meta": {},
+       "name": "season",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League player id",
+       "meta": {},
+       "name": "player_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "League team id of the player's last game of the week",
+       "meta": {},
+       "name": "team_id",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "Monday-to-Sunday week label, YYYY-Www (dim_date)",
+       "meta": {},
+       "name": "fantasy_week",
+       "tests": [
+        "not_null"
+       ],
+       "type": "varchar"
+      },
+      {
+       "description": "The week's Monday. The season's first week runs from its first game day, so it holds no game before that day.",
+       "meta": {},
+       "name": "week_start",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "The week's Sunday",
+       "meta": {},
+       "name": "week_end",
+       "tests": [
+        "not_null"
+       ],
+       "type": "date"
+      },
+      {
+       "description": "Regular-season games on the schedule of the team the player was on each day of the week (dim_player's stints), played or not, if-necessary games left out; a player traded mid-week counts each team's games on the days he was on it",
+       "meta": {},
+       "name": "games_scheduled",
+       "tests": [
+        "not_null"
+       ],
+       "type": "integer"
+      },
+      {
+       "description": "Regular-season games he played in the week (minutes above zero)",
+       "meta": {},
+       "name": "games_played",
+       "tests": [
+        "not_null"
+       ],
+       "type": "integer"
+      },
+      {
+       "description": "Minutes played in the week",
+       "meta": {
+        "unit": "minutes"
+       },
+       "name": "minutes",
+       "tests": [],
+       "type": "double"
+      },
+      {
+       "description": "Points in the week",
+       "meta": {},
+       "name": "points",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Rebounds in the week",
+       "meta": {},
+       "name": "rebounds_total",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Assists in the week",
+       "meta": {},
+       "name": "assists",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Steals in the week",
+       "meta": {},
+       "name": "steals",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Blocks in the week",
+       "meta": {},
+       "name": "blocks",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Three-pointers made in the week",
+       "meta": {},
+       "name": "three_pointers_made",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Turnovers in the week",
+       "meta": {},
+       "name": "turnovers",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Field goals made in the week: FG% is this over field_goals_attempted",
+       "meta": {},
+       "name": "field_goals_made",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Field goals attempted in the week",
+       "meta": {},
+       "name": "field_goals_attempted",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Free throws made in the week: FT% is this over free_throws_attempted",
+       "meta": {},
+       "name": "free_throws_made",
+       "tests": [],
+       "type": "hugeint"
+      },
+      {
+       "description": "Free throws attempted in the week",
+       "meta": {},
+       "name": "free_throws_attempted",
+       "tests": [],
+       "type": "hugeint"
+      }
+     ],
+     "description": "Player × fantasy week (Monday to Sunday, dim_date.fantasy_week): the regular season's box scores summed per week, with the games the player's team had scheduled and the games he played. The nine categories are totals, FG% and FT% kept as makes and attempts. The grain a head-to-head category manager decides on, and the realized weeks the week-by-week backtests score against; no page reads it.",
+     "exported_as": [],
+     "grain": {
+      "columns": [
+       "league",
+       "season",
+       "player_id",
+       "fantasy_week"
+      ],
+      "key": "player_week_sk"
+     },
+     "landing": [],
+     "materialized": "table",
+     "name": "fct_player_week",
+     "notes": [
+      "Player × fantasy week (#997): a head-to-head category manager's grain. One row per league, season, fantasy week and player, for every week in which the player has a regular-season box score row (fct_player_game), played or not. Regular-season games only (the third character of the game id is 2), the games fantasy leagues score and the week-by-week harness counts; the playoffs, the play-in and the NBA Cup final are left out.",
+      "The week is dim_date's: Monday to Sunday, labelled by fantasy_week and keyed by its Monday. It is the week the harness sums (ops.closeness_backtest's week_days start at the first game day and then every Monday, but each is summed by its Monday, so the season's first week is its first game day to that Sunday, a partial week of the same calendar week).",
+      "The nine categories are totals, the two percentages kept as makes and attempts, never as ratios. A number missing from a game counts as zero, so a week's totals add up to fct_player_game's for the season exactly. games_played counts the games with minutes. games_scheduled counts the regular-season games on the schedule of the team the player was on each day (dim_player's stints), played or not, if-necessary games left out: a player traded mid-week counts his old team's games before the move and his new team's from it. team_id is the team of his last game of the week. A build as of a date (ADR 0018) sees the games played before it, and the whole week's schedule, as fct_team_week_games does."
+     ],
+     "read_by": [],
+     "read_by_pages": [],
+     "reads": [
+      "dim_date",
+      "dim_player",
+      "fct_player_game",
+      "schedule_team_games"
+     ],
+     "unit_tests": [
+      {
+       "description": "Player p1 played Monday the 12th and Wednesday the 14th and sat out Friday the 16th: one week of two games played, his Friday counting for nothing. His Sunday-the-11th game belongs to the week before, and his playoff game on Saturday the 17th is not the regular season. His team A has four regular-season games that week on the schedule, one of them Sunday the 18th, still to play, and an if-necessary game left out. A missing number in a game played (no free throws recorded on the 14th) counts as zero.",
+       "name": "player_week_sums_the_regular_season_by_monday_week"
+      },
+      {
+       "description": "Player p2 played for team A on Monday the 12th and was traded: his stint with team B begins Thursday the 15th, and he played for B on Friday the 16th. His week counts A's games through Wednesday (Monday and Tuesday) and B's from Thursday (Thursday, Friday and Sunday), five in all; A's Saturday game and B's Monday game are not his. His team is B, his last game's. A week with only a game sat out still has a row, with nothing played.",
+       "name": "player_week_traded_mid_week_counts_each_team_on_its_days"
+      }
+     ]
     },
     {
      "checks": [],
@@ -22962,7 +23220,9 @@
      ]
     },
     {
-     "checks": [],
+     "checks": [
+      "assert_player_week_games_scheduled"
+     ],
      "columns": [
       {
        "description": "Surrogate key: one row per league, season, team and fantasy week",
@@ -30020,6 +30280,16 @@
    "description": "A payroll row links to the stats player of that season with the same name, accents and punctuation aside (#772). A name two players share that season is left unlinked rather than guessed, and a blank salary stays null.",
    "model": "fct_player_salary",
    "name": "salaries_link_to_the_season_player_by_name"
+  },
+  {
+   "description": "Player p1 played Monday the 12th and Wednesday the 14th and sat out Friday the 16th: one week of two games played, his Friday counting for nothing. His Sunday-the-11th game belongs to the week before, and his playoff game on Saturday the 17th is not the regular season. His team A has four regular-season games that week on the schedule, one of them Sunday the 18th, still to play, and an if-necessary game left out. A missing number in a game played (no free throws recorded on the 14th) counts as zero.",
+   "model": "fct_player_week",
+   "name": "player_week_sums_the_regular_season_by_monday_week"
+  },
+  {
+   "description": "Player p2 played for team A on Monday the 12th and was traded: his stint with team B begins Thursday the 15th, and he played for B on Friday the 16th. His week counts A's games through Wednesday (Monday and Tuesday) and B's from Thursday (Thursday, Friday and Sunday), five in all; A's Saturday game and B's Monday game are not his. His team is B, his last game's. A week with only a game sat out still has a row, with nothing played.",
+   "model": "fct_player_week",
+   "name": "player_week_traded_mid_week_counts_each_team_on_its_days"
   },
   {
    "description": "A video's title and description is one item, each transcript chunk another. A player is named by his whole name in the item's own text, whatever its case: a chunk in lower-case automatic captions names him, a chunk that only says \"he\" names no one, and the description names a player the title does not. A chunk's row says whom it names, never its words.",

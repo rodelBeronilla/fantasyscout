@@ -1,0 +1,141 @@
+version: 2
+
+models:
+  - name: fct_player_week
+    description: "Player × fantasy week (Monday to Sunday, dim_date.fantasy_week): the regular season's box scores summed per week, with the games the player's team had scheduled and the games he played. The nine categories are totals, FG% and FT% kept as makes and attempts. The grain a head-to-head category manager decides on, and the realized weeks the week-by-week backtests score against; no page reads it."
+    columns:
+      - name: player_week_sk
+        description: "Surrogate key: one row per league, season, player and fantasy week"
+        data_tests: [unique, not_null]
+      - name: league
+        description: "nba or wnba"
+        data_tests: [not_null]
+      - name: season
+        description: "Season label"
+        data_tests: [not_null]
+      - name: player_id
+        description: "League player id"
+        data_tests: [not_null]
+      - name: team_id
+        description: "League team id of the player's last game of the week"
+        data_tests: [not_null]
+      - name: fantasy_week
+        description: "Monday-to-Sunday week label, YYYY-Www (dim_date)"
+        data_tests: [not_null]
+      - name: week_start
+        description: "The week's Monday. The season's first week runs from its first game day, so it holds no game before that day."
+        data_tests: [not_null]
+      - name: week_end
+        description: "The week's Sunday"
+        data_tests: [not_null]
+      - name: games_scheduled
+        description: "Regular-season games on the schedule of the team the player was on each day of the week (dim_player's stints), played or not, if-necessary games left out; a player traded mid-week counts each team's games on the days he was on it"
+        data_tests: [not_null]
+      - name: games_played
+        description: "Regular-season games he played in the week (minutes above zero)"
+        data_tests: [not_null]
+      - name: minutes
+        description: "Minutes played in the week"
+        meta: {unit: minutes}
+      - name: points
+        description: "Points in the week"
+      - name: rebounds_total
+        description: "Rebounds in the week"
+      - name: assists
+        description: "Assists in the week"
+      - name: steals
+        description: "Steals in the week"
+      - name: blocks
+        description: "Blocks in the week"
+      - name: three_pointers_made
+        description: "Three-pointers made in the week"
+      - name: turnovers
+        description: "Turnovers in the week"
+      - name: field_goals_made
+        description: "Field goals made in the week: FG% is this over field_goals_attempted"
+      - name: field_goals_attempted
+        description: "Field goals attempted in the week"
+      - name: free_throws_made
+        description: "Free throws made in the week: FT% is this over free_throws_attempted"
+      - name: free_throws_attempted
+        description: "Free throws attempted in the week"
+
+unit_tests:
+  - name: player_week_sums_the_regular_season_by_monday_week
+    description: >
+      Player p1 played Monday the 12th and Wednesday the 14th and sat out Friday the 16th: one week
+      of two games played, his Friday counting for nothing. His Sunday-the-11th game belongs to the
+      week before, and his playoff game on Saturday the 17th is not the regular season. His team
+      A has four regular-season games that week on the schedule, one of them Sunday the 18th, still
+      to play, and an if-necessary game left out. A missing number in a game played (no free throws
+      recorded on the 14th) counts as zero.
+    model: fct_player_week
+    given:
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2025-26', game_id: '0022500001', game_date: 2026-01-11, player_id: p1, team_id: A, played: true, minutes: 20.0, points: 7, rebounds_total: 1, assists: 1, steals: 0, blocks: 0, three_pointers_made: 1, turnovers: 1, field_goals_made: 3, field_goals_attempted: 6, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', game_id: '0022500002', game_date: 2026-01-12, player_id: p1, team_id: A, played: true, minutes: 30.5, points: 20, rebounds_total: 5, assists: 4, steals: 1, blocks: 2, three_pointers_made: 2, turnovers: 3, field_goals_made: 8, field_goals_attempted: 15, free_throws_made: 2, free_throws_attempted: 4}
+          - {league: nba, season: '2025-26', game_id: '0022500003', game_date: 2026-01-14, player_id: p1, team_id: A, played: true, minutes: 25.0, points: 10, rebounds_total: 3, assists: 2, steals: 0, blocks: 1, three_pointers_made: 0, turnovers: 1, field_goals_made: 5, field_goals_attempted: 9, free_throws_made: null, free_throws_attempted: null}
+          - {league: nba, season: '2025-26', game_id: '0022500004', game_date: 2026-01-16, player_id: p1, team_id: A, played: null, minutes: null, points: null, rebounds_total: null, assists: null, steals: null, blocks: null, three_pointers_made: null, turnovers: null, field_goals_made: null, field_goals_attempted: null, free_throws_made: null, free_throws_attempted: null}
+          - {league: nba, season: '2025-26', game_id: '0042500001', game_date: 2026-01-17, player_id: p1, team_id: A, played: true, minutes: 40.0, points: 30, rebounds_total: 10, assists: 10, steals: 3, blocks: 3, three_pointers_made: 3, turnovers: 4, field_goals_made: 12, field_goals_attempted: 20, free_throws_made: 3, free_throws_attempted: 3}
+      - input: ref('dim_date')
+        rows:
+          - {date_day: 2026-01-11, week_start: 2026-01-05, fantasy_week: '2026-W02'}
+          - {date_day: 2026-01-12, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-14, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-16, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-17, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: p1, team_id: A, valid_from: 2025-10-21, valid_to: null}
+      - input: ref('schedule_team_games')
+        rows:
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0022500001', game_type: regular, game_date_est: 2026-01-11}
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0022500002', game_type: regular, game_date_est: 2026-01-12}
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0022500003', game_type: regular, game_date_est: 2026-01-14}
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0022500004', game_type: regular, game_date_est: 2026-01-16}
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0042500001', game_type: playoffs, game_date_est: 2026-01-17}
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0022500005', game_type: regular, game_date_est: 2026-01-18}
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0022500006', game_type: regular, game_date_est: 2026-01-18, if_necessary: true}
+    expect:
+      rows:
+        - {player_id: p1, team_id: A, fantasy_week: '2026-W02', week_start: 2026-01-05, week_end: 2026-01-11, games_scheduled: 1, games_played: 1, minutes: 20.0, points: 7, rebounds_total: 1, assists: 1, steals: 0, blocks: 0, three_pointers_made: 1, turnovers: 1, field_goals_made: 3, field_goals_attempted: 6, free_throws_made: 0, free_throws_attempted: 0}
+        - {player_id: p1, team_id: A, fantasy_week: '2026-W03', week_start: 2026-01-12, week_end: 2026-01-18, games_scheduled: 4, games_played: 2, minutes: 55.5, points: 30, rebounds_total: 8, assists: 6, steals: 1, blocks: 3, three_pointers_made: 2, turnovers: 4, field_goals_made: 13, field_goals_attempted: 24, free_throws_made: 2, free_throws_attempted: 4}
+
+  - name: player_week_traded_mid_week_counts_each_team_on_its_days
+    description: >
+      Player p2 played for team A on Monday the 12th and was traded: his stint with team B begins
+      Thursday the 15th, and he played for B on Friday the 16th. His week counts A's games through
+      Wednesday (Monday and Tuesday) and B's from Thursday (Thursday, Friday and Sunday), five in
+      all; A's Saturday game and B's Monday game are not his. His team is B, his last
+      game's. A week with only a game sat out still has a row, with nothing played.
+    model: fct_player_week
+    given:
+      - input: ref('fct_player_game')
+        rows:
+          - {league: nba, season: '2025-26', game_id: '0022500010', game_date: 2026-01-12, player_id: p2, team_id: A, played: true, minutes: 10.0, points: 4, rebounds_total: 2, assists: 0, steals: 0, blocks: 0, three_pointers_made: 0, turnovers: 0, field_goals_made: 2, field_goals_attempted: 4, free_throws_made: 0, free_throws_attempted: 0}
+          - {league: nba, season: '2025-26', game_id: '0022500020', game_date: 2026-01-16, player_id: p2, team_id: B, played: true, minutes: 12.0, points: 6, rebounds_total: 1, assists: 1, steals: 1, blocks: 0, three_pointers_made: 2, turnovers: 1, field_goals_made: 2, field_goals_attempted: 3, free_throws_made: 0, free_throws_attempted: 1}
+          - {league: nba, season: '2025-26', game_id: '0022500030', game_date: 2026-01-20, player_id: p2, team_id: B, played: null, minutes: null, points: null, rebounds_total: null, assists: null, steals: null, blocks: null, three_pointers_made: null, turnovers: null, field_goals_made: null, field_goals_attempted: null, free_throws_made: null, free_throws_attempted: null}
+      - input: ref('dim_date')
+        rows:
+          - {date_day: 2026-01-12, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-16, week_start: 2026-01-12, fantasy_week: '2026-W03'}
+          - {date_day: 2026-01-20, week_start: 2026-01-19, fantasy_week: '2026-W04'}
+      - input: ref('dim_player')
+        rows:
+          - {league: nba, stats_player_id: p2, team_id: A, valid_from: 2025-10-21, valid_to: 2026-01-14}
+          - {league: nba, stats_player_id: p2, team_id: B, valid_from: 2026-01-15, valid_to: null}
+      - input: ref('schedule_team_games')
+        rows:
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0022500010', game_type: regular, game_date_est: 2026-01-12}
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0022500011', game_type: regular, game_date_est: 2026-01-13}
+          - {league: nba, season: '2025-26', team_id: A, game_id: '0022500012', game_type: regular, game_date_est: 2026-01-17}
+          - {league: nba, season: '2025-26', team_id: B, game_id: '0022500019', game_type: regular, game_date_est: 2026-01-12}
+          - {league: nba, season: '2025-26', team_id: B, game_id: '0022500021', game_type: regular, game_date_est: 2026-01-15}
+          - {league: nba, season: '2025-26', team_id: B, game_id: '0022500020', game_type: regular, game_date_est: 2026-01-16}
+          - {league: nba, season: '2025-26', team_id: B, game_id: '0022500022', game_type: regular, game_date_est: 2026-01-18}
+          - {league: nba, season: '2025-26', team_id: B, game_id: '0022500030', game_type: regular, game_date_est: 2026-01-20}
+    expect:
+      rows:
+        - {player_id: p2, team_id: B, week_start: 2026-01-12, games_scheduled: 5, games_played: 2, minutes: 22.0, points: 10, three_pointers_made: 2, field_goals_made: 4, field_goals_attempted: 7, free_throws_made: 0, free_throws_attempted: 1}
+        - {player_id: p2, team_id: B, week_start: 2026-01-19, games_scheduled: 1, games_played: 0, minutes: 0, points: 0, three_pointers_made: 0, field_goals_made: 0, field_goals_attempted: 0, free_throws_made: 0, free_throws_attempted: 0}

@@ -40,7 +40,7 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 | --- | --- | --- |
 | Fallback build | #989; PR #994 | Approved with the drill's change; merging, then one deliberate publish through it. |
 | Engine differences | #995 | 12 `fct_event` rows and 2 `fct_market_value` rows to trace; board values within 1e-4 with an identical ranking. |
-| Player-week table | #997 | One row per league, season, fantasy week and player; its bar is on the issue. |
+| Player-week table | #997; branch `ai/feat/997-player-week` | Built and checked on the sample and on real seasons in the Backtest build; the harness reads it unchanged. Owner review; the warehouse path is proved on the first build after merge. |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
 
 ## Waiting on the owner
