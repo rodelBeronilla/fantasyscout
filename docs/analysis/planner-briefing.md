@@ -2,11 +2,13 @@
 
 Written 2026-11-16 by the agent that has done most of the build, for a planning session that has read the repository at `da8f21d` but cannot see the live data, the open issues or how the work is done. Facts were read on the day from the live site, the GitHub API, the published build's manifest and the decision records. Where something was not checked, it says so.
 
+> **Correction, 2026-11-16.** This briefing first said the owner's team is a punt build (points, threes and assists). It is not: the owner's team punts no category. The belief came from the agent's own notes of 2026-11-03 and spread to issue #925. The lines below are corrected; punt support (#938) is correctness for other leagues, below the owner's own needs.
+
 **The three things to take away:**
 
 1. **The site has shown the same data since 2026-11-11.** The lakehouse's SQL warehouse refuses to start, so every build since has failed. Nothing else in this briefing matters to a manager until that is fixed, and each stale day also loses evidence the January judgements need.
-2. **The owner's premise is right, and it is not the main problem.** Large tables are read by no prediction (section 3). But the app is not useful daily for four reasons that come first: the data is stale, the league import is manual, 25 of 36 features are hidden until at least 2027-01-18, and a punt build is not applied on every page.
-3. **Every prediction test so far judged a blended score.** The board, its features and every signal that "lost" were scored on the nine-category sum or on fantasy points. A manager in a category league who punts cares about some categories and not others, per week. No test has asked that question (section 5).
+2. **The owner's premise is right, and it is not the main problem.** Large tables are read by no prediction (section 3). But the app is not useful daily for three reasons that come first: the data is stale, the league import is manual, and 25 of 36 features are hidden until at least 2027-01-18.
+3. **Every prediction test so far judged a blended score.** The board, its features and every signal that "lost" were scored on the nine-category sum or on fantasy points. In a head-to-head category league each category is won or lost on its own, every week, so a manager weighs categories differently from week to week. No test has asked that question (section 5).
 
 ## 1. State of play
 
@@ -340,7 +342,7 @@ The baseline everywhere is the **naive manager**: the season so far per game, or
 
 ## 7. The owner's league
 
-- **Platform and format:** Yahoo; head-to-head; nine categories; twelve teams. The team is a punt build, which matters more than anything else here for whether the advice is right.
+- **Platform and format:** Yahoo; head-to-head; nine categories; twelve teams. The team plays all nine categories (no punts).
 - **Sign-in import:** built in the Worker and closed. Yahoo answers 403 until it approves the app for its Fantasy API (#884). There is no public league data to read without it.
 - **Bookmark import:** this is the working road. The manager runs a bookmark on their own signed-in Yahoo page. It brings the rosters, the standings, this week's opponent and score, and the playoff weeks into the browser, and the setup can be saved to an account.
 - **Does it work end to end?** In tests, yes: unit tests and a Playwright test against saved Yahoo pages (one of which failed once and passed on a second run). **Against the owner's live league I cannot say.** The agent cannot sign in, and nothing records when the owner last ran it.
@@ -352,12 +354,12 @@ The baseline everywhere is the **naive manager**: the season so far per game, or
 
 - **"The platform holds more than the advice uses" is true and is the second problem.** The first is that a manager opening the app today sees five-day-old data, a league copied by hand, and tables where the advice used to be. More signals will not change that.
 - **The validation rule is now the tightest constraint on the product.** Hiding every call until an unseen season judges it was the right answer to "I can't trust it". Its cost is that the owner's own season is the test set, so the app is at its least useful in the season it is for. The planner should decide, with the owner, which calls may be judged on past weeks now (my list is in section 4) and which truly need 2026-27.
-- **"Validated" has meant "for a league that does not punt".** Per-category chances survive a punt build. Value-based calls (the board's error, buy low, the trade warning's value lens, swaps) were judged on all nine categories.
+- **"Validated" has meant "over a season, on the sum".** The owner plays all nine categories, so the sum is the right target for his season. His decisions are weekly and per category, and only the matchup chances were judged at that grain.
 - **Several unused signals were tested and lost.** Planning should not assume they are free wins. It should assume they were asked the wrong question.
 
 ### The five highest-leverage uses of data already held
 
-1. **Box scores, schedule and listings → a player-week table, and every judgement re-asked per category and per week under a punt build.** No new ingestion. It turns the board's validation into the manager's question, and it is the base for everything below.
+1. **Box scores, schedule and listings → a player-week table, and every judgement re-asked per category and per week.** No new ingestion. It turns the board's validation into the manager's question, and it is the base for everything below.
 2. **Tracking and hustle (220,057 player-games, 71 columns) → category-specific features in the projection.** Rebound chances for rebounds, deflections for steals, contested shots and box outs for blocks and rebounds, potential assists for assists. Each is one coefficient under ADR 0030's rule, judged on its own category. NBA only.
 3. **Shots (2.1 million, with coordinates) → field-goal percentage from where a player shoots.** The pool-wide shrink failed in October because "a center's percentage is not a guard's"; the record names a position-aware prior as the version worth trying. Shot zones are the direct form of it. Field-goal percentage is one of nine categories and the hardest to project.
 4. **Play-by-play lineups (5.7 million actions) → who gains what when a teammate sits.** Minutes with and without a teammate, by position and by category, from every stint and not only from missed games. It is the evidence the hidden "who takes his minutes" feature lacks. Honest odds: moderate; the earlier study found per-minute production barely moves.
@@ -370,7 +372,7 @@ Close behind: prop lines as the market baseline the methodology's own bar asks f
 1. **The data cannot be relied on.** Five days stale now; a blocked publish the day before that; red deploys that went unnoticed in early November. One warehouse on a free tier is a single point of failure, and nobody is watching.
 2. **The league is not live.** A hand-run bookmark is a weekly habit at best. Until Yahoo approves sign-in, the import needs to be one tap and to say plainly how old its copy is.
 3. **There is little left that says what to do.** Hiding unjudged calls removed most of My Team. What remains is correct and thin.
-4. **The punt build is not applied everywhere** (#938). Any page that values a player on nine categories is wrong for this team on sight, and one wrong number costs the trust of the rest.
+4. **(Withdrawn 2026-11-16.)** This said the owner's punt build was not applied everywhere. The owner does not punt. #938 remains correctness for leagues that do.
 5. **Nothing brings the manager back, and nothing learns from them.** No alert when a starter is ruled out (#876). No record of what the app said against what the manager did and what then happened. That record would be both the product's feedback loop and its most persuasive evidence.
 
 ### What could visibly ship within two weeks
@@ -378,7 +380,7 @@ Close behind: prop lines as the market baseline the methodology's own bar asks f
 In order, each small enough to finish:
 
 1. **Data back, and a second road for it** (days 1 to 3). The owner restarts the warehouse. Then a fallback: when the warehouse refuses, build on DuckDB on a hosted runner from the mirrored landing zone and publish that. The harness already does every step but the export. Visible as: the site is never five days old again.
-2. **The punt build on every page** (days 3 to 5, #938, #925, #939). Visible as: every number on the owner's pages agrees with their team.
+2. **Correct copy and week lines** (days 3 to 5, #939). Visible as: every number on the owner's pages agrees with the others. Punts on every page (#938, #925) follow, below the owner's own needs.
 3. **The player-week table and a "last week, graded" card** (days 5 to 9). Each Monday, per category: what the matchup chances said, what happened, and the running record for the season. It is data, not a call, so it may show. It makes the validation visible, and it gathers January's evidence in the open.
 4. **Category evidence on Rankings and the Player page** (days 8 to 11). Rebound chances, deflections, contested shots, potential assists and shot zones as labelled, sortable columns under the league's categories. Shown as data, they need no check, and they put the unused tables in front of a manager at once.
 5. **One written study, judged in the open** (days 9 to 14): which tracking stats improve the projection of rebounds, steals and blocks, each on its own category, fitted on the tuning seasons and judged once. If one passes it enters the projection by ADR 0030's rule; if none does, the record says so. Either way it is the project's first test at the manager's grain.
