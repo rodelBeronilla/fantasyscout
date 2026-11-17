@@ -1,4 +1,4 @@
-{{ config(severity='warn', tags=['player']) }}
+{{ config(severity='error', tags=['player']) }}
 
 -- fct_player_week loses and adds nothing (#997): for every league, season and player, its weeks
 -- add up to fct_player_game's regular-season totals, exactly for the games and the counting
