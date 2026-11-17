@@ -57,6 +57,8 @@ DATED: tuple[tuple[str, str], ...] = (
     ("gold.fct_player_prop", "snapshot_at"),
     ("gold.int_player_game_value", "game_date"),
     ("gold.mart_player_rolling", "game_date"),
+    # a player's week sums fct_player_game's games, so no week starts on or after the date
+    ("gold.fct_player_week", "week_start"),
     ("gold.fct_official_listing", "game_date"),
     ("gold.fct_injury_spell", "start_date"),
     ("gold.fct_injury_spell", "return_date"),
@@ -81,6 +83,7 @@ EVENTS: frozenset[str] = frozenset(
         "silver.team_game_box",
         "silver.games",
         "gold.fct_player_game",
+        "gold.fct_player_week",
         "gold.fct_team_game",
         "gold.fct_shot",
         "gold.fct_event",

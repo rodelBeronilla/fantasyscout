@@ -7,6 +7,7 @@ import json
 from datetime import date, timedelta
 from pathlib import Path
 
+import duckdb
 import numpy as np
 import pandas as pd
 import pytest
@@ -210,3 +211,29 @@ def test_the_calibration_slope_is_recovered_and_survives_a_near_separation() -> 
     y = np.where(x > 0, 1.0, 0.0)
     y[:3] = 0.5
     assert standings_backtest.logistic_slope(x * 10, y) > 1
+
+
+def test_the_weeks_are_read_from_the_player_week_table(tmp_path: Path) -> None:
+    """The realized weeks come from gold.fct_player_week (#997): the weeks a player played in,
+    from the season's first week on, under the names the loaders read."""
+    con = duckdb.connect()
+    con.execute("create schema gold")
+    stats = ", ".join(f"{s} integer" for s in STATS)
+    con.execute(
+        "create table gold.fct_player_week (league varchar, season varchar, player_id varchar,"
+        f" week_start date, games_played integer, {stats})"
+    )
+    line = ", ".join("1" for _ in STATS)
+    for pid, week, played in (
+        ("p1", "2024-10-21", 3),  # the opener's week: the season starts on its Tuesday
+        ("p1", "2024-10-28", 0),  # a week sat out: no games, no row
+        ("p2", "2024-10-14", 1),  # before the season's first week
+    ):
+        con.execute(
+            f"insert into gold.fct_player_week values ('nba', '2024-25', '{pid}', '{week}',"
+            f" {played}, {line})"
+        )
+    standings_backtest.export_weeks(con, "nba", "2024-25", date(2024, 10, 22), tmp_path)
+    df = pd.read_csv(tmp_path / "weeks.csv", dtype={"player_id": str})
+    assert list(df.columns) == ["player_id", "week", "games", *STATS]
+    assert df[["player_id", "week", "games"]].values.tolist() == [["p1", "2024-10-21", 3]]

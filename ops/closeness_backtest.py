@@ -10,7 +10,8 @@ game day and then every Monday of the regular season a point-in-time build (ADR 
 board as it stood that morning, ``backtest.standings_leagues`` leagues are drafted from it, and
 every pair of teams meets. The card projects each side's week as the web does (ops.matchup): each
 player's projected per-game line times the team's games that week, a player listed out or
-doubtful counting for none. What happened is that week's real regular-season box scores.
+doubtful counting for none. What happened is that week's real regular-season box scores
+(gold.fct_player_week).
 
 Judged, pooled over a season's weeks:
 
