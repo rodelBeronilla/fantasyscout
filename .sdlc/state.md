@@ -19,6 +19,7 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 - **The owner's real league (2026-11-16).** His Yahoo league was imported by bookmark within the week before. He does not punt, and checks that his saved setup has no punts marked.
 - **No alerts (2026-11-17).** The owner wants none; #876 is out of the plan.
 - **The owner's log and Yahoo (2026-11-17).** His private log of his own use is kept until he deletes it, and the sources page says so. The extra owner-status check per page and a rare lost log event are accepted. No Yahoo credentials are stored or used by any agent, ever. Any fixture built from his real pages waits for his approval before it is committed.
+- **The owner's browser (2026-11-17).** Every chat gets browser tools that act in his own Chrome. The rules for using his browser are in [AGENTS.md](../AGENTS.md). No Yahoo hand-off starts without his request.
 - **All-play counts categories (2026-11-17).** A week's all-play record is each category against each other team: 63 results a week in his league.
 - **Owner preview (2026-11-16, design in step 3, not built).** Unjudged and failed calls will show to the signed-in owner only, each logged with the call, what he did and what happened. Public pages keep the rule below.
 - **Calls need a passed check; data can show (2026-11-09, #936).** A recommendation shows publicly only after its out-of-sample check passes. The same numbers in a labelled, sortable table are data and may show. Switches in `web/src/lib/visibility.ts`; verdicts in `methodology/features.yml`.
@@ -38,6 +39,8 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 The redesign epic (#936) and the methodology epic (#751) still hold the longer list. Where they conflict with [pillars.md](pillars.md), the pillars win.
 
 ## In flight
+
+A restart of this project's chat with browser tools is in progress (2026-11-17); work is parked, and the owner sends the next task.
 
 | Item | Where | Next |
 | --- | --- | --- |
