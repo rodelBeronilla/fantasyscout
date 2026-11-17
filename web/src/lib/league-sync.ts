@@ -10,7 +10,7 @@
  * so the matchup knows which of today's games the score so far already holds.
  */
 import { espnLeagueUrl, fromEspnLeague, type ImportedLeague } from './espn-league';
-import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, normalize } from './fantasy-league';
+import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, mondayOf, normalize } from './fantasy-league';
 import { fetchGamesRead, type GamesRead } from './game-state';
 import { daysLeftInWeek } from './lineup';
 import type { ScoreSoFar } from './matchup';
@@ -244,6 +244,7 @@ export function espnSetup(
     // the players in ESPN's IR slot at this read (#878), so the next one can tell who came off it
     ir,
     imports: withImport(previous?.source, at.now, at.leagueId),
+    week: weekStart(previous?.source, at.leagueId, mondayOf(easternDate(new Date(at.now))), setup.rosters[setup.mine] ?? []),
     opponents,
     // this week's score so far, by stat or in fantasy points, for the matchup to start from (#817, #877)
     ...(league.scores.size > 0 ? { scores: teamIds.map((id) => (id === null ? null : (league.scores.get(id) ?? null))) } : {}),
@@ -348,6 +349,28 @@ export function withImport(previous: LeagueSource | undefined, now: number, leag
   const same = previous && (leagueId === undefined || previous.leagueId === leagueId);
   const before = same ? (previous.imports?.length ? previous.imports : [previous.syncedAt]) : [];
   return [...before.filter((t) => t < now), now].slice(-IMPORTS_KEPT);
+}
+
+/**
+ * The manager's roster at the fantasy week's first import (#1022): kept from the copy it replaces
+ * while it is the same league and week, else the roster this import brings.
+ */
+export function weekStart(previous: LeagueSource | undefined, leagueId: string, monday: string, roster: string[]): { monday: string; roster: string[] } {
+  const kept = previous?.leagueId === leagueId ? previous.week : undefined;
+  return kept && kept.monday === monday ? kept : { monday, roster: [...roster] };
+}
+
+/**
+ * Adds left this week (#1022): the league's limit less the players on the manager's roster now who
+ * were not on it at the week's first import. Null when the league sets no limit; adds made before
+ * that first import are not seen, so it can only overcount what is left.
+ */
+export function addsLeft(setup: LeagueSetup, monday: string): number | null {
+  if (setup.addsPerWeek === null) return null;
+  const week = setup.source?.week;
+  const now = setup.rosters[setup.mine] ?? [];
+  const made = week && week.monday === monday ? now.filter((id) => !week.roster.includes(id)).length : 0;
+  return Math.max(0, setup.addsPerWeek - made);
 }
 
 /** Whether a league is in season: its newest published data is at most IN_SEASON_DAYS before today (Eastern dates). */

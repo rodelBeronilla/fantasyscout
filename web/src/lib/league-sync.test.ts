@@ -4,6 +4,7 @@ import fixture from '../../tests/fixtures/espn/league.json';
 import { fromEspnLeague } from './espn-league';
 import { DEFAULT_SETTINGS, type LeagueSetup, normalize } from './fantasy-league';
 import {
+  addsLeft,
   ago,
   chooseMine,
   copyAge,
@@ -18,6 +19,7 @@ import {
   rosterChanges,
   staleOpponent,
   weeksCovered,
+  weekStart,
   SYNC_EVERY_MS,
   syncDue,
   weekScore,
@@ -367,5 +369,30 @@ describe("a Yahoo import's opponent after its week (#927)", () => {
   it('keeps an opponent the manager picked by hand, or none at all', () => {
     expect(staleOpponent(setup(2), '2026-11-09', day)).toBe(false);
     expect(staleOpponent(setup(null), '2026-11-09', day)).toBe(false);
+  });
+});
+
+describe('the adds left this week (#1022)', () => {
+  const base = imported();
+  const mine = base.rosters[base.mine]!;
+  it('keeps the roster of the week’s first import, and starts over in a new week or another league', () => {
+    const first = weekStart(undefined, '99', '2026-11-16', ['a', 'b']);
+    expect(first).toEqual({ monday: '2026-11-16', roster: ['a', 'b'] });
+    const source = { ...base.source!, leagueId: '99', week: first };
+    expect(weekStart(source, '99', '2026-11-16', ['a', 'c'])).toBe(first);
+    expect(weekStart(source, '99', '2026-11-23', ['a', 'c'])).toEqual({ monday: '2026-11-23', roster: ['a', 'c'] });
+    expect(weekStart(source, '42', '2026-11-16', ['a', 'c'])).toEqual({ monday: '2026-11-16', roster: ['a', 'c'] });
+  });
+
+  it('is the limit less the players added since that import; none with no limit', () => {
+    const week = { monday: '2026-11-16', roster: mine.slice(1) };
+    const setup = { ...base, addsPerWeek: 4, source: { ...base.source!, week } };
+    // one player on the roster now was not there at the week's first import
+    expect(addsLeft(setup, '2026-11-16')).toBe(3);
+    expect(addsLeft({ ...setup, addsPerWeek: 1 }, '2026-11-16')).toBe(0);
+    expect(addsLeft({ ...setup, addsPerWeek: 0 }, '2026-11-16')).toBe(0);
+    // a new week: nothing counted yet
+    expect(addsLeft(setup, '2026-11-23')).toBe(4);
+    expect(addsLeft({ ...setup, addsPerWeek: null }, '2026-11-16')).toBeNull();
   });
 });

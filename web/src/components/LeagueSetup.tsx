@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
-import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum } from '../lib/fantasy-league';
+import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum, rosterCount, rosterCountText } from '../lib/fantasy-league';
 import { categoryValues, marketPriorShift, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash, YAHOO_OUTDATED, YAHOO_PAYLOAD_VERSION, yahooHashVersion, type YahooRejected } from '../lib/yahoo-bookmarklet';
 import { chooseMine } from '../lib/league-sync';
@@ -368,7 +368,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
                   <span className="min-w-0 truncate font-medium">{name}</span>
                   <span className="text-xs whitespace-nowrap text-muted">
                     {mine ? 'My team · ' : ''}
-                    {roster.length}/{setup.rosterSpots} ▾
+                    {rosterCount(setup, t).active}/{setup.rosterSpots} ▾
                   </span>
                 </button>
               );
@@ -394,8 +394,8 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
                     My team
                   </label>
                 </div>
-                <p className={`text-xs ${roster.length > setup.rosterSpots ? 'text-bad' : 'text-muted'}`}>
-                  {roster.length}/{setup.rosterSpots} players
+                <p className={`text-xs ${rosterCount(setup, t).over ? 'text-bad' : 'text-muted'}`} data-testid="roster-count">
+                  {rosterCountText(setup, t)}
                 </p>
                 {roster.length > 0 && (
                   <ul className="grid gap-0.5 text-sm" data-testid="roster">

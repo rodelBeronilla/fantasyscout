@@ -130,7 +130,17 @@ describe('the stored league setup migrates by version', () => {
     expect(migrate({ version: 9, teams: 4, playoffs: { teams: 4, weeks: 3, start: 'soon' } }, nba).playoffs.start).toBeNull();
   });
 
-  it('is at version 9', () => {
-    expect(SETUP_VERSION).toBe(9);
+  it('gives a version 9 copy the default IL slots and no known adds or waivers, and keeps those of a version 10 copy (#1022)', () => {
+    const v9 = migrate({ version: 9, teams: 8, names: [], rosters: [] }, DEFAULT_SETTINGS.nba);
+    expect([v9.ilSlots, v9.addsPerWeek, v9.waiverDays]).toEqual([2, null, null]);
+    const v10 = migrate({ version: 10, teams: 8, ilSlots: 3, addsPerWeek: 4, waiverDays: 2 }, DEFAULT_SETTINGS.nba);
+    expect([v10.ilSlots, v10.addsPerWeek, v10.waiverDays]).toEqual([3, 4, 2]);
+    // out of range is held to the bounds; a cleared limit stays cleared
+    const odd = migrate({ version: 10, teams: 8, ilSlots: 99, addsPerWeek: null, waiverDays: -3 }, DEFAULT_SETTINGS.nba);
+    expect([odd.ilSlots, odd.addsPerWeek, odd.waiverDays]).toEqual([6, null, 0]);
+  });
+
+  it('is at version 10', () => {
+    expect(SETUP_VERSION).toBe(10);
   });
 });
