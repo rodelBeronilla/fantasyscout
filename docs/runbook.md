@@ -231,7 +231,7 @@ Since #989 a warehouse that will not start no longer stops the site: the build's
 
 When Build lakehouse's "Start the SQL warehouse and wait for it" step fails (or the workspace cannot be resolved), the same run's **Build fallback** job builds the site on DuckDB on a GitHub-hosted runner and publishes it through the same gate (ADR 0032, `.github/workflows/build-fallback.yml`):
 
-1. Mirror every season of the landing volume and the run logs under `landing/_ops/` through the Files API, which spends no warehouse time (`uv run python -m ops.landing_sync --league nba --league wnba --season all --ops --no-sidecars --out landing`). The step logs `df` before and after; the mirror is about 11 GB, and the runners measured 85 GB free.
+1. Mirror every season of the landing volume and the run logs under `landing/_ops/` through the Files API, which spends no warehouse time (`uv run python -m ops.landing_sync --league nba --league wnba --season all --ops --no-sidecars --out landing`). The step logs `df` before and after; the first full mirror was 10.3 GB in 25 minutes and left 77 GB free.
 2. Seed the ledgers a rebuild cannot recreate (`gold.fct_board_history`, `ops.test_results`, `ops.publish_gate`, `ops.build_log`) from the newest published build, plus the fallback's own build log rows kept in the volume (`uv run python -m ops.fallback seed --duckdb dbt/fantasyscout.duckdb --landing landing`).
 3. Run `dbt build --target duckdb` with every check, quality included, then the gate (`ops.results --engine duckdb`). Only a passing gate publishes: stage, notebooks, extract and promote, as on the warehouse road (`publish-build`, `engine: duckdb`).
 4. Record the run in the volume (`ops.build_log --engine duckdb --volume`), since the DuckDB file goes with the runner.

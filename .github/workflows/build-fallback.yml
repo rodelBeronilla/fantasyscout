@@ -55,7 +55,7 @@ jobs:
   duckdb:
     name: Build on DuckDB
     runs-on: ubuntu-latest
-    # mirror about 40 minutes, dbt about 15, export, notebooks and extract about 30
+    # measured on PR #994: mirror 25 minutes, dbt 6, gate and export 1; the notebooks and extract add about 30
     timeout-minutes: 180
     environment: lakehouse
     env:
