@@ -366,11 +366,22 @@ export function weekStart(previous: LeagueSource | undefined, leagueId: string, 
  * that first import are not seen, so it can only overcount what is left.
  */
 export function addsLeft(setup: LeagueSetup, monday: string): number | null {
+  return addsThisWeek(setup, monday)?.left ?? null;
+}
+
+/**
+ * This week's adds as far as the app can see (#1027): the league's limit, the adds made since the
+ * week's first import (players on the roster now who were not then), what is left, and whether an
+ * import this week started the count. No Yahoo page the bookmark reads is known to show the adds
+ * used, so adds made before the first import of the week are not seen. Null with no limit.
+ */
+export function addsThisWeek(setup: LeagueSetup, monday: string): { limit: number; made: number; left: number; counted: boolean } | null {
   if (setup.addsPerWeek === null) return null;
   const week = setup.source?.week;
+  const counted = !!week && week.monday === monday;
   const now = setup.rosters[setup.mine] ?? [];
-  const made = week && week.monday === monday ? now.filter((id) => !week.roster.includes(id)).length : 0;
-  return Math.max(0, setup.addsPerWeek - made);
+  const made = counted ? now.filter((id) => !week.roster.includes(id)).length : 0;
+  return { limit: setup.addsPerWeek, made, left: Math.max(0, setup.addsPerWeek - made), counted };
 }
 
 /** Whether a league is in season: its newest published data is at most IN_SEASON_DAYS before today (Eastern dates). */

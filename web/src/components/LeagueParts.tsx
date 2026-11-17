@@ -527,14 +527,14 @@ export function Today({
   need = [],
   minutesFor,
   notes,
-  addsLeft = null,
+  adds = null,
 }: {
   league: League;
   players: TodayRow[];
   /** The day's one-line notes on flagged players (#823), shown under each it has one for. */
   notes?: PlayerNotes | null;
-  /** Adds the manager has left this week (#1022); null when the league sets no limit. */
-  addsLeft?: number | null;
+  /** This week's adds (#1022, #1027); null when the league sets no limit. */
+  adds?: { limit: number; made: number; left: number; counted: boolean } | null;
   games: TodayGame[];
   date: string;
   /** Start and sit for today (#816), when the lineup slots and values are known. */
@@ -585,7 +585,7 @@ export function Today({
           </>
         )}
       </p>
-      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} pickups={href(pickupsPath(league, { open: [date], need }))} minutesFor={minutesFor} addsLeft={addsLeft} />}
+      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} pickups={href(pickupsPath(league, { open: [date], need }))} minutesFor={minutesFor} adds={adds} />}
       {leagueGames > 0 && (
         <details className="mt-2 text-sm" open={!verdict} data-testid="today-all">
           <summary className="cursor-pointer text-xs text-muted">All of today&apos;s players</summary>
@@ -626,7 +626,7 @@ function TodayCalls({
   time,
   pickups,
   minutesFor,
-  addsLeft = null,
+  adds = null,
 }: {
   league: League;
   verdict: TodayVerdict;
@@ -635,9 +635,10 @@ function TodayCalls({
   /** Pickups for today, with the matchup's need categories when there is one (#818). */
   pickups: string;
   minutesFor?: (id: string) => ReactNode;
-  /** Adds the manager has left this week (#1022); null when the league sets no limit. */
-  addsLeft?: number | null;
+  /** This week's adds (#1022, #1027); null when the league sets no limit. */
+  adds?: { limit: number; made: number; left: number; counted: boolean } | null;
 }) {
+  const addsLeft = adds ? adds.left : null;
   const name = new Map(players.map((p) => [p.player_id, p.full_name ?? p.player_id]));
   const who = (id: string) => (
     <a href={href(`/p/${league}/${id}/`)} className="font-medium underline-offset-4 hover:underline">
@@ -707,10 +708,14 @@ function TodayCalls({
                 : `stream into ${verdict.open.length === 1 ? 'it' : 'them'}`}
             </a>
           )}
-          {addsLeft !== null && addsLeft > 0 && (
+          {adds && (
             <span className="text-muted" data-testid="today-adds-left">
               {' '}
-              ({addsLeft} {addsLeft === 1 ? 'add' : 'adds'} left this week, counted from your first import this week)
+              ({adds.left} of {adds.limit} {adds.limit === 1 ? 'add' : 'adds'} left this week:{' '}
+              {adds.counted
+                ? `${adds.made} made since your first import this week; any made before it are not seen`
+                : 'no import yet this week, so none are counted'}
+              )
             </span>
           )}
         </p>

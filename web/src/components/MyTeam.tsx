@@ -36,7 +36,7 @@ import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
 import { SHOWS } from '../lib/visibility';
 import { SyncLine, useEspnSync } from './LeagueSync';
-import { addsLeft, staleOpponent, weekScore } from '../lib/league-sync';
+import { addsThisWeek, staleOpponent, weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
 
 interface TeamRow extends ModelRow {
@@ -615,7 +615,7 @@ export default function MyTeam() {
           need={SHOWS.streams ? targets : []}
           minutesFor={SHOWS.minutes ? minutesLine : undefined}
           notes={SHOWS.notes ? notes : null}
-          addsLeft={addsLeft(setup, mondayOf(easternDate()))}
+          adds={addsThisWeek(setup, mondayOf(easternDate()))}
         />
       )}
 
