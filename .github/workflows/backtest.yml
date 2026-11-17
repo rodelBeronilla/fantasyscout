@@ -147,6 +147,38 @@ jobs:
           ):
               print(con.execute(sql, [league]).fetchdf().to_string(index=False), end="\n\n")
           EOF
+      # TEMPORARY (#997, removed before review): fct_team_week_games holds only the current week
+      # on, so its check is rebuilt as of a past mid-season Wednesday to compare real weeks.
+      - name: The games-scheduled check on a past season's weeks
+        if: inputs.judge == ''
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: .
+          FS_LANDING_ROOT: ${{ runner.temp }}/landing
+        run: |
+          set -o pipefail
+          uv run dbt build --target duckdb --select fct_team_week_games fct_player_week --vars '{as_of: "2024-01-17"}' 2>&1 | tail -8
+          uv run python - <<'EOF'
+          import duckdb
+          con = duckdb.connect("fantasyscout.duckdb", read_only=True)
+          print(con.execute("""
+              select w.season, count(*) as compared_weeks, count(distinct w.week_start) as weeks,
+                  sum((w.games_scheduled = t.games)::int) as equal,
+                  sum((p.week_start is not null)::int) as with_playoff_game
+              from gold.fct_player_week as w
+              join gold.fct_team_week_games as t
+                  on t.league = w.league and t.season = w.season and t.team_id = w.team_id
+                  and t.week_start = w.week_start
+              left join (
+                  select distinct s.league, s.season, s.team_id, d.week_start
+                  from silver.schedule_team_games as s
+                  join gold.dim_date as d on d.date_day = s.game_date_est
+                  where s.game_type = 'playoffs'
+              ) as p on p.league = w.league and p.season = w.season and p.team_id = w.team_id
+                  and p.week_start = w.week_start
+              group by 1 order by 1
+          """).fetchdf().to_string(index=False))
+          EOF
       - name: Walk forward through the season
         if: inputs.judge != ''
         env:
