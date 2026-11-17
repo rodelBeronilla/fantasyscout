@@ -28,7 +28,7 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 ## The plan (agreed 2026-11-16)
 
 1. **The site cannot go stale unnoticed again, and the repo says how work is chosen.** Done on 2026-11-17, apart from the fallback, which moved to step 2.
-2. **The fallback proven for real, and the data at the manager's grain** (player, week, category). No new calls on any page. The fallback merged and a drill publishes through it; #995 traces the missing rows; the morning injury-report redirect is fixed; every page using an imported league says how old its copy is (waits for the owner); `fct_player_week` (#997).
+2. **The fallback proven for real, and the data at the manager's grain** (player, week, category). Done on 2026-11-17, apart from the import age (PR #1007), which waits for the owner. The fallback published for real and agrees with the warehouse; `fct_player_week` is built on both paths.
    Not started until the planner specifies them after the owner's feedback: the league-by-category view, the graded card, the owner preview and any study.
 3. The owner preview and its log, designed first.
 
@@ -38,13 +38,12 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 | Item | Where | Next |
 | --- | --- | --- |
-| Fallback build | #989; PR #994 | Approved with the drill's change; merging, then one deliberate publish through it. |
-| Engine differences | #995 | 12 `fct_event` rows and 2 `fct_market_value` rows to trace; board values within 1e-4 with an identical ranking. |
-| Player-week table | #997; branch `ai/feat/997-player-week` | Built and checked on the sample and on real seasons in the Backtest build; the harness reads it unchanged. Owner review; the warehouse path is proved on the first build after merge. |
+| Import age | #1001; PR #1007 | **Waits for the owner** (changes what a manager sees). |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
 
 ## Waiting on the owner
 
+- Reviewing PR #1007, the import age on every page that uses the league (#1001).
 - Re-registering the host's four ingest tasks with the new action (#985).
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
 - Narrower credentials (#424, #425, #426) and branch protection (#432).
@@ -86,7 +85,7 @@ The runbook (`docs/runbook.md`) has a section per failure. The architecture and 
 
 ## Known debt
 
-- The production build has one road, the warehouse, until #994 merges (#989).
+- The fallback (ADR 0032) builds and publishes from DuckDB when the warehouse refuses; a daily drill compares the two paths and reports any difference without an incident.
 - Light builds run unit tests of models they never build (#956).
 - Build warnings that persist (#732).
 - Pickups' largest paint is about 3.3 s on a slow phone; reported, not enforced (#563).
