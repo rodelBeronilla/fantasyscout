@@ -83,3 +83,17 @@ def test_a_rate_limited_read_is_retried_in_later_rounds(tmp_path: Path) -> None:
         Flaky(_volume(tmp_path / "v2")), tmp_path / "m2", files, rounds=2, sleep=pauses.append
     )
     assert stuck.copied == 0 and len(stuck.failed) == 3
+
+
+def test_the_fallback_mirror_takes_every_season_and_the_run_logs_without_sidecars(
+    tmp_path: Path,
+) -> None:
+    """The fallback build mirrors the whole landing (#989): every season, the ops logs."""
+    files = plan(_volume(tmp_path / "volume"), ["nba", "wnba"], ["all"], ops=True, sidecars=False)
+    assert [f.as_posix() for f in files] == [
+        "landing/_ops/ingest_log/2024-04-15/run.json",
+        "landing/espn/injuries/nba/2023-24/2024-03-01/league.json",
+        "landing/stats/playergamelogs/nba/2023-24/2024-04-15/regular.json",
+        "landing/stats/playergamelogs/nba/2024-25/2025-04-14/regular.json",
+        "landing/stats/playergamelogs/wnba/2024/2024-09-20/regular.json",
+    ]

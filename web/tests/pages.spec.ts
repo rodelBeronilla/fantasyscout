@@ -593,6 +593,8 @@ test('data health opens with the build\'s age, the last build and the open incid
 test('data health shows the build, its checks and the reconciliation table', async ({ page }) => {
   await page.goto('/health/');
   await expect(page.getByTestId('health-build-id')).toHaveText('fixture');
+  // which road built it (#989): the fixture is a warehouse build
+  await expect(page.getByTestId('health-road')).toHaveText('Databricks SQL warehouse');
   await expect(page.getByTestId('ingest')).toBeVisible();
   await expect(page.getByTestId('reconciliation').locator('tbody tr').first()).toBeVisible();
   await page.getByRole('button', { name: /show all/i }).click();

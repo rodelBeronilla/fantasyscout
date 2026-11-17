@@ -225,6 +225,25 @@ What to do, in order:
 2. Set the repository variable `DATABRICKS_WAREHOUSE_ID` to the warehouse's id (Connection details → the end of the HTTP path), so the workflows stop picking the oldest warehouse in the workspace.
 3. Run the Query workflow again; green closes the watchdog's incident on its next run. Then run Build lakehouse by hand if a nightly build was missed, or Export with `build` to publish what the last passing gate produced.
 
+Since #989 a warehouse that will not start no longer stops the site: the build's fallback job publishes from DuckDB (next section), and its incident is titled "Build failure: warehouse". The steps above still bring the warehouse back; until then, the fallback publishes after every ingest.
+
+## Fallback build on DuckDB
+
+When Build lakehouse's "Start the SQL warehouse and wait for it" step fails (or the workspace cannot be resolved), the same run's **Build fallback** job builds the site on DuckDB on a GitHub-hosted runner and publishes it through the same gate (ADR 0032, `.github/workflows/build-fallback.yml`):
+
+1. Mirror every season of the landing volume and the run logs under `landing/_ops/` through the Files API, which spends no warehouse time (`uv run python -m ops.landing_sync --league nba --league wnba --season all --ops --no-sidecars --out landing`). The step logs `df` before and after; the first full mirror was 10.3 GB in 25 minutes and left 77 GB free.
+2. Seed the ledgers a rebuild cannot recreate (`gold.fct_board_history`, `ops.test_results`, `ops.publish_gate`, `ops.build_log`) from the newest published build, plus the fallback's own build log rows kept in the volume (`uv run python -m ops.fallback seed --duckdb dbt/fantasyscout.duckdb --landing landing`).
+3. Run `dbt build --target duckdb` with every check, quality included, then the gate (`ops.results --engine duckdb`). Only a passing gate publishes: stage, notebooks, extract and promote, as on the warehouse road (`publish-build`, `engine: duckdb`).
+4. Record the run in the volume (`ops.build_log --engine duckdb --volume`), since the DuckDB file goes with the runner.
+
+Data Health says which road built the live build ("Built by"), and the Build runs table marks a fallback run. A failed fallback opens "Fallback build failure"; the warehouse's own "Build failure: warehouse" stays open until a warehouse build passes.
+
+When the warehouse answers again, its build runs "Carry the fallback's ledger rows back" before dbt (`uv run python -m ops.fallback carry-back`). It copies the newest fallback build's ledgers to `landing/_recover/fallback/<build id>/` and inserts only the rows the lakehouse lacks, so the board history keeps the days the fallback published. A failed carry-back is named in the build's incident and tried again by the next build. It must succeed while the fallback build is still among the seven kept; after that, insert its days by hand from a copy of the build ("Fill a hole in the board ledger").
+
+**The daily drill** proves the two roads agree. Every day at 13:23 UTC, Build fallback runs in `compare` mode when the newest published build is the warehouse's and under eight hours old. It builds the same road, exports to the runner without publishing, and compares the result with that build (`uv run python -m ops.fallback compare --candidate site`). Every table's row count must match, and every numeric column of `gold.mart_board` must agree to 1e-9, the walk-forward check's tolerance. The ledgers each road adds its own run to are listed but not judged. The run's summary has the table. A disagreement is a warning on the run and a table in its summary; it opens no incident (#995 tracks the known differences). Run it by hand from the Actions tab (Build fallback, mode `compare`, or `dry-run` to print without judging). Neither mode publishes. `uv run python -m ops.fallback newest` names the newest published build and its engine.
+
+Nothing on this road becomes a workflow artifact: the mirror and the exported files hold source text, so the mirror is deleted after dbt and the drill's export stays on the runner.
+
 ## Query the lakehouse
 
 The "Query the lakehouse" workflow (Actions → Query the lakehouse) runs one `select` against a table and prints the rows into the job log: inputs `table` (`ops.publish_gate`, `ops.reconciliation_summary`, any gold or ops table), `columns`, `where` (SQL without the keyword), `order_by`, `limit`. It runs in the `lakehouse` environment with the owner's token. A statement the warehouse refuses is retried for about five minutes (5, 10, 20, 30 s, then four times a minute; #402); a query that still did not run fails the job (`ops.summary --strict`) with the API's message as an annotation, so a red run means the warehouse or the SQL, never a silent empty result. The nightly build's own report step uses the same module without `--strict`, so a missing ops table never fails a build.

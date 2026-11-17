@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { freshness, latestAttempt, latestBuildRun, openIncidents, outcomeWord, runbookHref, summarizeFailures } from './health-status';
+import { buildRoad, freshness, latestAttempt, latestBuildRun, openIncidents, outcomeWord, runbookHref, summarizeFailures } from './health-status';
 
 const now = new Date('2026-11-02T12:00:00Z');
 
@@ -13,6 +13,14 @@ describe('the Data Health status', () => {
     expect(freshness('2026-10-31T20:00:00Z', quiet, now)).toMatchObject({ limit: 72, season: 'off season', late: false });
     // no feeds: the season is unknown and the in-season limit applies, as in the watchdog
     expect(freshness('2026-10-31T20:00:00Z', undefined, now)).toMatchObject({ limit: 30, season: 'season unknown', late: true });
+  });
+
+  it('names the road that built the build (#989)', () => {
+    expect(buildRoad('duckdb')).toEqual({ label: 'DuckDB fallback (the warehouse was unavailable)', fallback: true });
+    expect(buildRoad('databricks')).toEqual({ label: 'Databricks SQL warehouse', fallback: false });
+    // a build log row from before the column existed ran on the warehouse
+    expect(buildRoad(null).label).toBe('Databricks SQL warehouse');
+    expect(buildRoad(undefined).fallback).toBe(false);
   });
 
   it('links a runbook section by its GitHub anchor', () => {
