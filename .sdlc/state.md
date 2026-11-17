@@ -34,14 +34,12 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 | Item | Where | Next |
 | --- | --- | --- |
-| The outage of 2026-11-11 to 2026-11-16 | #974, #975, #977, #988 | The warehouse started again at about 23:50 UTC on 2026-11-16. A full build was started by hand on 2026-11-17 (run 43987383545). The incidents close themselves on the next passing build and probe. |
-| Fallback build | #989 | Builds on DuckDB on a hosted runner and publishes when the warehouse refuses. Its bar is on the issue. |
-| Notes history | PR #967 (#951) | Merge after #969 (both touch the notes module). The calls can be judged only from the day it merges. |
-| Host tasks without a console window | #985, merged | The owner re-registers the four tasks on the host (`infra/host/README.md`). |
+| Fallback build | #989; PR #994 | Builds on DuckDB on a hosted runner and publishes when the warehouse refuses. The dry run on real data passed. **Waits for the owner** (the Health page names the road). The bar's third item fails across engines (#995). |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
 
 ## Waiting on the owner
 
+- Approving PR #994, the fallback build, and deciding #995: fix the engine differences, or set a tolerance across engines.
 - Re-registering the host's four ingest tasks with the new action (#985).
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
 - Narrower credentials (#424, #425, #426) and branch protection (#432).
@@ -83,7 +81,7 @@ The runbook (`docs/runbook.md`) has a section per failure. The architecture and 
 
 ## Known debt
 
-- The production build has one road, the warehouse (#989).
+- The production build has one road, the warehouse, until #994 merges (#989).
 - Light builds run unit tests of models they never build (#956).
 - Build warnings that persist (#732).
 - Pickups' largest paint is about 3.3 s on a slow phone; reported, not enforced (#563).
@@ -96,4 +94,4 @@ Defined in [pillars.md](pillars.md), reviewed every Monday. As of 2026-11-17:
 
 - **Days the owner used the app:** not measured yet. It needs the owner log from step 3.
 - **The graded record:** not built yet.
-- **Hours since the last published build:** about 135 at the low point (2026-11-16), against a limit of 30.
+- **Hours since the last published build:** about 135 at the low point (2026-11-16), against a limit of 30. Publishing resumed with build `20261117T003807Z` (NBA data through 2026-11-15), and the four incidents closed.
