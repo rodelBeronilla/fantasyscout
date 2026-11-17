@@ -13,7 +13,18 @@ interface YahooPlayer {
   name: string;
   /** On an injured-list slot (IL, IL+), which does not take a roster spot. */
   il: boolean;
+  /** The row's roster slot as Yahoo labels it (PG, SG, G, SF, PF, F, C, UTIL, BN, IL...), when it has one (#1018). */
+  slot?: string;
 }
+
+/** A player link the bookmark did not take, and why (#1018): nothing is dropped without saying so. */
+export interface YahooRejected {
+  name: string;
+  reason: string;
+}
+
+/** The bookmark's version: an older one is asked to be added again (#1018). */
+export const YAHOO_PAYLOAD_VERSION = 4;
 
 interface YahooTeam {
   id: number;
@@ -22,11 +33,24 @@ interface YahooTeam {
 }
 
 export interface YahooPayload extends YahooPages {
-  v: 3;
+  v: 4;
   leagueId: string;
   /** Yahoo's id of the manager's team, where the page said which one that is. */
   mine: number | null;
   teams: YahooTeam[];
+  /** The player links read and not taken, with the reason (#1018). */
+  rejected: YahooRejected[];
+}
+
+/**
+ * Whether a player link's text is a player's name (#1018). The link's address already says it is a
+ * player's page, so only a link whose whole text is an action ("Add", "Drop", "Trade", "News"...)
+ * is not a name. The words used to be matched anywhere in the text, which dropped Saddiq Bey (add).
+ * Self-contained: the bookmarklet carries it as written, so it must not use anything else.
+ */
+export function rosterName(text: string): boolean {
+  const t = text.replace(/\s+/g, ' ').trim();
+  return t.length > 1 && t.length < 60 && /\p{L}/u.test(t) && !/^(add|drop|trade|notes?|news|compare|stats|watch(list)?)$/i.test(t);
 }
 
 /**
@@ -39,7 +63,7 @@ export interface YahooPayload extends YahooPages {
  * Util, BN, IL...): player links elsewhere on a page (news, research, suggested pickups) are not
  * the roster (#515).
  */
-function collectYahooLeague(target: string): void {
+function collectYahooLeague(target: string, isName: (text: string) => boolean): void {
   const doc = document;
   const anchors = Array.from(doc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
   const hrefOf = (a: Element) => a.getAttribute('href') || '';
@@ -80,7 +104,8 @@ function collectYahooLeague(target: string): void {
     if (text && text.length < 60 && !names.has(t)) names.set(t, text);
   }
   const ids = names.size ? Array.from(names.keys()).sort((x, y) => x - y) : Array.from({ length: 20 }, (_, i) => i + 1);
-  const blocked = /note|news|compare|stats|watch|add|drop|trade/i;
+  // every player link read and not taken, by name, with the reason (#1018)
+  const rejected = new Map<string, string>();
   // A roster row carries its slot as a short label; IL, IL+, IR and NA are the injured list.
   const slotText = /^(PG|SG|G|SF|PF|F|C|UTIL|BN|IL\+?|IR\+?|NA)$/i;
   const ilSlot = /^(IL|IR|NA)/i;
@@ -96,24 +121,30 @@ function collectYahooLeague(target: string): void {
   const playerName = (a: Element) => {
     if (!/\/nba\/players\/\d+\/?$/.test(hrefOf(a))) return null;
     const n = textOf(a);
-    return n.length > 2 && n.length < 40 && /\s/.test(n) && !blocked.test(n) ? n : null;
+    if (isName(n)) return n;
+    if (n) rejected.set(n.slice(0, 60), 'its link text was not read as a name');
+    return null;
   };
+  type Row = { name: string; il: boolean; slot?: string };
   /** The players under `root`: rows with a slot label; every player link only when the page has no slots at all. */
   const rosterOf = (root: ParentNode) => {
     const links = Array.from(root.querySelectorAll('a[href*="/nba/players/"]'));
-    const strict: { name: string; il: boolean }[] = [];
-    const loose: { name: string; il: boolean }[] = [];
+    const strict: Row[] = [];
+    const loose: Row[] = [];
     for (const a of links) {
       const n = playerName(a);
       if (!n) continue;
       const slot = slotOf(a);
       if (!loose.some((p) => p.name === n)) loose.push({ name: n, il: !!slot && ilSlot.test(slot) });
-      if (slot && !strict.some((p) => p.name === n)) strict.push({ name: n, il: ilSlot.test(slot) });
+      if (slot && !strict.some((p) => p.name === n)) strict.push({ name: n, il: ilSlot.test(slot), slot });
+    }
+    if (strict.length) {
+      for (const p of loose) if (!strict.some((q) => q.name === p.name)) rejected.set(p.name, 'not in a roster row with a slot');
     }
     return strict.length ? strict : loose;
   };
   // Rosters on this page: climb from each team's heading to the smallest block that holds roster rows and no other team.
-  const inPage = new Map<number, { name: string; il: boolean }[]>();
+  const inPage = new Map<number, Row[]>();
   for (const a of anchors) {
     const t = teamLink(a);
     if (t === null || inPage.has(t) || !names.has(t) || /my team/i.test(textOf(a))) continue;
@@ -136,7 +167,7 @@ function collectYahooLeague(target: string): void {
     const teams: YahooTeam[] = [];
     let misses = 0;
     for (const t of ids) {
-      let players: { name: string; il: boolean }[] = inPage.get(t) || [];
+      let players: Row[] = inPage.get(t) || [];
       let name = names.get(t) || '';
       if (!players.length) {
         try {
@@ -207,40 +238,69 @@ function collectYahooLeague(target: string): void {
       if (rows.length === 2) matchup = { labels, rows };
       break;
     }
-    const settings: { playoffs?: string; scoring?: string } = {};
+    const settings: { playoffs?: string; scoring?: string; rows?: [string, string][] } = {};
     const settingsPage = await read('settings');
+    const rows: [string, string][] = [];
     for (const row of settingsPage ? Array.from(settingsPage.querySelectorAll('tr')) : []) {
       const c = cellsOf(row);
       if (/^playoffs:?$/i.test(c[0] || '') && c[1]) settings.playoffs = c[1];
       if (/^scoring type:?$/i.test(c[0] || '') && c[1]) settings.scoring = c[1];
+      // every label and value, for the roster positions, the weekly adds and the waivers (#1018)
+      if (c.length === 2 && c[0] && c[1] && c[0].length < 60 && rows.length < 80) rows.push([c[0].replace(/:$/, ''), c[1].slice(0, 200)]);
     }
-    const payload: YahooPayload = { v: 3, leagueId, mine, teams, records, ...(matchup ? { matchup } : {}), settings };
+    if (rows.length) settings.rows = rows;
+    const taken = new Set(teams.flatMap((t) => t.players.map((p) => p.name)));
+    // every player link on the page the bookmark ran on is accounted for (#1018)
+    for (const a of Array.from(doc.querySelectorAll('a[href*="/nba/players/"]'))) {
+      const n = playerName(a);
+      if (n && !taken.has(n) && !rejected.has(n)) rejected.set(n, "not under any team's roster on the page");
+    }
+    const notTaken = Array.from(rejected, ([name, reason]) => ({ name, reason }))
+      .filter((r) => !taken.has(r.name))
+      .slice(0, 100);
+    const payload: YahooPayload = { v: 4, leagueId, mine, teams, records, ...(matchup ? { matchup } : {}), settings, rejected: notTaken };
     location.href = target.replace(/#.*$/, '') + '#yahoo=' + encodeURIComponent(JSON.stringify(payload));
   })();
 }
 
 /** The bookmarklet: the collector above, serialised, aimed at the League page. */
 export function yahooBookmarklet(target: string): string {
-  return `javascript:(${collectYahooLeague.toString()})(${JSON.stringify(target)})`;
+  return `javascript:(${collectYahooLeague.toString()})(${JSON.stringify(target)},${rosterName.toString()})`;
 }
 
-/** A player entry as a bookmark sent it: a version 1 bookmark sends the name alone. */
+/** A player entry as a bookmark sent it. */
 function yahooPlayer(x: unknown): YahooPlayer | null {
-  if (typeof x === 'string') return { name: x, il: false };
   if (!x || typeof x !== 'object' || !('name' in x)) return null;
-  const p = x as { name: unknown; il?: unknown };
-  return { name: String(p.name), il: !!p.il };
+  const p = x as { name: unknown; il?: unknown; slot?: unknown };
+  const slot = typeof p.slot === 'string' && p.slot.length <= 6 ? p.slot.toUpperCase() : undefined;
+  return { name: String(p.name), il: !!p.il, ...(slot ? { slot } : {}) };
 }
+
+/** The version a bookmark's payload says it is, or null when the fragment holds none (#1018). */
+export function yahooHashVersion(hash: string): number | null {
+  const m = hash.match(/^#yahoo=(.+)$/);
+  if (!m || !m[1]) return null;
+  try {
+    const v = (JSON.parse(decodeURIComponent(m[1])) as { v?: unknown }).v;
+    return typeof v === 'number' ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** What the League page says when the bookmark is older than the payload this page reads (#1018). */
+export const YAHOO_OUTDATED =
+  'This Yahoo bookmark is out of date, so nothing was imported. Add the bookmark again from this page (the steps are below), then run it on your Yahoo league.';
 
 /** The payload a bookmarklet put in the URL fragment, or null when there is none or it is malformed. */
 export function parseYahooHash(hash: string): YahooPayload | null {
   const m = hash.match(/^#yahoo=(.+)$/);
   if (!m || !m[1]) return null;
   try {
-    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown };
-    // Version 1 bookmarks (names only) still work; version 2 says who is on the injured list;
-    // version 3 adds the standings, this week's matchup and the settings (#874).
-    if ((raw.v !== 1 && raw.v !== 2 && raw.v !== 3) || !Array.isArray(raw.teams) || !raw.teams.length) return null;
+    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; rejected?: unknown };
+    // Only the current bookmark is read (#1018): an older one dropped players silently, and the
+    // League page asks for it to be added again (yahooHashVersion, YAHOO_OUTDATED).
+    if (raw.v !== YAHOO_PAYLOAD_VERSION || !Array.isArray(raw.teams) || !raw.teams.length) return null;
     const teams = (raw.teams as unknown[])
       .filter((t): t is { id: unknown; name?: unknown; players: unknown[] } => !!t && typeof t === 'object' && Array.isArray((t as { players?: unknown }).players))
       .map((t) => ({
@@ -248,8 +308,14 @@ export function parseYahooHash(hash: string): YahooPayload | null {
         name: String(t.name || `Team ${t.id}`).slice(0, 60),
         players: t.players.map(yahooPlayer).filter((p): p is YahooPlayer => !!p),
       }));
-    const pages = raw.v === 3 ? cleanYahooPages(raw) : {};
-    return teams.length ? { v: 3, leagueId: String(raw.leagueId ?? ''), mine: typeof raw.mine === 'number' ? raw.mine : null, teams, ...pages } : null;
+    const pages = cleanYahooPages(raw);
+    const rejected = (Array.isArray(raw.rejected) ? raw.rejected : [])
+      .filter((r): r is { name: unknown; reason: unknown } => !!r && typeof r === 'object' && 'name' in r)
+      .map((r) => ({ name: String(r.name).slice(0, 60), reason: String(r.reason ?? '').slice(0, 80) }))
+      .slice(0, 100);
+    return teams.length
+      ? { v: 4, leagueId: String(raw.leagueId ?? ''), mine: typeof raw.mine === 'number' ? raw.mine : null, teams, rejected, ...pages }
+      : null;
   } catch {
     return null;
   }
@@ -305,7 +371,7 @@ export function applyYahooImport(
   payload: YahooPayload,
   players: { player_id: string; full_name: string | null }[],
   now = Date.now(),
-): { setup: LeagueSetup; matched: number; unmatched: string[]; il: number } {
+): { setup: LeagueSetup; matched: number; unmatched: string[]; il: number; rejected: YahooRejected[] } {
   const unmatched: string[] = [];
   const il: string[] = [];
   let matched = 0;
@@ -322,5 +388,11 @@ export function applyYahooImport(
     { ...setup, ...state.settings, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },
     DEFAULT_SETTINGS['nba'],
   );
-  return { setup: { ...next, source: { ...yahooSource(payload.leagueId, next.rosters, now), ...state.source } }, matched, unmatched, il: next.il.length };
+  return {
+    setup: { ...next, source: { ...yahooSource(payload.leagueId, next.rosters, now), ...state.source } },
+    matched,
+    unmatched,
+    il: next.il.length,
+    rejected: payload.rejected,
+  };
 }

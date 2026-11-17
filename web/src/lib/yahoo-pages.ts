@@ -16,8 +16,8 @@ export interface YahooPages {
   records?: Record<string, [string, string]>;
   /** This week's matchup table: its column labels, and each side's team id and cells. */
   matchup?: { labels: string[]; rows: { id: number; cells: string[] }[] };
-  /** The settings page's lines, e.g. playoffs "6 teams - Week 20, 21 and 22 (ends Sunday, Apr 4)". */
-  settings?: { playoffs?: string; scoring?: string };
+  /** The settings page's lines, e.g. playoffs "6 teams - Week 20, 21 and 22 (ends Sunday, Apr 4)"; every label and value since version 4 (#1018). */
+  settings?: { playoffs?: string; scoring?: string; rows?: [string, string][] };
 }
 
 const strings = (x: unknown): x is string[] => Array.isArray(x) && x.every((s) => typeof s === 'string');
@@ -34,11 +34,15 @@ export function cleanYahooPages(raw: { records?: unknown; matchup?: unknown; set
     const rows = (m.rows as { id?: unknown; cells?: unknown }[]).filter((r) => typeof r?.id === 'number' && strings(r.cells)) as { id: number; cells: string[] }[];
     if (rows.length === 2) out.matchup = { labels: m.labels, rows }; // def: a matchup has two sides
   }
-  const s = raw.settings as { playoffs?: unknown; scoring?: unknown } | null | undefined;
+  const s = raw.settings as { playoffs?: unknown; scoring?: unknown; rows?: unknown } | null | undefined;
   if (s && typeof s === 'object') {
+    const rows = Array.isArray(s.rows)
+      ? (s.rows as unknown[]).filter((r): r is [string, string] => strings(r) && r.length === 2).slice(0, 80) // def: the settings page's rows, at most
+      : [];
     out.settings = {
       ...(typeof s.playoffs === 'string' ? { playoffs: s.playoffs } : {}),
       ...(typeof s.scoring === 'string' ? { scoring: s.scoring } : {}),
+      ...(rows.length ? { rows } : {}),
     };
   }
   return out;

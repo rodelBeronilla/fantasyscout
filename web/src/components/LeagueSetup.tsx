@@ -10,7 +10,7 @@ import { CATEGORIES, fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum } from '../lib/fantasy-league';
 import { categoryValues, marketPriorShift, pointValues, scaleValue } from '../lib/league-value';
-import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
+import { applyYahooImport, parseYahooHash, YAHOO_OUTDATED, YAHOO_PAYLOAD_VERSION, yahooHashVersion, type YahooRejected } from '../lib/yahoo-bookmarklet';
 import { chooseMine } from '../lib/league-sync';
 import { href } from '../lib/site';
 import { auctionValues } from '../lib/auction';
@@ -92,6 +92,8 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   const [error, setError] = useState<unknown>(null);
   const [setup, update] = useLeague(league);
   const [loadNote, setLoadNote] = useState<string | null>(null);
+  // the player links the bookmark read and did not take, with the reason (#1018)
+  const [rejected, setRejected] = useState<YahooRejected[]>([]);
   // with every roster full, one team card is open at a time (#716); the manager's own to start
   const [openCard, setOpenCard] = useState<number | null>(null);
 
@@ -108,10 +110,18 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   // A Yahoo bookmarklet lands here with the league in the fragment: import it once the board is in.
   useEffect(() => {
     if (!rows) return;
+    const version = yahooHashVersion(window.location.hash);
+    if (version !== null && version !== YAHOO_PAYLOAD_VERSION) {
+      // an older bookmark: it could drop players without saying so (#1018)
+      setLoadNote(YAHOO_OUTDATED);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      return;
+    }
     const payload = parseYahooHash(window.location.hash);
     if (!payload) return;
     const result = applyYahooImport(setup, payload, rows);
     update(() => result.setup);
+    setRejected(result.rejected);
     setLoadNote(
       `Imported ${payload.teams.length} teams from Yahoo: ${result.matched} players matched` +
         (result.il ? `, ${result.il} on the IL` : '') +
@@ -454,6 +464,20 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
             </button>
           )}
           {loadNote && <span role="status">{loadNote}</span>}
+          {rejected.length > 0 && (
+            <div className="basis-full text-sm" data-testid="yahoo-rejected">
+              <p className="text-muted">
+                Read on Yahoo and not taken ({rejected.length}): tell us if one of these is on a roster.
+              </p>
+              <ul className="mt-1 list-disc pl-5">
+                {rejected.map((r) => (
+                  <li key={r.name}>
+                    {r.name}: {r.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
         <p className="mt-2 text-xs text-muted">
           Signed out, the league lives in this browser only: the file moves it to another browser or device, and nothing is sent anywhere.

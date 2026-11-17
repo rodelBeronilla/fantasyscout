@@ -1,21 +1,48 @@
 import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_SETTINGS, normalize } from './fantasy-league';
-import { applyYahooImport, parseYahooHash } from './yahoo-bookmarklet';
+import nbaBoard from '../../tests/fixtures/data/builds/fixture/board/nba.json';
+import wnbaBoard from '../../tests/fixtures/data/builds/fixture/board/wnba.json';
+import { applyYahooImport, parseYahooHash, rosterName, yahooHashVersion } from './yahoo-bookmarklet';
 
 const hash = (payload: unknown) => `#yahoo=${encodeURIComponent(JSON.stringify(payload))}`;
 
 describe('the Yahoo import', () => {
-  it('reads a version 1, 2 or 3 payload from the fragment and nothing else', () => {
+  it('reads a version 4 payload and nothing else; an older bookmark is told apart by its version (#1018)', () => {
     expect(parseYahooHash('')).toBeNull();
     expect(parseYahooHash('#yahoo=not-json')).toBeNull();
-    expect(parseYahooHash(hash({ v: 4, teams: [{ id: 1, players: ['A'] }] }))).toBeNull();
-    expect(parseYahooHash(hash({ v: 1, teams: [] }))).toBeNull();
-    const v1 = parseYahooHash(hash({ v: 1, leagueId: 'L1', teams: [{ id: 7, name: 'Hoops', players: ['A One', 'B Two'] }, 'junk'] }));
-    expect(v1).toEqual({ v: 3, leagueId: 'L1', mine: null, teams: [{ id: 7, name: 'Hoops', players: [{ name: 'A One', il: false }, { name: 'B Two', il: false }] }] });
-    const v2 = parseYahooHash(hash({ v: 2, mine: 3, teams: [{ id: 3, players: [{ name: 'C Three', il: 1 }, { nope: true }] }] }));
-    expect(v2?.mine).toBe(3);
-    expect(v2?.teams[0]).toEqual({ id: 3, name: 'Team 3', players: [{ name: 'C Three', il: true }] });
+    expect(parseYahooHash(hash({ v: 4, teams: [] }))).toBeNull();
+    for (const v of [1, 2, 3, 5]) expect(parseYahooHash(hash({ v, teams: [{ id: 1, players: [{ name: 'A One' }] }] }))).toBeNull();
+    expect(yahooHashVersion('')).toBeNull();
+    expect(yahooHashVersion(hash({ v: 3, teams: [] }))).toBe(3);
+    expect(yahooHashVersion('#yahoo=not-json')).toBe(0);
+    const v4 = parseYahooHash(
+      hash({
+        v: 4,
+        leagueId: 'L1',
+        mine: 3,
+        teams: [{ id: 3, name: 'Hoops', players: [{ name: 'C Three', il: 1, slot: 'il' }, { name: 'D Four', slot: 'Util' }, { nope: true }] }, 'junk'],
+        rejected: [{ name: 'E Five', reason: 'not in a roster row with a slot' }, 'junk'],
+        settings: { rows: [['Max Acquisitions per Week', '4'], ['bad']] },
+      }),
+    );
+    expect(v4).toMatchObject({ v: 4, leagueId: 'L1', mine: 3, rejected: [{ name: 'E Five', reason: 'not in a roster row with a slot' }] });
+    expect(v4?.teams).toEqual([{ id: 3, name: 'Hoops', players: [{ name: 'C Three', il: true, slot: 'IL' }, { name: 'D Four', il: false, slot: 'UTIL' }] }]);
+    expect(v4?.settings?.rows).toEqual([['Max Acquisitions per Week', '4']]);
+  });
+
+  it('reads every board name as a name, and a name holding an action word too (#1018)', () => {
+    const names = [...(nbaBoard as { full_name: string | null }[]), ...(wnbaBoard as { full_name: string | null }[])]
+      .map((r) => r.full_name)
+      .filter((n): n is string => !!n);
+    expect(names.length).toBeGreaterThan(500);
+    expect(names.filter((n) => !rosterName(n))).toEqual([]);
+    // each word the old filter matched anywhere in the text, inside a name
+    for (const n of ['Saddiq Bey', 'Dropa Smith', 'Tradell Jones', 'Notesha Brown', 'Newsome Hill', 'Comparetto Lee', 'Stats Kowalski', 'Watchman Reid', 'Addison Rae', 'Nenê'])
+      expect(rosterName(n), n).toBe(true);
+    // a link whose whole text is an action is not a name
+    for (const n of ['Add', 'Drop', 'Trade', 'Note', 'Notes', 'News', 'Compare', 'Stats', 'Watch', ' watchlist ', '', 'x', '42'])
+      expect(rosterName(n), n).toBe(false);
   });
 
   it('builds the league from the import: rosters by name, the injured list, the manager, the rest reported', () => {
@@ -26,7 +53,7 @@ describe('the Yahoo import', () => {
     ];
     const payload = parseYahooHash(
       hash({
-        v: 2,
+        v: 4,
         leagueId: 'L',
         mine: 20,
         teams: [

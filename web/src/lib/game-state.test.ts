@@ -206,7 +206,7 @@ describe('a Yahoo score read on an evening with games under way goes by the tip-
   const labels = ['Team', 'FGM/A*', 'FG%', 'FTM/A*', 'FT%', '3PTM', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO', ''];
   const row = (name: string, pts: string) => [name, '172/369', '.466', '112/159', '.704', '35', pts, '202', '111', '31', '24', '57', '4'];
   const payload = {
-    v: 3,
+    v: 4,
     leagueId: '12345',
     mine: 1,
     teams: [1, 2, 3, 4].map((id) => ({ id, name: `Team ${id}`, players: [] })),

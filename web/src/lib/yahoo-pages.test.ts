@@ -54,7 +54,7 @@ const players = [
   { player_id: '4', full_name: 'D Four' },
 ];
 const v3 = {
-  v: 3,
+  v: 4,
   leagueId: '12345',
   mine: 2,
   teams: [
@@ -68,7 +68,7 @@ const v3 = {
   settings: { playoffs: PLAYOFFS, scoring: 'Head-to-Head - Categories' },
 };
 
-describe('a version 3 Yahoo import brings the league state (#874)', () => {
+describe('a Yahoo import brings the league state (#874)', () => {
   const payload = parseYahooHash(hash(v3))!;
   const { setup } = applyYahooImport(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), payload, players, NOV_8);
 
@@ -78,8 +78,8 @@ describe('a version 3 Yahoo import brings the league state (#874)', () => {
     const bad = parseYahooHash(hash({ ...v3, records: { '1': 'x' }, matchup: { labels: LABELS, rows: [{ id: 2, cells: ROW }] }, settings: 7 }))!;
     expect(bad.records).toBeUndefined();
     expect(bad.matchup).toBeUndefined();
-    // a version 2 bookmark's league has none of it
-    expect(parseYahooHash(hash({ ...v3, v: 2 }))!.records).toBeUndefined();
+    // a version 2 bookmark is not read at all now: the League page asks for the bookmark again (#1018)
+    expect(parseYahooHash(hash({ ...v3, v: 2 }))).toBeNull();
   });
 
   it("sets the standings, this week's opponent and both sides' score so far", () => {
