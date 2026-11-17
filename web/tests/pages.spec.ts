@@ -4087,3 +4087,48 @@ test('data health says when the player notes were not drafted (#879)', async ({ 
   await expect(line).toContainText('Player notes not drafted. NBA: the local model was away at the last run, Dec 21, 00:40 UTC');
   await expect(line).toContainText('the lines drafted Dec 20, 17:20 UTC stand until the day after');
 });
+
+test('the Yahoo bookmarklet takes a player whose name holds an action word, and lists every player link it did not take (#1018)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  type Row = { player_id: string; full_name: string | null } & Record<string, unknown>;
+  const wnba = (await (await page.request.get('/data/builds/fixture/board/wnba.json')).json()) as Row[];
+  // a name holding each word the old filter matched anywhere in the text (Saddiq Bey was dropped)
+  const names = ['Saddiq Bey', 'Dropa Smith', 'Tradell Jones', 'Notesha Brown', 'Newsome Hill', 'Comparetto Lee', 'Stats Kowalski', 'Watchman Reid'];
+  const board = [...wnba, ...names.map((full_name, i) => ({ ...wnba[0]!, player_id: `90${i}`, full_name }))];
+  await page.route('**/board/nba.json', (route) => route.fulfill({ json: board }));
+  const row = (slot: string, id: number, name: string) =>
+    `<tr><td class="pos first">${slot}</td> <td class="player last"><a class="name" href="https://sports.yahoo.com/nba/players/${id}" title="${name}">${name}</a>` +
+    ` <a href="https://sports.yahoo.com/nba/players/${id}/news">News</a></td></tr>`;
+  const team = (id: number, title: string, players: [string, string][]) =>
+    `<div><p><a href="/nba/12345/${id}">${title}</a></p><table><thead><tr><th>Pos</th><th>Player</th></tr></thead><tbody>` +
+    players.map(([slot, name], i) => row(slot, id * 100 + i, name)).join('') +
+    '</tbody></table></div>';
+  const slots = ['PG', 'SG', 'G', 'SF', 'PF', 'F', 'C', 'Util'];
+  const html =
+    '<!doctype html><html><head><meta charset="utf-8"><title>Starting Rosters</title></head><body>' +
+    '<nav><a href="/nba/12345/1">My Team</a></nav>' +
+    team(1, 'Action Words', names.map((n, i) => [slots[i]!, n])) +
+    team(2, 'The Rest', wnba.slice(0, 4).map((r, i) => [slots[i]!, r.full_name!])) +
+    // a player link outside every roster row: read, and named as not taken
+    `<aside><a href="https://sports.yahoo.com/nba/players/999">Sidebar Player</a></aside></body></html>`;
+  await page.route('**/data/yahoo/blocked.html', (route) => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.route(/\/nba\/12345(\/(matchup|settings).*)?$/, (route) => route.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' }));
+  await page.goto('/league/?league=nba');
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  await page.goto('/data/yahoo/blocked.html');
+  await page.evaluate(code.slice('javascript:'.length));
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
+  await expect(page.getByRole('status').filter({ hasText: 'Imported 2 teams' })).toContainText('Imported 2 teams from Yahoo: 12 players matched.');
+  const first = page.getByTestId('team-card').nth(0).getByTestId('roster');
+  await expect(first.locator('li')).toHaveCount(names.length);
+  for (const n of names) await expect(first).toContainText(n);
+  await expect(page.getByTestId('yahoo-rejected')).toContainText("Sidebar Player: not under any team's roster on the page");
+});
+
+test('an older Yahoo bookmark imports nothing and asks to be added again (#1018)', async ({ page }) => {
+  const old = { v: 3, leagueId: '12345', mine: 1, teams: [{ id: 1, name: 'Old', players: [{ name: 'A One' }] }] };
+  await page.goto(`/league/?league=nba#yahoo=${encodeURIComponent(JSON.stringify(old))}`);
+  await expect(page.getByRole('status').filter({ hasText: 'out of date' })).toContainText('This Yahoo bookmark is out of date, so nothing was imported. Add the bookmark again');
+  await expect(page.getByTestId('team-card').filter({ hasText: 'Old' })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/);
+});
