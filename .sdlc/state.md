@@ -39,12 +39,13 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 | Item | Where | Next |
 | --- | --- | --- |
-| Import age | #1001; PR #1007 | **Waits for the owner** (changes what a manager sees). |
+| The owner's league as Yahoo has it, with the import age folded in | #1022, #1001; PR #1023 | **Waits for the owner** (changes what a manager sees). The import fixes (#1018) merged in #1019. |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
 
 ## Waiting on the owner
 
-- Reviewing PR #1007, the import age on every page that uses the league (#1001).
+- Reviewing PR #1023: lineup slots, roster count, score so far, games left, adds, IL moves and the import age (#1022, #1001).
+- Confirming the facts held about his league (listed in the step 3 report), then adding the new bookmark again and running it.
 - Re-registering the host's four ingest tasks with the new action (#985).
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
 - Narrower credentials (#424, #425, #426) and branch protection (#432).
