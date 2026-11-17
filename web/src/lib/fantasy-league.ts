@@ -136,6 +136,8 @@ export interface LeagueSource {
   slots?: Record<string, string>;
   /** The manager's roster at the first import of the fantasy week (its Monday), for the adds made since (#1022). */
   week?: { monday: string; roster: string[] };
+  /** The trade deadline, the trade review and the playoff tie-breaker as the host words them (#1025). */
+  rules?: { tradeDeadline?: string; tradeReview?: string; tieBreaker?: string };
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -272,6 +274,16 @@ const cleanGames = (raw: unknown): GamesRead | undefined => {
   return { date: g.date, scoreAt: g.scoreAt, left: g.left, off: g.off, games: g.games!, started: g.started! };
 };
 
+/** The host's trade and tie rules as stored, each a short text, or undefined when there are none (#1025). */
+function cleanRules(raw: unknown): LeagueSource['rules'] | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const text = (x: unknown) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, 80) : undefined); // def: a settings line, at most
+  const out = { tradeDeadline: text(r['tradeDeadline']), tradeReview: text(r['tradeReview']), tieBreaker: text(r['tieBreaker']) };
+  const kept = Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined));
+  return Object.keys(kept).length ? kept : undefined;
+}
+
 /** A stored source as this build reads it, or undefined when it is missing or malformed. */
 function cleanSource(raw: unknown): LeagueSource | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
@@ -301,6 +313,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     ...(s.week && typeof s.week === 'object' && isDay((s.week as { monday?: unknown }).monday) && isIds((s.week as { roster?: unknown }).roster)
       ? { week: { monday: (s.week as { monday: string }).monday, roster: (s.week as { roster: string[] }).roster } }
       : {}),
+    ...(cleanRules(s.rules) ? { rules: cleanRules(s.rules) } : {}),
     ...(s.slots && typeof s.slots === 'object' && !Array.isArray(s.slots)
       ? { slots: Object.fromEntries(Object.entries(s.slots).filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].length <= 6)) }
       : {}),

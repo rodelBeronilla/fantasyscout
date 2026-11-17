@@ -198,3 +198,23 @@ export function yahooRosterRules(
   }
   return out;
 }
+
+/** The league's trade and tie rules as Yahoo's settings page words them (#1025); each only when the page has it. */
+export interface LeagueRules {
+  tradeDeadline?: string;
+  tradeReview?: string;
+  tieBreaker?: string;
+}
+
+/** The trade deadline, how trades are reviewed and the playoff tie-breaker, from the settings page's rows (#1025). */
+export function yahooLeagueRules(rows: [string, string][]): LeagueRules {
+  const pick = (label: RegExp) => rows.find(([l]) => label.test(l))?.[1]?.trim().slice(0, 80);
+  const out: LeagueRules = {};
+  const deadline = pick(/^trade (end date|deadline)$/i);
+  const review = pick(/^trade review$/i);
+  const tie = pick(/tie-?breaker/i);
+  if (deadline) out.tradeDeadline = deadline;
+  if (review) out.tradeReview = review;
+  if (tie) out.tieBreaker = tie;
+  return out;
+}

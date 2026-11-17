@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, normalize } from './fantasy-league';
 import { fixedPlayoffs, leagueRecords, recordsFromText } from './league-state';
 import { weekScore } from './league-sync';
 import { applyYahooImport, parseYahooHash } from './yahoo-bookmarklet';
-import { yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
+import { yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
 
 // The text of a public Yahoo league's pages on 8 November 2026, as the bookmark reads them
 const LABELS = ['Team', 'FGM/A*', 'FG%', 'FTM/A*', 'FT%', '3PTM', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO', ''];
@@ -165,5 +165,23 @@ describe("a league's roster rules from the bookmark (#1022)", () => {
     expect(setup.source?.slots).toEqual({ '1': 'UTIL', '2': 'BN', '3': 'UTIL', '4': 'UTIL' });
     // the manager's roster at the week's first import, for the adds made since
     expect(setup.source?.week).toEqual({ monday: '2026-11-02', roster: ['2'] });
+  });
+});
+
+
+describe("a league's trade and tie rules from the bookmark (#1025)", () => {
+  it('reads the trade deadline, the trade review and the tie-breaker, each only when the page has it', () => {
+    const rows: [string, string][] = [['Trade End Date', 'Thursday, March 4, 2027'], ['Trade Review', 'League Votes'], ['Playoff Tie-Breaker', 'Higher seed wins']];
+    expect(yahooLeagueRules(rows)).toEqual({ tradeDeadline: 'Thursday, March 4, 2027', tradeReview: 'League Votes', tieBreaker: 'Higher seed wins' });
+    expect(yahooLeagueRules([['Trade Deadline', 'Mar 4']])).toEqual({ tradeDeadline: 'Mar 4' });
+    expect(yahooLeagueRules([])).toEqual({});
+  });
+
+  it('keeps them with the league on an import, and only well-formed ones when stored', () => {
+    const payload = parseYahooHash(hash({ ...v3, settings: { ...v3.settings, rows: [['Trade Review', 'League Votes'], ['Playoff Tie-Breaker', 'Higher seed wins']] } }))!;
+    const { setup } = applyYahooImport(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), payload, players, NOV_8);
+    expect(setup.source?.rules).toEqual({ tradeReview: 'League Votes', tieBreaker: 'Higher seed wins' });
+    const stored = normalize({ ...setup, source: { ...setup.source!, rules: { tradeReview: 7, tieBreaker: '' } as never } }, DEFAULT_SETTINGS.nba);
+    expect(stored.source?.rules).toBeUndefined();
   });
 });

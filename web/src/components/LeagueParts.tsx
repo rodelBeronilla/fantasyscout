@@ -181,6 +181,19 @@ export function LeagueSettingsForm({
           </button>
         )}
       </div>
+      {setup.source?.rules && (
+        <p className="text-xs text-muted" data-testid="league-rules">
+          From {setup.source.host === 'espn' ? 'ESPN' : 'Yahoo'}&apos;s settings:{' '}
+          {[
+            setup.source.rules.tradeDeadline && `trade deadline ${setup.source.rules.tradeDeadline}`,
+            setup.source.rules.tradeReview && `trade review: ${setup.source.rules.tradeReview}`,
+            setup.source.rules.tieBreaker && `playoff tie-breaker: ${setup.source.rules.tieBreaker}`,
+          ]
+            .filter(Boolean)
+            .join('; ')}
+          .
+        </p>
+      )}
       <fieldset className="flex flex-wrap items-end gap-3" data-testid="league-lineup">
         <legend className="mb-1 text-xs text-muted">
           Starting lineup: the slots you fill each day. PG and SG count as G, SF and PF as F; the weekly lineup planner on My Team uses them.
