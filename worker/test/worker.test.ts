@@ -272,6 +272,11 @@ describe("the owner's log (#1032)", () => {
       body: typeof body === 'string' ? body : JSON.stringify(body),
     });
   const logged = async () => (await env.DATA.list({ prefix: 'private/owner-log/' })).objects.map((o) => o.key);
+  // the bucket outlives a test here, so each starts with no log at all
+  beforeEach(async () => {
+    const keys = await logged();
+    if (keys.length) await env.DATA.delete(keys);
+  });
   const PAGE = { kind: 'page', path: '/league/' };
   const IMPORT = {
     kind: 'import',
@@ -366,7 +371,7 @@ describe("the owner's log (#1032)", () => {
     expect(await res.json()).toEqual({ deleted: true, days: 3 });
     expect(await logged()).toEqual([]);
     expect(await (await SELF.fetch(LOG, { headers: { cookie } })).text()).toBe('');
-    expect((await env.DATA.list({ prefix: 'private/accounts/' })).objects).toHaveLength(1);
+    expect(await env.DATA.head('private/accounts/0123456789abcdef0123456789abcdef/nba.json')).not.toBeNull();
   });
 });
 
