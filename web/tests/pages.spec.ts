@@ -4288,5 +4288,5 @@ test("My Team shows the score so far beside the projected final, games left both
   }
   // three of four adds left; the open slots say so
   const open = page.getByTestId('today-open');
-  if (await open.count()) await expect(open.getByTestId('today-adds-left')).toContainText('3 adds left this week');
+  if (await open.count()) await expect(open.getByTestId('today-adds-left')).toContainText('3 of 4 adds left this week: 1 made since your first import this week'); 
 });

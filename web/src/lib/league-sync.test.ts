@@ -5,6 +5,7 @@ import { fromEspnLeague } from './espn-league';
 import { DEFAULT_SETTINGS, type LeagueSetup, normalize } from './fantasy-league';
 import {
   addsLeft,
+  addsThisWeek,
   ago,
   chooseMine,
   copyAge,
@@ -394,5 +395,8 @@ describe('the adds left this week (#1022)', () => {
     // a new week: nothing counted yet
     expect(addsLeft(setup, '2026-11-23')).toBe(4);
     expect(addsLeft({ ...setup, addsPerWeek: null }, '2026-11-16')).toBeNull();
+    // what the page says comes with it: the adds made and whether this week's import started the count (#1027)
+    expect(addsThisWeek(setup, '2026-11-16')).toEqual({ limit: 4, made: 1, left: 3, counted: true });
+    expect(addsThisWeek(setup, '2026-11-23')).toEqual({ limit: 4, made: 0, left: 4, counted: false });
   });
 });
