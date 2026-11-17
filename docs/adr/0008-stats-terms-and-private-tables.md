@@ -183,3 +183,25 @@ So both the channel's video feed and its transcripts are read against the letter
 
 **On objection** by the channel or by YouTube, the channel is removed from `ingest/youtube_channels.toml` (every channel, and the `youtube` job, if YouTube objects). Its landed videos, transcripts and claims are deleted (runbook, "Remove a source on request").
 
+## Addendum (2026-11-08): Reddit is not available
+
+The qualitative-signals epic (#812) planned Reddit as its fourth source, read through Reddit's official Data API with OAuth from the home runner (#870). The terms check found that route closed:
+
+- **Every app needs approval.** Reddit's Responsible Builder Policy, announced on r/redditdev on 2025-11-11, ended self-service access to the public Data API. Every app, personal and non-commercial scripts included, needs Reddit's approval before it reads any data. The policy also bars using Reddit data to "train machine learning or AI models" without approval.
+- **No new requests, and the public routes close.** Reddit's posts of 2026-09-30 on r/modnews and r/redditdev set the timetable:
+  - 2026-10-31: "new requests for public API access are no longer accepted";
+  - 2026-11-13: the RSS feeds end, with "no replacement" for use outside a community one moderates;
+  - 2027-01-12: access starts to close for apps and users that have not registered or answered Reddit's outreach;
+  - March 2027: "public access closes for all remaining apps and users".
+
+  Partners with written agreements are exempt. The replacement, the Developer Platform (Devvit), runs TypeScript apps on Reddit itself and is not a way to read subreddits into a lakehouse.
+- **The owner holds no Reddit app**, so there is no OAuth client to use, and one can no longer be requested.
+
+What is left would break this ADR's rules. Scraping www.reddit.com, the unauthenticated `.json` endpoints (which the shutdown also covers) and the RSS feeds (which end on 2026-11-13) all go around the official API, and the owner's rules forbid working around a block. A written data agreement is a commercial licence, not private research. Even an approved app would have read for four months at most before access ends, too few for the walk-forward harness (#769) to give the source a track record.
+
+**Decision (the owner, 2026-11-08).** Reddit is dropped from #812 and marked not available there. No Reddit code, job, secret or table is added. The ESPN, RSS and YouTube claims carry on. If Reddit reopens access to an approved non-commercial app, the plan in #870 stands as briefed.
+
+**Sources.** These are secondary reports, because reddit.com and its help centre refuse automated readers:
+
+- TechCrunch, Decrypt, TechRepublic, PPC Land and TechWyse reported the 2026-09-30 timetable. Decrypt links Reddit's post: https://www.reddit.com/r/modnews/comments/1wubgvt/continuing_our_infrastructure_updates_whats/
+- The Responsible Builder Policy: https://support.reddithelp.com/hc/articles/42728983564564
