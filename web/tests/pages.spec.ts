@@ -858,7 +858,7 @@ test('the schema overview lists every model and seed as a row, small enough to l
   }
   const fact = page.locator('#m-fct_player_game');
   await expect(fact).toHaveAttribute('data-testid', 'model');
-  await expect(fact).toContainText('7 checks');
+  await expect(fact).toContainText('8 checks');
   await expect(fact.getByTestId('coverage')).toContainText(/\d+\/\d+ described/);
   await expect(page.locator('#seed-category_config')).toHaveAttribute('data-testid', 'seed');
   // The checks and the unit tests are a link away, on their own page (#935).
