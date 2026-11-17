@@ -23,6 +23,7 @@ import YahooImport from './YahooImport';
 import EspnImport from './EspnImport';
 import { StandingsEntry } from './StandingsEntry';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
+import { CopyAge } from './LeagueSync';
 
 interface PlayerRowFields {
   player_id: string;
@@ -302,6 +303,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {yahoo}
+      <CopyAge setup={setup} league={league} />
       {league === 'nba' && (
         <EspnImport season={rows[0]?.season ?? ''} players={rows} hasRosters={rostered > 0} onImport={(next) => update(() => next)} />
       )}

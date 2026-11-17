@@ -25,6 +25,12 @@ const DAY = 24 * HOUR; // def: hours in a day
 export const SYNC_EVERY_MS = PARAMS['sync.every_minutes'] * MINUTE;
 /** How old a Yahoo copy gets before the page offers to re-sync it. */
 export const YAHOO_STALE_MS = DAY;
+/** In season, how old any imported copy gets before every page that uses it asks for a re-run (#1001). */
+export const COPY_STALE_MS = DAY;
+/** How many import times a setup keeps (#1001): about two months of daily imports. */
+export const IMPORTS_KEPT = 60;
+/** A league whose newest data is at most this many days old is in season (#1001). */
+const IN_SEASON_DAYS = 7;
 
 type Players = { player_id: string; full_name: string | null }[];
 
@@ -237,6 +243,7 @@ export function espnSetup(
     changes,
     // the players in ESPN's IR slot at this read (#878), so the next one can tell who came off it
     ir,
+    imports: withImport(previous?.source, at.now, at.leagueId),
     opponents,
     // this week's score so far, by stat or in fantasy points, for the matchup to start from (#817, #877)
     ...(league.scores.size > 0 ? { scores: teamIds.map((id) => (id === null ? null : (league.scores.get(id) ?? null))) } : {}),
@@ -303,8 +310,8 @@ export function chooseMine(setup: LeagueSetup, mine: number): LeagueSetup {
 }
 
 /** A Yahoo bookmarklet import's record: when it ran and the rosters it brought. */
-export function yahooSource(leagueId: string, rosters: string[][], now: number): LeagueSource {
-  return { host: 'yahoo', leagueId, syncedAt: now, rosters, changes: null };
+export function yahooSource(leagueId: string, rosters: string[][], now: number, previous?: LeagueSource): LeagueSource {
+  return { host: 'yahoo', leagueId, syncedAt: now, rosters, changes: null, imports: withImport(previous, now, leagueId) };
 }
 
 /** How long ago a time was, in words: "just now", "4 min ago", "3 hours ago", "2 days ago". */
@@ -331,4 +338,30 @@ export function espnSyncLine(source: LeagueSource, now: number): string {
 /** Whether a Yahoo copy is old enough to offer a re-sync. */
 export function yahooStale(source: LeagueSource, now: number): boolean {
   return now - source.syncedAt >= YAHOO_STALE_MS;
+}
+
+/**
+ * The import times after one more at `now` (#1001): the previous copy's times (its own sync time
+ * when it kept none), then this one, the newest IMPORTS_KEPT. A copy of another league starts over.
+ */
+export function withImport(previous: LeagueSource | undefined, now: number, leagueId?: string): number[] {
+  const same = previous && (leagueId === undefined || previous.leagueId === leagueId);
+  const before = same ? (previous.imports?.length ? previous.imports : [previous.syncedAt]) : [];
+  return [...before.filter((t) => t < now), now].slice(-IMPORTS_KEPT);
+}
+
+/** Whether a league is in season: its newest published data is at most IN_SEASON_DAYS before today (Eastern dates). */
+export function inSeasonFrom(dataAsOf: string | undefined, today: string): boolean {
+  if (!dataAsOf) return false;
+  const days = (Date.parse(`${today}T12:00:00Z`) - Date.parse(`${dataAsOf}T12:00:00Z`)) / DAY;
+  return Number.isFinite(days) && days <= IN_SEASON_DAYS;
+}
+
+/**
+ * What a page says about the league copy it uses (#1001): where it came from and how old it is,
+ * and, in season once it is COPY_STALE_MS old, that it should be taken again.
+ */
+export function copyAge(source: LeagueSource, now: number, inSeason: boolean): { text: string; stale: boolean } {
+  const host = source.host === 'yahoo' ? 'Yahoo' : 'ESPN';
+  return { text: `Your ${host} league as of ${ago(source.syncedAt, now)}`, stale: inSeason && now - source.syncedAt >= COPY_STALE_MS };
 }

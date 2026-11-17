@@ -389,7 +389,7 @@ export function applyYahooImport(
     DEFAULT_SETTINGS['nba'],
   );
   return {
-    setup: { ...next, source: { ...yahooSource(payload.leagueId, next.rosters, now), ...state.source } },
+    setup: { ...next, source: { ...yahooSource(payload.leagueId, next.rosters, now, setup.source), ...state.source } },
     matched,
     unmatched,
     il: next.il.length,

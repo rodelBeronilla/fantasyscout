@@ -22,6 +22,7 @@ import { addDays, dayLabel, type Game, type Move, RecentMoves, type TeamWeek, we
 import { type Candidate, PickupsTable, type StreamerRow } from './PickupsTable';
 import { type ReviewState, TopAdds } from './TopAdds';
 import { Chip, lineupDay, Loading, Note, Problem, Segmented, TagLegend, Unvalidated } from './ui';
+import { CopyAge } from './LeagueSync';
 
 interface Team {
   league: string;
@@ -441,6 +442,7 @@ export default function Streamers() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+      <CopyAge setup={setup} league={league} />
       {scheduleError ? (
         <div className="rounded-lg border border-line bg-card p-4" role="alert" data-testid="schedule-unavailable">
           <p className="font-medium">The {LEAGUE_LABEL[league]} schedule could not be loaded.</p>
