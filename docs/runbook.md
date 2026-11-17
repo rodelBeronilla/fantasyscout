@@ -444,6 +444,17 @@ Run the "Release" workflow (Actions → Release → Run workflow) with the versi
 
 The tags so far mark the phases: `v0.1.0` phase 0 (skeleton live), `v0.2.0` phase 1 (ingest), `v0.3.0` phase 2 (lakehouse), `v0.4.0` phase 3 (gold and quality), `v0.5.0` phase 4 (reconciliation), `v0.6.0` phase 5 (serving and the app), `v0.7.0` phase 6 (analysis surfaces), `v0.8.0` the platform-hardening milestone.
 
+## Yahoo fixtures from the owner's pages
+
+The League page offers a second Yahoo bookmark that saves the pages the import read as one file on the device (#1030), from the Yahoo page itself. Nothing is uploaded. To build fixtures from it:
+
+1. Put the file in the repository's `private/` folder, which git ignores.
+2. In `web/`, run `node scripts/yahoo-fixtures.mjs ../private/<file>.json tests/fixtures/data/yahoo-real ../private/yahoo-scrub.txt`. The last file is optional, kept in `private/`, and lists any other name to replace, one a line.
+3. The script replaces each team's name (Team A…), each manager's name (Manager 1…) and the league id (12345). It writes nothing if any original string would be left, and it prints only how many were left, never the strings.
+4. It can only scrub the names it knows: team names come from links to team pages, manager names from links to Yahoo profiles or elements whose class names a manager. Before committing, read the fixtures for any other name the pages hold, add it to the list and run the script again.
+
+The file, the list and the owner's league id are never committed.
+
 ## Remove a source on request
 
 ADR 0008 commits the site to complying when a source objects to its use here, and the `/sources/` page tells an operator to open an issue. When one arrives:

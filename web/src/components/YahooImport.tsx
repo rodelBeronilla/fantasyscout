@@ -124,7 +124,10 @@ export default function YahooImport({
       .catch((e: unknown) => setNote(e instanceof Error ? e.message : String(e)));
   }, [status, league]);
 
-  const bookmarklet = yahooBookmarklet(typeof window === 'undefined' ? '' : `${window.location.origin}${href('/league/')}?league=nba`);
+  const target = typeof window === 'undefined' ? '' : `${window.location.origin}${href('/league/')}?league=nba`;
+  const bookmarklet = yahooBookmarklet(target);
+  // the same import that also saves the Yahoo pages it read, for reporting an import problem (#1030)
+  const capture = yahooBookmarklet(target, true);
   // React refuses a javascript: href, so the bookmarklet link gets its address on the element itself.
   const bookmarkRef = useRef<HTMLAnchorElement>(null);
   // Phones have no bookmarks bar: a tap copies the code and the steps say where to paste it.
@@ -215,6 +218,22 @@ export default function YahooImport({
               Nothing leaves your browser except the team and player names, which go to this page in the address after the #, a part the
               browser never sends to a server. Private leagues work, since it runs as you.
             </p>
+            <details className="mt-2 text-xs text-muted" data-testid="yahoo-capture">
+              <summary className="cursor-pointer">An import that reads something wrong? Save the pages it reads</summary>
+              <p className="mt-1">
+                This second bookmark runs the same import, and first saves the Yahoo pages it read as one file on your device. Nothing is
+                uploaded: you choose whether to share the file. Save it as a bookmark the same way, and run it on the same Yahoo page.
+              </p>
+              <textarea
+                readOnly
+                value={capture}
+                rows={2}
+                onFocus={(e) => e.currentTarget.select()}
+                className="mt-1 w-full rounded border border-line bg-bg p-1 font-mono text-[10px]"
+                aria-label="Bookmarklet code that saves the pages"
+                data-testid="yahoo-capture-code"
+              />
+            </details>
           </div>
           <p className="text-muted">
             Or open <strong className="text-fg">Paste a roster</strong> on each team below and paste the player names from your league&apos;s

@@ -64,7 +64,7 @@ export function rosterName(text: string): boolean {
  * Util, BN, IL...): player links elsewhere on a page (news, research, suggested pickups) are not
  * the roster (#515).
  */
-function collectYahooLeague(target: string, isName: (text: string) => boolean): void {
+function collectYahooLeague(target: string, isName: (text: string) => boolean, capture: boolean): void {
   const doc = document;
   const anchors = Array.from(doc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
   const hrefOf = (a: Element) => a.getAttribute('href') || '';
@@ -88,6 +88,8 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean): 
     return;
   }
   const base = '/nba/' + leagueId + '/';
+  // the capture (#1030): every page the bookmark reads, as it read it, saved on the device at the end
+  const pages: { url: string; status: number; html: string }[] = [{ url: location.href, status: 200, html: doc.documentElement.outerHTML }];
   const teamLink = (a: Element) => {
     const m = hrefOf(a).match(/\/nba\/(\d+)\/(\d+)\/?$/);
     return m && m[1] === leagueId ? Number(m[2]) : null;
@@ -173,8 +175,10 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean): 
       if (!players.length) {
         try {
           const res = await fetch(base + t, { credentials: 'include' });
+          const text = await res.text();
+          if (capture) pages.push({ url: base + t, status: res.status, html: text });
           if (res.ok) {
-            const page = new DOMParser().parseFromString(await res.text(), 'text/html');
+            const page = new DOMParser().parseFromString(text, 'text/html');
             players = rosterOf(page);
             if (!name) name = ((page.querySelector('h1') || {}).textContent || page.title || 'Team ' + t).replace(/\s+/g, ' ').trim().slice(0, 60);
             if (mine === null && Array.from(page.querySelectorAll('a[href]')).some((x) => /my team/i.test(x.textContent || '') && teamLink(x) === t)) mine = t;
@@ -199,7 +203,9 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean): 
     const read = async (path: string) => {
       try {
         const res = await fetch(base + path, { credentials: 'include' });
-        return res.ok ? new DOMParser().parseFromString(await res.text(), 'text/html') : null;
+        const text = await res.text();
+        if (capture) pages.push({ url: base + path, status: res.status, html: text });
+        return res.ok ? new DOMParser().parseFromString(text, 'text/html') : null;
       } catch {
         return null;
       }
@@ -260,13 +266,28 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean): 
       .filter((r) => !taken.has(r.name))
       .slice(0, 100);
     const payload: YahooPayload = { v: 4, leagueId, mine, teams, records, ...(matchup ? { matchup } : {}), settings, rejected: notTaken };
-    location.href = target.replace(/#.*$/, '') + '#yahoo=' + encodeURIComponent(JSON.stringify(payload));
+    const go = () => {
+      location.href = target.replace(/#.*$/, '') + '#yahoo=' + encodeURIComponent(JSON.stringify(payload));
+    };
+    if (!capture) return go();
+    // one file on this device, from this page: nothing is uploaded, and the import goes on after
+    const file = 'yahoo-pages-' + leagueId + '-' + new Date().toISOString().slice(0, 10) + '.json';
+    const blob = new Blob([JSON.stringify({ capturedAt: new Date().toISOString(), leagueId, pages }, null, 1)], { type: 'application/json' });
+    const link = doc.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = file;
+    doc.body.appendChild(link);
+    link.click();
+    if (confirm('Saved the ' + pages.length + ' Yahoo pages the import read as ' + file + ' on this device. Go on to the import?')) go();
   })();
 }
 
-/** The bookmarklet: the collector above, serialised, aimed at the League page. */
-export function yahooBookmarklet(target: string): string {
-  return `javascript:(${collectYahooLeague.toString()})(${JSON.stringify(target)},${rosterName.toString()})`;
+/**
+ * The bookmarklet: the collector above, serialised, aimed at the League page. With `capture`, it
+ * also saves the Yahoo pages it read as one file on the device before the import (#1030).
+ */
+export function yahooBookmarklet(target: string, capture = false): string {
+  return `javascript:(${collectYahooLeague.toString()})(${JSON.stringify(target)},${rosterName.toString()},${capture})`;
 }
 
 /** A player entry as a bookmark sent it. */
