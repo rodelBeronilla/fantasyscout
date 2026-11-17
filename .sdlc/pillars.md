@@ -8,7 +8,7 @@ Agreed by the owner on 2026-11-16. Where this file and an older plan disagree, t
 - The system takes no action in any fantasy league: it reads, and the manager acts.
 - The only things it deletes are its own published builds, which can be rebuilt from the landing zone, and the data a signed-in manager asks it to delete.
 
-**Purpose:** the first place the owner looks to run his Yahoo head-to-head nine-category team and to read his twelve-team league, with evidence that in-market tools do not give. The platform behind it is public proof of how it was built.
+**Purpose:** the first place the owner looks to run his Yahoo head-to-head nine-category team and to read his eight-team league, with evidence that in-market tools do not give. The platform behind it is public proof of how it was built.
 
 **Non-goals:**
 

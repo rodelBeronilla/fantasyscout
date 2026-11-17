@@ -6,7 +6,7 @@ Read with it: [pillars.md](pillars.md) for what wins when priorities collide, an
 
 ## What this is
 
-A fantasy basketball tool for head-to-head and rotisserie category leagues, NBA and WNBA, at https://fantasyscout.beronilla.rodeo. Its first user is the owner, who plays a Yahoo head-to-head nine-category league of twelve teams. The team punts no category. The platform behind it (ingest, lakehouse, quality gate, serving, backtests) is public in this repository.
+A fantasy basketball tool for head-to-head and rotisserie category leagues, NBA and WNBA, at https://fantasyscout.beronilla.rodeo. Its first user is the owner, who plays a Yahoo head-to-head nine-category league of eight teams (confirmed 2026-11-17; the facts are under "The owner's league" below). The team punts no category. The platform behind it (ingest, lakehouse, quality gate, serving, backtests) is public in this repository.
 
 ## Decisions in force
 
@@ -17,6 +17,7 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 - **The fallback road (2026-11-16, #989).** Approved once its daily comparison reports differences without opening a `data-incident` issue.
 - **Across the two build paths (2026-11-16, #995).** Board values may differ by up to 1e-4 if the board's ranking is identical. Missing rows are not tolerated: each is traced to a cause and fixed. Until then, the comparison reports them.
 - **The owner's real league (2026-11-16).** His Yahoo league was imported by bookmark within the week before. He does not punt, and checks that his saved setup has no punts marked.
+- **No alerts (2026-11-17).** The owner wants none; #876 is out of the plan.
 - **Owner preview (2026-11-16, design in step 3, not built).** Unjudged and failed calls will show to the signed-in owner only, each logged with the call, what he did and what happened. Public pages keep the rule below.
 - **Calls need a passed check; data can show (2026-11-09, #936).** A recommendation shows publicly only after its out-of-sample check passes. The same numbers in a labelled, sortable table are data and may show. Switches in `web/src/lib/visibility.ts`; verdicts in `methodology/features.yml`.
 - **Board value is validated in season on its error against the naive manager (2026-11-09, ADR 0031).** Preseason value is badged until judged.
@@ -47,8 +48,20 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 - Re-registering the host's four ingest tasks with the new action (#985).
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
 - Narrower credentials (#424, #425, #426) and branch protection (#432).
-- The push keys for alerts, if alerts are built (#876).
 - Whether the brand card becomes the image shown when a link is shared.
+
+## The owner's league
+
+Confirmed by the owner on 2026-11-17. A setup still on the defaults (12 teams, lineup G 3, F 3, C 2, Util 2) was once read as his league, which is where "twelve teams" and the punts came from (#925).
+
+- Yahoo, head-to-head, nine categories, **eight teams**, no punts.
+- 13 roster spots: PG, SG, G, SF, PF, F, C, three Util and three bench, plus two IL.
+- Playoffs: 6 teams over 3 weeks.
+- Four adds a week; standard waivers (a dropped player waits before he can be claimed).
+- He wants help with all four jobs: the daily lineup, using his adds, reading the matchup, and trades and the league. He decides at all times of day.
+- He wants no alerts.
+- Besides Yahoo he uses only social media and podcasts.
+- His downloaded league file lives outside the repository. It, his team names and his league id are never committed, fixtures included.
 
 ## How the system runs
 
