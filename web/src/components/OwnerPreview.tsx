@@ -62,50 +62,48 @@ export function OwnerPreview({
 export function AddsLimit({
   adds,
   waiverDays,
-  known = true,
-  each = false,
+  known = { adds: true, waiver: true },
+  kind = 'offer',
 }: {
   adds: { limit: number; left: number } | null;
   waiverDays: number | null;
-  /** Whether the league's adds a week and waiver wait were read (#1056): an old Yahoo copy may not hold them. */
-  known?: boolean;
-  /** The frame's moves are add-and-drop lines, each using one add (Build your team). */
-  each?: boolean;
+  /** Whether the adds a week and the waiver wait are known (limitsKnown): an old Yahoo copy may hold neither. */
+  known?: { adds: boolean; waiver: boolean };
+  /** What the frame's moves are: adds it offers, add-and-drop lines (Build your team), or open slots to stream into (the lineup plan). */
+  kind?: 'offer' | 'lines' | 'slots';
 }) {
-  if (!known) {
-    return (
-      <p className="text-sm" data-testid="preview-adds-limit">
-        <strong>This league&apos;s adds a week and waiver wait are not known here</strong>
-        <span className="text-muted">
-          {' '}
-          (this copy was imported before the bookmark read Yahoo&apos;s settings page). Import it again from Yahoo to read them; until then, check the adds
-          you have left and that each player is a free agent on your league&apos;s app before making a move below.
-        </span>
-      </p>
-    );
-  }
+  const left = adds?.left ?? 0;
+  const of = adds ? `${adds.left} of ${adds.limit} adds left this week` : '';
   return (
     <p className="text-sm" data-testid="preview-adds-limit">
-      {adds === null ? (
-        'Your league sets no weekly limit on adds.'
-      ) : each && adds.left > 0 ? (
+      {!known.adds ? (
         <>
-          <strong>
-            {adds.left} of {adds.limit} adds left this week
-          </strong>
-          : each add-and-drop line below uses one, so make no more than {adds.left} of them.
+          <strong>This league&apos;s adds a week is not known here</strong>
+          <span className="text-muted">
+            {' '}
+            (this copy was imported before the bookmark read Yahoo&apos;s settings page): set it on the League page or import the league again from Yahoo. Until
+            then, check the adds you have left on your league&apos;s app before a move below.
+          </span>
         </>
-      ) : each ? (
-        <strong>No adds left this week: the add-and-drop lines below wait until Monday.</strong>
-      ) : adds.left > 0 ? (
+      ) : adds === null ? (
+        'Your league sets no weekly limit on adds.'
+      ) : left > 0 ? (
         <>
-          <strong>
-            {adds.left} of {adds.limit} adds left this week
-          </strong>
-          , so no more than {adds.left} {adds.left === 1 ? 'is' : 'are'} offered.
+          <strong>{of}</strong>
+          {kind === 'lines'
+            ? `: each add-and-drop line below uses one, so make no more than ${left} of them.`
+            : kind === 'slots'
+              ? `: each stream into an open slot uses one, so no more than ${left} ${left === 1 ? 'slot' : 'slots'} can be filled this way.`
+              : `, so no more than ${left} ${left === 1 ? 'is' : 'are'} offered.`}
         </>
       ) : (
-        <strong>No adds left this week: the next one comes on Monday.</strong>
+        <strong>
+          {kind === 'lines'
+            ? 'No adds left this week: the add-and-drop lines below wait until Monday.'
+            : kind === 'slots'
+              ? 'No adds left this week: the open slots below stay open until Monday.'
+              : 'No adds left this week: the next one comes on Monday.'}
+        </strong>
       )}
       {waiverDays ? (
         <span className="text-muted">
@@ -113,6 +111,8 @@ export function AddsLimit({
           A player dropped in the last {waiverDays} {waiverDays === 1 ? 'day' : 'days'} is on waivers and cannot be added yet. This list does not know who was
           dropped, so check each player is a free agent on your league&apos;s app first.
         </span>
+      ) : !known.waiver ? (
+        <span className="text-muted"> The waiver wait is not known here either: check each player is a free agent on your league&apos;s app first.</span>
       ) : null}
     </p>
   );

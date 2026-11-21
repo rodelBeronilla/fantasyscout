@@ -70,12 +70,18 @@ export async function logPreviewCall(c: PreviewCall, date: string = EASTERN.form
  * this week; all of them when the league sets no limit.
  */
 /**
- * Whether this copy of the league holds its adds a week and waiver wait (#1056): a Yahoo copy
- * imported before the bookmark read the settings page holds neither, and its empty adds limit
- * means "not known", not "no limit". A league set up by hand, or from another host, says its own.
+ * Whether the league's adds a week and its waiver wait are known (#1056). A value that is set, typed
+ * on the League page or read by an import, is known. An empty one means "no limit" only where the
+ * import read Yahoo's settings page (or the league is not a Yahoo copy); on a Yahoo copy imported
+ * before the bookmark read that page, an empty value means "not known".
  */
-export function addsKnown(setup: { source?: { host?: string; rules?: object } }): boolean {
-  return setup.source?.host !== 'yahoo' || !!setup.source.rules;
+export function limitsKnown(setup: {
+  addsPerWeek?: number | null;
+  waiverDays?: number | null;
+  source?: { host?: string; rules?: object };
+}): { adds: boolean; waiver: boolean } {
+  const read = setup.source?.host !== 'yahoo' || !!setup.source.rules;
+  return { adds: read || (setup.addsPerWeek ?? null) !== null, waiver: read || (setup.waiverDays ?? null) !== null };
 }
 
 export function withinAdds<T>(list: readonly T[], left: number | null): T[] {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PreviewCall } from './owner-preview';
-import { addsKnown } from './owner-preview';
+import { limitsKnown } from './owner-preview';
 
 // The owner preview (#1056): the switch in this browser, then the Worker. Each case loads the
 // modules afresh, with fetch and the browser's storage stubbed. Every value below is made up.
@@ -99,10 +99,19 @@ describe("the preview's pickups", () => {
 });
 
 describe('whether the adds a week and the waiver wait are known (#1056)', () => {
-  it('a Yahoo copy holds them once the settings page was read; another league says its own', () => {
-    expect(addsKnown({ source: { host: 'yahoo', rules: { tradeReview: 'League Votes' } } })).toBe(true);
-    expect(addsKnown({ source: { host: 'yahoo' } })).toBe(false);
-    expect(addsKnown({ source: { host: 'espn' } })).toBe(true);
-    expect(addsKnown({})).toBe(true);
+  it('a value that is set is known; an empty one is "not known" only on a Yahoo copy whose settings were never read', () => {
+    const old = { host: 'yahoo' };
+    const read = { host: 'yahoo', rules: { tradeReview: 'League Votes' } };
+    // an old Yahoo copy, nothing typed
+    expect(limitsKnown({ addsPerWeek: null, waiverDays: null, source: old })).toEqual({ adds: false, waiver: false });
+    // the same copy with 4 adds and 2 days typed on the League page
+    expect(limitsKnown({ addsPerWeek: 4, waiverDays: 2, source: old })).toEqual({ adds: true, waiver: true });
+    // one typed, one not
+    expect(limitsKnown({ addsPerWeek: 4, waiverDays: null, source: old })).toEqual({ adds: true, waiver: false });
+    // imported with the settings page read: empty means no limit, and is known
+    expect(limitsKnown({ addsPerWeek: null, waiverDays: null, source: read })).toEqual({ adds: true, waiver: true });
+    // a league set up by hand or from another host says its own
+    expect(limitsKnown({ addsPerWeek: null, waiverDays: null, source: { host: 'espn' } })).toEqual({ adds: true, waiver: true });
+    expect(limitsKnown({})).toEqual({ adds: true, waiver: true });
   });
 });

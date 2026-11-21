@@ -14,7 +14,7 @@ type Row = { player_id: string };
 const NOW = new Date('2026-11-02T16:00:00Z');
 
 /** A made-up eight-team Yahoo head-to-head league, as the import keeps it, ten players a team. */
-async function seedLeague(page: Page, addsUsed: number | null = null, settingsRead = true): Promise<{ rosters: string[][] }> {
+async function seedLeague(page: Page, addsUsed: number | null = null, settingsRead = true, typed = false): Promise<{ rosters: string[][] }> {
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
   const teams = 8;
   const rosters = Array.from({ length: teams }, (_, t) => Array.from({ length: 10 }, (_, k) => board[t + teams * k]!.player_id));
@@ -50,7 +50,8 @@ async function seedLeague(page: Page, addsUsed: number | null = null, settingsRe
       // the rules the bookmark reads from Yahoo's settings page: their presence says the adds and the waiver wait were read
       ...(settingsRead ? { rules: { tradeReview: 'League Votes' } } : {}),
     },
-    ...(settingsRead ? {} : { addsPerWeek: null, waiverDays: null }),
+    // an old copy holds neither setting, unless he typed them on the League page
+    ...(settingsRead || typed ? {} : { addsPerWeek: null, waiverDays: null }),
   };
   await page.clock.setFixedTime(NOW);
   await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
@@ -218,15 +219,36 @@ test('the build frame says its add-and-drop lines each use an add; an old Yahoo 
   await seedLeague(page, 4);
   await page.reload();
   await expect(build.getByTestId('preview-adds-limit')).toContainText('No adds left this week: the add-and-drop lines below wait until Monday.');
-  // a copy imported before the bookmark read Yahoo's settings: not known, never "no limit"
+  // the lineup frame says the adds too: none left, so the open slots stay open
+  const lineup = page.getByTestId('owner-preview').and(page.locator('[data-call="lineup"]'));
+  await expect(lineup.getByTestId('preview-adds-limit')).toContainText('No adds left this week: the open slots below stay open until Monday.');
+  // state 1: an old Yahoo copy, nothing typed: not known, never "no limit"
   await seedLeague(page, null, false);
   for (const path of ['/team/?league=nba', '/streamers/?league=nba']) {
     await page.goto(path);
     const limits = page.getByTestId('preview-adds-limit');
     await expect(limits.first(), path).toBeVisible();
     for (const line of await limits.all()) {
-      await expect(line, path).toContainText("This league's adds a week and waiver wait are not known here");
+      await expect(line, path).toContainText("This league's adds a week is not known here");
+      await expect(line, path).toContainText('The waiver wait is not known here either');
       await expect(line, path).not.toContainText('no weekly limit');
     }
   }
+  // state 2: the same old copy with 4 adds and 2 days typed on the League page: known, and said
+  await seedLeague(page, null, false, true);
+  for (const path of ['/team/?league=nba', '/streamers/?league=nba']) {
+    await page.goto(path);
+    const limits = page.getByTestId('preview-adds-limit');
+    await expect(limits.first(), path).toBeVisible();
+    for (const line of await limits.all()) {
+      await expect(line, path).toContainText('3 of 4 adds left this week');
+      await expect(line, path).toContainText('A player dropped in the last 2 days is on waivers');
+      await expect(line, path).not.toContainText('not known');
+    }
+  }
+  // state 3: a copy whose import read the settings page: known
+  await seedLeague(page);
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('preview-adds-limit').first()).toBeVisible();
+  for (const line of await page.getByTestId('preview-adds-limit').all()) await expect(line).not.toContainText('not known');
 });
