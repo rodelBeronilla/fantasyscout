@@ -1525,6 +1525,39 @@ test('a Yahoo copy with no weeks says the week-by-week view needs the new bookma
   await expect(page.getByTestId('yahoo-weeks-none')).toHaveCount(0);
 });
 
+test('with an eight-team, thirteen-spot league, no main page scrolls sideways on a phone; wide tables scroll inside their own region (#1066)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];
+  const teams = 8;
+  const rosters = Array.from({ length: teams }, (_, t) => Array.from({ length: 13 }, (_, k) => board[(t + teams * k) % board.length]!.player_id));
+  const copy = {
+    version: 10, teams, rosterSpots: 13, scoring: 'cats9', format: 'h2h', punts: [],
+    names: ['Harbor Lights Basketball Club', 'Summit', 'Prairie', 'Canyon', 'Delta', 'Ridge', 'Meadow', 'Coast'],
+    rosters, mine: 0, il: [], drafting: false, picks: [], opponent: 1, lineup: { G: 3, F: 3, C: 1, UTIL: 3 }, ilSlots: 2, addsPerWeek: 4, waiverDays: 2,
+    source: { host: 'yahoo', leagueId: '99', syncedAt: Date.now() - 3_600_000, rosters, changes: null, opponents: [1, 0, 3, 2, 5, 4, 7, 6] },
+  };
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+  // each page is measured once it is drawn: its own table or form on the page, then the network quiet
+  const drawn: Record<string, () => Promise<void>> = {
+    '/team/': () => expect(page.getByTestId('matchup-table')).toBeVisible(),
+    '/streamers/': () => expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible(),
+    '/trade/': () => expect(page.getByTestId('trade-tabs')).toBeVisible(),
+    '/league/': () => expect(page.getByLabel('Teams in the league')).toHaveValue('8'),
+    '/': () => expect(page.getByTestId('board').locator('tbody tr').first()).toBeVisible(),
+  };
+  for (const [path, ready] of Object.entries(drawn)) {
+    await page.goto(`${path}?league=nba`);
+    await ready();
+    await page.waitForLoadState('networkidle');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(390);
+  }
+  // the matchup's table is whole, scrolling inside its own region
+  await page.goto('/team/?league=nba');
+  const region = page.getByRole('region', { name: 'Matchup, category by category' });
+  await expect(region).toBeVisible();
+  expect(await region.evaluate((el) => el.clientWidth <= 390 && el.scrollWidth >= el.clientWidth)).toBe(true);
+});
+
 test('a league built by hand takes its records and its first playoff week on the League page, and My Team leads with them (#874)', async ({ page }) => {
   type TeamWeek = { team_id: string; week_start: string; week_end: string; games: number };
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];
