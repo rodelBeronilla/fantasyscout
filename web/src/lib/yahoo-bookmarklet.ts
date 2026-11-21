@@ -291,7 +291,7 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       try {
         const saved: unknown = JSON.parse(localStorage.getItem(store) || '[]');
         for (const k of Array.isArray(saved) ? (saved as { week?: unknown; pages?: unknown }[]) : []) {
-          const pages = Array.isArray(k && k.pages) ? (k.pages as Totals[]).filter((p) => p && Array.isArray(p.labels) && Array.isArray(p.rows) && p.rows.length === 2) : [];
+          const pages = Array.isArray(k && k.pages) ? (k.pages as Totals[]).filter((p) => p && Array.isArray(p.labels) && Array.isArray(p.rows) && (p.rows.length === 2 || p.rows.length === 1)) : []; // the same pages a run reads: two sides, or one in a bye
           if (k && typeof k.week === 'number' && Number.isInteger(k.week) && k.week > 0 && k.week < current && pages.length && !weeks.some((x) => x.week === k.week))
             weeks.push({ week: k.week, final: true, pages });
         }

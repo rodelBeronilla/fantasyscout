@@ -1453,6 +1453,33 @@ test("Yahoo's home page failing reads no week, says so on the League page, and k
   await expect(page.getByTestId('yahoo-weeks')).toHaveText("Every matchup's category totals from Yahoo: weeks 1–2 final, week 3 so far.");
 });
 
+test("a week page with one team (a playoff bye) is read, kept on Yahoo's side, and still there after a second run (#1049)", async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.slow(); // the week pages come a second apart
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  await yahooLeague(page);
+  // in week 1, teams 1 and 2 each have a bye: each one's page shows its own row alone
+  const pair = readFileSync('tests/fixtures/data/yahoo/week-1-1v2.html', 'utf8');
+  const alone = (keep: 'First' | 'Alt Last') => pair.replace(keep === 'First' ? /<tr class="Alt Last">[\s\S]*?<\/tr>/ : /<tr class="First">[\s\S]*?<\/tr>/, '');
+  await page.route(/\/nba\/12345\/matchup\?week=1&mid1=(1|2)$/, (route) =>
+    route.fulfill({ contentType: 'text/html', body: alone(route.request().url().endsWith('mid1=1') ? 'First' : 'Alt Last') }),
+  );
+  for (const run of [1, 2]) {
+    await page.goto('/data/yahoo/league.html');
+    await page.evaluate(code.slice('javascript:'.length));
+    await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+    // every team's week-1 totals, on the first run and after the second (read back from Yahoo's side)
+    const stored = await storedWeeks(page);
+    expect(stored.weeks[0]?.points.every((p) => p !== null), `run ${run}`).toBe(true);
+    expect(stored.weeks[0]?.points.slice(0, 2), `run ${run}`).toEqual([622, 689]);
+  }
+  await page.goto('/data/yahoo/league.html');
+  const kept = await page.evaluate(() => (JSON.parse(localStorage.getItem('fantasyscout:weeks:12345') ?? '[]') as { week: number; pages: unknown[] }[]).find((w) => w.week === 1)?.pages.length);
+  expect(kept).toBe(3);
+});
+
 test('a league built by hand takes its records and its first playoff week on the League page, and My Team leads with them (#874)', async ({ page }) => {
   type TeamWeek = { team_id: string; week_start: string; week_end: string; games: number };
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];

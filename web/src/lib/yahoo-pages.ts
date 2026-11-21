@@ -149,12 +149,14 @@ export function weeksLines(source: { weeks?: LeagueWeek[]; weeksStop?: { week: n
   const parts = [...(final.length ? [`${named(final)} final`] : []), ...(soFar.length ? [`${named(soFar)} so far`] : [])];
   const stop = source.weeksStop;
   const team = stop ? /mid1=(\d+)/.exec(stop.page)?.[1] : undefined;
+  // the weeks a home-page stop leaves are the earlier import's, and the line above says which
+  const kept = weeks.length ? '; the weeks above are from the import before' : '';
   const stopLine = !stop
     ? null
     : stop.page === 'home'
-      ? "Yahoo's league home page did not answer, so no week's matchups were read this time; the weeks below are from the import before. Run the bookmark again later."
+      ? `Yahoo's league home page did not answer, so no week's matchups were read this time${kept}. Run the bookmark again later.`
       : stop.page === 'home-no-matchups'
-        ? "Yahoo's league home page showed no matchups (between seasons, or Yahoo changed the page), so no week's matchups were read this time; the weeks below are from the import before."
+        ? `Yahoo's league home page showed no matchups (between seasons, or Yahoo changed the page), so no week's matchups were read this time${kept}. Run the bookmark again once Yahoo shows this week's matchups.`
         : `Yahoo did not answer the matchup page for week ${stop.week} (Yahoo's team ${team ?? '?'}), so that week and the ones after it were not read; run the bookmark again later.`;
   return {
     read: parts.length ? `Every matchup's category totals from Yahoo: ${parts.join(', ')}.` : null,
