@@ -195,6 +195,13 @@ describe("the adds used this week, from the manager's team page (#1028)", () => 
   });
 
   it('an import keeps the count with the roster it counted', () => {
+    // the bookmark sends the two numbers (#1061); a malformed pair is dropped
+    const numbers = parseYahooHash(hash({ ...v3, addsCount: [3, 4] }))!;
+    expect(numbers.addsCount).toEqual([3, 4]);
+    expect(applyYahooImport(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), numbers, players, NOV_8).setup.source?.addsUsed?.used).toBe(3);
+    expect(parseYahooHash(hash({ ...v3, addsCount: [3, 'x'] }))!.addsCount).toBeUndefined();
+    expect(parseYahooHash(hash({ ...v3, addsCount: [3, 4, 5] }))!.addsCount).toBeUndefined();
+    // an older bookmark's sentence still reads
     const payload = parseYahooHash(hash({ ...v3, adds: 'You have used 3 of your 4 player adds for this week.' }))!;
     expect(payload.adds).toContain('used 3 of your 4');
     const { setup } = applyYahooImport(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), payload, players, NOV_8);

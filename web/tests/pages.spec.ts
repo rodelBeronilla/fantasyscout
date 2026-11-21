@@ -1237,10 +1237,21 @@ test("the Yahoo bookmarklet brings the standings, this week's opponent and score
     return route.fulfill({ path: weekFixture(url) ?? `tests/fixtures/data/yahoo/${page}.html` });
   });
   await page.goto('/data/yahoo/league.html');
+  // the address the bookmark sends the league in, before the League page reads it
+  const sent: string[] = [];
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame() && frame.url().includes('#yahoo=')) sent.push(frame.url());
+  });
   await page.evaluate(code.slice('javascript:'.length));
   // the bookmark reads the team pages, then the standings, the matchup and the settings, in turn
   await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
   await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo');
+  // the adds go as two numbers, and nothing of the team page's text around them (#1061)
+  const payload = JSON.parse(decodeURIComponent(sent[0]!.split('#yahoo=')[1]!)) as Record<string, unknown>;
+  expect(payload['addsCount']).toEqual([1, 4]);
+  expect(payload['adds']).toBeUndefined();
+  expect(sent[0]).not.toContain(encodeURIComponent('side across town'));
+  expect(decodeURIComponent(sent[0]!)).not.toContain('side across town');
   // the matchup asked for is the manager's (Rim Reapers, Yahoo's team 2); since #1049 the home
   // page's Matchups module names week 3 as the current one, so every week's pages follow, a page
   // per matchup (the test of the weeks below covers them)

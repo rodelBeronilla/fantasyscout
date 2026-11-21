@@ -261,11 +261,12 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       if (c.length === 2 && c[0] && c[1] && c[0].length < 60 && rows.length < 80) rows.push([c[0].replace(/:$/, ''), c[1].slice(0, 200)]);
     }
     if (rows.length) settings.rows = rows;
-    // the manager's team page says how many of the week's adds are used (#1028): its line as it stands
-    let adds: string | undefined;
+    // the manager's team page says how many of the week's adds are used (#1028): the two numbers
+    // only, never the page's text around them (#1061)
+    let addsCount: [number, number] | undefined;
     const own = mine !== null ? await read(String(mine)) : null;
-    const said = own ? ((own.body && own.body.textContent) || '').replace(/\s+/g, ' ').match(/[^.]{0,80}player adds?[^.]{0,60}\./i) : null;
-    if (said) adds = said[0].trim().slice(0, 200);
+    const said = own ? ((own.body && own.body.textContent) || '').replace(/\s+/g, ' ').match(/used (\d{1,2}) of (?:your )?(\d{1,2}) player adds?/i) : null;
+    if (said) addsCount = [Number(said[1]), Number(said[2])];
     // Every week's matchup totals (#1049). The home page's Matchups module links this week's
     // matchups (matchup?week=W&mid1=..&mid2=..): weeks 1 to W are read, one page at a time with a
     // pause between them, a page per matchup (each holds both sides). The first page that does not
@@ -345,7 +346,7 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       records,
       ...(matchup ? { matchup } : {}),
       settings,
-      ...(adds ? { adds } : {}),
+      ...(addsCount ? { addsCount } : {}),
       ...(weeks.length ? { weekLabels, weeks: weekPages } : {}),
       ...(weeksStop ? { weeksStop } : {}),
       rejected: notTaken,
@@ -403,7 +404,7 @@ export function parseYahooHash(hash: string): YahooPayload | null {
   const m = hash.match(/^#yahoo=(.+)$/);
   if (!m || !m[1]) return null;
   try {
-    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown; rejected?: unknown };
+    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; addsCount?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown; rejected?: unknown };
     // Only the current bookmark is read (#1018): an older one dropped players silently, and the
     // League page asks for it to be added again (yahooHashVersion, YAHOO_OUTDATED).
     if (raw.v !== YAHOO_PAYLOAD_VERSION || !Array.isArray(raw.teams) || !raw.teams.length) return null;
@@ -515,7 +516,8 @@ export function applyYahooImport(
   }
   const mine = Math.max(0, payload.teams.findIndex((t) => t.id === payload.mine));
   const state = yahooState(payload, mine, now);
-  const addsUsed = payload.adds ? yahooAddsUsed(payload.adds) : null;
+  // the numbers a bookmark sends (#1061); an older bookmark's sentence still reads
+  const addsUsed = payload.addsCount ? { used: payload.addsCount[0], limit: payload.addsCount[1] } : payload.adds ? yahooAddsUsed(payload.adds) : null;
   const weeks = keptWeeks(setup.source, payload.leagueId, yahooWeeks(payload, payload.teams.map((t) => t.id)), payload.weeksStop?.week === 0);
   const next = normalize(
     { ...setup, ...state.settings, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },

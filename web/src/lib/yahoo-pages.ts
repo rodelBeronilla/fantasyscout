@@ -21,6 +21,8 @@ export interface YahooPages {
   settings?: { playoffs?: string; scoring?: string; rows?: [string, string][] };
   /** The manager's team page's line on this week's adds, as it stands: "You have used 0 of your 4 player adds for this week." (#1028). */
   adds?: string;
+  /** The adds used this week and the weekly limit, as numbers read from that line (#1061): the bookmark sends these, not the text. */
+  addsCount?: [number, number];
   /** The week pages' table labels, when every page has the same (#1049). */
   weekLabels?: string[];
   /** Every week's matchup pages as read (#1049): each page's two rows, and its own labels where they differ from `weekLabels`. */
@@ -39,7 +41,7 @@ interface YahooWeekRead {
 const strings = (x: unknown): x is string[] => Array.isArray(x) && x.every((s) => typeof s === 'string');
 
 /** The extra pages from a bookmark's payload, keeping what is well formed. */
-export function cleanYahooPages(raw: { records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown }): YahooPages {
+export function cleanYahooPages(raw: { records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; addsCount?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown }): YahooPages {
   const out: YahooPages = {};
   if (raw.records && typeof raw.records === 'object') {
     const entries = Object.entries(raw.records as Record<string, unknown>).filter((e): e is [string, [string, string]] => strings(e[1]) && e[1].length === 2); // def: a record and a rank
@@ -62,6 +64,8 @@ export function cleanYahooPages(raw: { records?: unknown; matchup?: unknown; set
     };
   }
   if (typeof raw.adds === 'string' && raw.adds.length <= 200) out.adds = raw.adds; // def: a sentence, at most
+  const count = raw.addsCount;
+  if (Array.isArray(count) && count.length === 2 && count.every((n) => Number.isInteger(n) && n >= 0 && n <= 99)) out.addsCount = [count[0] as number, count[1] as number]; // def: two small counts
   Object.assign(out, cleanWeeks(raw));
   return out;
 }
