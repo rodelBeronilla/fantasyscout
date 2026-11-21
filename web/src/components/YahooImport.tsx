@@ -7,8 +7,10 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 
 import type { League } from '../lib/data';
 import { DEFAULT_SETTINGS, type LeagueSetup, matchNames, normalize, type PointWeights } from '../lib/fantasy-league';
+import { leagueHref } from '../lib/league';
 import { href } from '../lib/site';
 import { yahooBookmarklet } from '../lib/yahoo-bookmarklet';
+import { SignInLink } from './SignInLink';
 import { Card } from './ui';
 
 interface Status {
@@ -148,9 +150,20 @@ export default function YahooImport({
     bookmarkRef.current?.setAttribute('href', bookmarklet);
   }, [bookmarklet, status]);
   if (!status) return null;
+  // Yahoo runs NBA leagues only, and the ESPN import reads NBA ones: on the WNBA, say so and offer the switch
+  if (league !== 'nba') {
+    if (hasRosters) return null;
+    return (
+      <p className="rounded-lg border border-line bg-card px-3 py-2 text-sm" data-testid="import-nba-only">
+        Importing a league from Yahoo or ESPN works for NBA leagues. Set up a WNBA league by hand below, or{' '}
+        <a href={leagueHref('nba')} className="font-medium text-accent underline-offset-4 hover:underline" data-testid="import-switch-nba">
+          switch to the NBA →
+        </a>
+      </p>
+    );
+  }
   if (!status.live) {
-    // Parked until Yahoo approves the app for its Fantasy API; Yahoo runs NBA leagues only.
-    if (league !== 'nba') return null;
+    // Parked until Yahoo approves the app for its Fantasy API.
     return (
       <Shell folded={hasRosters && !note}>
         <div className="grid gap-1 text-sm" data-testid="yahoo-soon">
@@ -266,17 +279,15 @@ export default function YahooImport({
   return (
     <Shell folded={hasRosters && !note}>
       <div className="grid gap-2 text-sm" data-testid="yahoo-import">
-        {league !== 'nba' ? (
-          <p className="text-muted">Yahoo runs NBA leagues only; switch to the NBA to import one.</p>
-        ) : !status.connected ? (
+        {!status.connected ? (
           <>
             <p className="text-muted">
               Sign in to Yahoo to bring in a league&apos;s settings, team names and every roster. FantasyScout only reads your leagues, and the sign-in
               stays in a cookie that only this site&apos;s server can read.
             </p>
-            <a href={href('/auth/yahoo/start')} className="justify-self-start rounded-full border border-accent bg-accent px-4 py-1.5 font-semibold text-accent-fg">
+            <SignInLink to={href('/auth/yahoo/start')} className="justify-self-start rounded-full border border-accent bg-accent px-4 py-1.5 font-semibold text-accent-fg">
               Sign in with Yahoo
-            </a>
+            </SignInLink>
           </>
         ) : (
           <div className="flex flex-wrap items-center gap-2">

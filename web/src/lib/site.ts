@@ -15,3 +15,11 @@ export const LEAGUES = [
   { id: 'wnba', label: 'WNBA' },
   { id: 'nba', label: 'NBA' },
 ] as const;
+
+/** The live site: Yahoo sends a sign-in back to this address only. */
+export const LIVE_SITE = 'https://fantasyscout.beronilla.rodeo';
+
+/** The preview (a workers.dev address) cannot sign in: Yahoo refuses any return address but the live site's. */
+export function isPreviewHost(hostname: string): boolean {
+  return hostname === 'workers.dev' || hostname.endsWith('.workers.dev');
+}

@@ -2946,6 +2946,12 @@ test('the Yahoo import shows as coming soon until it is live, then imports setti
   await page.goto('/league/?league=wnba');
   await expect(page.getByTestId('team-card').first()).toBeVisible();
   await expect(page.getByTestId('yahoo-soon')).toHaveCount(0);
+  // a first visit on the WNBA hears why there is no import, and how to reach one
+  await expect(page.getByTestId('import-nba-only')).toContainText('works for NBA leagues');
+  await page.getByTestId('import-switch-nba').click();
+  await expect(page).toHaveURL(/league=nba/);
+  await expect(page.getByTestId('yahoo-soon')).toContainText('Coming soon');
+  await expect(page.getByTestId('import-nba-only')).toHaveCount(0);
 
   // The fixture build's NBA board is empty: stand the WNBA players in for it.
   await page.route('**/board/nba.json', async (r) => r.fulfill({ response: await r.fetch({ url: r.request().url().replace(/\/nba\.json$/, '/wnba.json') }) }));
