@@ -50,7 +50,7 @@ export function OwnerPreview({
           Issue #{issue}
         </a>
       </p>
-      <div className="mt-2 grid gap-3">{children}</div>
+      <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>
     </section>
   );
 }
