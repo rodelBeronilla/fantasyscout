@@ -22,6 +22,8 @@ import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openS
 import { NO_WORTH, teamChange, timingNotes, type TradePlayer, tradeSide } from '../lib/trade-players';
 import { hasWeekGames, recentForm, type ValueUnit } from '../lib/week-value';
 import { SHOWS, showsBuyLow } from '../lib/visibility';
+import { useOwnerPreview } from '../lib/owner-preview';
+import { OwnerPreview } from './OwnerPreview';
 import { BuySellCard } from './BuySellCard';
 import { describeSettings } from './LeagueParts';
 import { CopyAge, useEspnSync } from './LeagueSync';
@@ -70,6 +72,8 @@ export default function TradeAnalyzer() {
   const [get, setGet] = useState<string[]>(() => fromLink.getAll('get'));
   const [partner, setPartner] = useState<number | null>(null);
   const [unit, setUnit] = useState<ValueUnit>('rest');
+  // the calls not yet validated, for the signed-in owner alone with his preview on (#1056)
+  const preview = useOwnerPreview();
 
   useEffect(() => {
     let live = true;
@@ -271,7 +275,7 @@ export default function TradeAnalyzer() {
   const active = (t: number) => (setup.rosters[t] ?? []).filter((id) => !setup.il.includes(id));
   const open = openSide(give, get, restOf);
   const suggestions =
-    SHOWS.tradeSuggestions && ready && hasRosters && partnerTeam >= 0
+    (SHOWS.tradeSuggestions || preview) && ready && hasRosters && partnerTeam >= 0
       ? suggestTrades({
           give,
           get,
@@ -292,7 +296,7 @@ export default function TradeAnalyzer() {
         })
       : [];
   const targetSide: Side = get.length ? 'get' : 'give';
-  const nearest = SHOWS.tradeSuggestions && ready && !hasRosters ? nearestInValue(targetSide === 'get' ? get : give, restOf, [...give, ...get]) : [];
+  const nearest = (SHOWS.tradeSuggestions || preview) && ready && !hasRosters ? nearestInValue(targetSide === 'get' ? get : give, restOf, [...give, ...get]) : [];
   const nameOf = (id: string) => byId.get(id)?.full_name ?? id;
   const nameList = (ids: string[]) => ids.map(nameOf).join(' + ');
   const applySuggestion = (s: Suggestion) => {
@@ -425,6 +429,8 @@ export default function TradeAnalyzer() {
   ];
   // a tab whose tool has gone (no rival rosters, no punts) falls back to Build
   const current: Tab = tabs.some((x) => x.id === tab) ? tab : 'build';
+  // the owner preview (#1056): a trade as the log keeps it, "give ids > get ids"
+  const tradeText = (g: string[], r: string[]) => `${g.join(' ')} > ${r.join(' ')}`;
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
@@ -605,6 +611,46 @@ export default function TradeAnalyzer() {
         </Card>
       )}
 
+      {/* the owner preview (#1056): the verdict's calls its switch hides */}
+      {preview && !SHOWS.tradeVerdict && current === 'build' && ready && fair && (
+        <OwnerPreview
+          id="verdict"
+          what="the trade verdict"
+          issue={886}
+          call={{
+            call: 'trade-verdict',
+            subject: tradeText(give, get),
+            value: [
+              fair.severity !== 'fine'
+                ? `bad (${fair.severity})`
+                : fair.even
+                  ? 'fair'
+                  : fair.disagree
+                    ? 'judgment call'
+                    : (fair.categories ?? 0) * 10 + fair.value.share >= 0
+                      ? 'favours you'
+                      : 'favours partner',
+              verdictBoth,
+            ]
+              .filter(Boolean)
+              .join(', '),
+            naive: `value ${net >= 0 ? '+' : ''}${net.toFixed(1)}`,
+          }}
+        >
+          <TradeScorecard
+            fair={fair}
+            impact={impact}
+            needs={needs}
+            objective={verdictBoth}
+            calls
+            partnerName={partnerName}
+            h2h={h2h}
+            nameList={nameList}
+            threshold={threshold}
+          />
+        </OwnerPreview>
+      )}
+
       {current === 'build' && ready && hasRosters && SHOWS.tradeSuggestions && (
         <TradeSuggestions
           suggestions={suggestions}
@@ -642,6 +688,62 @@ export default function TradeAnalyzer() {
         </Card>
       )}
 
+      {/* the owner preview (#1056): the suggested trades their switch hides */}
+      {preview && !SHOWS.tradeSuggestions && current === 'build' && ready && hasRosters && (
+        <OwnerPreview
+          id="suggestions"
+          what="the suggested trades"
+          issue={887}
+          call={{
+            call: 'trade-suggestions',
+            subject: suggestions.map((x) => tradeText(x.give, x.get)).join('; ') || 'none',
+            value: suggestions.map((x) => (x.effect ? `${x.effect.gain >= 0 ? '+' : ''}${x.effect.gain.toFixed(2)} categories` : `value ${x.net.toFixed(1)}`)).join('; ') || 'none',
+            naive: null,
+          }}
+        >
+          <TradeSuggestions
+            suggestions={suggestions}
+            byStandings={!!standings}
+            winWin={winWin}
+            onWinWin={setWinWin}
+            nameList={nameList}
+            partnerName={partnerName}
+            partnerRoster={setup.names[partnerTeam] ?? 'the partner'}
+            open={open}
+            mineEmpty={!active(setup.mine).length}
+            theirsEmpty={!active(partnerTeam).length}
+            rest={REST}
+            h2h={h2h}
+            points={points}
+            onUse={applySuggestion}
+          />
+        </OwnerPreview>
+      )}
+      {preview && !SHOWS.tradeSuggestions && current === 'build' && ready && !hasRosters && nearest.length > 0 && (
+        <OwnerPreview
+          id="nearest"
+          what="the players worth about the same"
+          issue={887}
+          call={{ call: 'trade-nearest', subject: nearest.map(({ id }) => id).join(' '), value: nearest.map(({ diff }) => diff.toFixed(1)).join(' '), naive: null }}
+        >
+          <Card title="Players worth about the same" id="suggestions">
+            <ul className="flex flex-wrap gap-1" data-testid="trade-nearest">
+              {nearest.map(({ id, diff }) => (
+                <li key={id}>
+                  <button type="button" className={`${button} flex items-center gap-1`} onClick={() => add(targetSide === 'get' ? 'give' : 'get', id)} title="Add to the trade">
+                    {nameOf(id)} <Signed value={diff} digits={1} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted">
+              Players on the board worth about the same for the {REST} as {targetSide === 'get' ? 'what you get' : 'what you give'}, nearest first, with the
+              difference. Tap one to put it on the other side. Set up your league&apos;s rosters to get packages from a partner&apos;s roster instead.
+            </p>
+          </Card>
+        </OwnerPreview>
+      )}
+
       {current === 'build' && ready && (
         <TradeNumbers
           league={league}
@@ -660,6 +762,95 @@ export default function TradeAnalyzer() {
           h2h={h2h}
           partnerName={partnerName}
         />
+      )}
+
+      {/* the owner preview (#1056): the tools the other tabs would hold, their switches off */}
+      {preview && !SHOWS.tradeFinder && current === 'build' && standings && (
+        <OwnerPreview
+          id="finder"
+          what="the trade finder"
+          issue={888}
+          // shown once the search has run: before it, the card holds a button only
+          call={
+            found
+              ? {
+                  call: 'trade-finder',
+                  subject: found.map((t) => `${t.partner}: ${tradeText(t.give, t.get)}`).join('; ') || 'none',
+                  value: found.map((t) => `${t.effect.gain >= 0 ? '+' : ''}${t.effect.gain.toFixed(2)} categories`).join('; ') || 'none',
+                  naive: null,
+                }
+              : null
+          }
+        >
+          <TradeFinder
+            found={found}
+            winWin={winWin}
+            onWinWin={setWinWin}
+            onFind={() => setFinding(true)}
+            names={setup.names}
+            nameList={nameList}
+            h2h={h2h}
+            onUse={(t) => {
+              setPartner(t.partner);
+              setGive(t.give);
+              setGet(t.get);
+            }}
+          />
+        </OwnerPreview>
+      )}
+      {preview && !SHOWS.sellHigh && current === 'build' && swings && swings.sellHigh.length > 0 && (
+        <OwnerPreview
+          id="sell-high"
+          what="sell high"
+          issue={903}
+          call={{
+            call: 'sell-high',
+            subject: swings.sellHigh.map((x) => x.id).join(' '),
+            value: swings.sellHigh.map((x) => `${x.form >= 0 ? '+' : ''}${x.form.toFixed(1)} a game`).join('; '),
+            naive: null,
+          }}
+        >
+          <BuySellCard
+            swings={{ ...swings, buyLow: showsBuyLow(league) ? swings.buyLow : [] }}
+            sellHigh
+            league={league}
+            nameOf={nameOf}
+            teamName={(team) => setup.names[team] ?? null}
+            onOffer={(id) => add('give', id)}
+            onAskFor={(team, id) => {
+              setPartner(team);
+              add('get', id);
+            }}
+          />
+        </OwnerPreview>
+      )}
+      {preview && !SHOWS.tradeChips && current === 'build' && chipsAndTargets && (chipsAndTargets.chips.length > 0 || chipsAndTargets.targets.length > 0) && (
+        <OwnerPreview
+          id="chips"
+          what="the trade chips and targets for your punt"
+          issue={896}
+          call={{
+            call: 'trade-chips',
+            subject: `${chipsAndTargets.chips.map((x) => x.id).join(' ')} > ${chipsAndTargets.targets.map((x) => x.id).join(' ')}`,
+            value: [...chipsAndTargets.chips, ...chipsAndTargets.targets].map((x) => `${x.league}/${x.build}`).join(' '),
+            naive: null,
+          }}
+        >
+          <TradeChips
+            chips={chipsAndTargets.chips}
+            targets={chipsAndTargets.targets}
+            punted={punted}
+            teams={setup.teams}
+            nameOf={nameOf}
+            ownerName={(id) => setup.names[owner.get(id) ?? -1] ?? ''}
+            onOffer={(id) => add('give', id)}
+            onAskFor={(id) => {
+              const t = owner.get(id);
+              if (t !== undefined) setPartner(t);
+              add('get', id);
+            }}
+          />
+        </OwnerPreview>
       )}
     </div>
   );

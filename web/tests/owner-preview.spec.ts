@@ -104,9 +104,17 @@ const PAGES: { name: string; path: (rosters: string[][]) => string; ready: strin
     name: 'My Team',
     path: () => '/team/?league=nba',
     ready: 'my-roster',
-    calls: { 'too-close': 'matchup', stream: 'matchup-streams', lineup: 'lineup-plan', swaps: 'upgrades' },
+    calls: { 'too-close': 'matchup', stream: 'matchup-streams', lineup: 'lineup-plan', swaps: 'upgrades', build: 'build-plan' },
   },
   { name: 'Pickups', path: () => '/streamers/?league=nba', ready: 'explore', calls: { 'top-adds': 'top-adds' } },
+  {
+    name: 'Trade',
+    // one of the manager's bench players for the second team's best
+    path: (rosters) => `/trade/?league=nba&give=${rosters[0]![9]}&get=${rosters[1]![0]}`,
+    ready: 'trade-scorecard',
+    // the finder's frame holds its button until asked: its call is logged once it has run
+    calls: { 'trade-verdict': 'trade-scorecard', 'trade-suggestions': 'trade-suggestions-card', finder: 'find-trades' },
+  },
 ];
 
 for (const p of PAGES) {
@@ -142,16 +150,29 @@ for (const p of PAGES) {
       await expect(frame.getByRole('heading', { name: /^Preview: not validated/ }), call).toBeVisible();
       await expect(frame, call).toContainText('Shown to you alone. This call has not passed its check (see Methodology); each one shown is logged.');
       // the hidden call itself, as its switch would show it
-      await expect(frame.getByTestId(inside), call).toBeVisible();
+      await expect(inside === 'trade-suggestions-card' ? frame.locator('#suggestions') : frame.getByTestId(inside), call).toBeVisible();
       // a pickup is offered within the week's adds, and the waiver wait is said
       if (['stream', 'swaps', 'top-adds'].includes(call)) {
         await expect(frame.getByTestId('preview-adds-limit'), call).toContainText('3 of 4 adds left this week');
         await expect(frame.getByTestId('preview-adds-limit'), call).toContainText('A player dropped in the last 2 days is on waivers and cannot be added yet.');
       }
     }
+    // the finder runs when asked, and its trades are logged then
+    if ('finder' in p.calls) {
+      await frames.and(page.locator('[data-call="finder"]')).getByTestId('find-trades').click();
+      await expect(page.locator('[data-call="trade-finder"]')).toBeVisible();
+    }
     await page.waitForLoadState('networkidle');
+    // every frame on the page, the ones the data allows (sell high, the punt's chips) included, logged once
+    const shown = await frames.evaluateAll((els) => els.map((e) => e.getAttribute('data-call')));
     const logged = posted.filter((e) => e['kind'] === 'call').map((e) => e['call']);
-    for (const call of Object.keys(p.calls)) expect(logged.filter((c) => c === call), call).toHaveLength(1);
+    expect([...logged].sort()).toEqual([...shown].sort());
+    for (const call of Object.keys(p.calls)) if (call !== 'finder') expect(logged.filter((c) => c === call), call).toHaveLength(1);
+    for (const e of posted.filter((x) => x['kind'] === 'call')) {
+      expect(Object.keys(e).sort()).toEqual(['build', 'call', 'date', 'kind', 'naive', 'subject', 'value']);
+      expect(e).toMatchObject({ date: '2026-11-02', subject: expect.any(String), value: expect.any(String), build: 'fixture' });
+      expect(e['naive'] === null || typeof e['naive'] === 'string').toBe(true);
+    }
     for (const theme of ['dark', 'light']) {
       await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
       const found = await new AxeBuilder({ page }).include('[data-testid="owner-preview"]').withTags(['wcag2a', 'wcag2aa']).analyze();
