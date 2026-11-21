@@ -490,6 +490,21 @@ where gain_rank <= {MINUTES_GAIN_TOP} and minutes_gained > 0
 order by league, team_id, player_id, gain_rank
 """
 
+# Each player's last few fantasy weeks (fct_player_week, #1058): the games scheduled and played and
+# the nine category totals, the percentages as makes and attempts, for the owner's graded card on
+# My Team, which grades last week's preview calls against them. Numbers about public players only:
+# nothing about a fantasy league goes into a build. Three weeks: last week, which is graded, the
+# one before it, and this week's games so far.
+PLAYER_WEEKS_KEPT = 3
+PLAYER_WEEK_SQL = f"""
+select league, season, player_id, week_start, games_scheduled, games_played,
+    points, rebounds_total, assists, steals, blocks, three_pointers_made, turnovers,
+    field_goals_made, field_goals_attempted, free_throws_made, free_throws_attempted
+from gold.fct_player_week
+qualify dense_rank() over (partition by league order by week_start desc) <= {PLAYER_WEEKS_KEPT}
+order by league, week_start, player_id
+"""
+
 # The per-league files the pages read first also go out column-wise, `<name>/<league>.columns.json`
 # ({column: [values]}), a third of the size; the row files stay for every other reader (#535).
 COLUMNAR_JSON = ("board", "streamers")
@@ -501,6 +516,7 @@ PER_LEAGUE_JSON = (
     ("transactions", TRANSACTIONS_SQL),
     ("team_weeks", TEAM_WEEKS_SQL),
     ("minutes", MINUTES_SQL),
+    ("player_week", PLAYER_WEEK_SQL),
 )
 # Three decimals: the pages show a percentage to a tenth of a point and values to two places, and
 # the board file is a fifth smaller compressed than at four (108 KB to 87 KB gzipped for the NBA,
