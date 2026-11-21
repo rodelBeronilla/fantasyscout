@@ -4561,3 +4561,53 @@ test('the capture bookmark saves the Yahoo pages it read as one file on the devi
   await expect(page.getByRole('status').filter({ hasText: 'Imported 4 teams' })).toBeVisible();
   expect(uploads).toEqual([]);
 });
+
+test('the League page shows the league week by week from the imported totals: ranks with ties shared, all-play, the season (#1054)', async ({ page }) => {
+  const t = (pts: number, reb: number, to: number) => ({
+    totals: { z_points: pts, z_rebounds_total: reb, z_assists: 100, z_steals: 30, z_blocks: 20, z_three_pointers_made: 50, z_turnovers: to },
+    shots: { z_field_goal_pct: [200, 420], z_free_throw_pct: [90, 120] },
+  });
+  const weeks = [
+    { week: 1, final: true, teams: [t(500, 200, 60), t(450, 210, 50), t(500, 190, 70), t(400, 220, 55)] },
+    { week: 2, final: true, teams: [t(480, 200, 60), t(470, 230, 50), t(460, 190, 70), t(490, 220, 55)] },
+    { week: 3, final: false, teams: [t(200, 90, 20), t(150, 80, 25), t(210, 70, 30), t(100, 60, 10)] },
+  ];
+  const copy = {
+    version: 10, teams: 4, rosterSpots: 13, scoring: 'cats9', format: 'h2h', punts: [], names: ['North', 'South', 'East', 'West'],
+    rosters: [[], [], [], []], mine: 2, il: [], drafting: false, picks: [], opponent: null,
+    source: { host: 'yahoo', leagueId: '99', syncedAt: Date.now() - 60_000, rosters: [[], [], [], []], changes: null, weeks },
+  };
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+  await page.goto('/league/?league=nba');
+  const card = page.getByTestId('league-weeks');
+  await expect(card).toBeVisible();
+  // the week under way shows first, marked as the score so far
+  await expect(card.getByRole('button', { name: /Wk 3/, pressed: true })).toBeVisible();
+  await expect(card).toContainText('Week 3 is still being played');
+  // week 1: North and East tie on points (500), so both rank 1 and South is 3rd
+  await card.getByRole('button', { name: 'Wk 1' }).click();
+  const rows = card.getByTestId('weeks-row');
+  await expect(rows).toHaveCount(4);
+  const pts = (name: string) => rows.filter({ hasText: name }).locator('[data-cat="z_points"]');
+  await expect(pts('North')).toContainText(/^1500$/);
+  await expect(pts('East')).toContainText(/^1500$/);
+  await expect(pts('South')).toContainText(/^3450$/);
+  // turnovers rank fewest first: South's 50 is 1st
+  await expect(rows.filter({ hasText: 'South' }).locator('[data-cat="z_turnovers"]')).toContainText(/^150$/);
+  // every team's all-play is 3 opponents times 9 categories
+  for (const name of ['North', 'South', 'East', 'West']) {
+    const [w, l, d = '0'] = ((await rows.filter({ hasText: name }).locator('td').first().textContent()) ?? '').split('-');
+    expect(Number(w) + Number(l) + Number(d)).toBe(27);
+  }
+  // the season averages the two finished weeks
+  await card.getByRole('button', { name: 'Season' }).click();
+  await expect(card).toContainText('The average rank over the 2 finished weeks');
+  await expect(rows.filter({ hasText: 'North' }).locator('[data-cat="z_points"]')).toContainText('1.5');
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate((th) => document.documentElement.setAttribute('data-theme', th), theme);
+    const found = await new AxeBuilder({ page }).include('[data-testid="league-weeks"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(found.violations, theme).toEqual([]);
+  }
+  // the table scrolls inside its card; the page itself does not scroll sideways
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
