@@ -31,7 +31,7 @@ A higher one always wins.
 
 - **Facts, and arithmetic on facts:** everyone.
 - **Calls that passed their bar:** everyone.
-- **Calls unjudged or failed:** the signed-in owner only, logged. This is designed in step 3 of the 2026-11-16 plan. Until it ships, these calls are hidden from everyone (`web/src/lib/visibility.ts`).
+- **Calls unjudged or failed:** the signed-in owner only, logged, under "Preview: not validated" once he switches the preview on (step 3, item 4). Everyone else never sees them (`web/src/lib/visibility.ts`).
 
 ## Outcome measures
 
@@ -51,6 +51,6 @@ Reviewed every Monday.
 
 ## Working rules
 
-- **Merge:** as recorded in [state.md](state.md) on 2026-11-16.
+- **Merge (2026-11-21):** the agent reviews and merges on its own evidence; the owner no longer approves pull requests. Docs, fixes and anything a manager cannot see merge once every check is green. A change a manager sees, or a verdict, also needs its bar written on the issue before the work, a fresh review agent's approve on the pull request (it tries to break the change on the preview with the owner's real league), a confirmed undo (a switch or one revert), and for a verdict a reproduced number. The live page is checked after the merge; a failure is reverted first. Secrets, credentials, paid services, anything sent or posted outside the site and repository, deleting his data or log, changes outside the repository and this rule stay his. The full rule is in [state.md](state.md); a digest goes to him every Monday in `digests/`.
 - **Delegation:** subagents only for an item with a written bar, two at a time at most. Page design stays in the main chat.
 - **Cost:** free tiers and the home machine. Anything paid is the owner's decision.
