@@ -54,3 +54,33 @@ export function OwnerPreview({
     </section>
   );
 }
+
+/**
+ * The limits a preview of pickups works within (#1056): the adds left this week, and the league's
+ * waiver wait. The site does not know who was dropped lately, so the wait is said, not applied.
+ */
+export function AddsLimit({ adds, waiverDays }: { adds: { limit: number; left: number } | null; waiverDays: number | null }) {
+  return (
+    <p className="text-sm" data-testid="preview-adds-limit">
+      {adds === null ? (
+        'Your league sets no weekly limit on adds.'
+      ) : adds.left > 0 ? (
+        <>
+          <strong>
+            {adds.left} of {adds.limit} adds left this week
+          </strong>
+          , so no more than {adds.left} {adds.left === 1 ? 'is' : 'are'} offered.
+        </>
+      ) : (
+        <strong>No adds left this week: the next one comes on Monday.</strong>
+      )}
+      {waiverDays ? (
+        <span className="text-muted">
+          {' '}
+          A player dropped in the last {waiverDays} {waiverDays === 1 ? 'day' : 'days'} is on waivers and cannot be added yet. This list does not know who was
+          dropped, so check each player is a free agent on your league&apos;s app first.
+        </span>
+      ) : null}
+    </p>
+  );
+}

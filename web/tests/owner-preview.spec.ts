@@ -14,7 +14,7 @@ type Row = { player_id: string };
 const NOW = new Date('2026-11-02T16:00:00Z');
 
 /** A made-up eight-team Yahoo head-to-head league, as the import keeps it, ten players a team. */
-async function seedLeague(page: Page): Promise<{ rosters: string[][] }> {
+async function seedLeague(page: Page, addsUsed: number | null = null): Promise<{ rosters: string[][] }> {
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
   const teams = 8;
   const rosters = Array.from({ length: teams }, (_, t) => Array.from({ length: 10 }, (_, k) => board[t + teams * k]!.player_id));
@@ -45,6 +45,8 @@ async function seedLeague(page: Page): Promise<{ rosters: string[][] }> {
       opponents: [1, 0, 3, 2, 5, 4, 7, 6],
       // one of the manager's players was added since the week's first import: three adds left
       week: { monday: '2026-11-02', roster: rosters[0]!.slice(1) },
+      // or Yahoo's own count of the adds used this week
+      ...(addsUsed === null ? {} : { addsUsed: { monday: '2026-11-02', used: addsUsed, roster: rosters[0]! } }),
     },
   };
   await page.clock.setFixedTime(NOW);
@@ -98,7 +100,13 @@ async function mainHtml(page: Page, path: string, ready: string): Promise<string
 }
 
 const PAGES: { name: string; path: (rosters: string[][]) => string; ready: string; calls: Record<string, string> }[] = [
-  { name: 'My Team', path: () => '/team/?league=nba', ready: 'my-roster', calls: { 'too-close': 'matchup', lineup: 'lineup-plan' } },
+  {
+    name: 'My Team',
+    path: () => '/team/?league=nba',
+    ready: 'my-roster',
+    calls: { 'too-close': 'matchup', stream: 'matchup-streams', lineup: 'lineup-plan', swaps: 'upgrades' },
+  },
+  { name: 'Pickups', path: () => '/streamers/?league=nba', ready: 'explore', calls: { 'top-adds': 'top-adds' } },
 ];
 
 for (const p of PAGES) {
@@ -135,6 +143,11 @@ for (const p of PAGES) {
       await expect(frame, call).toContainText('Shown to you alone. This call has not passed its check (see Methodology); each one shown is logged.');
       // the hidden call itself, as its switch would show it
       await expect(frame.getByTestId(inside), call).toBeVisible();
+      // a pickup is offered within the week's adds, and the waiver wait is said
+      if (['stream', 'swaps', 'top-adds'].includes(call)) {
+        await expect(frame.getByTestId('preview-adds-limit'), call).toContainText('3 of 4 adds left this week');
+        await expect(frame.getByTestId('preview-adds-limit'), call).toContainText('A player dropped in the last 2 days is on waivers and cannot be added yet.');
+      }
     }
     await page.waitForLoadState('networkidle');
     const logged = posted.filter((e) => e['kind'] === 'call').map((e) => e['call']);
@@ -146,3 +159,25 @@ for (const p of PAGES) {
     }
   });
 }
+
+test('with no adds left this week, the preview offers no pickup and says so; with one left, one (#1056)', async ({ page }) => {
+  await seedLeague(page, 4);
+  await page.goto('/sources/');
+  await as(page, { switchOn: true, flag: true, owner: true });
+  for (const path of ['/streamers/?league=nba', '/team/?league=nba']) {
+    await page.goto(path);
+    const frames = page.getByTestId('owner-preview').filter({ has: page.getByTestId('preview-adds-limit') });
+    await expect(frames.first(), path).toBeVisible();
+    for (const frame of await frames.all()) {
+      await expect(frame.getByTestId('preview-adds-limit')).toContainText('No adds left this week: the next one comes on Monday.');
+      await expect(frame.getByTestId('top-add')).toHaveCount(0);
+      await expect(frame.getByTestId('matchup-stream-move')).toHaveCount(0);
+      await expect(frame.getByTestId('upgrades')).toHaveCount(0);
+    }
+  }
+  await seedLeague(page, 3);
+  await page.goto('/streamers/?league=nba');
+  const frame = page.getByTestId('owner-preview').and(page.locator('[data-call="top-adds"]'));
+  await expect(frame.getByTestId('preview-adds-limit')).toContainText('1 of 4 adds left this week, so no more than 1 is offered.');
+  await expect(frame.getByTestId('top-add')).toHaveCount(1);
+});

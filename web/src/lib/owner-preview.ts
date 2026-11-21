@@ -64,3 +64,14 @@ export async function logPreviewCall(c: PreviewCall, date: string = EASTERN.form
   return logCall({ ...c, date, build: latest?.build_id ?? 'unknown' });
 }
 
+
+/**
+ * The adds a preview of pickups may offer (#1056): the first `left` of them, with the adds left
+ * this week; all of them when the league sets no limit.
+ */
+export function withinAdds<T>(list: readonly T[], left: number | null): T[] {
+  return left === null ? [...list] : list.slice(0, Math.max(0, left));
+}
+
+/** Whether a preview of pickups has an add to offer: one is left this week, or the league sets no limit. */
+export const addsOpen = (left: number | null): boolean => left === null || left > 0;
