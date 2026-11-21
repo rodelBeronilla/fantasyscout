@@ -1523,6 +1523,8 @@ test('a Yahoo copy with no weeks says the week-by-week view needs the new bookma
   await drawn();
   await expect(page.getByTestId('copy-age')).toContainText('ESPN');
   await expect(page.getByTestId('yahoo-weeks-none')).toHaveCount(0);
+});
+
 test('with an eight-team, thirteen-spot league, no main page scrolls sideways on a phone; wide tables scroll inside their own region (#1066)', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string }[];
