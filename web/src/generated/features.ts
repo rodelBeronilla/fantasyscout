@@ -59,6 +59,7 @@ export const PAGES: Readonly<Record<string, Page>> = {
 /** The file of each ADR a feature names, by number, in docs/adr. */
 export const ADR_FILES: Readonly<Record<string, string>> = {
   "11": "0011-streamers-sort.md",
+  "12": "0012-signals-tested-and-not-built.md",
   "17": "0017-local-language-model.md",
   "19": "0019-one-value-scale.md",
   "20": "0020-preseason-market-prior.md",
@@ -346,6 +347,17 @@ export const FEATURES: readonly Feature[] = [
       "trade.profile_cut"
     ],
     "next": "Season-level: after a rework, on the locked seasons (#769)"
+  },
+  {
+    "id": "shot-diet",
+    "what": "Shot diet (S4): next week's FG% and threes from a player's recent attempts by zone times his long-run accuracy from each zone. Judged NBA 2023-24 and 2024-25, WNBA 2024 and 2025, against the projection-week: NBA FG% -0.016 (-0.041 to +0.010) and 3PM +0.009, both short of the bar; WNBA FG% -0.027 (-0.046 to -0.007) cleared its bar but 3PM was worse, +0.021 (+0.000 to +0.041). Not built",
+    "page": "team",
+    "verdict": "failed",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1082,
+    "parameters": [],
+    "next": "Not retried with a tweaked recipe (#1082). A new study would need its own bar, written first"
   },
   {
     "id": "preseason-value",
