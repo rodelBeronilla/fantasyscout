@@ -112,6 +112,9 @@ def test_the_rate_is_the_recent_diet_times_the_shrunk_long_run_accuracy() -> Non
     assert has.tolist() == [True, False]
     assert fg[1] == pytest.approx(0.5)
     assert threes[1] == pytest.approx(1.5)
+    # a Monday with nobody in the population (a break in the schedule) predicts nothing
+    empty = sd.predict(inp, [], np.zeros((0, 11)), "five", 10, 20)
+    assert [len(a) for a in empty] == [0, 0, 0]
 
 
 def _folders(tmp_path: Path) -> tuple[list[Path], list[Path], pd.DataFrame]:
@@ -165,7 +168,9 @@ def test_fit_chooses_on_the_tuning_seasons_and_judge_scores_study_minus_projecti
     assert out["passes"] == all(r["passes"] for r in out["categories"])
 
 
-def test_judge_refuses_without_a_choice_and_the_fit_refuses_other_seasons(tmp_path: Path) -> None:
+def test_judge_refuses_without_a_choice_and_the_fit_refuses_other_seasons(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     tuning, judged, shots = _folders(tmp_path)
     folder = tmp_path / "shots"
     folder.mkdir()
@@ -174,6 +179,7 @@ def test_judge_refuses_without_a_choice_and_the_fit_refuses_other_seasons(tmp_pa
     (folder / "meta.json").write_text(json.dumps({"league": "nba", "seasons": ["2020-21"]}))
     with pytest.raises(SystemExit, match="not a tuning season"):
         sd.main(["fit", str(judged[0]), "--shots", str(folder), "--out", str(tmp_path / "f.json")])
+    monkeypatch.setattr(sd, "CHOSEN", {})
     args = ["judge", "--shots", str(folder), "--tuning", str(tuning[0]), "--judged", str(judged[0])]
     assert sd.main([*args, "--out", str(tmp_path / "j.json")]) == 2
     locked = _season(tmp_path / "locked", "nba", "2025-26", players=10, weeks=1)
@@ -236,3 +242,11 @@ def test_export_reads_the_regular_season_shots_by_zone(tmp_path: Path) -> None:
     ]
     assert sorted(shots["z"].tolist()) == [0, 3]
     assert coverage[["box_fga", "shot_fga"]].iloc[0].tolist() == [3, 3]
+
+
+def test_the_frozen_choice_is_a_grid_point_for_each_league_and_target() -> None:
+    points = sd.grid()
+    assert set(sd.CHOSEN) == {"nba", "wnba"}
+    for chosen in sd.CHOSEN.values():
+        assert set(chosen) == set(sd.TARGETS)
+        assert all(p in points for p in chosen.values())

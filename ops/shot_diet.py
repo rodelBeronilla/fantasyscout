@@ -87,9 +87,22 @@ FGM_PG, FGA_PG, THREES_PG = 7, 8, 5
 # STATS' columns for the week's real field goals
 REAL_FGA = STATS.index("field_goals_attempted")
 
-# Chosen on the tuning seasons by ``fit`` (runs and numbers in docs/analysis/s4-shot-diet.md) and
-# committed before any judged season was read. Empty until then: ``judge`` refuses to run.
-CHOSEN: dict[str, dict[str, dict[str, Any]]] = {}
+# Chosen on the tuning seasons by ``fit`` and committed before any judged season was read (``judge``
+# refuses to run without it). The fit read S0's exports (runs 44942094895, 44942100340, 44942105040,
+# 44942110202, 44942115669, 44942120406) and the shots of runs 44943358268 and 44949158118. Pooled
+# tuning RMSE, the projection's then the study's at its point:
+#   NBA   FG% 2.9491 -> 2.9329;  3PM 3.7538 -> 3.7499 (at the grid's edge, k 400)
+#   WNBA  FG% 1.8354 -> 1.8164;  3PM 1.7326 -> 1.8076 (worse at every grid point; edge, k 400)
+CHOSEN: dict[str, dict[str, dict[str, Any]]] = {
+    "nba": {
+        "FG%": {"scheme": "two", "k": 100, "games": 20},
+        "3PM": {"scheme": "five", "k": 400, "games": 20},
+    },
+    "wnba": {
+        "FG%": {"scheme": "two", "k": 100, "games": 20},
+        "3PM": {"scheme": "two", "k": 400, "games": 20},
+    },
+}
 
 
 # ---- export ----------------------------------------------------------------------------------
@@ -251,7 +264,7 @@ def predict(
     m = np.zeros((len(ZONES), max(SCHEMES[scheme]) + 1))
     m[np.arange(len(ZONES)), SCHEMES[scheme]] = 1.0
     three = (THREE_ZONES.astype(float) @ m) > 0
-    rows = np.array([inp.ids.get(p, -1) for p in ids])
+    rows = np.array([inp.ids.get(p, -1) for p in ids], dtype=int)
     found = rows >= 0
     safe = np.where(found, rows, 0)
     made, att = inp.made[safe] @ m, inp.att[safe] @ m
