@@ -52,7 +52,8 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 1. **The site cannot go stale unnoticed again, and the repo says how work is chosen.** Done on 2026-11-17, apart from the fallback, which moved to step 2.
 2. **The fallback proven for real, and the data at the manager's grain** (player, week, category). Done on 2026-11-17, apart from the import age (PR #1007), which waits for the owner. The fallback published for real and agrees with the warehouse; `fct_player_week` is built on both paths.
    Not started until the planner specifies them after the owner's feedback: the league-by-category view, the graded card, the owner preview and any study.
-3. **The owner's league, week by week** (started 2026-11-17). Merged under the rule of 2026-11-21, each after a fresh review agent's approve and a check of production: #1048 (adds left from Yahoo's own count), #1053 (item 1, every week's matchup totals; approved on its third review), #1055 (item 2, the league week by week). Item 3, the owner's log, and item 0, the capture, merged earlier. Item 4 (#1057) goes to the owner after two blocks on one point; item 5 (#1059) waits for it.
+3. **The owner's league, week by week** (started 2026-11-17). Merged after review: #1048, #1053 (item 1), #1055 (item 2), #1071, #1072, #1074. Item 4, the owner preview (#1057), is parked after three blocks on one point (what the frames say about the adds), with a recommendation for the owner's digest; item 5 (#1059) and the expected categories won (#1073) wait for it.
+4. **Step 4, the first studies** (started 2026-11-21): predict a player's week, by category, better than the projection does. S0, the yardstick (#1077), sets every bar: a quarter of its recorded noise per category, and no category worse. Then S1 games played (#1079), S2 minutes when a teammate is out (#1080), S3 opportunity before outcome (#1081), S4 shot diet (#1082), two sub-agents at a time. A pass feeds the existing calls in the owner preview, labelled, logged and graded each Monday, and shows publicly only after six live weeks agree; a fail is recorded in features.yml and ADR 0012 and not retried. One page per study in docs/analysis. Declared now for the next round, so it is not added later: per-category opponent strength over the week.
 
 The redesign epic (#936) and the methodology epic (#751) still hold the longer list. Where they conflict with [pillars.md](pillars.md), the pillars win.
 
@@ -60,9 +61,12 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 | Item | Where | Next |
 | --- | --- | --- |
-| The owner preview (step 3, item 4) | #1056; PR #1057 | Being fixed (decision of 2026-11-21): a setting he typed counts as known; "not known" only when an old Yahoo copy left it empty and nothing was typed; the lineup frame gets the adds line. Then a new review. |
-| Last week, graded (step 3, item 5) | #1058; PR #1059, on top of #1057 | Waits for #1057. |
-| Follow-ups from the reviews of 2026-11-21 | #1061, #1062, #1063, #1064, #1065, #1066 | Open. |
+| S0, the yardstick (step 4) | #1077; judge in PR #1078 | Six weekly exports of the tuning seasons running in the Backtest workflow; then the numbers and the page. |
+| S1 games played, S4 shot diet (step 4) | #1079, #1082 | Being run by two sub-agents. S2 (#1080) and S3 (#1081) next. |
+| The owner preview (step 3, item 4) | #1056; PR #1057, labelled status:blocked | **Parked** after three blocks on one point. Recommendation in its park note and Monday's digest. |
+| Last week, graded (step 3, item 5) | #1058; PR #1059 | Parked with #1057, which it is stacked on. |
+| Expected categories won, in the owner preview | #1073 | Bar written; waits for #1057. |
+| Follow-ups from the reviews of 2026-11-21 | #1062 to #1065, #1069, #1075, #1076 | Open. #1075 (the matchup table's category column scrolls away on a phone) is the owner's kind of fault. |
 | Games left "as set" use the lineup of the day the Starting Rosters page shows | #1050 | Open: seen 2026-11-21, 4 against Yahoo's 7 for the owner. |
 | The bookmark names teams "Yahoo Sports" when it falls back to team pages | #1047 | Open. |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
