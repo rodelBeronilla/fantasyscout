@@ -91,12 +91,20 @@ async function as(page: Page, who: Who, posted: Record<string, unknown>[] = []):
   });
 }
 
-/** The page's main content once it has settled. */
-async function mainHtml(page: Page, path: string, ready: string): Promise<string> {
+/**
+ * The page's main content once it has settled. The owner's own card, last week graded (#1058),
+ * is not behind the preview's switch: `withoutGraded` reads the page around it.
+ */
+async function mainHtml(page: Page, path: string, ready: string, withoutGraded = false): Promise<string> {
   await page.goto(path);
   await expect(page.getByTestId(ready).first()).toBeVisible();
   await page.waitForLoadState('networkidle');
-  return page.locator('main').innerHTML();
+  if (!withoutGraded) return page.locator('main').innerHTML();
+  return page.locator('main').evaluate((m) => {
+    const copy = m.cloneNode(true) as HTMLElement;
+    copy.querySelector('[data-testid="graded"]')?.remove();
+    return copy.innerHTML;
+  });
 }
 
 const PAGES: { name: string; path: (rosters: string[][]) => string; ready: string; calls: Record<string, string> }[] = [
@@ -131,9 +139,13 @@ for (const p of PAGES) {
     // a signed-out browser asks nothing of the owner's routes
     expect(asked).toEqual([]);
     expect(baseline).not.toContain('Preview: not validated');
+    expect(baseline).not.toContain('Last week, graded');
     for (const [label, who] of OTHERS) {
       await as(page, who);
-      expect(await mainHtml(page, path, p.ready), label).toBe(baseline);
+      // the owner sees his graded card on My Team (#1058) with the preview off; the rest is the same
+      const owner = who.owner === true;
+      expect(await mainHtml(page, path, p.ready, owner), label).toBe(baseline);
+      if (owner) await expect(page.getByTestId('graded'), label).toHaveCount(p.name === 'My Team' ? 1 : 0);
     }
   });
 
@@ -165,10 +177,11 @@ for (const p of PAGES) {
     await page.waitForLoadState('networkidle');
     // every frame on the page, the ones the data allows (sell high, the punt's chips) included, logged once
     const shown = await frames.evaluateAll((els) => els.map((e) => e.getAttribute('data-call')));
-    const logged = posted.filter((e) => e['kind'] === 'call').map((e) => e['call']);
+    // the week's chances are logged too, once a week, but they are no preview frame (#1058)
+    const logged = posted.filter((e) => e['kind'] === 'call' && e['call'] !== 'week-chances').map((e) => e['call']);
     expect([...logged].sort()).toEqual([...shown].sort());
     for (const call of Object.keys(p.calls)) if (call !== 'finder') expect(logged.filter((c) => c === call), call).toHaveLength(1);
-    for (const e of posted.filter((x) => x['kind'] === 'call')) {
+    for (const e of posted.filter((x) => x['kind'] === 'call' && x['call'] !== 'week-chances')) {
       expect(Object.keys(e).sort()).toEqual(['build', 'call', 'date', 'kind', 'naive', 'subject', 'value']);
       expect(e).toMatchObject({ date: '2026-11-02', subject: expect.any(String), value: expect.any(String), build: 'fixture' });
       expect(e['naive'] === null || typeof e['naive'] === 'string').toBe(true);
