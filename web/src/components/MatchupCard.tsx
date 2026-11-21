@@ -103,6 +103,27 @@ function StreamLine({ stream, league, nameOf, pickups }: { stream: StreamMove; l
   );
 }
 
+/**
+ * The matchup card's stream calls alone (#818), for the owner preview (#1056): the swing
+ * category's link to the open days' pickups, and the stream that flips it, with its drop.
+ */
+export function StreamCalls({ match, league, openDays, stream, nameOf }: { match: WeekMatchup; league: League; openDays: string[]; stream: StreamMove | null; nameOf: (id: string) => string }) {
+  const swing = swingCategory(match);
+  const pickups = href(pickupsPath(league, { week: true, open: openDays, need: streamTargets(match) }));
+  return (
+    <div className="min-w-0 rounded-lg border border-line bg-card p-3" data-testid="matchup-streams">
+      {swing && (
+        <p className="text-base font-medium">
+          <a href={pickups} className={link} data-testid="matchup-stream">
+            Stream {word(swing)} {openDays.map(dayName).join('/')} →
+          </a>
+        </p>
+      )}
+      {stream && <StreamLine stream={stream} league={league} nameOf={nameOf} pickups={pickups} />}
+    </div>
+  );
+}
+
 export function Matchup({
   setup,
   match,

@@ -24,7 +24,7 @@ import { daysLeftInWeek, type Slot, SLOT_KEYS, SLOT_LABEL, slotList, startsByPla
 import { easternDate, gamesToCome, sitsOut, type TodayGame, todayGroups, todayVerdict } from '../lib/today';
 import type { ModelRow } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Today, type TodayRow, Upgrades } from './LeagueParts';
-import { Matchup, type MatchupBasis } from './MatchupCard';
+import { Matchup, type MatchupBasis, StreamCalls } from './MatchupCard';
 import { BuildYourTeam } from './BuildYourTeam';
 import { LeagueTable } from './PowerTable';
 import { Standings } from './Standings';
@@ -35,8 +35,8 @@ import type { TeamWeek } from '../lib/playoff-weeks';
 import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
 import { SHOWS } from '../lib/visibility';
-import { useOwnerPreview } from '../lib/owner-preview';
-import { OwnerPreview } from './OwnerPreview';
+import { addsOpen, useOwnerPreview, withinAdds } from '../lib/owner-preview';
+import { AddsLimit, OwnerPreview } from './OwnerPreview';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { addsThisWeek, staleOpponent, weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
@@ -545,6 +545,9 @@ export default function MyTeam() {
   const showMatchup = h2h && owner.size > 0 && !setup.drafting && weekAvailable;
   // a player headed for the IL is an IL move, not a trade chip
   const shown = review && { ...review, chips: review.chips.filter((id) => !moves.toIl.includes(id)) };
+  // the owner preview's pickups (#1056): the open days to stream into, and this week's adds
+  const openDays = lineupPlans?.mine.days.filter((d) => d.open.length > 0).map((d) => d.date) ?? [];
+  const addsWeek = addsThisWeek(setup, mondayOf(easternDate()));
   const name = (id: string) => byId.get(id)?.full_name ?? id;
   const link = (id: string) => (
     <a href={href(`/p/${league}/${id}/`)} className="underline-offset-4 hover:underline">
@@ -674,6 +677,23 @@ export default function MyTeam() {
           />
         </OwnerPreview>
       )}
+      {/* the owner preview (#1056): the stream for the close and losing categories, within the adds left */}
+      {preview && !SHOWS.streams && showMatchup && weekMatch && !points && openDays.length > 0 && (
+        <OwnerPreview
+          id="streams"
+          what="the stream for this week's matchup"
+          issue={902}
+          call={{
+            call: 'stream',
+            subject: stream && addsOpen(addsWeek?.left ?? null) ? [stream.add, stream.drop].filter(Boolean).join(' for ') : 'none',
+            value: `${targets.join(' ')}${stream && addsOpen(addsWeek?.left ?? null) ? `: ${stream.games} games on the open days, flips ${stream.flips.join(' ') || 'none'}` : ''}`,
+            naive: null,
+          }}
+        >
+          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} />
+          <StreamCalls match={weekMatch.match} league={league} openDays={openDays} stream={addsOpen(addsWeek?.left ?? null) ? stream : null} nameOf={name} />
+        </OwnerPreview>
+      )}
 
       {SHOWS.lineup && lineupPlans && !setup.drafting && (
         <LineupTile
@@ -800,6 +820,34 @@ export default function MyTeam() {
           onUnit={weekAvailable ? setUnit : null}
           gamesOf={(id) => byId.get(id)?.games_this_week ?? 0}
         />
+      )}
+      {/* the owner preview (#1056): the paired swaps, as many as the adds left this week */}
+      {preview && !SHOWS.swaps && shown && (
+        <OwnerPreview
+          id="swaps"
+          what="the paired swaps"
+          issue={895}
+          call={{
+            call: 'swaps',
+            subject: withinAdds(shown.upgrades, addsWeek?.left ?? null).map((u) => `${u.add} for ${u.drop}`).join(' ') || 'none',
+            value: withinAdds(shown.upgrades, addsWeek?.left ?? null).map((u) => `+${u.gain.toFixed(1)} ${week ? 'this week' : 'rest of season'}`).join('; ') || (shown.optimized ? 'optimized' : 'no swap'),
+            naive: null,
+          }}
+        >
+          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} />
+          {addsOpen(addsWeek?.left ?? null) && (
+            <Upgrades
+              league={league}
+              review={{ ...shown, upgrades: withinAdds(shown.upgrades, addsWeek?.left ?? null) }}
+              nameOf={name}
+              detailOf={(id) => [byId.get(id)?.position, byId.get(id)?.team_abbreviation].filter(Boolean).join(', ')}
+              onApply={applyUpgrade}
+              unit={week ? 'week' : 'rest'}
+              onUnit={weekAvailable ? setUnit : null}
+              gamesOf={(id) => byId.get(id)?.games_this_week ?? 0}
+            />
+          )}
+        </OwnerPreview>
       )}
 
       {SHOWS.build && plan && (

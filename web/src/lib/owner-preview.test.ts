@@ -86,3 +86,13 @@ describe('the owner preview', () => {
     expect(posted(calls)).toEqual([]);
   });
 });
+
+describe("the preview's pickups", () => {
+  it('offers no more adds than are left this week, and all of them with no limit', async () => {
+    const { withinAdds, addsOpen } = await load({ switchOn: false });
+    expect(withinAdds(['a', 'b', 'c'], 2)).toEqual(['a', 'b']);
+    expect(withinAdds(['a', 'b', 'c'], 0)).toEqual([]);
+    expect(withinAdds(['a', 'b', 'c'], null)).toEqual(['a', 'b', 'c']);
+    expect([addsOpen(0), addsOpen(1), addsOpen(null)]).toEqual([false, true, true]);
+  });
+});
