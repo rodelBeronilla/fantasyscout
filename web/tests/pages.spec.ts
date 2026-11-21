@@ -1512,6 +1512,11 @@ test('a Yahoo copy with no weeks says the week-by-week view needs the new bookma
   await seed(base);
   await page.reload();
   await expect(page.getByTestId('yahoo-weeks-none')).toHaveCount(0);
+  // an ESPN copy: its own copy-age line, nothing new
+  await seed({ ...base, source: { host: 'espn', leagueId: '77', season: '2026-27', syncedAt: Date.now() - 60_000, rosters, changes: null } });
+  await page.reload();
+  await expect(page.getByTestId('copy-age')).toContainText('ESPN');
+  await expect(page.getByTestId('yahoo-weeks-none')).toHaveCount(0);
 });
 
 test('a league built by hand takes its records and its first playoff week on the League page, and My Team leads with them (#874)', async ({ page }) => {
