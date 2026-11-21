@@ -12,7 +12,19 @@ A fantasy basketball tool for head-to-head and rotisserie category leagues, NBA 
 
 Recorded here so they are not re-asked. The date is when the owner took them.
 
-- **Merge rule (2026-11-16).** The agent merges docs, fixes and anything a manager cannot see (internal code, or a feature hidden behind a switch) once checks pass. The owner approves anything that changes what a manager sees, any verdict in `methodology/features.yml`, and any credential.
+- **Merge rule (2026-11-21, replaces the rule of 2026-11-16).** The owner no longer approves pull requests. The agent reviews and merges on its own evidence.
+  - **Docs, fixes and anything a manager cannot see** (internal code, or a feature behind a switch) merge once every check is green.
+  - **A change that alters what a manager sees, or a verdict in `methodology/features.yml`,** merges when all of these hold:
+    1. Its bar was written on the issue before the work started.
+    2. Every check is green: CI, the security scan, accessibility, the speed budget.
+    3. A fresh sub-agent that did not write the change has reviewed it, given only the issue's bar, the diff and the preview, on the most capable model available. Its job is to break the change: it checks each line of the bar against evidence it gathers itself; runs the change on the preview with the owner's real league file from `private/`, and compares with Yahoo through the browser where that applies; and looks for the faults the owner has found so far (numbers shown without saying what they are, facts wrong for his league, advice he cannot follow, anything dropped silently). It writes approve or block, with reasons, on the pull request. The author cannot overrule a block: fix and ask for review again. Two blocks on the same point go to the owner.
+    4. The review agent has confirmed how to undo it: a switch, or one revert.
+    5. A verdict changes only when its pre-declared test passed its bar and the review agent reproduced the number.
+  - **After merging,** the agent checks the live page against the bar itself. If it fails: revert first, fix after.
+  - **Still the owner's, always.** Stop and ask before any secret, credential or paid service; anything sent to a person or posted outside this site and repository; deleting his data or his log; any change outside this repository, or to this rule.
+  - **His real Yahoo pages are never committed, scrubbed or not.** They stay in `private/`; the tests that need them run locally; only fixtures written by hand to match their structure are committed. No fixture needs his approval.
+  - **Visibility in place of approval.** Every Monday the agent writes him one short digest in `.sdlc/digests/<date>.md`: what merged, each review's verdict in a line, anything reverted, and what he would notice on the site. He reads it; he does not sign it.
+  - **His own feedback from using the app stays the top of the backlog.**
 - **The owner's team punts no category (2026-11-16).** An earlier note said it punted points, threes and assists; that was wrong (#925). Punt support (#938) is correctness for leagues that punt, ranked below the owner's own needs.
 - **The fallback road (2026-11-16, #989).** Approved once its daily comparison reports differences without opening a `data-incident` issue.
 - **Across the two build paths (2026-11-16, #995).** Board values may differ by up to 1e-4 if the board's ranking is identical. Missing rows are not tolerated: each is traced to a cause and fixed. Until then, the comparison reports them.
@@ -54,8 +66,6 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 ## Waiting on the owner
 
-- The capture file: run from his browser by the agent on 2026-11-21, the capture read 4 pages, but the download did not reach the downloads folder while the browser tools drove the tab. Running the capture bookmark himself, or another way he chooses, puts the file in `private/`; then he approves the scrubbed fixtures.
-- Reviewing PR #1048.
 - Re-registering the host's four ingest tasks with the new action (#985).
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
 - Narrower credentials (#424, #425, #426) and branch protection (#432).
