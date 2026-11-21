@@ -59,11 +59,44 @@ export function OwnerPreview({
  * The limits a preview of pickups works within (#1056): the adds left this week, and the league's
  * waiver wait. The site does not know who was dropped lately, so the wait is said, not applied.
  */
-export function AddsLimit({ adds, waiverDays }: { adds: { limit: number; left: number } | null; waiverDays: number | null }) {
+export function AddsLimit({
+  adds,
+  waiverDays,
+  known = true,
+  each = false,
+}: {
+  adds: { limit: number; left: number } | null;
+  waiverDays: number | null;
+  /** Whether the league's adds a week and waiver wait were read (#1056): an old Yahoo copy may not hold them. */
+  known?: boolean;
+  /** The frame's moves are add-and-drop lines, each using one add (Build your team). */
+  each?: boolean;
+}) {
+  if (!known) {
+    return (
+      <p className="text-sm" data-testid="preview-adds-limit">
+        <strong>This league&apos;s adds a week and waiver wait are not known here</strong>
+        <span className="text-muted">
+          {' '}
+          (this copy was imported before the bookmark read Yahoo&apos;s settings page). Import it again from Yahoo to read them; until then, check the adds
+          you have left and that each player is a free agent on your league&apos;s app before making a move below.
+        </span>
+      </p>
+    );
+  }
   return (
     <p className="text-sm" data-testid="preview-adds-limit">
       {adds === null ? (
         'Your league sets no weekly limit on adds.'
+      ) : each && adds.left > 0 ? (
+        <>
+          <strong>
+            {adds.left} of {adds.limit} adds left this week
+          </strong>
+          : each add-and-drop line below uses one, so make no more than {adds.left} of them.
+        </>
+      ) : each ? (
+        <strong>No adds left this week: the add-and-drop lines below wait until Monday.</strong>
       ) : adds.left > 0 ? (
         <>
           <strong>

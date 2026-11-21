@@ -35,7 +35,7 @@ import type { TeamWeek } from '../lib/playoff-weeks';
 import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
 import { SHOWS } from '../lib/visibility';
-import { addsOpen, useOwnerPreview, withinAdds } from '../lib/owner-preview';
+import { addsOpen, useOwnerPreview, withinAdds, addsKnown } from '../lib/owner-preview';
 import { AddsLimit, OwnerPreview } from './OwnerPreview';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { addsThisWeek, staleOpponent, weekScore } from '../lib/league-sync';
@@ -690,7 +690,7 @@ export default function MyTeam() {
             naive: null,
           }}
         >
-          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} />
+          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} known={addsKnown(setup)} />
           <StreamCalls match={weekMatch.match} league={league} openDays={openDays} stream={addsOpen(addsWeek?.left ?? null) ? stream : null} nameOf={name} />
         </OwnerPreview>
       )}
@@ -834,7 +834,7 @@ export default function MyTeam() {
             naive: null,
           }}
         >
-          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} />
+          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} known={addsKnown(setup)} />
           {addsOpen(addsWeek?.left ?? null) && (
             <Upgrades
               league={league}
@@ -873,6 +873,7 @@ export default function MyTeam() {
             naive: null,
           }}
         >
+          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} known={addsKnown(setup)} each />
           <BuildYourTeam
             plan={plan}
             league={league}

@@ -69,6 +69,15 @@ export async function logPreviewCall(c: PreviewCall, date: string = EASTERN.form
  * The adds a preview of pickups may offer (#1056): the first `left` of them, with the adds left
  * this week; all of them when the league sets no limit.
  */
+/**
+ * Whether this copy of the league holds its adds a week and waiver wait (#1056): a Yahoo copy
+ * imported before the bookmark read the settings page holds neither, and its empty adds limit
+ * means "not known", not "no limit". A league set up by hand, or from another host, says its own.
+ */
+export function addsKnown(setup: { source?: { host?: string; rules?: object } }): boolean {
+  return setup.source?.host !== 'yahoo' || !!setup.source.rules;
+}
+
 export function withinAdds<T>(list: readonly T[], left: number | null): T[] {
   return left === null ? [...list] : list.slice(0, Math.max(0, left));
 }

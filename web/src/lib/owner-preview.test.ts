@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { PreviewCall } from './owner-preview';
+import { addsKnown } from './owner-preview';
 
 // The owner preview (#1056): the switch in this browser, then the Worker. Each case loads the
 // modules afresh, with fetch and the browser's storage stubbed. Every value below is made up.
@@ -94,5 +95,14 @@ describe("the preview's pickups", () => {
     expect(withinAdds(['a', 'b', 'c'], 0)).toEqual([]);
     expect(withinAdds(['a', 'b', 'c'], null)).toEqual(['a', 'b', 'c']);
     expect([addsOpen(0), addsOpen(1), addsOpen(null)]).toEqual([false, true, true]);
+  });
+});
+
+describe('whether the adds a week and the waiver wait are known (#1056)', () => {
+  it('a Yahoo copy holds them once the settings page was read; another league says its own', () => {
+    expect(addsKnown({ source: { host: 'yahoo', rules: { tradeReview: 'League Votes' } } })).toBe(true);
+    expect(addsKnown({ source: { host: 'yahoo' } })).toBe(false);
+    expect(addsKnown({ source: { host: 'espn' } })).toBe(true);
+    expect(addsKnown({})).toBe(true);
   });
 });

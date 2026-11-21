@@ -18,7 +18,7 @@ import { readRaw, storageKey, writeRaw } from '../lib/storage';
 import { type ReviewRow, teamReview, teamValues } from '../lib/team-review';
 import { hasWeekGames } from '../lib/week-value';
 import { SHOWS } from '../lib/visibility';
-import { addsOpen, useOwnerPreview, withinAdds } from '../lib/owner-preview';
+import { addsOpen, useOwnerPreview, withinAdds, addsKnown } from '../lib/owner-preview';
 import { addsThisWeek } from '../lib/league-sync';
 import { easternDate } from '../lib/today';
 import { AddsLimit, OwnerPreview } from './OwnerPreview';
@@ -476,14 +476,15 @@ export default function Streamers() {
             id="top-adds"
             what="the top adds"
             issue={762}
-            call={{
+            // logged once the drops are known, so the log holds the call as finally shown (#1056)
+            call={reviewState === 'loading' ? null : {
               call: 'top-adds',
               subject: offered.map((a) => a.row.player_id).join(' ') || 'none',
               value: offered.map((a) => `${a.row.player_id}${a.drop ? ` for ${a.drop}` : ''}: window value ${a.row.window_value?.toFixed(1) ?? '–'}`).join('; ') || 'no add',
               naive: null,
             }}
           >
-            <AddsLimit adds={week} waiverDays={setup.waiverDays} />
+            <AddsLimit adds={week} waiverDays={setup.waiverDays} known={addsKnown(setup)} />
             {addsOpen(week?.left ?? null) && (
               <TopAdds
                 adds={offered}

@@ -14,7 +14,7 @@ type Row = { player_id: string };
 const NOW = new Date('2026-11-02T16:00:00Z');
 
 /** A made-up eight-team Yahoo head-to-head league, as the import keeps it, ten players a team. */
-async function seedLeague(page: Page, addsUsed: number | null = null): Promise<{ rosters: string[][] }> {
+async function seedLeague(page: Page, addsUsed: number | null = null, settingsRead = true): Promise<{ rosters: string[][] }> {
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
   const teams = 8;
   const rosters = Array.from({ length: teams }, (_, t) => Array.from({ length: 10 }, (_, k) => board[t + teams * k]!.player_id));
@@ -47,7 +47,10 @@ async function seedLeague(page: Page, addsUsed: number | null = null): Promise<{
       week: { monday: '2026-11-02', roster: rosters[0]!.slice(1) },
       // or Yahoo's own count of the adds used this week
       ...(addsUsed === null ? {} : { addsUsed: { monday: '2026-11-02', used: addsUsed, roster: rosters[0]! } }),
+      // the rules the bookmark reads from Yahoo's settings page: their presence says the adds and the waiver wait were read
+      ...(settingsRead ? { rules: { tradeReview: 'League Votes' } } : {}),
     },
+    ...(settingsRead ? {} : { addsPerWeek: null, waiverDays: null }),
   };
   await page.clock.setFixedTime(NOW);
   await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
@@ -190,7 +193,7 @@ test('with no adds left this week, the preview offers no pickup and says so; wit
     const frames = page.getByTestId('owner-preview').filter({ has: page.getByTestId('preview-adds-limit') });
     await expect(frames.first(), path).toBeVisible();
     for (const frame of await frames.all()) {
-      await expect(frame.getByTestId('preview-adds-limit')).toContainText('No adds left this week: the next one comes on Monday.');
+      await expect(frame.getByTestId('preview-adds-limit')).toContainText('No adds left this week');
       await expect(frame.getByTestId('top-add')).toHaveCount(0);
       await expect(frame.getByTestId('matchup-stream-move')).toHaveCount(0);
       await expect(frame.getByTestId('upgrades')).toHaveCount(0);
@@ -201,4 +204,29 @@ test('with no adds left this week, the preview offers no pickup and says so; wit
   const frame = page.getByTestId('owner-preview').and(page.locator('[data-call="top-adds"]'));
   await expect(frame.getByTestId('preview-adds-limit')).toContainText('1 of 4 adds left this week, so no more than 1 is offered.');
   await expect(frame.getByTestId('top-add')).toHaveCount(1);
+});
+
+test('the build frame says its add-and-drop lines each use an add; an old Yahoo copy says its adds and waiver wait are not known (#1056)', async ({ page }) => {
+  await seedLeague(page);
+  await page.goto('/sources/');
+  await as(page, { switchOn: true, flag: true, owner: true });
+  await page.goto('/team/?league=nba');
+  const build = page.getByTestId('owner-preview').and(page.locator('[data-call="build"]'));
+  await expect(build.getByTestId('preview-adds-limit')).toContainText('3 of 4 adds left this week: each add-and-drop line below uses one, so make no more than 3 of them.');
+  await expect(build.getByTestId('preview-adds-limit')).toContainText('A player dropped in the last 2 days is on waivers');
+  // with none left, the lines wait until Monday, and the frame says so
+  await seedLeague(page, 4);
+  await page.reload();
+  await expect(build.getByTestId('preview-adds-limit')).toContainText('No adds left this week: the add-and-drop lines below wait until Monday.');
+  // a copy imported before the bookmark read Yahoo's settings: not known, never "no limit"
+  await seedLeague(page, null, false);
+  for (const path of ['/team/?league=nba', '/streamers/?league=nba']) {
+    await page.goto(path);
+    const limits = page.getByTestId('preview-adds-limit');
+    await expect(limits.first(), path).toBeVisible();
+    for (const line of await limits.all()) {
+      await expect(line, path).toContainText("This league's adds a week and waiver wait are not known here");
+      await expect(line, path).not.toContainText('no weekly limit');
+    }
+  }
 });
