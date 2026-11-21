@@ -1,6 +1,6 @@
 # Project state: FantasyScout
 
-Last rewritten: 2026-11-17, from scratch (#991); updated the same evening for step 3. Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
+Last rewritten: 2026-11-17, from scratch (#991); updated 2026-11-21 for step 3's merges. Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
 
 Read with it: [pillars.md](pillars.md) for what wins when priorities collide, and [CONTRIBUTING.md](../CONTRIBUTING.md) for how a change is made and checked.
 
@@ -49,7 +49,7 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 1. **The site cannot go stale unnoticed again, and the repo says how work is chosen.** Done on 2026-11-17, apart from the fallback, which moved to step 2.
 2. **The fallback proven for real, and the data at the manager's grain** (player, week, category). Done on 2026-11-17, apart from the import age (PR #1007), which waits for the owner. The fallback published for real and agrees with the warehouse; `fct_player_week` is built on both paths.
    Not started until the planner specifies them after the owner's feedback: the league-by-category view, the graded card, the owner preview and any study.
-3. **The owner's league, week by week** (started 2026-11-17). Item 0, the capture of his Yahoo pages for fixtures, and item 3, his private log, are merged. Then, one pull request each, in order, each waiting for the owner: item 1, every week's matchup totals in the import; item 2, the league week by week; item 4, the owner preview; item 5, last week graded.
+3. **The owner's league, week by week** (started 2026-11-17). Merged under the rule of 2026-11-21, each after a fresh review agent's approve and a check of production: #1048 (adds left from Yahoo's own count), #1053 (item 1, every week's matchup totals; approved on its third review), #1055 (item 2, the league week by week). Item 3, the owner's log, and item 0, the capture, merged earlier. Item 4 (#1057) goes to the owner after two blocks on one point; item 5 (#1059) waits for it.
 
 The redesign epic (#936) and the methodology epic (#751) still hold the longer list. Where they conflict with [pillars.md](pillars.md), the pillars win.
 
@@ -57,9 +57,9 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 | Item | Where | Next |
 | --- | --- | --- |
-| Adds left from Yahoo's own count on the manager's team page | #1046; PR #1048 | **Waits for the owner** (changes My Team's adds line). |
-| Every week's matchup totals in the import (step 3, item 1) | #1049; branch `ai/feat/1049-week-matchups`, on top of #1048 | Being built. Yahoo's pages were read on 2026-11-21: one matchup page per pair per week holds the totals; the home page only links them. |
-| The league, week by week (step 3, item 2) | branch `ai/feat/league-weeks-design` (the draft, at `/league/weeks-draft/` when on the preview) | Polish after item 1; never merged as it stands. |
+| The owner preview (step 3, item 4) | #1056; PR #1057 | **Goes to the owner:** two review blocks on the same point (what the frames say about the adds limit and waiver wait for a Yahoo copy imported before the settings were read). The bar itself passes. |
+| Last week, graded (step 3, item 5) | #1058; PR #1059, on top of #1057 | Waits for #1057. |
+| Follow-ups from the reviews of 2026-11-21 | #1061, #1062, #1063, #1064, #1065, #1066 | Open. |
 | Games left "as set" use the lineup of the day the Starting Rosters page shows | #1050 | Open: seen 2026-11-21, 4 against Yahoo's 7 for the owner. |
 | The bookmark names teams "Yahoo Sports" when it falls back to team pages | #1047 | Open. |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
