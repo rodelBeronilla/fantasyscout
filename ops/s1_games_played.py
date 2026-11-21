@@ -71,7 +71,13 @@ GAME_TYPES = ("regular", "play_in", "playoffs")
 # the seven counting categories games played can move; FG% and FT% are scored at the real attempts
 TARGETS = ("PTS", "REB", "AST", "STL", "BLK", "3PM", "TO")
 # fit: chosen on the tuning seasons by ``fit`` and frozen here before any judged season was read
-FROZEN: dict[str, dict[str, float]] = {}
+# (2026-11-21; Backtest runs 44949661176 and 44948249988 for the game rows, S0's six exports for
+# the boards). RMSE of games played over the tuning weeks, projection -> pick: NBA 1.4943 ->
+# 1.4440 (71 weeks); WNBA 1.3974 -> 1.3964 (51 weeks). NBA's pick sits at the grid's edge.
+FROZEN: dict[str, dict[str, float]] = {
+    "nba": {"k": 0.0, "decay": 0.25},
+    "wnba": {"k": 1.0, "decay": 1.0},
+}
 
 
 # ---- the export, on the runner ---------------------------------------------------------------
