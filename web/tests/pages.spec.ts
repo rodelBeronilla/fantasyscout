@@ -1535,10 +1535,18 @@ test('with an eight-team, thirteen-spot league, no main page scrolls sideways on
     source: { host: 'yahoo', leagueId: '99', syncedAt: Date.now() - 3_600_000, rosters, changes: null, opponents: [1, 0, 3, 2, 5, 4, 7, 6] },
   };
   await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
-  for (const path of ['/team/', '/streamers/', '/trade/', '/league/', '/']) {
+  // each page is measured once it is drawn: its own table or form on the page, then the network quiet
+  const drawn: Record<string, () => Promise<void>> = {
+    '/team/': () => expect(page.getByTestId('matchup-table')).toBeVisible(),
+    '/streamers/': () => expect(page.getByTestId('trending').locator('tbody tr').first()).toBeVisible(),
+    '/trade/': () => expect(page.getByTestId('trade-tabs')).toBeVisible(),
+    '/league/': () => expect(page.getByLabel('Teams in the league')).toHaveValue('8'),
+    '/': () => expect(page.getByTestId('board').locator('tbody tr').first()).toBeVisible(),
+  };
+  for (const [path, ready] of Object.entries(drawn)) {
     await page.goto(`${path}?league=nba`);
+    await ready();
     await page.waitForLoadState('networkidle');
-    if (path === '/team/') await expect(page.getByTestId('matchup-table')).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(390);
   }
   // the matchup's table is whole, scrolling inside its own region
