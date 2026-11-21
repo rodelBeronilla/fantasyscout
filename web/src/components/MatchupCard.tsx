@@ -114,6 +114,7 @@ export function Matchup({
   nameOf = (id) => id,
   onOpponent,
   asSet = null,
+  headingId = 'matchup-h',
 }: {
   setup: LeagueSetup;
   match: WeekMatchup | null;
@@ -128,6 +129,8 @@ export function Matchup({
   asSet?: { mine: number; theirs: number } | null;
   nameOf?: (id: string) => string;
   onOpponent: (team: number | null) => void;
+  /** The heading's id: a second card on the page, the owner preview's (#1056), takes its own. */
+  headingId?: string;
 }) {
   const them = setup.opponent === null ? null : (setup.names[setup.opponent] ?? `Team ${setup.opponent + 1}`);
   const show = (cat: string, v: number) => (isRatio(cat) ? `${fmt(v * 100, 1)}%` : fmt(v, 0));
@@ -163,9 +166,9 @@ export function Matchup({
   // Pickups for the open days, with the close and losing categories as need chips (#818)
   const pickups = href(pickupsPath(league, { week: true, open: openDays, need: match && !points ? streamTargets(match) : [] }));
   return (
-    <section className="rounded-lg border border-line bg-card p-3" aria-labelledby="matchup-h" data-testid="matchup">
+    <section className="rounded-lg border border-line bg-card p-3" aria-labelledby={headingId} data-testid="matchup">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="matchup-h" className="label-caps">
+        <h2 id={headingId} className="label-caps">
           {/* each category's chance of being won passed its out-of-sample check (ADR 0026) */}
           This week&apos;s matchup
         </h2>
