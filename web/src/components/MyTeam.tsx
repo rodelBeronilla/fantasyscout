@@ -860,6 +860,29 @@ export default function MyTeam() {
           h2h={h2h}
         />
       )}
+      {/* the owner preview (#1056): building the team through trades, its switch off */}
+      {preview && !SHOWS.build && plan && (
+        <OwnerPreview
+          id="build"
+          what="building your team through trades"
+          issue={886}
+          call={{
+            call: 'build',
+            subject: `${plan.targets.map((p) => p.id).join(' ')} > ${plan.surplus.map((p) => p.id).join(' ')}`,
+            value: plan.picture.map((c) => `${c.cat} ${c.chance === null ? '–' : c.chance.toFixed(2)}`).join(' '),
+            naive: null,
+          }}
+        >
+          <BuildYourTeam
+            plan={plan}
+            league={league}
+            nameOf={name}
+            detailOf={(id) => [byId.get(id)?.position, byId.get(id)?.team_abbreviation].filter(Boolean).join(' ')}
+            teamName={(t) => setup.names[t] ?? `Team ${t + 1}`}
+            h2h={h2h}
+          />
+        </OwnerPreview>
+      )}
 
       {SHOWS.power && !real && powerTable}
     </div>
