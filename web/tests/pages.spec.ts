@@ -1497,24 +1497,30 @@ test('a Yahoo copy with no weeks says the week-by-week view needs the new bookma
   const yahoo = { host: 'yahoo', leagueId: '99', syncedAt: Date.now() - 60_000, rosters, changes: null };
   const t = { totals: { z_points: 500, z_rebounds_total: 200, z_assists: 100, z_steals: 30, z_blocks: 20, z_three_pointers_made: 50, z_turnovers: 60 }, shots: { z_field_goal_pct: [200, 420], z_free_throw_pct: [90, 120] } };
   const seed = (copy: object) => page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+  // the League page draws the league in the browser: an absence is checked only once it is drawn
+  const drawn = () => expect(page.getByLabel('Teams in the league')).toHaveValue('4');
   // an old bookmark's copy: no weeks
   await seed({ ...base, source: yahoo });
   await page.goto('/league/?league=nba');
+  await drawn();
   await expect(page.getByTestId('yahoo-weeks-none')).toContainText('needs the new Yahoo bookmark');
   await expect(page.getByTestId('yahoo-weeks-none').getByRole('link', { name: 'Add the bookmark again' })).toHaveAttribute('href', '#yahoo');
   await expect(page.getByTestId('league-weeks')).toHaveCount(0);
   // a copy with weeks: the weeks line and the card, not the request
   await seed({ ...base, source: { ...yahoo, weeks: [{ week: 1, final: true, teams: [t, t, t, t] }] } });
   await page.reload();
+  await drawn();
   await expect(page.getByTestId('yahoo-weeks')).toBeVisible();
   await expect(page.getByTestId('yahoo-weeks-none')).toHaveCount(0);
   // a league by hand: nothing new
   await seed(base);
   await page.reload();
+  await drawn();
   await expect(page.getByTestId('yahoo-weeks-none')).toHaveCount(0);
   // an ESPN copy: its own copy-age line, nothing new
   await seed({ ...base, source: { host: 'espn', leagueId: '77', season: '2026-27', syncedAt: Date.now() - 60_000, rosters, changes: null } });
   await page.reload();
+  await drawn();
   await expect(page.getByTestId('copy-age')).toContainText('ESPN');
   await expect(page.getByTestId('yahoo-weeks-none')).toHaveCount(0);
 });
