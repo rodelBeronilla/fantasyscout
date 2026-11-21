@@ -62,6 +62,11 @@ on:
         description: Judge a points league's playoff odds on the same leagues too (#891; needs standings)
         type: boolean
         default: false
+      # S2 (#1080): the study cuts the game rows strictly before each Monday it predicts
+      teammate_out:
+        description: Export S2's inputs, the judged season's Mondays with teams and projected minutes, and the mirrored seasons' game rows (#1080)
+        type: boolean
+        default: false
       # The projection's advanced-stat features (#771): every judged run writes their inputs
       # (walk_forward_features.csv); this judges the board as built with a setting off and on.
       features:
@@ -326,4 +331,20 @@ jobs:
           path: |
             walk_forward_features.csv
             walk_forward.json
+          retention-days: 90
+      # S2, minutes when a teammate is out (#1080): a point-in-time build on every week's first day
+      # of the judged season, its board with each player's team and projected minutes, and every
+      # mirrored season's regular-season game rows. ops.s2_minutes cuts them before each Monday.
+      - name: Export S2's teammate-out inputs
+        if: inputs.judge != '' && inputs.teammate_out
+        env:
+          LEAGUE: ${{ inputs.league }}
+          JUDGE: ${{ inputs.judge }}
+          FS_LANDING_ROOT: ${{ runner.temp }}/landing
+        run: uv run python -m ops.s2_minutes export --league "$LEAGUE" --season "$JUDGE" --full-db dbt/fantasyscout.duckdb --out s2-minutes
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && inputs.judge != '' && inputs.teammate_out
+        with:
+          name: s2-minutes-${{ inputs.league }}-${{ inputs.judge }}
+          path: s2-minutes/
           retention-days: 90
