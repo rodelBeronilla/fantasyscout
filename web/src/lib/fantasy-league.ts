@@ -10,6 +10,7 @@ import { accountStatus, loadSaved, saveSoon } from './account';
 import type { League } from './data';
 import { CATEGORIES } from './format';
 import type { GamesRead } from './game-state';
+import type { LeagueWeek } from './league-weeks';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
@@ -140,6 +141,10 @@ export interface LeagueSource {
   addsUsed?: { monday: string; used: number; roster: string[] };
   /** The trade deadline, the trade review and the playoff tie-breaker as the host words them (#1025). */
   rules?: { tradeDeadline?: string; tradeReview?: string; tieBreaker?: string };
+  /** Every week's matchup totals the Yahoo import holds (#1049), by week: finished weeks kept across imports of the league. */
+  weeks?: LeagueWeek[];
+  /** The week page the latest import stopped at (#1049): its week and its path in the league. */
+  weeksStop?: { week: number; page: string };
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -286,6 +291,16 @@ function cleanRules(raw: unknown): LeagueSource['rules'] | undefined {
   return Object.keys(kept).length ? kept : undefined;
 }
 
+/** Stored weeks of matchup totals (#1049): each well-formed week once, in order; a malformed score is null. */
+function cleanWeeks(raw: unknown): LeagueWeek[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const weeks = (raw as Partial<LeagueWeek>[])
+    .filter((w, i, all): w is LeagueWeek => !!w && isPeriod(w.week) && typeof w.final === 'boolean' && Array.isArray(w.teams) && all.findIndex((o) => o?.week === w.week) === i)
+    .map((w) => ({ week: w.week, teams: w.teams.map(cleanScore), final: w.final }))
+    .sort((a, b) => a.week - b.week);
+  return weeks.length ? weeks : undefined;
+}
+
 /** A stored source as this build reads it, or undefined when it is missing or malformed. */
 function cleanSource(raw: unknown): LeagueSource | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
@@ -295,6 +310,8 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
   const playoffWeeks = cleanPlayoffWeeks(s.playoffWeeks);
   const fixtures = cleanFixtures(s.fixtures);
   const games = cleanGames(s.games);
+  const weeks = cleanWeeks(s.weeks);
+  const stop = s.weeksStop as { week?: unknown; page?: unknown } | undefined;
   return {
     host: s.host,
     leagueId: s.leagueId,
@@ -320,6 +337,9 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     ...(s.addsUsed && typeof s.addsUsed === 'object' && isDay((s.addsUsed as { monday?: unknown }).monday) && Number.isInteger((s.addsUsed as { used?: unknown }).used) && isIds((s.addsUsed as { roster?: unknown }).roster)
       ? { addsUsed: { monday: (s.addsUsed as { monday: string }).monday, used: Math.max(0, (s.addsUsed as { used: number }).used), roster: (s.addsUsed as { roster: string[] }).roster } }
       : {}),
+    // every week's matchup totals and the page an import stopped at (#1049)
+    ...(weeks ? { weeks } : {}),
+    ...(stop && typeof stop === 'object' && isPeriod(stop.week) && typeof stop.page === 'string' ? { weeksStop: { week: stop.week, page: stop.page.slice(0, 80) } } : {}), // def: a page's path, at most
     ...(s.slots && typeof s.slots === 'object' && !Array.isArray(s.slots)
       ? { slots: Object.fromEntries(Object.entries(s.slots).filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].length <= 6)) }
       : {}),

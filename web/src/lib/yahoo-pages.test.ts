@@ -4,7 +4,8 @@ import { DEFAULT_SETTINGS, normalize } from './fantasy-league';
 import { fixedPlayoffs, leagueRecords, recordsFromText } from './league-state';
 import { weekScore } from './league-sync';
 import { applyYahooImport, parseYahooHash } from './yahoo-bookmarklet';
-import { yahooAddsUsed, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
+import { soFarValue } from './matchup';
+import { weeksLines, yahooAddsUsed, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring, yahooWeeks } from './yahoo-pages';
 
 // The text of a public Yahoo league's pages on 8 November 2026, as the bookmark reads them
 const LABELS = ['Team', 'FGM/A*', 'FG%', 'FTM/A*', 'FT%', '3PTM', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO', ''];
@@ -200,5 +201,135 @@ describe("the adds used this week, from the manager's team page (#1028)", () => 
     expect(setup.source?.addsUsed).toEqual({ monday: '2026-11-02', used: 3, roster: setup.rosters[setup.mine] });
     // a payload without the line keeps no count
     expect(applyYahooImport(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), parseYahooHash(hash(v3))!, players, NOV_8).setup.source?.addsUsed).toBeUndefined();
+  });
+});
+
+describe("every week's matchup totals, from the week pages (#1049)", () => {
+  // a finished week's matchup page as Yahoo shows it: the two rows, then a second matchup
+  const A = ['Team A', '240/479', '.501', '111/140', '.793', '57', '648', '287', '148', '35', '36', '71', '5'];
+  const B = ['Team B', '248/506', '.490', '136/179', '.760', '68', '700', '231', '182', '54', '28', '97', '4'];
+  const C = ['Team C', '201/430', '.467', '90/118', '.763', '49', '560', '250', '120', '40', '22', '66', '6'];
+  const D = ['Team D', '230/470', '.489', '101/130', '.777', '61', '615', '240', '131', '33', '30', '80', '3'];
+  const week = (w: number, final: boolean) => ({
+    week: w,
+    final,
+    pages: [
+      { rows: [{ id: 1, cells: A }, { id: 2, cells: B }] },
+      { rows: [{ id: 3, cells: C }, { id: 4, cells: D }] },
+    ],
+  });
+  const ids = [1, 2, 3, 4];
+
+  it("reproduces every number in Yahoo's table, the percentages from the made and attempted", () => {
+    const [w] = yahooWeeks({ weekLabels: LABELS, weeks: [week(4, true)] }, ids);
+    expect(w).toMatchObject({ week: 4, final: true });
+    for (const [i, row] of [A, B, C, D].entries()) {
+      const s = w!.teams[i]!;
+      expect(s.shots).toEqual({ z_field_goal_pct: row[1]!.split('/').map(Number), z_free_throw_pct: row[3]!.split('/').map(Number) });
+      // Yahoo's FG% and FT% to three places, e.g. 240/479 = .501
+      expect(soFarValue(s, 'z_field_goal_pct')!.toFixed(3)).toBe(`0${row[2]}`);
+      expect(soFarValue(s, 'z_free_throw_pct')!.toFixed(3)).toBe(`0${row[4]}`);
+      expect(s.totals).toEqual({
+        z_three_pointers_made: Number(row[5]),
+        z_points: Number(row[6]),
+        z_rebounds_total: Number(row[7]),
+        z_assists: Number(row[8]),
+        z_steals: Number(row[9]),
+        z_blocks: Number(row[10]),
+        z_turnovers: Number(row[11]),
+      });
+    }
+    // the teams are in the payload's order, whatever order the pages came in
+    expect(yahooWeeks({ weekLabels: LABELS, weeks: [week(4, true)] }, [4, 3, 2, 1])[0]!.teams[0]!.totals['z_points']).toBe(615);
+    // a page's own labels win over the shared ones; a team no page shows is null
+    const own = yahooWeeks({ weekLabels: ['Team'], weeks: [{ week: 1, final: false, pages: [{ labels: LABELS, rows: [{ id: 1, cells: A }, { id: 2, cells: B }] }] }] }, ids)[0]!;
+    expect(own.teams.map((t) => t?.totals['z_points'] ?? null)).toEqual([648, 700, null, null]);
+  });
+
+  it('keeps well-formed weeks and drops the rest; a week is whole or not at all', () => {
+    const good = parseYahooHash(hash({ ...v3, weekLabels: LABELS, weeks: [week(1, true), week(2, false)], weeksStop: { week: 3, page: 'matchup?week=3&mid1=2' } }))!;
+    expect(good.weeks?.map((w) => [w.week, w.final, w.pages.length])).toEqual([
+      [1, true, 2],
+      [2, false, 2],
+    ]);
+    expect(good.weekLabels).toEqual(LABELS);
+    expect(good.weeksStop).toEqual({ week: 3, page: 'matchup?week=3&mid1=2' });
+    const one = (x: unknown) => parseYahooHash(hash({ ...v3, weekLabels: LABELS, weeks: [week(1, true), x] }))!.weeks?.map((w) => w.week);
+    // a page with one side, a team id that is not a number, a week out of range, no final flag
+    expect(one({ ...week(2, true), pages: [{ rows: [{ id: 1, cells: A }] }] })).toEqual([1]);
+    expect(one({ ...week(2, true), pages: [{ rows: [{ id: '1', cells: A }, { id: 2, cells: B }] }] })).toEqual([1]);
+    expect(one(week(0, true))).toEqual([1]);
+    expect(one(week(31, true))).toEqual([1]);
+    expect(one({ week: 2, pages: week(2, true).pages })).toEqual([1]);
+    // the same week twice is read once
+    expect(one(week(1, false))).toEqual([1]);
+    // a page with no labels of its own and none shared is not read
+    expect(parseYahooHash(hash({ ...v3, weeks: [week(1, true)] }))!.weeks).toBeUndefined();
+    // a long cell is cut, not dropped
+    const long = { ...week(1, true), pages: [{ rows: [{ id: 1, cells: ['x'.repeat(500), ...A.slice(1)] }, { id: 2, cells: B }] }] };
+    expect(parseYahooHash(hash({ ...v3, weekLabels: LABELS, weeks: [long] }))!.weeks?.[0]?.pages[0]?.rows[0]?.cells[0]).toHaveLength(60);
+    // a stop names a page in the league, nothing else
+    for (const page of ['/nba/12345/matchup?week=3&mid1=2', 'matchup?week=3&mid1=2&x=<b>', 'https://example.com/']) {
+      expect(parseYahooHash(hash({ ...v3, weeksStop: { week: 3, page } }))!.weeksStop).toBeUndefined();
+    }
+    // a bookmark from before the weeks still imports
+    expect(parseYahooHash(hash(v3))).toMatchObject({ v: 4, leagueId: '12345' });
+    expect(parseYahooHash(hash(v3))!.weeks).toBeUndefined();
+  });
+
+  const run = (weeks: unknown[], extra: object = {}, leagueId = '12345') => parseYahooHash(hash({ ...v3, leagueId, weekLabels: LABELS, weeks, ...extra }))!;
+  const fresh = normalize({ teams: 4 }, DEFAULT_SETTINGS.nba);
+
+  it('keeps the finished weeks across imports of the same league, and the newest read of each week', () => {
+    const first = applyYahooImport(fresh, run([week(1, true), week(2, true), week(3, false)]), players, NOV_8).setup;
+    expect(first.source?.weeks?.map((w) => [w.week, w.final])).toEqual([
+      [1, true],
+      [2, true],
+      [3, false],
+    ]);
+    // the second run sends only week 3, now final, and week 4 so far: weeks 1 and 2 are kept
+    const changed = { ...week(3, true), pages: [{ rows: [{ id: 1, cells: B }, { id: 2, cells: A }] }, week(3, true).pages[1]!] };
+    const second = applyYahooImport(first, run([changed, week(4, false)]), players, NOV_8).setup;
+    expect(second.source?.weeks?.map((w) => [w.week, w.final])).toEqual([
+      [1, true],
+      [2, true],
+      [3, true],
+      [4, false],
+    ]);
+    expect(second.source?.weeks?.[2]?.teams[0]?.totals['z_points']).toBe(700);
+    // a week under way that the next import does not carry is not kept; nor is any week of another league
+    const third = applyYahooImport(second, run([week(5, false)]), players, NOV_8).setup;
+    expect(third.source?.weeks?.map((w) => w.week)).toEqual([1, 2, 3, 5]);
+    const other = applyYahooImport(second, run([week(1, false)], {}, '67890'), players, NOV_8).setup;
+    expect(other.source?.weeks?.map((w) => [w.week, w.final])).toEqual([[1, false]]);
+    // an older bookmark brings no weeks and keeps the finished ones
+    expect(applyYahooImport(second, parseYahooHash(hash(v3))!, players, NOV_8).setup.source?.weeks?.map((w) => w.week)).toEqual([1, 2, 3]);
+  });
+
+  it('keeps the weeks and the page an import stopped at through the stored copy', () => {
+    const { setup } = applyYahooImport(fresh, run([week(1, true)], { weeksStop: { week: 2, page: 'matchup?week=2&mid1=1' } }), players, NOV_8);
+    expect(setup.source?.weeksStop).toEqual({ week: 2, page: 'matchup?week=2&mid1=1' });
+    const again = normalize(JSON.parse(JSON.stringify(setup)) as typeof setup, DEFAULT_SETTINGS.nba);
+    expect(again.source?.weeks).toEqual(setup.source?.weeks);
+    expect(again.source?.weeksStop).toEqual(setup.source?.weeksStop);
+    expect(again.source?.weeks?.[0]?.teams[0]?.shots['z_field_goal_pct']).toEqual([240, 479]);
+    // a malformed stored week is dropped, a malformed score is null
+    const weeks = [{ week: 'x' }, { week: 2, final: true, teams: [{ totals: { z_points: 'a' } }, null] }];
+    const bad = normalize({ ...again, source: { ...again.source!, weeks: weeks as never, weeksStop: { week: 0, page: 'p' } } }, DEFAULT_SETTINGS.nba);
+    expect(bad.source?.weeks).toEqual([{ week: 2, final: true, teams: [null, null] }]);
+    expect(bad.source?.weeksStop).toBeUndefined();
+    // the next import without a stop clears it
+    expect(applyYahooImport(setup, run([week(1, true), week(2, false)]), players, NOV_8).setup.source?.weeksStop).toBeUndefined();
+  });
+
+  it('says which weeks are final and which so far, and names a page that did not answer', () => {
+    const w = (week: number, final: boolean) => ({ week, final, teams: [] });
+    expect(weeksLines({ weeks: [w(1, true), w(2, true), w(3, true), w(4, true), w(5, false)] })).toEqual({ read: 'Weeks from Yahoo: 1–4 final, 5 so far.', stop: null });
+    expect(weeksLines({ weeks: [w(1, true), w(3, true)] }).read).toBe('Weeks from Yahoo: 1, 3 final.');
+    expect(weeksLines({ weeks: [w(1, true)], weeksStop: { week: 2, page: 'matchup?week=2&mid1=1' } })).toEqual({
+      read: 'Weeks from Yahoo: 1 final.',
+      stop: 'Yahoo did not answer the page for week 2 (matchup?week=2&mid1=1), so that week and the ones after it were not read; run the bookmark again later.',
+    });
+    expect(weeksLines({})).toEqual({ read: null, stop: null });
   });
 });

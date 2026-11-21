@@ -7,6 +7,7 @@
  * rather than in the bookmark.
  */
 import type { Format, Tally } from './fantasy-league';
+import type { LeagueWeek } from './league-weeks';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 
@@ -20,12 +21,25 @@ export interface YahooPages {
   settings?: { playoffs?: string; scoring?: string; rows?: [string, string][] };
   /** The manager's team page's line on this week's adds, as it stands: "You have used 0 of your 4 player adds for this week." (#1028). */
   adds?: string;
+  /** The week pages' table labels, when every page has the same (#1049). */
+  weekLabels?: string[];
+  /** Every week's matchup pages as read (#1049): each page's two rows, and its own labels where they differ from `weekLabels`. */
+  weeks?: YahooWeekRead[];
+  /** The first week page that did not answer (#1049): its week and its path in the league, e.g. "matchup?week=3&mid1=2". */
+  weeksStop?: { week: number; page: string };
+}
+
+/** One week's matchup pages as the bookmark read them (#1049); `final` once the week is over. */
+interface YahooWeekRead {
+  week: number;
+  final: boolean;
+  pages: { labels?: string[]; rows: { id: number; cells: string[] }[] }[];
 }
 
 const strings = (x: unknown): x is string[] => Array.isArray(x) && x.every((s) => typeof s === 'string');
 
 /** The extra pages from a bookmark's payload, keeping what is well formed. */
-export function cleanYahooPages(raw: { records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown }): YahooPages {
+export function cleanYahooPages(raw: { records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown }): YahooPages {
   const out: YahooPages = {};
   if (raw.records && typeof raw.records === 'object') {
     const entries = Object.entries(raw.records as Record<string, unknown>).filter((e): e is [string, [string, string]] => strings(e[1]) && e[1].length === 2); // def: a record and a rank
@@ -48,7 +62,94 @@ export function cleanYahooPages(raw: { records?: unknown; matchup?: unknown; set
     };
   }
   if (typeof raw.adds === 'string' && raw.adds.length <= 200) out.adds = raw.adds; // def: a sentence, at most
+  Object.assign(out, cleanWeeks(raw));
   return out;
+}
+
+const MAX_WEEK = 30; // def: a season has fewer fantasy weeks
+const MAX_PAGES = 10; // def: twenty teams, the most a league has, make ten matchups a week
+const MAX_CELLS = 20; // def: a matchup table's columns, at most
+const MAX_CELL = 60; // def: a cell's text (a team's name), at most
+const isWeek = (x: unknown): x is number => typeof x === 'number' && Number.isInteger(x) && x > 0 && x <= MAX_WEEK;
+/** A table row's cells, each cut to a team name's length (a total is far shorter); null when they are not a row. */
+const cellsIn = (x: unknown): string[] | null => (strings(x) && x.length <= MAX_CELLS ? x.map((c) => c.slice(0, MAX_CELL)) : null);
+
+/** The week pages from a bookmark's payload (#1049): a week is kept whole or not at all, a page only with its two rows. */
+function cleanWeeks(raw: { weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown }): Pick<YahooPages, 'weekLabels' | 'weeks' | 'weeksStop'> {
+  const out: Pick<YahooPages, 'weekLabels' | 'weeks' | 'weeksStop'> = {};
+  const labels = cellsIn(raw.weekLabels) ?? undefined;
+  const page = (p: unknown) => {
+    const x = p as { labels?: unknown; rows?: unknown } | null;
+    if (!x || typeof x !== 'object' || !Array.isArray(x.rows) || x.rows.length !== 2) return null; // def: a matchup has two sides
+    const rows = (x.rows as { id?: unknown; cells?: unknown }[]).flatMap((r) => {
+      const cells = cellsIn(r?.cells);
+      return typeof r?.id === 'number' && Number.isInteger(r.id) && cells ? [{ id: r.id, cells }] : [];
+    });
+    const own = cellsIn(x.labels) ?? undefined;
+    if (rows.length !== 2 || !(own ?? labels)) return null; // def: a matchup has two sides
+    return { ...(own ? { labels: own } : {}), rows };
+  };
+  const weeks: YahooWeekRead[] = [];
+  for (const w of Array.isArray(raw.weeks) ? (raw.weeks as unknown[]).slice(0, MAX_WEEK) : []) {
+    const x = w as { week?: unknown; final?: unknown; pages?: unknown } | null;
+    if (!x || !isWeek(x.week) || typeof x.final !== 'boolean' || !Array.isArray(x.pages) || !x.pages.length || x.pages.length > MAX_PAGES) continue;
+    const pages = x.pages.map(page);
+    if (pages.every((p) => p !== null) && !weeks.some((k) => k.week === x.week)) weeks.push({ week: x.week, final: x.final, pages: pages as YahooWeekRead['pages'] });
+  }
+  if (weeks.length) {
+    if (labels) out.weekLabels = labels;
+    out.weeks = weeks.sort((a, b) => a.week - b.week);
+  }
+  const stop = raw.weeksStop as { week?: unknown; page?: unknown } | null | undefined;
+  if (stop && isWeek(stop.week) && typeof stop.page === 'string' && /^matchup\?week=\d{1,2}&mid1=\d{1,3}$/.test(stop.page)) out.weeksStop = { week: stop.week, page: stop.page };
+  return out;
+}
+
+/**
+ * Every week's matchup totals from the week pages (#1049), each team's by its index in `ids`
+ * (Yahoo's team ids in the payload's order). A team no page shows is null that week.
+ */
+export function yahooWeeks(pages: YahooPages, ids: number[]): LeagueWeek[] {
+  return (pages.weeks ?? []).flatMap((w) => {
+    const teams: (ScoreSoFar | null)[] = ids.map(() => null);
+    for (const p of w.pages) {
+      const labels = p.labels ?? pages.weekLabels ?? [];
+      for (const r of p.rows) {
+        const i = ids.indexOf(r.id);
+        if (i >= 0) teams[i] = yahooScore(labels, r.cells);
+      }
+    }
+    return teams.some(Boolean) ? [{ week: w.week, teams, final: w.final }] : [];
+  });
+}
+
+/** "1–3, 5" for weeks 1, 2, 3 and 5. */
+function weekRanges(weeks: number[]): string {
+  const runs: [number, number][] = [];
+  for (const w of [...weeks].sort((a, b) => a - b)) {
+    const last = runs.at(-1);
+    if (last && last[1] === w - 1) last[1] = w;
+    else runs.push([w, w]);
+  }
+  return runs.map(([a, b]) => (a === b ? String(a) : `${a}–${b}`)).join(', ');
+}
+
+/**
+ * The League page's lines on the weeks the import holds (#1049): which are final and which is so
+ * far, and the page that did not answer, if one did not.
+ */
+export function weeksLines(source: { weeks?: LeagueWeek[]; weeksStop?: { week: number; page: string } }): { read: string | null; stop: string | null } {
+  const weeks = source.weeks ?? [];
+  const final = weeks.filter((w) => w.final).map((w) => w.week);
+  const soFar = weeks.filter((w) => !w.final).map((w) => w.week);
+  const parts = [...(final.length ? [`${weekRanges(final)} final`] : []), ...(soFar.length ? [`${weekRanges(soFar)} so far`] : [])];
+  const stop = source.weeksStop;
+  return {
+    read: parts.length ? `Weeks from Yahoo: ${parts.join(', ')}.` : null,
+    stop: stop
+      ? `Yahoo did not answer the page for week ${stop.week} (${stop.page}), so that week and the ones after it were not read; run the bookmark again later.`
+      : null,
+  };
 }
 
 /**
