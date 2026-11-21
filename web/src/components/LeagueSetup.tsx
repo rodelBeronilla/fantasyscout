@@ -24,7 +24,8 @@ import YahooImport from './YahooImport';
 import EspnImport from './EspnImport';
 import { StandingsEntry } from './StandingsEntry';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
-import { CopyAge } from './LeagueSync';
+import { CopyAge, YahooWeeks } from './LeagueSync';
+import { LeagueWeeks } from './LeagueWeeks';
 
 interface PlayerRowFields {
   player_id: string;
@@ -307,6 +308,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {yahoo}
       <CopyAge setup={setup} league={league} />
+      <YahooWeeks setup={setup} />
       {league === 'nba' && (
         <EspnImport season={rows[0]?.season ?? ''} players={rows} hasRosters={rostered > 0} onImport={(next) => update(() => next)} />
       )}
@@ -339,6 +341,9 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
           </a>
         </p>
       )}
+
+      {/* every team's rank in each category, week by week, from the totals Yahoo scored (#1054) */}
+      {setup.source?.weeks?.length ? <LeagueWeeks setup={setup} weeks={setup.source.weeks} /> : null}
 
       <section className="grid gap-3" aria-labelledby="teams-h">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

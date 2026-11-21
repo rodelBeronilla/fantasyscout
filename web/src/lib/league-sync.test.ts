@@ -396,7 +396,18 @@ describe('the adds left this week (#1022)', () => {
     expect(addsLeft(setup, '2026-11-23')).toBe(4);
     expect(addsLeft({ ...setup, addsPerWeek: null }, '2026-11-16')).toBeNull();
     // what the page says comes with it: the adds made and whether this week's import started the count (#1027)
-    expect(addsThisWeek(setup, '2026-11-16')).toEqual({ limit: 4, made: 1, left: 3, counted: true });
-    expect(addsThisWeek(setup, '2026-11-23')).toEqual({ limit: 4, made: 0, left: 4, counted: false });
+    expect(addsThisWeek(setup, '2026-11-16')).toEqual({ limit: 4, made: 1, left: 3, counted: true, from: 'since', yahoo: 0 });
+    expect(addsThisWeek(setup, '2026-11-23')).toEqual({ limit: 4, made: 0, left: 4, counted: false, from: 'none', yahoo: 0 });
+  });
+
+  it("takes Yahoo's own count from the last import, plus the players added since it (#1028)", () => {
+    // Yahoo said 2 used when the roster was mine.slice(1); one player is new since
+    const addsUsed = { monday: '2026-11-16', used: 2, roster: mine.slice(1) };
+    const setup = { ...base, addsPerWeek: 4, source: { ...base.source!, week: { monday: '2026-11-16', roster: mine }, addsUsed } };
+    expect(addsThisWeek(setup, '2026-11-16')).toEqual({ limit: 4, made: 3, left: 1, counted: true, from: 'yahoo', yahoo: 2 });
+    // nothing changed since the import: Yahoo's count stands
+    expect(addsThisWeek({ ...setup, source: { ...setup.source, addsUsed: { ...addsUsed, roster: mine } } }, '2026-11-16')?.made).toBe(2);
+    // last week's count is not this week's
+    expect(addsThisWeek(setup, '2026-11-23')).toMatchObject({ from: 'none', made: 0, left: 4 });
   });
 });

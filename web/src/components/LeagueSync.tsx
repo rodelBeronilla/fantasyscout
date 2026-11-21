@@ -10,6 +10,7 @@ import { ago, copyAge, espnSetup, espnSyncLine, inSeasonFrom, readEspn, SYNC_EVE
 import { logImport } from '../lib/owner-log';
 import { href } from '../lib/site';
 import { easternDate } from '../lib/today';
+import { weeksLines } from '../lib/yahoo-pages';
 
 type Players = { player_id: string; full_name: string | null }[];
 
@@ -192,5 +193,22 @@ export function CopyAge({ setup, league }: { setup: LeagueSetup; league: League 
         </a>
       )}
     </p>
+  );
+}
+
+/**
+ * The League page's lines on the weeks a Yahoo import holds (#1049): which weeks are final and
+ * which is so far, and the page that did not answer, so the manager knows to run the bookmark again.
+ */
+export function YahooWeeks({ setup }: { setup: LeagueSetup }) {
+  const source = setup.source;
+  if (source?.host !== 'yahoo') return null;
+  const { read, stop } = weeksLines(source);
+  if (!read && !stop) return null;
+  return (
+    <div className="grid gap-0.5 text-sm text-muted">
+      {read && <p data-testid="yahoo-weeks">{read}</p>}
+      {stop && <p data-testid="yahoo-weeks-stop">{stop}</p>}
+    </div>
   );
 }

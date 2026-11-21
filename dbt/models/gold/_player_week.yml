@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: fct_player_week
-    description: "Player × fantasy week (Monday to Sunday, dim_date.fantasy_week): the regular season's box scores summed per week, with the games the player's team had scheduled and the games he played. The nine categories are totals, FG% and FT% kept as makes and attempts. The grain a head-to-head category manager decides on, and the realized weeks the week-by-week backtests score against; no page reads it."
+    description: "Player × fantasy week (Monday to Sunday, dim_date.fantasy_week): the regular season's box scores summed per week, with the games the player's team had scheduled and the games he played. The nine categories are totals, FG% and FT% kept as makes and attempts. The grain a head-to-head category manager decides on, and the realized weeks the week-by-week backtests score against. Its last three weeks go out per league (player_week/<league>.json) for the owner's graded card on My Team, which no other visitor sees."
     columns:
       - name: player_week_sk
         description: "Surrogate key: one row per league, season, player and fantasy week"

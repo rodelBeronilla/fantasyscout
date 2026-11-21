@@ -370,18 +370,24 @@ export function addsLeft(setup: LeagueSetup, monday: string): number | null {
 }
 
 /**
- * This week's adds as far as the app can see (#1027): the league's limit, the adds made since the
- * week's first import (players on the roster now who were not then), what is left, and whether an
- * import this week started the count. No Yahoo page the bookmark reads is known to show the adds
- * used, so adds made before the first import of the week are not seen. Null with no limit.
+ * This week's adds (#1027, #1028): the league's limit, the adds made, what is left, and how they
+ * were counted. With Yahoo's own count from an import this week, that count plus the players on the
+ * roster now who were not on it then ("yahoo"); else the players added since the week's first import,
+ * which misses adds made before it ("since"); else none counted ("none"). Null with no limit.
  */
-export function addsThisWeek(setup: LeagueSetup, monday: string): { limit: number; made: number; left: number; counted: boolean } | null {
+export function addsThisWeek(setup: LeagueSetup, monday: string): { limit: number; made: number; left: number; counted: boolean; from: 'yahoo' | 'since' | 'none'; yahoo: number } | null {
   if (setup.addsPerWeek === null) return null;
+  const now = setup.rosters[setup.mine] ?? [];
+  const limit = setup.addsPerWeek;
+  const told = setup.source?.addsUsed;
+  if (told && told.monday === monday) {
+    const made = told.used + now.filter((id) => !told.roster.includes(id)).length;
+    return { limit, made, left: Math.max(0, limit - made), counted: true, from: 'yahoo', yahoo: told.used };
+  }
   const week = setup.source?.week;
   const counted = !!week && week.monday === monday;
-  const now = setup.rosters[setup.mine] ?? [];
   const made = counted ? now.filter((id) => !week.roster.includes(id)).length : 0;
-  return { limit: setup.addsPerWeek, made, left: Math.max(0, setup.addsPerWeek - made), counted };
+  return { limit, made, left: Math.max(0, limit - made), counted, from: counted ? 'since' : 'none', yahoo: 0 };
 }
 
 /** Whether a league is in season: its newest published data is at most IN_SEASON_DAYS before today (Eastern dates). */

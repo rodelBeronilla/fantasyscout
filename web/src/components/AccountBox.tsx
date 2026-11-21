@@ -2,7 +2,7 @@
  * The League page's account line (#684): sign in with Yahoo to save the league's setup to an
  * account, or, signed in, sign out or delete what the account holds. Hidden where the site cannot
  * sign in (a preview, the tests). For the site's owner alone, "Your data" downloads or deletes his
- * private log (#1032).
+ * private log (#1032), and turns on the owner preview, the calls not yet validated (#1056).
  */
 import { useEffect, useState } from 'react';
 
@@ -10,6 +10,7 @@ import { accountStatus, type AccountStatus, deleteAccount } from '../lib/account
 import type { League } from '../lib/data';
 import { isRememberedOwner } from '../lib/owner';
 import { deleteOwnerLog, OWNER_LOG_DOWNLOAD, ownerStatus } from '../lib/owner-log';
+import { previewSwitchOn, setPreviewSwitch } from '../lib/owner-preview';
 import { SignInLink } from './SignInLink';
 
 const NOTICE: Record<string, string> = {
@@ -23,6 +24,7 @@ export default function AccountBox({ league }: { league: League }) {
   const [status, setStatus] = useState<AccountStatus | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [owner, setOwner] = useState(false);
+  const [preview, setPreview] = useState(false);
   useEffect(() => {
     void accountStatus().then(setStatus);
     const said = new URLSearchParams(window.location.search).get('account');
@@ -30,6 +32,7 @@ export default function AccountBox({ league }: { league: League }) {
     // The owner's "Your data" (#1032): asked only in a browser that signed in as the owner, or
     // that has just signed in, which may be the owner. Nobody else's browser asks.
     if (isRememberedOwner() || said === 'signedin') void ownerStatus().then(setOwner);
+    setPreview(previewSwitchOn());
   }, []);
   if (!status?.configured) return null;
   const forget = async () => {
@@ -79,6 +82,21 @@ export default function AccountBox({ league }: { league: League }) {
           <button type="button" className="rounded-full border border-line px-3 py-0.5 text-xs hover:bg-bg" onClick={() => void forgetLog()}>
             Delete the log
           </button>
+          <label className="flex basis-full items-center gap-2">
+            <input
+              type="checkbox"
+              checked={preview}
+              onChange={(e) => {
+                setPreviewSwitch(e.target.checked);
+                setPreview(e.target.checked);
+              }}
+              data-testid="owner-preview-switch"
+            />
+            <span>Show calls that have not passed their check (preview)</span>
+          </label>
+          <span className="basis-full text-xs text-muted">
+            Kept in this browser only. Each one shows on its page under &quot;Preview: not validated&quot;, to you alone, and goes to your log.
+          </span>
         </div>
       )}
       {notice && (

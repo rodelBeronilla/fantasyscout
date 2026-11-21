@@ -21567,8 +21567,10 @@
        "type": "hugeint"
       }
      ],
-     "description": "Player × fantasy week (Monday to Sunday, dim_date.fantasy_week): the regular season's box scores summed per week, with the games the player's team had scheduled and the games he played. The nine categories are totals, FG% and FT% kept as makes and attempts. The grain a head-to-head category manager decides on, and the realized weeks the week-by-week backtests score against; no page reads it.",
-     "exported_as": [],
+     "description": "Player × fantasy week (Monday to Sunday, dim_date.fantasy_week): the regular season's box scores summed per week, with the games the player's team had scheduled and the games he played. The nine categories are totals, FG% and FT% kept as makes and attempts. The grain a head-to-head category manager decides on, and the realized weeks the week-by-week backtests score against. Its last three weeks go out per league (player_week/<league>.json) for the owner's graded card on My Team, which no other visitor sees.",
+     "exported_as": [
+      "player_week/<league>.json"
+     ],
      "grain": {
       "columns": [
        "league",

@@ -1,0 +1,217 @@
+/**
+ * The owner preview (#1056): the calls a switch hides show to the signed-in owner alone, with his
+ * preview on, each under "Preview: not validated" and each logged once. The bar: for everyone
+ * else, and for the owner with the preview off, the page is the same, byte for byte.
+ */
+import AxeBuilder from '@axe-core/playwright';
+import type { Page } from '@playwright/test';
+
+import { expect, test } from './fixtures';
+
+type Row = { player_id: string };
+
+// the fixture's NBA data is as of 2026-10-31; a Monday two days later, mid-afternoon Eastern
+const NOW = new Date('2026-11-02T16:00:00Z');
+
+/** A made-up eight-team Yahoo head-to-head league, as the import keeps it, ten players a team. */
+async function seedLeague(page: Page, addsUsed: number | null = null): Promise<{ rosters: string[][] }> {
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const teams = 8;
+  const rosters = Array.from({ length: teams }, (_, t) => Array.from({ length: 10 }, (_, k) => board[t + teams * k]!.player_id));
+  const copy = {
+    version: 10,
+    teams,
+    rosterSpots: 13,
+    scoring: 'cats9',
+    format: 'h2h',
+    punts: [],
+    names: ['Harbor', 'Summit', 'Prairie', 'Canyon', 'Delta', 'Ridge', 'Meadow', 'Coast'],
+    rosters,
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    lineup: { G: 3, F: 3, C: 1, UTIL: 3 },
+    ilSlots: 2,
+    addsPerWeek: 4,
+    waiverDays: 2,
+    source: {
+      host: 'yahoo',
+      leagueId: '99',
+      syncedAt: NOW.getTime() - 3_600_000,
+      rosters,
+      changes: null,
+      opponents: [1, 0, 3, 2, 5, 4, 7, 6],
+      // one of the manager's players was added since the week's first import: three adds left
+      week: { monday: '2026-11-02', roster: rosters[0]!.slice(1) },
+      // or Yahoo's own count of the adds used this week
+      ...(addsUsed === null ? {} : { addsUsed: { monday: '2026-11-02', used: addsUsed, roster: rosters[0]! } }),
+    },
+  };
+  await page.clock.setFixedTime(NOW);
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+  return { rosters };
+}
+
+interface Who {
+  /** The preview switch in this browser's storage. */
+  switchOn: boolean;
+  /** The flag a past owner sign-in leaves in this browser. */
+  flag: boolean;
+  /** What the Worker says of the owner cookie: true, false, or no Worker at all. */
+  owner: boolean | 'no-worker';
+}
+
+const SIGNED_OUT: Who = { switchOn: false, flag: false, owner: false };
+const OTHERS: [string, Who][] = [
+  ['the switch on, the Worker saying not the owner', { switchOn: true, flag: true, owner: false }],
+  ['the switch on, no Worker', { switchOn: true, flag: true, owner: 'no-worker' }],
+  ['the owner, the switch off', { switchOn: false, flag: true, owner: true }],
+];
+
+/** Sets who this browser is, for the next page load. */
+async function as(page: Page, who: Who, posted: Record<string, unknown>[] = []): Promise<void> {
+  await page.evaluate((w) => {
+    localStorage.removeItem('fantasyscout:owner-preview');
+    localStorage.removeItem('fantasyscout:owner');
+    if (w.switchOn) localStorage.setItem('fantasyscout:owner-preview', 'on');
+    if (w.flag) localStorage.setItem('fantasyscout:owner', '1');
+  }, who);
+  await page.unroute('**/api/owner/**');
+  if (who.owner === 'no-worker') {
+    await page.route('**/api/owner/**', (r) => r.abort());
+    return;
+  }
+  const owner = who.owner;
+  await page.route('**/api/owner/status', (r) => r.fulfill({ json: { configured: true, owner } }));
+  await page.route('**/api/owner/log', (r) => {
+    if (r.request().method() === 'POST') posted.push(r.request().postDataJSON() as Record<string, unknown>);
+    return r.fulfill({ json: { ok: true } });
+  });
+}
+
+/**
+ * The page's main content once it has settled. The owner's own card, last week graded (#1058),
+ * is not behind the preview's switch: `withoutGraded` reads the page around it.
+ */
+async function mainHtml(page: Page, path: string, ready: string, withoutGraded = false): Promise<string> {
+  await page.goto(path);
+  await expect(page.getByTestId(ready).first()).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  if (!withoutGraded) return page.locator('main').innerHTML();
+  return page.locator('main').evaluate((m) => {
+    const copy = m.cloneNode(true) as HTMLElement;
+    copy.querySelector('[data-testid="graded"]')?.remove();
+    return copy.innerHTML;
+  });
+}
+
+const PAGES: { name: string; path: (rosters: string[][]) => string; ready: string; calls: Record<string, string> }[] = [
+  {
+    name: 'My Team',
+    path: () => '/team/?league=nba',
+    ready: 'my-roster',
+    calls: { 'too-close': 'matchup', stream: 'matchup-streams', lineup: 'lineup-plan', swaps: 'upgrades', build: 'build-plan' },
+  },
+  { name: 'Pickups', path: () => '/streamers/?league=nba', ready: 'explore', calls: { 'top-adds': 'top-adds' } },
+  {
+    name: 'Trade',
+    // one of the manager's bench players for the second team's best
+    path: (rosters) => `/trade/?league=nba&give=${rosters[0]![9]}&get=${rosters[1]![0]}`,
+    ready: 'trade-scorecard',
+    // the finder's frame holds its button until asked: its call is logged once it has run
+    calls: { 'trade-verdict': 'trade-scorecard', 'trade-suggestions': 'trade-suggestions-card', finder: 'find-trades' },
+  },
+];
+
+for (const p of PAGES) {
+  test(`${p.name}: signed out, and for anyone but the owner with his preview on, the page is the same byte for byte (#1056)`, async ({ page }) => {
+    const { rosters } = await seedLeague(page);
+    const path = p.path(rosters);
+    await page.goto('/sources/');
+    const asked: string[] = [];
+    page.on('request', (r) => {
+      if (new URL(r.url()).pathname.startsWith('/api/owner/')) asked.push(r.url());
+    });
+    await as(page, SIGNED_OUT);
+    const baseline = await mainHtml(page, path, p.ready);
+    // a signed-out browser asks nothing of the owner's routes
+    expect(asked).toEqual([]);
+    expect(baseline).not.toContain('Preview: not validated');
+    expect(baseline).not.toContain('Last week, graded');
+    for (const [label, who] of OTHERS) {
+      await as(page, who);
+      // the owner sees his graded card on My Team (#1058) with the preview off; the rest is the same
+      const owner = who.owner === true;
+      expect(await mainHtml(page, path, p.ready, owner), label).toBe(baseline);
+      if (owner) await expect(page.getByTestId('graded'), label).toHaveCount(p.name === 'My Team' ? 1 : 0);
+    }
+  });
+
+  test(`${p.name}: the owner with his preview on sees each hidden call in its frame, each logged once (#1056)`, async ({ page }) => {
+    const { rosters } = await seedLeague(page);
+    const posted: Record<string, unknown>[] = [];
+    await page.goto('/sources/');
+    await as(page, { switchOn: true, flag: true, owner: true }, posted);
+    await page.goto(p.path(rosters));
+    const frames = page.getByTestId('owner-preview');
+    for (const [call, inside] of Object.entries(p.calls)) {
+      const frame = frames.and(page.locator(`[data-call="${call}"]`));
+      await expect(frame, call).toBeVisible();
+      await expect(frame.getByRole('heading', { name: /^Preview: not validated/ }), call).toBeVisible();
+      await expect(frame, call).toContainText('Shown to you alone. This call has not passed its check (see Methodology); each one shown is logged.');
+      // the hidden call itself, as its switch would show it
+      await expect(inside === 'trade-suggestions-card' ? frame.locator('#suggestions') : frame.getByTestId(inside), call).toBeVisible();
+      // a pickup is offered within the week's adds, and the waiver wait is said
+      if (['stream', 'swaps', 'top-adds'].includes(call)) {
+        await expect(frame.getByTestId('preview-adds-limit'), call).toContainText('3 of 4 adds left this week');
+        await expect(frame.getByTestId('preview-adds-limit'), call).toContainText('A player dropped in the last 2 days is on waivers and cannot be added yet.');
+      }
+    }
+    // the finder runs when asked, and its trades are logged then
+    if ('finder' in p.calls) {
+      await frames.and(page.locator('[data-call="finder"]')).getByTestId('find-trades').click();
+      await expect(page.locator('[data-call="trade-finder"]')).toBeVisible();
+    }
+    await page.waitForLoadState('networkidle');
+    // every frame on the page, the ones the data allows (sell high, the punt's chips) included, logged once
+    const shown = await frames.evaluateAll((els) => els.map((e) => e.getAttribute('data-call')));
+    // the week's chances are logged too, once a week, but they are no preview frame (#1058)
+    const logged = posted.filter((e) => e['kind'] === 'call' && e['call'] !== 'week-chances').map((e) => e['call']);
+    expect([...logged].sort()).toEqual([...shown].sort());
+    for (const call of Object.keys(p.calls)) if (call !== 'finder') expect(logged.filter((c) => c === call), call).toHaveLength(1);
+    for (const e of posted.filter((x) => x['kind'] === 'call' && x['call'] !== 'week-chances')) {
+      expect(Object.keys(e).sort()).toEqual(['build', 'call', 'date', 'kind', 'naive', 'subject', 'value']);
+      expect(e).toMatchObject({ date: '2026-11-02', subject: expect.any(String), value: expect.any(String), build: 'fixture' });
+      expect(e['naive'] === null || typeof e['naive'] === 'string').toBe(true);
+    }
+    for (const theme of ['dark', 'light']) {
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+      const found = await new AxeBuilder({ page }).include('[data-testid="owner-preview"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+      expect(found.violations, theme).toEqual([]);
+    }
+  });
+}
+
+test('with no adds left this week, the preview offers no pickup and says so; with one left, one (#1056)', async ({ page }) => {
+  await seedLeague(page, 4);
+  await page.goto('/sources/');
+  await as(page, { switchOn: true, flag: true, owner: true });
+  for (const path of ['/streamers/?league=nba', '/team/?league=nba']) {
+    await page.goto(path);
+    const frames = page.getByTestId('owner-preview').filter({ has: page.getByTestId('preview-adds-limit') });
+    await expect(frames.first(), path).toBeVisible();
+    for (const frame of await frames.all()) {
+      await expect(frame.getByTestId('preview-adds-limit')).toContainText('No adds left this week: the next one comes on Monday.');
+      await expect(frame.getByTestId('top-add')).toHaveCount(0);
+      await expect(frame.getByTestId('matchup-stream-move')).toHaveCount(0);
+      await expect(frame.getByTestId('upgrades')).toHaveCount(0);
+    }
+  }
+  await seedLeague(page, 3);
+  await page.goto('/streamers/?league=nba');
+  const frame = page.getByTestId('owner-preview').and(page.locator('[data-call="top-adds"]'));
+  await expect(frame.getByTestId('preview-adds-limit')).toContainText('1 of 4 adds left this week, so no more than 1 is offered.');
+  await expect(frame.getByTestId('top-add')).toHaveCount(1);
+});
