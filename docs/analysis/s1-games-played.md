@@ -23,7 +23,7 @@ A week's totals are mostly per-game production times games played, and games pla
 - **The two settings** (`k` and the decay) came from a short grid declared in advance. They were chosen per league on the tuning seasons only (NBA 2020-21 to 2022-23, WNBA 2021 to 2023), by the lowest error in games played. They were frozen in a commit before any judged season was read.
 - **The judgement:** once, on NBA 2023-24 and 2024-25 and WNBA 2024 and 2025, each league on its own. For each category, the error (RMSE) of the week's total is compared with the projection-week's, with S0's paired bootstrap for the 95% interval.
 - **The bar** comes from S0. In each counting category the error must drop by at least a quarter of S0's noise, with the interval below zero. No category of the nine may get worse by more than its noise. FG% and FT% are scored at the real attempts, so the games count cannot move them. They are held only to "no worse".
-- **Nothing saw the future.** A check recomputes every Monday's inputs and predicted games with every game from that Monday on deleted. The results are identical on every tuning and judged Monday: 121 NBA and 88 WNBA.
+- **What the study knew on the Monday.** A check recomputes every Monday's inputs and predicted games with every game from that Monday on deleted, and the results are identical on every tuning and judged Monday (121 NBA, 88 WNBA). One thing is not as of the Monday: the week's schedule is the schedule as played, not as published that morning, so a game postponed later in the week already sits on its new date. That changed a team's games in five NBA judged weeks. With those five weeks left out, every counting category still passes (PTS −0.871, −1.049 to −0.704, bar −0.148). S0's harness, and so every study, has the same exception; #1087 fixes it.
 
 **What could not be tested:** the injury listing. The injury history the study named (ESPN's statuses) starts in late October 2026. The official report starts in NBA 2023-24, so no tuning season has one to fit on. The listing rule stays as the projection has it. That half of the hypothesis is untested, and it waits for listings to accumulate.
 
@@ -31,13 +31,13 @@ A week's totals are mostly per-game production times games played, and games pla
 
 **NBA players miss far more games than the schedule says.** Among the top 130, a week has about 3.3 team games, and they play about 2.6 of them. More than half of these player-weeks include a second night. About one second night in nine was sat by a player who had played the night before. That share was 11% in both judged seasons and in the tuning seasons.
 
-**Most of the gain is the shared one-in-nine.** On the tuning seasons, giving everyone the group's share cut the games error from 1.494 to 1.457. Using each player's own share, mostly from this season (`k` 0, decay 0.25), cut it to 1.444. That pick sits at the edge of the declared grid. It means a player's own recent record is the best guide: who sits is a habit, and it changes from year to year.
+**Most of the gain is the shared one-in-nine, not each player's habit.** On the tuning seasons, giving everyone the group's share cut the games error from 1.494 to 1.457. Using each player's own share, mostly from this season (`k` 0, decay 0.25), cut it only a little further, to 1.444: about three quarters of the gain needs no player-specific rest pattern at all. Part of why any discount helps is that the test boards almost never carry the injury listing (2 of 6,240 judged NBA player-weeks), so the projection counts about 0.7 games a week too many, and a quarter of the gain comes from players who were already sitting, or had not played yet that season. So this result says "count second nights at less than a full game" more firmly than it says "this player rests". That pick sits at the edge of the declared grid. It means a player's own recent record is the best guide: who sits is a habit, and it changes from year to year.
 
 **The WNBA has almost nothing to find.** Only 4% of tuning player-weeks, and 14% of judged ones, include a second night. The share sat is 3% to 6%. The best setting moved the games error by a thousandth.
 
 ## The numbers that decide it
 
-**NBA, judged seasons 2023-24 and 2024-25** (50 weeks, 6,240 player-weeks; `k` 0, decay 0.25). Games-played RMSE: projection 1.398, study 1.347.
+**NBA, judged seasons 2023-24 and 2024-25** (50 weeks, the first two before any games; 6,240 player-weeks; `k` 0, decay 0.25). Games-played RMSE: projection 1.398, study 1.347.
 
 | Category | RMSE projection | RMSE study | Study − projection (95%) | Bar | Passes |
 | --- | --- | --- | --- | --- | --- |
@@ -53,7 +53,7 @@ A week's totals are mostly per-game production times games played, and games pla
 
 Each NBA season also passes on its own. PTS: −0.60 (−0.76 to −0.43) in 2023-24 and −1.06 (−1.29 to −0.84) in 2024-25.
 
-**WNBA, judged seasons 2024 and 2025** (37 weeks, 4,160 player-weeks; `k` 1, decay 1). Games-played RMSE: projection 1.470, study 1.465.
+**WNBA, judged seasons 2024 and 2025** (37 weeks, the first five before any games; 4,160 player-weeks; `k` 1, decay 1). Games-played RMSE: projection 1.470, study 1.465.
 
 | Category | RMSE projection | RMSE study | Study − projection (95%) | Bar | Passes |
 | --- | --- | --- | --- | --- | --- |
@@ -71,7 +71,7 @@ The WNBA study is a hair better everywhere, but nowhere near its bar. It is reco
 
 ## What it means for your team
 
-- **Your week's games are fewer than the schedule shows.** For a top-130 NBA player it is about 2.6 played to 3.3 scheduled. Expect roughly one in nine of your players to sit a back-to-back's second night. For the players who have made a habit of it, expect more.
+- **Your week's games are fewer than the schedule shows.** For a top-130 NBA player it is about 2.6 played to 3.3 scheduled. Expect roughly one in nine of your players to sit a back-to-back's second night. A player's own record adds a little on top of that, less than the shared rate does.
 - **Back-to-backs are a small part of the gap.** Most of the missing 0.7 games a week is injuries and other absences that the rest pattern does not see. The injury listing could not be tested on history. It is the next thing to measure as the listings build up.
 - **Nothing changes on the site yet.** The NBA rule is recorded as passed on its judged seasons (`methodology/features.yml`, `week-games-rest-nba`). Wiring it into the matchup card, and into the preview you see as owner, is separate work. It shows publicly only after six live weeks of 2026-27 agree with this result. The WNBA rule is recorded as failed (`week-games-rest-wnba`).
 

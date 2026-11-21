@@ -361,7 +361,7 @@ export const FEATURES: readonly Feature[] = [
   },
   {
     "id": "week-games-rest-nba",
-    "what": "An NBA player's games in the week, less his share of second nights of back-to-backs sat (S1): passed its judged seasons",
+    "what": "An NBA player's games in the week, less his share of second nights of back-to-backs sat (S1)",
     "page": "team",
     "verdict": "open",
     "shown": "hidden",

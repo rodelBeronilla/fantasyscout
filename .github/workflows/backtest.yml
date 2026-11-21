@@ -153,7 +153,8 @@ jobs:
           EOF
       # S1, games actually played (#1079): every mirrored season's regular-season game rows (who
       # played, for which team, on which day) and the teams' schedules, from the full build.
-      # ops.s1_games_played cuts them strictly before each Monday it predicts.
+      # ops.s1_games_played cuts the game rows strictly before each Monday it predicts; the schedule
+      # stays as played, so a game postponed after the Monday sits on its new date (#1087).
       - name: Export S1's games-played inputs
         if: inputs.games_played
         env:

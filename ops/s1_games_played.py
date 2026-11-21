@@ -157,7 +157,8 @@ def read_history(folders: list[Path]) -> tuple[str, History]:
 
 def cut(h: History, as_of: date) -> History:
     """The history with every game row on or after ``as_of`` deleted: what the leak check
-    recomputes the inputs from. The schedule is published in advance and stays (ADR 0018)."""
+    recomputes the inputs from. The schedule stays as the full build holds it, as played:
+    a game postponed after ``as_of`` sits on its new date (#1087)."""
     games = h.games[h.games["game_date"] < as_of].reset_index(drop=True)
     return History(h.seasons, games, h.schedule, h.team_days)
 
