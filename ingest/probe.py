@@ -104,7 +104,7 @@ DEFAULT_TARGETS: tuple[Target, ...] = (
     # The leagues' official injury reports: the NBA's index page and a WNBA report PDF.
     Target(
         name="injury-report-nba-index",
-        url="https://official.nba.com/nba-injury-report-2026-27-season/",
+        url="https://www.nba.com/players/injury-report",
         expect="Injury-Report_",
         headers=REPORT_HEADERS,
         json=False,
