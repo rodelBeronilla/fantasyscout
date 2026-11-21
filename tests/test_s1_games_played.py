@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 from ops import s1_games_played as s1
+from ops import week_yardstick as wy
 
 
 def history(
@@ -118,3 +119,31 @@ def test_the_leak_check_catches_an_input_that_reads_the_monday(
     monkeypatch.setattr(s1, "inputs", leaky)
     with pytest.raises(SystemExit, match="saw the future"):
         s1.leak_check(h, "2021-22", [monday(["p1"], [3.0])])
+
+
+def category(name: str, diff: float, high: float) -> wy.Category:
+    return wy.Category(name, 10 + diff, 10, 0, 0, diff, diff - 0.01, high, 0, 0, 0, 0)
+
+
+S0 = [{"category": c, "noise": 0.4} for c in wy.CATEGORIES]
+
+
+def test_the_bar_needs_a_quarter_of_the_noise_in_each_counting_category() -> None:
+    # every counting category lower by 0.1 (a quarter of 0.4) with the interval below zero; the
+    # percentages unchanged
+    cats = [category(c, -0.1 if c in s1.TARGETS else 0.0, -0.05) for c in wy.CATEGORIES]
+    rows, fails = s1.apply_bar(cats, S0)
+    assert fails == []
+    assert [r["target"] for r in rows] == [True] * 7 + [False, False]
+    # one short of the bar fails; an interval reaching zero fails
+    cats[0] = category("PTS", -0.09, -0.05)
+    cats[1] = category("REB", -0.2, 0.01)
+    _, fails = s1.apply_bar(cats, S0)
+    assert [f.split(":")[0] for f in fails] == ["PTS", "REB"]
+
+
+def test_no_category_may_get_worse_by_more_than_its_noise() -> None:
+    cats = [category(c, -0.1 if c in s1.TARGETS else 0.0, -0.05) for c in wy.CATEGORIES]
+    cats[7] = category("FG%", 0.41, 0.5)
+    _, fails = s1.apply_bar(cats, S0)
+    assert fails == ["FG%: worse by +0.4100, more than its noise 0.4000"]

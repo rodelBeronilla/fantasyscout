@@ -415,28 +415,7 @@ def judge(
         )
         for m, g in weeks
     ]
-    cats = wy.judge(paired, seeds=1)
-    noise = {c["category"]: c for c in s0[league]["categories"]}
-    rows, fails = [], []
-    for c in cats:
-        n = float(noise[c.category]["noise"])
-        bar = n / 4
-        row = {
-            "category": c.category,
-            "rmse_study": c.rmse_projection,
-            "rmse_projection": c.rmse_naive,
-            "diff": c.diff,
-            "diff_low": c.diff_low,
-            "diff_high": c.diff_high,
-            "s0_noise": n,
-            "bar": -bar,
-            "target": c.category in TARGETS,
-        }
-        if c.category in TARGETS and not (c.diff <= -bar and c.diff_high < 0):
-            fails.append(f"{c.category}: {c.diff:+.4f} ({c.diff_high:+.4f} high), bar {-bar:+.4f}")
-        if c.diff > n:
-            fails.append(f"{c.category}: worse by {c.diff:+.4f}, more than its noise {n:.4f}")
-        rows.append(row)
+    rows, fails = apply_bar(wy.judge(paired, seeds=1), s0[league]["categories"])
     return {
         "league": league,
         "seasons": sorted(s for _, s, _ in seasons),
@@ -458,6 +437,37 @@ def judge(
         "pass": not fails,
         "fails": fails,
     }
+
+
+def apply_bar(
+    cats: list[wy.Category], s0_categories: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """S0's bar per category (``cats`` from ops.week_yardstick.judge with the study as its
+    projection and the projection as its naive): in each target category the study's RMSE is lower
+    by at least a quarter of S0's noise with the 95% interval below zero, and no category is worse
+    by more than its noise. Returns the rows and what fails."""
+    noise = {c["category"]: c for c in s0_categories}
+    rows, fails = [], []
+    for c in cats:
+        n = float(noise[c.category]["noise"])
+        bar = n / 4
+        row = {
+            "category": c.category,
+            "rmse_study": c.rmse_projection,
+            "rmse_projection": c.rmse_naive,
+            "diff": c.diff,
+            "diff_low": c.diff_low,
+            "diff_high": c.diff_high,
+            "s0_noise": n,
+            "bar": -bar,
+            "target": c.category in TARGETS,
+        }
+        if c.category in TARGETS and not (c.diff <= -bar and c.diff_high < 0):
+            fails.append(f"{c.category}: {c.diff:+.4f} ({c.diff_high:+.4f} high), bar {-bar:+.4f}")
+        if c.diff > n:
+            fails.append(f"{c.category}: worse by {c.diff:+.4f}, more than its noise {n:.4f}")
+        rows.append(row)
+    return rows, fails
 
 
 def table(res: dict[str, Any]) -> str:
