@@ -152,14 +152,14 @@ test("last week's categories are graded against Yahoo's final totals, with the r
     logLine({ kind: 'call', date: '2026-11-24', call: 'stream', subject: `${add} for ${drop}`, value: 'z_steals: 3 games on the open days, flips none', naive: null, build: 'b1' }),
     logLine({ kind: 'call', date: '2026-11-25', call: 'trade-verdict', subject: 'a > b', value: 'fair', naive: null, build: 'b1' }),
   ];
-  const week = (player_id: string, games: number) => ({
+  const week = (player_id: string, games: number, points = 61) => ({
     league: 'nba',
     season: '2026-27',
     player_id,
     week_start: '2026-11-23',
     games_scheduled: 4,
     games_played: games,
-    points: 61,
+    points,
     rebounds_total: 22,
     assists: 9,
     steals: 5,
@@ -171,7 +171,7 @@ test("last week's categories are graded against Yahoo's final totals, with the r
     free_throws_made: 11,
     free_throws_attempted: 13,
   });
-  await page.route('**/player_week/nba.json', (r) => r.fulfill({ json: [week(add, 3), week(drop, 2)] }));
+  await page.route('**/player_week/nba.json', (r) => r.fulfill({ json: [week(add, 3), week(drop, 2, 38)] }));
   await asOwner(page, [...calls, ''].join('\n'));
   await page.goto('/team/?league=nba');
   const card = page.getByTestId('graded');
@@ -196,7 +196,8 @@ test("last week's categories are graded against Yahoo's final totals, with the r
   const stream = card.locator('[data-testid="graded-call-line"][data-call="stream"]');
   await expect(stream).toContainText('The stream, from Tue, Nov 24:');
   await expect(stream).toContainText('(add): 3 games of 4 · 61 PTS · 22 REB · 9 AST · 5 STL · 2 BLK · 8 3PM · 6 TO · FG 21/44 · FT 11/13');
-  await expect(stream).toContainText('(drop): 2 games of 4');
+  // each player's own week: the drop's line is not the add's
+  await expect(stream).toContainText('(drop): 2 games of 4 · 38 PTS');
   await expect(card.locator('[data-testid="graded-call-line"][data-call="trade-verdict"]')).toHaveText("A trade's verdict: not graded: no plain measure yet.");
   await axe(page);
 });
