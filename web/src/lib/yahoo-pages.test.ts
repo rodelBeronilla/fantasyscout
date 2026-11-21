@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, normalize } from './fantasy-league';
 import { fixedPlayoffs, leagueRecords, recordsFromText } from './league-state';
 import { weekScore } from './league-sync';
 import { applyYahooImport, parseYahooHash } from './yahoo-bookmarklet';
-import { yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
+import { yahooAddsUsed, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
 
 // The text of a public Yahoo league's pages on 8 November 2026, as the bookmark reads them
 const LABELS = ['Team', 'FGM/A*', 'FG%', 'FTM/A*', 'FT%', '3PTM', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO', ''];
@@ -183,5 +183,22 @@ describe("a league's trade and tie rules from the bookmark (#1025)", () => {
     expect(setup.source?.rules).toEqual({ tradeReview: 'League Votes', tieBreaker: 'Higher seed wins' });
     const stored = normalize({ ...setup, source: { ...setup.source!, rules: { tradeReview: 7, tieBreaker: '' } as never } }, DEFAULT_SETTINGS.nba);
     expect(stored.source?.rules).toBeUndefined();
+  });
+});
+
+describe("the adds used this week, from the manager's team page (#1028)", () => {
+  it("reads Yahoo's line, and nothing from any other wording", () => {
+    expect(yahooAddsUsed('You have used 0 of your 4 player adds for this week.')).toEqual({ used: 0, limit: 4 });
+    expect(yahooAddsUsed('You have used 1 of your 4 player add for this week.')).toEqual({ used: 1, limit: 4 });
+    expect(yahooAddsUsed('Waiver Priority: 8th')).toBeNull();
+  });
+
+  it('an import keeps the count with the roster it counted', () => {
+    const payload = parseYahooHash(hash({ ...v3, adds: 'You have used 3 of your 4 player adds for this week.' }))!;
+    expect(payload.adds).toContain('used 3 of your 4');
+    const { setup } = applyYahooImport(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), payload, players, NOV_8);
+    expect(setup.source?.addsUsed).toEqual({ monday: '2026-11-02', used: 3, roster: setup.rosters[setup.mine] });
+    // a payload without the line keeps no count
+    expect(applyYahooImport(normalize({ teams: 4 }, DEFAULT_SETTINGS.nba), parseYahooHash(hash(v3))!, players, NOV_8).setup.source?.addsUsed).toBeUndefined();
   });
 });

@@ -1193,10 +1193,11 @@ test('the Yahoo bookmarklet reads every roster from the Starting Rosters page it
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
   const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
-  // No team page may be fetched: the rosters are on the page the bookmark runs on.
-  let fetched = 0;
+  // No other team's page is fetched: the rosters are on the page the bookmark runs on. The
+  // manager's own team page is, once, for Yahoo's count of the week's adds (#1028).
+  const fetchedPages: string[] = [];
   await page.route(/\/nba\/12345\/\d+$/, (route) => {
-    fetched += 1;
+    fetchedPages.push(new URL(route.request().url()).pathname);
     return route.abort();
   });
   await page.goto('/data/yahoo/startingrosters.html');
@@ -1205,7 +1206,8 @@ test('the Yahoo bookmarklet reads every roster from the Starting Rosters page it
   await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
   await expect(page.getByTestId('team-card')).toHaveCount(4);
   await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo: 14 players matched, 2 on the IL.');
-  expect(fetched).toBe(0);
+  expect(fetchedPages.length).toBeLessThanOrEqual(1);
+  expect(fetchedPages.every((p) => p === '/nba/12345/2')).toBe(true);
   const cards = page.getByTestId('team-card');
   await expect(cards.nth(0).getByLabel('Name of team 1')).toHaveValue('Dunk Dynasty');
   await expect(cards.nth(0).getByTestId('roster').locator('li')).toHaveCount(4);
@@ -1240,6 +1242,9 @@ test("the Yahoo bookmarklet brings the standings, this week's opponent and score
   await expect(page.getByRole('status')).toContainText('Imported 4 teams from Yahoo');
   // the matchup asked for is the manager's (Rim Reapers, Yahoo's team 2)
   expect(asked).toEqual(['/nba/12345/', '/nba/12345/matchup?mid1=2', '/nba/12345/settings']);
+  // the manager's team page gives Yahoo's own count of the week's adds (#1028)
+  const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('fantasyscout:league:nba') ?? '{}').source?.addsUsed);
+  expect(kept).toMatchObject({ monday: '2026-11-02', used: 1 });
   // a head-to-head categories league; the records came in, so there is nothing to enter by hand
   await expect(page.getByLabel('Format')).toHaveValue('h2h');
   await expect(page.getByTestId('standings-entry')).toHaveCount(0);
@@ -4359,7 +4364,14 @@ test("My Team shows the score so far beside the projected final, games left both
   }
   // three of four adds left; the open slots say so
   const open = page.getByTestId('today-open');
-  if (await open.count()) await expect(open.getByTestId('today-adds-left')).toContainText('3 of 4 adds left this week: 1 made since your first import this week'); 
+  if (await open.count()) await expect(open.getByTestId('today-adds-left')).toContainText('3 of 4 adds left this week: 1 made since your first import this week');
+  // with Yahoo's own count from the last import, that count plus the player added since it (#1028)
+  const counted = { ...copy, source: { ...copy.source, addsUsed: { monday: '2026-11-02', used: 2, roster: rosters[0]!.slice(1) } } };
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(counted));
+  await page.reload();
+  if (await page.getByTestId('today-open').count()) {
+    await expect(page.getByTestId('today-adds-left')).toContainText("1 of 4 adds left this week: 3 used: 2 by Yahoo's count at your last import, 1 added since");
+  }
 });
 
 test('the capture bookmark saves the Yahoo pages it read as one file on the device, then imports (#1030)', async ({ page, browserName }) => {
@@ -4372,6 +4384,8 @@ test('the capture bookmark saves the Yahoo pages it read as one file on the devi
   page.on('request', (r) => {
     if (r.method() !== 'GET') uploads.push(`${r.method()} ${r.url()}`);
   });
+  // the manager's team page, for the week's adds (#1028)
+  await page.route(/\/nba\/12345\/(\d+)$/, (route) => route.fulfill({ path: `tests/fixtures/data/yahoo/team-${route.request().url().split('/').pop()}.html` }));
   await page.route(/\/nba\/12345\/(matchup\?.*|settings)?$/, (route) => {
     const url = new URL(route.request().url());
     const name = url.pathname.endsWith('/matchup') ? 'matchup' : url.pathname.endsWith('/settings') ? 'settings' : 'home';
@@ -4379,7 +4393,7 @@ test('the capture bookmark saves the Yahoo pages it read as one file on the devi
   });
   await page.goto('/data/yahoo/startingrosters.html');
   page.once('dialog', (d) => {
-    expect(d.message()).toMatch(/^Saved the 4 Yahoo pages the import read as yahoo-pages-12345-\d{4}-\d{2}-\d{2}\.json on this device\. Go on to the import\?$/);
+    expect(d.message()).toMatch(/^Saved the 5 Yahoo pages the import read as yahoo-pages-12345-\d{4}-\d{2}-\d{2}\.json on this device\. Go on to the import\?$/);
     void d.accept();
   });
   const download = page.waitForEvent('download');
@@ -4389,7 +4403,7 @@ test('the capture bookmark saves the Yahoo pages it read as one file on the devi
   const file = JSON.parse(await (await import('node:fs/promises')).readFile((await saved.path())!, 'utf8')) as { leagueId: string; pages: { url: string; status: number; html: string }[] };
   expect(file.leagueId).toBe('12345');
   // the page it ran on, then the league's home, the matchup and the settings, each as read
-  expect(file.pages.map((p) => new URL(p.url, 'https://x').pathname)).toEqual(['/data/yahoo/startingrosters.html', '/nba/12345/', '/nba/12345/matchup', '/nba/12345/settings']);
+  expect(file.pages.map((p) => new URL(p.url, 'https://x').pathname)).toEqual(['/data/yahoo/startingrosters.html', '/nba/12345/', '/nba/12345/matchup', '/nba/12345/settings', '/nba/12345/2']);
   expect(file.pages.every((p) => p.status === 200 && p.html.length > 100)).toBe(true);
   // and the import goes on, as the plain bookmark's does; nothing was sent anywhere
   await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
