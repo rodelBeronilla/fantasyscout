@@ -684,6 +684,28 @@ export default function MyTeam() {
           league={league}
         />
       )}
+      {/* the owner preview (#1056): the week's lineup plan its switch hides */}
+      {preview && !SHOWS.lineup && lineupPlans && !setup.drafting && (
+        <OwnerPreview
+          id="lineup"
+          what="this week's lineup plan"
+          issue={759}
+          call={{
+            call: 'lineup',
+            subject: [...new Set(lineupPlans.mine.days.flatMap((d) => d.benched))].join(' ') || 'none',
+            value: `${lineupPlans.mine.started} starts, ${lineupPlans.mine.lost} lost to a full lineup, ${lineupPlans.mine.openSlots} open slots`,
+            naive: lineupPlans.asSet ? `${lineupPlans.asSet.mine} starts as set` : null,
+          }}
+        >
+          <LineupTile
+            plan={lineupPlans.mine}
+            theirs={lineupPlans.theirs}
+            opponent={setup.opponent === null ? null : (setup.names[setup.opponent] ?? null)}
+            nameOf={name}
+            league={league}
+          />
+        </OwnerPreview>
+      )}
 
       <Tile title="Roster" id="roster" testid="my-roster">
         <IlMoves
