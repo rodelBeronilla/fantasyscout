@@ -8,7 +8,7 @@
 import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, mondayOf, normalize } from './fantasy-league';
 import { weekStart, yahooSource } from './league-sync';
 import { easternDate } from './today';
-import { cleanYahooPages, type YahooPages, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
+import { cleanYahooPages, type YahooPages, yahooAddsUsed, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
 
 interface YahooPlayer {
   name: string;
@@ -256,6 +256,11 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       if (c.length === 2 && c[0] && c[1] && c[0].length < 60 && rows.length < 80) rows.push([c[0].replace(/:$/, ''), c[1].slice(0, 200)]);
     }
     if (rows.length) settings.rows = rows;
+    // the manager's team page says how many of the week's adds are used (#1028): its line as it stands
+    let adds: string | undefined;
+    const own = mine !== null ? await read(String(mine)) : null;
+    const said = own ? ((own.body && own.body.textContent) || '').replace(/\s+/g, ' ').match(/[^.]{0,80}player adds?[^.]{0,60}\./i) : null;
+    if (said) adds = said[0].trim().slice(0, 200);
     const taken = new Set(teams.flatMap((t) => t.players.map((p) => p.name)));
     // every player link on the page the bookmark ran on is accounted for (#1018)
     for (const a of Array.from(doc.querySelectorAll('a[href*="/nba/players/"]'))) {
@@ -265,7 +270,7 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
     const notTaken = Array.from(rejected, ([name, reason]) => ({ name, reason }))
       .filter((r) => !taken.has(r.name))
       .slice(0, 100);
-    const payload: YahooPayload = { v: 4, leagueId, mine, teams, records, ...(matchup ? { matchup } : {}), settings, rejected: notTaken };
+    const payload: YahooPayload = { v: 4, leagueId, mine, teams, records, ...(matchup ? { matchup } : {}), settings, ...(adds ? { adds } : {}), rejected: notTaken };
     const go = () => {
       location.href = target.replace(/#.*$/, '') + '#yahoo=' + encodeURIComponent(JSON.stringify(payload));
     };
@@ -319,7 +324,7 @@ export function parseYahooHash(hash: string): YahooPayload | null {
   const m = hash.match(/^#yahoo=(.+)$/);
   if (!m || !m[1]) return null;
   try {
-    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; rejected?: unknown };
+    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; rejected?: unknown };
     // Only the current bookmark is read (#1018): an older one dropped players silently, and the
     // League page asks for it to be added again (yahooHashVersion, YAHOO_OUTDATED).
     if (raw.v !== YAHOO_PAYLOAD_VERSION || !Array.isArray(raw.teams) || !raw.teams.length) return null;
@@ -419,6 +424,7 @@ export function applyYahooImport(
   }
   const mine = Math.max(0, payload.teams.findIndex((t) => t.id === payload.mine));
   const state = yahooState(payload, mine, now);
+  const addsUsed = payload.adds ? yahooAddsUsed(payload.adds) : null;
   const next = normalize(
     { ...setup, ...state.settings, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },
     DEFAULT_SETTINGS['nba'],
@@ -432,6 +438,8 @@ export function applyYahooImport(
         ...(Object.keys(slots).length ? { slots } : {}),
         // the manager's roster at the week's first import, for the adds made since (#1022)
         week: weekStart(setup.source, payload.leagueId, mondayOf(easternDate(new Date(now))), next.rosters[next.mine] ?? []),
+        // Yahoo's own count of the week's adds at this import, with the roster it counted (#1028)
+        ...(addsUsed ? { addsUsed: { monday: mondayOf(easternDate(new Date(now))), used: addsUsed.used, roster: [...(next.rosters[next.mine] ?? [])] } } : {}),
       },
     },
     matched,

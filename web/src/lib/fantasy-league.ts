@@ -136,6 +136,8 @@ export interface LeagueSource {
   slots?: Record<string, string>;
   /** The manager's roster at the first import of the fantasy week (its Monday), for the adds made since (#1022). */
   week?: { monday: string; roster: string[] };
+  /** Yahoo's count of the week's adds used, read from the manager's team page at an import, and the roster it counted (#1028). */
+  addsUsed?: { monday: string; used: number; roster: string[] };
   /** The trade deadline, the trade review and the playoff tie-breaker as the host words them (#1025). */
   rules?: { tradeDeadline?: string; tradeReview?: string; tieBreaker?: string };
 }
@@ -314,6 +316,10 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
       ? { week: { monday: (s.week as { monday: string }).monday, roster: (s.week as { roster: string[] }).roster } }
       : {}),
     ...(cleanRules(s.rules) ? { rules: cleanRules(s.rules) } : {}),
+    // Yahoo's count of the week's adds at an import (#1028)
+    ...(s.addsUsed && typeof s.addsUsed === 'object' && isDay((s.addsUsed as { monday?: unknown }).monday) && Number.isInteger((s.addsUsed as { used?: unknown }).used) && isIds((s.addsUsed as { roster?: unknown }).roster)
+      ? { addsUsed: { monday: (s.addsUsed as { monday: string }).monday, used: Math.max(0, (s.addsUsed as { used: number }).used), roster: (s.addsUsed as { roster: string[] }).roster } }
+      : {}),
     ...(s.slots && typeof s.slots === 'object' && !Array.isArray(s.slots)
       ? { slots: Object.fromEntries(Object.entries(s.slots).filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].length <= 6)) }
       : {}),
