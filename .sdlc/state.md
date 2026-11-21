@@ -22,7 +22,7 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 - **The owner's browser (2026-11-17).** Every chat gets browser tools that act in his own Chrome. The rules for using his browser are in [AGENTS.md](../AGENTS.md). No Yahoo hand-off starts without his request.
 - **The default league stays the WNBA (2026-11-17).** Not to be reopened; a first visit on the WNBA is told that imports are for NBA leagues (#1037).
 - **The week-by-week design is kept (2026-11-17).** The owner saw the draft and likes it; it is polished after item 1, and the draft page stays out of the preview's sitemap.
-- **No CLAUDE.md in the repository (2026-11-18).** `AGENTS.md` holds the project instructions.
+- **One instructions file (2026-11-18).** `AGENTS.md` is the only file of project instructions for agents; no other is added.
 - **All-play counts categories (2026-11-17).** A week's all-play record is each category against each other team: 63 results a week in his league.
 - **Owner preview (2026-11-16, design in step 3, not built).** Unjudged and failed calls will show to the signed-in owner only, each logged with the call, what he did and what happened. Public pages keep the rule below.
 - **Calls need a passed check; data can show (2026-11-09, #936).** A recommendation shows publicly only after its out-of-sample check passes. The same numbers in a labelled, sortable table are data and may show. Switches in `web/src/lib/visibility.ts`; verdicts in `methodology/features.yml`.
