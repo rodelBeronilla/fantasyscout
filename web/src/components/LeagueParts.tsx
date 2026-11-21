@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 
 import { CATEGORIES, CATEGORY_LABELS } from '../lib/format';
+import type { addsThisWeek } from '../lib/league-sync';
 import { normalizeSlots, SLOT_KEYS, SLOT_LABEL } from '../lib/lineup';
 import {
   DEFAULT_SETTINGS,
@@ -534,7 +535,7 @@ export function Today({
   /** The day's one-line notes on flagged players (#823), shown under each it has one for. */
   notes?: PlayerNotes | null;
   /** This week's adds (#1022, #1027); null when the league sets no limit. */
-  adds?: { limit: number; made: number; left: number; counted: boolean } | null;
+  adds?: ReturnType<typeof addsThisWeek>;
   games: TodayGame[];
   date: string;
   /** Start and sit for today (#816), when the lineup slots and values are known. */
@@ -636,7 +637,7 @@ function TodayCalls({
   pickups: string;
   minutesFor?: (id: string) => ReactNode;
   /** This week's adds (#1022, #1027); null when the league sets no limit. */
-  adds?: { limit: number; made: number; left: number; counted: boolean } | null;
+  adds?: ReturnType<typeof addsThisWeek>;
 }) {
   const addsLeft = adds ? adds.left : null;
   const name = new Map(players.map((p) => [p.player_id, p.full_name ?? p.player_id]));
@@ -712,9 +713,11 @@ function TodayCalls({
             <span className="text-muted" data-testid="today-adds-left">
               {' '}
               ({adds.left} of {adds.limit} {adds.limit === 1 ? 'add' : 'adds'} left this week:{' '}
-              {adds.counted
-                ? `${adds.made} made since your first import this week; any made before it are not seen`
-                : 'no import yet this week, so none are counted'}
+              {adds.from === 'yahoo'
+                ? `${adds.made} used: ${adds.yahoo} by Yahoo's count at your last import${adds.made > adds.yahoo ? `, ${adds.made - adds.yahoo} added since` : ''}`
+                : adds.counted
+                  ? `${adds.made} made since your first import this week; any made before it are not seen`
+                  : 'no import yet this week, so none are counted'}
               )
             </span>
           )}

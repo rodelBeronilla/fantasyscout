@@ -8,7 +8,8 @@
 import { DEFAULT_SETTINGS, type LeagueSetup, type LeagueSource, matchNames, mondayOf, normalize } from './fantasy-league';
 import { weekStart, yahooSource } from './league-sync';
 import { easternDate } from './today';
-import { cleanYahooPages, type YahooPages, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring } from './yahoo-pages';
+import type { LeagueWeek } from './league-weeks';
+import { cleanYahooPages, type YahooPages, yahooAddsUsed, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring, yahooWeeks } from './yahoo-pages';
 
 interface YahooPlayer {
   name: string;
@@ -232,19 +233,22 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       }
       break;
     }
-    let matchup: { labels: string[]; rows: { id: number; cells: string[] }[] } | undefined;
-    const board = await read('matchup' + (mine !== null ? '?mid1=' + mine : ''));
-    for (const table of board ? Array.from(board.querySelectorAll('table')) : []) {
-      const head = headOf(table);
-      const labels = head ? cellsOf(head) : [];
-      if (!/^team$/i.test(labels[0] || '') || !labels.some((l) => /^(PTS|REB|AST)$/i.test(l))) continue;
-      const rows = Array.from(table.querySelectorAll('tbody tr')).flatMap((row) => {
-        const id = teamOf(row);
-        return id === null ? [] : [{ id, cells: cellsOf(row) }];
-      });
-      if (rows.length === 2) matchup = { labels, rows };
-      break;
-    }
+    type Totals = { labels: string[]; rows: { id: number; cells: string[] }[] };
+    /** A matchup page's totals table: its labels and both sides' rows; undefined when the page has none. */
+    const totalsOf = (page: Document | null): Totals | undefined => {
+      for (const table of page ? Array.from(page.querySelectorAll('table')) : []) {
+        const head = headOf(table);
+        const labels = head ? cellsOf(head) : [];
+        if (!/^team$/i.test(labels[0] || '') || !labels.some((l) => /^(PTS|REB|AST)$/i.test(l))) continue;
+        const rows = Array.from(table.querySelectorAll('tbody tr')).flatMap((row) => {
+          const id = teamOf(row);
+          return id === null ? [] : [{ id, cells: cellsOf(row) }];
+        });
+        return rows.length === 2 ? { labels, rows } : undefined;
+      }
+      return undefined;
+    };
+    const matchup = totalsOf(await read('matchup' + (mine !== null ? '?mid1=' + mine : '')));
     const settings: { playoffs?: string; scoring?: string; rows?: [string, string][] } = {};
     const settingsPage = await read('settings');
     const rows: [string, string][] = [];
@@ -256,6 +260,71 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       if (c.length === 2 && c[0] && c[1] && c[0].length < 60 && rows.length < 80) rows.push([c[0].replace(/:$/, ''), c[1].slice(0, 200)]);
     }
     if (rows.length) settings.rows = rows;
+    // the manager's team page says how many of the week's adds are used (#1028): its line as it stands
+    let adds: string | undefined;
+    const own = mine !== null ? await read(String(mine)) : null;
+    const said = own ? ((own.body && own.body.textContent) || '').replace(/\s+/g, ' ').match(/[^.]{0,80}player adds?[^.]{0,60}\./i) : null;
+    if (said) adds = said[0].trim().slice(0, 200);
+    // Every week's matchup totals (#1049). The home page's Matchups module links this week's
+    // matchups (matchup?week=W&mid1=..&mid2=..): weeks 1 to W are read, one page at a time with a
+    // pause between them, a page per matchup (each holds both sides). The first page that does not
+    // answer stops the reading, and is named. Finished weeks are kept on this device, under the
+    // league's id, and not asked for again; the current week is read on every run.
+    let current = 0;
+    for (const a of home ? Array.from(home.querySelectorAll('a[href]')) : []) {
+      let u: URL;
+      try {
+        u = new URL(hrefOf(a), location.href);
+      } catch {
+        continue;
+      }
+      const w = Number(u.searchParams.get('week'));
+      if (u.pathname === base + 'matchup' && u.searchParams.has('mid1') && Number.isInteger(w) && w > 0 && w <= 30) current = Math.max(current, w); // def: a season has fewer than thirty fantasy weeks
+    }
+    const store = 'fantasyscout:weeks:' + leagueId;
+    const weeks: { week: number; final: boolean; pages: Totals[] }[] = [];
+    let weeksStop: { week: number; page: string } | undefined;
+    if (current) {
+      try {
+        const saved: unknown = JSON.parse(localStorage.getItem(store) || '[]');
+        for (const k of Array.isArray(saved) ? (saved as { week?: unknown; pages?: unknown }[]) : []) {
+          const pages = Array.isArray(k && k.pages) ? (k.pages as Totals[]).filter((p) => p && Array.isArray(p.labels) && Array.isArray(p.rows) && p.rows.length === 2) : [];
+          if (k && typeof k.week === 'number' && Number.isInteger(k.week) && k.week > 0 && k.week < current && pages.length && !weeks.some((x) => x.week === k.week))
+            weeks.push({ week: k.week, final: true, pages });
+        }
+      } catch {
+        // storage blocked or unreadable: every week is read
+      }
+      for (let w = 1; w <= current && !weeksStop; w++) {
+        if (w < current && weeks.some((x) => x.week === w)) continue;
+        const covered = new Set<number>();
+        const ofWeek: Totals[] = [];
+        for (const t of teams.map((x) => x.id)) {
+          if (covered.has(t)) continue;
+          const path = 'matchup?week=' + w + '&mid1=' + t;
+          await new Promise((done) => setTimeout(done, 1000)); // def: a second between Yahoo's pages (the owner's reading rule)
+          const totals = totalsOf(await read(path));
+          if (!totals) {
+            weeksStop = { week: w, page: path };
+            break;
+          }
+          ofWeek.push(totals);
+          covered.add(t);
+          for (const r of totals.rows) covered.add(r.id);
+        }
+        if (!weeksStop) weeks.push({ week: w, final: w < current, pages: ofWeek });
+      }
+      weeks.sort((x, y) => x.week - y.week);
+      try {
+        localStorage.setItem(store, JSON.stringify(weeks.filter((x) => x.final).map((x) => ({ week: x.week, pages: x.pages }))));
+      } catch {
+        // storage blocked: the next run reads every week again
+      }
+    }
+    // the labels once when every page has the same, else on each page that differs
+    const weekLabels = weeks.length ? weeks[0]!.pages[0]!.labels : [];
+    const sameLabels = (l: string[]) => l.length === weekLabels.length && l.every((x, i) => x === weekLabels[i]);
+    const weekPages = weeks.map((x) => ({ week: x.week, final: x.final, pages: x.pages.map((p) => (sameLabels(p.labels) ? { rows: p.rows } : p)) }));
     const taken = new Set(teams.flatMap((t) => t.players.map((p) => p.name)));
     // every player link on the page the bookmark ran on is accounted for (#1018)
     for (const a of Array.from(doc.querySelectorAll('a[href*="/nba/players/"]'))) {
@@ -265,7 +334,19 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
     const notTaken = Array.from(rejected, ([name, reason]) => ({ name, reason }))
       .filter((r) => !taken.has(r.name))
       .slice(0, 100);
-    const payload: YahooPayload = { v: 4, leagueId, mine, teams, records, ...(matchup ? { matchup } : {}), settings, rejected: notTaken };
+    const payload: YahooPayload = {
+      v: 4,
+      leagueId,
+      mine,
+      teams,
+      records,
+      ...(matchup ? { matchup } : {}),
+      settings,
+      ...(adds ? { adds } : {}),
+      ...(weeks.length ? { weekLabels, weeks: weekPages } : {}),
+      ...(weeksStop ? { weeksStop } : {}),
+      rejected: notTaken,
+    };
     const go = () => {
       location.href = target.replace(/#.*$/, '') + '#yahoo=' + encodeURIComponent(JSON.stringify(payload));
     };
@@ -319,7 +400,7 @@ export function parseYahooHash(hash: string): YahooPayload | null {
   const m = hash.match(/^#yahoo=(.+)$/);
   if (!m || !m[1]) return null;
   try {
-    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; rejected?: unknown };
+    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown; rejected?: unknown };
     // Only the current bookmark is read (#1018): an older one dropped players silently, and the
     // League page asks for it to be added again (yahooHashVersion, YAHOO_OUTDATED).
     if (raw.v !== YAHOO_PAYLOAD_VERSION || !Array.isArray(raw.teams) || !raw.teams.length) return null;
@@ -389,6 +470,16 @@ function yahooState(payload: YahooPayload, mine: number, now: number): { source:
 }
 
 /**
+ * The weeks an import holds (#1049): the weeks this payload carries, and the finished weeks an
+ * earlier import of the same league had that this one does not. A week this payload carries
+ * replaces the old one; a week that was still under way is not kept.
+ */
+function keptWeeks(previous: LeagueSource | undefined, leagueId: string, read: LeagueWeek[]): LeagueWeek[] {
+  const old = previous?.host === 'yahoo' && previous.leagueId === leagueId ? (previous.weeks ?? []) : [];
+  return [...old.filter((w) => w.final && !read.some((r) => r.week === w.week)), ...read].sort((a, b) => a.week - b.week);
+}
+
+/**
  * The league with the imported teams: names, rosters matched by name, the injured list, the
  * manager's team, and when the bookmarklet ran (#815); with a version 3 bookmark, the standings,
  * this week's matchup and the playoffs too (#874).
@@ -419,6 +510,8 @@ export function applyYahooImport(
   }
   const mine = Math.max(0, payload.teams.findIndex((t) => t.id === payload.mine));
   const state = yahooState(payload, mine, now);
+  const addsUsed = payload.adds ? yahooAddsUsed(payload.adds) : null;
+  const weeks = keptWeeks(setup.source, payload.leagueId, yahooWeeks(payload, payload.teams.map((t) => t.id)));
   const next = normalize(
     { ...setup, ...state.settings, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },
     DEFAULT_SETTINGS['nba'],
@@ -432,6 +525,11 @@ export function applyYahooImport(
         ...(Object.keys(slots).length ? { slots } : {}),
         // the manager's roster at the week's first import, for the adds made since (#1022)
         week: weekStart(setup.source, payload.leagueId, mondayOf(easternDate(new Date(now))), next.rosters[next.mine] ?? []),
+        // Yahoo's own count of the week's adds at this import, with the roster it counted (#1028)
+        ...(addsUsed ? { addsUsed: { monday: mondayOf(easternDate(new Date(now))), used: addsUsed.used, roster: [...(next.rosters[next.mine] ?? [])] } } : {}),
+        // every week's matchup totals, and the page this import stopped at (#1049)
+        ...(weeks.length ? { weeks } : {}),
+        ...(payload.weeksStop ? { weeksStop: payload.weeksStop } : {}),
       },
     },
     matched,
