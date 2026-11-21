@@ -117,7 +117,7 @@ The runbook (`docs/runbook.md`) has a section per failure. The architecture and 
 
 ## Methodology at a glance
 
-- **Features** (`methodology/features.yml`): 7 validated, 12 failed, 13 open, 4 plain data. Failed and open calls are hidden by switches.
+- **Features** (`methodology/features.yml`): 7 validated, 13 failed, 14 open, 4 plain data. Failed and open calls are hidden by switches.
 - **Parameters** (`methodology/parameters.yml`): 26 measured, 29 assumed, 12 conventions, 3 arithmetic.
 - **Seasons:**
   - tuning: NBA 2020-21 to 2022-23, WNBA 2021 to 2023;
