@@ -44,7 +44,7 @@ A restart of this project's chat with browser tools is in progress (2026-11-17);
 
 | Item | Where | Next |
 | --- | --- | --- |
-| Every week's matchup totals in the import (step 3, item 1) | #1049; branch `ai/feat/1049-week-matchups`, on top of PR #1048 | Built and tested on fixtures (pages read 2026-11-21: a page per matchup, a second apart, finished weeks kept on the Yahoo page's origin). Next: its PR, then **the owner's review**. |
+| Every week's matchup totals in the import (step 3, item 1) | — | Waits for a capture of his real pages in the ignored `private/` folder: it shows which page lists the weeks and whether one page holds every matchup's totals. |
 | The league, week by week (step 3, item 2) | branch `ai/feat/league-weeks-design`, a draft at `/league/weeks-draft/` on the preview | **Waits for the owner's reaction**; never merged as it stands. It reads item 1's weeks. |
 | A first visit: imports on the WNBA, sign-in on the preview | #1036; PR #1037 | **Waits for the owner** (changes what a first-time visitor sees). |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
