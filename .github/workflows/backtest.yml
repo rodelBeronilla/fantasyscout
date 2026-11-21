@@ -68,6 +68,11 @@ on:
         description: Projection features to judge off and on, as JSON (e.g. {"pace":1.0}; empty for none, #771)
         type: string
         default: ""
+      # S4 (#1082): the study computes each Monday's inputs from the shots strictly before it
+      shot_diet:
+        description: Export every mirrored season's regular-season shots by player, day and zone (S4, #1082)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -147,6 +152,19 @@ jobs:
           ):
               print(con.execute(sql, [league]).fetchdf().to_string(index=False), end="\n\n")
           EOF
+      # S4 (#1082): the shots from the full build, by season, player, day and basic zone, with each
+      # season's coverage against the box scores. It needs no judged season.
+      - name: Export the shots for S4
+        if: inputs.shot_diet
+        env:
+          LEAGUE: ${{ inputs.league }}
+        run: uv run python -m ops.shot_diet export --league "$LEAGUE" --full-db dbt/fantasyscout.duckdb --out shot-diet
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: inputs.shot_diet
+        with:
+          name: shot-diet-${{ inputs.league }}${{ inputs.judge != '' && format('-{0}', inputs.judge) || '' }}
+          path: shot-diet/
+          retention-days: 90
       - name: Walk forward through the season
         if: inputs.judge != ''
         env:
