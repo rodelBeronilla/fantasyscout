@@ -97,8 +97,8 @@ async function mainHtml(page: Page, path: string, ready: string): Promise<string
   return page.locator('main').innerHTML();
 }
 
-const PAGES: { name: string; path: (rosters: string[][]) => string; ready: string; calls: string[] }[] = [
-  { name: 'My Team', path: () => '/team/?league=nba', ready: 'my-roster', calls: ['too-close'] },
+const PAGES: { name: string; path: (rosters: string[][]) => string; ready: string; calls: Record<string, string> }[] = [
+  { name: 'My Team', path: () => '/team/?league=nba', ready: 'my-roster', calls: { 'too-close': 'matchup', lineup: 'lineup-plan' } },
 ];
 
 for (const p of PAGES) {
@@ -128,15 +128,17 @@ for (const p of PAGES) {
     await as(page, { switchOn: true, flag: true, owner: true }, posted);
     await page.goto(p.path(rosters));
     const frames = page.getByTestId('owner-preview');
-    for (const call of p.calls) {
+    for (const [call, inside] of Object.entries(p.calls)) {
       const frame = frames.and(page.locator(`[data-call="${call}"]`));
       await expect(frame, call).toBeVisible();
       await expect(frame.getByRole('heading', { name: /^Preview: not validated/ }), call).toBeVisible();
       await expect(frame, call).toContainText('Shown to you alone. This call has not passed its check (see Methodology); each one shown is logged.');
+      // the hidden call itself, as its switch would show it
+      await expect(frame.getByTestId(inside), call).toBeVisible();
     }
     await page.waitForLoadState('networkidle');
     const logged = posted.filter((e) => e['kind'] === 'call').map((e) => e['call']);
-    for (const call of p.calls) expect(logged.filter((c) => c === call), call).toHaveLength(1);
+    for (const call of Object.keys(p.calls)) expect(logged.filter((c) => c === call), call).toHaveLength(1);
     for (const theme of ['dark', 'light']) {
       await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
       const found = await new AxeBuilder({ page }).include('[data-testid="owner-preview"]').withTags(['wcag2a', 'wcag2aa']).analyze();
