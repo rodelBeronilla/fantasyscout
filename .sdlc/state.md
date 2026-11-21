@@ -20,6 +20,9 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 - **No alerts (2026-11-17).** The owner wants none; #876 is out of the plan.
 - **The owner's log and Yahoo (2026-11-17).** His private log of his own use is kept until he deletes it, and the sources page says so. The extra owner-status check per page and a rare lost log event are accepted. No Yahoo credentials are stored or used by any agent, ever. Any fixture built from his real pages waits for his approval before it is committed.
 - **The owner's browser (2026-11-17).** Every chat gets browser tools that act in his own Chrome. The rules for using his browser are in [AGENTS.md](../AGENTS.md). No Yahoo hand-off starts without his request.
+- **The default league stays the WNBA (2026-11-17).** Not to be reopened; a first visit on the WNBA is told that imports are for NBA leagues (#1037).
+- **The week-by-week design is kept (2026-11-17).** The owner saw the draft and likes it; it is polished after item 1, and the draft page stays out of the preview's sitemap.
+- **No CLAUDE.md in the repository (2026-11-18).** `AGENTS.md` holds the project instructions.
 - **All-play counts categories (2026-11-17).** A week's all-play record is each category against each other team: 63 results a week in his league.
 - **Owner preview (2026-11-16, design in step 3, not built).** Unjudged and failed calls will show to the signed-in owner only, each logged with the call, what he did and what happened. Public pages keep the rule below.
 - **Calls need a passed check; data can show (2026-11-09, #936).** A recommendation shows publicly only after its out-of-sample check passes. The same numbers in a labelled, sortable table are data and may show. Switches in `web/src/lib/visibility.ts`; verdicts in `methodology/features.yml`.
@@ -40,19 +43,19 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 ## In flight
 
-A restart of this project's chat with browser tools is in progress (2026-11-17); work is parked, and the owner sends the next task.
-
 | Item | Where | Next |
 | --- | --- | --- |
-| Every week's matchup totals in the import (step 3, item 1) | — | Waits for a capture of his real pages in the ignored `private/` folder: it shows which page lists the weeks and whether one page holds every matchup's totals. |
-| The league, week by week (step 3, item 2) | branch `ai/feat/league-weeks-design`, a draft at `/league/weeks-draft/` on the preview | **Waits for the owner's reaction**; never merged as it stands. It reads item 1's weeks. |
-| A first visit: imports on the WNBA, sign-in on the preview | #1036; PR #1037 | **Waits for the owner** (changes what a first-time visitor sees). |
+| Adds left from Yahoo's own count on the manager's team page | #1046; PR #1048 | **Waits for the owner** (changes My Team's adds line). |
+| Every week's matchup totals in the import (step 3, item 1) | #1049; branch `ai/feat/1049-week-matchups`, on top of #1048 | Being built. Yahoo's pages were read on 2026-11-21: one matchup page per pair per week holds the totals; the home page only links them. |
+| The league, week by week (step 3, item 2) | branch `ai/feat/league-weeks-design` (the draft, at `/league/weeks-draft/` when on the preview) | Polish after item 1; never merged as it stands. |
+| Games left "as set" use the lineup of the day the Starting Rosters page shows | #1050 | Open: seen 2026-11-21, 4 against Yahoo's 7 for the owner. |
+| The bookmark names teams "Yahoo Sports" when it falls back to team pages | #1047 | Open. |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
 
 ## Waiting on the owner
 
-- Running the capture bookmark on his league's Starting Rosters page and putting the saved file in `private/`; then approving the scrubbed fixtures built from it.
-- Reviewing PR #1037 and the week-by-week draft on the preview.
+- The capture file: run from his browser by the agent on 2026-11-21, the capture read 4 pages, but the download did not reach the downloads folder while the browser tools drove the tab. Running the capture bookmark himself, or another way he chooses, puts the file in `private/`; then he approves the scrubbed fixtures.
+- Reviewing PR #1048.
 - Re-registering the host's four ingest tasks with the new action (#985).
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
 - Narrower credentials (#424, #425, #426) and branch protection (#432).
