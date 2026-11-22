@@ -312,7 +312,7 @@ export function LeagueBar({
         {rostered > 0 ? (
           <>
             {' · '}
-            <a href={href('/team/')} className="text-fg underline-offset-4 hover:underline">
+            <a href={href('/team/')} className="text-fg underline underline-offset-4">
               {setup.names[setup.mine]} ({myCount}/{setup.rosterSpots})
             </a>
           </>
@@ -703,7 +703,7 @@ function TodayCalls({
               no adds left this week
             </span>
           ) : (
-            <a href={pickups} className="text-accent underline-offset-4 hover:underline" data-testid="today-pickups">
+            <a href={pickups} className="text-accent underline underline-offset-4" data-testid="today-pickups">
               {addsLeft !== null && addsLeft < verdict.open.length
                 ? `stream into ${addsLeft} of them`
                 : `stream into ${verdict.open.length === 1 ? 'it' : 'them'}`}
