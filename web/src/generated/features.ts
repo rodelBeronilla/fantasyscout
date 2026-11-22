@@ -181,6 +181,17 @@ export const FEATURES: readonly Feature[] = [
     "next": "With the locked seasons (#769)"
   },
   {
+    "id": "teammate-out-minutes",
+    "what": "Minutes when a teammate is out (S2): a teammate's projected minutes raised by what he gained in past games without a player of 28 minutes or more who has missed his team's last two games",
+    "page": "team",
+    "verdict": "failed",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1080,
+    "parameters": [],
+    "next": "Not retried with a tweaked recipe (#1080). Its listing half, an absence known before he has missed a game, was not tested; a new study would need its own bar, written first"
+  },
+  {
     "id": "playoff-odds",
     "what": "Playoff odds, in categories and points leagues",
     "page": "team",

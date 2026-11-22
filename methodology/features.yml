@@ -91,6 +91,16 @@ features:
     next: "With the locked seasons (#769)"
 
   # ---- failed
+  - id: teammate-out-minutes
+    what: "Minutes when a teammate is out (S2): a teammate's projected minutes raised by what he gained in past games without a player of 28 minutes or more who has missed his team's last two games"
+    page: team
+    verdict: failed
+    shown: hidden
+    adr: 12
+    issue: 1080
+    parameters: []
+    next: "Not retried with a tweaked recipe (#1080). Its listing half, an absence known before he has missed a game, was not tested; a new study would need its own bar, written first"
+    result: "Week RMSE, study minus projection, judged NBA 2023-24 and 2024-25 and WNBA 2024 and 2025 (95% interval; bar is a quarter of the noise on this population). The tuning fit chose w 0, the projection itself: every share of the gain raised the week's minutes RMSE (NBA 47.60 against 48.61 at best, WNBA 27.76 against 29.26). NBA PTS 0.000 (0.000 to 0.000), bar -0.143; WNBA PTS 0.000 (0.000 to 0.000), bar -0.087; all seven counting categories short in both leagues"
   - id: playoff-odds
     what: "Playoff odds, in categories and points leagues"
     page: team
