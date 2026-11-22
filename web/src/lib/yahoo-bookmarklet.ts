@@ -181,7 +181,14 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
           if (res.ok) {
             const page = new DOMParser().parseFromString(text, 'text/html');
             players = rosterOf(page);
-            if (!name) name = ((page.querySelector('h1') || {}).textContent || page.title || 'Team ' + t).replace(/\s+/g, ' ').trim().slice(0, 60);
+            // the team's name from its page (#1047): the title before Yahoo's own name, else the
+            // first h1 that is not the site's (the page's first h1 is Yahoo's logo)
+            if (!name) {
+              const site = /^(my team|yahoo!?( fantasy)?( sports| basketball)?|fantasy (sports|basketball))$/i;
+              const title = textOf(page.querySelector('title')).replace(/\s+[-|–]\s+(yahoo|fantasy)\b.*$/i, '');
+              const heading = Array.from(page.querySelectorAll('h1')).map((h) => textOf(h)).find((h) => h && !site.test(h));
+              name = (title && !site.test(title) ? title : heading || '').slice(0, 60);
+            }
             if (mine === null && Array.from(page.querySelectorAll('a[href]')).some((x) => /my team/i.test(x.textContent || '') && teamLink(x) === t)) mine = t;
           }
         } catch {

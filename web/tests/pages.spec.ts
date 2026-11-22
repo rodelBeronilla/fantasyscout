@@ -1189,6 +1189,31 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   await expect(page.getByTestId('team-card').nth(0).getByTestId('roster').locator('li')).toHaveCount(3);
 });
 
+test("a team read from its own page is named by the page's title or its heading for the team, never Yahoo's logo (#1047)", async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  // Starting Rosters before Yahoo has drawn it: no team links, so each team's page is fetched.
+  // Each team page's first h1 is the site's logo; team 4's title names no team, only its heading does.
+  await page.route('**/data/yahoo/unrendered.html', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>Starting Rosters | Fantasy Basketball</title></head><body><nav><a href="/nba/12345">League</a> <a href="/nba/12345/2">My Team</a></nav><div id="rosters"></div></body></html>' }),
+  );
+  await page.route(/\/nba\/12345\/(matchup.*|settings)?$/, (route) => route.abort());
+  await page.route(/\/nba\/12345\/(\d+)$/, (route) => {
+    const t = Number(route.request().url().split('/').pop());
+    if (t > 4) return route.fulfill({ status: 404, body: 'Not found' });
+    const html = readFileSync(`tests/fixtures/data/yahoo/team-${t}.html`, 'utf8');
+    return route.fulfill({ contentType: 'text/html', body: t === 4 ? html.replace(/<title>[^<]*<\/title>/, '<title>Yahoo Sports</title>') : html });
+  });
+  await page.goto('/data/yahoo/unrendered.html');
+  await page.evaluate(code.slice('javascript:'.length));
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
+  const cards = page.getByTestId('team-card');
+  await expect(cards).toHaveCount(4);
+  for (const [i, name] of ['Dunk Dynasty', 'Rim Reapers', 'Triple Doubles', 'Fourth Quarter'].entries()) await expect(cards.nth(i).getByLabel(`Name of team ${i + 1}`)).toHaveValue(name);
+});
+
 test('the Yahoo bookmarklet reads every roster from the Starting Rosters page itself, counting only rows with a slot', async ({ page }) => {
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
