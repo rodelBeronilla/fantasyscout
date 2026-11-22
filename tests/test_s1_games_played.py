@@ -147,3 +147,29 @@ def test_no_category_may_get_worse_by_more_than_its_noise() -> None:
     cats[7] = category("FG%", 0.41, 0.5)
     _, fails = s1.apply_bar(cats, S0)
     assert fails == ["FG%: worse by +0.4100, more than its noise 0.4000"]
+
+
+def test_the_placebo_gets_all_of_a_gain_that_is_only_a_flat_discount() -> None:
+    rng = np.random.default_rng(3)
+    weeks = []
+    for n in range(8):
+        line = np.abs(rng.normal(5, 2, (30, 11)))
+        scheduled = rng.integers(2, 5, 30).astype(float)
+        played = np.maximum(scheduled - rng.integers(0, 2, 30), 0)
+        real = line * played[:, None] + rng.normal(0, 1, line.shape)
+        m = s1.Monday(
+            as_of=D + timedelta(days=7 * n),
+            players=[f"p{i}" for i in range(30)],
+            scheduled=scheduled,
+            listed=np.zeros(30, dtype=bool),
+            line=line,
+            real=real,
+            games=played,
+            proj=wy.category_weeks(line, scheduled, real),
+        )
+        weeks.append((m, scheduled * 0.9))  # a "study" that is a flat tenth off every game
+    res = s1.placebo(weeks)
+    assert res["discount_share"] == pytest.approx(0.1)
+    for c in res["categories"]:
+        assert c["share_of_gain"] == pytest.approx(1.0)
+        assert c["study_minus_placebo"] == pytest.approx(0.0, abs=1e-9)

@@ -253,7 +253,7 @@ features:
     issue: 1079
     parameters: []
     next: "Confirmed on 2026-27's weeks; public only after six live weeks agree with the judged result (#1079)"
-    result: "Week RMSE, study minus projection, judged NBA 2023-24 and 2024-25 (95% interval): PTS -0.836 (-0.999 to -0.687), bar -0.148; all seven counting categories pass. A flat discount on every game gets about 70% of the gain (#1088); the schedule is as played (#1087)"
+    result: "Week RMSE, study minus projection, judged NBA 2023-24 and 2024-25 (95% interval): PTS -0.836 (-0.999 to -0.687), bar -0.148; all seven counting categories pass. The same total discount spread over every game gets 74% of the PTS gain, 66% to 82% by category (#1088); the schedule is as played (#1087)"
     dates: [2027-01-18, 2027-03-15]
     bar: "https://github.com/rodelBeronilla/fantasyscout/issues/1079#issuecomment-7068301572"
   - id: preseason-value

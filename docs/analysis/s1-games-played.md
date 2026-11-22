@@ -4,7 +4,7 @@ Issue #1079, on S0's yardstick (#1077). The code is `ops/s1_games_played.py`; th
 
 ## The short answer
 
-**In the NBA it passed its bar, but mostly for a reason other than the idea.** Counting a player's second nights of back-to-backs at his own habit of sitting them predicts his week better than counting every game his team plays: it passed in all seven counting categories on both judged seasons. But most of that gain comes from counting fewer games at all, and a flat discount on every game gets about 70% of it without looking at back-to-backs. Second nights do matter for the players you roster: a top-130 player sits about one in eight of them, against about one in fourteen of other nights. But that is a small part of the games a week overcounts, so moving the discount onto second nights does not measurably change the week's error. What is specific to the idea beyond that is each player's own record of sitting, and that part is small. **In the WNBA, no.** Back-to-backs are too rare there to move a week.
+**In the NBA it passed its bar, but mostly for a reason other than the idea.** Counting a player's second nights of back-to-backs at his own habit of sitting them predicts his week better than counting every game his team plays: it passed in all seven counting categories on both judged seasons. But most of that gain comes from counting fewer games at all: the same total discount spread evenly over every game, without looking at back-to-backs, gets about three quarters of it (74% of the points gain, 66% to 82% across the seven counting categories). Second nights do matter for the players you roster: a top-130 player sits about one in eight of them, against about one in fourteen of other nights. But that is a small part of the games a week overcounts, so moving the discount onto second nights does not measurably change the week's error. What is specific to the idea beyond that is each player's own record of sitting, and that part is small. **In the WNBA, no.** Back-to-backs are too rare there to move a week.
 
 The NBA result is evidence, not yet proof. Those judged seasons have been used by every number fitted so far, so the rule says 2026-27's weeks must confirm it first. Until then it stays off the site.
 
@@ -31,18 +31,19 @@ A week's totals are mostly per-game production times games played, and games pla
 
 **NBA players miss far more games than the schedule says.** Among the top 130, a week has about 3.3 team games, and they play about 2.6 of them. More than half of these player-weeks include a second night. About one second night in nine was sat by a player who had played the night before. That share was 11% in both judged seasons and in the tuning seasons.
 
-**Most of the gain is a smaller games count, not the back-to-back.** In these tests the projection-week counts every scheduled game for a player who is not listed, and the historical boards almost never carry the injury listing (2 of 6,240 judged NBA player-weeks), so it counts about 0.7 games a week too many. Any discount helps against that. A second review ran placebos on the judged NBA seasons (PTS, change in week RMSE against the projection-week):
+**Most of the gain is a smaller games count, not the back-to-back.** In these tests the projection-week counts every scheduled game for a player who is not listed, and the historical boards almost never carry the injury listing (2 of 6,240 judged NBA player-weeks), so it counts about 0.7 games a week too many. Any discount helps against that. So the judgement also reports a placebo: the study's own total discount, 2.3% of the games counted (0.076 games a player-week), taken evenly off every game. The study's second review ran more placebos on the judged NBA seasons. In points, the change in week RMSE against the projection-week:
 
 | What is counted | PTS RMSE change |
 | --- | --- |
 | The study: each player's own share on second nights | −0.836 |
 | The group's share on second nights | −0.614 |
-| The same total discount spread over every game, no back-to-back used | −0.587 |
+| The placebo: the study's own total discount spread over every game, no back-to-back used | −0.619 |
+| The group's smaller discount spread over every game | −0.587 |
 | The same discount handed to random players | −0.545 to −0.568 |
 | Every game counted at 0.80 | −3.073 |
 
 - **Second nights matter, but they are a small part of the count.** After a game he played, a player whose next game fell in a week he was in the top 130 sat a second night 13.3% of the time (n 2,893) and any other night 7.2% (n 13,401), on the judged seasons; 13.7% against 6.6% on the tuning seasons. That ratio, about two, holds in each of the five seasons. Across all players, bench included, it is 16.4% against 14.0% (judged seasons). Yet the group's share on second nights is not distinguishable from the same discount on any game, PTS −0.027 (−0.080 to +0.029): that discount is small next to an overcount of about 0.7 games a week, too small to tell where it lands.
-- **What is specific is each player's own record.** Over a flat discount of the study's own size it adds PTS −0.218 (−0.355 to −0.087), past a quarter of the noise in only four of the seven categories (PTS, REB, BLK, TO). The study cannot say whether that record is a rest habit or a sign of a player who is currently hurt.
+- **What is specific is each player's own record.** Over a flat discount of the study's own size it adds PTS −0.217 (−0.355 to −0.087), past a quarter of the noise in only four of the seven categories (PTS, REB, BLK, TO). The study cannot say whether that record is a rest habit or a sign of a player who is currently hurt.
 - **A cruder rule does far better.** Counting every game at 0.80 lowers the error by 3.07 points, nearly four times the study. That is a finding about the test's baseline, which lacks the listing, more than about rest.
 
 **The WNBA has almost nothing to find.** Only 4% of tuning player-weeks, and 14% of judged ones, include a second night. The share sat is 3% to 6%. The best setting moved the games error by a thousandth.
@@ -65,6 +66,18 @@ A week's totals are mostly per-game production times games played, and games pla
 
 Each NBA season also passes on its own. PTS: −0.60 (−0.76 to −0.43) in 2023-24 and −1.06 (−1.29 to −0.84) in 2024-25.
 
+**How much of it the placebo gets.** The placebo is the study's own total discount, 2.3% of the games counted, spread over every game; the columns are changes in the week's RMSE, with 95% intervals. The placebo is a check reported beside the verdict, not a second bar:
+
+| Category | Placebo − projection (95%) | Share of the study's gain | Study − placebo (95%) |
+| --- | --- | --- | --- |
+| PTS | −0.619 (−0.680 to −0.561) | 74% | −0.217 (−0.355 to −0.087) |
+| REB | −0.195 (−0.219 to −0.170) | 70% | −0.084 (−0.134 to −0.039) |
+| AST | −0.113 (−0.132 to −0.096) | 75% | −0.038 (−0.067 to −0.012) |
+| STL | −0.026 (−0.030 to −0.022) | 82% | −0.006 (−0.011 to −0.001) |
+| BLK | −0.024 (−0.029 to −0.019) | 66% | −0.012 (−0.025 to −0.002) |
+| 3PM | −0.054 (−0.061 to −0.046) | 79% | −0.014 (−0.027 to −0.001) |
+| TO | −0.063 (−0.071 to −0.055) | 76% | −0.020 (−0.035 to −0.005) |
+
 **WNBA, judged seasons 2024 and 2025** (37 weeks, five of them without games: two before the season, three in the 2024 Olympic break; 4,160 player-weeks; `k` 1, decay 1). Games-played RMSE: projection 1.470, study 1.465.
 
 | Category | RMSE projection | RMSE study | Study − projection (95%) | Bar | Passes |
@@ -79,7 +92,7 @@ Each NBA season also passes on its own. PTS: −0.60 (−0.76 to −0.43) in 202
 | FG% | 1.938 | 1.938 | 0.000 | no worse than 0.039 | yes |
 | FT% | 0.851 | 0.851 | 0.000 | no worse than 0.022 | yes |
 
-The WNBA study is a hair better everywhere, but nowhere near its bar. It is recorded as failed and is not retried with a changed recipe.
+The WNBA study is a hair better everywhere, but nowhere near its bar. Its discount is tiny, 0.2% of the games counted, and the same discount spread over every game gets most of what little it gains (80% in points, 29% to 100% by category); the study is not distinguishable from it in any category. It is recorded as failed and is not retried with a changed recipe.
 
 ## What it means for your team
 
