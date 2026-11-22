@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS, type LeagueSetup, normalize } from './fantasy-league'
 import {
   addsLeft,
   addsThisWeek,
+  addsWeekLine,
   ago,
   chooseMine,
   copyAge,
@@ -409,5 +410,16 @@ describe('the adds left this week (#1022)', () => {
     expect(addsThisWeek({ ...setup, source: { ...setup.source, addsUsed: { ...addsUsed, roster: mine } } }, '2026-11-16')?.made).toBe(2);
     // last week's count is not this week's
     expect(addsThisWeek(setup, '2026-11-23')).toMatchObject({ from: 'none', made: 0, left: 4 });
+  });
+
+  it('says the adds and how they were counted, in the one sentence the Today card and the owner preview share (#1056)', () => {
+    expect(addsWeekLine({ limit: 4, made: 3, left: 1, counted: true, from: 'yahoo', yahoo: 2 })).toBe(
+      "1 of 4 adds left this week: 3 used: 2 by Yahoo's count at your last import, 1 added since",
+    );
+    expect(addsWeekLine({ limit: 4, made: 4, left: 0, counted: true, from: 'yahoo', yahoo: 4 })).toBe("0 of 4 adds left this week: 4 used: 4 by Yahoo's count at your last import");
+    expect(addsWeekLine({ limit: 4, made: 1, left: 3, counted: true, from: 'since', yahoo: 0 })).toBe(
+      '3 of 4 adds left this week: 1 made since your first import this week; any made before it are not seen',
+    );
+    expect(addsWeekLine({ limit: 1, made: 0, left: 1, counted: false, from: 'none', yahoo: 0 })).toBe('1 of 1 add left this week: no import yet this week, so none are counted');
   });
 });

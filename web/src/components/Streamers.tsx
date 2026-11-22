@@ -18,7 +18,7 @@ import { readRaw, storageKey, writeRaw } from '../lib/storage';
 import { type ReviewRow, teamReview, teamValues } from '../lib/team-review';
 import { hasWeekGames } from '../lib/week-value';
 import { SHOWS } from '../lib/visibility';
-import { addsOpen, useOwnerPreview, withinAdds, limitsKnown } from '../lib/owner-preview';
+import { addsOpen, useOwnerPreview, withinAdds } from '../lib/owner-preview';
 import { addsThisWeek } from '../lib/league-sync';
 import { easternDate } from '../lib/today';
 import { AddsLimit, OwnerPreview } from './OwnerPreview';
@@ -484,7 +484,7 @@ export default function Streamers() {
               naive: null,
             }}
           >
-            <AddsLimit adds={week} waiverDays={setup.waiverDays} known={limitsKnown(setup)} />
+            <AddsLimit setup={setup} adds={week} />
             {addsOpen(week?.left ?? null) && (
               <TopAdds
                 adds={offered}

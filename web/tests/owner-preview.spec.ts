@@ -13,8 +13,19 @@ type Row = { player_id: string };
 // the fixture's NBA data is as of 2026-10-31; a Monday two days later, mid-afternoon Eastern
 const NOW = new Date('2026-11-02T16:00:00Z');
 
+interface Seed {
+  /** Yahoo's own count of the adds used this week, from an import this week; null for none. */
+  addsUsed?: number | null;
+  /** Whether the import read Yahoo's settings page (the adds a week and the waiver wait). */
+  settingsRead?: boolean;
+  /** On a copy whose settings were not read: whether he typed 4 adds and 2 days on the League page. */
+  typed?: boolean;
+  /** Whether there was an import this week, whose roster the adds since are counted from. */
+  week?: boolean;
+}
+
 /** A made-up eight-team Yahoo head-to-head league, as the import keeps it, ten players a team. */
-async function seedLeague(page: Page, addsUsed: number | null = null, settingsRead = true, typed = false): Promise<{ rosters: string[][] }> {
+async function seedLeague(page: Page, { addsUsed = null, settingsRead = true, typed = false, week = true }: Seed = {}): Promise<{ rosters: string[][] }> {
   const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
   const teams = 8;
   const rosters = Array.from({ length: teams }, (_, t) => Array.from({ length: 10 }, (_, k) => board[t + teams * k]!.player_id));
@@ -44,7 +55,7 @@ async function seedLeague(page: Page, addsUsed: number | null = null, settingsRe
       changes: null,
       opponents: [1, 0, 3, 2, 5, 4, 7, 6],
       // one of the manager's players was added since the week's first import: three adds left
-      week: { monday: '2026-11-02', roster: rosters[0]!.slice(1) },
+      ...(week ? { week: { monday: '2026-11-02', roster: rosters[0]!.slice(1) } } : {}),
       // or Yahoo's own count of the adds used this week
       ...(addsUsed === null ? {} : { addsUsed: { monday: '2026-11-02', used: addsUsed, roster: rosters[0]! } }),
       // the rules the bookmark reads from Yahoo's settings page: their presence says the adds and the waiver wait were read
@@ -186,7 +197,7 @@ for (const p of PAGES) {
 }
 
 test('with no adds left this week, the preview offers no pickup and says so; with one left, one (#1056)', async ({ page }) => {
-  await seedLeague(page, 4);
+  await seedLeague(page, { addsUsed: 4 });
   await page.goto('/sources/');
   await as(page, { switchOn: true, flag: true, owner: true });
   for (const path of ['/streamers/?league=nba', '/team/?league=nba']) {
@@ -194,16 +205,16 @@ test('with no adds left this week, the preview offers no pickup and says so; wit
     const frames = page.getByTestId('owner-preview').filter({ has: page.getByTestId('preview-adds-limit') });
     await expect(frames.first(), path).toBeVisible();
     for (const frame of await frames.all()) {
-      await expect(frame.getByTestId('preview-adds-limit')).toContainText('No adds left this week');
+      await expect(frame.getByTestId('preview-adds-limit')).toContainText("0 of 4 adds left this week: 4 used: 4 by Yahoo's count at your last import.");
       await expect(frame.getByTestId('top-add')).toHaveCount(0);
       await expect(frame.getByTestId('matchup-stream-move')).toHaveCount(0);
       await expect(frame.getByTestId('upgrades')).toHaveCount(0);
     }
   }
-  await seedLeague(page, 3);
+  await seedLeague(page, { addsUsed: 3 });
   await page.goto('/streamers/?league=nba');
   const frame = page.getByTestId('owner-preview').and(page.locator('[data-call="top-adds"]'));
-  await expect(frame.getByTestId('preview-adds-limit')).toContainText('1 of 4 adds left this week, so no more than 1 is offered.');
+  await expect(frame.getByTestId('preview-adds-limit')).toContainText("1 of 4 adds left this week: 3 used: 3 by Yahoo's count at your last import. No more than 1 is offered.");
   await expect(frame.getByTestId('top-add')).toHaveCount(1);
 });
 
@@ -213,17 +224,19 @@ test('the build frame says its add-and-drop lines each use an add; an old Yahoo 
   await as(page, { switchOn: true, flag: true, owner: true });
   await page.goto('/team/?league=nba');
   const build = page.getByTestId('owner-preview').and(page.locator('[data-call="build"]'));
-  await expect(build.getByTestId('preview-adds-limit')).toContainText('3 of 4 adds left this week: each add-and-drop line below uses one, so make no more than 3 of them.');
+  await expect(build.getByTestId('preview-adds-limit')).toContainText(
+    '3 of 4 adds left this week: 1 made since your first import this week; any made before it are not seen. Each add-and-drop line below uses one, so make no more than 3 of them. Check the adds you have left on Yahoo before a move below.',
+  );
   await expect(build.getByTestId('preview-adds-limit')).toContainText('A player dropped in the last 2 days is on waivers');
   // with none left, the lines wait until Monday, and the frame says so
-  await seedLeague(page, 4);
+  await seedLeague(page, { addsUsed: 4 });
   await page.reload();
-  await expect(build.getByTestId('preview-adds-limit')).toContainText('No adds left this week: the add-and-drop lines below wait until Monday.');
+  await expect(build.getByTestId('preview-adds-limit')).toContainText("0 of 4 adds left this week: 4 used: 4 by Yahoo's count at your last import. The add-and-drop lines below wait until Monday.");
   // the lineup frame says the adds too: none left, so the open slots stay open
   const lineup = page.getByTestId('owner-preview').and(page.locator('[data-call="lineup"]'));
-  await expect(lineup.getByTestId('preview-adds-limit')).toContainText('No adds left this week: the open slots below stay open until Monday.');
+  await expect(lineup.getByTestId('preview-adds-limit')).toContainText("0 of 4 adds left this week: 4 used: 4 by Yahoo's count at your last import. The open slots below stay open until Monday.");
   // state 1: an old Yahoo copy, nothing typed: not known, never "no limit"
-  await seedLeague(page, null, false);
+  await seedLeague(page, { settingsRead: false });
   for (const path of ['/team/?league=nba', '/streamers/?league=nba']) {
     await page.goto(path);
     const limits = page.getByTestId('preview-adds-limit');
@@ -235,7 +248,7 @@ test('the build frame says its add-and-drop lines each use an add; an old Yahoo 
     }
   }
   // state 2: the same old copy with 4 adds and 2 days typed on the League page: known, and said
-  await seedLeague(page, null, false, true);
+  await seedLeague(page, { settingsRead: false, typed: true });
   for (const path of ['/team/?league=nba', '/streamers/?league=nba']) {
     await page.goto(path);
     const limits = page.getByTestId('preview-adds-limit');
@@ -252,3 +265,53 @@ test('the build frame says its add-and-drop lines each use an add; an old Yahoo 
   await expect(page.getByTestId('preview-adds-limit').first()).toBeVisible();
   for (const line of await page.getByTestId('preview-adds-limit').all()) await expect(line).not.toContainText('not known');
 });
+
+// the frames say the week's adds in the Today card's own words, whatever the count's source (#1056, #1065)
+const COUNTS: { name: string; seed: Seed; line: string | null }[] = [
+  { name: "Yahoo's own count", seed: { addsUsed: 1 }, line: "3 of 4 adds left this week: 1 used: 1 by Yahoo's count at your last import" },
+  { name: 'counted here since the first import', seed: {}, line: '3 of 4 adds left this week: 1 made since your first import this week; any made before it are not seen' },
+  { name: 'no import this week', seed: { week: false }, line: '4 of 4 adds left this week: no import yet this week, so none are counted' },
+  {
+    name: 'limits typed by hand, nothing counted',
+    seed: { settingsRead: false, typed: true, week: false },
+    line: '4 of 4 adds left this week: no import yet this week, so none are counted',
+  },
+  { name: 'an old Yahoo copy, the limit not known', seed: { settingsRead: false, week: false }, line: null },
+];
+
+for (const c of COUNTS) {
+  test(`the preview's adds line is the Today card's, word for word: ${c.name} (#1056)`, async ({ page }) => {
+    await seedLeague(page, c.seed);
+    await page.goto('/sources/');
+    await as(page, { switchOn: true, flag: true, owner: true });
+    await page.goto('/team/?league=nba');
+    // the public card, as everyone sees it
+    await expect(page.getByTestId('today-open')).toBeVisible();
+    const tile = page.getByTestId('today-adds-left');
+    const limits = page.getByTestId('preview-adds-limit');
+    await expect(limits).toHaveCount(4); // stream, lineup, swaps, build
+    if (c.line === null) {
+      // the card says nothing of a limit it does not know; the frames say it is not known, and to check
+      await expect(tile).toHaveCount(0);
+      for (const l of await limits.all()) {
+        await expect(l).toContainText("This league's adds a week is not known here");
+        await expect(l).toContainText('check the adds you have left on Yahoo before a move below');
+        await expect(l.getByTestId('preview-adds-line')).toHaveCount(0);
+      }
+      return;
+    }
+    await expect(tile).toHaveText(`(${c.line})`);
+    const said = (await tile.textContent())!.trim().replace(/^\(|\)$/g, '');
+    const check = 'Check the adds you have left on Yahoo before a move below.';
+    for (const l of await limits.all()) {
+      await expect(l.getByTestId('preview-adds-line')).toHaveText(said);
+      // a count that is not Yahoo's own can be short of what he has made: he is told to check
+      if (c.seed.addsUsed) await expect(l).not.toContainText(check);
+      else await expect(l).toContainText(check);
+    }
+    // Pickups' frame says the same, for the same league
+    await page.goto('/streamers/?league=nba');
+    const top = page.getByTestId('owner-preview').and(page.locator('[data-call="top-adds"]'));
+    await expect(top.getByTestId('preview-adds-line')).toHaveText(said);
+  });
+}

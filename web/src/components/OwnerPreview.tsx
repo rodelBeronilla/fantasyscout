@@ -5,7 +5,9 @@
  */
 import { type ReactNode, useEffect } from 'react';
 
-import { logPreviewCall, type PreviewCall, callKey } from '../lib/owner-preview';
+import type { LeagueSetup } from '../lib/fantasy-league';
+import { type addsThisWeek, addsWeekLine } from '../lib/league-sync';
+import { limitsKnown, logPreviewCall, type PreviewCall, callKey } from '../lib/owner-preview';
 import { href, REPO_URL } from '../lib/site';
 
 export function OwnerPreview({
@@ -56,24 +58,26 @@ export function OwnerPreview({
 }
 
 /**
- * The limits a preview of pickups works within (#1056): the adds left this week, and the league's
- * waiver wait. The site does not know who was dropped lately, so the wait is said, not applied.
+ * The limits a preview of pickups works within (#1056): the adds left this week, said in the Today
+ * card's own words (addsWeekLine) so the two cannot disagree, and the league's waiver wait. The
+ * site does not know who was dropped lately, so the wait is said, not applied.
  */
 export function AddsLimit({
+  setup,
   adds,
-  waiverDays,
-  known = { adds: true, waiver: true },
   kind = 'offer',
 }: {
-  adds: { limit: number; left: number } | null;
-  waiverDays: number | null;
-  /** Whether the adds a week and the waiver wait are known (limitsKnown): an old Yahoo copy may hold neither. */
-  known?: { adds: boolean; waiver: boolean };
+  setup: Pick<LeagueSetup, 'addsPerWeek' | 'waiverDays' | 'source'>;
+  /** This week's adds (addsThisWeek); null when the league sets no limit. */
+  adds: ReturnType<typeof addsThisWeek>;
   /** What the frame's moves are: adds it offers, add-and-drop lines (Build your team), or open slots to stream into (the lineup plan). */
   kind?: 'offer' | 'lines' | 'slots';
 }) {
+  const known = limitsKnown(setup);
+  const waiverDays = setup.waiverDays;
+  const host = setup.source?.host;
+  const app = host === 'yahoo' ? 'Yahoo' : host === 'espn' ? 'ESPN' : "your league's app";
   const left = adds?.left ?? 0;
-  const of = adds ? `${adds.left} of ${adds.limit} adds left this week` : '';
   return (
     <p className="text-sm" data-testid="preview-adds-limit">
       {!known.adds ? (
@@ -82,37 +86,40 @@ export function AddsLimit({
           <span className="text-muted">
             {' '}
             (this copy was imported before the bookmark read Yahoo&apos;s settings page): set it on the League page or import the league again from Yahoo. Until
-            then, check the adds you have left on your league&apos;s app before a move below.
+            then, check the adds you have left on {app} before a move below.
           </span>
         </>
       ) : adds === null ? (
         'Your league sets no weekly limit on adds.'
-      ) : left > 0 ? (
-        <>
-          <strong>{of}</strong>
-          {kind === 'lines'
-            ? `: each add-and-drop line below uses one, so make no more than ${left} of them.`
-            : kind === 'slots'
-              ? `: each stream into an open slot uses one, so no more than ${left} ${left === 1 ? 'slot' : 'slots'} can be filled this way.`
-              : `, so no more than ${left} ${left === 1 ? 'is' : 'are'} offered.`}
-        </>
       ) : (
-        <strong>
-          {kind === 'lines'
-            ? 'No adds left this week: the add-and-drop lines below wait until Monday.'
-            : kind === 'slots'
-              ? 'No adds left this week: the open slots below stay open until Monday.'
-              : 'No adds left this week: the next one comes on Monday.'}
-        </strong>
+        <>
+          <strong data-testid="preview-adds-line">{addsWeekLine(adds)}</strong>.{' '}
+          {left > 0
+            ? kind === 'lines'
+              ? `Each add-and-drop line below uses one, so make no more than ${left} of them.`
+              : kind === 'slots'
+                ? `Each stream into an open slot uses one, so no more than ${left} ${left === 1 ? 'slot' : 'slots'} can be filled this way.`
+                : `No more than ${left} ${left === 1 ? 'is' : 'are'} offered.`
+            : kind === 'lines'
+              ? 'The add-and-drop lines below wait until Monday.'
+              : kind === 'slots'
+                ? 'The open slots below stay open until Monday.'
+                : 'The next one comes on Monday.'}
+          {/* a count that is not the host's own can only overcount what is left */}
+          {left > 0 && adds.from !== 'yahoo' && <> Check the adds you have left on {app} before a move below.</>}
+        </>
       )}
       {waiverDays ? (
         <span className="text-muted">
           {' '}
           A player dropped in the last {waiverDays} {waiverDays === 1 ? 'day' : 'days'} is on waivers and cannot be added yet. This list does not know who was
-          dropped, so check each player is a free agent on your league&apos;s app first.
+          dropped, so check each player is a free agent on {app} first.
         </span>
       ) : !known.waiver ? (
-        <span className="text-muted"> The waiver wait is not known here either: check each player is a free agent on your league&apos;s app first.</span>
+        <span className="text-muted">
+          {' '}
+          The waiver wait is not known here{known.adds ? '' : ' either'}: check each player is a free agent on {app} first.
+        </span>
       ) : null}
     </p>
   );

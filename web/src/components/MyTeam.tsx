@@ -35,7 +35,7 @@ import type { TeamWeek } from '../lib/playoff-weeks';
 import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
 import { SHOWS } from '../lib/visibility';
-import { addsOpen, useOwnerPreview, withinAdds, limitsKnown } from '../lib/owner-preview';
+import { addsOpen, useOwnerPreview, withinAdds } from '../lib/owner-preview';
 import { AddsLimit, OwnerPreview } from './OwnerPreview';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { addsThisWeek, staleOpponent, weekScore } from '../lib/league-sync';
@@ -625,7 +625,7 @@ export default function MyTeam() {
           need={SHOWS.streams ? targets : []}
           minutesFor={SHOWS.minutes ? minutesLine : undefined}
           notes={SHOWS.notes ? notes : null}
-          adds={addsThisWeek(setup, mondayOf(easternDate()))}
+          adds={addsWeek}
         />
       )}
 
@@ -690,7 +690,7 @@ export default function MyTeam() {
             naive: null,
           }}
         >
-          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} known={limitsKnown(setup)} />
+          <AddsLimit setup={setup} adds={addsWeek} />
           <StreamCalls match={weekMatch.match} league={league} openDays={openDays} stream={addsOpen(addsWeek?.left ?? null) ? stream : null} nameOf={name} />
         </OwnerPreview>
       )}
@@ -717,7 +717,7 @@ export default function MyTeam() {
             naive: lineupPlans.asSet ? `${lineupPlans.asSet.mine} starts as set` : null,
           }}
         >
-          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} known={limitsKnown(setup)} kind="slots" />
+          <AddsLimit setup={setup} adds={addsWeek} kind="slots" />
           <LineupTile
             plan={lineupPlans.mine}
             theirs={lineupPlans.theirs}
@@ -835,7 +835,7 @@ export default function MyTeam() {
             naive: null,
           }}
         >
-          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} known={limitsKnown(setup)} />
+          <AddsLimit setup={setup} adds={addsWeek} />
           {addsOpen(addsWeek?.left ?? null) && (
             <Upgrades
               league={league}
@@ -874,7 +874,7 @@ export default function MyTeam() {
             naive: null,
           }}
         >
-          <AddsLimit adds={addsWeek} waiverDays={setup.waiverDays} known={limitsKnown(setup)} kind="lines" />
+          <AddsLimit setup={setup} adds={addsWeek} kind="lines" />
           <BuildYourTeam
             plan={plan}
             league={league}
