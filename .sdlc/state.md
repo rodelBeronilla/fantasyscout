@@ -1,6 +1,6 @@
 # Project state: FantasyScout
 
-Last rewritten: 2026-11-17, from scratch (#991); updated 2026-11-22 for step 4's first studies. Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
+Last rewritten: 2026-11-17, from scratch (#991); updated 2026-11-22 for step 4's first studies and the backlog push. Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
 
 Read with it: [pillars.md](pillars.md) for what wins when priorities collide, and [CONTRIBUTING.md](../CONTRIBUTING.md) for how a change is made and checked.
 
@@ -59,26 +59,43 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 ## In flight
 
-| Item | Where | Next |
+**The backlog push (owner, 2026-11-22): every open issue and pull request is finished, closed with its reason, or says what it waits on.** Each was triaged from its issue, the code and the registry on 2026-11-22. Workers are sub-agents on a lane each, two lanes at a time (pillars), one item per branch, each item's bar on its issue first. A change a manager sees is reviewed by a fresh review agent before it merges; the preview holds one such change at a time. Backtest runs go one at a time.
+
+| Lane | Items, in order | State |
 | --- | --- | --- |
-| S1 games played, NBA (step 4) | #1079; `week-games-rest-nba`, open and hidden | Confirm on 2026-27's live weeks in the owner preview once it exists (#1057). Whether that confirmation must also beat a flat discount (#1088) is asked in the digest of 2026-11-23; until he answers, it is held against both. |
-| Step 4's follow-ups | #1087, #1088, #1089, #1090, #1094 | Open: the schedule as played, the boards' missing injury listing, S1's page wording, empty weeks, and the review notes on S2's and S3's pages. |
-| Step 4, next round | (no issue yet) | Per-category opponent strength over the week, declared on 2026-11-21. |
-| The owner preview (step 3, item 4) | #1056; PR #1057, labelled status:blocked | **Parked** after three blocks on one point. Recommendation in its park note and the digest of 2026-11-23 (`.sdlc/digests/2026-11-23.md`). |
-| Last week, graded (step 3, item 5) | #1058; PR #1059 | Parked with #1057, which it is stacked on. |
-| Expected categories won, in the owner preview | #1073 | Bar written; waits for #1057. |
-| Follow-ups from the reviews of 2026-11-21 | #1062 to #1065, #1069, #1075, #1076 | Open. #1075 (the matchup table's category column scrolls away on a phone) is the owner's kind of fault. |
-| Games left "as set" use the lineup of the day the Starting Rosters page shows | #1050 | Open: seen 2026-11-21, 4 against Yahoo's 7 for the owner. |
-| The bookmark names teams "Yahoo Sports" when it falls back to team pages | #1047 | Open. |
-| Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
+| Owner preview (step 3) | #1057 (the adds line repeats the tile's wording; fourth review), #1059, #1073, the rest of #1065 | Running. The owner's instruction of 2026-11-22 is the go on #1057's recommendation. |
+| Data and builds | #956, then #732's warnings (venues, game lines, the listing relationship, minutes closure, reconciliation), #921 | Running. |
+| Yahoo bookmark | #1052, #1050, #1047, #1063, #1062, #1069, #489 | Next. One file (`yahoo-bookmarklet.ts`), so strictly one after another. |
+| League page and phone | #1075, #1064, #1076 | Queued. |
+| Web correctness | #939 (redone alone on main), #672 (games in the playoff weeks, data only), #938, #925, #495 (facts only) | Queued after the bookmark lane's My Team changes. #938's only copy is local commit `d7d6142` in the worktree `agent-a55328c72c16301a9`; #925's is 16 uncommitted files in `agent-a481c2433245b888f`. Neither worktree is removed until salvaged. |
+| Studies harness (step 4) | #1087, #1088, #1090, then the wording in #1089 and #1094 | Queued. |
+| Dependencies | The twelve Dependabot pull requests (#730 to #1017); #842 fails its Python checks | Queued. |
+| Bars and gates | Bars for #754, #761, #867 (NBA), the pooled playoff odds (#907, #913, #898), #886, #888, #904, #772, #916, #915; the first-game gates of #898 and #913; #867's WNBA switch | Queued. A bar missed now misses the one locked-season run (#769). |
+| Trade reworks | #886 (six tuning Backtest runs), then #888, #904 | Queued after the bars. |
+| Live-week judge | #1096, built on invented weeks before the first look on 2027-01-18 | Queued. Eight calls and S1's NBA rule (#1079) are judged by it. |
+| Speed on a phone | #563, then #557 | Queued. |
+| Removals decided on 2026-11-08 | #868 (Fit), #887 (suggested trades), #903 (sell high), #896 (trade chips) | Held for one answer: the owner preview would show these failed calls to him, and removing them takes them out of it. Stale local work for #868 and #887 is in `agent-a1065c8b744e1b165` and `agent-a451ab15c2cba0a66`. |
+| New study | #772 contract year, after per-category opponent strength (declared 2026-11-21, no issue yet) | Queued last. |
+
+**The warehouse is down (#1043, #1044).** Databricks has refused to start the SQL warehouse since 2026-11-20 ("Cannot create the resource"). The fallback job builds on DuckDB and publishes after every ingest, so the site is current; the notes runs after each build are skipped, and nothing can be measured on the warehouse (#447). Bringing it back is done in the workspace, which is the owner's.
+
+**Waiting, each with a status comment of 2026-11-22 saying on what:** 2026-27's weeks at the looks of 2027-01-18 and 2027-03-15 (#759, #762, #763, #770, #895, #950, #951); the one locked-season run (#769); the season's end (#754, #915, #916); later seasons (#491, #517, #760); a season of claims (#812); another issue (#810); the epics #751 and #936. S1's NBA rule (#1079) waits on the same weeks.
+
+**Closed on 2026-11-22:** #673, #766 and #926 as done; #139, #675 and #734 as not planned (a bot block; calls that failed or are unjudged; the pillars' non-goal of matching every paid tool).
 
 ## Waiting on the owner
 
+- **Bringing the warehouse back** (#1043, #1044): start or recreate it in the Databricks workspace and set `DATABRICKS_WAREHOUSE_ID`, or say an agent may.
+- **The removals of 2026-11-08 against the owner preview** (#868, #887, #896, #903): remove as decided (recommended), or keep them for his preview.
+- **The "too close" label on the matchup card** (#902): no replay can fit a definition. Retire it and show each category's projected edge (recommended), or name a band.
+- **RSS feeds whose terms bar AI use** (#924): the issue says he extended the ESPN exception; the Sources decision below says no terms restriction is worked around. Recommended: close as not planned.
+- **Branch protection** (#432): enforce admins with a second approval, or record that review is the review agent's comment plus the required checks (recommended; the merge helper merges as admin and resets `preprod`).
+- Narrower credentials (#424, #425, #426): he creates the principal, the tokens and the environment secrets; the workflow changes follow.
 - Re-registering the host's four ingest tasks with the new action (#985).
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
-- Narrower credentials (#424, #425, #426) and branch protection (#432).
 - Whether the brand card becomes the image shown when a link is shared.
-- From the digest of 2026-11-23: whether #1057 goes ahead as recommended; whether S1's live confirmation must also beat a flat discount; whether a judged number kept in `result`, off the public table, is how he wants a fail "recorded with the number".
+- From the digest of 2026-11-23: whether S1's live confirmation must also beat a flat discount; whether a judged number kept in `result`, off the public table, is how he wants a fail "recorded with the number".
+- Whether the two-lanes-at-a-time limit is raised for the backlog push.
 
 ## The owner's league
 
