@@ -7,7 +7,9 @@
  * - A team's all-play record for the week, in categories: each category against each other team, a
  *   win, a loss or a tie, as the league's records count them.
  * - The season: each team's average rank per category over the finished weeks, and how it is moving
- *   (the last three finished weeks against the season).
+ *   (the last three finished weeks against the season), compared in whole numbers so the half-rank
+ *   edge is exact (#1064).
+ * - The teams Yahoo gave no totals for in a week, so the page names them (#1064).
  */
 import { CATEGORIES } from './format';
 import { isRatio, type ScoreSoFar, soFarResult, soFarValue } from './matchup';
@@ -77,31 +79,50 @@ export interface SeasonRow {
   average: Record<string, number | null>;
   /** Each category's average rank over the last three finished weeks, less the season's: negative is rising. */
   trend: Record<string, number | null>;
+  /** The trend as the page marks it: half a rank or more better (rising) or worse (falling), exactly. */
+  move: Record<string, 'rising' | 'falling' | null>;
   /** All-play over the finished weeks, in categories. */
   allPlay: { won: number; lost: number; tied: number };
+  /** The finished weeks Yahoo gave this team's totals for. */
   weeks: number;
 }
 
 /** How many of the latest finished weeks the trend reads. */
 const RECENT_WEEKS = 3; // def: the last three finished weeks
+/** The trend's edge, half a rank, as a fraction: ranks are whole numbers, so the comparison stays in integers. */
+const EDGE_DENOMINATOR = 2; // def: half a rank
+
+/**
+ * Rising or falling: the recent mean (sumLast / nLast) against the season's (sumAll / nAll), with
+ * the half-rank edge compared exactly as 2 × (sumLast × nAll − sumAll × nLast) against nLast × nAll.
+ */
+function moveOf(all: number[], last: number[]): 'rising' | 'falling' | null {
+  const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
+  const gap = EDGE_DENOMINATOR * (sum(last) * all.length - sum(all) * last.length);
+  const edge = last.length * all.length;
+  return gap <= -edge ? 'rising' : gap >= edge ? 'falling' : null;
+}
 
 /** The season so far: each team's average rank per category over the finished weeks, and its trend. */
 export function seasonTable(weeks: readonly LeagueWeek[], teams: number, cats: readonly string[] = CATEGORIES): SeasonRow[] {
   const finished = weeks.filter((w) => w.final).sort((a, b) => a.week - b.week);
   const tables = finished.map((w) => weekTable(w, cats));
   const recent = tables.slice(-RECENT_WEEKS);
-  const mean = (xs: (number | null | undefined)[]) => {
-    const ok = xs.filter((x): x is number => typeof x === 'number');
-    return ok.length ? ok.reduce((s, x) => s + x, 0) / ok.length : null;
-  };
+  const known = (xs: (number | null | undefined)[]) => xs.filter((x): x is number => typeof x === 'number');
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null);
   return Array.from({ length: teams }, (_, team) => {
     const average: Record<string, number | null> = {};
     const trend: Record<string, number | null> = {};
+    const move: Record<string, 'rising' | 'falling' | null> = {};
     for (const c of cats) {
-      const all = mean(tables.map((t) => t[team]?.ranks[c]));
-      const last = mean(recent.map((t) => t[team]?.ranks[c]));
+      const allRanks = known(tables.map((t) => t[team]?.ranks[c]));
+      const lastRanks = known(recent.map((t) => t[team]?.ranks[c]));
+      const all = mean(allRanks);
+      const last = mean(lastRanks);
+      const reads = all !== null && last !== null && tables.length > RECENT_WEEKS;
       average[c] = all;
-      trend[c] = all !== null && last !== null && tables.length > RECENT_WEEKS ? last - all : null;
+      trend[c] = reads ? last - all : null;
+      move[c] = reads ? moveOf(allRanks, lastRanks) : null;
     }
     const allPlay = tables.reduce(
       (s, t) => {
@@ -110,8 +131,13 @@ export function seasonTable(weeks: readonly LeagueWeek[], teams: number, cats: r
       },
       { won: 0, lost: 0, tied: 0 },
     );
-    return { team, average, trend, allPlay, weeks: tables.length };
+    return { team, average, trend, move, allPlay, weeks: finished.filter((w) => w.teams[team]).length };
   });
+}
+
+/** The teams Yahoo gave no totals for, each with the weeks it is missing from (#1064). */
+export function missingWeeks(weeks: readonly LeagueWeek[], teams: number): { team: number; weeks: number[] }[] {
+  return Array.from({ length: teams }, (_, team) => ({ team, weeks: weeks.filter((w) => !w.teams[team]).map((w) => w.week) })).filter((m) => m.weeks.length > 0);
 }
 
 /** A category's total as the table shows it: a percentage to a tenth, a count whole. */
