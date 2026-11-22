@@ -1148,6 +1148,25 @@ test('the fantasy pages sit flat in the nav, the data pages under one header tha
   await expect(header).not.toHaveAttribute('open', '');
 });
 
+/**
+ * The Yahoo bookmark's code, read once the League page has set it (#1098). The link renders with
+ * no address (React refuses a javascript: href) and an effect sets it after the render, so a read
+ * straight after the link appears could find none, and the bookmark then ran as an empty script.
+ * This waits for the address to be the bookmark aimed back at this site's League page.
+ */
+async function bookmarkletCode(page: Page): Promise<string> {
+  const target = JSON.stringify(new URL('/league/?league=nba', page.url()).href);
+  const link = page.getByTestId('yahoo-bookmarklet-link');
+  let code = '';
+  await expect
+    .poll(async () => {
+      code = (await link.getAttribute('href')) ?? '';
+      return code.startsWith('javascript:') && code.includes(target);
+    })
+    .toBe(true);
+  return code;
+}
+
 test('on a phone, tapping the Yahoo bookmark link copies its code and shows the steps', async ({ page, context, browserName }) => {
   test.skip(browserName !== 'chromium', 'the clipboard is granted on chromium');
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -1165,9 +1184,7 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   // The fixture build's NBA board is empty: serve the WNBA board for it, and the Yahoo fixture names come from there.
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const link = page.getByTestId('yahoo-bookmarklet-link');
-  await expect(link).toHaveAttribute('href', /^javascript:/);
-  const code = (await link.getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   expect(code.startsWith('javascript:')).toBe(true);
   // A Yahoo-shaped league: the fixture league page links its teams, each team page lists its players.
   await page.route(/\/nba\/12345\/(\d+)$/, (route) => route.fulfill({ path: `tests/fixtures/data/yahoo/team-${route.request().url().split('/').pop()}.html` }));
@@ -1192,7 +1209,7 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
 test('the Yahoo bookmarklet reads every roster from the Starting Rosters page itself, counting only rows with a slot', async ({ page }) => {
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   // No other team's page is fetched: the rosters are on the page the bookmark runs on. The
   // manager's own team page is, once, for Yahoo's count of the week's adds (#1028).
   const fetchedPages: string[] = [];
@@ -1226,7 +1243,7 @@ test("the Yahoo bookmarklet brings the standings, this week's opponent and score
   await page.clock.setFixedTime(new Date('2026-11-08T17:00:00Z'));
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   // the team pages, then the league's home (standings), the manager's matchup and the settings
   const asked: string[] = [];
   await page.route(/\/nba\/12345\/(\d+)$/, (route) => route.fulfill({ path: `tests/fixtures/data/yahoo/team-${route.request().url().split('/').pop()}.html` }));
@@ -1368,7 +1385,7 @@ test("the Yahoo bookmark reads every week's matchup totals, one page at a time, 
   test.slow(); // the week pages come a second apart
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   const weekPages = await yahooLeague(page);
   await page.goto('/data/yahoo/league.html');
   await page.evaluate(code.slice('javascript:'.length));
@@ -1419,7 +1436,7 @@ test('a week page Yahoo does not answer stops the reading, is named on the Leagu
   test.slow(); // the week pages come a second apart
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   const weekPages = await yahooLeague(page, (path) => path === 'matchup?week=2&mid1=1');
   await page.goto('/data/yahoo/league.html');
   await page.evaluate(code.slice('javascript:'.length));
@@ -1441,7 +1458,7 @@ test("Yahoo's home page failing reads no week, says so on the League page, and k
   test.slow(); // the week pages come a second apart
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   // a first run reads every week
   await yahooLeague(page);
   await page.goto('/data/yahoo/league.html');
@@ -1469,7 +1486,7 @@ test("a week page with one team (a playoff bye) is read, kept on Yahoo's side, a
   test.slow(); // the week pages come a second apart
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   await yahooLeague(page);
   // in week 1, teams 1 and 2 each have a bye: each one's page shows its own row alone
   const pair = readFileSync('tests/fixtures/data/yahoo/week-1-1v2.html', 'utf8');
@@ -4486,7 +4503,7 @@ test('the Yahoo bookmarklet takes a player whose name holds an action word, and 
   await page.route('**/data/yahoo/blocked.html', (route) => route.fulfill({ contentType: 'text/html', body: html }));
   await page.route(/\/nba\/12345(\/(matchup|settings).*)?$/, (route) => route.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   await page.goto('/data/yahoo/blocked.html');
   await page.evaluate(code.slice('javascript:'.length));
   await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
