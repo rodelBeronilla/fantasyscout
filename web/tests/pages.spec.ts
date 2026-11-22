@@ -4744,3 +4744,67 @@ test('the League page shows the league week by week from the imported totals: ra
   // the table scrolls inside its card; the page itself does not scroll sideways
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+test('the week by week says in words whose row is yours, how rows run, what the tints and arrows mean, and which week a team is missing (#1064)', async ({ page }) => {
+  // an invented eight-team league: Corner Threes (the manager's) ranks 1, 1, 6, 1, 1, 3 on points over six finished weeks,
+  // exactly half a rank better over the last three; Bench Mob has no totals in week 2 and in week 7, under way
+  const t = (pts: number) => ({
+    totals: { z_points: pts, z_rebounds_total: 200, z_assists: 100, z_steals: 30, z_blocks: 20, z_three_pointers_made: 50, z_turnovers: 60 },
+    shots: { z_field_goal_pct: [200, 420], z_free_throw_pct: [90, 120] },
+  });
+  const mine = { 1: 800, 3: 550, 6: 250 } as Record<number, number>;
+  const others = [700, 600, 500, 400, 300, 200, 100];
+  const teams = (r: number, missing: boolean) => [mine[r]!, ...others].map((p, i) => (missing && i === 4 ? null : t(p)));
+  const weeks = [1, 1, 6, 1, 1, 3, 1].map((r, i) => ({ week: i + 1, final: i < 6, teams: teams(r, i === 1 || i === 6) }));
+  const names = ['Corner Threes', 'The Late Scratches', 'Glass Cleaners', 'Fast Breakers', 'Bench Mob', 'Pick and Roll', 'Zone Busters', 'Second Unit'];
+  const empty = names.map(() => []);
+  const copy = {
+    version: 10, teams: 8, rosterSpots: 13, scoring: 'cats9', format: 'h2h', punts: [], names,
+    rosters: empty, mine: 0, il: [], drafting: false, picks: [], opponent: null,
+    source: { host: 'yahoo', leagueId: '99', syncedAt: Date.now() - 60_000, rosters: empty, changes: null, weeks },
+  };
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+  await page.goto('/league/?league=nba');
+  const card = page.getByTestId('league-weeks');
+  const rows = card.getByTestId('weeks-row');
+  // the league is drawn on the client: wait for its eight rows before reading what is not there
+  await expect(rows).toHaveCount(8);
+  // week 7, under way: the missing team is named, with what it does to the others' all-play
+  await expect(card.getByRole('button', { name: /Wk 7/, pressed: true })).toBeVisible();
+  await expect(card.getByTestId('weeks-missing')).toHaveText(
+    "Yahoo gave no totals for Bench Mob in week 7, so it has no ranks that week and the other teams' all-play counts 6 opponents, not 7.",
+  );
+  await expect(rows.filter({ hasText: 'Bench Mob' }).locator('td').first()).toHaveText('–');
+  const [w, l, d = '0'] = ((await rows.filter({ hasText: 'Glass Cleaners' }).locator('td').first().textContent()) ?? '').split('-');
+  expect(Number(w) + Number(l) + Number(d)).toBe(6 * 9);
+  await expect(card.getByTestId('weeks-key')).toHaveText('Rows run from the best all-play record to the worst, a tie counting half. Green marks a rank of 1 or 2, red a rank of 7 or 8.');
+  // the manager's row says so in its text; no other row does
+  await expect(rows.filter({ hasText: 'Corner Threes' }).locator('th')).toHaveText('Corner Threes you', { useInnerText: true });
+  await expect(rows.locator('th', { hasText: /you$/ })).toHaveCount(1);
+  // the season: the key, the missing week, and the arrow, seen and spoken
+  await card.getByRole('button', { name: 'Season' }).click();
+  await expect(card.getByTestId('weeks-key')).toHaveText(
+    'Rows run from the best all-play record to the worst, a tie counting half. Green marks an average rank that rounds to 1 or 2, red one that rounds to 7 or 8.',
+  );
+  await expect(card.getByTestId('weeks-missing')).toHaveText('Yahoo gave no totals for Bench Mob in week 2: its averages and all-play are over 5 finished weeks, not 6.');
+  await expect(rows.filter({ hasText: 'Corner Threes' }).locator('th')).toHaveText('Corner Threes you', { useInnerText: true });
+  // rows run by all-play share, best first
+  const shares = await rows.evaluateAll((trs) =>
+    trs.map((tr) => {
+      const [won = 0, lost = 0, tied = 0] = (tr.querySelector('td')?.textContent ?? '').split('-').map(Number);
+      return (won + tied / 2) / Math.max(1, won + lost + tied);
+    }),
+  );
+  expect(shares).toEqual([...shares].sort((a, b) => b - a));
+  // 13/6 over the season against 5/3 over the last three: exactly half a rank better, so it rises
+  const pts = rows.filter({ hasText: 'Corner Threes' }).locator('[data-cat="z_points"]');
+  await expect(pts.locator('[aria-hidden="true"]')).toHaveText('↑');
+  await expect(pts.locator('.sr-only')).toHaveText('rising');
+  for (const theme of ['dark', 'light']) {
+    await page.evaluate((th) => document.documentElement.setAttribute('data-theme', th), theme);
+    const found = await new AxeBuilder({ page }).include('[data-testid="league-weeks"]').withTags(['wcag2a', 'wcag2aa']).analyze();
+    expect(found.violations, theme).toEqual([]);
+    // nothing left for a person to check by hand: the arrows' words are text, not a label on a plain span
+    expect(found.incomplete.map((r) => r.id), theme).not.toContain('aria-prohibited-attr');
+  }
+});
