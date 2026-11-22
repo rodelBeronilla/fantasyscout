@@ -1189,6 +1189,43 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   await expect(page.getByTestId('team-card').nth(0).getByTestId('roster').locator('li')).toHaveCount(3);
 });
 
+test("a team read from its own page is named by what the page says of the team, never Yahoo's logo; unsure, it is Team N (#1047)", async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  // the link gets its code once the page has hydrated
+  await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  // Starting Rosters before Yahoo has drawn it: no team links, so each team's page is fetched.
+  // The team pages are Yahoo's shape: the logo the only h1, the title "League - Team | Fantasy
+  // Basketball | Yahoo! Sports". Teams 1, 2 and 4 have the team element and the roster's caption;
+  // team 3 is the older page, with the caption only. Team 4 is served with only its title, which
+  // names it once the league's name is known from the home page; then with a title that holds only the league.
+  await page.route('**/data/yahoo/unrendered.html', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>Fixture League | Fantasy Basketball | Yahoo! Sports</title></head><body><nav><a href="/nba/12345">League</a> <a href="/nba/12345/2">My Team</a></nav><div id="rosters"></div></body></html>' }),
+  );
+  await page.route(/\/nba\/12345\/?$/, (route) => route.fulfill({ path: 'tests/fixtures/data/yahoo/home.html' }));
+  await page.route(/\/nba\/12345\/(matchup.*|settings)$/, (route) => route.abort());
+  let team4 = (html: string) => html.replace(/<span class="[^"]*team-name">[\s\S]*?<\/span>\s*<\/span>/, '').replace(/<caption[\s\S]*?<\/caption>/, '');
+  await page.route(/\/nba\/12345\/(\d+)$/, (route) => {
+    const t = Number(route.request().url().split('/').pop());
+    if (t > 4) return route.fulfill({ status: 404, body: 'Not found' });
+    const html = readFileSync(`tests/fixtures/data/yahoo/team-${t}.html`, 'utf8');
+    return route.fulfill({ contentType: 'text/html', body: t === 4 ? team4(html) : html });
+  });
+  const run = async () => {
+    await page.goto('/data/yahoo/unrendered.html');
+    await page.evaluate(code.slice('javascript:'.length));
+    await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
+    await expect(page.getByTestId('team-card')).toHaveCount(4);
+    return Promise.all([1, 2, 3, 4].map((i) => page.getByTestId('team-card').nth(i - 1).getByLabel(`Name of team ${i}`).inputValue()));
+  };
+  expect(await run()).toEqual(['Dunk Dynasty', 'Rim Reapers', 'Triple Doubles', 'Fourth Quarter']);
+  const plain = team4;
+  team4 = (html) => plain(html).replace(/<title>[^<]*<\/title>/, '<title>Fixture League | Fantasy Basketball | Yahoo! Sports</title>');
+  expect(await run()).toEqual(['Dunk Dynasty', 'Rim Reapers', 'Triple Doubles', 'Team 4']);
+});
+
 test('the Yahoo bookmarklet reads every roster from the Starting Rosters page itself, counting only rows with a slot', async ({ page }) => {
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
