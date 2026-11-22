@@ -9,8 +9,17 @@ import { Card, Unvalidated } from './ui';
 function SwingRow({ s, name, team, action, onAction }: { s: FormSwing; name: string; team: string | null; action: string; onAction: () => void }) {
   return (
     <li className="flex flex-wrap items-center gap-x-2" data-testid="swing">
-      <span className="min-w-0 flex-1 truncate">
-        {name} {team && <span className="text-xs text-muted">{team}</span>}
+      {/* the player and the team each cut, the team to half the line at most, each with its title: neither is dropped;
+          on a phone the line is theirs and the numbers wrap below it (#1076) */}
+      <span className="flex min-w-0 flex-1 basis-44 items-baseline gap-1">
+        <span className="min-w-0 truncate" title={name}>
+          {name}
+        </span>
+        {team && (
+          <span className="max-w-[50%] min-w-0 shrink-0 truncate text-xs text-muted" title={team}>
+            {team}
+          </span>
+        )}
       </span>
       <span className="text-xs text-muted" title="Value per game above replacement: the last ten games against the projection">
         {fmt(s.recent, 1)} lately vs {fmt(s.projected, 1)} projected
@@ -49,7 +58,8 @@ export function BuySellCard({
         Recent form against the projection, in value per game above replacement under your league&apos;s scoring. Managers price players on the box
         scores they have just seen: {sellHigh ? 'a hot run sells for more than the projection says, a slump buys for less' : 'a slump buys for less than the projection says'}.
       </p>
-      <div className={`grid gap-4 ${sellHigh ? 'md:grid-cols-2' : ''}`}>
+      {/* columns a long name cannot widen (#1076) */}
+      <div className={`grid grid-cols-1 gap-4 ${sellHigh ? 'md:grid-cols-2' : ''}`}>
         {sellHigh && (
         <div>
           <h3 className="mb-1 text-sm font-semibold">
@@ -57,7 +67,7 @@ export function BuySellCard({
             <Unvalidated issue={903} what="Sell high" />
           </h3>
           {swings.sellHigh.length ? (
-            <ul className="grid gap-1 text-sm" data-testid="sell-high">
+            <ul className="grid grid-cols-1 gap-1 text-sm" data-testid="sell-high">
               {swings.sellHigh.map((s) => (
                 <SwingRow key={s.id} s={s} name={nameOf(s.id)} team={null} action="Offer" onAction={() => onOffer(s.id)} />
               ))}
@@ -73,7 +83,7 @@ export function BuySellCard({
             {league === 'wnba' && <Unvalidated issue={904} what="Buy low in the WNBA" />}
           </h3>
           {swings.buyLow.length ? (
-            <ul className="grid gap-1 text-sm" data-testid="buy-low">
+            <ul className="grid grid-cols-1 gap-1 text-sm" data-testid="buy-low">
               {swings.buyLow.map((s) => (
                 <SwingRow
                   key={s.id}

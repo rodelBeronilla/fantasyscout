@@ -33,14 +33,48 @@ async function seedLeague(page: Page) {
   await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
 }
 
-const PAGES: { name: string; path: string; drawn: (page: Page) => Promise<void> }[] = [
-  { name: 'My Team', path: '/team/?league=nba', drawn: (p) => expect(p.getByTestId('matchup-table')).toBeVisible() },
-  { name: 'Trade', path: '/trade/?league=nba', drawn: (p) => expect(p.getByTestId('trade-tabs')).toBeVisible() },
-  { name: 'League', path: '/league/?league=nba', drawn: (p) => expect(p.getByTestId('weeks-row')).toHaveCount(8) },
+// each page, once drawn, then each state that changes its layout: every Trade tab, every folded
+// section on My Team opened, another team's card unfolded on League
+const PAGES: { name: string; path: string; drawn: (page: Page) => Promise<void>; states: (page: Page, check: (what: string) => Promise<void>) => Promise<void> }[] = [
+  {
+    name: 'My Team',
+    path: '/team/?league=nba',
+    drawn: (p) => expect(p.getByTestId('matchup-table')).toBeVisible(),
+    states: async (p, check) => {
+      await p.locator('main details').evaluateAll((all) => all.forEach((d) => ((d as HTMLDetailsElement).open = true)));
+      await check('every section open');
+    },
+  },
+  {
+    name: 'Trade',
+    path: '/trade/?league=nba',
+    drawn: (p) => expect(p.getByTestId('trade-tabs')).toBeVisible(),
+    states: async (p, check) => {
+      const tabs = p.getByTestId('trade-tabs').getByRole('radio');
+      expect(await tabs.count()).toBeGreaterThan(1);
+      for (const tab of await tabs.all()) {
+        const label = (await tab.textContent()) ?? '';
+        await tab.click();
+        await expect(tab).toHaveAttribute('aria-checked', 'true');
+        await p.waitForLoadState('networkidle');
+        await check(`the ${label} tab`);
+      }
+    },
+  },
+  {
+    name: 'League',
+    path: '/league/?league=nba',
+    drawn: (p) => expect(p.getByTestId('weeks-row')).toHaveCount(8),
+    states: async (p, check) => {
+      await p.getByTestId('team-card-folded').first().click();
+      await expect(p.getByTestId('team-card')).toHaveCount(1);
+      await check("another team's card unfolded");
+    },
+  },
 ];
 
 for (const width of [390, 768]) {
-  for (const { name, path, drawn } of PAGES) {
+  for (const { name, path, drawn, states } of PAGES) {
     test(`${name} with forty-character team names does not scroll sideways at ${width} px (#1076)`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
       await seedLeague(page);
@@ -48,6 +82,7 @@ for (const width of [390, 768]) {
       await drawn(page);
       await page.waitForLoadState('networkidle');
       await expectNoSidewaysScroll(page, name);
+      await states(page, (what) => expectNoSidewaysScroll(page, `${name}, ${what}`));
     });
   }
 }
@@ -83,4 +118,22 @@ test('a forty-character name is cut, never dropped: the selects and the folded c
   const folded = page.getByTestId('team-card-folded').first();
   await expect(folded.locator('span').first()).toHaveAttribute('title', NAMES[1]!);
   await expect(folded).toHaveAccessibleName(`Show ${NAMES[1]}'s roster`);
+});
+
+test('a Buy low row keeps both the player and the team, each cut with its title, at 390 px (#1076)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedLeague(page);
+  await page.goto('/trade/?league=nba');
+  await page.getByTestId('trade-tabs').getByRole('radio', { name: /Buy/ }).click();
+  const row = page.getByTestId('buy-low').getByTestId('swing').first();
+  await expect(row).toBeVisible();
+  const [player, team] = await row.locator('span[title]').all();
+  // each part shows some of its text, and its title holds the whole
+  for (const part of [player!, team!]) {
+    const box = (await part.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(100);
+    expect(((await part.getAttribute('title')) ?? '').length).toBeGreaterThan(0);
+    expect(await part.textContent()).toBe(await part.getAttribute('title'));
+  }
+  expect(NAMES).toContain(await team!.getAttribute('title'));
 });
