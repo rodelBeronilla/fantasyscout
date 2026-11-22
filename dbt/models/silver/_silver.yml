@@ -629,6 +629,9 @@ models:
         description: "True when ESPN marks the game as at a neutral site"
       - name: venue_name
         description: "ESPN's name for the venue of the game"
+      - name: exhibition
+        description: "True when ESPN marks either side an inactive team, as it does the sides of the All-Star and Rising Stars games (Team LeBron); false when it marks neither"
+        data_tests: [not_null]
       - name: home_team_id
         description: "ESPN team id of the home competitor"
         data_tests: [not_null]
@@ -1210,7 +1213,7 @@ models:
         description: "Ingest date of the standings landing"
 
   - name: game_lines
-    description: "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard."
+    description: "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard. An exhibition (silver.espn_events.exhibition, such as the All-Star game) has no row."
     columns:
       - name: league
         description: "wnba or nba"

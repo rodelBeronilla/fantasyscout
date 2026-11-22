@@ -422,7 +422,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 484,
+ "generic_tests": 485,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -9569,6 +9569,15 @@
        "type": "varchar"
       },
       {
+       "description": "True when ESPN marks either side an inactive team, as it does the sides of the All-Star and Rising Stars games (Team LeBron); false when it marks neither",
+       "meta": {},
+       "name": "exhibition",
+       "tests": [
+        "not_null"
+       ],
+       "type": "boolean"
+      },
+      {
        "description": "ESPN team id of the home competitor",
        "meta": {},
        "name": "home_team_id",
@@ -9632,7 +9641,12 @@
      "reads": [
       "espn_scoreboard"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "ESPN marks the sides of an All-Star game (Team LeBron against Team Durant) inactive teams. Either side inactive makes the event an exhibition; two league teams, or a payload without the flag, do not.",
+       "name": "an_event_between_inactive_teams_is_an_exhibition"
+      }
+     ]
     },
     {
      "checks": [],
@@ -10812,14 +10826,14 @@
        "type": "double"
       }
      ],
-     "description": "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard.",
+     "description": "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard. An exhibition (silver.espn_events.exhibition, such as the All-Star game) has no row.",
      "exported_as": [],
      "grain": null,
      "landing": [],
      "materialized": "table",
      "name": "game_lines",
      "notes": [
-      "The betting line for each ESPN event: the point spread from the home side (negative when the home team is favoured), the over/under, and the points each team is implied to score. Upcoming games take the line from the latest scoreboard; a finished game's summary carries the closing line, which wins over any earlier scoreboard. One row per event that has a line."
+      "The betting line for each ESPN event: the point spread from the home side (negative when the home team is favoured), the over/under, and the points each team is implied to score. Upcoming games take the line from the latest scoreboard; a finished game's summary carries the closing line, which wins over any earlier scoreboard. One row per event that has a line, leaving out exhibitions: an All-Star game's total runs past 300 points, and no fantasy week counts it."
      ],
      "read_by": [
       "fct_game_line",
@@ -10831,7 +10845,12 @@
       "espn_scoreboard_odds",
       "espn_summary_odds"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "The All-Star game's line (a 324.5 total) is no game a fantasy week counts, so it has no row; a league game's line is kept.",
+       "name": "game_lines_leave_out_exhibitions"
+      }
+     ]
     },
     {
      "checks": [],
@@ -30192,6 +30211,11 @@
    "name": "player_current_stint_follows_the_roster"
   },
   {
+   "description": "ESPN marks the sides of an All-Star game (Team LeBron against Team Durant) inactive teams. Either side inactive makes the event an exhibition; two league teams, or a payload without the flag, do not.",
+   "model": "espn_events",
+   "name": "an_event_between_inactive_teams_is_an_exhibition"
+  },
+  {
    "description": "A past season's ADP (#786) is known the day before the season's first regular-season game, not the day a history run landed it. A preseason game earlier in the schedule does not count. A draft position of 0 is ESPN's placeholder and is left out; the rank breaks a tie by player id.",
    "model": "espn_preseason_adp",
    "name": "preseason_adp_is_dated_to_the_first_game_and_ranked"
@@ -30350,6 +30374,11 @@
    "description": "The five statuses (#397): landed within the allowance is fresh, past it stale while the league plays, any age off_season when it does not, never landed never, and never landed for an optional feed (a key not set yet) unconfigured. Today is pinned to 2026-11-02 with the NBA in season and the WNBA not.",
    "model": "feed_freshness",
    "name": "feed_freshness_statuses"
+  },
+  {
+   "description": "The All-Star game's line (a 324.5 total) is no game a fantasy week counts, so it has no row; a league game's line is kept.",
+   "model": "game_lines",
+   "name": "game_lines_leave_out_exhibitions"
   },
   {
    "description": "Last night's game has ESPN's crew (the newest landed summary wins over an older one) and the page's: the crew chief and the referee keep their roles (\"JB DeRosa\" on the page is \"J.B. DeRosa\" on ESPN), the official only ESPN lists has none, and the page's umpire who did not work the game is left out. Tonight's games have only the page's crew, alternate included, linked by the date and the teams the page names: \"L.A. Lakers\" and \"LA Clippers\" are told apart although both play in Los Angeles. A page row for a game the schedule does not have is left out.",
