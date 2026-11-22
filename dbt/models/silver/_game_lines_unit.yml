@@ -1,0 +1,38 @@
+unit_tests:
+  - name: an_event_between_inactive_teams_is_an_exhibition
+    description: >
+      ESPN marks the sides of an All-Star game (Team LeBron against Team Durant) inactive teams.
+      Either side inactive makes the event an exhibition; two league teams, or a payload without
+      the flag, do not.
+    model: espn_events
+    given:
+      - input: ref('espn_scoreboard')
+        rows:
+          - {league: nba, event_id: '1', competitors: '[{"homeAway":"home","team":{"id":"111353","isActive":false}},{"homeAway":"away","team":{"id":"123554","isActive":false}}]', _ingest_date: 2026-10-20, _source_file: a.json}
+          - {league: nba, event_id: '2', competitors: '[{"homeAway":"home","team":{"id":"13","isActive":true}},{"homeAway":"away","team":{"id":"9","isActive":true}}]', _ingest_date: 2026-10-20, _source_file: a.json}
+          - {league: nba, event_id: '3', competitors: '[{"homeAway":"home","team":{"id":"13"}},{"homeAway":"away","team":{"id":"9"}}]', _ingest_date: 2026-10-20, _source_file: a.json}
+    expect:
+      rows:
+        - {event_id: '1', home_team_id: '111353', exhibition: true}
+        - {event_id: '2', home_team_id: '13', exhibition: false}
+        - {event_id: '3', home_team_id: '13', exhibition: false}
+
+  - name: game_lines_leave_out_exhibitions
+    description: >
+      The All-Star game's line (a 324.5 total) is no game a fantasy week counts, so it has no row;
+      a league game's line is kept.
+    model: game_lines
+    given:
+      - input: ref('espn_summary_odds')
+        rows:
+          - {league: nba, event_id: '1', spread: '-6', over_under: '324.5', _ingest_date: 2026-10-20, _source_file: a.json}
+          - {league: nba, event_id: '2', spread: '-3.5', over_under: '224.5', _ingest_date: 2026-10-20, _source_file: a.json}
+      - input: ref('espn_scoreboard_odds')
+        rows: []
+      - input: ref('espn_events')
+        rows:
+          - {league: nba, event_id: '1', home_team_id: '111353', away_team_id: '123554', exhibition: true}
+          - {league: nba, event_id: '2', home_team_id: '13', away_team_id: '9', exhibition: false}
+    expect:
+      rows:
+        - {event_id: '2', over_under: 224.5, home_implied_points: 114.0, away_implied_points: 110.5}
