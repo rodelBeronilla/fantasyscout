@@ -4686,6 +4686,84 @@ test("My Team shows the score so far beside the projected final, games left both
   }
 });
 
+/** An invented league of the owner's shape (#1075): eight teams, thirteen spots, the score so far from Yahoo. */
+async function seedEightTeams(page: Page) {
+  type Row = { player_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const now = new Date('2026-11-02T16:00:00Z');
+  await page.clock.setFixedTime(now);
+  const rosters = [0, 1, 2, 3, 4, 5, 6, 7].map((t) => [t, t + 8, t + 16].map((i) => board[i]!.player_id));
+  const score = (pts: number) => ({
+    totals: { z_points: pts, z_rebounds_total: 49, z_assists: 23, z_steals: 7, z_blocks: 7, z_three_pointers_made: 14, z_turnovers: 12 },
+    shots: { z_field_goal_pct: [41, 88], z_free_throw_pct: [14, 17] },
+  });
+  const copy = {
+    version: 10,
+    teams: 8,
+    rosterSpots: 13,
+    scoring: 'cats9',
+    format: 'h2h',
+    punts: [],
+    names: ['Corner Threes', 'The Late Scratches', 'Glass Cleaners', 'Fast Breakers', 'Bench Mob', 'Pick and Roll', 'Zone Busters', 'Second Unit'],
+    rosters,
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    lineup: { PG: 1, SG: 1, G: 1, SF: 1, PF: 1, F: 1, C: 1, UTIL: 3 },
+    ilSlots: 2,
+    addsPerWeek: 4,
+    waiverDays: 2,
+    source: {
+      host: 'yahoo',
+      leagueId: '99',
+      syncedAt: now.getTime() - 3_600_000,
+      rosters,
+      changes: null,
+      opponents: [1, 0, 3, 2, 5, 4, 7, 6],
+      scores: [score(110), score(91), null, null, null, null, null, null],
+    },
+  };
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+}
+
+test('on a phone the matchup keeps each category beside its numbers while the table scrolls (#1075)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedEightTeams(page);
+  await page.goto('/team/?league=nba');
+  const table = page.getByTestId('matchup-table');
+  await expect(table.getByTestId('matchup-row')).toHaveCount(9);
+  const region = page.locator('.table-scroll', { has: table });
+  // the table is wider than the phone, so its numbers scroll sideways
+  expect(await region.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  await region.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
+  await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  const left = (await region.boundingBox())!.x;
+  // the category's header and every row's category stay at the region's left edge, over the numbers
+  for (const cell of [table.locator('thead tr').last().locator('th').first(), ...(await table.locator('tbody tr td:first-child').all())]) {
+    expect(Math.abs((await cell.boundingBox())!.x - left)).toBeLessThan(2);
+  }
+  await expect(table.locator('tbody tr').first().locator('td').first()).toHaveText(/^PTS/);
+});
+
+test('My Team and Rankings with a league pass axe in both themes (#1075)', async ({ page }) => {
+  test.slow(); // four full passes, the board's among them
+  await seedEightTeams(page);
+  for (const path of ['/team/?league=nba', '/?league=nba']) {
+    await page.goto(path);
+    // the league is drawn on the client: wait for it before asking axe
+    await expect(page.getByTestId(path.startsWith('/team/') ? 'matchup-table' : 'league-bar')).toBeVisible();
+    if (path.startsWith('/team/')) await expect(page.getByTestId('today-pickups')).toBeVisible();
+    else await expect(page.getByTestId('league-bar').getByRole('link', { name: /Corner Threes/ })).toBeVisible();
+    for (const theme of ['dark', 'light']) {
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+      const found = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+      expect(found.violations, `${path} ${theme}`).toEqual([]);
+    }
+  }
+});
+
 test('the capture bookmark saves the Yahoo pages it read as one file on the device, then imports (#1030)', async ({ page, browserName }) => {
   test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
   test.slow(); // the week pages come a second apart (#1049)
