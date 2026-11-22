@@ -62,7 +62,7 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 | Item | Where | Next |
 | --- | --- | --- |
 | S0, the yardstick (step 4) | #1077; judge in PR #1078 | Six weekly exports of the tuning seasons running in the Backtest workflow; then the numbers and the page. |
-| S1 games played, S4 shot diet (step 4) | #1079, #1082 | Being run by two sub-agents. S2 (#1080) judged and failed in both leagues (its pull request); S3 (#1081) next. |
+| S1 games played, S4 shot diet (step 4) | #1079, #1082 | Being run by two sub-agents. S2 (#1080) judged and failed in both leagues (PR #1093); S3 (#1081) next. |
 | The owner preview (step 3, item 4) | #1056; PR #1057, labelled status:blocked | **Parked** after three blocks on one point. Recommendation in its park note and Monday's digest. |
 | Last week, graded (step 3, item 5) | #1058; PR #1059 | Parked with #1057, which it is stacked on. |
 | Expected categories won, in the owner preview | #1073 | Bar written; waits for #1057. |
