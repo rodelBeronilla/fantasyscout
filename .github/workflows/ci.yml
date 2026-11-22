@@ -87,6 +87,13 @@ jobs:
         env:
           DBT_PROFILES_DIR: .
         run: uv run dbt build --target duckdb --exclude tag:quality
+      # The evening's light build builds only the report feeds' models and their consumers, so a
+      # model this change adds that one of them reads has no table on the lakehouse until a full
+      # build makes it (#956): caught here, not at the next light build's gate.
+      - name: A light build reads no model this change adds
+        run: |
+          git fetch --depth=1 origin main
+          uv run python -m ops.light_build check --base FETCH_HEAD
       # A backtest rebuilds the lakehouse at a past date and must see nothing after it (#752): the
       # sample is rebuilt from scratch as of its first game day, and every dated table is checked.
       - name: Point-in-time build leaks nothing from after its date
