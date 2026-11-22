@@ -222,6 +222,16 @@ features:
     parameters: []
     next: "Not retried with a changed recipe (#1079)"
     result: "Week RMSE, study minus projection, judged WNBA 2024 and 2025 (95% interval): PTS -0.016 (-0.033 to +0.002), bar -0.081; all seven counting categories short of their bars"
+  - id: opportunity-chances
+    what: "Opportunity before outcome (S3, NBA): next week's rebounds, assists, steals and blocks from a player's recent rebound chances, potential assists, deflections and contested shots times his long-run conversion of each"
+    page: team
+    verdict: failed
+    shown: hidden
+    adr: 12
+    issue: 1081
+    parameters: []
+    next: "Not retried with a tweaked recipe (#1081). A new study would need its own bar, written first"
+    result: "Week RMSE, study minus projection, judged NBA 2023-24 and 2024-25 (95% interval; bar is a quarter of S0's noise): REB +0.563 rebounds (+0.417 to +0.706), bar -0.0505; AST +0.694 assists (+0.582 to +0.816), bar -0.0388; STL +0.159 steals (+0.127 to +0.191), bar -0.0084; BLK +0.024 blocks (-0.017 to +0.065), bar -0.0094. All four targets needed; fails in all four. NBA only: the WNBA has no tracking"
 
   # ---- not yet judged
   - id: week-games-rest-nba
