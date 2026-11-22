@@ -4,7 +4,7 @@ Issue #1080, on S0's yardstick (#1077). The code is `ops/s2_minutes.py`. The bar
 
 ## The short answer
 
-**No, in either league.** Once a 28-minute player has already missed two games, the projection already shows his teammates' extra minutes. Adding what they gained in past games without him made the week's minutes worse on every tuning season, in both leagues, whatever the setting. So the frozen study was the projection itself. Judged once on the judged seasons, it changed no category, and it fails its bar in all seven counting categories. It is recorded as failed and is not retried with a changed recipe.
+**No, in either league.** Adding what his teammates gained in past games without him made the week's minutes worse on every tuning season, in both leagues, whatever the setting. What decided it is that these weeks are already overstated: the teammates miss games themselves, so any minutes added raise the week's error. Whether the projection already carries their bigger role was not tested. So the frozen study was the projection itself. Judged once on the judged seasons, it changed no category, and it fails its bar in all seven counting categories. It is recorded as failed and is not retried with a changed recipe.
 
 ## The basketball idea
 
@@ -36,9 +36,12 @@ Fantasy value moves when minutes move, and minutes move most when a starter miss
 | NBA 2020-21 to 2022-23 | 8,813 | 47.60 | 48.61 (fallback only, `w` 0.25) |
 | WNBA 2021 to 2023 | 3,383 | 27.76 | 29.26 (`k` 0, `w` 0.25) |
 
-**Per game played, the projection is already about right.** In the games these teammates did play, the projection's minutes were off by +0.20 a game in the NBA and +1.05 in the WNBA on the tuning seasons. The past gain barely says who gets more: its correlation with what changed was +0.01 in the NBA and −0.02 in the WNBA. That held even for fresh absences, two to five games old (+0.00 and −0.01).
+**Per game played, the leagues differ.** These are readings from the tuning seasons, not part of the bar. In the games these teammates did play, they played more minutes than the projection said: 0.20 a game more in the NBA and 1.05 more in the WNBA (real minus projected). The past gain barely says who gets more: its correlation with what changed was +0.01 in the NBA and −0.02 in the WNBA. That held even for fresh absences, two to five games old (+0.00 and −0.01).
 
-**The direction is right; the projection has already moved.** NBA teammates who had gained 10 or more minutes a game in past games without him (14 on average) played only 0.7 a game more than the projection said. On the judged seasons it was 1.8. By the time a player has missed two games, those games are in his teammates' last five, and the projection reads the last five. This is what notebook 07 found in 2026-10 for the last ten games (ADR 0012).
+- **NBA:** adding the gain is worse per game played too, so here the projection's minutes do look close to right.
+- **WNBA:** the numbers lean the other way. Per game played, adding a quarter of the gain was slightly better at every setting (minutes RMSE 6.153 against 6.185), and teammates who had gained 10 or more minutes a game without him played about 3.0 more than projected (54 player-weeks). That was computed in the study's review ([the review](https://github.com/rodelBeronilla/fantasyscout/pull/1093#issuecomment-7074493419)), with no interval and not judged. In the week it is outweighed by the games they miss.
+
+**In the NBA, the projection may have moved already.** NBA teammates who had gained 10 or more minutes a game in past games without him (14 on average) played only 0.7 a game more than the projection said. On the judged seasons it was 1.8. A likely reason, not tested here: by the time a player has missed two games, those games are in his teammates' last five, which the projection reads. That fits what notebook 07 found in 2026-10 for the last ten games (ADR 0012).
 
 ## The numbers that decide it
 
@@ -76,8 +79,8 @@ The bars are a quarter of the noise on this population. The tuning seasons' nois
 
 ## What it means for your team
 
-- **When a starter has already missed two games, the board already shows his teammates' bigger role.** Their projected minutes have moved with their last five games. Don't add a second bump of your own for "he's out, so the backup plays more".
-- **The big gainers get a little more than the board shows, not a lot.** It's about one to two minutes a game in the NBA, for the teammates who gained 10 or more without him before. That is too small to clear the bar, and too small to choose a pickup by.
+- **Adding minutes for a teammate's absence did not improve the week.** Once a starter has missed two games, giving his teammates more minutes than the board shows made their week's forecast worse in both leagues, because these players' weeks already come in short from games they miss. In the WNBA, the teammates did play more per game than the board said; whether that is worth acting on was not judged.
+- **In the NBA, the big gainers get a little more than the board shows, not a lot.** It's about one to two minutes a game, for the teammates who gained 10 or more without him before. That is too small to clear the bar, and too small to choose a pickup by.
 - **The bigger risk in these weeks is games, not minutes.** These players' weeks come in short because they miss games themselves. That is S1's question (#1079), not this one.
 - **The untested part is the first games of an absence.** When a player is ruled out before he has missed a game, his teammates' last five don't show it yet. That case needs the official listing on history, which these seasons don't have. Once listings build up, it can be its own study with its own bar.
 - **Nothing changes on the site.** This is recorded as failed (`methodology/features.yml`, `teammate-out-minutes`, hidden). The "who takes his minutes" call on My Team (#763) is a different call. It stays hidden and is judged against its own bar on 2026-27's weeks.
