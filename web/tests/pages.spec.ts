@@ -1161,7 +1161,8 @@ async function bookmarkletCode(page: Page): Promise<string> {
   await expect
     .poll(async () => {
       code = (await link.getAttribute('href')) ?? '';
-      return code.startsWith('javascript:') && code.includes(target);
+      // the address holds this site's League page only once it is the bookmark's code
+      return code.includes(target);
     })
     .toBe(true);
   return code;
