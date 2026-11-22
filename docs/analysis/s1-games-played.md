@@ -4,7 +4,7 @@ Issue #1079, on S0's yardstick (#1077). The code is `ops/s1_games_played.py`; th
 
 ## The short answer
 
-**In the NBA it passed its bar, but mostly for a reason other than the idea.** Counting a player's second nights of back-to-backs at his own habit of sitting them predicts his week better than counting every game his team plays: it passed in all seven counting categories on both judged seasons. But most of that gain comes from counting fewer games at all, and a flat discount on every game gets about 70% of it without looking at back-to-backs. Second nights are barely special. What is specific to the idea is each player's own record of sitting, and that part is small. **In the WNBA, no.** Back-to-backs are too rare there to move a week.
+**In the NBA it passed its bar, but mostly for a reason other than the idea.** Counting a player's second nights of back-to-backs at his own habit of sitting them predicts his week better than counting every game his team plays: it passed in all seven counting categories on both judged seasons. But most of that gain comes from counting fewer games at all, and a flat discount on every game gets about 70% of it without looking at back-to-backs. Second nights do matter for the players you roster: a top-130 player sits about one in eight of them, against about one in fourteen of other nights. But that is a small part of the games a week overcounts, so moving the discount onto second nights does not measurably change the week's error. What is specific to the idea beyond that is each player's own record of sitting, and that part is small. **In the WNBA, no.** Back-to-backs are too rare there to move a week.
 
 The NBA result is evidence, not yet proof. Those judged seasons have been used by every number fitted so far, so the rule says 2026-27's weeks must confirm it first. Until then it stays off the site.
 
@@ -41,7 +41,7 @@ A week's totals are mostly per-game production times games played, and games pla
 | The same discount handed to random players | −0.545 to −0.568 |
 | Every game counted at 0.80 | −3.073 |
 
-- **Second nights are barely special.** After a game he played, a player sat his team's next game 16.1% of the time on a second night and 13.7% on other nights (judged seasons). The group's share on second nights is not distinguishable from the same discount on any game: PTS −0.027 (−0.080 to +0.029).
+- **Second nights matter, but they are a small part of the count.** After a game he played, a player whose next game fell in a week he was in the top 130 sat a second night 13.3% of the time (n 2,893) and any other night 7.2% (n 13,401), on the judged seasons; 13.7% against 6.6% on the tuning seasons. That ratio, about two, holds in each of the five seasons. Across all players, bench included, it is 16.4% against 14.0% (judged seasons). Yet the group's share on second nights is not distinguishable from the same discount on any game, PTS −0.027 (−0.080 to +0.029): that discount is small next to an overcount of about 0.7 games a week, too small to tell where it lands.
 - **What is specific is each player's own record.** Over a flat discount of the study's own size it adds PTS −0.218 (−0.355 to −0.087), past a quarter of the noise in only four of the seven categories (PTS, REB, BLK, TO). The study cannot say whether that record is a rest habit or a sign of a player who is currently hurt.
 - **A cruder rule does far better.** Counting every game at 0.80 lowers the error by 3.07 points, nearly four times the study. That is a finding about the test's baseline, which lacks the listing, more than about rest.
 
@@ -83,9 +83,9 @@ The WNBA study is a hair better everywhere, but nowhere near its bar. It is reco
 
 ## What it means for your team
 
-- **Your week's games are fewer than the schedule shows.** For a top-130 NBA player it is about 2.6 played to 3.3 scheduled. Second nights of back-to-backs are only a little more likely to be sat than any other night (about 16% against 14%). The useful sign is a player's own recent record of sitting games.
+- **Your week's games are fewer than the schedule shows.** For a top-130 NBA player it is about 2.6 played to 3.3 scheduled. A second night of a back-to-back roughly doubles a rostered player's chance of sitting (about 13% against 7%), but it is still a small part of the 0.7 games a week. A player's own recent record of sitting adds a little more.
 - **Back-to-backs are a small part of the gap.** Most of the missing 0.7 games a week is injuries and other absences that the rest pattern does not see. The injury listing could not be tested on history. It is the next thing to measure as the listings build up.
-- **Nothing changes on the site yet.** The NBA rule is recorded as passed on its judged seasons (`methodology/features.yml`, `week-games-rest-nba`). Wiring it into the matchup card, and into the preview you see as owner, is separate work. It shows publicly only after six live weeks of 2026-27 agree with this result. Live, the projection carries the injury listing, so the gain there is expected to be smaller than in these tests; whether that confirmation should also be held against a flat discount is yours to decide (it is in Monday's digest). The WNBA rule is recorded as failed (`week-games-rest-wnba`).
+- **Nothing changes on the site yet.** The NBA rule is recorded as passed on its judged seasons (`methodology/features.yml`, `week-games-rest-nba`). Wiring it into the matchup card, and into the preview you see as owner, is separate work. It shows publicly only after six live weeks of 2026-27 agree with this result. Live, the projection carries the injury listing, so the gain there is expected to be smaller than in these tests; whether that confirmation should also be held against a flat discount is yours to decide (it goes to you in the digest of Monday, 2026-11-23). The WNBA rule is recorded as failed (`week-games-rest-wnba`).
 
 ## Reproduce
 
