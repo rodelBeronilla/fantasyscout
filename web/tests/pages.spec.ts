@@ -4919,7 +4919,7 @@ test('the week by week says in words whose row is yours, how rows run, what the 
   await expect(card.getByTestId('weeks-key')).toHaveText(
     'Rows run from the best all-play record to the worst, a tie counting half. Green marks an average rank that rounds to 1 or 2, red one that rounds to 7 or 8.',
   );
-  await expect(card.getByTestId('weeks-missing')).toHaveText('Yahoo gave no totals for Bench Mob in week 2: its averages and all-play are over 5 finished weeks, not 6.');
+  await expect(card.getByTestId('weeks-missing')).toHaveText("Yahoo gave no totals for Bench Mob in week 2: its averages and all-play are over 5 finished weeks, not 6, and the other teams' all-play has no results against it in that week.");
   await expect(rows.filter({ hasText: 'Corner Threes' }).locator('th')).toHaveText('Corner Threes you', { useInnerText: true });
   // rows run by all-play share, best first
   const shares = await rows.evaluateAll((trs) =>
@@ -4940,4 +4940,53 @@ test('the week by week says in words whose row is yours, how rows run, what the 
     // nothing left for a person to check by hand: the arrows' words are text, not a label on a plain span
     expect(found.incomplete.map((r) => r.id), theme).not.toContain('aria-prohibited-attr');
   }
+});
+
+test('on a phone the Season view keeps its arrows inside the table: the page does not scroll sideways (#1064)', async ({ page }) => {
+  // the viewport set here, not window.innerWidth, which grows with the page under phone emulation
+  const PHONE = 390;
+  await page.setViewportSize({ width: PHONE, height: 844 });
+  // an invented eight-team league, five finished weeks and a sixth under way: the order turns over
+  // after week 2 in every category, so arrows fall in every column, the last (turnovers) included;
+  // Second Unit has no totals in any finished week
+  const t = (k: number) => ({
+    totals: { z_points: 400 + 10 * k, z_rebounds_total: 200 + k, z_assists: 100 + k, z_steals: 30 + k, z_blocks: 20 + k, z_three_pointers_made: 50 + k, z_turnovers: 60 + k },
+    shots: { z_field_goal_pct: [200 + k, 420], z_free_throw_pct: [90 + k, 120] },
+  });
+  const names = ['Corner Threes', 'The Late Scratches', 'Glass Cleaners', 'Fast Breakers', 'Bench Mob', 'Pick and Roll', 'Zone Busters', 'Second Unit'];
+  const weeks = [1, 2, 3, 4, 5, 6].map((week) => ({
+    week,
+    final: week < 6,
+    teams: names.map((_, i) => (i === 7 && week < 6 ? null : t(week <= 2 ? i : 7 - i))),
+  }));
+  const empty = names.map(() => []);
+  const copy = {
+    version: 10, teams: 8, rosterSpots: 13, scoring: 'cats9', format: 'h2h', punts: [], names,
+    rosters: empty, mine: 0, il: [], drafting: false, picks: [], opponent: null,
+    source: { host: 'yahoo', leagueId: '99', syncedAt: Date.now() - 60_000, rosters: empty, changes: null, weeks },
+  };
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+  await page.goto('/league/?league=nba');
+  const card = page.getByTestId('league-weeks');
+  const rows = card.getByTestId('weeks-row');
+  await expect(rows).toHaveCount(8);
+  await card.getByRole('button', { name: 'Season' }).click();
+  // the arrows are drawn, in the last column too, each with its word
+  await expect(rows.filter({ hasText: 'Corner Threes' }).locator('[data-cat="z_turnovers"] .sr-only')).toHaveText(/^(rising|falling)$/);
+  expect(await card.locator('[data-cat="z_turnovers"] .sr-only').count()).toBeGreaterThan(4);
+  // a screen reader reads the cell as the average and the word, without the glyph
+  expect(await rows.filter({ hasText: 'Corner Threes' }).locator('[data-cat="z_turnovers"]').ariaSnapshot()).toMatch(/cell "\d\.\d (rising|falling)"/);
+  // the table scrolls in its box; the page stays the phone's width
+  const region = card.locator('.table-scroll');
+  expect(await region.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE);
+  // a team with no totals in any finished week: no record, and the others' all-play is said to leave it out
+  await expect(rows.filter({ hasText: 'Second Unit' }).locator('td').first()).toHaveText('–');
+  await expect(card.getByTestId('weeks-missing')).toHaveText(
+    "Yahoo gave no totals for Second Unit in weeks 1, 2, 3, 4 and 5: it has no averages or all-play yet, and the other teams' all-play has no results against it in those weeks.",
+  );
+  // the week under way, which has every team, stays the phone's width too
+  await card.getByRole('button', { name: /Wk 6/ }).click();
+  await expect(card.getByTestId('weeks-missing')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(PHONE);
 });

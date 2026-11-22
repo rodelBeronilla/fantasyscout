@@ -47,17 +47,19 @@ export function LeagueWeeks({ setup, weeks }: { setup: LeagueSetup; weeks: Leagu
           `Yahoo gave no totals for ${inWords(gaps.map((g) => name(g.team)))} in week ${week.week}, so ${gaps.length === 1 ? 'it has' : 'they have'} no ranks that week and the other teams' all-play counts ${setup.teams - 1 - gaps.length} opponents, not ${setup.teams - 1}.`,
         ]
       : []
-    : gaps.map(
-        (g) =>
-          `Yahoo gave no totals for ${name(g.team)} in ${g.weeks.length === 1 ? 'week' : 'weeks'} ${inWords(g.weeks)}: its averages and all-play are over ${finished - g.weeks.length} finished ${finished - g.weeks.length === 1 ? 'week' : 'weeks'}, not ${finished}.`,
-      );
+    : gaps.map((g) => {
+        const left = finished - g.weeks.length;
+        const those = g.weeks.length === 1 ? 'that week' : 'those weeks';
+        const its = left ? `its averages and all-play are over ${left} finished ${left === 1 ? 'week' : 'weeks'}, not ${finished}` : 'it has no averages or all-play yet';
+        return `Yahoo gave no totals for ${name(g.team)} in ${g.weeks.length === 1 ? 'week' : 'weeks'} ${inWords(g.weeks)}: ${its}, and the other teams' all-play has no results against it in ${those}.`;
+      });
   const [top, bottom] = [`1 or 2`, `${setup.teams - 1} or ${setup.teams}`];
   const key =
     chosen === 'season'
       ? `Rows run from the best all-play record to the worst, a tie counting half. Green marks an average rank that rounds to ${top}, red one that rounds to ${bottom}.`
       : `Rows run from the best all-play record to the worst, a tie counting half. Green marks a rank of ${top}, red a rank of ${bottom}.`;
   const pill = (active: boolean) =>
-    `shrink-0 rounded-full border px-3 py-1 text-sm ${active ? 'border-accent bg-accent font-semibold text-accent-fg' : 'border-line text-muted hover:text-fg'}`;
+    `relative shrink-0 rounded-full border px-3 py-1 text-sm ${active ? 'border-accent bg-accent font-semibold text-accent-fg' : 'border-line text-muted hover:text-fg'}`;
   const cell = 'px-1.5 py-1.5 text-center tabular-nums';
 
   return (
@@ -137,15 +139,17 @@ export function LeagueWeeks({ setup, weeks }: { setup: LeagueSetup; weeks: Leagu
                       <span className="block truncate">{name(r.team)}</span>
                       {r.team === setup.mine && <span className="block text-[11px] leading-tight font-normal text-muted">you</span>}
                     </th>
-                    <td className={`${cell} whitespace-nowrap`}>{record(r.allPlay)}</td>
+                    <td className={`${cell} whitespace-nowrap`}>{r.weeks ? record(r.allPlay) : '–'}</td>
                     {cats.map((c) => {
                       const avg = r.average[c] ?? null;
                       const move = r.move[c] ?? null;
                       return (
                         <td key={c} className={`${cell} rounded ${tone(avg === null ? null : Math.round(avg), setup.teams)}`} data-cat={c}>
                           <span className="block text-base leading-tight">{avg === null ? '–' : avg.toFixed(1)}</span>
-                          {/* the arrow is seen; its word is what a screen reader reads (#1064) */}
-                          <span className="block text-[11px] leading-tight text-muted">
+                          {/* the arrow is seen; its word is what a screen reader reads (#1064). The line is
+                              positioned so the word, absolutely placed, stays inside the scroll box: unpositioned,
+                              a word in a column off a phone's screen widened the page itself */}
+                          <span className="relative block text-[11px] leading-tight text-muted">
                             {move ? (
                               <>
                                 <span aria-hidden="true">{move === 'rising' ? '↑' : '↓'}</span>
