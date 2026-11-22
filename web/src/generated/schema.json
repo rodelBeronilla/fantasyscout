@@ -23778,7 +23778,7 @@
      "notes": [
       "Who is on which team, as the build knows it (#796): what mart_player_projection projects.",
       "A normal build reads the official rosters: each league's latest roster season, each team's latest landing, and for a player on two teams' latest landings the newer one, with the age and rookie flag the roster gives.",
-      "A point-in-time build cannot. Rosters count as known only from the day they were landed (ADR 0018), and every past season's were landed by a backfill long after it, so a backtest of a past date would project nobody. It rebuilds the roster from what was known before the cut instead: each player's latest event among the games he played (this season and the last) and the league's official signings, trades (the receiving team) and waiver claims. A player whose latest event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from games alone. The roster season is the newest season on the schedule that starts within about six months of the cut, so an offseason date projects the coming season. The age is the player's age in whole years on the cut, from the stats rosters' birth date (player_birth_dates, which is reference data and not cut: a birth date is fixed before a player's first game, #918), worked out as mart_board works out its own; null when no roster gives one. The rookie flag is unknown."
+      "A point-in-time build cannot. Rosters count as known only from the day they were landed (ADR 0018), and every past season's were landed by a backfill long after it, so a backtest of a past date would project nobody. It rebuilds the roster from what was known before the cut instead: each player's latest event among the games he played (this season and the last) and the league's official signings, trades (the receiving team) and waiver claims. A player whose latest event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from games alone. A player his team's last roster landing before the cut leaves off, with no game or move for the team after that landing, has left it (retired, or released without a move the feed records) and is on no roster (#921). Only landings before the cut count, so a past season, whose rosters a backfill landed long after it, is rebuilt from games and moves alone. The roster season is the newest season on the schedule that starts within about six months of the cut, so an offseason date projects the coming season. The age is the player's age in whole years on the cut, from the stats rosters' birth date (player_birth_dates, which is reference data and not cut: a birth date is fixed before a player's first game, #918), worked out as mart_board works out its own; null when no roster gives one. The rookie flag is unknown."
      ],
      "read_by": [
       "int_player_projection_parts"
@@ -23795,6 +23795,10 @@
       {
        "description": "Without a point-in-time cut the roster is the latest roster season's latest landings; a player on two teams' latest landings belongs to the newer one, and R marks a rookie.",
        "name": "a_normal_build_reads_the_official_rosters"
+      },
+      {
+       "description": "As of 2024-01-15 team A's last roster landing before the cut (2024-01-05) lists act. It leaves off ret, who last played for A on 2023-12-01, and old, whose last game for A was in 2022-23: both have left the league and are on no roster (#921), though an earlier landing listed ret. new is not on the landing either but played for A after it, so he stays. Team B's only landing is dated after the cut, so it does not count and bee stays on B from his games.",
+       "name": "a_point_in_time_roster_drops_a_player_his_teams_last_landing_leaves_off"
       },
       {
        "description": "As of 2024-01-15 the rebuilt roster gives each player's age in whole years on the cut from the birth date (#918), the formula mart_board's age uses (age_years: whole days over 365.25, rounded down): a turns 24 on the cut, b turns 24 the day after it and is still 23, d is 28. The birth dates may come from roster landings made long after the cut, since a birth date is fixed before a player's first game. The only birth date under e's id is a WNBA player's, so e has no age.",
@@ -30399,6 +30403,11 @@
    "description": "Without a point-in-time cut the roster is the latest roster season's latest landings; a player on two teams' latest landings belongs to the newer one, and R marks a rookie.",
    "model": "int_known_roster",
    "name": "a_normal_build_reads_the_official_rosters"
+  },
+  {
+   "description": "As of 2024-01-15 team A's last roster landing before the cut (2024-01-05) lists act. It leaves off ret, who last played for A on 2023-12-01, and old, whose last game for A was in 2022-23: both have left the league and are on no roster (#921), though an earlier landing listed ret. new is not on the landing either but played for A after it, so he stays. Team B's only landing is dated after the cut, so it does not count and bee stays on B from his games.",
+   "model": "int_known_roster",
+   "name": "a_point_in_time_roster_drops_a_player_his_teams_last_landing_leaves_off"
   },
   {
    "description": "As of 2024-01-15 the rebuilt roster gives each player's age in whole years on the cut from the birth date (#918), the formula mart_board's age uses (age_years: whole days over 365.25, rounded down): a turns 24 on the cut, b turns 24 the day after it and is still 23, d is 28. The birth dates may come from roster landings made long after the cut, since a birth date is fixed before a player's first game. The only birth date under e's id is a WNBA player's, so e has no age.",
