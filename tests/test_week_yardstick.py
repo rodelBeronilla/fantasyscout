@@ -53,3 +53,16 @@ def test_judge_reports_each_category_with_its_noise_and_the_bar_a_quarter_of_it(
         assert c.diff_high < 0
         assert c.bar == c.noise / 4
         assert c.seed_noise_min <= c.noise <= c.seed_noise_max
+
+
+def test_a_monday_with_no_game_for_anyone_is_not_counted_as_a_week_with_players() -> None:
+    full = np.random.default_rng(2).normal(10, 3, (3, 9))
+    empty = np.zeros((0, 9))
+    weeks = [
+        wy.Week(as_of=date(2023, 10, 24), proj=empty, naive=empty, real=empty),
+        wy.Week(as_of=date(2023, 10, 30), proj=full + 1, naive=full - 2, real=full),
+        wy.Week(as_of=date(2023, 11, 6), proj=full - 1, naive=full + 2, real=full),
+    ]
+    assert wy.with_players(weeks) == 2
+    head = wy.table("nba", ["2023-24"], weeks, 6, wy.judge(weeks[1:], resamples=5, seeds=1))
+    assert "2 weeks with players (3 Mondays), 6 player-weeks" in head

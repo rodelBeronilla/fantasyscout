@@ -53,7 +53,7 @@ The idea: the chances reflect his role and his effort, and settle within a few g
 
 ## The numbers that decide it
 
-Study minus projection, in the week's error (RMSE, in rebounds, assists, steals and blocks a week), with the 95% paired bootstrap interval. NBA 2023-24 and 2024-25, S0's population: 50 weeks, 48 of them with players, 6,240 player-weeks. The bar is a quarter of S0's noise on the tuning seasons, as recorded on #1077.
+Study minus projection, in the week's error (RMSE, in rebounds, assists, steals and blocks a week), with the 95% paired bootstrap interval. NBA 2023-24 and 2024-25, S0's population: 48 weeks with players (the two opening days have none), 6,240 player-weeks. The bar is a quarter of S0's noise on the tuning seasons, as recorded on #1077.
 
 | Category | Projection | Study | Study − projection (95%) | Bar | Passes |
 | --- | --- | --- | --- | --- | --- |
@@ -87,7 +87,7 @@ From the review, on the same judged rows (week RMSE, S0's paired bootstrap, 95%)
 A negative number means the study had less error. The tuning seasons say the same (REB −0.128, AST +0.147, STL +0.085, BLK −0.135).
 
 - **At the games played:** both forecasts' per-game lines times the games he really played. BLK on the tuning seasons, scored the same way (8,840 player-weeks): +0.063 (+0.040 to +0.088).
-- **Five moved weeks dropped:** the week's schedule in the test is the schedule as played (#1087). Leaving out the five judged weeks whose games moved: 45 weeks, 5,590 player-weeks.
+- **Five moved weeks dropped:** the week's schedule in the test is the schedule as played (#1087). Leaving out the five judged weeks whose games moved: 43 weeks with players, 5,590 player-weeks.
 - **Weeks with nobody in them (#1090):** two of the 50 judged weeks have no player with a game (each season's opening board), so 48 weeks carry the 6,240 player-weeks. Both forecasts are scored on the same rows.
 
 **The data behind it:**

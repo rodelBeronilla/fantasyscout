@@ -49,7 +49,7 @@ A week's totals are mostly per-game production times games played, and games pla
 
 ## The numbers that decide it
 
-**NBA, judged seasons 2023-24 and 2024-25** (50 weeks, the first two before any games; 6,240 player-weeks; `k` 0, decay 0.25). Games-played RMSE: projection 1.398, study 1.347.
+**NBA, judged seasons 2023-24 and 2024-25** (48 weeks with players, 6,240 player-weeks; the two opening days, with no games that week, are left out; `k` 0, decay 0.25). Games-played RMSE: projection 1.398, study 1.347.
 
 | Category | RMSE projection | RMSE study | Study − projection (95%) | Bar | Passes |
 | --- | --- | --- | --- | --- | --- |
@@ -65,7 +65,7 @@ A week's totals are mostly per-game production times games played, and games pla
 
 Each NBA season also passes on its own. PTS: −0.60 (−0.76 to −0.43) in 2023-24 and −1.06 (−1.29 to −0.84) in 2024-25.
 
-**WNBA, judged seasons 2024 and 2025** (37 weeks, five of them without games: two before the season, three in the 2024 Olympic break; 4,160 player-weeks; `k` 1, decay 1). Games-played RMSE: projection 1.470, study 1.465.
+**WNBA, judged seasons 2024 and 2025** (32 weeks with players, 4,160 player-weeks; five weeks with no games are left out: the two opening days and three in the 2024 Olympic break; `k` 1, decay 1). Games-played RMSE: projection 1.470, study 1.465.
 
 | Category | RMSE projection | RMSE study | Study − projection (95%) | Bar | Passes |
 | --- | --- | --- | --- | --- | --- |

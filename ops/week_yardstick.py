@@ -199,9 +199,21 @@ def judge(weeks: list[Week], resamples: int = RESAMPLES, seeds: int = SEEDS) -> 
     ]
 
 
-def table(league: str, seasons: list[str], weeks: int, players: int, cats: list[Category]) -> str:
+def with_players(weeks: list[Week]) -> int:
+    """The weeks that carry players. A Monday whose board has no game that week for anyone (each
+    season's opening board, the WNBA's Olympic break) is a week of the export but adds nobody to
+    the population, so it is not counted as a week of evidence (#1090)."""
+    return sum(len(w.real) > 0 for w in weeks)
+
+
+def table(
+    league: str, seasons: list[str], weeks: list[Week], players: int, cats: list[Category]
+) -> str:
     span = ", ".join(seasons)
-    head = f"### {league.upper()}, tuning seasons {span}: {weeks} weeks, {players} player-weeks\n\n"
+    head = (
+        f"### {league.upper()}, tuning seasons {span}: {with_players(weeks)} weeks with players "
+        f"({len(weeks)} Mondays), {players} player-weeks\n\n"
+    )
     rows = [
         "| Category | RMSE projection | RMSE naive | Projection - naive (95%) "
         "| MAE projection | MAE naive | Noise (SD) | Bar (a quarter) |",
@@ -248,10 +260,11 @@ def main(argv: list[str] | None = None) -> int:
         report[league] = {
             "seasons": sorted(seasons),
             "weeks": len(weeks),
+            "weeks_with_players": with_players(weeks),
             "player_weeks": players,
             "categories": [asdict(c) for c in cats],
         }
-        text.append(table(league, sorted(seasons), len(weeks), players, cats))
+        text.append(table(league, sorted(seasons), weeks, players, cats))
     args.out.write_text(json.dumps(report, indent=1) + "\n", encoding="utf-8")
     print("\n".join(text))
     return 0
