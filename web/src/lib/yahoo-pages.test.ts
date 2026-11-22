@@ -7,9 +7,9 @@ import { applyYahooImport, parseYahooHash } from './yahoo-bookmarklet';
 import { soFarValue } from './matchup';
 import { weeksLines, yahooAddsUsed, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring, yahooWeeks } from './yahoo-pages';
 
-// The text of a public Yahoo league's pages on 8 November 2026, as the bookmark reads them
+// Yahoo's page text as the bookmark reads it; the team names are invented (#1052)
 const LABELS = ['Team', 'FGM/A*', 'FG%', 'FTM/A*', 'FT%', '3PTM', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO', ''];
-const ROW = ["Lenka's Legendary Team", '172/369', '.466', '112/159', '.704', '35', '491', '202', '111', '31', '24', '57', '4'];
+const ROW = ['Rim Reapers', '172/369', '.466', '112/159', '.704', '35', '491', '202', '111', '31', '24', '57', '4'];
 const PLAYOFFS = '6 teams - Week 20, 21 and 22 (ends Sunday, Apr 4)';
 const NOV_8 = Date.parse('2026-11-08T17:00:00Z');
 
@@ -27,7 +27,7 @@ describe("Yahoo's pages as the bookmark reads them (#874)", () => {
       shots: { z_field_goal_pct: [172, 369], z_free_throw_pct: [112, 159] },
     });
     // before the week's first game Yahoo shows dashes: nothing is read
-    expect(yahooScore(LABELS, ["Lenka's Legendary Team", '-/-', '-', '-/-', '-', '-', '-', '-', '-', '-', '-', '-', '0'])).toEqual({ totals: {}, shots: {} });
+    expect(yahooScore(LABELS, ['Rim Reapers', '-/-', '-', '-/-', '-', '-', '-', '-', '-', '-', '-', '-', '0'])).toEqual({ totals: {}, shots: {} });
   });
 
   it('reads the playoffs: the teams, the weeks and their dates, in the season the import falls in', () => {
