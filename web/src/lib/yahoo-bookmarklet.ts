@@ -56,6 +56,31 @@ export function rosterName(text: string): boolean {
 }
 
 /**
+ * The names of teams read from their own pages (#1047), one per page in order, '' where the page
+ * does not say for certain (the team is then "Team N"). A page says its team's name in its team
+ * element and its roster's caption ("Name's Players roster for <date>.", both in `said`), and in
+ * its title, "League - Team | Fantasy Basketball | Yahoo! Sports": the title counts only in that
+ * exact shape, with the league's name, known from the league home page's title ("League | Fantasy
+ * Basketball | Yahoo! Sports"), taken off the front. The page's h1 is Yahoo's logo, never read.
+ * Every source a page has must agree; a name longer than 60, or one another team has, is not
+ * taken: a wrong name that looks right is worse than "Team N". Self-contained: the bookmarklet
+ * carries it as written, so it must not use anything else.
+ */
+export function teamPageNames(homeTitle: string, pages: { title: string; said: string[] }[], others: string[]): string[] {
+  const suffix = ' | Fantasy Basketball | Yahoo! Sports';
+  const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const home = clean(homeTitle);
+  const league = home.endsWith(suffix) ? home.slice(0, -suffix.length) : '';
+  const names = pages.map((p) => {
+    const title = clean(p.title);
+    const fromTitle = league && title.endsWith(suffix) && title.startsWith(league + ' - ') ? title.slice(league.length + 3, -suffix.length) : '';
+    const said = Array.from(new Set([...p.said, fromTitle].map(clean).filter(Boolean)));
+    return said.length === 1 && said[0]!.length <= 60 ? said[0]! : ''; // def: the 60 characters a team name is kept to
+  });
+  return names.map((n) => (n && !others.includes(n) && names.indexOf(n) === names.lastIndexOf(n) ? n : ''));
+}
+
+/**
  * Runs on a page inside a Yahoo fantasy basketball league. Self-contained: it is serialised into
  * the bookmarklet, so it must not use anything from this module.
  *
@@ -65,7 +90,7 @@ export function rosterName(text: string): boolean {
  * Util, BN, IL...): player links elsewhere on a page (news, research, suggested pickups) are not
  * the roster (#515).
  */
-function collectYahooLeague(target: string, isName: (text: string) => boolean, capture: boolean): void {
+function collectYahooLeague(target: string, isName: (text: string) => boolean, capture: boolean, pageNames: typeof teamPageNames): void {
   const doc = document;
   const anchors = Array.from(doc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
   const hrefOf = (a: Element) => a.getAttribute('href') || '';
@@ -169,10 +194,12 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
   }
   (async () => {
     const teams: YahooTeam[] = [];
+    // what each team page read for its roster says the team is called, settled below (#1047)
+    const fromPages = new Map<number, { title: string; said: string[] }>();
     let misses = 0;
     for (const t of ids) {
       let players: Row[] = inPage.get(t) || [];
-      let name = names.get(t) || '';
+      const name = names.get(t) || '';
       if (!players.length) {
         try {
           const res = await fetch(base + t, { credentials: 'include' });
@@ -181,13 +208,18 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
           if (res.ok) {
             const page = new DOMParser().parseFromString(text, 'text/html');
             players = rosterOf(page);
-            // the team's name from its page (#1047): the title before Yahoo's own name, else the
-            // first h1 that is not the site's (the page's first h1 is Yahoo's logo)
+            // the team's element without its menu icon, and the roster's caption (#1047)
             if (!name) {
-              const site = /^(my team|yahoo!?( fantasy)?( sports| basketball)?|fantasy (sports|basketball))$/i;
-              const title = textOf(page.querySelector('title')).replace(/\s+[-|–]\s+(yahoo|fantasy)\b.*$/i, '');
-              const heading = Array.from(page.querySelectorAll('h1')).map((h) => textOf(h)).find((h) => h && !site.test(h));
-              name = (title && !site.test(title) ? title : heading || '').slice(0, 60);
+              const said = Array.from(page.querySelectorAll('.team-name')).map((el) => {
+                const c = el.cloneNode(true) as Element;
+                for (const icon of Array.from(c.querySelectorAll('.F-icon'))) icon.remove();
+                return textOf(c);
+              });
+              for (const c of Array.from(page.querySelectorAll('caption'))) {
+                const m = textOf(c).match(/^(.+?)['’]s? Players roster for \d{4}-\d\d-\d\d\.?$/);
+                if (m && m[1]) said.push(m[1]);
+              }
+              fromPages.set(t, { title: page.title, said });
             }
             if (mine === null && Array.from(page.querySelectorAll('a[href]')).some((x) => /my team/i.test(x.textContent || '') && teamLink(x) === t)) mine = t;
           }
@@ -229,6 +261,14 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
     const headOf = (table: Element) => table.querySelector('thead tr') || table.querySelector('tr');
     const records: Record<string, [string, string]> = {};
     const home = await read('');
+    // the names read from team pages, once the league's name is known from its home page (#1047)
+    const named = teams.filter((x) => fromPages.has(x.id));
+    const settled = pageNames(
+      home ? home.title : '',
+      named.map((x) => fromPages.get(x.id)!),
+      teams.filter((x) => !fromPages.has(x.id)).map((x) => x.name),
+    );
+    named.forEach((x, i) => (x.name = settled[i] || 'Team ' + x.id));
     for (const table of home ? Array.from(home.querySelectorAll('table')) : []) {
       const head = headOf(table);
       const at = head ? cellsOf(head).findIndex((c) => /^W-L-T$/i.test(c)) : -1;
@@ -379,7 +419,7 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
  * also saves the Yahoo pages it read as one file on the device before the import (#1030).
  */
 export function yahooBookmarklet(target: string, capture = false): string {
-  return `javascript:(${collectYahooLeague.toString()})(${JSON.stringify(target)},${rosterName.toString()},${capture})`;
+  return `javascript:(${collectYahooLeague.toString()})(${JSON.stringify(target)},${rosterName.toString()},${capture},${teamPageNames.toString()})`;
 }
 
 /** A player entry as a bookmark sent it. */
