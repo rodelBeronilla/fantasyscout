@@ -47,7 +47,7 @@ The idea: the chances reflect his role and his effort, and settle within a few g
 
 **On the judged seasons**, the one test that counts: worse than the projection in all four.
 
-**Chances beat recent results, though.** Beside the bar, the study was also compared with the plainest recent forecast: his rebounds, assists, steals and blocks per game over the same last games. The chances recipe had less error than that in every category (table below). So the tracking numbers do carry something the recent box score does not. It is not enough to beat a projection built on seasons of production. Why the projection wins was not tested; what follows is a reading, not a finding. Twenty games of chances are still a short sample next to the projection's seasons, and the projection already follows his minutes and role.
+**Recent chances beat recent results, but mostly for the longer history.** Beside the bar, the study was also compared with the plainest recent forecast: his rebounds, assists, steals and blocks per game over the same last games. The chances recipe had less error than that in every category (table below). But the recipe also carries three seasons of his conversion rates, which the recent box score does not, so that comparison does not isolate tracking. Its review ran the control that does ([the review](https://github.com/rodelBeronilla/fantasyscout/pull/1092#issuecomment-7073519910)): his box-score average per game over the same three seasons, no tracking at all, cut at the same Monday. That plain long-run average also beats recent results in all four. Against it, the chances recipe is better only in blocks, narrowly, level in rebounds and assists, and worse in steals (second table below). Neither beats a projection built on seasons of production. Why the projection wins was not tested; what follows is a reading, not a finding. Twenty games of chances are still a short sample next to the projection's seasons, and the projection already follows his minutes and role.
 
 **The test's games count does not change the verdict.** The historical boards carry almost no injury listing, so the week's games are overcounted for everyone (#1088): 3.31 games counted a player-week against 2.58 played, on the judged population. S3 changes no games count, but an overcount still favours whichever forecast runs lower per game. That is where the tuning seasons' BLK gain came from. There the study's blocks ran lower than the projection's (2.12 against 2.30 a player-week, with 1.71 really made), and scored at the games actually played, BLK is worse on the tuning seasons too. On the judged seasons, scored at the games actually played, the study is still worse in all four categories.
 
@@ -75,6 +75,17 @@ Measured beside the bar, on the same judged population, not part of it:
 | STL | −0.053 (−0.080 to −0.024) | +0.047 (+0.023 to +0.071) | +0.161 (+0.127 to +0.195) |
 | BLK | −0.377 (−0.440 to −0.311) | +0.097 (+0.062 to +0.133) | +0.021 (−0.026 to +0.065) |
 
+From the review, on the same judged rows (week RMSE, S0's paired bootstrap, 95%), the study against his three-season box-score average with no tracking:
+
+| Category | Study − long-run box-score average, no tracking (95%) |
+| --- | --- |
+| REB | −0.075 (−0.206 to +0.074) |
+| AST | +0.108 (−0.058 to +0.270) |
+| STL | +0.108 (+0.069 to +0.150) |
+| BLK | −0.062 (−0.112 to −0.007) |
+
+A negative number means the study had less error. The tuning seasons say the same (REB −0.128, AST +0.147, STL +0.085, BLK −0.135).
+
 - **At the games played:** both forecasts' per-game lines times the games he really played. BLK on the tuning seasons, scored the same way (8,840 player-weeks): +0.063 (+0.040 to +0.088).
 - **Five moved weeks dropped:** the week's schedule in the test is the schedule as played (#1087). Leaving out the five judged weeks whose games moved: 45 weeks, 5,590 player-weeks.
 - **Weeks with nobody in them (#1090):** two of the 50 judged weeks have no player with a game (each season's opening board), so 48 weeks carry the 6,240 player-weeks. Both forecasts are scored on the same rows.
@@ -97,7 +108,7 @@ Measured beside the bar, on the same judged population, not part of it:
 
 Nothing on the site changes. Your REB, AST, STL and BLK forecasts stay the projection's.
 
-The lesson is narrower than the idea hoped. Over the same recent games, a player's tracking chances were a better guide to his next week than his recent rebounds, assists, steals and blocks themselves. But the projection beat both, in every category. So two weeks of boards or dimes, with or without the chances behind them, are not a reason on their own to add or drop a player. The projection's line moves only part of the way after a hot or cold run, and here that was the better forecast.
+The lesson is narrower than the idea hoped. A player's longer history was a better guide to his next week than his last few games, with or without the tracking chances behind them; the chances added a little for blocks and nothing for assists or steals. And the projection beat all of these, in every category. So two weeks of boards or dimes, with or without the chances behind them, are not a reason on their own to add or drop a player. The projection's line moves only part of the way after a hot or cold run, and here that was the better forecast.
 
 The test also showed something about the yardstick. Because the historical boards miss most injuries, every forecast here counts more games than were played, and a forecast that runs low per game looks better than it is. That is how BLK looked good on the tuning seasons. It is #1088's caveat, and it matters for any later study that changes a per-game level.
 
