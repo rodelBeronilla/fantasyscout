@@ -77,6 +77,10 @@ on:
         description: Export S1's inputs for every mirrored season, the game rows and the schedules (#1079)
         type: boolean
         default: false
+      opportunity:
+        description: Export S3's inputs for every mirrored season, the games played with their tracking chances (NBA only, #1081)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -185,6 +189,23 @@ jobs:
         with:
           name: s1-games-${{ inputs.league }}-${{ inputs.judge != '' && inputs.judge || 'history' }}
           path: s1-games/
+          retention-days: 90
+      # S3, opportunity before outcome (#1081): every mirrored season's regular-season games played,
+      # with the box score's REB, AST, STL and BLK and the tracking chances behind them, from the
+      # full build. ops.s3_opportunity cuts them strictly before each Monday it predicts.
+      - name: Export S3's opportunity inputs
+        if: inputs.opportunity
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASONS: ${{ inputs.seasons }}
+        run: |
+          # shellcheck disable=SC2086
+          uv run python -m ops.s3_opportunity export --league "$LEAGUE" --seasons $SEASONS --full-db dbt/fantasyscout.duckdb --out s3-chances
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && inputs.opportunity
+        with:
+          name: s3-chances-${{ inputs.league }}-${{ inputs.judge != '' && inputs.judge || 'history' }}
+          path: s3-chances/
           retention-days: 90
       - name: Walk forward through the season
         if: inputs.judge != ''
