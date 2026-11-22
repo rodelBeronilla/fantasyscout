@@ -357,7 +357,7 @@ export const FEATURES: readonly Feature[] = [
     "adr": 12,
     "issue": 1079,
     "parameters": [],
-    "next": "Not retried with a changed recipe (#1079): judged 2024 and 2025, PTS -0.016 (-0.033 to +0.002) against a bar of -0.081"
+    "next": "Not retried with a changed recipe (#1079)"
   },
   {
     "id": "week-games-rest-nba",
@@ -368,7 +368,7 @@ export const FEATURES: readonly Feature[] = [
     "adr": 12,
     "issue": 1079,
     "parameters": [],
-    "next": "Confirmed on 2026-27's weeks; public only after six live weeks agree with the judged result (PTS -0.84, -1.00 to -0.69, bar -0.15)",
+    "next": "Confirmed on 2026-27's weeks; public only after six live weeks agree with the judged result (#1079)",
     "dates": [
       "2027-01-18",
       "2027-03-15"

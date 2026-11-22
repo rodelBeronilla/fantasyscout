@@ -4,7 +4,7 @@ Issue #1079, on S0's yardstick (#1077). The code is `ops/s1_games_played.py`; th
 
 ## The short answer
 
-**In the NBA, yes.** Counting a player's second nights of back-to-backs at his own habit of sitting them predicts his week better than counting every game his team plays. It passed its bar in all seven counting categories on both judged seasons. **In the WNBA, no.** Back-to-backs are too rare there to move a week.
+**In the NBA it passed its bar, but mostly for a reason other than the idea.** Counting a player's second nights of back-to-backs at his own habit of sitting them predicts his week better than counting every game his team plays: it passed in all seven counting categories on both judged seasons. But most of that gain comes from counting fewer games at all, and a flat discount on every game gets about 70% of it without looking at back-to-backs. Second nights are barely special. What is specific to the idea is each player's own record of sitting, and that part is small. **In the WNBA, no.** Back-to-backs are too rare there to move a week.
 
 The NBA result is evidence, not yet proof. Those judged seasons have been used by every number fitted so far, so the rule says 2026-27's weeks must confirm it first. Until then it stays off the site.
 
@@ -31,7 +31,19 @@ A week's totals are mostly per-game production times games played, and games pla
 
 **NBA players miss far more games than the schedule says.** Among the top 130, a week has about 3.3 team games, and they play about 2.6 of them. More than half of these player-weeks include a second night. About one second night in nine was sat by a player who had played the night before. That share was 11% in both judged seasons and in the tuning seasons.
 
-**Most of the gain is the shared one-in-nine, not each player's habit.** On the tuning seasons, giving everyone the group's share cut the games error from 1.494 to 1.457. Using each player's own share, mostly from this season (`k` 0, decay 0.25), cut it only a little further, to 1.444: about three quarters of the gain needs no player-specific rest pattern at all. Part of why any discount helps is that the test boards almost never carry the injury listing (2 of 6,240 judged NBA player-weeks), so the projection counts about 0.7 games a week too many, and a quarter of the gain comes from players who were already sitting, or had not played yet that season. So this result says "count second nights at less than a full game" more firmly than it says "this player rests". That pick sits at the edge of the declared grid. It means a player's own recent record is the best guide: who sits is a habit, and it changes from year to year.
+**Most of the gain is a smaller games count, not the back-to-back.** In these tests the projection-week counts every scheduled game for a player who is not listed, and the historical boards almost never carry the injury listing (2 of 6,240 judged NBA player-weeks), so it counts about 0.7 games a week too many. Any discount helps against that. A second review ran placebos on the judged NBA seasons (PTS, change in week RMSE against the projection-week):
+
+| What is counted | PTS RMSE change |
+| --- | --- |
+| The study: each player's own share on second nights | −0.836 |
+| The group's share on second nights | −0.614 |
+| The same total discount spread over every game, no back-to-back used | −0.587 |
+| The same discount handed to random players | −0.545 to −0.568 |
+| Every game counted at 0.80 | −3.073 |
+
+- **Second nights are barely special.** After a game he played, a player sat his team's next game 16.1% of the time on a second night and 13.7% on other nights (judged seasons). The group's share on second nights is not distinguishable from the same discount on any game: PTS −0.027 (−0.080 to +0.029).
+- **What is specific is each player's own record.** Over a flat discount of the study's own size it adds PTS −0.218 (−0.355 to −0.087), past a quarter of the noise in only four of the seven categories (PTS, REB, BLK, TO). The study cannot say whether that record is a rest habit or a sign of a player who is currently hurt.
+- **A cruder rule does far better.** Counting every game at 0.80 lowers the error by 3.07 points, nearly four times the study. That is a finding about the test's baseline, which lacks the listing, more than about rest.
 
 **The WNBA has almost nothing to find.** Only 4% of tuning player-weeks, and 14% of judged ones, include a second night. The share sat is 3% to 6%. The best setting moved the games error by a thousandth.
 
@@ -53,7 +65,7 @@ A week's totals are mostly per-game production times games played, and games pla
 
 Each NBA season also passes on its own. PTS: −0.60 (−0.76 to −0.43) in 2023-24 and −1.06 (−1.29 to −0.84) in 2024-25.
 
-**WNBA, judged seasons 2024 and 2025** (37 weeks, the first five before any games; 4,160 player-weeks; `k` 1, decay 1). Games-played RMSE: projection 1.470, study 1.465.
+**WNBA, judged seasons 2024 and 2025** (37 weeks, five of them without games: two before the season, three in the 2024 Olympic break; 4,160 player-weeks; `k` 1, decay 1). Games-played RMSE: projection 1.470, study 1.465.
 
 | Category | RMSE projection | RMSE study | Study − projection (95%) | Bar | Passes |
 | --- | --- | --- | --- | --- | --- |
@@ -71,9 +83,9 @@ The WNBA study is a hair better everywhere, but nowhere near its bar. It is reco
 
 ## What it means for your team
 
-- **Your week's games are fewer than the schedule shows.** For a top-130 NBA player it is about 2.6 played to 3.3 scheduled. Expect roughly one in nine of your players to sit a back-to-back's second night. A player's own record adds a little on top of that, less than the shared rate does.
+- **Your week's games are fewer than the schedule shows.** For a top-130 NBA player it is about 2.6 played to 3.3 scheduled. Second nights of back-to-backs are only a little more likely to be sat than any other night (about 16% against 14%). The useful sign is a player's own recent record of sitting games.
 - **Back-to-backs are a small part of the gap.** Most of the missing 0.7 games a week is injuries and other absences that the rest pattern does not see. The injury listing could not be tested on history. It is the next thing to measure as the listings build up.
-- **Nothing changes on the site yet.** The NBA rule is recorded as passed on its judged seasons (`methodology/features.yml`, `week-games-rest-nba`). Wiring it into the matchup card, and into the preview you see as owner, is separate work. It shows publicly only after six live weeks of 2026-27 agree with this result. The WNBA rule is recorded as failed (`week-games-rest-wnba`).
+- **Nothing changes on the site yet.** The NBA rule is recorded as passed on its judged seasons (`methodology/features.yml`, `week-games-rest-nba`). Wiring it into the matchup card, and into the preview you see as owner, is separate work. It shows publicly only after six live weeks of 2026-27 agree with this result. Live, the projection carries the injury listing, so the gain there is expected to be smaller than in these tests; whether that confirmation should also be held against a flat discount is yours to decide (it is in Monday's digest). The WNBA rule is recorded as failed (`week-games-rest-wnba`).
 
 ## Reproduce
 
