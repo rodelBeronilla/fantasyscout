@@ -35,7 +35,7 @@ import type { TeamWeek } from '../lib/playoff-weeks';
 import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
 import { SHOWS } from '../lib/visibility';
-import { addsOpen, eachCall, useOwnerPreview, withinAdds } from '../lib/owner-preview';
+import { addsOpen, heldBack, importOf, previewCall, type PreviewCall, tradeSubject, useOwnerPreview, withinAdds } from '../lib/owner-preview';
 import { AddsLimit, OwnerPreview } from './OwnerPreview';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { addsThisWeek, staleOpponent, weekScore } from '../lib/league-sync';
@@ -163,6 +163,46 @@ function Categories({
 
 const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
 const dayName = (iso: string) => DAY.format(new Date(`${iso}T12:00:00Z`));
+/** The swaps frame's calls (#1056): each swap shown, those the adds left hold back, the weakest spot when there is no swap, and each "trade, don't drop" name. */
+function swapCalls(review: RosterReview, left: number | null, week: boolean): PreviewCall[] {
+  const offered = withinAdds(review.upgrades, left);
+  const held = heldBack('swaps', review.upgrades.length, offered.length, left);
+  const swaps = offered.map((u) => previewCall({ call: 'swaps', subject: `${u.add} for ${u.drop}`, value: `+${u.gain.toFixed(1)} ${week ? 'this week' : 'rest of season'}` }));
+  const none = swaps.length || held ? [] : [previewCall({ call: 'swaps', subject: 'none', value: review.optimized ? 'roster optimized: no swap worth making' : 'no swap' })];
+  const weakest =
+    review.optimized && review.weakest?.add && !review.chips.includes(review.weakest.drop)
+      ? [previewCall({ call: 'swaps', subject: `hold ${review.weakest.drop}`, value: `weakest spot; the best free agent, ${review.weakest.add}, ${review.weakest.gap.toFixed(1)}` })]
+      : [];
+  const chips = review.chips.map((id) => previewCall({ call: 'swaps', subject: `keep ${id}`, value: "trade, don't drop" }));
+  return [...swaps, ...(held ? [held] : []), ...none, ...weakest, ...chips];
+}
+
+/** Build your team's calls (#1056): the categories, each target with its move, and each player to let go or of lowest value, as the frame lists them. */
+function buildCalls(plan: BuildPlan): PreviewCall[] {
+  const signed = (n: number, digits: number) => `${n >= 0 ? '+' : ''}${n.toFixed(digits)}`;
+  const categories = previewCall({
+    call: 'build',
+    subject: 'categories',
+    value: plan.picture.map((c) => `${c.cat} ${c.rank === null ? '' : `${c.rank}/${c.teams} `}${c.chance === null ? '-' : c.chance.toFixed(2)}`),
+  });
+  const targets = plan.targets.length
+    ? plan.targets.map((p) =>
+        previewCall({
+          call: 'build',
+          subject: !p.move
+            ? `target ${p.id}`
+            : p.move.kind === 'pickup'
+              ? `add ${p.move.add} drop ${p.move.drop}`
+              : tradeSubject(p.move.give, p.move.get, `trade with ${p.move.partner}: `),
+          value: [`target ${p.id} ${signed(p.score, 2)}`, ...(p.move ? [`move ${signed(p.move.gain, 2)}`] : []), ...p.reasons.map((r) => `${r.cat} ${signed(r.delta, 2)}`)],
+        }),
+      )
+    : [previewCall({ call: 'build', subject: 'no target', value: 'no player adds enough to be worth a move' })];
+  const surplus = plan.surplus.map((p) => previewCall({ call: 'build', subject: `let go ${p.id}`, value: [`surplus ${p.score.toFixed(2)}`, ...p.reasons.map((r) => `${r.cat} ${signed(r.delta, 2)}`)] }));
+  const lowest = plan.lowest.map((p) => previewCall({ call: 'build', subject: `lowest ${p.id}`, value: `rest of season ${p.score.toFixed(1)}` }));
+  return [categories, ...targets, ...surplus, ...lowest];
+}
+
 /** Open slots counted by kind, "3 G · 2 C · 2 Util": short enough for a phone's column. */
 const openText = (open: Slot[]) =>
   SLOT_KEYS.map((k) => [k, open.filter((s) => s === k).length] as const)
@@ -548,6 +588,8 @@ export default function MyTeam() {
   // the owner preview's pickups (#1056): the open days to stream into, and this week's adds
   const openDays = lineupPlans?.mine.days.filter((d) => d.open.length > 0).map((d) => d.date) ?? [];
   const addsWeek = addsThisWeek(setup, mondayOf(easternDate()));
+  const made = importOf(setup.source);
+  const left = addsWeek?.left ?? null;
   const name = (id: string) => byId.get(id)?.full_name ?? id;
   const link = (id: string) => (
     <a href={href(`/p/${league}/${id}/`)} className="underline-offset-4 hover:underline">
@@ -655,12 +697,14 @@ export default function MyTeam() {
           id="too-close"
           what="this week's matchup with the too-close band"
           issue={902}
-          call={{
+          league={made}
+          call={previewCall({
             call: 'too-close',
-            subject: weekMatch.banded.cats.filter((r) => r.result === 'close').map((r) => r.cat).join(' ') || 'none',
+            subject: weekMatch.banded.cats.filter((r) => r.result === 'close').map((r) => r.cat),
             value: matchupCall(weekMatch.banded, (c) => CATEGORY_LABELS[c] ?? c),
             naive: matchupCall(weekMatch.match, (c) => CATEGORY_LABELS[c] ?? c),
-          }}
+            empty: 'no category too close',
+          })}
         >
           <Matchup
             setup={setup}
@@ -683,12 +727,19 @@ export default function MyTeam() {
           id="streams"
           what="the stream for this week's matchup"
           issue={902}
-          call={{
+          league={made}
+          call={previewCall({
             call: 'stream',
-            subject: stream && addsOpen(addsWeek?.left ?? null) ? [stream.add, stream.drop].filter(Boolean).join(' for ') : 'none',
-            value: `${targets.join(' ')}${stream && addsOpen(addsWeek?.left ?? null) ? `: ${stream.games} games on the open days, flips ${stream.flips.join(' ') || 'none'}` : ''}`,
-            naive: null,
-          }}
+            // a stream the adds left hold back is said to be held back, not to be none
+            subject: !stream ? 'none' : addsOpen(left) ? [stream.add, stream.drop].filter(Boolean).join(' for ') : 'held back',
+            value: !targets.length
+              ? 'nothing to flip: every category is projected won'
+              : !stream
+                ? `for ${targets.join(' ')}: no stream found for the open days`
+                : addsOpen(left)
+                  ? `for ${targets.join(' ')}: ${stream.games} ${stream.games === 1 ? 'game' : 'games'} on the open days, flips ${stream.flips.join(' ') || 'none'}`
+                  : `for ${targets.join(' ')}: held back, no adds left this week`,
+          })}
         >
           <AddsLimit setup={setup} adds={addsWeek} />
           <StreamCalls match={weekMatch.match} league={league} openDays={openDays} stream={addsOpen(addsWeek?.left ?? null) ? stream : null} nameOf={name} />
@@ -710,12 +761,14 @@ export default function MyTeam() {
           id="lineup"
           what="this week's lineup plan"
           issue={759}
-          call={{
+          league={made}
+          call={previewCall({
             call: 'lineup',
-            subject: [...new Set(lineupPlans.mine.days.flatMap((d) => d.benched))].join(' ') || 'none',
+            subject: [...new Set(lineupPlans.mine.days.flatMap((d) => d.benched))],
             value: `${lineupPlans.mine.started} starts, ${lineupPlans.mine.lost} lost to a full lineup, ${lineupPlans.mine.openSlots} open slots`,
             naive: lineupPlans.asSet ? `${lineupPlans.asSet.mine} starts as set` : null,
-          }}
+            empty: 'nobody benched',
+          })}
         >
           <AddsLimit setup={setup} adds={addsWeek} kind="slots" />
           <LineupTile
@@ -828,12 +881,9 @@ export default function MyTeam() {
           id="swaps"
           what="the paired swaps"
           issue={895}
-          // one entry a swap shown
-          call={eachCall(
-            'swaps',
-            withinAdds(shown.upgrades, addsWeek?.left ?? null).map((u) => ({ subject: `${u.add} for ${u.drop}`, value: `+${u.gain.toFixed(1)} ${week ? 'this week' : 'rest of season'}` })),
-            shown.optimized ? 'optimized' : 'no swap',
-          )}
+          league={made}
+          // one entry a swap shown, one for those the adds left hold back, and one each for the weakest spot and the "trade, don't drop" names
+          call={swapCalls(shown, left, week)}
         >
           <AddsLimit setup={setup} adds={addsWeek} />
           {addsOpen(addsWeek?.left ?? null) && (
@@ -867,12 +917,9 @@ export default function MyTeam() {
           id="build"
           what="building your team through trades"
           issue={886}
-          call={{
-            call: 'build',
-            subject: `${plan.targets.map((p) => p.id).join(' ')} > ${plan.surplus.map((p) => p.id).join(' ')}`,
-            value: plan.picture.map((c) => `${c.cat} ${c.chance === null ? '–' : c.chance.toFixed(2)}`).join(' '),
-            naive: null,
-          }}
+          league={made}
+          // one entry for the categories, one a target with its move, one a player to let go or of lowest value
+          call={buildCalls(plan)}
         >
           <AddsLimit setup={setup} adds={addsWeek} kind="lines" />
           <BuildYourTeam

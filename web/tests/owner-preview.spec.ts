@@ -1,17 +1,18 @@
 /**
  * The owner preview (#1056): the calls a switch hides show to the signed-in owner alone, with his
- * preview on, each under "Preview: not validated" and each logged once. The bar: for everyone
- * else, and for the owner with the preview off, the page is the same, byte for byte.
+ * preview on, each under "Preview: not validated", and each only once the log holds it. The bar:
+ * for everyone else, and for the owner with the preview off, the page is the same, byte for byte.
  */
 import AxeBuilder from '@axe-core/playwright';
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 
-import { validEvent } from '../../worker/src/owner-log-event';
-import { expect, test } from './fixtures';
+import { callKey, keysIn, planBatch, validEvent } from '../../worker/src/owner-log-event';
+import { expect as baseExpect, test } from './fixtures';
 
 type Row = { player_id: string };
 
-// a frame logs its calls once they have stayed on screen unchanged for two seconds: waits on the log allow for that
+// a frame shows its calls once the log holds them: they settle for two seconds, then go in one request
+const expect = baseExpect.configure({ timeout: 15_000 });
 const LOGGED = { timeout: 15_000 };
 
 // the fixture's NBA data is as of 2026-10-31; a Monday two days later, mid-afternoon Eastern
@@ -90,11 +91,53 @@ const OTHERS: [string, Who][] = [
 ];
 
 /**
- * Sets who this browser is, for the next page load. The log answers as the Worker does: it stores
- * what the Worker's own rule (worker/src/owner-log-event.ts) takes and refuses the rest with a 400,
- * so a call the Worker would refuse fails here too. `posted` gets what was stored, `refused` the rest.
+ * The owner's log as the Worker keeps it, by the Worker's own rule (worker/src/owner-log-event.ts):
+ * a batch is answered call by call, each call kept once by its key, and anything the Worker would
+ * refuse is refused here too. One log may serve several pages: two tabs, or two views.
  */
-async function as(page: Page, who: Who, posted: Record<string, unknown>[] = [], refused: unknown[] = []): Promise<void> {
+class Log {
+  /** The calls stored, as the Worker stores them. */
+  readonly posted: Record<string, unknown>[] = [];
+  /** The calls, or whole events, the Worker's rule refused. */
+  readonly refused: unknown[] = [];
+  /** Each batch request, as it arrived. */
+  readonly batches: { calls: Record<string, unknown>[] }[] = [];
+  /** How a batch is answered: as the Worker would, or a failure. */
+  answer: 'worker' | 400 | 500 | 503 | 'abort' = 'worker';
+  /** How long the answer takes, in ms. */
+  delay = 0;
+
+  async handle(r: Route): Promise<void> {
+    if (r.request().method() !== 'POST') return r.fulfill({ json: { ok: true } });
+    const body: unknown = r.request().postDataJSON();
+    if ((body as { kind?: unknown } | null)?.kind !== 'calls') {
+      // a page or import event, by the Worker's rule for one event
+      if (validEvent(body) === null) {
+        this.refused.push(body);
+        return r.fulfill({ status: 400, json: { error: 'not an event' } });
+      }
+      return r.fulfill({ json: { logged: true } });
+    }
+    this.batches.push(body as { calls: Record<string, unknown>[] });
+    if (this.answer !== 'worker') {
+      if (this.delay) await new Promise((done) => setTimeout(done, this.delay));
+      return this.answer === 'abort' ? r.abort() : r.fulfill({ status: this.answer, json: { error: 'no' } });
+    }
+    // stored as it arrives, as the Worker stores it however long its answer takes to come back
+    const plan = planBatch(body, keysIn(this.posted.map((c) => JSON.stringify(c)).join('\n')));
+    if (!plan) {
+      this.refused.push(body);
+      return r.fulfill({ status: 400, json: { error: 'not a batch' } });
+    }
+    this.posted.push(...plan.write);
+    (body as { calls: unknown[] }).calls.forEach((c, i) => plan.results[i] === 'refused' && this.refused.push(c));
+    if (this.delay) await new Promise((done) => setTimeout(done, this.delay));
+    return r.fulfill({ json: { results: plan.results } }).catch(() => undefined);
+  }
+}
+
+/** Sets who this browser is, for the next page load, with the owner's log answered by `log`. */
+async function as(page: Page, who: Who, log: Log = new Log()): Promise<void> {
   await page.evaluate((w) => {
     localStorage.removeItem('fantasyscout:owner-preview');
     localStorage.removeItem('fantasyscout:owner');
@@ -108,16 +151,7 @@ async function as(page: Page, who: Who, posted: Record<string, unknown>[] = [], 
   }
   const owner = who.owner;
   await page.route('**/api/owner/status', (r) => r.fulfill({ json: { configured: true, owner } }));
-  await page.route('**/api/owner/log', (r) => {
-    if (r.request().method() !== 'POST') return r.fulfill({ json: { ok: true } });
-    const event: unknown = r.request().postDataJSON();
-    if (validEvent(event) === null) {
-      refused.push(event);
-      return r.fulfill({ status: 400, json: { error: 'not an event' } });
-    }
-    posted.push(event as Record<string, unknown>);
-    return r.fulfill({ json: { ok: true } });
-  });
+  await page.route('**/api/owner/log', (r) => log.handle(r));
 }
 
 /** The page's main content once it has settled. */
@@ -168,10 +202,10 @@ for (const p of PAGES) {
 
   test(`${p.name}: the owner with his preview on sees each hidden call in its frame, each logged once (#1056)`, async ({ page }) => {
     const { rosters } = await seedLeague(page);
-    const posted: Record<string, unknown>[] = [];
-    const refused: unknown[] = [];
+    const log = new Log();
+    const { posted, refused } = log;
     await page.goto('/sources/');
-    await as(page, { switchOn: true, flag: true, owner: true }, posted, refused);
+    await as(page, { switchOn: true, flag: true, owner: true }, log);
     await page.goto(p.path(rosters));
     const frames = page.getByTestId('owner-preview');
     for (const [call, inside] of Object.entries(p.calls)) {
@@ -187,10 +221,13 @@ for (const p of PAGES) {
         await expect(frame.getByTestId('preview-adds-limit'), call).toContainText('A player dropped in the last 2 days is on waivers and cannot be added yet.');
       }
     }
-    // the finder runs when asked, and its trades are logged then
+    // the page's calls went to the log in one request
+    expect(log.batches).toHaveLength(1);
+    // the finder runs when asked, and its trades are logged then, in a request of their own
     if ('finder' in p.calls) {
       await frames.and(page.locator('[data-call="finder"]')).getByTestId('find-trades').click();
-      await expect(page.locator('[data-call="trade-finder"]')).toBeVisible();
+      await expect(page.locator('[data-call="trade-finder"]').getByTestId('found-trades')).toBeVisible();
+      expect(log.batches).toHaveLength(2);
     }
     await page.waitForLoadState('networkidle');
     // every frame on the page, the ones the data allows (sell high, the punt's chips) included, logged
@@ -202,13 +239,13 @@ for (const p of PAGES) {
     // the Worker would store every one of them: nothing an eight-team league's frames post is refused
     expect(refused).toEqual([]);
     await expect(page.getByTestId('preview-not-logged')).toHaveCount(0);
-    // a call that is one call is one entry; a list's entries are each a different item
-    for (const call of ['too-close', 'stream', 'lineup', 'build', 'trade-verdict']) if (call in p.calls) expect(logged().filter((c) => c === call), call).toHaveLength(1);
+    // a call that is one call is one entry; each entry is a different call
+    for (const call of ['too-close', 'stream', 'lineup', 'trade-verdict']) if (call in p.calls) expect(logged().filter((c) => c === call), call).toHaveLength(1);
     const calls = posted.filter((e) => e['kind'] === 'call');
-    expect(new Set(calls.map((e) => JSON.stringify([e['call'], e['subject']]))).size).toBe(calls.length);
-    for (const e of posted.filter((x) => x['kind'] === 'call')) {
-      expect(Object.keys(e).sort()).toEqual(['build', 'call', 'date', 'kind', 'naive', 'subject', 'value']);
-      expect(e).toMatchObject({ date: '2026-11-02', subject: expect.any(String), value: expect.any(String), build: 'fixture' });
+    expect(new Set(calls.map((e) => callKey(e))).size).toBe(calls.length);
+    for (const e of calls) {
+      expect(Object.keys(e).sort()).toEqual(['build', 'call', 'date', 'kind', 'league', 'naive', 'subject', 'value']);
+      expect(e).toMatchObject({ date: '2026-11-02', subject: expect.any(String), value: expect.any(String), build: 'fixture', league: 'yahoo:99:1793631600000' });
       expect(e['naive'] === null || typeof e['naive'] === 'string').toBe(true);
     }
     for (const theme of ['dark', 'light']) {
@@ -339,44 +376,14 @@ for (const c of COUNTS) {
   });
 }
 
-test('a call the log refuses is said not to be logged in its frame, and is written again on the next page view (#1056)', async ({ page }) => {
-  await seedLeague(page);
-  await page.goto('/sources/');
-  const posted: Record<string, unknown>[] = [];
-  await as(page, { switchOn: true, flag: true, owner: true }, posted);
-  // the log refuses every call this time, as it would a call out of its shape or a full day
-  let refusing = true;
-  const refusedCalls: string[] = [];
-  await page.route('**/api/owner/log', async (r) => {
-    const event = r.request().postDataJSON() as Record<string, unknown> | null;
-    if (refusing && r.request().method() === 'POST' && event?.['kind'] === 'call') {
-      refusedCalls.push(event['call'] as string);
-      return r.fulfill({ status: 400, json: { error: 'not an event' } });
-    }
-    return r.fallback();
-  });
-  await page.goto('/team/?league=nba');
-  const lineup = page.getByTestId('owner-preview').and(page.locator('[data-call="lineup"]'));
-  await expect(lineup.getByTestId('preview-not-logged')).toHaveText('This call was not logged: it is tried again the next time this page opens.', LOGGED);
-  await expect(lineup).not.toContainText('each one shown is logged');
-  await expect.poll(() => refusedCalls.includes('lineup'), LOGGED).toBe(true);
-  // not marked logged: the same view writes it no more, and the next view writes it again
-  expect(refusedCalls.filter((c) => c === 'lineup')).toHaveLength(1);
-  refusing = false;
-  await page.reload();
-  await expect.poll(() => posted.filter((e) => e['call'] === 'lineup').length, LOGGED).toBe(1);
-  await expect(lineup).toContainText('each one shown is logged.', LOGGED);
-  await expect(lineup.getByTestId('preview-not-logged')).toHaveCount(0);
-});
-
 test('the too-close call is logged once, as it settles, when the schedule comes late (#1056)', async ({ page }) => {
   await seedLeague(page);
   await page.goto('/sources/');
-  const settled: Record<string, unknown>[] = [];
+  const settled = new Log();
   await as(page, { switchOn: true, flag: true, owner: true }, settled);
   await page.goto('/team/?league=nba');
-  await expect.poll(() => settled.filter((e) => e['call'] === 'too-close').length, LOGGED).toBe(1);
-  const late: Record<string, unknown>[] = [];
+  await expect.poll(() => settled.posted.filter((e) => e['call'] === 'too-close').length, LOGGED).toBe(1);
+  const late = new Log();
   await as(page, { switchOn: true, flag: true, owner: true }, late);
   // the week is drawn first without the lineup plan, then again once the schedule is in
   await page.route('**/schedule/nba.json', async (r) => {
@@ -384,10 +391,102 @@ test('the too-close call is logged once, as it settles, when the schedule comes 
     return r.fallback();
   });
   await page.goto('/team/?league=nba');
-  await expect(page.getByTestId('owner-preview').and(page.locator('[data-call="lineup"]'))).toBeVisible();
-  await expect.poll(() => late.filter((e) => e['call'] === 'too-close').length, LOGGED).toBe(1);
+  await expect(page.getByTestId('owner-preview').getByTestId('lineup-plan')).toBeVisible();
   await page.waitForTimeout(2500);
-  const closeCalls = late.filter((e) => e['call'] === 'too-close');
+  const closeCalls = late.posted.filter((e) => e['call'] === 'too-close');
   expect(closeCalls).toHaveLength(1);
-  expect(closeCalls[0]!['value']).toBe(settled.find((e) => e['call'] === 'too-close')!['value']);
+  expect(closeCalls[0]!['value']).toBe(settled.posted.find((e) => e['call'] === 'too-close')!['value']);
+});
+
+/** The frames' contents a call shows: none of them may be on screen before the log holds the call. */
+const CONTENT = ['matchup', 'matchup-streams', 'lineup-plan', 'upgrades', 'build-plan', 'top-adds'];
+
+async function noneShown(page: Page): Promise<void> {
+  for (const id of CONTENT) await baseExpect(page.getByTestId('owner-preview').getByTestId(id), id).toHaveCount(0, { timeout: 1 });
+}
+
+test('a frame shows nothing until the log holds its calls: it says they are being logged, and a page left before then stores nothing (#1056)', async ({ page }) => {
+  await seedLeague(page);
+  await page.goto('/sources/');
+  const log = new Log();
+  await as(page, { switchOn: true, flag: true, owner: true }, log);
+  for (const leaveAt of [200, 1000]) {
+    await page.goto('/team/?league=nba');
+    await expect(page.getByTestId('preview-logging').first()).toBeVisible();
+    await page.waitForTimeout(leaveAt);
+    await noneShown(page);
+    await page.goto('/sources/');
+  }
+  // left before the request was sent: nothing went to the log, and nothing was shown
+  expect(log.batches).toHaveLength(0);
+  expect(log.posted).toHaveLength(0);
+  // left after it was sent, before the answer: the Worker stores what it received, and the frames would have shown it
+  log.delay = 3000;
+  await page.goto('/team/?league=nba');
+  await expect.poll(() => log.batches.length).toBe(1);
+  await noneShown(page);
+  await expect(page.getByTestId('preview-logging').first()).toBeVisible();
+  await page.goto('/sources/');
+  expect(log.posted.length).toBe(log.batches[0]!.calls.length);
+  // left at 3 seconds, answered at once: whatever was on screen is in the log
+  const later = new Log();
+  await as(page, { switchOn: true, flag: true, owner: true }, later);
+  await page.goto('/team/?league=nba');
+  await page.waitForTimeout(3000);
+  const onScreen = await page.getByTestId('owner-preview').evaluateAll((els) =>
+    els.filter((e) => e.textContent?.includes('each one shown is logged.')).map((e) => e.getAttribute('data-call')),
+  );
+  await page.goto('/sources/');
+  for (const call of onScreen) expect(later.posted.some((e) => e['call'] === call), call ?? '').toBe(true);
+});
+
+for (const answer of [400, 500, 503, 'abort'] as const) {
+  test(`a batch the log answers ${answer} is not shown, says so, and is sent again on the next view (#1056)`, async ({ page }) => {
+    await seedLeague(page);
+    await page.goto('/sources/');
+    const log = new Log();
+    log.answer = answer;
+    await as(page, { switchOn: true, flag: true, owner: true }, log);
+    await page.goto('/team/?league=nba');
+    const lineup = page.getByTestId('owner-preview').and(page.locator('[data-call="lineup"]'));
+    await expect(lineup.getByTestId('preview-not-logged')).toHaveText('This call could not be logged, so it is not shown: it is tried again the next time this page opens.');
+    await expect(page.getByTestId('owner-preview').and(page.locator('[data-call="build"]')).getByTestId('preview-not-logged')).toContainText(
+      /^\d+ of these \d+ calls could not be logged, so none is shown: they are tried again the next time this page opens\.$/,
+    );
+    await expect(lineup).not.toContainText('each one shown is logged');
+    await noneShown(page);
+    // not tried again on this view
+    await page.waitForTimeout(3000);
+    expect(log.batches).toHaveLength(1);
+    // the next view tries again, and shows what the log then holds
+    log.answer = 'worker';
+    await page.reload();
+    await expect(lineup.getByTestId('lineup-plan')).toBeVisible();
+    await expect(lineup).toContainText('each one shown is logged.');
+    expect(log.batches).toHaveLength(2);
+  });
+}
+
+test('a second view, and a second tab, store nothing more: the log keeps one entry a call (#1056)', async ({ page, context }) => {
+  await seedLeague(page);
+  await page.goto('/sources/');
+  const log = new Log();
+  await as(page, { switchOn: true, flag: true, owner: true }, log);
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('owner-preview').getByTestId('lineup-plan')).toBeVisible();
+  const once = log.posted.length;
+  expect(once).toBeGreaterThan(5);
+  // the page again: every call answered as held, every frame shown, nothing stored
+  await page.reload();
+  await expect(page.getByTestId('owner-preview').getByTestId('lineup-plan')).toBeVisible();
+  expect(log.batches).toHaveLength(2);
+  expect(log.posted).toHaveLength(once);
+  // two tabs at once, on the same log
+  const other = await context.newPage();
+  await other.goto('/sources/');
+  await as(other, { switchOn: true, flag: true, owner: true }, log);
+  await Promise.all([page.reload(), other.goto('/team/?league=nba')]);
+  for (const tab of [page, other]) await expect(tab.getByTestId('owner-preview').getByTestId('lineup-plan')).toBeVisible();
+  expect(log.posted).toHaveLength(once);
+  await other.close();
 });

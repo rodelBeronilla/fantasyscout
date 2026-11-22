@@ -11,6 +11,7 @@
 import type { LeagueSetup } from './fantasy-league';
 import { isRememberedOwner, rememberOwner } from './owner';
 import type { TeamRecord } from './records';
+import type { CallResult } from '../../../worker/src/owner-log-event';
 
 const LOG = '/api/owner/log';
 
@@ -136,6 +137,32 @@ export function logImport(setup: LeagueSetup): Promise<boolean> {
  */
 export function logCall(call: CallShown): Promise<boolean> {
   return write({ kind: 'call', date: call.date, call: call.call, subject: call.subject, value: call.value, naive: call.naive, build: call.build });
+}
+
+/** A call of the owner preview as it is logged (#1056): a call shown, with the league's import it was made for. */
+export type PreviewEntry = CallShown & { league: string };
+
+/**
+ * Logs a batch of the owner preview's calls in one request (#1056). The Worker answers call by call
+ * (stored, kept or refused); null when it did not answer so (not the owner, refused whole, no
+ * network). Sent with keepalive, so a request already sent is stored even when the page is left.
+ */
+export async function logCalls(calls: readonly PreviewEntry[]): Promise<CallResult[] | null> {
+  if (!(await ownerLogOn())) return null;
+  try {
+    const r = await fetch(LOG, {
+      method: 'POST',
+      credentials: 'same-origin',
+      keepalive: true,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind: 'calls', calls }),
+    });
+    if (!r.ok) return null;
+    const { results } = (await r.json()) as { results?: unknown };
+    return Array.isArray(results) && results.length === calls.length ? (results as CallResult[]) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Where the owner downloads the whole log. */

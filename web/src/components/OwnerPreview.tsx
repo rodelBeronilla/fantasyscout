@@ -1,23 +1,22 @@
 /**
  * The owner preview's frame (#1056): a call a switch hides (visibility.ts), shown to the signed-in
- * owner alone under "Preview: not validated", exactly as it would render with its switch on. The
- * frame logs each call it shows to his private log once a page view, once it has stayed on screen
- * unchanged for SETTLE_MS, and says so plainly when the log refused one.
+ * owner alone under "Preview: not validated", exactly as it would render with its switch on. Log
+ * first, then show: the frame shows its calls only once the log has acknowledged holding them, so
+ * "each one shown is logged" holds whenever the page is left. Until then it says they are being
+ * logged; if the log refuses them or cannot be reached, it says so and does not show them.
  */
 import { type ReactNode, useEffect, useState } from 'react';
 
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { type addsThisWeek, addsWeekLine } from '../lib/league-sync';
-import { limitsKnown, logPreviewCall, type PreviewCall, callKey } from '../lib/owner-preview';
+import { limitsKnown, logBeforeShowing, type PreviewCall } from '../lib/owner-preview';
 import { href, REPO_URL } from '../lib/site';
-
-// def: how long a frame shows the same calls before they are logged: a call drawn while its data is still arriving is replaced before he can read it
-const SETTLE_MS = 2000;
 
 export function OwnerPreview({
   id,
   what,
   issue,
+  league,
   call,
   children,
 }: {
@@ -27,27 +26,34 @@ export function OwnerPreview({
   what: string;
   /** The issue the switch's comment names, where the call's check is written. */
   issue: number;
-  /** What is logged: one entry per call shown (one per trade, add or player in a list); null while it has nothing to show (a search not yet run). */
+  /** The league's import the calls are made for (importOf), part of each call's key in the log. */
+  league: string;
+  /**
+   * What is logged: one entry per call shown (one per trade, add or player in a list). Null while
+   * the call is not ready: nothing is shown. An empty list when the frame holds no call yet (a
+   * search not yet run): its contents, a button, show.
+   */
   call: PreviewCall | PreviewCall[] | null;
   children: ReactNode;
 }) {
+  const ready = call !== null;
   const calls = call === null ? [] : Array.isArray(call) ? call : [call];
-  const key = JSON.stringify(calls.map(callKey));
-  // how many of the calls shown the log refused or could not take
-  const [refused, setRefused] = useState(0);
+  const key = JSON.stringify([league, calls]);
+  // what the log said of these calls: not yet, all held, or how many it did not take
+  const [state, setState] = useState<{ key: string; missing: number } | null>(null);
   useEffect(() => {
-    setRefused(0);
     if (calls.length === 0) return;
     let live = true;
-    const timer = setTimeout(() => {
-      void Promise.all(calls.map((c) => logPreviewCall(c))).then((ok) => live && setRefused(ok.filter((x) => !x).length));
-    }, SETTLE_MS);
+    const asked = logBeforeShowing(calls, league);
+    void asked.done.then((held) => live && setState({ key, missing: held.filter((ok) => !ok).length }));
     return () => {
       live = false;
-      clearTimeout(timer);
+      asked.cancel();
     };
     // the calls are logged by what they say, not on every render
   }, [key]);
+  const answer = !ready ? null : calls.length === 0 ? { missing: 0 } : state?.key === key ? state : null;
+  const one = calls.length === 1;
   return (
     <section
       className="min-w-0 rounded-lg border border-dashed border-line p-3"
@@ -64,19 +70,26 @@ export function OwnerPreview({
           Methodology
         </a>
         );{' '}
-        {refused === 0 ? (
-          'each one shown is logged.'
-        ) : (
-          <strong data-testid="preview-not-logged">
-            {calls.length === 1 ? 'This call was not logged: it is' : `${refused} of these ${calls.length} calls were not logged: they are`} tried again the next time
-            this page opens.
-          </strong>
-        )}{' '}
+        <span aria-live="polite">
+          {answer === null ? (
+            <span data-testid="preview-logging">
+              {!ready || one ? 'Logging this call before it is shown.' : `Logging these ${calls.length} calls before they are shown.`}
+            </span>
+          ) : answer.missing === 0 ? (
+            'each one shown is logged.'
+          ) : (
+            <strong data-testid="preview-not-logged">
+              {one
+                ? 'This call could not be logged, so it is not shown: it is tried again the next time this page opens.'
+                : `${answer.missing} of these ${calls.length} calls could not be logged, so none is shown: they are tried again the next time this page opens.`}
+            </strong>
+          )}
+        </span>{' '}
         <a href={`${REPO_URL}/issues/${issue}`} target="_blank" rel="noopener" className="underline underline-offset-4">
           Issue #{issue}
         </a>
       </p>
-      <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>
+      {answer?.missing === 0 && <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>}
     </section>
   );
 }
