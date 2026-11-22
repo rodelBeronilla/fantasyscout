@@ -47,7 +47,7 @@ interface YahooWeekRead {
   week: number;
   final: boolean;
   pages: { labels?: string[]; rows: { id: number; cells: string[] }[] }[];
-  /** The teams a playoff week's pages answered without (#1063): out of the playoffs that week, by Yahoo's id. */
+  /** The teams whose playoff-week page was Yahoo's matchup page for the week but showed other teams and not them (#1063), by Yahoo's id. */
   left?: number[];
 }
 
@@ -184,7 +184,7 @@ export function weeksLines(
         : stop.why === 'not-shown'
           ? `Yahoo's matchup page for week ${stop.week} did not show ${team}, so that week and the ones after it were not read; run the bookmark again later.`
           : `Yahoo did not answer the matchup page for week ${stop.week} (${team}), so that week and the ones after it were not read; run the bookmark again later.`;
-  // the teams a playoff week's pages left out (#1063), by name
+  // the teams a playoff week's page showed other matchups for, and not them (#1063), by name: what was seen, no more
   const left = weeks.flatMap((w) => {
     const who = (w.left ?? []).map((i) => names[i] || `Team ${i + 1}`);
     return who.length ? [`${who.length > 1 ? `${who.slice(0, -1).join(', ')} and ${who.at(-1)}` : who[0]} in week ${w.week}`] : [];
@@ -192,7 +192,7 @@ export function weeksLines(
   return {
     read: parts.length ? `Every matchup's category totals from Yahoo: ${parts.join(', ')}.` : null,
     stop: stopLine,
-    left: left.length ? `No playoff matchup on Yahoo, so no totals: ${left.join('; ')}.` : null,
+    left: left.length ? `Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: ${left.join('; ')}.` : null,
   };
 }
 

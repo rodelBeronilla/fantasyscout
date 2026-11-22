@@ -1562,27 +1562,86 @@ test('a week page that answers without the team asked for stops the reading, and
   await expect(page.getByTestId('yahoo-weeks-stop')).toHaveText("Yahoo's matchup page for week 2 did not show Dunk Dynasty, so that week and the ones after it were not read; run the bookmark again later.");
 });
 
-test('in the playoffs, a team whose week page shows no matchup for it is skipped and named, and the other teams are read (#1063)', async ({ page, browserName }) => {
-  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
-  test.slow(); // the week pages come a second apart
+/** Yahoo's error page as it comes, with status 200 (#1063): no matchup markers, no table. Hand-written. */
+const YAHOO_ERROR_PAGE = '<!doctype html><html><head><title>Fantasy Basketball | Yahoo! Sports</title></head><body><h1>Yahoo Sports</h1><p>There was a temporary problem with the server.</p></body></html>';
+
+/** The bookmark on the fixture league with the playoffs from `from`, one run per entry of `runs`; each run's page for a week and team, where given, replaces the fixture's. */
+async function playoffRuns(page: Page, from: number, runs: Record<string, string>[]) {
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
   await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
   const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
-  await yahooLeague(page);
-  // the playoffs start in week 3; teams 1 and 4 are out, and their week-3 pages hold no totals
-  // table. A stand-in: no real playoff page has been seen yet (the first is in March 2027).
-  const settings = readFileSync('tests/fixtures/data/yahoo/settings.html', 'utf8').replace('Week 20, 21 and 22', 'Week 3, 4 and 5');
+  const weekPages = await yahooLeague(page);
+  const settings = readFileSync('tests/fixtures/data/yahoo/settings.html', 'utf8').replace('Week 20, 21 and 22', `Week ${from}, ${from + 1} and ${from + 2}`);
   await page.route(/\/nba\/12345\/settings$/, (route) => route.fulfill({ contentType: 'text/html', body: settings }));
-  await page.route(/\/nba\/12345\/matchup\?week=3&mid1=(1|4)$/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><p>No matchup this week.</p></body></html>' }));
-  await page.goto('/data/yahoo/league.html');
-  await page.evaluate(code.slice('javascript:'.length));
-  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+  let swap: Record<string, string> = {};
+  await page.route(/\/nba\/12345\/matchup\?week=\d+&mid1=\d+$/, (route) => {
+    const url = new URL(route.request().url());
+    const key = `${url.searchParams.get('week')}/${url.searchParams.get('mid1')}`;
+    if (!(key in swap)) return route.fallback();
+    weekPages.push({ path: `matchup?week=${url.searchParams.get('week')}&mid1=${url.searchParams.get('mid1')}`, start: Date.now(), end: Date.now() });
+    const body = swap[key]!;
+    return route.fulfill({ contentType: 'text/html', body: body.startsWith('<') ? body : readFileSync(`tests/fixtures/data/yahoo/${body}`, 'utf8') });
+  });
+  const asked: string[][] = [];
+  for (const run of runs) {
+    swap = run;
+    const before = weekPages.length;
+    await page.goto('/data/yahoo/league.html');
+    await page.evaluate(code.slice('javascript:'.length));
+    await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+    asked.push(weekPages.slice(before).map((p) => p.path));
+  }
+  return asked;
+}
+
+const LEFT_LINE = "Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: ";
+
+test("in the playoffs, a team whose page is Yahoo's matchup page for the week but shows other teams is set aside and named; any other page stops the reading (#1063)", async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.setTimeout(120_000); // three runs, the week pages a second apart
+  // The playoffs start in week 3. Run 1: teams 1 and 4's pages are Yahoo's week-3 matchup page
+  // showing teams 2 and 3 (a stand-in: a team's page in a week it has no matchup has not been seen yet).
+  // Run 2: team 1's page is Yahoo's error page. Run 3: team 1's page has no table.
+  await playoffRuns(page, 3, [{ '3/1': 'week-3-2v3.html', '3/4': 'week-3-2v3.html' }]);
   await expect(page.getByTestId('yahoo-weeks')).toHaveText("Every matchup's category totals from Yahoo: weeks 1–2 final, week 3 so far.");
-  await expect(page.getByTestId('yahoo-weeks-left')).toHaveText('No playoff matchup on Yahoo, so no totals: Dunk Dynasty and Fourth Quarter in week 3.');
+  await expect(page.getByTestId('yahoo-weeks-left')).toHaveText(`${LEFT_LINE}Dunk Dynasty and Fourth Quarter in week 3.`);
   await expect(page.getByTestId('yahoo-weeks-stop')).toHaveCount(0);
-  const stored = await storedWeeks(page);
-  expect(stored.weeks.find((w) => w.week === 3)?.points.map((p) => p !== null)).toEqual([false, true, true, false]);
+  expect((await storedWeeks(page)).weeks.find((w) => w.week === 3)?.points.map((p) => p !== null)).toEqual([false, true, true, false]);
+  for (const body of [YAHOO_ERROR_PAGE, '<!doctype html><html><body><div id="matchup"><p>No matchup this week.</p></div></body></html>']) {
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+    await playoffRuns(page, 3, [{ '3/1': body }]);
+    await expect(page.getByTestId('yahoo-weeks-stop')).toHaveText(
+      'Yahoo did not answer the matchup page for week 3 (Dunk Dynasty), so that week and the ones after it were not read; run the bookmark again later.',
+    );
+    await expect(page.getByTestId('yahoo-weeks-left')).toHaveCount(0);
+  }
+});
+
+test('a finished playoff week is kept on the device only once two reads after it agree, so a wrong first read heals on the next run (#1063)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.setTimeout(180_000); // five runs, the week pages a second apart
+  // The playoffs start in week 2, which is over (this week is week 3).
+  const asked = await playoffRuns(page, 2, [
+    // the first run after the week meets Yahoo's error page for team 1: the reading stops there
+    { '2/1': YAHOO_ERROR_PAGE },
+    // the next, Yahoo's week-2 page for teams 1 and 3 shows teams 2 and 4 only: set aside, not yet kept
+    { '2/1': 'week-2-2v4.html', '2/3': 'week-2-2v4.html' },
+    // the next, the real pages: week 2 is read again and whole
+    {},
+  ]);
+  expect(asked.map((pages) => pages.filter((p) => p.includes('week=2')).length)).toEqual([1, 3, 2]);
+  await expect(page.getByTestId('yahoo-weeks')).toHaveText("Every matchup's category totals from Yahoo: weeks 1–2 final, week 3 so far.");
+  await expect(page.getByTestId('yahoo-weeks-left')).toHaveCount(0);
+  expect((await storedWeeks(page)).weeks.find((w) => w.week === 2)?.points.every((p) => p !== null)).toBe(true);
+  // two reads that agree keep the week, set-aside teams and all: the third run asks only week 3
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+  await page.goto('/data/yahoo/league.html');
+  await page.evaluate(() => localStorage.removeItem('fantasyscout:weeks:12345'));
+  const same = { '2/1': 'week-2-2v4.html', '2/3': 'week-2-2v4.html' };
+  const again = await playoffRuns(page, 2, [same, same, same]);
+  expect(again.map((pages) => pages.filter((p) => p.includes('week=2')).length)).toEqual([3, 3, 0]);
+  await expect(page.getByTestId('yahoo-weeks-left')).toHaveText(`${LEFT_LINE}Dunk Dynasty and Triple Doubles in week 2.`);
 });
 
 test('a Yahoo copy with no weeks says the week-by-week view needs the new bookmark; a copy with weeks, or a league by hand, does not (#1070)', async ({ page }) => {

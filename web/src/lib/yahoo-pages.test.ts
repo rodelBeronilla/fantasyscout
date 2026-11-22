@@ -374,7 +374,7 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
     expect(weeksLines(failed).stop).toBe('Yahoo did not answer the matchup page for week 2 (Fourth Quarter), so that week and the ones after it were not read; run the bookmark again later.');
   });
 
-  it('a team a playoff week leaves out is null that week and named on the League page (#1063)', () => {
+  it("a team a playoff week's page did not show is null that week and named on the League page (#1063)", () => {
     const bye = { week: 20, final: true, pages: [{ rows: [{ id: 2, cells: A }, { id: 3, cells: B }] }], left: [1, 4] };
     const payload = run([week(19, true), bye, { ...week(21, false), pages: [{ rows: [{ id: 2, cells: A }, { id: 3, cells: B }] }], left: [4, 'x'] }]);
     expect(payload.weeks?.map((w) => w.left)).toEqual([undefined, [1, 4], [4]]);
@@ -386,6 +386,6 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
       [21, [3]],
     ]);
     expect(kept.source?.weeks?.[1]?.teams.map((t) => (t ? 'read' : null))).toEqual([null, 'read', 'read', null]);
-    expect(weeksLines(kept.source!, kept.names).left).toBe('No playoff matchup on Yahoo, so no totals: Dunk Dynasty and Fourth Quarter in week 20; Fourth Quarter in week 21.');
+    expect(weeksLines(kept.source!, kept.names).left).toBe("Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: Dunk Dynasty and Fourth Quarter in week 20; Fourth Quarter in week 21.");
   });
 });

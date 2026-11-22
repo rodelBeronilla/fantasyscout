@@ -331,19 +331,31 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       if (u.pathname === base + 'matchup' && u.searchParams.has('mid1') && Number.isInteger(w) && w > 0 && w <= 30) current = Math.max(current, w); // def: a season has fewer than thirty fantasy weeks
     }
     const store = 'fantasyscout:weeks:' + leagueId;
-    const weeks: { week: number; final: boolean; pages: Totals[]; left?: number[] }[] = [];
+    const weeks: { week: number; final: boolean; pages: Totals[]; left?: number[]; confirmed?: boolean }[] = [];
     let weeksStop: { week: number; page: string; why?: 'not-shown' } | undefined;
     // the first playoff week, from the settings page's line "6 teams - Week 20, 21 and 22 (...)" (#1063)
     const playoffFrom = Number((/week (\d+)/i.exec(settings.playoffs || '') || [])[1]) || 0;
+    // The week a page is Yahoo's matchup page for (#1063): every real one carries #matchup and
+    // #matchupweek, whose address names the week (matchup_week=W); an error page has neither. 0 when not one.
+    const weekOf = (page: Document | null) => {
+      const marker = page && page.getElementById('matchup') ? page.getElementById('matchupweek') : null;
+      const m = /[?&]matchup_week=(\d+)/.exec((marker && marker.getAttribute('data-href')) || '');
+      return m ? Number(m[1]) : 0;
+    };
+    // the teams a finished playoff week's last read did not find, until a second read agrees (#1063)
+    const unconfirmed = new Map<number, number[]>();
     // no week is read without the home page's matchup links: say which, never nothing
     if (!current) weeksStop = { week: 0, page: home ? 'home-no-matchups' : 'home' };
     if (current) {
       try {
         const saved: unknown = JSON.parse(localStorage.getItem(store) || '[]');
-        for (const k of Array.isArray(saved) ? (saved as { week?: unknown; pages?: unknown; left?: unknown }[]) : []) {
+        for (const k of Array.isArray(saved) ? (saved as { week?: unknown; pages?: unknown; left?: unknown; confirmed?: unknown }[]) : []) {
           const pages = Array.isArray(k && k.pages) ? (k.pages as Totals[]).filter((p) => p && Array.isArray(p.labels) && Array.isArray(p.rows) && (p.rows.length === 2 || p.rows.length === 1)) : []; // the same pages a run reads: two sides, or one in a bye
-          if (k && typeof k.week === 'number' && Number.isInteger(k.week) && k.week > 0 && k.week < current && pages.length && !weeks.some((x) => x.week === k.week))
-            weeks.push({ week: k.week, final: true, pages, ...(Array.isArray(k.left) ? { left: (k.left as unknown[]).filter((x): x is number => typeof x === 'number') } : {}) });
+          const left = k && Array.isArray(k.left) ? (k.left as unknown[]).filter((x): x is number => typeof x === 'number') : [];
+          if (!k || typeof k.week !== 'number' || !Number.isInteger(k.week) || k.week <= 0 || k.week >= current || !pages.length || weeks.some((x) => x.week === k.week)) continue;
+          // a week with teams not found is finished only once two reads after it ended agree: read it again
+          if (left.length && k.confirmed !== true) unconfirmed.set(k.week, left);
+          else weeks.push({ week: k.week, final: true, pages, ...(left.length ? { left, confirmed: true } : {}) });
         }
       } catch {
         // storage blocked or unreadable: every week is read
@@ -359,10 +371,12 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
           await new Promise((done) => setTimeout(done, 1000)); // def: a second between Yahoo's pages (the owner's reading rule)
           const page = await read(path);
           const totals = totalsOf(page);
-          // the page must show the team asked for (#1063); in the playoffs, a page that answers
-          // without it is a team the playoffs leave out that week, skipped and named
+          // The page must show the team asked for (#1063). In a playoff week, the team is set aside
+          // only when the page is Yahoo's matchup page for this week and shows other teams' rows but
+          // not this team's; what that means is not known (no such page has been seen yet), so the
+          // League page says only what was seen. Anything else stops the reading and is named.
           const shown = !!totals && totals.rows.some((r) => r.id === t);
-          if (!shown && page && playoffFrom && w >= playoffFrom) {
+          if (!shown && totals && playoffFrom && w >= playoffFrom && weekOf(page) === w) {
             left.push(t);
             covered.add(t);
             continue;
@@ -379,11 +393,13 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
         if (!weeksStop && !ofWeek.length) weeksStop = { week: w, page: 'matchup?week=' + w + '&mid1=' + (left[0] || 0), why: 'not-shown' };
         // a team another page showed was not left out
         const out = left.filter((id) => !ofWeek.some((p) => p.rows.some((r) => r.id === id)));
-        if (!weeksStop) weeks.push({ week: w, final: w < current, pages: ofWeek, ...(out.length ? { left: out } : {}) });
+        const before = unconfirmed.get(w);
+        const agrees = !!before && before.length === out.length && out.every((id) => before.includes(id));
+        if (!weeksStop) weeks.push({ week: w, final: w < current, pages: ofWeek, ...(out.length ? { left: out, confirmed: w < current && agrees } : {}) });
       }
       weeks.sort((x, y) => x.week - y.week);
       try {
-        localStorage.setItem(store, JSON.stringify(weeks.filter((x) => x.final).map((x) => ({ week: x.week, pages: x.pages, ...(x.left ? { left: x.left } : {}) }))));
+        localStorage.setItem(store, JSON.stringify(weeks.filter((x) => x.final).map((x) => ({ week: x.week, pages: x.pages, ...(x.left ? { left: x.left, confirmed: !!x.confirmed } : {}) }))));
       } catch {
         // storage blocked: the next run reads every week again
       }

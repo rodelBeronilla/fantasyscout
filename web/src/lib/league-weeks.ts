@@ -21,7 +21,7 @@ export interface LeagueWeek {
   teams: (ScoreSoFar | null)[];
   /** The week is over: its totals are final, unless a stat correction moves them. */
   final: boolean;
-  /** The teams a playoff week's Yahoo pages showed no matchup for (#1063), by team index: null in `teams`, and named on the League page. */
+  /** The teams whose playoff-week page on Yahoo showed other matchups and not them (#1063), by team index: null in `teams`, and named on the League page. */
   left?: number[];
 }
 
