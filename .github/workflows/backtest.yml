@@ -68,6 +68,10 @@ on:
         description: Projection features to judge off and on, as JSON (e.g. {"pace":1.0}; empty for none, #771)
         type: string
         default: ""
+      games_played:
+        description: Export S1's inputs for every mirrored season, the game rows and the schedules (#1079)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -147,6 +151,24 @@ jobs:
           ):
               print(con.execute(sql, [league]).fetchdf().to_string(index=False), end="\n\n")
           EOF
+      # S1, games actually played (#1079): every mirrored season's regular-season game rows (who
+      # played, for which team, on which day) and the teams' schedules, from the full build.
+      # ops.s1_games_played cuts the game rows strictly before each Monday it predicts; the schedule
+      # stays as played, so a game postponed after the Monday sits on its new date (#1087).
+      - name: Export S1's games-played inputs
+        if: inputs.games_played
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASONS: ${{ inputs.seasons }}
+        run: |
+          # shellcheck disable=SC2086
+          uv run python -m ops.s1_games_played export --league "$LEAGUE" --seasons $SEASONS --full-db dbt/fantasyscout.duckdb --out s1-games
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && inputs.games_played
+        with:
+          name: s1-games-${{ inputs.league }}-${{ inputs.judge != '' && inputs.judge || 'history' }}
+          path: s1-games/
+          retention-days: 90
       - name: Walk forward through the season
         if: inputs.judge != ''
         env:

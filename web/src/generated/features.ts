@@ -59,6 +59,7 @@ export const PAGES: Readonly<Record<string, Page>> = {
 /** The file of each ADR a feature names, by number, in docs/adr. */
 export const ADR_FILES: Readonly<Record<string, string>> = {
   "11": "0011-streamers-sort.md",
+  "12": "0012-signals-tested-and-not-built.md",
   "17": "0017-local-language-model.md",
   "19": "0019-one-value-scale.md",
   "20": "0020-preseason-market-prior.md",
@@ -346,6 +347,33 @@ export const FEATURES: readonly Feature[] = [
       "trade.profile_cut"
     ],
     "next": "Season-level: after a rework, on the locked seasons (#769)"
+  },
+  {
+    "id": "week-games-rest-wnba",
+    "what": "A WNBA player's games in the week, less his share of second nights of back-to-backs sat (S1)",
+    "page": "team",
+    "verdict": "failed",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1079,
+    "parameters": [],
+    "next": "Not retried with a changed recipe (#1079)"
+  },
+  {
+    "id": "week-games-rest-nba",
+    "what": "An NBA player's games in the week, less his share of second nights of back-to-backs sat (S1)",
+    "page": "team",
+    "verdict": "open",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1079,
+    "parameters": [],
+    "next": "Confirmed on 2026-27's weeks; public only after six live weeks agree with the judged result (#1079)",
+    "dates": [
+      "2027-01-18",
+      "2027-03-15"
+    ],
+    "bar": "https://github.com/rodelBeronilla/fantasyscout/issues/1079#issuecomment-7068301572"
   },
   {
     "id": "preseason-value",
