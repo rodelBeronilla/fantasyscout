@@ -100,10 +100,42 @@ KS = (0.0, 1.0, 3.0, 10.0, 30.0, float("inf"))
 WS = (0.0, 0.25, 0.5, 0.75, 1.0)
 # the seven counting categories minutes can move; FG% and FT% are scored at the real attempts
 TARGETS = ("PTS", "REB", "AST", "STL", "BLK", "3PM", "TO")
-# fit: chosen on the tuning seasons by ``fit`` and frozen here before any judged season is read,
-# with the noise of the projection's week RMSE on this population (S0's recipe)
-FROZEN: dict[str, dict[str, float]] = {}
-NOISE: dict[str, dict[str, float]] = {}
+# fit: chosen on the tuning seasons by ``fit`` and frozen here before any judged season was read
+# (2026-11-22; Backtest runs 44963295656, 44965084047 and 44968328313 for the NBA, 44966777799,
+# 44967227098 and 44967666245 for the WNBA; every board identical to S0's). In both leagues every
+# w above 0 raised the week's minutes RMSE at every k, so the pick is w 0, the projection itself:
+# NBA 47.600 (68 weeks, 8,813 player-weeks), best w > 0 48.609 (k inf, w 0.25); WNBA 27.759
+# (44 weeks, 3,383), best w > 0 29.259 (k 0, w 0.25).
+FROZEN: dict[str, dict[str, float]] = {
+    "nba": {"k": 0.0, "w": 0.0},
+    "wnba": {"k": 0.0, "w": 0.0},
+}
+# the noise of the projection-week's RMSE on this population, tuning seasons, S0's recipe (1,000
+# resamples, seed 0; seeds 0 to 19 in the fit's output): the bar is a quarter of it
+NOISE: dict[str, dict[str, float]] = {
+    "nba": {
+        "PTS": 0.5714,
+        "REB": 0.2070,
+        "AST": 0.1504,
+        "STL": 0.0324,
+        "BLK": 0.0374,
+        "3PM": 0.0618,
+        "TO": 0.0693,
+        "FG%": 0.0424,
+        "FT%": 0.0224,
+    },
+    "wnba": {
+        "PTS": 0.3471,
+        "REB": 0.1419,
+        "AST": 0.0986,
+        "STL": 0.0382,
+        "BLK": 0.0350,
+        "3PM": 0.0538,
+        "TO": 0.0574,
+        "FG%": 0.0477,
+        "FT%": 0.0242,
+    },
+}
 
 GAMES_SQL = """
     select season, game_id, game_date, team_id, player_id,
