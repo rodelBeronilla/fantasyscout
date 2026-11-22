@@ -349,6 +349,17 @@ export const FEATURES: readonly Feature[] = [
     "next": "Season-level: after a rework, on the locked seasons (#769)"
   },
   {
+    "id": "shot-diet",
+    "what": "Shot diet (S4): next week's FG% and threes from a player's recent attempts by zone times his long-run accuracy from each zone",
+    "page": "team",
+    "verdict": "failed",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1082,
+    "parameters": [],
+    "next": "Not retried with a tweaked recipe (#1082). A new study would need its own bar, written first"
+  },
+  {
     "id": "week-games-rest-wnba",
     "what": "A WNBA player's games in the week, less his share of second nights of back-to-backs sat (S1)",
     "page": "team",
