@@ -93,9 +93,21 @@ SHRINK = (0, 25, 100, 400)
 # def: the long run is the season so far and the two before (the seasons a backtest mirrors)
 LONG_RUN_SEASONS = 3
 
-# Chosen on the tuning seasons by ``fit`` and committed before any judged season is read
-# (``judge`` refuses to run without it).
-CHOSEN: dict[str, dict[str, int]] = {}
+# Chosen on the tuning seasons by ``fit`` and committed before any judged season was read
+# (``judge`` refuses to run without it). The fit read S0's NBA exports (runs 44942094895,
+# 44942100340, 44942105040) and the chances of run 44971960142 (NBA 2018-19 to 2022-23, every
+# game tracked). Pooled tuning week RMSE over 8,840 player-weeks, the projection's then the
+# study's at its point:
+#   REB 10.3309 -> 10.8250 (worse at every grid point; edges n 20, k 400)
+#   AST  7.2185 ->  7.9104 (worse at every grid point; edges n 20, k 400)
+#   STL  2.3900 ->  2.5345 (worse at every grid point; edge n 20)
+#   BLK  1.9378 ->  1.9109 (edges n 5, k 400; the only target with points below the projection)
+CHOSEN: dict[str, dict[str, int]] = {
+    "REB": {"n": 20, "k": 400},
+    "AST": {"n": 20, "k": 400},
+    "STL": {"n": 20, "k": 100},
+    "BLK": {"n": 5, "k": 400},
+}
 
 
 # ---- export ----------------------------------------------------------------------------------
