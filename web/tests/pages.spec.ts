@@ -1466,9 +1466,9 @@ test('a week page Yahoo does not answer stops the reading, is named on the Leagu
   await expect(page.getByRole('status').filter({ hasText: 'Imported 4 teams' })).toBeVisible();
   await expect(page.getByTestId('yahoo-weeks')).toHaveText("Every matchup's category totals from Yahoo: week 1 final.");
   await expect(page.getByTestId('yahoo-weeks-stop')).toHaveText(
-    "Yahoo did not answer the matchup page for week 2 (Yahoo's team 1), so that week and the ones after it were not read; run the bookmark again later.",
+    "Yahoo did not answer the matchup page for week 2 (Dunk Dynasty), so that week and the ones after it were not read; run the bookmark again later.", // by name since #1063
   );
-  expect(await storedWeeks(page)).toEqual({ weeks: [{ week: 1, final: true, points: [622, 689, 560, 615], fg: [231, 468] }], stop: { week: 2, page: 'matchup?week=2&mid1=1' } });
+  expect(await storedWeeks(page)).toEqual({ weeks: [{ week: 1, final: true, points: [622, 689, 560, 615], fg: [231, 468] }], stop: { week: 2, page: 'matchup?week=2&mid1=1', team: 'Dunk Dynasty' } });
   await page.goto('/data/yahoo/league.html');
   expect(await page.evaluate(() => (JSON.parse(localStorage.getItem('fantasyscout:weeks:12345') ?? '[]') as { week: number }[]).map((w) => w.week))).toEqual([1]);
 });
@@ -1526,6 +1526,45 @@ test("a week page with one team (a playoff bye) is read, kept on Yahoo's side, a
   await page.goto('/data/yahoo/league.html');
   const kept = await page.evaluate(() => (JSON.parse(localStorage.getItem('fantasyscout:weeks:12345') ?? '[]') as { week: number; pages: unknown[] }[]).find((w) => w.week === 1)?.pages.length);
   expect(kept).toBe(3);
+});
+test('a week page that answers without the team asked for stops the reading, and the line names the team (#1063)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.slow(); // the week pages come a second apart
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  await yahooLeague(page);
+  // week 2's page for team 1 answers with the other matchup's table (teams 2 and 4)
+  await page.route(/\/nba\/12345\/matchup\?week=2&mid1=1$/, (route) => route.fulfill({ path: 'tests/fixtures/data/yahoo/week-2-2v4.html' }));
+  await page.goto('/data/yahoo/league.html');
+  await page.evaluate(code.slice('javascript:'.length));
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+  await expect(page.getByTestId('yahoo-weeks')).toHaveText("Every matchup's category totals from Yahoo: week 1 final.");
+  await expect(page.getByTestId('yahoo-weeks-stop')).toHaveText("Yahoo's matchup page for week 2 did not show Dunk Dynasty, so that week and the ones after it were not read; run the bookmark again later.");
+});
+
+test('in the playoffs, a team whose week page shows no matchup for it is skipped and named, and the other teams are read (#1063)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.slow(); // the week pages come a second apart
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  await yahooLeague(page);
+  // the playoffs start in week 3; teams 1 and 4 are out, and their week-3 pages hold no totals
+  // table. A stand-in: no real playoff page has been seen yet (the first is in March 2027).
+  const settings = readFileSync('tests/fixtures/data/yahoo/settings.html', 'utf8').replace('Week 20, 21 and 22', 'Week 3, 4 and 5');
+  await page.route(/\/nba\/12345\/settings$/, (route) => route.fulfill({ contentType: 'text/html', body: settings }));
+  await page.route(/\/nba\/12345\/matchup\?week=3&mid1=(1|4)$/, (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><p>No matchup this week.</p></body></html>' }));
+  await page.goto('/data/yahoo/league.html');
+  await page.evaluate(code.slice('javascript:'.length));
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+  await expect(page.getByTestId('yahoo-weeks')).toHaveText("Every matchup's category totals from Yahoo: weeks 1–2 final, week 3 so far.");
+  await expect(page.getByTestId('yahoo-weeks-left')).toHaveText('No playoff matchup on Yahoo, so no totals: Dunk Dynasty and Fourth Quarter in week 3.');
+  await expect(page.getByTestId('yahoo-weeks-stop')).toHaveCount(0);
+  const stored = await storedWeeks(page);
+  expect(stored.weeks.find((w) => w.week === 3)?.points.map((p) => p !== null)).toEqual([false, true, true, false]);
 });
 
 test('a Yahoo copy with no weeks says the week-by-week view needs the new bookmark; a copy with weeks, or a league by hand, does not (#1070)', async ({ page }) => {

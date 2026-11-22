@@ -27,8 +27,19 @@ export interface YahooPages {
   weekLabels?: string[];
   /** Every week's matchup pages as read (#1049): each page's two rows, and its own labels where they differ from `weekLabels`. */
   weeks?: YahooWeekRead[];
-  /** The first week page that did not answer (#1049): its week and its path in the league, e.g. "matchup?week=3&mid1=2". */
-  weeksStop?: { week: number; page: string };
+  /**
+   * The first week page that did not answer (#1049): its week and its path in the league, e.g.
+   * "matchup?week=3&mid1=2"; with `why: 'not-shown'` when it answered without the team asked
+   * for (#1063). Optional, so a payload without it still reads.
+   */
+  weeksStop?: WeeksStop;
+}
+
+/** Where the weeks' reading stopped (#1049, #1063). */
+interface WeeksStop {
+  week: number;
+  page: string;
+  why?: 'not-shown';
 }
 
 /** One week's matchup pages as the bookmark read them (#1049); `final` once the week is over. */
@@ -36,6 +47,8 @@ interface YahooWeekRead {
   week: number;
   final: boolean;
   pages: { labels?: string[]; rows: { id: number; cells: string[] }[] }[];
+  /** The teams a playoff week's pages answered without (#1063): out of the playoffs that week, by Yahoo's id. */
+  left?: number[];
 }
 
 const strings = (x: unknown): x is string[] => Array.isArray(x) && x.every((s) => typeof s === 'string');
@@ -99,14 +112,16 @@ function cleanWeeks(raw: { weekLabels?: unknown; weeks?: unknown; weeksStop?: un
     const x = w as { week?: unknown; final?: unknown; pages?: unknown } | null;
     if (!x || !isWeek(x.week) || typeof x.final !== 'boolean' || !Array.isArray(x.pages) || !x.pages.length || x.pages.length > MAX_PAGES) continue;
     const pages = x.pages.map(page);
-    if (pages.every((p) => p !== null) && !weeks.some((k) => k.week === x.week)) weeks.push({ week: x.week, final: x.final, pages: pages as YahooWeekRead['pages'] });
+    const left = Array.isArray((x as { left?: unknown }).left) ? ((x as { left: unknown[] }).left.filter((id) => Number.isInteger(id)) as number[]).slice(0, 2 * MAX_PAGES) : [];
+    if (pages.every((p) => p !== null) && !weeks.some((k) => k.week === x.week)) weeks.push({ week: x.week, final: x.final, pages: pages as YahooWeekRead['pages'], ...(left.length ? { left } : {}) });
   }
   if (weeks.length) {
     if (labels) out.weekLabels = labels;
     out.weeks = weeks.sort((a, b) => a.week - b.week);
   }
-  const stop = raw.weeksStop as { week?: unknown; page?: unknown } | null | undefined;
-  if (stop && isWeek(stop.week) && typeof stop.page === 'string' && /^matchup\?week=\d{1,2}&mid1=\d{1,3}$/.test(stop.page)) out.weeksStop = { week: stop.week, page: stop.page };
+  const stop = raw.weeksStop as { week?: unknown; page?: unknown; why?: unknown } | null | undefined;
+  if (stop && isWeek(stop.week) && typeof stop.page === 'string' && /^matchup\?week=\d{1,2}&mid1=\d{1,3}$/.test(stop.page))
+    out.weeksStop = { week: stop.week, page: stop.page, ...(stop.why === 'not-shown' ? { why: stop.why } : {}) };
   // the home page did not answer, or showed no matchup links: no week was read
   if (stop && stop.week === 0 && (stop.page === 'home' || stop.page === 'home-no-matchups')) out.weeksStop = { week: 0, page: stop.page };
   return out;
@@ -119,6 +134,7 @@ function cleanWeeks(raw: { weekLabels?: unknown; weeks?: unknown; weeksStop?: un
 export function yahooWeeks(pages: YahooPages, ids: number[]): LeagueWeek[] {
   return (pages.weeks ?? []).flatMap((w) => {
     const teams: (ScoreSoFar | null)[] = ids.map(() => null);
+    const left = (w.left ?? []).map((id) => ids.indexOf(id)).filter((i) => i >= 0);
     for (const p of w.pages) {
       const labels = p.labels ?? pages.weekLabels ?? [];
       for (const r of p.rows) {
@@ -126,7 +142,7 @@ export function yahooWeeks(pages: YahooPages, ids: number[]): LeagueWeek[] {
         if (i >= 0) teams[i] = yahooScore(labels, r.cells);
       }
     }
-    return teams.some(Boolean) ? [{ week: w.week, teams, final: w.final }] : [];
+    return teams.some(Boolean) ? [{ week: w.week, teams, final: w.final, ...(left.length ? { left } : {}) }] : [];
   });
 }
 
@@ -145,14 +161,18 @@ function weekRanges(weeks: number[]): string {
  * The League page's lines on the weeks the import holds (#1049): which are final and which is so
  * far, and the page that did not answer, if one did not.
  */
-export function weeksLines(source: { weeks?: LeagueWeek[]; weeksStop?: { week: number; page: string } }): { read: string | null; stop: string | null } {
+export function weeksLines(
+  source: { weeks?: LeagueWeek[]; weeksStop?: { week: number; page: string; why?: 'not-shown'; team?: string } },
+  names: string[] = [],
+): { read: string | null; stop: string | null; left: string | null } {
   const weeks = source.weeks ?? [];
   const final = weeks.filter((w) => w.final).map((w) => w.week);
   const soFar = weeks.filter((w) => !w.final).map((w) => w.week);
   const named = (ws: number[]) => `${ws.length === 1 ? 'week' : 'weeks'} ${weekRanges(ws)}`;
   const parts = [...(final.length ? [`${named(final)} final`] : []), ...(soFar.length ? [`${named(soFar)} so far`] : [])];
   const stop = source.weeksStop;
-  const team = stop ? /mid1=(\d+)/.exec(stop.page)?.[1] : undefined;
+  // the team by its name at the import (#1063); a copy from before keeps Yahoo's number
+  const team = stop?.team ?? `Yahoo's team ${(stop ? /mid1=(\d+)/.exec(stop.page)?.[1] : undefined) ?? '?'}`;
   // the weeks a home-page stop leaves are the earlier import's, and the line above says which
   const kept = weeks.length ? '; the weeks above are from the import before' : '';
   const stopLine = !stop
@@ -161,10 +181,18 @@ export function weeksLines(source: { weeks?: LeagueWeek[]; weeksStop?: { week: n
       ? `Yahoo's league home page did not answer, so no week's matchups were read this time${kept}. Run the bookmark again later.`
       : stop.page === 'home-no-matchups'
         ? `Yahoo's league home page showed no matchups (between seasons, or Yahoo changed the page), so no week's matchups were read this time${kept}. Run the bookmark again once Yahoo shows this week's matchups.`
-        : `Yahoo did not answer the matchup page for week ${stop.week} (Yahoo's team ${team ?? '?'}), so that week and the ones after it were not read; run the bookmark again later.`;
+        : stop.why === 'not-shown'
+          ? `Yahoo's matchup page for week ${stop.week} did not show ${team}, so that week and the ones after it were not read; run the bookmark again later.`
+          : `Yahoo did not answer the matchup page for week ${stop.week} (${team}), so that week and the ones after it were not read; run the bookmark again later.`;
+  // the teams a playoff week's pages left out (#1063), by name
+  const left = weeks.flatMap((w) => {
+    const who = (w.left ?? []).map((i) => names[i] || `Team ${i + 1}`);
+    return who.length ? [`${who.length > 1 ? `${who.slice(0, -1).join(', ')} and ${who.at(-1)}` : who[0]} in week ${w.week}`] : [];
+  });
   return {
     read: parts.length ? `Every matchup's category totals from Yahoo: ${parts.join(', ')}.` : null,
     stop: stopLine,
+    left: left.length ? `No playoff matchup on Yahoo, so no totals: ${left.join('; ')}.` : null,
   };
 }
 
