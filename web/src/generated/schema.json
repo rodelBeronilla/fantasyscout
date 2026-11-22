@@ -30026,7 +30026,7 @@
      "type": "boolean"
     }
    ],
-   "description": "Where games are played, by the arena city the league schedule gives: latitude and longitude (the arena, or the city for occasional venues), elevation in feet, and the standard UTC offset (daylight saving ignored). Covers every home city of both leagues, the neutral and occasional sites in the 2025 to 2027 schedules, and the earlier WNBA venues back to 2018 (the 2020 season in Bradenton); warn_venue_cities lists any city missing.\n",
+   "description": "Where games are played, by the arena city the league schedule gives: latitude and longitude (the arena, or the city for occasional venues), elevation in feet, and the standard UTC offset (daylight saving ignored). Covers every home city of both leagues, the neutral and occasional sites in the 2025 to 2027 schedules, and the earlier venues back to 2018: the WNBA's 2020 season in Bradenton, the Warriors' last season in Oakland (2018-19), the Raptors' season in Tampa (2020-21), and Mexico City as the NBA schedule wrote it up to 2022-23 (\"Mexico City, Mexico\"). warn_venue_cities lists any city missing.\n",
    "exported_as": [],
    "name": "venues",
    "read_by": [
