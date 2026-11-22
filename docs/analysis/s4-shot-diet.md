@@ -49,7 +49,7 @@ So the study asked: forget his recent hit rate. Take his **recent shot diet**, t
   - WNBA: it cleared its bar, −0.027.
 - **Threes:** worse in both leagues. In the WNBA the interval sits wholly above zero.
 
-Why the threes fail: a player's three-point volume follows his role, which the projection already carries through his minutes and usage. His recent share of threes is about as noisy as his recent hit rate. Accuracy from a zone does settle, which is why FG% gained a little, but the projection already shrinks each player's FG% toward the league's (ADR 0030). The diet adds only the part that a center's FG% is not a guard's.
+Why the threes fail is not tested here; what follows is a reading, not a finding. A player's three-point volume may follow his role, which the projection already carries through his minutes and usage, more closely than his recent share of threes does. And the threes result itself leans on how the test counts games: the historical boards carry almost no injury listing, so the week's games are overcounted for everyone (#1088), and a review that scored the threes at the games actually played found the WNBA's sign turns, with its interval reaching zero ([the review](https://github.com/rodelBeronilla/fantasyscout/pull/1085#issuecomment-7071992620)). The fail does not depend on it: at the games actually played the NBA's threes are still worse and the WNBA's still fall short of the bar. Accuracy from a zone does settle, which is why FG% gained a little, but the projection already shrinks each player's FG% toward the league's (ADR 0030).
 
 ## The numbers that decide it
 
@@ -75,7 +75,7 @@ Study minus projection, in the week's error (RMSE: made shots for FG%, threes fo
 
 Nothing on the site changes. Your FG% and threes forecasts stay the projection's.
 
-The practical lesson is the one the basketball idea started from, only weaker than hoped. Don't chase a hot shooting fortnight, and don't panic over a cold one. The projection already discounts both, and knowing where a player shoots from adds almost nothing to that over a single week. A week of FG% is decided mostly by which shots fall. For threes, trust volume, which comes from minutes and role, over a recent run of hits.
+The practical lesson is the one the basketball idea started from, only weaker than hoped. Don't chase a hot shooting fortnight, and don't panic over a cold one. The projection already discounts both, and knowing where a player shoots from adds almost nothing to that over a single week. A week of FG% is decided mostly by which shots fall. For threes, a recent run of hits is a weak guide; whether role and minutes are the better one was not tested here.
 
 The WNBA FG% result passed on its own, about 1.4% less error. That is not enough to ship a call: the bar needed both categories, and the judged seasons have already been used by every earlier study. A shot-zone FG% for the WNBA alone would need a new study with its own bar, written first and confirmed on weeks not yet played.
 
