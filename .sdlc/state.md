@@ -151,7 +151,6 @@ The runbook (`docs/runbook.md`) has a section per failure. The architecture and 
 - Light builds run unit tests of models they never build (#956).
 - Build warnings that persist (#732).
 - Pickups' largest paint is about 3.3 s on a slow phone; reported, not enforced (#563).
-- Point-in-time rosters keep retired players (#921).
 - Worker tests do not run on the owner's Windows machine (no workerd runtime); CI runs them.
 
 ## Outcome measures
