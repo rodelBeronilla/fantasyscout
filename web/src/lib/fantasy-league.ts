@@ -143,8 +143,11 @@ export interface LeagueSource {
   rules?: { tradeDeadline?: string; tradeReview?: string; tieBreaker?: string };
   /** Every week's matchup totals the Yahoo import holds (#1049), by week: finished weeks kept across imports of the league. */
   weeks?: LeagueWeek[];
-  /** The week page the latest import stopped at (#1049): its week and its path in the league. */
-  weeksStop?: { week: number; page: string };
+  /**
+   * The week page the latest import stopped at (#1049): its week and its path in the league; why,
+   * when the page answered without the team asked for, and that team's name at the import (#1063).
+   */
+  weeksStop?: { week: number; page: string; why?: 'not-shown'; team?: string };
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -296,7 +299,10 @@ function cleanWeeks(raw: unknown): LeagueWeek[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const weeks = (raw as Partial<LeagueWeek>[])
     .filter((w, i, all): w is LeagueWeek => !!w && isPeriod(w.week) && typeof w.final === 'boolean' && Array.isArray(w.teams) && all.findIndex((o) => o?.week === w.week) === i)
-    .map((w) => ({ week: w.week, teams: w.teams.map(cleanScore), final: w.final }))
+    .map((w) => {
+      const left = Array.isArray(w.left) ? w.left.filter((i): i is number => typeof i === 'number' && Number.isInteger(i) && i >= 0 && i < w.teams.length) : [];
+      return { week: w.week, teams: w.teams.map(cleanScore), final: w.final, ...(left.length ? { left } : {}) };
+    })
     .sort((a, b) => a.week - b.week);
   return weeks.length ? weeks : undefined;
 }
@@ -311,7 +317,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
   const fixtures = cleanFixtures(s.fixtures);
   const games = cleanGames(s.games);
   const weeks = cleanWeeks(s.weeks);
-  const stop = s.weeksStop as { week?: unknown; page?: unknown } | undefined;
+  const stop = s.weeksStop as { week?: unknown; page?: unknown; why?: unknown; team?: unknown } | undefined;
   return {
     host: s.host,
     leagueId: s.leagueId,
@@ -339,7 +345,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
       : {}),
     // every week's matchup totals and the page an import stopped at (#1049)
     ...(weeks ? { weeks } : {}),
-    ...(stop && typeof stop === 'object' && isPeriod(stop.week) && typeof stop.page === 'string' ? { weeksStop: { week: stop.week, page: stop.page.slice(0, 80) } } : {}), // def: a page's path, at most
+    ...(stop && typeof stop === 'object' && isPeriod(stop.week) && typeof stop.page === 'string' ? { weeksStop: { week: stop.week, page: stop.page.slice(0, 80), ...(stop.why === 'not-shown' ? { why: stop.why } : {}), ...(typeof stop.team === 'string' ? { team: stop.team.slice(0, 60) } : {}) } } : {}), // def: a page's path and a team's name, at most
     // the home page failed or showed no matchups, so no week was read (#1049)
     ...(stop && typeof stop === 'object' && stop.week === 0 && (stop.page === 'home' || stop.page === 'home-no-matchups') ? { weeksStop: { week: 0, page: stop.page } } : {}),
     ...(s.slots && typeof s.slots === 'object' && !Array.isArray(s.slots)

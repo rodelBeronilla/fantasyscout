@@ -317,7 +317,7 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
 
   it('keeps the weeks and the page an import stopped at through the stored copy', () => {
     const { setup } = applyYahooImport(fresh, run([week(1, true)], { weeksStop: { week: 2, page: 'matchup?week=2&mid1=1' } }), players, NOV_8);
-    expect(setup.source?.weeksStop).toEqual({ week: 2, page: 'matchup?week=2&mid1=1' });
+    expect(setup.source?.weeksStop).toEqual({ week: 2, page: 'matchup?week=2&mid1=1', team: 'Dunk Dynasty' });
     const again = normalize(JSON.parse(JSON.stringify(setup)) as typeof setup, DEFAULT_SETTINGS.nba);
     expect(again.source?.weeks).toEqual(setup.source?.weeks);
     expect(again.source?.weeksStop).toEqual(setup.source?.weeksStop);
@@ -333,13 +333,14 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
 
   it('says which weeks are final and which so far, and names a page that did not answer', () => {
     const w = (week: number, final: boolean) => ({ week, final, teams: [] });
-    expect(weeksLines({ weeks: [w(1, true), w(2, true), w(3, true), w(4, true), w(5, false)] })).toEqual({ read: "Every matchup's category totals from Yahoo: weeks 1–4 final, week 5 so far.", stop: null });
+    expect(weeksLines({ weeks: [w(1, true), w(2, true), w(3, true), w(4, true), w(5, false)] })).toEqual({ read: "Every matchup's category totals from Yahoo: weeks 1–4 final, week 5 so far.", stop: null, left: null });
     expect(weeksLines({ weeks: [w(1, true), w(3, true)] }).read).toBe("Every matchup's category totals from Yahoo: weeks 1, 3 final.");
     expect(weeksLines({ weeks: [w(1, true)], weeksStop: { week: 2, page: 'matchup?week=2&mid1=1' } })).toEqual({
       read: "Every matchup's category totals from Yahoo: week 1 final.",
       stop: "Yahoo did not answer the matchup page for week 2 (Yahoo's team 1), so that week and the ones after it were not read; run the bookmark again later.",
+      left: null,
     });
-    expect(weeksLines({})).toEqual({ read: null, stop: null });
+    expect(weeksLines({})).toEqual({ read: null, stop: null, left: null });
     // the home page failed, or showed no matchups: said, never nothing
     expect(weeksLines({ weeks: [w(1, true), w(2, false)], weeksStop: { week: 0, page: 'home' } }).stop).toContain("Yahoo's league home page did not answer");
     expect(weeksLines({ weeksStop: { week: 0, page: 'home-no-matchups' } }).stop).toContain('showed no matchups');
@@ -358,5 +359,33 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
     expect(next.source?.weeksStop).toEqual({ week: 0, page: 'home' });
     // the stop survives the stored league's cleaning
     expect(normalize(next, DEFAULT_SETTINGS.nba).source?.weeksStop).toEqual({ week: 0, page: 'home' });
+  });
+
+  it("a page without the asked team stops the reading, and the line names the team; so does a page that did not answer (#1063)", () => {
+    const stop = { week: 3, page: 'matchup?week=3&mid1=2', why: 'not-shown' };
+    expect(parseYahooHash(hash({ ...v3, weeksStop: stop }))!.weeksStop).toEqual(stop);
+    // a reason this build does not know is dropped, the stop kept
+    expect(parseYahooHash(hash({ ...v3, weeksStop: { ...stop, why: 'x' } }))!.weeksStop).toEqual({ week: 3, page: 'matchup?week=3&mid1=2' });
+    const { setup } = applyYahooImport(fresh, run([week(1, true), week(2, true)], { weeksStop: stop }), players, NOV_8);
+    const kept = normalize(JSON.parse(JSON.stringify(setup)) as typeof setup, DEFAULT_SETTINGS.nba).source!;
+    expect(kept.weeksStop).toEqual({ ...stop, team: 'Rim Reapers' });
+    expect(weeksLines(kept).stop).toBe("Yahoo's matchup page for week 3 did not show Rim Reapers, so that week and the ones after it were not read; run the bookmark again later.");
+    const failed = applyYahooImport(fresh, run([week(1, true)], { weeksStop: { week: 2, page: 'matchup?week=2&mid1=4' } }), players, NOV_8).setup.source!;
+    expect(weeksLines(failed).stop).toBe('Yahoo did not answer the matchup page for week 2 (Fourth Quarter), so that week and the ones after it were not read; run the bookmark again later.');
+  });
+
+  it("a team a playoff week's page did not show is null that week and named on the League page (#1063)", () => {
+    const bye = { week: 20, final: true, pages: [{ rows: [{ id: 2, cells: A }, { id: 3, cells: B }] }], left: [1, 4] };
+    const payload = run([week(19, true), bye, { ...week(21, false), pages: [{ rows: [{ id: 2, cells: A }, { id: 3, cells: B }] }], left: [4, 'x'] }]);
+    expect(payload.weeks?.map((w) => w.left)).toEqual([undefined, [1, 4], [4]]);
+    const { setup } = applyYahooImport(fresh, payload, players, NOV_8);
+    const kept = normalize(JSON.parse(JSON.stringify(setup)) as typeof setup, DEFAULT_SETTINGS.nba);
+    expect(kept.source?.weeks?.map((w) => [w.week, w.left ?? null])).toEqual([
+      [19, null],
+      [20, [0, 3]],
+      [21, [3]],
+    ]);
+    expect(kept.source?.weeks?.[1]?.teams.map((t) => (t ? 'read' : null))).toEqual([null, 'read', 'read', null]);
+    expect(weeksLines(kept.source!, kept.names).left).toBe("Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: Dunk Dynasty and Fourth Quarter in week 20; Fourth Quarter in week 21.");
   });
 });
