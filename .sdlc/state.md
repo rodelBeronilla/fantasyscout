@@ -117,7 +117,7 @@ The runbook (`docs/runbook.md`) has a section per failure. The architecture and 
 
 ## Methodology at a glance
 
-- **Features** (`methodology/features.yml`): 7 validated, 14 failed, 14 open, 4 plain data. Failed and open calls are hidden by switches. S4, the shot diet (#1082), failed on 2026-11-21 and was never built.
+- **Features** (`methodology/features.yml`): 7 validated, 15 failed, 14 open, 4 plain data. Failed and open calls are hidden by switches. S4, the shot diet (#1082), failed on 2026-11-21 and was never built. S3, opportunity before outcome (#1081, NBA only), failed in all four targets on 2026-11-22 and was never built.
 - **Parameters** (`methodology/parameters.yml`): 26 measured, 29 assumed, 12 conventions, 3 arithmetic.
 - **Seasons:**
   - tuning: NBA 2020-21 to 2022-23, WNBA 2021 to 2023;

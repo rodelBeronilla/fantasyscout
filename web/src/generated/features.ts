@@ -371,6 +371,17 @@ export const FEATURES: readonly Feature[] = [
     "next": "Not retried with a changed recipe (#1079)"
   },
   {
+    "id": "opportunity-chances",
+    "what": "Opportunity before outcome (S3, NBA): next week's rebounds, assists, steals and blocks from a player's recent rebound chances, potential assists, deflections and contested shots times his long-run conversion of each",
+    "page": "team",
+    "verdict": "failed",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1081,
+    "parameters": [],
+    "next": "Not retried with a tweaked recipe (#1081). A new study would need its own bar, written first"
+  },
+  {
     "id": "week-games-rest-nba",
     "what": "An NBA player's games in the week, less his share of second nights of back-to-backs sat (S1)",
     "page": "team",
