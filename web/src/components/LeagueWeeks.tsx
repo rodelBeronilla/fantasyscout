@@ -60,7 +60,13 @@ export function LeagueWeeks({ setup, weeks }: { setup: LeagueSetup; weeks: Leagu
           </button>
         ))}
       </div>
-      {week && !week.final && <p className="mt-1 text-xs text-muted">* Week {week.week} is still being played: its totals are the score so far.</p>}
+      {week && !week.final && (
+        <p className="mt-1 text-xs text-muted">
+          {week.blank?.length
+            ? `* Week ${week.week} had a blank total on Yahoo, so it is not counted as final until the bookmark reads it again.`
+            : `* Week ${week.week} is still being played: its totals are the score so far.`}
+        </p>
+      )}
       {chosen === 'season' && finished === 0 && (
         <p className="mt-2 text-sm text-muted" data-testid="weeks-none-final">
           No week has finished yet: the season&apos;s ranks start with the first finished week.

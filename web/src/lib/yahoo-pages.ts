@@ -135,14 +135,19 @@ export function yahooWeeks(pages: YahooPages, ids: number[]): LeagueWeek[] {
   return (pages.weeks ?? []).flatMap((w) => {
     const teams: (ScoreSoFar | null)[] = ids.map(() => null);
     const left = (w.left ?? []).map((id) => ids.indexOf(id)).filter((i) => i >= 0);
+    const blank: number[] = [];
     for (const p of w.pages) {
       const labels = p.labels ?? pages.weekLabels ?? [];
       for (const r of p.rows) {
         const i = ids.indexOf(r.id);
         if (i >= 0) teams[i] = yahooScore(labels, r.cells);
+        // a finished week's total with no digit (blank, "-", "-/-") in a labelled column (#1062)
+        if (i >= 0 && w.final && r.cells.some((c, k) => k > 0 && !!labels[k] && !/\d/.test(c))) blank.push(i);
       }
     }
-    return teams.some(Boolean) ? [{ week: w.week, teams, final: w.final, ...(left.length ? { left } : {}) }] : [];
+    // a week with a blank total is not kept as final: the next run reads it again
+    const marks = { ...(left.length ? { left } : {}), ...(blank.length ? { blank } : {}) };
+    return teams.some(Boolean) ? [{ week: w.week, teams, final: w.final && !blank.length, ...marks }] : [];
   });
 }
 
@@ -164,10 +169,10 @@ function weekRanges(weeks: number[]): string {
 export function weeksLines(
   source: { weeks?: LeagueWeek[]; weeksStop?: { week: number; page: string; why?: 'not-shown'; team?: string } },
   names: string[] = [],
-): { read: string | null; stop: string | null; left: string | null } {
+): { read: string | null; stop: string | null; left: string | null; blank: string | null } {
   const weeks = source.weeks ?? [];
   const final = weeks.filter((w) => w.final).map((w) => w.week);
-  const soFar = weeks.filter((w) => !w.final).map((w) => w.week);
+  const soFar = weeks.filter((w) => !w.final && !w.blank).map((w) => w.week);
   const named = (ws: number[]) => `${ws.length === 1 ? 'week' : 'weeks'} ${weekRanges(ws)}`;
   const parts = [...(final.length ? [`${named(final)} final`] : []), ...(soFar.length ? [`${named(soFar)} so far`] : [])];
   const stop = source.weeksStop;
@@ -185,14 +190,20 @@ export function weeksLines(
           ? `Yahoo's matchup page for week ${stop.week} did not show ${team}, so that week and the ones after it were not read; run the bookmark again later.`
           : `Yahoo did not answer the matchup page for week ${stop.week} (${team}), so that week and the ones after it were not read; run the bookmark again later.`;
   // the teams a playoff week's pages left out (#1063), by name
-  const left = weeks.flatMap((w) => {
-    const who = (w.left ?? []).map((i) => names[i] || `Team ${i + 1}`);
-    return who.length ? [`${who.length > 1 ? `${who.slice(0, -1).join(', ')} and ${who.at(-1)}` : who[0]} in week ${w.week}`] : [];
-  });
+  const list = (ids: number[]) => {
+    const who = ids.map((i) => names[i] || `Team ${i + 1}`);
+    return who.length > 1 ? `${who.slice(0, -1).join(', ')} and ${who.at(-1)}` : (who[0] ?? '');
+  };
+  const left = weeks.flatMap((w) => (w.left?.length ? [`${list(w.left)} in week ${w.week}`] : []));
+  // the weeks a blank total keeps from being final (#1062)
+  const blank = weeks.flatMap((w) =>
+    w.blank?.length ? [`Week ${w.week}: Yahoo showed a blank total for ${list(w.blank)}, so the week is not kept as final; the next run of the bookmark reads it again.`] : [],
+  );
   return {
     read: parts.length ? `Every matchup's category totals from Yahoo: ${parts.join(', ')}.` : null,
     stop: stopLine,
     left: left.length ? `No playoff matchup on Yahoo, so no totals: ${left.join('; ')}.` : null,
+    blank: blank.length ? blank.join(' ') : null,
   };
 }
 

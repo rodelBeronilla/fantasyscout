@@ -21,6 +21,8 @@ export interface LeagueWeek {
   final: boolean;
   /** The teams a playoff week's Yahoo pages showed no matchup for (#1063), by team index: null in `teams`, and named on the League page. */
   left?: number[];
+  /** The teams whose total Yahoo showed blank in a finished week (#1062), by team index: the week is then not final, and is read again. */
+  blank?: number[];
 }
 
 export interface WeekRow {

@@ -196,17 +196,30 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
     const teams: YahooTeam[] = [];
     // what each team page read for its roster says the team is called, settled below (#1047)
     const fromPages = new Map<number, { title: string; said: string[] }>();
+    // Every Yahoo page the bookmark reads comes a second after the one before has answered, the
+    // page it runs on included (#1062): the owner's reading rule.
+    let answered = Date.now();
+    const get = async (path: string) => {
+      const wait = answered + 1000 - Date.now(); // def: a second between Yahoo's pages (the owner's reading rule)
+      if (wait > 0) await new Promise((done) => setTimeout(done, wait));
+      try {
+        const res = await fetch(base + path, { credentials: 'include' });
+        const text = await res.text();
+        if (capture) pages.push({ url: base + path, status: res.status, html: text });
+        return { ok: res.ok, text };
+      } finally {
+        answered = Date.now();
+      }
+    };
     let misses = 0;
     for (const t of ids) {
       let players: Row[] = inPage.get(t) || [];
       const name = names.get(t) || '';
       if (!players.length) {
         try {
-          const res = await fetch(base + t, { credentials: 'include' });
-          const text = await res.text();
-          if (capture) pages.push({ url: base + t, status: res.status, html: text });
+          const res = await get(String(t));
           if (res.ok) {
-            const page = new DOMParser().parseFromString(text, 'text/html');
+            const page = new DOMParser().parseFromString(res.text, 'text/html');
             players = rosterOf(page);
             // the team's element without its menu icon, and the roster's caption (#1047)
             if (!name) {
@@ -242,10 +255,8 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
     // settings. Each page's text goes as it stands; a page that does not answer is left out.
     const read = async (path: string) => {
       try {
-        const res = await fetch(base + path, { credentials: 'include' });
-        const text = await res.text();
-        if (capture) pages.push({ url: base + path, status: res.status, html: text });
-        return res.ok ? new DOMParser().parseFromString(text, 'text/html') : null;
+        const res = await get(path);
+        return res.ok ? new DOMParser().parseFromString(res.text, 'text/html') : null;
       } catch {
         return null;
       }
@@ -331,19 +342,26 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       if (u.pathname === base + 'matchup' && u.searchParams.has('mid1') && Number.isInteger(w) && w > 0 && w <= 30) current = Math.max(current, w); // def: a season has fewer than thirty fantasy weeks
     }
     const store = 'fantasyscout:weeks:' + leagueId;
-    const weeks: { week: number; final: boolean; pages: Totals[]; left?: number[] }[] = [];
+    const weeks: { week: number; final: boolean; pages: Totals[]; left?: number[]; at?: number }[] = [];
     let weeksStop: { week: number; page: string; why?: 'not-shown' } | undefined;
     // the first playoff week, from the settings page's line "6 teams - Week 20, 21 and 22 (...)" (#1063)
     const playoffFrom = Number((/week (\d+)/i.exec(settings.playoffs || '') || [])[1]) || 0;
     // no week is read without the home page's matchup links: say which, never nothing
     if (!current) weeksStop = { week: 0, page: home ? 'home-no-matchups' : 'home' };
+    // Yahoo applies stat corrections through the Monday after a week (#1062): the last finished
+    // week is read once more on a run from Tuesday 00:00 Eastern on, unless it was read since.
+    const eastern = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const tuesday = Date.now() - ((((eastern.getDay() + 5) % 7) * 24 + eastern.getHours()) * 3600 + eastern.getMinutes() * 60 + eastern.getSeconds()) * 1000; // def: days back to Tuesday, hours, minutes and seconds in ms
+    // a total with no digit (blank, "-", "-/-") in a labelled column (#1062): not kept, read again
+    const blank = (p: Totals) => p.rows.some((r) => r.cells.some((c, i) => i > 0 && !!p.labels[i] && !/\d/.test(c)));
     if (current) {
       try {
         const saved: unknown = JSON.parse(localStorage.getItem(store) || '[]');
-        for (const k of Array.isArray(saved) ? (saved as { week?: unknown; pages?: unknown; left?: unknown }[]) : []) {
+        for (const k of Array.isArray(saved) ? (saved as { week?: unknown; pages?: unknown; left?: unknown; at?: unknown }[]) : []) {
+          if (k && k.week === current - 1 && !(typeof k.at === 'number' && k.at >= tuesday)) continue;
           const pages = Array.isArray(k && k.pages) ? (k.pages as Totals[]).filter((p) => p && Array.isArray(p.labels) && Array.isArray(p.rows) && (p.rows.length === 2 || p.rows.length === 1)) : []; // the same pages a run reads: two sides, or one in a bye
           if (k && typeof k.week === 'number' && Number.isInteger(k.week) && k.week > 0 && k.week < current && pages.length && !weeks.some((x) => x.week === k.week))
-            weeks.push({ week: k.week, final: true, pages, ...(Array.isArray(k.left) ? { left: (k.left as unknown[]).filter((x): x is number => typeof x === 'number') } : {}) });
+            weeks.push({ week: k.week, final: true, pages, ...(typeof k.at === 'number' ? { at: k.at } : {}), ...(Array.isArray(k.left) ? { left: (k.left as unknown[]).filter((x): x is number => typeof x === 'number') } : {}) });
         }
       } catch {
         // storage blocked or unreadable: every week is read
@@ -356,7 +374,6 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
         for (const t of teams.map((x) => x.id)) {
           if (covered.has(t)) continue;
           const path = 'matchup?week=' + w + '&mid1=' + t;
-          await new Promise((done) => setTimeout(done, 1000)); // def: a second between Yahoo's pages (the owner's reading rule)
           const page = await read(path);
           const totals = totalsOf(page);
           // the page must show the team asked for (#1063); in the playoffs, a page that answers
@@ -383,7 +400,14 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       }
       weeks.sort((x, y) => x.week - y.week);
       try {
-        localStorage.setItem(store, JSON.stringify(weeks.filter((x) => x.final).map((x) => ({ week: x.week, pages: x.pages, ...(x.left ? { left: x.left } : {}) }))));
+        localStorage.setItem(
+          store,
+          JSON.stringify(
+            weeks
+              .filter((x) => x.final && !x.pages.some(blank))
+              .map((x) => ({ week: x.week, pages: x.pages, at: x.at || Date.now(), ...(x.left ? { left: x.left } : {}) })),
+          ),
+        );
       } catch {
         // storage blocked: the next run reads every week again
       }

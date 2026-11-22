@@ -1431,7 +1431,7 @@ test("the Yahoo bookmark reads every week's matchup totals, one page at a time, 
   const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('fantasyscout:weeks:12345') ?? '[]') as { week: number; pages: { labels: string[]; rows: { id: number; cells: string[] }[] }[] }[]);
   expect(kept.map((w) => w.week)).toEqual([1, 2]);
   for (const w of kept) {
-    expect(Object.keys(w).sort()).toEqual(['pages', 'week']);
+    expect(Object.keys(w).sort()).toEqual(['at', 'pages', 'week']); // when it was read, for stat corrections (#1062)
     for (const p of w.pages) {
       expect(Object.keys(p).sort()).toEqual(['labels', 'rows']);
       for (const r of p.rows) expect(Object.keys(r).sort()).toEqual(['cells', 'id']);
@@ -1565,6 +1565,87 @@ test('in the playoffs, a team whose week page shows no matchup for it is skipped
   await expect(page.getByTestId('yahoo-weeks-stop')).toHaveCount(0);
   const stored = await storedWeeks(page);
   expect(stored.weeks.find((w) => w.week === 3)?.points.map((p) => p !== null)).toEqual([false, true, true, false]);
+});
+test('a finished week with a blank total is named on the League page, not kept as final, and read again at the next run (#1062)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.slow(); // the pages come a second apart
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const weekPages = await yahooLeague(page);
+  // week 1's page for teams 1 and 2 shows Dunk Dynasty's rebounds as a dash
+  const blanked = readFileSync('tests/fixtures/data/yahoo/week-1-1v2.html', 'utf8').replace('<td><div>271</div></td>', '<td><div>-</div></td>');
+  await page.route(/\/nba\/12345\/matchup\?week=1&mid1=1$/, (route) => {
+    weekPages.push({ path: 'matchup?week=1&mid1=1', start: Date.now(), end: Date.now() });
+    return route.fulfill({ contentType: 'text/html', body: blanked });
+  });
+  let before = 0;
+  for (const run of [1, 2]) {
+    before = weekPages.length;
+    await page.goto('/data/yahoo/league.html');
+    await page.evaluate(code.slice('javascript:'.length));
+    await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+    await expect(page.getByTestId('yahoo-weeks'), `run ${run}`).toHaveText("Every matchup's category totals from Yahoo: week 2 final, week 3 so far.");
+    await expect(page.getByTestId('yahoo-weeks-blank'), `run ${run}`).toHaveText(
+      'Week 1: Yahoo showed a blank total for Dunk Dynasty, so the week is not kept as final; the next run of the bookmark reads it again.',
+    );
+  }
+  // the second run asked for week 1 again, and not for week 2
+  const second = weekPages.slice(before).map((p) => p.path);
+  expect(second).toEqual(['matchup?week=1&mid1=1', 'matchup?week=1&mid1=3', 'matchup?week=3&mid1=1', 'matchup?week=3&mid1=2']);
+});
+
+test("the last finished week is read once more from the Tuesday after it, for Yahoo's stat corrections, and then kept (#1062)", async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.setTimeout(120_000); // four runs, the pages a second apart
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.clock.setFixedTime(new Date('2026-11-23T17:00:00Z')); // Monday, noon Eastern
+  await page.goto('/league/?league=nba');
+  await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const weekPages = await yahooLeague(page);
+  const asked: string[][] = [];
+  for (const day of ['2026-11-23T17:00:00Z', '2026-11-23T20:00:00Z', '2026-11-24T05:30:00Z', '2026-11-24T17:00:00Z']) {
+    await page.clock.setFixedTime(new Date(day));
+    const before = weekPages.length;
+    await page.goto('/data/yahoo/league.html');
+    await page.evaluate(code.slice('javascript:'.length));
+    await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+    asked.push(weekPages.slice(before).map((p) => p.path.replace(/&mid1=\d+$/, '')));
+  }
+  expect(asked).toEqual([
+    // Monday: every week; Monday again: the week under way only
+    ['matchup?week=1', 'matchup?week=1', 'matchup?week=2', 'matchup?week=2', 'matchup?week=3', 'matchup?week=3'],
+    ['matchup?week=3', 'matchup?week=3'],
+    // Tuesday 00:30 Eastern: week 2 once more; Tuesday noon: kept
+    ['matchup?week=2', 'matchup?week=2', 'matchup?week=3', 'matchup?week=3'],
+    ['matchup?week=3', 'matchup?week=3'],
+  ]);
+  await expect(page.getByTestId('yahoo-weeks')).toHaveText("Every matchup's category totals from Yahoo: weeks 1–2 final, week 3 so far.");
+});
+
+test('every Yahoo page the bookmark reads comes at least a second after the one before (#1062)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.slow(); // the pages come a second apart
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  await yahooLeague(page);
+  await page.goto('/data/yahoo/league.html');
+  const asked: { path: string; at: number }[] = [];
+  page.on('request', (r) => {
+    const url = new URL(r.url());
+    if (url.pathname.startsWith('/nba/12345/')) asked.push({ path: url.pathname.replace('/nba/12345/', '') + url.search, at: Date.now() });
+  });
+  const ran = Date.now();
+  await page.evaluate(code.slice('javascript:'.length));
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+  // the team pages, the home page, this week's matchup, the settings, the manager's page, the six week pages
+  expect(asked.map((a) => a.path)).toEqual(['1', '2', '3', '4', '', 'matchup?mid1=2', 'settings', '2', ...WEEK_PAGES]);
+  const gaps = asked.map((a, i) => a.at - (i ? asked[i - 1]!.at : ran));
+  expect(Math.min(...gaps), gaps.join(', ')).toBeGreaterThanOrEqual(990); // def: a second, less the timer's grain
 });
 
 test('a Yahoo copy with no weeks says the week-by-week view needs the new bookmark; a copy with weeks, or a league by hand, does not (#1070)', async ({ page }) => {
