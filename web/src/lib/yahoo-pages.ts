@@ -47,8 +47,10 @@ interface YahooWeekRead {
   week: number;
   final: boolean;
   pages: { labels?: string[]; rows: { id: number; cells: string[] }[] }[];
-  /** The teams a playoff week's pages answered without (#1063): out of the playoffs that week, by Yahoo's id. */
+  /** The teams whose playoff-week page was Yahoo's matchup page for the week but showed other teams and not them (#1063), by Yahoo's id. */
   left?: number[];
+  /** A finished week whose blank totals a read from its Tuesday on found again (#1062): kept as final, the blanks named. Optional. */
+  blankKept?: boolean;
 }
 
 const strings = (x: unknown): x is string[] => Array.isArray(x) && x.every((s) => typeof s === 'string');
@@ -113,7 +115,7 @@ function cleanWeeks(raw: { weekLabels?: unknown; weeks?: unknown; weeksStop?: un
     if (!x || !isWeek(x.week) || typeof x.final !== 'boolean' || !Array.isArray(x.pages) || !x.pages.length || x.pages.length > MAX_PAGES) continue;
     const pages = x.pages.map(page);
     const left = Array.isArray((x as { left?: unknown }).left) ? ((x as { left: unknown[] }).left.filter((id) => Number.isInteger(id)) as number[]).slice(0, 2 * MAX_PAGES) : [];
-    if (pages.every((p) => p !== null) && !weeks.some((k) => k.week === x.week)) weeks.push({ week: x.week, final: x.final, pages: pages as YahooWeekRead['pages'], ...(left.length ? { left } : {}) });
+    if (pages.every((p) => p !== null) && !weeks.some((k) => k.week === x.week)) weeks.push({ week: x.week, final: x.final, pages: pages as YahooWeekRead['pages'], ...(left.length ? { left } : {}), ...((x as { blankKept?: unknown }).blankKept === true ? { blankKept: true } : {}) });
   }
   if (weeks.length) {
     if (labels) out.weekLabels = labels;
@@ -147,7 +149,8 @@ export function yahooWeeks(pages: YahooPages, ids: number[]): LeagueWeek[] {
     }
     // a week with a blank total is not kept as final: the next run reads it again
     const marks = { ...(left.length ? { left } : {}), ...(blank.length ? { blank } : {}) };
-    return teams.some(Boolean) ? [{ week: w.week, teams, final: w.final && !blank.length, ...marks }] : [];
+    // ...unless the bookmark found the same blanks again from the week's Tuesday on: then final, the blanks named
+    return teams.some(Boolean) ? [{ week: w.week, teams, final: w.final && (!blank.length || !!w.blankKept), ...marks }] : [];
   });
 }
 
@@ -189,7 +192,7 @@ export function weeksLines(
         : stop.why === 'not-shown'
           ? `Yahoo's matchup page for week ${stop.week} did not show ${team}, so that week and the ones after it were not read; run the bookmark again later.`
           : `Yahoo did not answer the matchup page for week ${stop.week} (${team}), so that week and the ones after it were not read; run the bookmark again later.`;
-  // the teams a playoff week's pages left out (#1063), by name
+  // the teams a playoff week's page showed other matchups for, and not them (#1063), by name: what was seen, no more
   const list = (ids: number[]) => {
     const who = ids.map((i) => names[i] || `Team ${i + 1}`);
     return who.length > 1 ? `${who.slice(0, -1).join(', ')} and ${who.at(-1)}` : (who[0] ?? '');
@@ -197,12 +200,16 @@ export function weeksLines(
   const left = weeks.flatMap((w) => (w.left?.length ? [`${list(w.left)} in week ${w.week}`] : []));
   // the weeks a blank total keeps from being final (#1062)
   const blank = weeks.flatMap((w) =>
-    w.blank?.length ? [`Week ${w.week}: Yahoo showed a blank total for ${list(w.blank)}, so the week is not kept as final; the next run of the bookmark reads it again.`] : [],
+    !w.blank?.length
+      ? []
+      : w.final
+        ? [`Week ${w.week}: Yahoo still showed a blank total for ${list(w.blank)} when the week was read again from its Tuesday on, so the week is kept as final with that total missing.`]
+        : [`Week ${w.week}: Yahoo showed a blank total for ${list(w.blank)}, so the week is not kept as final; the next run of the bookmark reads it again.`],
   );
   return {
     read: parts.length ? `Every matchup's category totals from Yahoo: ${parts.join(', ')}.` : null,
     stop: stopLine,
-    left: left.length ? `No playoff matchup on Yahoo, so no totals: ${left.join('; ')}.` : null,
+    left: left.length ? `Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: ${left.join('; ')}.` : null,
     blank: blank.length ? blank.join(' ') : null,
   };
 }

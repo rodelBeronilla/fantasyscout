@@ -375,7 +375,7 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
     expect(weeksLines(failed).stop).toBe('Yahoo did not answer the matchup page for week 2 (Fourth Quarter), so that week and the ones after it were not read; run the bookmark again later.');
   });
 
-  it('a team a playoff week leaves out is null that week and named on the League page (#1063)', () => {
+  it("a team a playoff week's page did not show is null that week and named on the League page (#1063)", () => {
     const bye = { week: 20, final: true, pages: [{ rows: [{ id: 2, cells: A }, { id: 3, cells: B }] }], left: [1, 4] };
     const payload = run([week(19, true), bye, { ...week(21, false), pages: [{ rows: [{ id: 2, cells: A }, { id: 3, cells: B }] }], left: [4, 'x'] }]);
     expect(payload.weeks?.map((w) => w.left)).toEqual([undefined, [1, 4], [4]]);
@@ -387,9 +387,9 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
       [21, [3]],
     ]);
     expect(kept.source?.weeks?.[1]?.teams.map((t) => (t ? 'read' : null))).toEqual([null, 'read', 'read', null]);
-    expect(weeksLines(kept.source!, kept.names).left).toBe('No playoff matchup on Yahoo, so no totals: Dunk Dynasty and Fourth Quarter in week 20; Fourth Quarter in week 21.');
+    expect(weeksLines(kept.source!, kept.names).left).toBe("Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: Dunk Dynasty and Fourth Quarter in week 20; Fourth Quarter in week 21.");
   });
-  it('a finished week with a blank total is named and not kept as final; a week under way may show dashes (#1062)', () => {
+  it('a finished week with a blank total is named and not kept as final until the same blanks are found again from its Tuesday on; a week under way may show dashes (#1062)', () => {
     const dashed = ['Team B', '-/-', '-', '98/120', '.817', '57', '579', '-', '114', '29', '24', '72', '4'];
     const withBlank = { ...week(4, true), pages: [{ rows: [{ id: 1, cells: A }, { id: 2, cells: dashed }] }, week(4, true).pages[1]!] };
     const read = yahooWeeks({ weekLabels: LABELS, weeks: [week(3, true), withBlank, { ...withBlank, week: 5, final: false }] }, ids);
@@ -407,9 +407,16 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
     const lines = weeksLines(kept.source!, kept.names);
     expect(lines.read).toBe("Every matchup's category totals from Yahoo: week 3 final.");
     expect(lines.blank).toBe('Week 4: Yahoo showed a blank total for Rim Reapers, so the week is not kept as final; the next run of the bookmark reads it again.');
-    // a stored week marked final with a blank is not final
-    const forged = normalize({ ...kept, source: { ...kept.source!, weeks: [{ week: 4, final: true, teams: [null, null, null, null], blank: [1] }] } }, DEFAULT_SETTINGS.nba);
-    expect(forged.source?.weeks?.[0]?.final).toBe(false);
+    // the same blanks found again from the week's Tuesday on: the bookmark says so, and the week is final with the blank named
+    const again = applyYahooImport(setup, run([{ ...withBlank, blankKept: true }]), players, NOV_8).setup;
+    const stored = normalize(JSON.parse(JSON.stringify(again)) as typeof again, DEFAULT_SETTINGS.nba).source!;
+    expect(stored.weeks?.find((w) => w.week === 4)).toMatchObject({ final: true, blank: [1] });
+    expect(weeksLines(stored, again.names).read).toBe("Every matchup's category totals from Yahoo: weeks 3–4 final.");
+    expect(weeksLines(stored, again.names).blank).toBe(
+      'Week 4: Yahoo still showed a blank total for Rim Reapers when the week was read again from its Tuesday on, so the week is kept as final with that total missing.',
+    );
+    // a flag that is not true is not read
+    expect(parseYahooHash(hash({ ...v3, weekLabels: LABELS, weeks: [{ ...withBlank, blankKept: 'yes' }] }))!.weeks?.[0]?.blankKept).toBeUndefined();
     // the next import that reads the week whole makes it final
     expect(applyYahooImport(setup, run([week(4, true)]), players, NOV_8).setup.source?.weeks?.find((w) => w.week === 4)).toMatchObject({ final: true });
   });

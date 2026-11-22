@@ -303,7 +303,7 @@ function cleanWeeks(raw: unknown): LeagueWeek[] | undefined {
       const index = (xs: unknown) => (Array.isArray(xs) ? xs.filter((i): i is number => typeof i === 'number' && Number.isInteger(i) && i >= 0 && i < w.teams.length) : []);
       const left = index(w.left);
       const blank = index(w.blank);
-      return { week: w.week, teams: w.teams.map(cleanScore), final: w.final && !blank.length, ...(left.length ? { left } : {}), ...(blank.length ? { blank } : {}) };
+      return { week: w.week, teams: w.teams.map(cleanScore), final: w.final, ...(left.length ? { left } : {}), ...(blank.length ? { blank } : {}) };
     })
     .sort((a, b) => a.week - b.week);
   return weeks.length ? weeks : undefined;
