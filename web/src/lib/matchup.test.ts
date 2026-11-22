@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { POINT_PRESETS } from './fantasy-league';
 import { CATEGORY_WORDS } from './format';
-import { categoryChance, closeBand, liveWeek, matchup, matchupCall, matchupWeights, swingCategory, usableScore, type WeekTotals, weekTotals } from './matchup';
+import { categoryChance, closeBand, liveWeek, matchup, matchupCall, matchupWeights, soFarResult, soFarValue, swingCategory, usableScore, type WeekTotals, weekTotals } from './matchup';
 import { streamTargets } from './matchup-streams';
 import { normalCdf } from './standings';
 import { PARAMS } from '../generated/parameters';
@@ -204,5 +204,23 @@ describe('parity with ops/matchup.py (#869)', () => {
       } else expect(a).toEqual(b);
     };
     close(computed, fixture.expected);
+  });
+});
+
+describe('the score so far by category (#1022)', () => {
+  it('reads a total or a percentage made over attempted, and nothing the host did not give', () => {
+    const score = { totals: { z_points: 110, z_turnovers: 12 }, shots: { z_field_goal_pct: [41, 88] as [number, number], z_free_throw_pct: [0, 0] as [number, number] } };
+    expect(soFarValue(score, 'z_points')).toBe(110);
+    expect(soFarValue(score, 'z_field_goal_pct')).toBeCloseTo(41 / 88);
+    expect(soFarValue(score, 'z_free_throw_pct')).toBeNull();
+    expect(soFarValue(score, 'z_steals')).toBeNull();
+    expect(soFarValue(null, 'z_points')).toBeNull();
+  });
+
+  it('gives a lead to the higher total, turnovers to the lower, and a tie as a tie', () => {
+    expect(soFarResult('z_points', 110, 91)).toBe('win');
+    expect(soFarResult('z_turnovers', 12, 15)).toBe('win');
+    expect(soFarResult('z_turnovers', 15, 12)).toBe('loss');
+    expect(soFarResult('z_blocks', 7, 7)).toBe('tie');
   });
 });

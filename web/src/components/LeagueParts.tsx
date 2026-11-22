@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 
 import { CATEGORIES, CATEGORY_LABELS } from '../lib/format';
+import type { addsThisWeek } from '../lib/league-sync';
 import { normalizeSlots, SLOT_KEYS, SLOT_LABEL } from '../lib/lineup';
 import {
   DEFAULT_SETTINGS,
@@ -122,16 +123,78 @@ export function LeagueSettingsForm({
             <option value="h2h">Head-to-head: weekly matchups</option>
           </select>
         </label>
+        <label className="grid gap-1">
+          <span className="text-xs text-muted">IL slots</span>
+          <input
+            type="number"
+            min={0}
+            max={6}
+            value={setup.ilSlots}
+            onChange={(e) => {
+              const ilSlots = Number(e.target.value);
+              if (Number.isFinite(ilSlots)) onChange((s) => ({ ...s, ilSlots }));
+            }}
+            className={`${field} w-16`}
+            aria-label="Injured-list slots"
+            title="Players on the IL take no roster spot; an IL move needs a free slot"
+          />
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs text-muted">Adds a week</span>
+          <input
+            type="number"
+            min={0}
+            max={30}
+            value={setup.addsPerWeek ?? ''}
+            placeholder="no limit"
+            onChange={(e) => {
+              const v = e.target.value;
+              onChange((s) => ({ ...s, addsPerWeek: v === '' ? null : Number(v) }));
+            }}
+            className={`${field} w-24`}
+            aria-label="Adds a team may make each week"
+          />
+        </label>
+        <label className="grid gap-1">
+          <span className="text-xs text-muted">Waiver days</span>
+          <input
+            type="number"
+            min={0}
+            max={7}
+            value={setup.waiverDays ?? ''}
+            placeholder="not known"
+            onChange={(e) => {
+              const v = e.target.value;
+              onChange((s) => ({ ...s, waiverDays: v === '' ? null : Number(v) }));
+            }}
+            className={`${field} w-24`}
+            aria-label="Days a dropped player waits on waivers"
+            title="A dropped player waits this long before anyone can claim him"
+          />
+        </label>
         {(!isDefault || !lineupDefault) && (
           <button
             type="button"
-            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts, lineup: d.lineup, playoffs: d.playoffs }))}
+            onClick={() => onChange((s) => ({ ...s, teams: d.teams, rosterSpots: d.rosterSpots, scoring: d.scoring, weights: d.weights, format: d.format, punts: d.punts, lineup: d.lineup, playoffs: d.playoffs, ilSlots: d.ilSlots, addsPerWeek: d.addsPerWeek, waiverDays: d.waiverDays }))}
             className="rounded-full border border-line px-3 py-1 text-xs hover:bg-bg"
           >
             Reset settings
           </button>
         )}
       </div>
+      {setup.source?.rules && (
+        <p className="text-xs text-muted" data-testid="league-rules">
+          From {setup.source.host === 'espn' ? 'ESPN' : 'Yahoo'}&apos;s settings:{' '}
+          {[
+            setup.source.rules.tradeDeadline && `trade deadline ${setup.source.rules.tradeDeadline}`,
+            setup.source.rules.tradeReview && `trade review: ${setup.source.rules.tradeReview}`,
+            setup.source.rules.tieBreaker && `playoff tie-breaker: ${setup.source.rules.tieBreaker}`,
+          ]
+            .filter(Boolean)
+            .join('; ')}
+          .
+        </p>
+      )}
       <fieldset className="flex flex-wrap items-end gap-3" data-testid="league-lineup">
         <legend className="mb-1 text-xs text-muted">
           Starting lineup: the slots you fill each day. PG and SG count as G, SF and PF as F; the weekly lineup planner on My Team uses them.
@@ -249,7 +312,7 @@ export function LeagueBar({
         {rostered > 0 ? (
           <>
             {' · '}
-            <a href={href('/team/')} className="text-fg underline-offset-4 hover:underline">
+            <a href={href('/team/')} className="text-fg underline underline-offset-4">
               {setup.names[setup.mine]} ({myCount}/{setup.rosterSpots})
             </a>
           </>
@@ -465,11 +528,14 @@ export function Today({
   need = [],
   minutesFor,
   notes,
+  adds = null,
 }: {
   league: League;
   players: TodayRow[];
   /** The day's one-line notes on flagged players (#823), shown under each it has one for. */
   notes?: PlayerNotes | null;
+  /** This week's adds (#1022, #1027); null when the league sets no limit. */
+  adds?: ReturnType<typeof addsThisWeek>;
   games: TodayGame[];
   date: string;
   /** Start and sit for today (#816), when the lineup slots and values are known. */
@@ -520,7 +586,7 @@ export function Today({
           </>
         )}
       </p>
-      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} pickups={href(pickupsPath(league, { open: [date], need }))} minutesFor={minutesFor} />}
+      {verdict && <TodayCalls league={league} verdict={verdict} players={players} time={time} pickups={href(pickupsPath(league, { open: [date], need }))} minutesFor={minutesFor} adds={adds} />}
       {leagueGames > 0 && (
         <details className="mt-2 text-sm" open={!verdict} data-testid="today-all">
           <summary className="cursor-pointer text-xs text-muted">All of today&apos;s players</summary>
@@ -561,6 +627,7 @@ function TodayCalls({
   time,
   pickups,
   minutesFor,
+  adds = null,
 }: {
   league: League;
   verdict: TodayVerdict;
@@ -569,7 +636,10 @@ function TodayCalls({
   /** Pickups for today, with the matchup's need categories when there is one (#818). */
   pickups: string;
   minutesFor?: (id: string) => ReactNode;
+  /** This week's adds (#1022, #1027); null when the league sets no limit. */
+  adds?: ReturnType<typeof addsThisWeek>;
 }) {
+  const addsLeft = adds ? adds.left : null;
   const name = new Map(players.map((p) => [p.player_id, p.full_name ?? p.player_id]));
   const who = (id: string) => (
     <a href={href(`/p/${league}/${id}/`)} className="font-medium underline-offset-4 hover:underline">
@@ -628,9 +698,29 @@ function TodayCalls({
       {verdict.open.length > 0 && (
         <p data-testid="today-open">
           <strong>{verdict.open.length} open {verdict.open.length === 1 ? 'slot' : 'slots'}</strong> ({verdict.open.join(', ')}):{' '}
-          <a href={pickups} className="text-accent underline-offset-4 hover:underline" data-testid="today-pickups">
-            stream into {verdict.open.length === 1 ? 'it' : 'them'}
-          </a>
+          {addsLeft === 0 ? (
+            <span className="text-muted" data-testid="today-no-adds">
+              no adds left this week
+            </span>
+          ) : (
+            <a href={pickups} className="text-accent underline underline-offset-4" data-testid="today-pickups">
+              {addsLeft !== null && addsLeft < verdict.open.length
+                ? `stream into ${addsLeft} of them`
+                : `stream into ${verdict.open.length === 1 ? 'it' : 'them'}`}
+            </a>
+          )}
+          {adds && (
+            <span className="text-muted" data-testid="today-adds-left">
+              {' '}
+              ({adds.left} of {adds.limit} {adds.limit === 1 ? 'add' : 'adds'} left this week:{' '}
+              {adds.from === 'yahoo'
+                ? `${adds.made} used: ${adds.yahoo} by Yahoo's count at your last import${adds.made > adds.yahoo ? `, ${adds.made - adds.yahoo} added since` : ''}`
+                : adds.counted
+                  ? `${adds.made} made since your first import this week; any made before it are not seen`
+                  : 'no import yet this week, so none are counted'}
+              )
+            </span>
+          )}
         </p>
       )}
     </div>

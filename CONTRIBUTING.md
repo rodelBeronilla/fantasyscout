@@ -20,7 +20,7 @@ No number shown on the site comes from a language model. See "AI usage" in `SPEC
 2. Small commits in conventional-commit form: `type(scope): description`.
 3. Open a pull request using the template. Link the issue (`Closes #NN`) and add a `release:*` label.
 4. CI must be green: the secret and workflow hygiene checks; Python lint, types and tests; the dbt build on DuckDB; the notebooks on the sample; the web app's check, lint, Vitest, build and Playwright; and the Worker's typecheck, tests and dry-run deploy.
-5. Merging follows the rule in `.sdlc/state.md`. Docs, fixes and anything a manager cannot see (internal code, or a feature behind a switch) merge once CI passes. The owner approves anything that changes what a manager sees, a verdict in `methodology/features.yml`, or a credential. `preprod` deploys the preview Worker; `main` deploys production.
+5. Merging follows the rule in `.sdlc/state.md` (2026-11-21). Docs, fixes and anything a manager cannot see (internal code, or a feature behind a switch) merge once CI passes. A change a manager sees, or a verdict in `methodology/features.yml`, merges only when its bar was written on the issue first, every check is green (CI, the security scan, accessibility, the speed budget), a fresh review agent that did not write it has approved it on the pull request after trying to break it on the preview, and its undo is confirmed (a switch, or one revert). Secrets, credentials and paid services stay the owner's decision. `preprod` deploys the preview Worker; `main` deploys production.
 
 ## Local checks
 

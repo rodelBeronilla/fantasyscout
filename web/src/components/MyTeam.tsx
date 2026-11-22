@@ -4,7 +4,7 @@ import { fetchBuildJson, fetchCurrentJson, fetchPageRows, type League } from '..
 import { CATEGORIES, CATEGORY_LABELS, fmt, ordinal } from '../lib/format';
 import { currentLeague } from '../lib/league';
 import { href } from '../lib/site';
-import { assign, categoryWeights, owners, toggleIl, useLeague } from '../lib/fantasy-league';
+import { assign, categoryWeights, mondayOf, owners, toggleIl, useLeague } from '../lib/fantasy-league';
 import { scaleValue } from '../lib/league-value';
 import { acceptable, type FairnessModel, leagueState, marketMap, playerWorth } from '../lib/league-model';
 import { type BuildPlan, buildPlan } from '../lib/build-plan';
@@ -36,7 +36,7 @@ import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
 import { SHOWS } from '../lib/visibility';
 import { SyncLine, useEspnSync } from './LeagueSync';
-import { staleOpponent, weekScore } from '../lib/league-sync';
+import { addsThisWeek, staleOpponent, weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
 
 interface TeamRow extends ModelRow {
@@ -371,9 +371,18 @@ export default function MyTeam() {
       const slots = slotList(setup.lineup);
       const plan = (team: TeamRow[]) => weekPlan(team.map((r) => ({ id: r.player_id, position: r.position, value: perGame(r.player_id) })), dates, plays, slots);
       const theirs = !h2h || opponent === null ? null : rows.filter((r) => owner.get(r.player_id) === opponent && !setup.il.includes(r.player_id));
-      return { mine: plan(myTeam), theirs: theirs && theirs.length ? plan(theirs) : null };
+      // the lineups as set on the host when it was read, kept for the week (#1022): each player in a
+      // starting slot then (not BN, not IL) plays his games, the same players out as the best lineup
+      const setSlots = setup.source?.slots;
+      const asSetGames = (team: TeamRow[]) =>
+        team.reduce((n, r) => {
+          const slot = setSlots?.[r.player_id];
+          return slot && !/^(BN|IL|IR|NA)/i.test(slot) ? n + dates.filter((d) => plays(r.player_id, d)).length : n;
+        }, 0);
+      const asSet = setSlots && theirs && theirs.length ? { mine: asSetGames(myTeam), theirs: asSetGames(theirs) } : null;
+      return { mine: plan(myTeam), theirs: theirs && theirs.length ? plan(theirs) : null, asSet };
     };
-  }, [games, rows, myTeam, byId, setup.lineup, opponent, setup.il, owner, perGame, h2h]);
+  }, [games, rows, myTeam, byId, setup.lineup, setup.source, opponent, setup.il, owner, perGame, h2h]);
   // the lineup from now: Today's and the lineup tile's
   const lineupPlans = useMemo(() => planFrom?.(Date.now()) ?? null, [planFrom]);
   // The week's matchup: each side's projected totals over the games its lineup will start (#817),
@@ -506,7 +515,7 @@ export default function MyTeam() {
   if (roster.length === 0) {
     return (
       <div className="grid gap-3" data-testid="team-empty">
-        <SyncLine setup={setup} sync={sync} />
+        <SyncLine setup={setup} sync={sync} league={league} />
         <LeagueBar setup={setup} rostered={owner.size} myCount={0} weakest={[]} />
         <p className="rounded-lg border border-line bg-card p-3 text-sm">
           Your team is empty. Set up your league on the{' '}
@@ -521,7 +530,9 @@ export default function MyTeam() {
   }
 
   // the report's listing until the games-missed estimate is judged (#763, #770)
-  const moves = SHOWS.injuryEstimate ? ilMoves(rows, roster, setup.il) : ilMovesByListing(rows, roster, setup.il);
+  const moves = SHOWS.injuryEstimate
+    ? ilMoves(rows, roster, setup.il)
+    : ilMovesByListing(rows, roster, setup.il, { slots: setup.ilSlots, today: easternDate() });
   // Today's card shows on a game day (a verdict needs one) when no draft is under way
   const todayShown = !!verdict && !setup.drafting;
   const showMatchup = h2h && owner.size > 0 && !setup.drafting && weekAvailable;
@@ -565,7 +576,7 @@ export default function MyTeam() {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-      <SyncLine setup={setup} sync={sync} />
+      <SyncLine setup={setup} sync={sync} league={league} />
       <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={[]} />
       {setup.drafting && (
         <p className="rounded-lg border border-accent bg-card p-3 text-sm" data-testid="team-drafting">
@@ -604,11 +615,12 @@ export default function MyTeam() {
           need={SHOWS.streams ? targets : []}
           minutesFor={SHOWS.minutes ? minutesLine : undefined}
           notes={SHOWS.notes ? notes : null}
+          adds={addsThisWeek(setup, mondayOf(easternDate()))}
         />
       )}
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
-      <div className={`grid items-start gap-3 ${showMatchup && !points && SHOWS.categories ? 'lg:grid-cols-2' : ''}`}>
+      <div className={`grid grid-cols-[minmax(0,1fr)] items-start gap-3 ${showMatchup && !points && SHOWS.categories ? 'lg:grid-cols-2' : ''}`}>
         {showMatchup && (
           <Matchup
             setup={setup}
@@ -618,6 +630,8 @@ export default function MyTeam() {
             league={league}
             openDays={SHOWS.streams ? (lineupPlans?.mine.days.filter((d) => d.open.length > 0).map((d) => d.date) ?? []) : []}
             stream={SHOWS.streams ? stream : null}
+            // with the score so far, the games left run from the read, as the projection's do
+            asSet={(weekMatch?.basis.live && setup.source ? planFrom?.(setup.source.syncedAt)?.asSet : lineupPlans?.asSet) ?? null}
             nameOf={name}
             onOpponent={(t) => updateLeague((s) => ({ ...s, opponent: t }))}
           />

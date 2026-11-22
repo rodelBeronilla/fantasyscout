@@ -96,9 +96,9 @@ export function Card({ title, children, id, badge }: { title: string; children: 
 const pinClass = (pin?: Pin) => (pin === 'first' ? 'pin' : pin === 'second' ? 'pin pin-second' : '');
 export type Pin = 'first' | 'second';
 
-export function Th({ children, right = false, pin }: { children: ReactNode; right?: boolean; pin?: Pin }) {
+export function Th({ children, right = false, pin, colSpan }: { children: ReactNode; right?: boolean; pin?: Pin; colSpan?: number }) {
   return (
-    <th scope="col" className={`px-2 py-2 text-[11px] font-semibold tracking-wider whitespace-nowrap text-muted uppercase ${right ? 'text-right' : 'text-left'} ${pinClass(pin)}`}>
+    <th scope={colSpan ? 'colgroup' : 'col'} colSpan={colSpan} className={`px-2 py-2 text-[11px] font-semibold tracking-wider whitespace-nowrap text-muted uppercase ${right ? 'text-right' : 'text-left'} ${pinClass(pin)}`}>
       {children}
     </th>
   );

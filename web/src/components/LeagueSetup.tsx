@@ -8,10 +8,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchBuildJson, type League } from '../lib/data';
 import { CATEGORIES, fmt } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
-import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum } from '../lib/fantasy-league';
+import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum, rosterCount, rosterCountText } from '../lib/fantasy-league';
 import { categoryValues, marketPriorShift, pointValues, scaleValue } from '../lib/league-value';
-import { applyYahooImport, parseYahooHash } from '../lib/yahoo-bookmarklet';
+import { applyYahooImport, parseYahooHash, YAHOO_OUTDATED, YAHOO_PAYLOAD_VERSION, yahooHashVersion, type YahooRejected } from '../lib/yahoo-bookmarklet';
 import { chooseMine } from '../lib/league-sync';
+import { logImport } from '../lib/owner-log';
 import { href } from '../lib/site';
 import { auctionValues } from '../lib/auction';
 import { SHOWS } from '../lib/visibility';
@@ -23,6 +24,8 @@ import YahooImport from './YahooImport';
 import EspnImport from './EspnImport';
 import { StandingsEntry } from './StandingsEntry';
 import type { BoardColumn, ExportedRow } from '../generated/columns';
+import { CopyAge, YahooWeeks } from './LeagueSync';
+import { LeagueWeeks } from './LeagueWeeks';
 
 interface PlayerRowFields {
   player_id: string;
@@ -92,6 +95,8 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   const [error, setError] = useState<unknown>(null);
   const [setup, update] = useLeague(league);
   const [loadNote, setLoadNote] = useState<string | null>(null);
+  // the player links the bookmark read and did not take, with the reason (#1018)
+  const [rejected, setRejected] = useState<YahooRejected[]>([]);
   // with every roster full, one team card is open at a time (#716); the manager's own to start
   const [openCard, setOpenCard] = useState<number | null>(null);
 
@@ -108,10 +113,20 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   // A Yahoo bookmarklet lands here with the league in the fragment: import it once the board is in.
   useEffect(() => {
     if (!rows) return;
+    const version = yahooHashVersion(window.location.hash);
+    if (version !== null && version !== YAHOO_PAYLOAD_VERSION) {
+      // an older bookmark: it could drop players without saying so (#1018)
+      setLoadNote(YAHOO_OUTDATED);
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      return;
+    }
     const payload = parseYahooHash(window.location.hash);
     if (!payload) return;
     const result = applyYahooImport(setup, payload, rows);
     update(() => result.setup);
+    // the owner's private log (#1032); nothing is sent for anyone else
+    void logImport(result.setup);
+    setRejected(result.rejected);
     setLoadNote(
       `Imported ${payload.teams.length} teams from Yahoo: ${result.matched} players matched` +
         (result.il ? `, ${result.il} on the IL` : '') +
@@ -292,6 +307,8 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {yahoo}
+      <CopyAge setup={setup} league={league} />
+      <YahooWeeks setup={setup} />
       {league === 'nba' && (
         <EspnImport season={rows[0]?.season ?? ''} players={rows} hasRosters={rostered > 0} onImport={(next) => update(() => next)} />
       )}
@@ -325,6 +342,9 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
         </p>
       )}
 
+      {/* every team's rank in each category, week by week, from the totals Yahoo scored (#1054) */}
+      {setup.source?.weeks?.length ? <LeagueWeeks setup={setup} weeks={setup.source.weeks} /> : null}
+
       <section className="grid gap-3" aria-labelledby="teams-h">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="teams-h" className="label-caps">
@@ -356,7 +376,7 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
                   <span className="min-w-0 truncate font-medium">{name}</span>
                   <span className="text-xs whitespace-nowrap text-muted">
                     {mine ? 'My team · ' : ''}
-                    {roster.length}/{setup.rosterSpots} ▾
+                    {rosterCount(setup, t).active}/{setup.rosterSpots} ▾
                   </span>
                 </button>
               );
@@ -382,8 +402,8 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
                     My team
                   </label>
                 </div>
-                <p className={`text-xs ${roster.length > setup.rosterSpots ? 'text-bad' : 'text-muted'}`}>
-                  {roster.length}/{setup.rosterSpots} players
+                <p className={`text-xs ${rosterCount(setup, t).over ? 'text-bad' : 'text-muted'}`} data-testid="roster-count">
+                  {rosterCountText(setup, t)}
                 </p>
                 {roster.length > 0 && (
                   <ul className="grid gap-0.5 text-sm" data-testid="roster">
@@ -454,6 +474,20 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
             </button>
           )}
           {loadNote && <span role="status">{loadNote}</span>}
+          {rejected.length > 0 && (
+            <div className="basis-full text-sm" data-testid="yahoo-rejected">
+              <p className="text-muted">
+                Read on Yahoo and not taken ({rejected.length}): tell us if one of these is on a roster.
+              </p>
+              <ul className="mt-1 list-disc pl-5">
+                {rejected.map((r) => (
+                  <li key={r.name}>
+                    {r.name}: {r.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
         <p className="mt-2 text-xs text-muted">
           Signed out, the league lives in this browser only: the file moves it to another browser or device, and nothing is sent anywhere.

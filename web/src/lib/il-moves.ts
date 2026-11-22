@@ -11,6 +11,8 @@ export interface IlCandidate {
   injury_group: string | null;
   injury_status: string | null;
   expected_games_missed: number | null;
+  /** The report's own return date (ISO), when it gives one. */
+  expected_return?: string | null;
 }
 
 export interface IlMoves {
@@ -30,16 +32,41 @@ const LISTED_OUT = new Set(['out', 'doubtful']);
  * off once the report no longer lists him out or doubtful. My Team uses this until the games-missed
  * estimate and its threshold are judged (#763).
  */
-export function ilMovesByListing(rows: IlCandidate[], mine: string[], il: string[]): IlMoves {
+export function ilMovesByListing(
+  rows: IlCandidate[],
+  mine: string[],
+  il: string[],
+  room: { slots: number; today: string } | null = null,
+): IlMoves {
   const byId = new Map(rows.map((r) => [r.player_id, r]));
   const onIl = new Set(il);
-  const toIl = mine.filter((id) => !onIl.has(id) && byId.get(id)?.injury_group === 'out');
   const back = mine.filter((id) => {
     const row = byId.get(id);
     return onIl.has(id) && !!row && !LISTED_OUT.has(row.injury_group ?? '');
   });
+  let toIl = mine.filter((id) => !onIl.has(id) && byId.get(id)?.injury_group === 'out');
+  if (room) {
+    // only as many moves as the IL has free slots, counting those coming off it (#1022); a player
+    // the report has back within a day is not worth the move, and the longest out goes first
+    const free = Math.max(0, room.slots - mine.filter((id) => onIl.has(id)).length + back.length);
+    const until = (id: string) => byId.get(id)?.expected_return ?? null;
+    toIl = toIl
+      .filter((id) => {
+        // a return date already passed, with the player still listed out, says nothing of when
+        const r = until(id);
+        const days = r ? daysBetween(room.today, r) : null;
+        return days === null || days < 0 || days >= IL_WORTH_DAYS;
+      })
+      .sort((a, b) => (until(b) ?? "9999").localeCompare(until(a) ?? "9999"))
+      .slice(0, free);
+  }
   return { toIl, back };
 }
+
+/** Days out a player must be expected for an IL move to be worth making (#1022): one due back tomorrow is not. */
+const IL_WORTH_DAYS = 2; // def: back tomorrow or sooner is not worth an IL move
+
+const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000); // def: a day in ms
 
 export function ilMoves(rows: IlCandidate[], mine: string[], il: string[], minGames = IL_MIN_GAMES): IlMoves {
   const byId = new Map(rows.map((r) => [r.player_id, r]));

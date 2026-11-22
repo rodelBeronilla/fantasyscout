@@ -10,6 +10,7 @@ import { accountStatus, loadSaved, saveSoon } from './account';
 import type { League } from './data';
 import { CATEGORIES } from './format';
 import type { GamesRead } from './game-state';
+import type { LeagueWeek } from './league-weeks';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
@@ -61,6 +62,12 @@ export interface LeagueSettings {
   lineup: Slots;
   /** The playoffs (#821): the teams that make them and the fantasy weeks they take, the schedule's last. */
   playoffs: Playoffs;
+  /** Injured-list slots: players there take no roster spot; an IL move needs a free one (#1022). */
+  ilSlots: number;
+  /** Adds a team may make in a fantasy week; null when the league sets no limit or it is not known (#1022). */
+  addsPerWeek: number | null;
+  /** Days a dropped player waits on waivers before he can be claimed; null when not known (#1022). */
+  waiverDays: number | null;
 }
 
 /**
@@ -124,6 +131,20 @@ export interface LeagueSource {
   games?: GamesRead;
   /** The players in ESPN's IR slot at `syncedAt` (#878): they join the injured list, and leave it when ESPN activates them. */
   ir?: string[];
+  /** When each import ran (ms since the epoch), oldest first, the newest kept (#1001): saved with the account. */
+  imports?: number[];
+  /** Each rostered player's slot as the host had it set at `syncedAt` (PG, UTIL, BN, IL...), by player id (#1022): the lineup as set. */
+  slots?: Record<string, string>;
+  /** The manager's roster at the first import of the fantasy week (its Monday), for the adds made since (#1022). */
+  week?: { monday: string; roster: string[] };
+  /** Yahoo's count of the week's adds used, read from the manager's team page at an import, and the roster it counted (#1028). */
+  addsUsed?: { monday: string; used: number; roster: string[] };
+  /** The trade deadline, the trade review and the playoff tie-breaker as the host words them (#1025). */
+  rules?: { tradeDeadline?: string; tradeReview?: string; tieBreaker?: string };
+  /** Every week's matchup totals the Yahoo import holds (#1049), by week: finished weeks kept across imports of the league. */
+  weeks?: LeagueWeek[];
+  /** The week page the latest import stopped at (#1049): its week and its path in the league. */
+  weeksStop?: { week: number; page: string };
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -156,6 +177,9 @@ export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
     punts: [],
     lineup: { G: 3, F: 3, C: 2, UTIL: 2 },
     playoffs: { teams: PARAMS['playoffs.teams'].nba, weeks: PARAMS['playoffs.weeks'].nba, start: null },
+    ilSlots: 2,
+    addsPerWeek: null,
+    waiverDays: null,
   },
   wnba: {
     teams: 10,
@@ -166,6 +190,9 @@ export const DEFAULT_SETTINGS: Record<League, LeagueSettings> = {
     punts: [],
     lineup: { G: 2, F: 2, C: 1, UTIL: 2 },
     playoffs: { teams: PARAMS['playoffs.teams'].wnba, weeks: PARAMS['playoffs.weeks'].wnba, start: null },
+    ilSlots: 2,
+    addsPerWeek: null,
+    waiverDays: null,
   },
 };
 
@@ -254,6 +281,26 @@ const cleanGames = (raw: unknown): GamesRead | undefined => {
   return { date: g.date, scoreAt: g.scoreAt, left: g.left, off: g.off, games: g.games!, started: g.started! };
 };
 
+/** The host's trade and tie rules as stored, each a short text, or undefined when there are none (#1025). */
+function cleanRules(raw: unknown): LeagueSource['rules'] | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  const text = (x: unknown) => (typeof x === 'string' && x.trim() ? x.trim().slice(0, 80) : undefined); // def: a settings line, at most
+  const out = { tradeDeadline: text(r['tradeDeadline']), tradeReview: text(r['tradeReview']), tieBreaker: text(r['tieBreaker']) };
+  const kept = Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined));
+  return Object.keys(kept).length ? kept : undefined;
+}
+
+/** Stored weeks of matchup totals (#1049): each well-formed week once, in order; a malformed score is null. */
+function cleanWeeks(raw: unknown): LeagueWeek[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const weeks = (raw as Partial<LeagueWeek>[])
+    .filter((w, i, all): w is LeagueWeek => !!w && isPeriod(w.week) && typeof w.final === 'boolean' && Array.isArray(w.teams) && all.findIndex((o) => o?.week === w.week) === i)
+    .map((w) => ({ week: w.week, teams: w.teams.map(cleanScore), final: w.final }))
+    .sort((a, b) => a.week - b.week);
+  return weeks.length ? weeks : undefined;
+}
+
 /** A stored source as this build reads it, or undefined when it is missing or malformed. */
 function cleanSource(raw: unknown): LeagueSource | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
@@ -263,6 +310,8 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
   const playoffWeeks = cleanPlayoffWeeks(s.playoffWeeks);
   const fixtures = cleanFixtures(s.fixtures);
   const games = cleanGames(s.games);
+  const weeks = cleanWeeks(s.weeks);
+  const stop = s.weeksStop as { week?: unknown; page?: unknown } | undefined;
   return {
     host: s.host,
     leagueId: s.leagueId,
@@ -279,6 +328,23 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     ...(s.tally === 'categories' || s.tally === 'matchups' ? { tally: s.tally } : {}),
     ...(games ? { games } : {}),
     ...(isIds(s.ir) ? { ir: s.ir } : {}),
+    ...(Array.isArray(s.imports) ? { imports: s.imports.filter((t): t is number => typeof t === 'number' && Number.isFinite(t)) } : {}),
+    ...(s.week && typeof s.week === 'object' && isDay((s.week as { monday?: unknown }).monday) && isIds((s.week as { roster?: unknown }).roster)
+      ? { week: { monday: (s.week as { monday: string }).monday, roster: (s.week as { roster: string[] }).roster } }
+      : {}),
+    ...(cleanRules(s.rules) ? { rules: cleanRules(s.rules) } : {}),
+    // Yahoo's count of the week's adds at an import (#1028)
+    ...(s.addsUsed && typeof s.addsUsed === 'object' && isDay((s.addsUsed as { monday?: unknown }).monday) && Number.isInteger((s.addsUsed as { used?: unknown }).used) && isIds((s.addsUsed as { roster?: unknown }).roster)
+      ? { addsUsed: { monday: (s.addsUsed as { monday: string }).monday, used: Math.max(0, (s.addsUsed as { used: number }).used), roster: (s.addsUsed as { roster: string[] }).roster } }
+      : {}),
+    // every week's matchup totals and the page an import stopped at (#1049)
+    ...(weeks ? { weeks } : {}),
+    ...(stop && typeof stop === 'object' && isPeriod(stop.week) && typeof stop.page === 'string' ? { weeksStop: { week: stop.week, page: stop.page.slice(0, 80) } } : {}), // def: a page's path, at most
+    // the home page failed or showed no matchups, so no week was read (#1049)
+    ...(stop && typeof stop === 'object' && stop.week === 0 && (stop.page === 'home' || stop.page === 'home-no-matchups') ? { weeksStop: { week: 0, page: stop.page } } : {}),
+    ...(s.slots && typeof s.slots === 'object' && !Array.isArray(s.slots)
+      ? { slots: Object.fromEntries(Object.entries(s.slots).filter((e): e is [string, string] => typeof e[1] === 'string' && e[1].length <= 6)) }
+      : {}),
   };
 }
 
@@ -333,6 +399,9 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
     punts: CATEGORIES.filter((c) => (Array.isArray(raw.punts) ? raw.punts : fallback.punts).includes(c)),
     lineup: normalizeSlots(raw.lineup, fallback.lineup),
     playoffs: normalizePlayoffs(raw.playoffs, fallback.playoffs, teams),
+    ilSlots: whole(raw.ilSlots, fallback.ilSlots, 0, MAX_IL_SLOTS),
+    addsPerWeek: raw.addsPerWeek === null ? null : typeof raw.addsPerWeek === 'number' ? whole(raw.addsPerWeek, 0, 0, MAX_ADDS) : fallback.addsPerWeek,
+    waiverDays: raw.waiverDays === null ? null : typeof raw.waiverDays === 'number' ? whole(raw.waiverDays, 0, 0, MAX_WAIVER_DAYS) : fallback.waiverDays,
     names,
     rosters,
     mine,
@@ -343,6 +412,23 @@ export function normalize(raw: Partial<LeagueSetup>, fallback: LeagueSettings): 
     ...(source ? { source } : {}),
     standings: normalizeStandings(raw.standings, teams),
   };
+}
+
+/**
+ * A team's roster as the host counts it (#1022): players on the IL take no roster spot, so a team
+ * holds `active` of `rosterSpots` and `il` of `ilSlots`. Over is when either is past its limit.
+ */
+export function rosterCount(setup: LeagueSetup, team: number): { active: number; il: number; over: boolean } {
+  const roster = setup.rosters[team] ?? [];
+  const il = roster.filter((id) => setup.il.includes(id)).length;
+  const active = roster.length - il;
+  return { active, il, over: active > setup.rosterSpots || il > setup.ilSlots };
+}
+
+/** "13/13 players · 2/2 IL": what the League page says of a roster (#1022). */
+export function rosterCountText(setup: LeagueSetup, team: number): string {
+  const { active, il } = rosterCount(setup, team);
+  return `${active}/${setup.rosterSpots} players${il || setup.ilSlots ? ` · ${il}/${setup.ilSlots} IL` : ''}`;
 }
 
 /** Which team holds each rostered player. */
@@ -400,8 +486,13 @@ export function undoPick(setup: LeagueSetup): LeagueSetup {
  * 7: where the league was imported from (`source`, #815), which an older copy does not know.
  * 8: the playoffs (`playoffs`: the teams that make them and the weeks they take, #821).
  * 9: the playoffs' first week (`playoffs.start`) and the records entered by hand (`standings`, #874).
+ * 10: the injured-list slots, the adds a week and the waiver days (`ilSlots`, `addsPerWeek`, `waiverDays`, #1022).
  */
-export const SETUP_VERSION = 9;
+export const SETUP_VERSION = 10;
+/** The most IL slots, adds a week and waiver days a setup holds (#1022). */
+const MAX_IL_SLOTS = 6;
+const MAX_ADDS = 30;
+const MAX_WAIVER_DAYS = 7;
 
 interface StoredSetup extends LeagueSetup {
   version: number;
@@ -462,6 +553,11 @@ export function migrate(raw: unknown, fallback: LeagueSettings, legacy: LegacySt
     // schedule's last until the manager or an import sets one; no records were entered by hand.
     const playoffs = (value.playoffs ?? fallback.playoffs) as Partial<Playoffs>;
     value = { ...value, playoffs: { ...fallback.playoffs, ...playoffs, start: null }, standings: { records: [], tally: 'categories' } };
+  }
+  if (version <= 9) {
+    // 9 -> 10: no copy knew its IL slots, adds or waivers; they take the defaults until an import
+    // or the League page sets them (#1022)
+    value = { ...value, ilSlots: fallback.ilSlots, addsPerWeek: fallback.addsPerWeek, waiverDays: fallback.waiverDays };
   }
   const setup = normalize(value, fallback);
   if (legacy.marks?.length) {

@@ -1,6 +1,6 @@
 """The leagues' official injury reports: the PDF each league publishes through the day.
 
-The NBA posts a report every 15 minutes on game days and lists them on official.nba.com; the
+The NBA posts a report every 15 minutes on game days and lists them on nba.com; the
 WNBA posts to the same host with no index page, so its latest report is found by trying the
 most recent quarter hours. A report lists, per game and team, every player with a status (Out,
 Doubtful, Questionable, Probable, Available) and a reason, G League assignments and two-way
@@ -35,7 +35,9 @@ PDF_BASE = {
     "nba": "https://ak-static.cms.nba.com/referee/injury/",
     "wnba": "https://ak-static.cms.nba.com/referee/wnba_injury/",
 }
-NBA_INDEX = "https://official.nba.com/nba-injury-report-{season}-season/"
+# The NBA's index of reports. The season's page on official.nba.com answered 301 to this one from
+# 2026-11-20 (#1042); it links the same PDFs.
+NBA_INDEX = "https://www.nba.com/players/injury-report"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/130.0 Safari/537.36",
@@ -254,8 +256,7 @@ class InjuryReportIngestor:
 
     def _latest_name(self, summary: RunSummary) -> str | None:
         if self.league == "nba":
-            url = NBA_INDEX.format(season=self.season)  # the page is named for the season, 2026-27
-            response = self.client.get(url, headers=HEADERS)
+            response = self.client.get(NBA_INDEX, headers=HEADERS)
             if response.status_code != 200:
                 summary.fail("injury_report", "index", RuntimeError(f"HTTP {response.status_code}"))
                 return None

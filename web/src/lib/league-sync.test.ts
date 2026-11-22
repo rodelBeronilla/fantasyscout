@@ -4,8 +4,15 @@ import fixture from '../../tests/fixtures/espn/league.json';
 import { fromEspnLeague } from './espn-league';
 import { DEFAULT_SETTINGS, type LeagueSetup, normalize } from './fantasy-league';
 import {
+  addsLeft,
+  addsThisWeek,
   ago,
   chooseMine,
+  copyAge,
+  COPY_STALE_MS,
+  IMPORTS_KEPT,
+  inSeasonFrom,
+  withImport,
   espnSetup,
   espnSyncLine,
   fetchEspnLeague,
@@ -13,6 +20,7 @@ import {
   rosterChanges,
   staleOpponent,
   weeksCovered,
+  weekStart,
   SYNC_EVERY_MS,
   syncDue,
   weekScore,
@@ -243,6 +251,46 @@ describe('the synced line (#815)', () => {
   });
 });
 
+describe('the age of an imported copy (#1001)', () => {
+  it('keeps the time of each import, the newest IMPORTS_KEPT, and starts over for another league', () => {
+    const first = yahooSource('99', [], at.now);
+    expect(first.imports).toEqual([at.now]);
+    const second = yahooSource('99', [], at.now + 5 * MIN, first);
+    expect(second.imports).toEqual([at.now, at.now + 5 * MIN]);
+    // a copy saved before import times were kept counts its own sync time
+    const older = { ...first, imports: undefined };
+    expect(withImport(older, at.now + MIN, '99')).toEqual([at.now, at.now + MIN]);
+    expect(withImport(first, at.now + MIN, '42')).toEqual([at.now + MIN]);
+    let source = first;
+    for (let i = 1; i <= IMPORTS_KEPT + 5; i += 1) source = yahooSource('99', [], at.now + i * MIN, source);
+    expect(source.imports).toHaveLength(IMPORTS_KEPT);
+    expect(source.imports?.at(-1)).toBe(at.now + (IMPORTS_KEPT + 5) * MIN);
+  });
+
+  it('an ESPN re-import adds its time to the copy it replaces', () => {
+    const one = espnSetup(fromEspnLeague(fixture), players, at, null).setup;
+    const two = espnSetup(fromEspnLeague(fixture), players, { ...at, now: at.now + 20 * MIN }, one).setup;
+    expect(two.source?.imports).toEqual([at.now, at.now + 20 * MIN]);
+  });
+
+  it('says where the copy came from and how old it is, and asks for a new one past a day in season', () => {
+    const y = yahooSource('99', [], at.now);
+    expect(copyAge(y, at.now + 3 * 60 * MIN, true)).toEqual({ text: 'Your Yahoo league as of 3 hours ago', stale: false });
+    expect(copyAge(y, at.now + COPY_STALE_MS, true).stale).toBe(true);
+    // out of season an old copy is not asked for again
+    expect(copyAge(y, at.now + 3 * COPY_STALE_MS, false).stale).toBe(false);
+    const e = imported().source!;
+    expect(copyAge(e, at.now + MIN, true).text).toBe('Your ESPN league as of 1 min ago');
+  });
+
+  it('counts a league in season while its newest data is at most a week old', () => {
+    expect(inSeasonFrom('2026-11-15', '2026-11-17')).toBe(true);
+    expect(inSeasonFrom('2026-11-10', '2026-11-17')).toBe(true);
+    expect(inSeasonFrom('2026-10-31', '2026-11-17')).toBe(false);
+    expect(inSeasonFrom(undefined, '2026-11-17')).toBe(false);
+  });
+});
+
 describe("the playoffs from ESPN's settings and schedule (#821)", () => {
   it('reads the playoff field, its periods and days, the matchups left and how the records count them', () => {
     const l = fromEspnLeague(fixture);
@@ -322,5 +370,44 @@ describe("a Yahoo import's opponent after its week (#927)", () => {
   it('keeps an opponent the manager picked by hand, or none at all', () => {
     expect(staleOpponent(setup(2), '2026-11-09', day)).toBe(false);
     expect(staleOpponent(setup(null), '2026-11-09', day)).toBe(false);
+  });
+});
+
+describe('the adds left this week (#1022)', () => {
+  const base = imported();
+  const mine = base.rosters[base.mine]!;
+  it('keeps the roster of the week’s first import, and starts over in a new week or another league', () => {
+    const first = weekStart(undefined, '99', '2026-11-16', ['a', 'b']);
+    expect(first).toEqual({ monday: '2026-11-16', roster: ['a', 'b'] });
+    const source = { ...base.source!, leagueId: '99', week: first };
+    expect(weekStart(source, '99', '2026-11-16', ['a', 'c'])).toBe(first);
+    expect(weekStart(source, '99', '2026-11-23', ['a', 'c'])).toEqual({ monday: '2026-11-23', roster: ['a', 'c'] });
+    expect(weekStart(source, '42', '2026-11-16', ['a', 'c'])).toEqual({ monday: '2026-11-16', roster: ['a', 'c'] });
+  });
+
+  it('is the limit less the players added since that import; none with no limit', () => {
+    const week = { monday: '2026-11-16', roster: mine.slice(1) };
+    const setup = { ...base, addsPerWeek: 4, source: { ...base.source!, week } };
+    // one player on the roster now was not there at the week's first import
+    expect(addsLeft(setup, '2026-11-16')).toBe(3);
+    expect(addsLeft({ ...setup, addsPerWeek: 1 }, '2026-11-16')).toBe(0);
+    expect(addsLeft({ ...setup, addsPerWeek: 0 }, '2026-11-16')).toBe(0);
+    // a new week: nothing counted yet
+    expect(addsLeft(setup, '2026-11-23')).toBe(4);
+    expect(addsLeft({ ...setup, addsPerWeek: null }, '2026-11-16')).toBeNull();
+    // what the page says comes with it: the adds made and whether this week's import started the count (#1027)
+    expect(addsThisWeek(setup, '2026-11-16')).toEqual({ limit: 4, made: 1, left: 3, counted: true, from: 'since', yahoo: 0 });
+    expect(addsThisWeek(setup, '2026-11-23')).toEqual({ limit: 4, made: 0, left: 4, counted: false, from: 'none', yahoo: 0 });
+  });
+
+  it("takes Yahoo's own count from the last import, plus the players added since it (#1028)", () => {
+    // Yahoo said 2 used when the roster was mine.slice(1); one player is new since
+    const addsUsed = { monday: '2026-11-16', used: 2, roster: mine.slice(1) };
+    const setup = { ...base, addsPerWeek: 4, source: { ...base.source!, week: { monday: '2026-11-16', roster: mine }, addsUsed } };
+    expect(addsThisWeek(setup, '2026-11-16')).toEqual({ limit: 4, made: 3, left: 1, counted: true, from: 'yahoo', yahoo: 2 });
+    // nothing changed since the import: Yahoo's count stands
+    expect(addsThisWeek({ ...setup, source: { ...setup.source, addsUsed: { ...addsUsed, roster: mine } } }, '2026-11-16')?.made).toBe(2);
+    // last week's count is not this week's
+    expect(addsThisWeek(setup, '2026-11-23')).toMatchObject({ from: 'none', made: 0, left: 4 });
   });
 });

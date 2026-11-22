@@ -26,6 +26,7 @@ import { Chip, InjuryTag, injuryDetail, LineupTag, Loading, NewsTag, RestRiskTag
 import type { BoardColumn, ExportedRow } from '../generated/columns';
 import { isLine, num, rankAndTier, scoreRows, zKey } from '../lib/board-model';
 import { SHOWS } from '../lib/visibility';
+import { CopyAge } from './LeagueSync';
 
 interface BoardRowFields {
   player_id: string;
@@ -589,6 +590,7 @@ export default function Board() {
       )}
 
       <LeagueBar setup={setup} rostered={owner.size} myCount={myTeam.length} weakest={[]} quiet />
+      <CopyAge setup={setup} league={league} />
       {SHOWS.draft && setup.drafting && (
         <DraftBar
           setup={setup}

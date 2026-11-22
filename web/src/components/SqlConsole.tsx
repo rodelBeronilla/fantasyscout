@@ -18,6 +18,7 @@ function duckdbFile(name: string): string {
   return dataHref(`vendor/duckdb-wasm/${DUCKDB_VERSION}/${name}`);
 }
 import { href } from '../lib/site';
+import { SignInLink } from './SignInLink';
 import { Loading, Problem, Td, Th } from './ui';
 
 type DuckModule = typeof import('@duckdb/duckdb-wasm');
@@ -369,9 +370,9 @@ export default function SqlConsole() {
             {note}
           </p>
         )}
-        <a href={href('/auth/owner/start')} className="justify-self-start rounded-full border border-accent bg-accent px-4 py-1.5 font-semibold text-accent-fg">
+        <SignInLink to={href('/auth/owner/start')} className="justify-self-start rounded-full border border-accent bg-accent px-4 py-1.5 font-semibold text-accent-fg">
           Sign in with Yahoo
-        </a>
+        </SignInLink>
       </div>
     );
   }
