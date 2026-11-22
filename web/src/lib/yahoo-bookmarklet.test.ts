@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, normalize } from './fantasy-league';
 import nbaBoard from '../../tests/fixtures/data/builds/fixture/board/nba.json';
 import wnbaBoard from '../../tests/fixtures/data/builds/fixture/board/wnba.json';
-import { applyYahooImport, parseYahooHash, rosterName, yahooHashVersion } from './yahoo-bookmarklet';
+import { applyYahooImport, parseYahooHash, rosterName, teamPageNames, yahooHashVersion } from './yahoo-bookmarklet';
 
 const hash = (payload: unknown) => `#yahoo=${encodeURIComponent(JSON.stringify(payload))}`;
 
@@ -74,5 +74,52 @@ describe('the Yahoo import', () => {
     expect(result.setup.il).toEqual(['2']);
     expect(result.setup.mine).toBe(1);
     expect(result.setup.drafting).toBe(false);
+  });
+});
+
+describe("a team's name read from its own page (#1047)", () => {
+  const home = 'Springfield Hoops | Fantasy Basketball | Yahoo! Sports';
+  const title = (league: string, team: string) => `${league} - ${team} | Fantasy Basketball | Yahoo! Sports`;
+  const one = (page: { title: string; said?: string[] }, homeTitle = home, others: string[] = []) => teamPageNames(homeTitle, [{ said: [], ...page }], others)[0];
+
+  it("reads Yahoo's title once the league's name is taken off the front, and agrees with the team element and the caption", () => {
+    expect(one({ title: title('Springfield Hoops', 'Rim Reapers') })).toBe('Rim Reapers');
+    expect(one({ title: title('Springfield Hoops', 'Rim Reapers'), said: ['Rim Reapers', ' Rim  Reapers '] })).toBe('Rim Reapers');
+    // a long league name, and a league or team whose name holds Yahoo's separators
+    const long = 'The Springfield and District Winter Hoops League of Champions and Friends';
+    expect(one({ title: title(long, 'Fourth Quarter') }, `${long} | Fantasy Basketball | Yahoo! Sports`)).toBe('Fourth Quarter');
+    expect(one({ title: title('North - South', 'Run - Gun') }, 'North - South | Fantasy Basketball | Yahoo! Sports')).toBe('Run - Gun');
+    expect(one({ title: title('Springfield Hoops', 'Pick | Roll') })).toBe('Pick | Roll');
+    expect(one({ title: title('Hoops | Fantasy Friends', 'Rim Reapers') }, 'Hoops | Fantasy Friends | Fantasy Basketball | Yahoo! Sports')).toBe('Rim Reapers');
+    // a team named like the site
+    expect(one({ title: title('Springfield Hoops', 'Fantasy Kings') })).toBe('Fantasy Kings');
+    expect(one({ title: title('Springfield Hoops', 'Yahoo Killers') })).toBe('Yahoo Killers');
+  });
+
+  it('takes the team element or the caption alone when the title cannot be read', () => {
+    expect(one({ title: '', said: ['Rim Reapers'] }, '')).toBe('Rim Reapers');
+    expect(one({ title: title('Springfield Hoops', 'Rim Reapers'), said: ['Rim Reapers'] }, '')).toBe('Rim Reapers');
+  });
+
+  it('is unsure, so Team N, on anything else', () => {
+    // a title that holds only the league, only the site's name, or the league's name not known
+    expect(one({ title: home })).toBe('');
+    expect(one({ title: 'Fantasy Basketball | Yahoo! Sports' })).toBe('');
+    expect(one({ title: 'Yahoo Sports' })).toBe('');
+    expect(one({ title: title('Springfield Hoops', 'Rim Reapers') }, '')).toBe('');
+    expect(one({ title: title('Springfield Hoops', 'Rim Reapers') }, 'Error | Yahoo')).toBe('');
+    // another shape, or another league's name in front
+    expect(one({ title: 'Rim Reapers - Yahoo Fantasy Basketball' })).toBe('');
+    expect(one({ title: title('Shelbyville Hoops', 'Rim Reapers') })).toBe('');
+    // the sources disagree, or the name is longer than a team name is kept to
+    expect(one({ title: title('Springfield Hoops', 'Rim Reapers'), said: ['Dunk Dynasty'] })).toBe('');
+    expect(one({ title: '', said: ['Rim Reapers', 'Dunk Dynasty'] })).toBe('');
+    expect(one({ title: title('Springfield Hoops', 'R'.repeat(61)) })).toBe('');
+  });
+
+  it('never gives two teams the same name', () => {
+    const pages = [{ title: title('Springfield Hoops', 'Rim Reapers'), said: [] }, { title: '', said: ['Rim Reapers'] }, { title: '', said: ['Dunk Dynasty'] }];
+    expect(teamPageNames(home, pages, [])).toEqual(['', '', 'Dunk Dynasty']);
+    expect(teamPageNames(home, pages.slice(2), ['Dunk Dynasty'])).toEqual(['']);
   });
 });

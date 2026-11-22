@@ -2,7 +2,8 @@
   The betting line for each ESPN event: the point spread from the home side (negative when the
   home team is favoured), the over/under, and the points each team is implied to score. Upcoming
   games take the line from the latest scoreboard; a finished game's summary carries the closing
-  line, which wins over any earlier scoreboard. One row per event that has a line.
+  line, which wins over any earlier scoreboard. One row per event that has a line, leaving out
+  exhibitions: an All-Star game's total runs past 300 points, and no fantasy week counts it.
 #}
 
 with lines as (
@@ -54,6 +55,7 @@ typed as (
         cast(l._ingest_date as date) as observed_date
     from latest as l
     join {{ ref('espn_events') }} as e on e.league = l.league and e.event_id = l.event_id
+    where not e.exhibition
 
 )
 

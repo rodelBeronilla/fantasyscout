@@ -1148,6 +1148,26 @@ test('the fantasy pages sit flat in the nav, the data pages under one header tha
   await expect(header).not.toHaveAttribute('open', '');
 });
 
+/**
+ * The Yahoo bookmark's code, read once the League page has set it (#1098). The link renders with
+ * no address (React refuses a javascript: href) and an effect sets it after the render, so a read
+ * straight after the link appears could find none, and the bookmark then ran as an empty script.
+ * This waits for the address to be the bookmark aimed back at this site's League page.
+ */
+async function bookmarkletCode(page: Page): Promise<string> {
+  const target = JSON.stringify(new URL('/league/?league=nba', page.url()).href);
+  const link = page.getByTestId('yahoo-bookmarklet-link');
+  let code = '';
+  await expect
+    .poll(async () => {
+      code = (await link.getAttribute('href')) ?? '';
+      // the address holds this site's League page only once it is the bookmark's code
+      return code.includes(target);
+    })
+    .toBe(true);
+  return code;
+}
+
 test('on a phone, tapping the Yahoo bookmark link copies its code and shows the steps', async ({ page, context, browserName }) => {
   test.skip(browserName !== 'chromium', 'the clipboard is granted on chromium');
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -1165,9 +1185,7 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   // The fixture build's NBA board is empty: serve the WNBA board for it, and the Yahoo fixture names come from there.
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const link = page.getByTestId('yahoo-bookmarklet-link');
-  await expect(link).toHaveAttribute('href', /^javascript:/);
-  const code = (await link.getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   expect(code.startsWith('javascript:')).toBe(true);
   // A Yahoo-shaped league: the fixture league page links its teams, each team page lists its players.
   await page.route(/\/nba\/12345\/(\d+)$/, (route) => route.fulfill({ path: `tests/fixtures/data/yahoo/team-${route.request().url().split('/').pop()}.html` }));
@@ -1189,10 +1207,47 @@ test('the Yahoo bookmarklet reads a league\u2019s rosters in the browser and the
   await expect(page.getByTestId('team-card').nth(0).getByTestId('roster').locator('li')).toHaveCount(3);
 });
 
+test("a team read from its own page is named by what the page says of the team, never Yahoo's logo; unsure, it is Team N (#1047)", async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  // the link gets its code once the page has hydrated
+  await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  // Starting Rosters before Yahoo has drawn it: no team links, so each team's page is fetched.
+  // The team pages are Yahoo's shape: the logo the only h1, the title "League - Team | Fantasy
+  // Basketball | Yahoo! Sports". Teams 1, 2 and 4 have the team element and the roster's caption;
+  // team 3 is the older page, with the caption only. Team 4 is served with only its title, which
+  // names it once the league's name is known from the home page; then with a title that holds only the league.
+  await page.route('**/data/yahoo/unrendered.html', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>Fixture League | Fantasy Basketball | Yahoo! Sports</title></head><body><nav><a href="/nba/12345">League</a> <a href="/nba/12345/2">My Team</a></nav><div id="rosters"></div></body></html>' }),
+  );
+  await page.route(/\/nba\/12345\/?$/, (route) => route.fulfill({ path: 'tests/fixtures/data/yahoo/home.html' }));
+  await page.route(/\/nba\/12345\/(matchup.*|settings)$/, (route) => route.abort());
+  let team4 = (html: string) => html.replace(/<span class="[^"]*team-name">[\s\S]*?<\/span>\s*<\/span>/, '').replace(/<caption[\s\S]*?<\/caption>/, '');
+  await page.route(/\/nba\/12345\/(\d+)$/, (route) => {
+    const t = Number(route.request().url().split('/').pop());
+    if (t > 4) return route.fulfill({ status: 404, body: 'Not found' });
+    const html = readFileSync(`tests/fixtures/data/yahoo/team-${t}.html`, 'utf8');
+    return route.fulfill({ contentType: 'text/html', body: t === 4 ? team4(html) : html });
+  });
+  const run = async () => {
+    await page.goto('/data/yahoo/unrendered.html');
+    await page.evaluate(code.slice('javascript:'.length));
+    await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
+    await expect(page.getByTestId('team-card')).toHaveCount(4);
+    return Promise.all([1, 2, 3, 4].map((i) => page.getByTestId('team-card').nth(i - 1).getByLabel(`Name of team ${i}`).inputValue()));
+  };
+  expect(await run()).toEqual(['Dunk Dynasty', 'Rim Reapers', 'Triple Doubles', 'Fourth Quarter']);
+  const plain = team4;
+  team4 = (html) => plain(html).replace(/<title>[^<]*<\/title>/, '<title>Fixture League | Fantasy Basketball | Yahoo! Sports</title>');
+  expect(await run()).toEqual(['Dunk Dynasty', 'Rim Reapers', 'Triple Doubles', 'Team 4']);
+});
+
 test('the Yahoo bookmarklet reads every roster from the Starting Rosters page itself, counting only rows with a slot', async ({ page }) => {
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   // No other team's page is fetched: the rosters are on the page the bookmark runs on. The
   // manager's own team page is, once, for Yahoo's count of the week's adds (#1028).
   const fetchedPages: string[] = [];
@@ -1226,7 +1281,7 @@ test("the Yahoo bookmarklet brings the standings, this week's opponent and score
   await page.clock.setFixedTime(new Date('2026-11-08T17:00:00Z'));
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   // the team pages, then the league's home (standings), the manager's matchup and the settings
   const asked: string[] = [];
   await page.route(/\/nba\/12345\/(\d+)$/, (route) => route.fulfill({ path: `tests/fixtures/data/yahoo/team-${route.request().url().split('/').pop()}.html` }));
@@ -1368,7 +1423,7 @@ test("the Yahoo bookmark reads every week's matchup totals, one page at a time, 
   test.slow(); // the week pages come a second apart
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   const weekPages = await yahooLeague(page);
   await page.goto('/data/yahoo/league.html');
   await page.evaluate(code.slice('javascript:'.length));
@@ -1419,7 +1474,7 @@ test('a week page Yahoo does not answer stops the reading, is named on the Leagu
   test.slow(); // the week pages come a second apart
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   const weekPages = await yahooLeague(page, (path) => path === 'matchup?week=2&mid1=1');
   await page.goto('/data/yahoo/league.html');
   await page.evaluate(code.slice('javascript:'.length));
@@ -1441,7 +1496,7 @@ test("Yahoo's home page failing reads no week, says so on the League page, and k
   test.slow(); // the week pages come a second apart
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   // a first run reads every week
   await yahooLeague(page);
   await page.goto('/data/yahoo/league.html');
@@ -1469,7 +1524,7 @@ test("a week page with one team (a playoff bye) is read, kept on Yahoo's side, a
   test.slow(); // the week pages come a second apart
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   await yahooLeague(page);
   // in week 1, teams 1 and 2 each have a bye: each one's page shows its own row alone
   const pair = readFileSync('tests/fixtures/data/yahoo/week-1-1v2.html', 'utf8');
@@ -4486,7 +4541,7 @@ test('the Yahoo bookmarklet takes a player whose name holds an action word, and 
   await page.route('**/data/yahoo/blocked.html', (route) => route.fulfill({ contentType: 'text/html', body: html }));
   await page.route(/\/nba\/12345(\/(matchup|settings).*)?$/, (route) => route.fulfill({ contentType: 'text/html', body: '<html><body></body></html>' }));
   await page.goto('/league/?league=nba');
-  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  const code = await bookmarkletCode(page);
   await page.goto('/data/yahoo/blocked.html');
   await page.evaluate(code.slice('javascript:'.length));
   await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 15_000 });
@@ -4646,6 +4701,84 @@ test("My Team shows the score so far beside the projected final, games left both
   await page.reload();
   if (await page.getByTestId('today-open').count()) {
     await expect(page.getByTestId('today-adds-left')).toContainText("1 of 4 adds left this week: 3 used: 2 by Yahoo's count at your last import, 1 added since");
+  }
+});
+
+/** An invented league of the owner's shape (#1075): eight teams, thirteen spots, the score so far from Yahoo. */
+async function seedEightTeams(page: Page) {
+  type Row = { player_id: string };
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as Row[];
+  const now = new Date('2026-11-02T16:00:00Z');
+  await page.clock.setFixedTime(now);
+  const rosters = [0, 1, 2, 3, 4, 5, 6, 7].map((t) => [t, t + 8, t + 16].map((i) => board[i]!.player_id));
+  const score = (pts: number) => ({
+    totals: { z_points: pts, z_rebounds_total: 49, z_assists: 23, z_steals: 7, z_blocks: 7, z_three_pointers_made: 14, z_turnovers: 12 },
+    shots: { z_field_goal_pct: [41, 88], z_free_throw_pct: [14, 17] },
+  });
+  const copy = {
+    version: 10,
+    teams: 8,
+    rosterSpots: 13,
+    scoring: 'cats9',
+    format: 'h2h',
+    punts: [],
+    names: ['Corner Threes', 'The Late Scratches', 'Glass Cleaners', 'Fast Breakers', 'Bench Mob', 'Pick and Roll', 'Zone Busters', 'Second Unit'],
+    rosters,
+    mine: 0,
+    il: [],
+    drafting: false,
+    picks: [],
+    opponent: 1,
+    lineup: { PG: 1, SG: 1, G: 1, SF: 1, PF: 1, F: 1, C: 1, UTIL: 3 },
+    ilSlots: 2,
+    addsPerWeek: 4,
+    waiverDays: 2,
+    source: {
+      host: 'yahoo',
+      leagueId: '99',
+      syncedAt: now.getTime() - 3_600_000,
+      rosters,
+      changes: null,
+      opponents: [1, 0, 3, 2, 5, 4, 7, 6],
+      scores: [score(110), score(91), null, null, null, null, null, null],
+    },
+  };
+  await page.addInitScript((stored) => localStorage.setItem('fantasyscout:league:nba', stored), JSON.stringify(copy));
+}
+
+test('on a phone the matchup keeps each category beside its numbers while the table scrolls (#1075)', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await seedEightTeams(page);
+  await page.goto('/team/?league=nba');
+  const table = page.getByTestId('matchup-table');
+  await expect(table.getByTestId('matchup-row')).toHaveCount(9);
+  const region = page.locator('.table-scroll', { has: table });
+  // the table is wider than the phone, so its numbers scroll sideways
+  expect(await region.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  await region.evaluate((el) => el.scrollTo({ left: el.scrollWidth }));
+  await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
+  const left = (await region.boundingBox())!.x;
+  // the category's header and every row's category stay at the region's left edge, over the numbers
+  for (const cell of [table.locator('thead tr').last().locator('th').first(), ...(await table.locator('tbody tr td:first-child').all())]) {
+    expect(Math.abs((await cell.boundingBox())!.x - left)).toBeLessThan(2);
+  }
+  await expect(table.locator('tbody tr').first().locator('td').first()).toHaveText(/^PTS/);
+});
+
+test('My Team and Rankings with a league pass axe in both themes (#1075)', async ({ page }) => {
+  test.slow(); // four full passes, the board's among them
+  await seedEightTeams(page);
+  for (const path of ['/team/?league=nba', '/?league=nba']) {
+    await page.goto(path);
+    // the league is drawn on the client: wait for it before asking axe
+    await expect(page.getByTestId(path.startsWith('/team/') ? 'matchup-table' : 'league-bar')).toBeVisible();
+    if (path.startsWith('/team/')) await expect(page.getByTestId('today-pickups')).toBeVisible();
+    else await expect(page.getByTestId('league-bar').getByRole('link', { name: /Corner Threes/ })).toBeVisible();
+    for (const theme of ['dark', 'light']) {
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+      const found = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
+      expect(found.violations, `${path} ${theme}`).toEqual([]);
+    }
   }
 });
 

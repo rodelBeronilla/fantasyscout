@@ -11,7 +11,10 @@
   each player's latest event among the games he played (this season and the last) and the
   league's official signings, trades (the receiving team) and waiver claims. A player whose latest
   event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from
-  games alone. The roster season is the newest season on the schedule that starts within about
+  games alone. A player his team's last roster landing before the cut leaves off, with no game or
+  move for the team after that landing, has left it (retired, or released without a move the feed
+  records) and is on no roster (#921). Only landings before the cut count, so a past season, whose
+  rosters a backfill landed long after it, is rebuilt from games and moves alone. The roster season is the newest season on the schedule that starts within about
   six months of the cut, so an offseason date projects the coming season. The age is the player's
   age in whole years on the cut, from the stats rosters' birth date (player_birth_dates, which is
   reference data and not cut: a birth date is fixed before a player's first game, #918), worked
@@ -87,6 +90,26 @@ latest as (
         partition by league, player_id order by event_date desc, event_order desc, team_id
     ) = 1
 
+),
+
+last_landing as (
+
+    -- each team's last roster landing before the cut, in the roster season (#921); silver.rosters
+    -- keeps only the newest landing per team, and the cut is applied again here
+    select ro.league, ro.team_id, ro.player_id, ro._ingest_date
+    from {{ ref('rosters') }} as ro
+    join roster_season as r on r.league = ro.league and r.roster_season = ro.season
+    where {{ known_before('cast(ro._ingest_date as date)') }}
+    qualify ro._ingest_date = max(ro._ingest_date) over (partition by ro.league, ro.team_id)
+
+),
+
+landed as (
+
+    select league, team_id, max(cast(_ingest_date as date)) as landed_on
+    from last_landing
+    group by league, team_id
+
 )
 
 select
@@ -99,7 +122,12 @@ select
 from latest as l
 join roster_season as r on r.league = l.league
 left join {{ ref('player_birth_dates') }} as b on b.league = l.league and b.player_id = l.player_id
+left join landed as ld on ld.league = l.league and ld.team_id = l.team_id
+left join last_landing as lr
+    on lr.league = l.league and lr.team_id = l.team_id and lr.player_id = l.player_id
 where l.team_id is not null
+    -- no landing for his team, or it lists him, or he played or moved for the team after it
+    and (ld.team_id is null or lr.player_id is not null or l.event_date > ld.landed_on)
 
 {% else %}
 
