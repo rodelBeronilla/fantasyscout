@@ -169,13 +169,15 @@ export function Matchup({
           {/* each category's chance of being won passed its out-of-sample check (ADR 0026) */}
           This week&apos;s matchup
         </h2>
-        <label className="flex items-center gap-2 text-sm">
+        {/* a long team name is cut in the closed select, not the page widened: the list and the title have it whole (#1076) */}
+        <label className="flex min-w-0 max-w-full items-center gap-2 text-sm">
           <span className="text-muted">Opponent</span>
           <select
             value={setup.opponent ?? ''}
             onChange={(e) => onOpponent(e.target.value === '' ? null : Number(e.target.value))}
-            className="rounded border border-line bg-bg px-2 py-1 text-sm"
+            className="min-w-0 rounded border border-line bg-bg px-2 py-1 text-sm"
             aria-label="This week's opponent"
+            title={them ?? undefined}
           >
             <option value="">Choose a team</option>
             {setup.names.map((name, t) =>
