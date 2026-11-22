@@ -6,9 +6,13 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 
+import { validEvent } from '../../worker/src/owner-log-event';
 import { expect, test } from './fixtures';
 
 type Row = { player_id: string };
+
+// a frame logs its calls once they have stayed on screen unchanged for two seconds: waits on the log allow for that
+const LOGGED = { timeout: 15_000 };
 
 // the fixture's NBA data is as of 2026-10-31; a Monday two days later, mid-afternoon Eastern
 const NOW = new Date('2026-11-02T16:00:00Z');
@@ -85,8 +89,12 @@ const OTHERS: [string, Who][] = [
   ['the owner, the switch off', { switchOn: false, flag: true, owner: true }],
 ];
 
-/** Sets who this browser is, for the next page load. */
-async function as(page: Page, who: Who, posted: Record<string, unknown>[] = []): Promise<void> {
+/**
+ * Sets who this browser is, for the next page load. The log answers as the Worker does: it stores
+ * what the Worker's own rule (worker/src/owner-log-event.ts) takes and refuses the rest with a 400,
+ * so a call the Worker would refuse fails here too. `posted` gets what was stored, `refused` the rest.
+ */
+async function as(page: Page, who: Who, posted: Record<string, unknown>[] = [], refused: unknown[] = []): Promise<void> {
   await page.evaluate((w) => {
     localStorage.removeItem('fantasyscout:owner-preview');
     localStorage.removeItem('fantasyscout:owner');
@@ -101,7 +109,13 @@ async function as(page: Page, who: Who, posted: Record<string, unknown>[] = []):
   const owner = who.owner;
   await page.route('**/api/owner/status', (r) => r.fulfill({ json: { configured: true, owner } }));
   await page.route('**/api/owner/log', (r) => {
-    if (r.request().method() === 'POST') posted.push(r.request().postDataJSON() as Record<string, unknown>);
+    if (r.request().method() !== 'POST') return r.fulfill({ json: { ok: true } });
+    const event: unknown = r.request().postDataJSON();
+    if (validEvent(event) === null) {
+      refused.push(event);
+      return r.fulfill({ status: 400, json: { error: 'not an event' } });
+    }
+    posted.push(event as Record<string, unknown>);
     return r.fulfill({ json: { ok: true } });
   });
 }
@@ -155,8 +169,9 @@ for (const p of PAGES) {
   test(`${p.name}: the owner with his preview on sees each hidden call in its frame, each logged once (#1056)`, async ({ page }) => {
     const { rosters } = await seedLeague(page);
     const posted: Record<string, unknown>[] = [];
+    const refused: unknown[] = [];
     await page.goto('/sources/');
-    await as(page, { switchOn: true, flag: true, owner: true }, posted);
+    await as(page, { switchOn: true, flag: true, owner: true }, posted, refused);
     await page.goto(p.path(rosters));
     const frames = page.getByTestId('owner-preview');
     for (const [call, inside] of Object.entries(p.calls)) {
@@ -178,11 +193,19 @@ for (const p of PAGES) {
       await expect(page.locator('[data-call="trade-finder"]')).toBeVisible();
     }
     await page.waitForLoadState('networkidle');
-    // every frame on the page, the ones the data allows (sell high, the punt's chips) included, logged once
+    // every frame on the page, the ones the data allows (sell high, the punt's chips) included, logged
+    // once it has settled: one entry for each call it shows (a list's trades, adds or players each their own)
     const shown = await frames.evaluateAll((els) => els.map((e) => e.getAttribute('data-call')));
-    const logged = posted.filter((e) => e['kind'] === 'call').map((e) => e['call']);
-    expect([...logged].sort()).toEqual([...shown].sort());
-    for (const call of Object.keys(p.calls)) if (call !== 'finder') expect(logged.filter((c) => c === call), call).toHaveLength(1);
+    const logged = () => posted.filter((e) => e['kind'] === 'call').map((e) => e['call'] as string);
+    await expect.poll(() => [...new Set(logged())].sort(), LOGGED).toEqual([...new Set(shown)].sort());
+    await page.waitForLoadState('networkidle');
+    // the Worker would store every one of them: nothing an eight-team league's frames post is refused
+    expect(refused).toEqual([]);
+    await expect(page.getByTestId('preview-not-logged')).toHaveCount(0);
+    // a call that is one call is one entry; a list's entries are each a different item
+    for (const call of ['too-close', 'stream', 'lineup', 'build', 'trade-verdict']) if (call in p.calls) expect(logged().filter((c) => c === call), call).toHaveLength(1);
+    const calls = posted.filter((e) => e['kind'] === 'call');
+    expect(new Set(calls.map((e) => JSON.stringify([e['call'], e['subject']]))).size).toBe(calls.length);
     for (const e of posted.filter((x) => x['kind'] === 'call')) {
       expect(Object.keys(e).sort()).toEqual(['build', 'call', 'date', 'kind', 'naive', 'subject', 'value']);
       expect(e).toMatchObject({ date: '2026-11-02', subject: expect.any(String), value: expect.any(String), build: 'fixture' });
@@ -315,3 +338,56 @@ for (const c of COUNTS) {
     await expect(top.getByTestId('preview-adds-line')).toHaveText(said);
   });
 }
+
+test('a call the log refuses is said not to be logged in its frame, and is written again on the next page view (#1056)', async ({ page }) => {
+  await seedLeague(page);
+  await page.goto('/sources/');
+  const posted: Record<string, unknown>[] = [];
+  await as(page, { switchOn: true, flag: true, owner: true }, posted);
+  // the log refuses every call this time, as it would a call out of its shape or a full day
+  let refusing = true;
+  const refusedCalls: string[] = [];
+  await page.route('**/api/owner/log', async (r) => {
+    const event = r.request().postDataJSON() as Record<string, unknown> | null;
+    if (refusing && r.request().method() === 'POST' && event?.['kind'] === 'call') {
+      refusedCalls.push(event['call'] as string);
+      return r.fulfill({ status: 400, json: { error: 'not an event' } });
+    }
+    return r.fallback();
+  });
+  await page.goto('/team/?league=nba');
+  const lineup = page.getByTestId('owner-preview').and(page.locator('[data-call="lineup"]'));
+  await expect(lineup.getByTestId('preview-not-logged')).toHaveText('This call was not logged: it is tried again the next time this page opens.', LOGGED);
+  await expect(lineup).not.toContainText('each one shown is logged');
+  await expect.poll(() => refusedCalls.includes('lineup'), LOGGED).toBe(true);
+  // not marked logged: the same view writes it no more, and the next view writes it again
+  expect(refusedCalls.filter((c) => c === 'lineup')).toHaveLength(1);
+  refusing = false;
+  await page.reload();
+  await expect.poll(() => posted.filter((e) => e['call'] === 'lineup').length, LOGGED).toBe(1);
+  await expect(lineup).toContainText('each one shown is logged.', LOGGED);
+  await expect(lineup.getByTestId('preview-not-logged')).toHaveCount(0);
+});
+
+test('the too-close call is logged once, as it settles, when the schedule comes late (#1056)', async ({ page }) => {
+  await seedLeague(page);
+  await page.goto('/sources/');
+  const settled: Record<string, unknown>[] = [];
+  await as(page, { switchOn: true, flag: true, owner: true }, settled);
+  await page.goto('/team/?league=nba');
+  await expect.poll(() => settled.filter((e) => e['call'] === 'too-close').length, LOGGED).toBe(1);
+  const late: Record<string, unknown>[] = [];
+  await as(page, { switchOn: true, flag: true, owner: true }, late);
+  // the week is drawn first without the lineup plan, then again once the schedule is in
+  await page.route('**/schedule/nba.json', async (r) => {
+    await new Promise((done) => setTimeout(done, 1000));
+    return r.fallback();
+  });
+  await page.goto('/team/?league=nba');
+  await expect(page.getByTestId('owner-preview').and(page.locator('[data-call="lineup"]'))).toBeVisible();
+  await expect.poll(() => late.filter((e) => e['call'] === 'too-close').length, LOGGED).toBe(1);
+  await page.waitForTimeout(2500);
+  const closeCalls = late.filter((e) => e['call'] === 'too-close');
+  expect(closeCalls).toHaveLength(1);
+  expect(closeCalls[0]!['value']).toBe(settled.find((e) => e['call'] === 'too-close')!['value']);
+});

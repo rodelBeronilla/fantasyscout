@@ -35,7 +35,7 @@ import type { TeamWeek } from '../lib/playoff-weeks';
 import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
 import { SHOWS } from '../lib/visibility';
-import { addsOpen, useOwnerPreview, withinAdds } from '../lib/owner-preview';
+import { addsOpen, eachCall, useOwnerPreview, withinAdds } from '../lib/owner-preview';
 import { AddsLimit, OwnerPreview } from './OwnerPreview';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { addsThisWeek, staleOpponent, weekScore } from '../lib/league-sync';
@@ -828,12 +828,12 @@ export default function MyTeam() {
           id="swaps"
           what="the paired swaps"
           issue={895}
-          call={{
-            call: 'swaps',
-            subject: withinAdds(shown.upgrades, addsWeek?.left ?? null).map((u) => `${u.add} for ${u.drop}`).join(' ') || 'none',
-            value: withinAdds(shown.upgrades, addsWeek?.left ?? null).map((u) => `+${u.gain.toFixed(1)} ${week ? 'this week' : 'rest of season'}`).join('; ') || (shown.optimized ? 'optimized' : 'no swap'),
-            naive: null,
-          }}
+          // one entry a swap shown
+          call={eachCall(
+            'swaps',
+            withinAdds(shown.upgrades, addsWeek?.left ?? null).map((u) => ({ subject: `${u.add} for ${u.drop}`, value: `+${u.gain.toFixed(1)} ${week ? 'this week' : 'rest of season'}` })),
+            shown.optimized ? 'optimized' : 'no swap',
+          )}
         >
           <AddsLimit setup={setup} adds={addsWeek} />
           {addsOpen(addsWeek?.left ?? null) && (

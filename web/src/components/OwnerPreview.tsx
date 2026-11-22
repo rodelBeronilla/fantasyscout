@@ -1,14 +1,18 @@
 /**
  * The owner preview's frame (#1056): a call a switch hides (visibility.ts), shown to the signed-in
  * owner alone under "Preview: not validated", exactly as it would render with its switch on. The
- * frame logs the call to his private log once a page view, when it is shown.
+ * frame logs each call it shows to his private log once a page view, once it has stayed on screen
+ * unchanged for SETTLE_MS, and says so plainly when the log refused one.
  */
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { type addsThisWeek, addsWeekLine } from '../lib/league-sync';
 import { limitsKnown, logPreviewCall, type PreviewCall, callKey } from '../lib/owner-preview';
 import { href, REPO_URL } from '../lib/site';
+
+// def: how long a frame shows the same calls before they are logged: a call drawn while its data is still arriving is replaced before he can read it
+const SETTLE_MS = 2000;
 
 export function OwnerPreview({
   id,
@@ -23,21 +27,33 @@ export function OwnerPreview({
   what: string;
   /** The issue the switch's comment names, where the call's check is written. */
   issue: number;
-  /** What is logged; null while the call has nothing to show (a search not yet run). */
-  call: PreviewCall | null;
+  /** What is logged: one entry per call shown (one per trade, add or player in a list); null while it has nothing to show (a search not yet run). */
+  call: PreviewCall | PreviewCall[] | null;
   children: ReactNode;
 }) {
-  const key = call ? callKey(call) : null;
+  const calls = call === null ? [] : Array.isArray(call) ? call : [call];
+  const key = JSON.stringify(calls.map(callKey));
+  // how many of the calls shown the log refused or could not take
+  const [refused, setRefused] = useState(0);
   useEffect(() => {
-    if (call) void logPreviewCall(call);
-    // the call is logged by what it says, not on every render
+    setRefused(0);
+    if (calls.length === 0) return;
+    let live = true;
+    const timer = setTimeout(() => {
+      void Promise.all(calls.map((c) => logPreviewCall(c))).then((ok) => live && setRefused(ok.filter((x) => !x).length));
+    }, SETTLE_MS);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+    // the calls are logged by what they say, not on every render
   }, [key]);
   return (
     <section
       className="min-w-0 rounded-lg border border-dashed border-line p-3"
       aria-labelledby={`${id}-preview-h`}
       data-testid="owner-preview"
-      data-call={call?.call ?? id}
+      data-call={calls[0]?.call ?? id}
     >
       <h2 id={`${id}-preview-h`} className="label-caps">
         Preview: not validated<span className="sr-only">: {what}</span>
@@ -47,7 +63,15 @@ export function OwnerPreview({
         <a href={href('/methodology/')} className="underline underline-offset-4">
           Methodology
         </a>
-        ); each one shown is logged.{' '}
+        );{' '}
+        {refused === 0 ? (
+          'each one shown is logged.'
+        ) : (
+          <strong data-testid="preview-not-logged">
+            {calls.length === 1 ? 'This call was not logged: it is' : `${refused} of these ${calls.length} calls were not logged: they are`} tried again the next time
+            this page opens.
+          </strong>
+        )}{' '}
         <a href={`${REPO_URL}/issues/${issue}`} target="_blank" rel="noopener" className="underline underline-offset-4">
           Issue #{issue}
         </a>

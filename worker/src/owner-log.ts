@@ -10,6 +10,7 @@
  */
 import { PRIVATE_PREFIX } from './account';
 import { hasOwnerCookie, type OwnerEnv } from './owner';
+import { validEvent } from './owner-log-event';
 
 interface OwnerLogEnv extends OwnerEnv {
   DATA: R2Bucket;
@@ -42,63 +43,6 @@ export function easternDay(ms: number): string {
   );
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
   return `${part('year')}-${part('month')}-${part('day')}`;
-}
-
-type Json = Record<string, unknown>;
-const isObject = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
-const short = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > 0 && v.length <= max;
-const count = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10_000;
-const onlyKeys = (o: Json, keys: string[]) => Object.keys(o).every((k) => keys.includes(k));
-
-const isRoster = (v: unknown) => Array.isArray(v) && v.length <= 80 && v.every((id) => short(id, 64));
-const isRecord = (v: unknown) =>
-  v === null ||
-  (isObject(v) && onlyKeys(v, ['wins', 'losses', 'ties', 'seed']) && count(v['wins']) && count(v['losses']) && count(v['ties']) && (v['seed'] === null || count(v['seed'])));
-const isSlots = (v: unknown) => isObject(v) && Object.keys(v).length <= 2000 && Object.entries(v).every(([id, slot]) => short(id, 64) && short(slot, 16));
-const isValue = (v: unknown) => (typeof v === 'number' && Number.isFinite(v)) || short(v, 200);
-
-/** The event as it is stored, or null when it is not one of the three kinds in their shapes. */
-function validEvent(v: unknown): Json | null {
-  if (!isObject(v)) return null;
-  switch (v['kind']) {
-    case 'page':
-      return onlyKeys(v, ['kind', 'path']) && short(v['path'], 300) && v['path'].startsWith('/') ? { kind: 'page', path: v['path'] } : null;
-    case 'import': {
-      const { host, mine, time, rosters, slots, records } = v;
-      const ok =
-        onlyKeys(v, ['kind', 'host', 'mine', 'time', 'rosters', 'slots', 'records']) &&
-        (host === 'yahoo' || host === 'espn') &&
-        (mine === null || count(mine)) &&
-        typeof time === 'number' &&
-        Number.isFinite(time) &&
-        time > 0 &&
-        Array.isArray(rosters) &&
-        rosters.length <= 40 &&
-        rosters.every(isRoster) &&
-        isSlots(slots) &&
-        Array.isArray(records) &&
-        records.length <= 40 &&
-        records.every(isRecord);
-      return ok ? { kind: 'import', host, mine, time, rosters, slots, records } : null;
-    }
-    case 'call': {
-      const { date, call, subject, value, naive, build } = v;
-      const ok =
-        onlyKeys(v, ['kind', 'date', 'call', 'subject', 'value', 'naive', 'build']) &&
-        typeof date === 'string' &&
-        /^\d{4}-\d{2}-\d{2}$/.test(date) &&
-        short(call, 40) &&
-        /^[a-z0-9-]+$/.test(call) &&
-        short(subject, 120) &&
-        isValue(value) &&
-        (naive === null || isValue(naive)) &&
-        short(build, 64) &&
-        /^[\w.:-]+$/.test(build);
-      return ok ? { kind: 'call', date, call, subject, value, naive, build } : null;
-    }
-    default:
-      return null;
-  }
 }
 
 /** Every day's file, oldest first (the keys sort by date). */

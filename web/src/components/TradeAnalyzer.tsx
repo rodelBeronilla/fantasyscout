@@ -22,7 +22,7 @@ import { type CategoryEffect, findTrades, type FoundTrade, nearestInValue, openS
 import { NO_WORTH, teamChange, timingNotes, type TradePlayer, tradeSide } from '../lib/trade-players';
 import { hasWeekGames, recentForm, type ValueUnit } from '../lib/week-value';
 import { SHOWS, showsBuyLow } from '../lib/visibility';
-import { useOwnerPreview } from '../lib/owner-preview';
+import { eachCall, useOwnerPreview } from '../lib/owner-preview';
 import { OwnerPreview } from './OwnerPreview';
 import { BuySellCard } from './BuySellCard';
 import { describeSettings } from './LeagueParts';
@@ -694,12 +694,14 @@ export default function TradeAnalyzer() {
           id="suggestions"
           what="the suggested trades"
           issue={887}
-          call={{
-            call: 'trade-suggestions',
-            subject: suggestions.map((x) => tradeText(x.give, x.get)).join('; ') || 'none',
-            value: suggestions.map((x) => (x.effect ? `${x.effect.gain >= 0 ? '+' : ''}${x.effect.gain.toFixed(2)} categories` : `value ${x.net.toFixed(1)}`)).join('; ') || 'none',
-            naive: null,
-          }}
+          // one entry a trade shown
+          call={eachCall(
+            'trade-suggestions',
+            suggestions.map((x) => ({
+              subject: tradeText(x.give, x.get),
+              value: x.effect ? `${x.effect.gain >= 0 ? '+' : ''}${x.effect.gain.toFixed(2)} categories` : `value ${x.net.toFixed(1)}`,
+            })),
+          )}
         >
           <TradeSuggestions
             suggestions={suggestions}
@@ -724,7 +726,7 @@ export default function TradeAnalyzer() {
           id="nearest"
           what="the players worth about the same"
           issue={887}
-          call={{ call: 'trade-nearest', subject: nearest.map(({ id }) => id).join(' '), value: nearest.map(({ diff }) => diff.toFixed(1)).join(' '), naive: null }}
+          call={eachCall('trade-nearest', nearest.map(({ id, diff }) => ({ subject: id, value: diff.toFixed(1) })))}
         >
           <Card title="Players worth about the same" id="suggestions">
             <ul className="flex flex-wrap gap-1" data-testid="trade-nearest">
@@ -772,13 +774,9 @@ export default function TradeAnalyzer() {
           issue={888}
           // shown once the search has run: before it, the card holds a button only
           call={
+            // one entry a trade found
             found
-              ? {
-                  call: 'trade-finder',
-                  subject: found.map((t) => `${t.partner}: ${tradeText(t.give, t.get)}`).join('; ') || 'none',
-                  value: found.map((t) => `${t.effect.gain >= 0 ? '+' : ''}${t.effect.gain.toFixed(2)} categories`).join('; ') || 'none',
-                  naive: null,
-                }
+              ? eachCall('trade-finder', found.map((t) => ({ subject: `${t.partner}: ${tradeText(t.give, t.get)}`, value: `${t.effect.gain >= 0 ? '+' : ''}${t.effect.gain.toFixed(2)} categories` })))
               : null
           }
         >
@@ -803,12 +801,7 @@ export default function TradeAnalyzer() {
           id="sell-high"
           what="sell high"
           issue={903}
-          call={{
-            call: 'sell-high',
-            subject: swings.sellHigh.map((x) => x.id).join(' '),
-            value: swings.sellHigh.map((x) => `${x.form >= 0 ? '+' : ''}${x.form.toFixed(1)} a game`).join('; '),
-            naive: null,
-          }}
+          call={eachCall('sell-high', swings.sellHigh.map((x) => ({ subject: x.id, value: `${x.form >= 0 ? '+' : ''}${x.form.toFixed(1)} a game` })))}
         >
           <BuySellCard
             swings={{ ...swings, buyLow: showsBuyLow(league) ? swings.buyLow : [] }}
@@ -829,12 +822,10 @@ export default function TradeAnalyzer() {
           id="chips"
           what="the trade chips and targets for your punt"
           issue={896}
-          call={{
-            call: 'trade-chips',
-            subject: `${chipsAndTargets.chips.map((x) => x.id).join(' ')} > ${chipsAndTargets.targets.map((x) => x.id).join(' ')}`,
-            value: [...chipsAndTargets.chips, ...chipsAndTargets.targets].map((x) => `${x.league}/${x.build}`).join(' '),
-            naive: null,
-          }}
+          call={eachCall('trade-chips', [
+            ...chipsAndTargets.chips.map((x) => ({ subject: `chip ${x.id}`, value: `${x.league}/${x.build}` })),
+            ...chipsAndTargets.targets.map((x) => ({ subject: `target ${x.id}`, value: `${x.league}/${x.build}` })),
+          ])}
         >
           <TradeChips
             chips={chipsAndTargets.chips}

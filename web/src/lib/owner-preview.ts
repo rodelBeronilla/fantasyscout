@@ -49,21 +49,38 @@ export type PreviewCall = Omit<CallShown, 'date' | 'build'>;
 // the Eastern date the call is for, as today.ts reads it, without loading the lineup code for it
 const EASTERN = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
 
-// the calls logged on this page view, by what they said: a call is logged once however often it renders
-const logged = new Set<string>();
+// the calls written on this page view, or being written, by what they said: a call is logged once however often it renders
+const writes = new Map<string, Promise<boolean>>();
+
+/**
+ * A frame's list as the log keeps it: one call for each item shown (a trade, an add, a player), each
+ * with its own short subject, and one saying `empty` when the list is empty.
+ */
+export function eachCall(call: string, items: readonly { subject: string; value: string }[], empty = 'none'): PreviewCall[] {
+  return items.length ? items.map((x) => ({ call, ...x, naive: null })) : [{ call, subject: 'none', value: empty, naive: null }];
+}
 
 /** The key a call is logged once under: the same call saying the same thing is the same call. */
 export const callKey = (c: PreviewCall): string => JSON.stringify([c.call, c.subject, c.value, c.naive]);
 
-/** Logs a call shown in the preview, once a page view; false when it was logged already or the log refused it. */
-export async function logPreviewCall(c: PreviewCall, date: string = EASTERN.format(new Date())): Promise<boolean> {
+/**
+ * Logs a call shown in the preview, once a page view. True once the log holds it; false when the
+ * log refused it or could not be reached. A call counts as logged only after its write succeeds:
+ * a refused one is forgotten, so it is written again when it is next shown (the next page view).
+ */
+export function logPreviewCall(c: PreviewCall, date: string = EASTERN.format(new Date())): Promise<boolean> {
   const key = callKey(c);
-  if (logged.has(key)) return false;
-  logged.add(key);
-  const latest = await getLatest().catch(() => null);
-  return logCall({ ...c, date, build: latest?.build_id ?? 'unknown' });
+  const known = writes.get(key);
+  if (known) return known;
+  const write = getLatest()
+    .catch(() => null)
+    .then((latest) => logCall({ ...c, date, build: latest?.build_id ?? 'unknown' }));
+  writes.set(key, write);
+  void write.then((ok) => {
+    if (!ok) writes.delete(key);
+  });
+  return write;
 }
-
 
 /**
  * The adds a preview of pickups may offer (#1056): the first `left` of them, with the adds left
