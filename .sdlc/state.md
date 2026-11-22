@@ -1,6 +1,6 @@
 # Project state: FantasyScout
 
-Last rewritten: 2026-11-17, from scratch (#991); updated 2026-11-21 for step 3's merges. Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
+Last rewritten: 2026-11-17, from scratch (#991); updated 2026-11-22 for step 4's first studies. Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
 
 Read with it: [pillars.md](pillars.md) for what wins when priorities collide, and [CONTRIBUTING.md](../CONTRIBUTING.md) for how a change is made and checked.
 
@@ -52,7 +52,8 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 1. **The site cannot go stale unnoticed again, and the repo says how work is chosen.** Done on 2026-11-17, apart from the fallback, which moved to step 2.
 2. **The fallback proven for real, and the data at the manager's grain** (player, week, category). Done on 2026-11-17, apart from the import age (PR #1007), which waits for the owner. The fallback published for real and agrees with the warehouse; `fct_player_week` is built on both paths.
    Not started until the planner specifies them after the owner's feedback: the league-by-category view, the graded card, the owner preview and any study.
-3. **The owner's league, week by week** (started 2026-11-17). Merged under the rule of 2026-11-21, each after a fresh review agent's approve and a check of production: #1048 (adds left from Yahoo's own count), #1053 (item 1, every week's matchup totals; approved on its third review), #1055 (item 2, the league week by week). Item 3, the owner's log, and item 0, the capture, merged earlier. Item 4 (#1057) goes to the owner after two blocks on one point; item 5 (#1059) waits for it.
+3. **The owner's league, week by week** (started 2026-11-17). Merged after review: #1048, #1053 (item 1), #1055 (item 2), #1071, #1072, #1074. Item 4, the owner preview (#1057), is parked after three blocks on one point (what the frames say about the adds), with a recommendation for the owner's digest; item 5 (#1059) and the expected categories won (#1073) wait for it.
+4. **Step 4, the first studies** (started 2026-11-21): predict a player's week, by category, better than the projection does. S0, the yardstick (#1077), sets every bar: a quarter of its recorded noise per category, and no category worse. Then S1 games played (#1079), S2 minutes when a teammate is out (#1080), S3 opportunity before outcome (#1081), S4 shot diet (#1082), two sub-agents at a time. A pass feeds the existing calls in the owner preview, labelled, logged and graded each Monday, and shows publicly only after six live weeks agree; a fail is recorded in features.yml and ADR 0012 and not retried. One page per study in docs/analysis. Declared now for the next round, so it is not added later: per-category opponent strength over the week. First round done on 2026-11-22: S0 set the bars (#1078, #1084); S1 passed in the NBA and is open, waiting on 2026-27's live weeks, and failed in the WNBA (#1086); S2 (#1093), S3 (#1092) and S4 (#1085) failed. Judged numbers sit in features.yml's `result` field, off the public table (#1091).
 
 The redesign epic (#936) and the methodology epic (#751) still hold the longer list. Where they conflict with [pillars.md](pillars.md), the pillars win.
 
@@ -60,9 +61,13 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 
 | Item | Where | Next |
 | --- | --- | --- |
-| The owner preview (step 3, item 4) | #1056; PR #1057 | Being fixed (decision of 2026-11-21): a setting he typed counts as known; "not known" only when an old Yahoo copy left it empty and nothing was typed; the lineup frame gets the adds line. Then a new review. |
-| Last week, graded (step 3, item 5) | #1058; PR #1059, on top of #1057 | Waits for #1057. |
-| Follow-ups from the reviews of 2026-11-21 | #1061, #1062, #1063, #1064, #1065, #1066 | Open. |
+| S1 games played, NBA (step 4) | #1079; `week-games-rest-nba`, open and hidden | Confirm on 2026-27's live weeks in the owner preview once it exists (#1057). Whether that confirmation must also beat a flat discount (#1088) is asked in the digest of 2026-11-23; until he answers, it is held against both. |
+| Step 4's follow-ups | #1087, #1088, #1089, #1090, #1094 | Open: the schedule as played, the boards' missing injury listing, S1's page wording, empty weeks, and the review notes on S2's and S3's pages. |
+| Step 4, next round | (no issue yet) | Per-category opponent strength over the week, declared on 2026-11-21. |
+| The owner preview (step 3, item 4) | #1056; PR #1057, labelled status:blocked | **Parked** after three blocks on one point. Recommendation in its park note and the digest of 2026-11-23 (`.sdlc/digests/2026-11-23.md`). |
+| Last week, graded (step 3, item 5) | #1058; PR #1059 | Parked with #1057, which it is stacked on. |
+| Expected categories won, in the owner preview | #1073 | Bar written; waits for #1057. |
+| Follow-ups from the reviews of 2026-11-21 | #1062 to #1065, #1069, #1075, #1076 | Open. #1075 (the matchup table's category column scrolls away on a phone) is the owner's kind of fault. |
 | Games left "as set" use the lineup of the day the Starting Rosters page shows | #1050 | Open: seen 2026-11-21, 4 against Yahoo's 7 for the owner. |
 | The bookmark names teams "Yahoo Sports" when it falls back to team pages | #1047 | Open. |
 | Stale copy, Trade's week line, My Team's games left | #939; partial work on `ai/fix/939-stale-copy-week-line` | Pick up after step 1. |
@@ -73,6 +78,7 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 - Yahoo's approval of the app for its Fantasy API, which unblocks sign-in (#884).
 - Narrower credentials (#424, #425, #426) and branch protection (#432).
 - Whether the brand card becomes the image shown when a link is shared.
+- From the digest of 2026-11-23: whether #1057 goes ahead as recommended; whether S1's live confirmation must also beat a flat discount; whether a judged number kept in `result`, off the public table, is how he wants a fail "recorded with the number".
 
 ## The owner's league
 
@@ -113,7 +119,7 @@ The runbook (`docs/runbook.md`) has a section per failure. The architecture and 
 
 ## Methodology at a glance
 
-- **Features** (`methodology/features.yml`): 7 validated, 12 failed, 13 open, 4 plain data. Failed and open calls are hidden by switches.
+- **Features** (`methodology/features.yml`): 7 validated, 16 failed, 14 open, 4 plain data. Failed and open calls are hidden by switches. S4, the shot diet (#1082), failed on 2026-11-21 and was never built. S3, opportunity before outcome (#1081, NBA only), failed in all four targets on 2026-11-22 and was never built. S2, minutes when a teammate is out (#1080), failed in both leagues on 2026-11-22 and was never built.
 - **Parameters** (`methodology/parameters.yml`): 26 measured, 29 assumed, 12 conventions, 3 arithmetic.
 - **Seasons:**
   - tuning: NBA 2020-21 to 2022-23, WNBA 2021 to 2023;

@@ -630,7 +630,7 @@ export default function MyTeam() {
       )}
 
       {/* the week beside the season: this week's categories next to the league-wide chances */}
-      <div className={`grid items-start gap-3 ${showMatchup && !points && SHOWS.categories ? 'lg:grid-cols-2' : ''}`}>
+      <div className={`grid grid-cols-[minmax(0,1fr)] items-start gap-3 ${showMatchup && !points && SHOWS.categories ? 'lg:grid-cols-2' : ''}`}>
         {showMatchup && (
           <Matchup
             setup={setup}

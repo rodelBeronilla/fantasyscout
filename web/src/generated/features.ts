@@ -59,6 +59,7 @@ export const PAGES: Readonly<Record<string, Page>> = {
 /** The file of each ADR a feature names, by number, in docs/adr. */
 export const ADR_FILES: Readonly<Record<string, string>> = {
   "11": "0011-streamers-sort.md",
+  "12": "0012-signals-tested-and-not-built.md",
   "17": "0017-local-language-model.md",
   "19": "0019-one-value-scale.md",
   "20": "0020-preseason-market-prior.md",
@@ -178,6 +179,17 @@ export const FEATURES: readonly Feature[] = [
       "buysell.min_swing"
     ],
     "next": "With the locked seasons (#769)"
+  },
+  {
+    "id": "teammate-out-minutes",
+    "what": "Minutes when a teammate is out (S2): a teammate's projected minutes raised by what he gained in past games without a player of 28 minutes or more who has missed his team's last two games",
+    "page": "team",
+    "verdict": "failed",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1080,
+    "parameters": [],
+    "next": "Not retried with a tweaked recipe (#1080). Its listing half, an absence known before he has missed a game, was not tested; a new study would need its own bar, written first"
   },
   {
     "id": "playoff-odds",
@@ -346,6 +358,55 @@ export const FEATURES: readonly Feature[] = [
       "trade.profile_cut"
     ],
     "next": "Season-level: after a rework, on the locked seasons (#769)"
+  },
+  {
+    "id": "shot-diet",
+    "what": "Shot diet (S4): next week's FG% and threes from a player's recent attempts by zone times his long-run accuracy from each zone",
+    "page": "team",
+    "verdict": "failed",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1082,
+    "parameters": [],
+    "next": "Not retried with a tweaked recipe (#1082). A new study would need its own bar, written first"
+  },
+  {
+    "id": "week-games-rest-wnba",
+    "what": "A WNBA player's games in the week, less his share of second nights of back-to-backs sat (S1)",
+    "page": "team",
+    "verdict": "failed",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1079,
+    "parameters": [],
+    "next": "Not retried with a changed recipe (#1079)"
+  },
+  {
+    "id": "opportunity-chances",
+    "what": "Opportunity before outcome (S3, NBA): next week's rebounds, assists, steals and blocks from a player's recent rebound chances, potential assists, deflections and contested shots times his long-run conversion of each",
+    "page": "team",
+    "verdict": "failed",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1081,
+    "parameters": [],
+    "next": "Not retried with a tweaked recipe (#1081). A new study would need its own bar, written first"
+  },
+  {
+    "id": "week-games-rest-nba",
+    "what": "An NBA player's games in the week, less his share of second nights of back-to-backs sat (S1)",
+    "page": "team",
+    "verdict": "open",
+    "shown": "hidden",
+    "adr": 12,
+    "issue": 1079,
+    "parameters": [],
+    "next": "Confirmed on 2026-27's weeks; public only after six live weeks agree with the judged result (#1079)",
+    "dates": [
+      "2027-01-18",
+      "2027-03-15"
+    ],
+    "bar": "https://github.com/rodelBeronilla/fantasyscout/issues/1079#issuecomment-7068301572"
   },
   {
     "id": "preseason-value",
