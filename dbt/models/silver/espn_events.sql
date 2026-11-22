@@ -25,6 +25,12 @@ select
     competition_id,
     cast(neutral_site as boolean) as neutral_site,
     venue_name,
+    -- ESPN marks the sides of an All-Star or Rising Stars game (Team LeBron) inactive teams
+    coalesce(
+        lower({{ json_text('competitors', '$[0].team.isActive') }}) = 'false'
+        or lower({{ json_text('competitors', '$[1].team.isActive') }}) = 'false',
+        false
+    ) as exhibition,
     case when {{ json_text('competitors', '$[0].homeAway') }} = 'home'
         then {{ json_text('competitors', '$[0].team.id') }} else {{ json_text('competitors', '$[1].team.id') }} end as home_team_id,
     case when {{ json_text('competitors', '$[0].homeAway') }} = 'home'

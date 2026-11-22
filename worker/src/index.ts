@@ -3,7 +3,8 @@
  *
  *   /data/<key>                 -> object <key> from the R2 bucket, with Range support for DuckDB-WASM;
  *                                  the Parquet tables only for the signed-in owner (owner.ts, ADR 0008)
- *   /auth/owner/*, /api/owner/* -> the owner's sign-in, with the owner's Yahoo account (owner.ts)
+ *   /auth/owner/*, /api/owner/* -> the owner's sign-in, with the owner's Yahoo account (owner.ts),
+ *                                  and his private log of his own use (owner-log.ts)
  *   /auth/yahoo/*, /api/yahoo/* -> the Yahoo Fantasy league import (yahoo.ts)
  *   /p/{league}/{id}/           -> the player page's shell, titled for the player
  *   /sitemap-players.xml        -> the current build's players, for crawlers
@@ -18,6 +19,7 @@ import cspHashes from './csp-hashes.json';
 import { handleAccount, isAccountWrite, PRIVATE_PREFIX } from './account';
 import { type AiEnv, handleAi } from './ai';
 import { handleOwner, isOwner, isPrivateData, type OwnerEnv } from './owner';
+import { handleOwnerLog, isOwnerLogWrite } from './owner-log';
 import { DOCS_CSP, NOTEBOOK_CSP, pagePolicy, STATIC_HEADERS } from './policy';
 import { handleYahoo, type YahooEnv } from './yahoo';
 
@@ -384,8 +386,8 @@ export default {
   async fetch(request, env, ctx): Promise<Response> {
     const url = new URL(request.url);
 
-    // The account routes (#684) take PUT and DELETE; everything else is read-only.
-    if (request.method !== 'GET' && request.method !== 'HEAD' && !isAccountWrite(request)) {
+    // The account routes (#684) take PUT and DELETE, the owner's log (#1032) POST and DELETE; everything else is read-only.
+    if (request.method !== 'GET' && request.method !== 'HEAD' && !isAccountWrite(request) && !isOwnerLogWrite(request)) {
       const res = text(405, 'Method Not Allowed');
       res.headers.set('allow', 'GET, HEAD');
       return withSecurityHeaders(res);
@@ -394,6 +396,10 @@ export default {
     // Before the league import: the owner's sign-in shares its Yahoo callback.
     const owner = await handleOwner(request, env);
     if (owner) return withSecurityHeaders(owner, url.pathname);
+
+    // The owner's private log of his own use (#1032), for his session cookie alone.
+    const ownerLog = await handleOwnerLog(request, env);
+    if (ownerLog) return withSecurityHeaders(ownerLog, url.pathname);
 
     const yahoo = await handleYahoo(request, env);
     if (yahoo) return withSecurityHeaders(yahoo, url.pathname);

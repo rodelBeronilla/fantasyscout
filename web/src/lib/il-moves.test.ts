@@ -37,4 +37,24 @@ describe('IL moves from the injury report alone (#927)', () => {
     expect(moves.toIl).toEqual(['out']);
     expect(moves.back).toEqual(['back']);
   });
+
+  it('offers no more moves than the IL has free slots, and none for a player back within a day (#1022)', () => {
+    const out = (player_id: string, expected_return: string | null) => ({ ...row(player_id, 'out'), expected_return });
+    const rows = [out('long', '2026-11-30'), out('tomorrow', '2026-11-18'), out('unknown', null), out('week', '2026-11-24'), out('on-il-a', null), out('on-il-b', null)];
+    const today = '2026-11-17';
+    // both IL slots full, as on the owner's team: no move at all
+    const full = ilMovesByListing(rows, ['long', 'tomorrow', 'on-il-a', 'on-il-b'], ['on-il-a', 'on-il-b'], { slots: 2, today });
+    expect(full.toIl).toEqual([]);
+    // one free slot: the one out longest; the player due back tomorrow is never offered
+    const one = ilMovesByListing(rows, ['long', 'tomorrow', 'week', 'on-il-a'], ['on-il-a'], { slots: 2, today });
+    expect(one.toIl).toEqual(['long']);
+    // an unknown return counts as long; two free slots take two
+    const two = ilMovesByListing(rows, ['tomorrow', 'week', 'unknown'], [], { slots: 2, today });
+    expect(two.toIl).toEqual(['unknown', 'week']);
+    // a return date already passed, the player still listed out, is a return not known
+    expect(ilMovesByListing([out('stale', '2026-11-10')], ['stale'], [], { slots: 2, today }).toIl).toEqual(['stale']);
+    // a player coming off the IL frees his slot
+    const freed = ilMovesByListing([...rows, row('healed', null)], ['long', 'healed', 'on-il-a'], ['healed', 'on-il-a'], { slots: 2, today });
+    expect(freed).toEqual({ toIl: ['long'], back: ['healed'] });
+  });
 });

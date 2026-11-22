@@ -8,6 +8,7 @@ import { href } from '../lib/site';
 import { assign, owners, useLeague } from '../lib/fantasy-league';
 import { SHOWS } from '../lib/visibility';
 import { Card, Signed, Unvalidated } from './ui';
+import { CopyAge } from './LeagueSync';
 
 const OWNED: Record<string, string> = {
   most: '70% or more',
@@ -198,6 +199,11 @@ export function LeagueStatus({ league, playerId, name }: { league: League; playe
             Evaluate a trade
           </a>
         </>
+      )}
+      {owner.size > 0 && (
+        <span className="basis-full">
+          <CopyAge setup={setup} league={league} />
+        </span>
       )}
     </div>
   );

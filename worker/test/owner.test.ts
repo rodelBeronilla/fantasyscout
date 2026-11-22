@@ -2,6 +2,7 @@
 // Yahoo account gets the owner's cookie, and any other account is shown its id.
 import { describe, expect, it } from 'vitest';
 import { ciReaderKey, handleOwner, isOwner } from '../src/owner';
+import { easternDay } from '../src/owner-log';
 
 const ORIGIN = 'https://fantasyscout.example';
 const ENV = { YAHOO_CLIENT_ID: 'client-id', YAHOO_CLIENT_SECRET: 'client-secret', OWNER_YAHOO_GUID: 'OWNERGUID' };
@@ -123,5 +124,15 @@ describe('the account sign-in (#684)', () => {
     const failing = async () => new Response('no', { status: 400 });
     expect((await handleOwner(accountCallback('account-nba-x'), ENV, failing))!.headers.get('location')).toBe('/league/?league=nba&account=failed');
     expect((await handleOwner(accountCallback('account-nba-x'), ENV, yahooAs()))!.headers.get('location')).toBe('/league/?league=nba&account=noid');
+  });
+});
+
+describe("the owner's log's day (#1032)", () => {
+  it('files an event under the Eastern date, not the UTC one', () => {
+    // 03:00 UTC on 18 November is 22:00 on the 17th in New York
+    expect(easternDay(Date.UTC(2026, 10, 18, 3, 0))).toBe('2026-11-17');
+    expect(easternDay(Date.UTC(2026, 10, 18, 5, 0))).toBe('2026-11-18');
+    // daylight time: 03:00 UTC on 1 July is 23:00 on 30 June
+    expect(easternDay(Date.UTC(2026, 6, 1, 3, 0))).toBe('2026-06-30');
   });
 });

@@ -342,7 +342,7 @@ The baseline everywhere is the **naive manager**: the season so far per game, or
 
 ## 7. The owner's league
 
-- **Platform and format:** Yahoo; head-to-head; nine categories; twelve teams. The team plays all nine categories (no punts).
+- **Platform and format:** Yahoo; head-to-head; nine categories; eight teams (corrected 2026-11-17: twelve was a setup still on the defaults). The team plays all nine categories (no punts).
 - **Sign-in import:** built in the Worker and closed. Yahoo answers 403 until it approves the app for its Fantasy API (#884). There is no public league data to read without it.
 - **Bookmark import:** this is the working road. The manager runs a bookmark on their own signed-in Yahoo page. It brings the rosters, the standings, this week's opponent and score, and the playoff weeks into the browser, and the setup can be saved to an account.
 - **Does it work end to end?** In tests, yes: unit tests and a Playwright test against saved Yahoo pages (one of which failed once and passed on a second run). **Against the owner's live league I cannot say.** The agent cannot sign in, and nothing records when the owner last ran it.
