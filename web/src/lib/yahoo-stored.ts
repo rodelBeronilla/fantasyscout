@@ -11,6 +11,27 @@
 const STOP_REASONS = ['not-shown', 'not-matchup', 'other-week', 'no-totals'] as const;
 type StopReason = (typeof STOP_REASONS)[number];
 
+/** The teams an import is missing, and the league's size where known (#1104). */
+export interface TeamsMissing {
+  missing: { id: number; name?: string }[];
+  of: number | null;
+  /** How many teams the import did read: added at the import, not sent by the bookmark. */
+  read?: number;
+}
+
+/** A well-formed list of the teams an import is missing (#1104), or undefined. */
+export function cleanMissing(raw: unknown): TeamsMissing | undefined {
+  const x = raw as { missing?: unknown; of?: unknown } | null | undefined;
+  if (!x || typeof x !== 'object' || !Array.isArray(x.missing)) return undefined;
+  const missing = (x.missing as { id?: unknown; name?: unknown }[])
+    .filter((m) => m && typeof m.id === 'number' && Number.isInteger(m.id) && m.id > 0 && m.id <= 30) // def: more teams than a league has
+    .slice(0, 30) // def: more teams than a league has
+    .map((m) => ({ id: m.id as number, ...(typeof m.name === 'string' && m.name ? { name: m.name.slice(0, 60) } : {}) })); // def: a team's name, at most
+  const of = typeof x.of === 'number' && Number.isInteger(x.of) && x.of > 0 && x.of <= 30 ? x.of : null; // def: more teams than a league has
+  const read = typeof (x as { read?: unknown }).read === 'number' && Number.isInteger((x as { read: number }).read) ? (x as { read: number }).read : undefined;
+  return missing.length ? { missing, of, ...(read !== undefined && read >= 0 && read <= 30 ? { read } : {}) } : undefined; // def: more teams than a league has
+}
+
 /** Where an import's reading of the weeks stopped (#1049): its week and its path in the league, and why (#1123). */
 export interface WeeksStop {
   week: number;

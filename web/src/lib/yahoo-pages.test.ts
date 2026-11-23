@@ -5,7 +5,7 @@ import { fixedPlayoffs, leagueRecords, recordsFromText } from './league-state';
 import { weekScore } from './league-sync';
 import { applyYahooImport, parseYahooHash } from './yahoo-bookmarklet';
 import { soFarValue } from './matchup';
-import { weeksLines, yahooAddsUsed, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring, yahooWeeks } from './yahoo-pages';
+import { missingLine, weeksLines, yahooAddsUsed, yahooLeagueRules, yahooPlayoffs, yahooRecord, yahooRosterRules, yahooScore, yahooScoring, yahooWeeks } from './yahoo-pages';
 
 // Yahoo's page text as the bookmark reads it; the team names are invented (#1052)
 const LABELS = ['Team', 'FGM/A*', 'FG%', 'FTM/A*', 'FT%', '3PTM', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO', ''];
@@ -416,6 +416,29 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
     const { setup } = applyYahooImport(fresh, run([week(1, true)], { weeksStop: { week: 2, page: 'matchup?week=2&mid1=1', why: 'other-week', shows: 1 } }), players, NOV_8);
     const kept = normalize(JSON.parse(JSON.stringify(setup)) as typeof setup, DEFAULT_SETTINGS.nba).source!;
     expect(kept.weeksStop).toEqual({ week: 2, page: 'matchup?week=2&mid1=1', why: 'other-week', shows: 1, team: 'Dunk Dynasty' });
+  });
+
+  it('a team page that did not answer is named, and the league is said to be incomplete (#1104)', () => {
+    const payload = parseYahooHash(hash({ ...v3, teams: v3.teams.filter((t) => t.id !== 3), incomplete: { missing: [{ id: 3, name: 'Triple Doubles' }], of: 4 } }))!;
+    expect(payload.incomplete).toEqual({ missing: [{ id: 3, name: 'Triple Doubles' }], of: 4 });
+    const { setup } = applyYahooImport(fresh, payload, players, NOV_8);
+    const kept = normalize(JSON.parse(JSON.stringify(setup)) as typeof setup, DEFAULT_SETTINGS.nba).source!;
+    expect(kept.incomplete).toEqual({ missing: [{ id: 3, name: 'Triple Doubles' }], of: 4, read: 3 });
+    expect(missingLine(kept.incomplete)).toBe(
+      "The league is incomplete: Yahoo's page for team 3 (Triple Doubles) did not answer with a roster, so this import has 3 of the league's 4 teams. Run the bookmark again later.",
+    );
+    // two teams, no names (the fallback), the league's size from a page
+    expect(missingLine({ missing: [{ id: 3 }, { id: 4 }], of: 4, read: 2 })).toBe(
+      "The league is incomplete: Yahoo's pages for teams 3 and 4 did not answer with a roster, so this import has 2 of the league's 4 teams. Run the bookmark again later.",
+    );
+    // the size unknown: at least the teams read and the ones named
+    expect(missingLine({ missing: [{ id: 2 }], of: null, read: 3 })).toContain('so this import has 3 of at least 4 teams.');
+    // a whole league, an older payload, malformed entries: no line
+    expect(missingLine(undefined)).toBeNull();
+    expect(parseYahooHash(hash(v3))!.incomplete).toBeUndefined();
+    expect(parseYahooHash(hash({ ...v3, incomplete: { missing: [{ id: 'x' }, { id: 0 }], of: 4 } }))!.incomplete).toBeUndefined();
+    // the next import that reads every team clears it
+    expect(applyYahooImport(setup, parseYahooHash(hash(v3))!, players, NOV_8).setup.source?.incomplete).toBeUndefined();
   });
 
   it('a finished week with a blank total is named and not kept as final until the same blanks are found again from its Tuesday on; a week under way may show dashes (#1062)', () => {

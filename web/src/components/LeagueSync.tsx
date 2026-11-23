@@ -10,7 +10,7 @@ import { ago, copyAge, espnSetup, espnSyncLine, inSeasonFrom, readEspn, SYNC_EVE
 import { logImport } from '../lib/owner-log';
 import { href } from '../lib/site';
 import { easternDate } from '../lib/today';
-import { weeksLines } from '../lib/yahoo-pages';
+import { missingLine, weeksLines } from '../lib/yahoo-pages';
 
 type Players = { player_id: string; full_name: string | null }[];
 
@@ -204,20 +204,31 @@ export function YahooWeeks({ setup }: { setup: LeagueSetup }) {
   const source = setup.source;
   if (source?.host !== 'yahoo') return null;
   const { read, stop, left, blank } = weeksLines(source, setup.names);
+  // the teams the import is missing (#1104): first, and not muted, so the league never reads as whole
+  const missing = missingLine(source.incomplete);
+  const incomplete = missing && (
+    <p className="text-sm font-medium text-fg" data-testid="yahoo-teams-missing">
+      {missing}
+    </p>
+  );
   if (!read && !stop) {
     // a copy from a bookmark older than #1053 holds no weeks: say so, rather than nothing (#1070)
     return (
-      <p className="text-sm" data-testid="yahoo-weeks-none">
-        The league week by week (every team&apos;s category totals, week by week) needs the new Yahoo bookmark: this copy was imported by an older one.{' '}
-        <a href="#yahoo" className="font-medium text-accent underline-offset-4 hover:underline">
-          Add the bookmark again
-        </a>{' '}
-        (the steps are under &ldquo;Re-import from Yahoo&rdquo;) and run it on your league.
-      </p>
+      <>
+        {incomplete}
+        <p className="text-sm" data-testid="yahoo-weeks-none">
+          The league week by week (every team&apos;s category totals, week by week) needs the new Yahoo bookmark: this copy was imported by an older one.{' '}
+          <a href="#yahoo" className="font-medium text-accent underline-offset-4 hover:underline">
+            Add the bookmark again
+          </a>{' '}
+          (the steps are under &ldquo;Re-import from Yahoo&rdquo;) and run it on your league.
+        </p>
+      </>
     );
   }
   return (
     <div className="grid gap-0.5 text-sm text-muted">
+      {incomplete}
       {read && <p data-testid="yahoo-weeks">{read}</p>}
       {left && <p data-testid="yahoo-weeks-left">{left}</p>}
       {blank && <p data-testid="yahoo-weeks-blank">{blank}</p>}

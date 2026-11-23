@@ -11,6 +11,7 @@ import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { assign, categoryWeights, DEFAULT_SETTINGS, draftPick, type LeagueSetup as Setup, matchNames, normalize, onTheClock, owners, toggleIl, undoPick, useLeague, weightedSum, rosterCount, rosterCountText } from '../lib/fantasy-league';
 import { categoryValues, marketPriorShift, pointValues, scaleValue } from '../lib/league-value';
 import { applyYahooImport, parseYahooHash, YAHOO_OUTDATED, YAHOO_PAYLOAD_VERSION, yahooHashVersion, type YahooRejected } from '../lib/yahoo-bookmarklet';
+import { missingLine } from '../lib/yahoo-pages';
 import { chooseMine } from '../lib/league-sync';
 import { logImport } from '../lib/owner-log';
 import { href } from '../lib/site';
@@ -131,7 +132,9 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
       `Imported ${payload.teams.length} teams from Yahoo: ${result.matched} players matched` +
         (result.il ? `, ${result.il} on the IL` : '') +
         (result.unmatched.length ? `; not found: ${result.unmatched.join(', ')}` : '') +
-        '.',
+        '.' +
+        // never a league short of teams as if whole (#1104)
+        (result.setup.source?.incomplete ? ` ${missingLine(result.setup.source.incomplete)}` : ''),
     );
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
     // runs once, when the board arrives

@@ -1243,6 +1243,55 @@ test("a team read from its own page is named by what the page says of the team, 
   team4 = (html) => plain(html).replace(/<title>[^<]*<\/title>/, '<title>Fixture League | Fantasy Basketball | Yahoo! Sports</title>');
   expect(await run()).toEqual(['Dunk Dynasty', 'Rim Reapers', 'Triple Doubles', 'Team 4']);
 });
+test("a team page that does not answer is named, on the bookmark's import line and the League page, and the league is said to be incomplete (#1104)", async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.slow(); // the week pages come a second apart
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  await yahooLeague(page);
+  // the league page links its four teams; team 3's page answers with Yahoo's error
+  await page.route(/\/nba\/12345\/3$/, (route) => route.fulfill({ status: 500, contentType: 'text/html', body: '<html><body>Something went wrong</body></html>' }));
+  await page.goto('/data/yahoo/league.html');
+  await page.evaluate(code.slice('javascript:'.length));
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+  const said = "The league is incomplete: Yahoo's page for team 3 (Triple Doubles) did not answer with a roster, so this import has 3 of the league's 4 teams. Run the bookmark again later.";
+  await expect(page.getByRole('status')).toContainText(said);
+  await expect(page.getByTestId('yahoo-teams-missing')).toHaveText(said);
+  // and it stays said after a reload, from the stored copy
+  await page.reload();
+  await expect(page.getByTestId('yahoo-teams-missing')).toHaveText(said);
+});
+
+test('with no team links on the page, two team pages that do not answer are named, and the league size comes from the standings (#1104)', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one engine is enough for the bookmarklet');
+  test.slow(); // the pages come a second apart
+  await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));
+  await page.goto('/league/?league=nba');
+  await expect(page.getByTestId('yahoo-bookmarklet-link')).toHaveAttribute('href', /^javascript:/);
+  const code = (await page.getByTestId('yahoo-bookmarklet-link').getAttribute('href')) ?? '';
+  // Starting Rosters before Yahoo has drawn it: each team's page is fetched; teams 3 and 4 fail,
+  // which used to end the reading with a league of two and nothing said
+  await page.route('**/data/yahoo/unrendered.html', (route) =>
+    route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><head><title>Fixture League | Fantasy Basketball | Yahoo! Sports</title></head><body><nav><a href="/nba/12345">League</a> <a href="/nba/12345/2">My Team</a></nav><div id="rosters"></div></body></html>' }),
+  );
+  await page.route(/\/nba\/12345\/?$/, (route) => route.fulfill({ path: 'tests/fixtures/data/yahoo/home.html' }));
+  await page.route(/\/nba\/12345\/(matchup.*|settings)$/, (route) => route.abort());
+  await page.route(/\/nba\/12345\/(\d+)$/, (route) => {
+    const t = Number(route.request().url().split('/').pop());
+    if (t === 3 || t === 4) return route.fulfill({ status: 500, contentType: 'text/html', body: '<html><body>Something went wrong</body></html>' });
+    if (t > 4) return route.fulfill({ status: 404, body: 'Not found' });
+    return route.fulfill({ path: `tests/fixtures/data/yahoo/team-${t}.html` });
+  });
+  await page.goto('/data/yahoo/unrendered.html');
+  await page.evaluate(code.slice('javascript:'.length));
+  await expect(page).toHaveURL(/\/league\/\?league=nba$/, { timeout: 30_000 });
+  const said = "The league is incomplete: Yahoo's pages for teams 3 and 4 did not answer with a roster, so this import has 2 of the league's 4 teams. Run the bookmark again later.";
+  await expect(page.getByRole('status')).toContainText('Imported 2 teams from Yahoo');
+  await expect(page.getByRole('status')).toContainText(said);
+  await expect(page.getByTestId('yahoo-teams-missing')).toHaveText(said);
+});
 
 test('the Yahoo bookmarklet reads every roster from the Starting Rosters page itself, counting only rows with a slot', async ({ page }) => {
   await page.route('**/board/nba.json', (route) => route.fulfill({ path: 'tests/fixtures/data/builds/fixture/board/wnba.json' }));

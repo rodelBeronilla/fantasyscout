@@ -8,7 +8,7 @@
  */
 import type { Format, Tally } from './fantasy-league';
 import type { LeagueWeek } from './league-weeks';
-import { stopDetails, type WeeksStop } from './yahoo-stored';
+import { cleanMissing, stopDetails, type TeamsMissing, type WeeksStop } from './yahoo-stored';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 
@@ -24,6 +24,12 @@ export interface YahooPages {
   adds?: string;
   /** The adds used this week and the weekly limit, as numbers read from that line (#1061): the bookmark sends these, not the text. */
   addsCount?: [number, number];
+  /**
+   * The teams this import does not have, because their pages did not answer with a roster (#1104):
+   * each by Yahoo's id, with its name where the league page linked it, and the league's size where
+   * a page said it (null otherwise). Optional, so a payload without it still reads.
+   */
+  incomplete?: TeamsMissing;
   /** The week pages' table labels, when every page has the same (#1049). */
   weekLabels?: string[];
   /** Every week's matchup pages as read (#1049): each page's two rows, and its own labels where they differ from `weekLabels`. */
@@ -51,6 +57,21 @@ interface YahooWeekRead {
 const strings = (x: unknown): x is string[] => Array.isArray(x) && x.every((s) => typeof s === 'string');
 
 /** The extra pages from a bookmark's payload, keeping what is well formed. */
+/**
+ * The League page's line when an import is missing teams (#1104): which, and that the league is
+ * incomplete, so it is never shown as whole; null when it is whole.
+ */
+export function missingLine(incomplete: TeamsMissing | undefined): string | null {
+  if (!incomplete?.missing.length) return null;
+  const read = incomplete.read ?? 0;
+  const named = incomplete.missing.map((m) => (m.name ? `${m.id} (${m.name})` : String(m.id)));
+  const list = named.length > 1 ? `teams ${named.slice(0, -1).join(', ')} and ${named.at(-1)}` : `team ${named[0]}`;
+  const pages = named.length > 1 ? 'pages' : 'page';
+  const most = Math.max(read + incomplete.missing.length, ...incomplete.missing.map((m) => m.id));
+  const size = incomplete.of ? `of the league's ${Math.max(incomplete.of, most)}` : `of at least ${most}`;
+  return `The league is incomplete: Yahoo's ${pages} for ${list} did not answer with a roster, so this import has ${read} ${size} teams. Run the bookmark again later.`;
+}
+
 export function cleanYahooPages(raw: { records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; addsCount?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown }): YahooPages {
   const out: YahooPages = {};
   if (raw.records && typeof raw.records === 'object') {
@@ -77,6 +98,8 @@ export function cleanYahooPages(raw: { records?: unknown; matchup?: unknown; set
   const count = raw.addsCount;
   if (Array.isArray(count) && count.length === 2 && count.every((n) => Number.isInteger(n) && n >= 0 && n <= 99)) out.addsCount = [count[0] as number, count[1] as number]; // def: two small counts
   Object.assign(out, cleanWeeks(raw));
+  const incomplete = cleanMissing((raw as { incomplete?: unknown }).incomplete);
+  if (incomplete) out.incomplete = incomplete;
   return out;
 }
 

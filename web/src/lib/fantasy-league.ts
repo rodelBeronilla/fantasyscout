@@ -11,7 +11,7 @@ import type { League } from './data';
 import { CATEGORIES } from './format';
 import type { GamesRead } from './game-state';
 import type { LeagueWeek } from './league-weeks';
-import { stopDetails, type WeeksStop } from './yahoo-stored';
+import { cleanMissing, stopDetails, type TeamsMissing, type WeeksStop } from './yahoo-stored';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
@@ -149,6 +149,8 @@ export interface LeagueSource {
    * when the page answered without the team asked for, and that team's name at the import (#1063).
    */
   weeksStop?: WeeksStop;
+  /** The teams the latest Yahoo import is missing, and the league's size where known (#1104). */
+  incomplete?: TeamsMissing;
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -349,6 +351,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
     // every week's matchup totals and the page an import stopped at (#1049)
     ...(weeks ? { weeks } : {}),
     ...(stop && typeof stop === 'object' && isPeriod(stop.week) && typeof stop.page === 'string' ? { weeksStop: { week: stop.week, page: stop.page.slice(0, 80), ...stopDetails(stop), ...(typeof stop.team === 'string' ? { team: stop.team.slice(0, 60) } : {}) } } : {}), // def: a page's path and a team's name, at most
+    ...(cleanMissing(s.incomplete) ? { incomplete: cleanMissing(s.incomplete) } : {}),
     // the home page failed or showed no matchups, so no week was read (#1049)
     ...(stop && typeof stop === 'object' && stop.week === 0 && (stop.page === 'home' || stop.page === 'home-no-matchups') ? { weeksStop: { week: 0, page: stop.page } } : {}),
     ...(s.slots && typeof s.slots === 'object' && !Array.isArray(s.slots)

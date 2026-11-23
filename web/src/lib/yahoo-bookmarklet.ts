@@ -212,6 +212,8 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       }
     };
     let misses = 0;
+    // the team pages that did not answer with a roster (#1104), named at the end, never dropped
+    const failed: number[] = [];
     for (const t of ids) {
       let players: Row[] = inPage.get(t) || [];
       const name = names.get(t) || '';
@@ -242,6 +244,7 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       }
       if (!players.length) {
         misses += 1;
+        failed.push(t);
         if (!names.size && misses >= 2) break;
         continue;
       }
@@ -319,6 +322,15 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       if (c.length === 2 && c[0] && c[1] && c[0].length < 60 && rows.length < 80) rows.push([c[0].replace(/:$/, ''), c[1].slice(0, 200)]);
     }
     if (rows.length) settings.rows = rows;
+    // The teams this import is missing (#1104). The league's size: its team links, the standings'
+    // rows, or the settings' "Max Teams", the largest; without any, a team page that failed below
+    // one that answered is still a team. Each is named, and the League page says the league is incomplete.
+    const maxTeams = Number((rows.find((r) => /^max teams$/i.test(r[0])) || [])[1]) || 0;
+    const of = Math.max(names.size, Object.keys(records).length, maxTeams) || 0;
+    const got = new Set(teams.map((x) => x.id));
+    const top = Math.max(...teams.map((x) => x.id));
+    const asked = of ? Array.from(new Set([...Array.from({ length: of }, (_, i) => i + 1), ...names.keys()])) : failed.filter((id) => id < top);
+    const missing = asked.filter((id) => !got.has(id)).map((id) => ({ id, ...(names.get(id) ? { name: names.get(id) } : {}) }));
     // the manager's team page says how many of the week's adds are used (#1028): the two numbers
     // only, never the page's text around them (#1061)
     let addsCount: [number, number] | undefined;
@@ -482,6 +494,7 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       ...(matchup ? { matchup } : {}),
       settings,
       ...(addsCount ? { addsCount } : {}),
+      ...(missing.length ? { incomplete: { missing, of: of || null } } : {}),
       ...(weeks.length ? { weekLabels, weeks: weekPages } : {}),
       ...(weeksStop ? { weeksStop } : {}),
       rejected: notTaken,
@@ -539,7 +552,7 @@ export function parseYahooHash(hash: string): YahooPayload | null {
   const m = hash.match(/^#yahoo=(.+)$/);
   if (!m || !m[1]) return null;
   try {
-    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; addsCount?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown; rejected?: unknown };
+    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; addsCount?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown; rejected?: unknown; incomplete?: unknown };
     // Only the current bookmark is read (#1018): an older one dropped players silently, and the
     // League page asks for it to be added again (yahooHashVersion, YAHOO_OUTDATED).
     if (raw.v !== YAHOO_PAYLOAD_VERSION || !Array.isArray(raw.teams) || !raw.teams.length) return null;
@@ -676,6 +689,8 @@ export function applyYahooImport(
         week: weekStart(setup.source, payload.leagueId, mondayOf(easternDate(new Date(now))), next.rosters[next.mine] ?? []),
         // Yahoo's own count of the week's adds at this import, with the roster it counted (#1028)
         ...(addsUsed ? { addsUsed: { monday: mondayOf(easternDate(new Date(now))), used: addsUsed.used, roster: [...(next.rosters[next.mine] ?? [])] } } : {}),
+        // the teams this import is missing, so the league is never shown as whole (#1104)
+        ...(payload.incomplete ? { incomplete: { ...payload.incomplete, read: payload.teams.length } } : {}),
         // every week's matchup totals, and the page this import stopped at (#1049)
         ...(weeks.length ? { weeks } : {}),
         // with the asked team's name, for the League page's line (#1063)
