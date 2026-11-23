@@ -4,12 +4,14 @@
  * one file a day (the Eastern date) under PRIVATE_PREFIX, which the public data route never
  * serves. Only the owner's session cookie opens these routes; CI's reader key does not.
  *
- *   POST   /api/owner/log  -> append one event (a page opened, an import, a call shown)
+ *   POST   /api/owner/log  -> append one event (a page opened, an import, a call shown), or a
+ *                              batch of the owner preview's calls (#1056), answered call by call
  *   GET    /api/owner/log  -> download every day's file, oldest first, as one JSON Lines file
  *   DELETE /api/owner/log  -> delete every day's file
  */
 import { PRIVATE_PREFIX } from './account';
 import { hasOwnerCookie, type OwnerEnv } from './owner';
+import { BATCH_LIMITS, keysIn, planBatch, validEvent } from './owner-log-event';
 
 interface OwnerLogEnv extends OwnerEnv {
   DATA: R2Bucket;
@@ -44,61 +46,39 @@ export function easternDay(ms: number): string {
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
-type Json = Record<string, unknown>;
-const isObject = (v: unknown): v is Json => !!v && typeof v === 'object' && !Array.isArray(v);
-const short = (v: unknown, max: number): v is string => typeof v === 'string' && v.length > 0 && v.length <= max;
-const count = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v < 10_000;
-const onlyKeys = (o: Json, keys: string[]) => Object.keys(o).every((k) => keys.includes(k));
+const DAY_MS = 86_400_000;
+/** How often a batch reads and writes again after losing a race: every writer at once but one wins each round. */
+const BATCH_TRIES = 8;
 
-const isRoster = (v: unknown) => Array.isArray(v) && v.length <= 80 && v.every((id) => short(id, 64));
-const isRecord = (v: unknown) =>
-  v === null ||
-  (isObject(v) && onlyKeys(v, ['wins', 'losses', 'ties', 'seed']) && count(v['wins']) && count(v['losses']) && count(v['ties']) && (v['seed'] === null || count(v['seed'])));
-const isSlots = (v: unknown) => isObject(v) && Object.keys(v).length <= 2000 && Object.entries(v).every(([id, slot]) => short(id, 64) && short(slot, 16));
-const isValue = (v: unknown) => (typeof v === 'number' && Number.isFinite(v)) || short(v, 200);
-
-/** The event as it is stored, or null when it is not one of the three kinds in their shapes. */
-function validEvent(v: unknown): Json | null {
-  if (!isObject(v)) return null;
-  switch (v['kind']) {
-    case 'page':
-      return onlyKeys(v, ['kind', 'path']) && short(v['path'], 300) && v['path'].startsWith('/') ? { kind: 'page', path: v['path'] } : null;
-    case 'import': {
-      const { host, mine, time, rosters, slots, records } = v;
-      const ok =
-        onlyKeys(v, ['kind', 'host', 'mine', 'time', 'rosters', 'slots', 'records']) &&
-        (host === 'yahoo' || host === 'espn') &&
-        (mine === null || count(mine)) &&
-        typeof time === 'number' &&
-        Number.isFinite(time) &&
-        time > 0 &&
-        Array.isArray(rosters) &&
-        rosters.length <= 40 &&
-        rosters.every(isRoster) &&
-        isSlots(slots) &&
-        Array.isArray(records) &&
-        records.length <= 40 &&
-        records.every(isRecord);
-      return ok ? { kind: 'import', host, mine, time, rosters, slots, records } : null;
-    }
-    case 'call': {
-      const { date, call, subject, value, naive, build } = v;
-      const ok =
-        onlyKeys(v, ['kind', 'date', 'call', 'subject', 'value', 'naive', 'build']) &&
-        typeof date === 'string' &&
-        /^\d{4}-\d{2}-\d{2}$/.test(date) &&
-        short(call, 40) &&
-        /^[a-z0-9-]+$/.test(call) &&
-        short(subject, 120) &&
-        isValue(value) &&
-        (naive === null || isValue(naive)) &&
-        short(build, 64) &&
-        /^[\w.:-]+$/.test(build);
-      return ok ? { kind: 'call', date, call, subject, value, naive, build } : null;
-    }
-    default:
-      return null;
+/**
+ * Stores a batch of the owner preview's calls (#1056) in one write to the day's calls file, beside
+ * the day's file of events: each call once by its key (callKey), so a page opened again or a second
+ * tab adds nothing. The file is created only if absent and replaced only if unchanged since it was
+ * read, so two batches at once never lose a call: the one that lost the race reads again and retries.
+ */
+async function storeBatch(env: OwnerLogEnv, body: unknown, now: number): Promise<Response> {
+  const file = (ms: number) => `${LOG_PREFIX}${easternDay(ms)}.calls.jsonl`;
+  // yesterday's calls too: a view just after midnight on one clock and just before on the other is one view
+  const yesterday = await env.DATA.get(file(now - DAY_MS));
+  const before = yesterday ? keysIn(await yesterday.text()) : new Set<string>();
+  for (let attempt = 0; attempt < BATCH_TRIES; attempt += 1) {
+    // a write that lost the race waits a moment, a little longer each time, before it reads again
+    if (attempt > 0) await new Promise((done) => setTimeout(done, Math.random() * 20 * attempt));
+    const current = await env.DATA.get(file(now));
+    const text = current ? await current.text() : '';
+    const plan = planBatch(body, new Set([...before, ...keysIn(text)]));
+    if (!plan) return json(400, { error: `expected a batch of 1 to ${BATCH_LIMITS.calls} calls` });
+    if (plan.write.length === 0) return json(200, { results: plan.results });
+    const at = new Date(now).toISOString();
+    const lines = plan.write.map((c) => `${JSON.stringify({ at, kind: 'call', ...c })}\n`).join('');
+    if (text.length + lines.length > MAX_DAY_BYTES) return json(413, { error: "today's log is full" });
+    const options: R2PutOptions = {
+      httpMetadata: { contentType: 'application/x-ndjson' },
+      onlyIf: current ? { etagMatches: current.etag } : { etagDoesNotMatch: '*' },
+    };
+    if (await env.DATA.put(file(now), text + lines, options)) return json(200, { results: plan.results });
   }
+  return json(503, { error: 'try again' });
 }
 
 /** Every day's file, oldest first (the keys sort by date). */
@@ -149,6 +129,7 @@ export async function handleOwnerLog(request: Request, env: OwnerLogEnv, now = D
     } catch {
       return json(400, { error: 'not JSON' });
     }
+    if (typeof parsed === 'object' && parsed !== null && (parsed as { kind?: unknown }).kind === 'calls') return storeBatch(env, parsed, now);
     const event = validEvent(parsed);
     if (!event) return json(400, { error: 'expected a page, import or call event' });
     const day = easternDay(now);

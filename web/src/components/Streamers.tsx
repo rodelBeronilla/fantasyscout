@@ -9,7 +9,7 @@ import { CATEGORIES, CATEGORY_LABELS } from '../lib/format';
 import { currentLeague, LEAGUE_LABEL } from '../lib/league';
 import { eligibleAt, POSITION_LETTERS, type PositionLetter, sortRows, type SortDir, toggle } from '../lib/players';
 import { useWatchlist } from '../lib/watchlist';
-import { assign, keptCategories, owners, useLeague } from '../lib/fantasy-league';
+import { assign, keptCategories, mondayOf, owners, useLeague } from '../lib/fantasy-league';
 import { usePlayerNotes } from '../lib/player-notes';
 import { fantasyPoints } from '../lib/league-value';
 import { topAdds } from '../lib/pickups-top';
@@ -18,6 +18,10 @@ import { readRaw, storageKey, writeRaw } from '../lib/storage';
 import { type ReviewRow, teamReview, teamValues } from '../lib/team-review';
 import { hasWeekGames } from '../lib/week-value';
 import { SHOWS } from '../lib/visibility';
+import { addsOpen, eachCall, heldBack, importOf, useOwnerPreview, withinAdds } from '../lib/owner-preview';
+import { addsThisWeek } from '../lib/league-sync';
+import { easternDate } from '../lib/today';
+import { AddsLimit, OwnerPreview } from './OwnerPreview';
 import { addDays, dayLabel, type Game, type Move, RecentMoves, type TeamWeek, weekday, WeekGrid, WeeksGrid } from './PickupsSchedule';
 import { type Candidate, PickupsTable, type StreamerRow } from './PickupsTable';
 import { type ReviewState, TopAdds } from './TopAdds';
@@ -141,6 +145,8 @@ export default function Streamers() {
   const [setup, updateLeague] = useLeague(league);
   // a one-line note under a flagged top add, when the day's notes are out (#823)
   const notes = usePlayerNotes(league);
+  // the calls not yet validated, for the signed-in owner alone with his preview on (#1056)
+  const preview = useOwnerPreview();
   const owner = useMemo(() => owners(setup), [setup]);
   const rostered = rosteredChoice ?? (owner.size ? -1 : 0);
   const hasRosters = owner.size > 0;
@@ -460,6 +466,48 @@ export default function Streamers() {
           games against their baseline, the rest of the season blended with the one before.
         </Note>
       ) : null}
+
+      {/* the owner preview (#1056): the top adds and their swaps, within the adds left this week */}
+      {preview && !SHOWS.topAdds && scheduled && (() => {
+        const week = addsThisWeek(setup, mondayOf(easternDate()));
+        const offered = withinAdds(adds, week?.left ?? null);
+        return (
+          <OwnerPreview
+            id="top-adds"
+            what="the top adds"
+            issue={762}
+            // logged once the drops are known, so the log holds the call as finally shown (#1056)
+            league={importOf(setup.source)}
+            // one entry an add shown, and one for those the adds left hold back
+            call={reviewState === 'loading' ? null : [
+              ...(offered.length || adds.length === 0 ? eachCall(
+                'top-adds',
+                offered.map((a) => ({ subject: `${a.row.player_id}${a.drop ? ` for ${a.drop}` : ''}`, value: `window value ${a.row.window_value?.toFixed(1) ?? '-'}` })),
+                'no add found',
+              ) : []),
+              ...[heldBack('top-adds', adds.length, offered.length, week?.left ?? null)].filter((c) => c !== null),
+            ]}
+          >
+            <AddsLimit setup={setup} adds={week} />
+            {addsOpen(week?.left ?? null) && (
+              <TopAdds
+                adds={offered}
+                league={league}
+                windowText={windowText}
+                context={context}
+                review={reviewState}
+                dropsLeft={(reviewed?.drops.length ?? 0) > 0}
+                nameOf={nameOf}
+                detailOf={detailOf}
+                onApply={(add, drop) => updateLeague((s) => assign(assign(s, drop, null), add, s.mine))}
+                onExplore={openExplore}
+                openDays={activePicked.size > 0}
+                notes={notes}
+              />
+            )}
+          </OwnerPreview>
+        );
+      })()}
 
       {leads && (
         <TopAdds

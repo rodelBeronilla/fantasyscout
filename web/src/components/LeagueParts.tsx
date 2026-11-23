@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 
 import { CATEGORIES, CATEGORY_LABELS } from '../lib/format';
-import type { addsThisWeek } from '../lib/league-sync';
+import { type addsThisWeek, addsWeekLine } from '../lib/league-sync';
 import { normalizeSlots, SLOT_KEYS, SLOT_LABEL } from '../lib/lineup';
 import {
   DEFAULT_SETTINGS,
@@ -712,13 +712,7 @@ function TodayCalls({
           {adds && (
             <span className="text-muted" data-testid="today-adds-left">
               {' '}
-              ({adds.left} of {adds.limit} {adds.limit === 1 ? 'add' : 'adds'} left this week:{' '}
-              {adds.from === 'yahoo'
-                ? `${adds.made} used: ${adds.yahoo} by Yahoo's count at your last import${adds.made > adds.yahoo ? `, ${adds.made - adds.yahoo} added since` : ''}`
-                : adds.counted
-                  ? `${adds.made} made since your first import this week; any made before it are not seen`
-                  : 'no import yet this week, so none are counted'}
-              )
+              ({addsWeekLine(adds)})
             </span>
           )}
         </p>

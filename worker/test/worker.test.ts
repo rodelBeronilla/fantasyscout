@@ -358,6 +358,51 @@ describe("the owner's log (#1032)", () => {
     expect(await res.text()).toBe('{"day":1}\n{"day":2}\n');
   });
 
+  // the owner preview's calls (#1056): one batch a page view, each call once by its key
+  const PREVIEW = { date: '2026-11-17', call: 'lineup', subject: 'p1 p2', value: '12 starts', naive: null, build: 'build-1', league: 'yahoo:99:1763400000000' };
+  const batch = (calls: unknown[]) => ({ kind: 'calls', calls });
+  const callsFile = async () => (await logged()).find((k) => k.endsWith('.calls.jsonl'));
+
+  it("stores a batch of the preview's calls in one write, each once by its key, and answers call by call", async () => {
+    const cookie = await ownerCookie();
+    const calls = Array.from({ length: 30 }, (_, i) => ({ ...PREVIEW, subject: `p${i}` }));
+    const res = await post({ cookie }, batch(calls));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ results: calls.map(() => 'stored') });
+    const key = await callsFile();
+    expect(key).toMatch(/^private\/owner-log\/\d{4}-\d{2}-\d{2}\.calls\.jsonl$/);
+    const lines = (await (await env.DATA.get(key!))!.text()).trim().split('\n').map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(lines).toHaveLength(30);
+    expect(lines.map(({ at: _at, ...rest }) => rest)).toEqual(calls.map((c) => ({ kind: 'call', ...c })));
+    // the page again, or a second tab: nothing more; a call saying something new is stored; one out of its shape is refused
+    const again = await post({ cookie }, batch([calls[0], { ...PREVIEW, subject: 'p0', value: '13 starts' }, { ...PREVIEW, value: '' }, { ...PREVIEW, league: undefined }]));
+    expect(await again.json()).toEqual({ results: ['kept', 'stored', 'refused', 'refused'] });
+    expect((await (await env.DATA.get(key!))!.text()).trim().split('\n')).toHaveLength(31);
+    // the download holds them
+    expect(await (await SELF.fetch(LOG, { headers: { cookie } })).text()).toContain('"subject":"p29"');
+  });
+
+  it('keeps every call when batches arrive together on an empty day', async () => {
+    const cookie = await ownerCookie();
+    const tabs = Array.from({ length: 5 }, (_, t) => batch([{ ...PREVIEW, subject: `tab${t}` }, { ...PREVIEW, subject: 'both' }]));
+    const answers = await Promise.all(tabs.map(async (b) => (await post({ cookie }, b)).json() as Promise<{ results: string[] }>));
+    const lines = (await (await env.DATA.get((await callsFile())!))!.text()).trim().split('\n').map((l) => JSON.parse(l) as Record<string, unknown>);
+    expect(lines.map((l) => l['subject']).sort()).toEqual(['both', 'tab0', 'tab1', 'tab2', 'tab3', 'tab4']);
+    // the call both sent is stored by one and kept by the rest
+    expect(answers.map((a) => a.results[1]).filter((r) => r === 'stored')).toHaveLength(1);
+  });
+
+  it("refuses a batch past its limits, and writes nothing then", async () => {
+    const cookie = await ownerCookie();
+    expect((await post({ cookie }, batch([]))).status).toBe(400);
+    expect((await post({ cookie }, batch(Array.from({ length: 61 }, (_, i) => ({ ...PREVIEW, subject: `p${i}` }))))).status).toBe(400);
+    expect((await post({ cookie }, { kind: 'calls', calls: [PREVIEW], extra: 1 })).status).toBe(400);
+    expect((await post({ cookie }, batch(Array.from({ length: 60 }, (_, i) => ({ ...PREVIEW, subject: `p${i}`, value: 'v'.repeat(1200) }))))).status).toBe(413);
+    expect((await post({ cookie }, batch([PREVIEW]), 'https://evil.example')).status).toBe(403);
+    expect((await post({}, batch([PREVIEW]))).status).toBe(401);
+    expect(await logged()).toEqual([]);
+  });
+
   it('deletes all of it, and nothing else', async () => {
     const cookie = await ownerCookie();
     await post({ cookie }, PAGE);
