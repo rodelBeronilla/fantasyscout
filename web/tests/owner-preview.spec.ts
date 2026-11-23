@@ -102,8 +102,10 @@ class Log {
   readonly refused: unknown[] = [];
   /** Each batch request, as it arrived. */
   readonly batches: { calls: Record<string, unknown>[] }[] = [];
+  /** When each batch was answered, ms since the epoch, in the order they came. */
+  readonly answeredAt: number[] = [];
   /** How a batch is answered: as the Worker would, or a failure. */
-  answer: 'worker' | 400 | 500 | 503 | 'abort' = 'worker';
+  answer: 'worker' | 400 | 500 | 503 | 'abort' | 'hang' = 'worker';
   /** How long the answer takes, in ms. */
   delay = 0;
 
@@ -119,6 +121,7 @@ class Log {
       return r.fulfill({ json: { logged: true } });
     }
     this.batches.push(body as { calls: Record<string, unknown>[] });
+    if (this.answer === 'hang') return;
     if (this.answer !== 'worker') {
       if (this.delay) await new Promise((done) => setTimeout(done, this.delay));
       return this.answer === 'abort' ? r.abort() : r.fulfill({ status: this.answer, json: { error: 'no' } });
@@ -132,7 +135,9 @@ class Log {
     this.posted.push(...plan.write);
     (body as { calls: unknown[] }).calls.forEach((c, i) => plan.results[i] === 'refused' && this.refused.push(c));
     if (this.delay) await new Promise((done) => setTimeout(done, this.delay));
-    return r.fulfill({ json: { results: plan.results } }).catch(() => undefined);
+    const answered = r.fulfill({ json: { results: plan.results } }).catch(() => undefined);
+    this.answeredAt.push(Date.now());
+    return answered;
   }
 }
 
@@ -240,7 +245,7 @@ for (const p of PAGES) {
     expect(refused).toEqual([]);
     await expect(page.getByTestId('preview-not-logged')).toHaveCount(0);
     // a call that is one call is one entry; each entry is a different call
-    for (const call of ['too-close', 'stream', 'lineup', 'trade-verdict']) if (call in p.calls) expect(logged().filter((c) => c === call), call).toHaveLength(1);
+    for (const call of ['too-close', 'stream', 'trade-verdict']) if (call in p.calls) expect(logged().filter((c) => c === call), call).toHaveLength(1);
     const calls = posted.filter((e) => e['kind'] === 'call');
     expect(new Set(calls.map((e) => callKey(e))).size).toBe(calls.length);
     for (const e of calls) {
@@ -402,7 +407,8 @@ test('the too-close call is logged once, as it settles, when the schedule comes 
 const CONTENT = ['matchup', 'matchup-streams', 'lineup-plan', 'upgrades', 'build-plan', 'top-adds'];
 
 async function noneShown(page: Page): Promise<void> {
-  for (const id of CONTENT) await baseExpect(page.getByTestId('owner-preview').getByTestId(id), id).toHaveCount(0, { timeout: 1 });
+  // laid out to keep its place, perhaps, but never visible
+  for (const id of CONTENT) await baseExpect(page.locator(`[data-testid="owner-preview"] [data-testid="${id}"]:visible`), id).toHaveCount(0, { timeout: 1 });
 }
 
 test('a frame shows nothing until the log holds its calls: it says they are being logged, and a page left before then stores nothing (#1056)', async ({ page }) => {
@@ -449,7 +455,9 @@ for (const answer of [400, 500, 503, 'abort'] as const) {
     await as(page, { switchOn: true, flag: true, owner: true }, log);
     await page.goto('/team/?league=nba');
     const lineup = page.getByTestId('owner-preview').and(page.locator('[data-call="lineup"]'));
-    await expect(lineup.getByTestId('preview-not-logged')).toHaveText('This call could not be logged, so it is not shown: it is tried again the next time this page opens.');
+    const stream = page.getByTestId('owner-preview').and(page.locator('[data-call="stream"]'));
+    await expect(stream.getByTestId('preview-not-logged')).toHaveText('This call could not be logged, so it is not shown: it is tried again the next time this page opens.');
+    await expect(lineup.getByTestId('preview-not-logged')).toContainText(/^\d+ of these \d+ calls could not be logged/);
     await expect(page.getByTestId('owner-preview').and(page.locator('[data-call="build"]')).getByTestId('preview-not-logged')).toContainText(
       /^\d+ of these \d+ calls could not be logged, so none is shown: they are tried again the next time this page opens\.$/,
     );
@@ -489,4 +497,229 @@ test('a second view, and a second tab, store nothing more: the log keeps one ent
   for (const tab of [page, other]) await expect(tab.getByTestId('owner-preview').getByTestId('lineup-plan')).toBeVisible();
   expect(log.posted).toHaveLength(once);
   await other.close();
+});
+
+// #1137: each entry holds what its frame shows, on an invented eight-team, nine-category league
+const IDS = /\b\d{5,8}\b/g;
+const idsIn = (text: string) => [...text.matchAll(IDS)].map((m) => m[0]);
+/** The player ids a frame links to, as it shows them. */
+const linked = (page: Page, call: string) =>
+  page
+    .getByTestId('owner-preview')
+    .and(page.locator(`[data-call="${call}"]`))
+    .locator('a[href*="/p/nba/"]')
+    .evaluateAll((els) => els.map((e) => /\/p\/nba\/([^/]+)\//.exec(e.getAttribute('href') ?? '')?.[1] ?? ''));
+
+test('each entry holds what its frame shows: the moves, the opponent, every category, and nothing the frame does not show (#1137)', async ({ page }) => {
+  await seedLeague(page);
+  const board = (await (await page.request.get('/data/builds/fixture/board/nba.json')).json()) as { player_id: string; full_name: string }[];
+  const nameOf = new Map(board.map((r) => [r.player_id, r.full_name]));
+  await page.goto('/sources/');
+  const log = new Log();
+  await as(page, { switchOn: true, flag: true, owner: true }, log);
+  await page.goto('/team/?league=nba');
+  const frame = (call: string) => page.getByTestId('owner-preview').and(page.locator(`[data-call="${call}"]`));
+  for (const call of ['too-close', 'stream', 'lineup', 'swaps', 'build']) await expect(frame(call).getByTestId('preview-content'), call).toHaveAttribute('data-shown', 'yes');
+  const entries = (call: string) => log.posted.filter((e) => e['call'] === call);
+
+  // nothing the frame does not show: every player an entry names is one the frame links to or names
+  for (const call of ['stream', 'swaps', 'build']) {
+    const shown = new Set(await linked(page, call));
+    const text = (await frame(call).getByTestId('preview-content').textContent()) ?? '';
+    for (const e of entries(call))
+      for (const id of idsIn(`${e['subject']} ${e['value']}`)) expect(shown.has(id) || text.includes(nameOf.get(id) ?? id), `${call}: ${id} in ${e['subject']}`).toBe(true);
+  }
+
+  // too-close names the opponent the card names
+  const close = entries('too-close');
+  expect(close).toHaveLength(1);
+  await expect(frame('too-close')).toContainText('Summit');
+  expect(close[0]!['subject']).toMatch(/^vs 1( |$)/);
+  expect(close[0]!['value']).toMatch(/^against Summit: Winning \d+, losing \d+/);
+
+  // build: one entry a category, in the chip's words, all nine
+  const chips = await frame('build').getByTestId('build-cat').allTextContents();
+  expect(chips).toHaveLength(9);
+  const cats = entries('build').filter((e) => String(e['subject']).startsWith('category '));
+  expect(cats.map((e) => e['value']).sort()).toEqual([...chips].sort());
+  // each row, target or let go, with the move shown beside him
+  const rows = frame('build').getByTestId('build-row');
+  expect(await rows.count()).toBeGreaterThan(0);
+  for (const row of await rows.all()) {
+    const id = (await row.getAttribute('data-player'))!;
+    const list = (await row.evaluate((el) => el.closest('[data-testid^="build-"]:not([data-testid="build-row"])')?.getAttribute('data-testid'))) ?? '';
+    const kind = list === 'build-targets' ? 'target' : list === 'build-surplus' ? 'let go' : 'lowest';
+    const entry = entries('build').find((e) => e['subject'] === `${kind} ${id}`);
+    expect(entry, `${kind} ${id}`).toBeDefined();
+    const move = row.getByTestId('build-move');
+    if (await move.count()) {
+      const text = (await move.textContent())!;
+      const value = String(entry!['value']);
+      expect(value, text).toMatch(/^(add \d+ drop \d+|trade .+ to \d+ for .+) \([+-]\d\.\d\d cats\)/);
+      // the same players, by name on the card and by id in the entry, and the same gain
+      const named = idsIn(value.split(' (')[0]!).map((x) => nameOf.get(x));
+      for (const n of named) expect(text, value).toContain(n!);
+      expect(text.replace('−', '-')).toContain(value.match(/\(([+-]\d\.\d\d) cats\)/)![1]!);
+    }
+  }
+
+  // swaps: the "trade, don't drop" names logged are the ones the frame shows
+  const chipNames = await frame('swaps').getByTestId('roster-chips').locator('a[href*="/p/nba/"]').allTextContents();
+  const keeps = entries('swaps').filter((e) => String(e['subject']).startsWith('keep '));
+  expect(keeps.map((e) => nameOf.get(String(e['subject']).slice(5))).sort()).toEqual([...chipNames].sort());
+
+  // stream: the add and the drop shown
+  const stream = entries('stream');
+  expect(stream).toHaveLength(1);
+  const streamIds = idsIn(String(stream[0]!['subject']));
+  expect(streamIds.sort()).toEqual((await frame('stream').getByTestId('matchup-stream-move').locator('a[href*="/p/nba/"]').evaluateAll((els) => els.map((e) => /\/p\/nba\/([^/]+)\//.exec(e.getAttribute('href') ?? '')?.[1] ?? ''))).sort());
+
+  // lineup: the week as its summary says it, against the opponent's starts, and each day as its row does
+  const lineup = entries('lineup');
+  const summary = (await frame('lineup').getByTestId('lineup-summary').textContent())!;
+  const week = lineup.find((e) => e['subject'] === 'week')!;
+  const [started, theirs] = summary.match(/start (\d+) games.*against Summit's (\d+)/)!.slice(1);
+  expect(week['value']).toMatch(new RegExp(`^${started} starts, against Summit's ${theirs}, `));
+  const days = frame('lineup').getByTestId('lineup-days').locator('tbody tr');
+  expect(lineup.filter((e) => String(e['subject']).startsWith('day '))).toHaveLength(await days.count());
+  for (const row of await days.all()) {
+    const date = (await row.getAttribute('data-date'))!;
+    const cells = await row.locator('td').allTextContents();
+    const value = String(lineup.find((e) => e['subject'] === `day ${date}`)!['value']);
+    expect(value.startsWith(`${cells[1]} start; open ${cells[2] === '–' ? 'none' : cells[2]};`), `${date}: ${value}`).toBe(true);
+    const sits = idsIn(value).map((id) => nameOf.get(id)).join(', ');
+    expect(sits || '–', date).toBe(cells[3]);
+  }
+
+  // Pickups: one entry an add shown, the same players
+  await page.goto('/streamers/?league=nba');
+  await expect(frame('top-adds').getByTestId('preview-content')).toHaveAttribute('data-shown', 'yes');
+  const shownAdds = await frame('top-adds').getByTestId('top-add').evaluateAll((els) => els.map((e) => e.getAttribute('data-player')));
+  expect(entries('top-adds').map((e) => String(e['subject']).split(' ')[0]).sort()).toEqual([...shownAdds].sort());
+});
+
+test('with no adds left, the swaps frame logs only what it shows: its held-back line, no "keep" names (#1137)', async ({ page }) => {
+  await seedLeague(page, { addsUsed: 4 });
+  await page.goto('/sources/');
+  const log = new Log();
+  await as(page, { switchOn: true, flag: true, owner: true }, log);
+  await page.goto('/team/?league=nba');
+  const swaps = page.getByTestId('owner-preview').and(page.locator('[data-call="swaps"]'));
+  await expect(swaps.getByTestId('preview-content')).toHaveAttribute('data-shown', 'yes');
+  await expect(swaps.getByTestId('upgrades')).toHaveCount(0);
+  const entries = log.posted.filter((e) => e['call'] === 'swaps');
+  expect(entries).toHaveLength(1);
+  expect(entries[0]).toMatchObject({ subject: 'held back' });
+  expect(String(entries[0]!['value'])).toMatch(/no adds left this week/);
+});
+
+test('a log that does not answer is said not to have answered, and nothing is shown (#1137)', async ({ page }) => {
+  test.slow();
+  await seedLeague(page);
+  await page.goto('/sources/');
+  const log = new Log();
+  log.answer = 'hang';
+  await as(page, { switchOn: true, flag: true, owner: true }, log);
+  await page.goto('/team/?league=nba');
+  const lineup = page.getByTestId('owner-preview').and(page.locator('[data-call="lineup"]'));
+  await expect(lineup.getByTestId('preview-logging')).toBeVisible();
+  await expect(lineup.getByTestId('preview-not-logged')).toHaveText(
+    'The log did not answer within 10 seconds, so these calls are not shown: they are tried again the next time this page opens.',
+    { timeout: 20_000 },
+  );
+  await noneShown(page);
+});
+
+test('a second tap on "Find trades" stays on the page: the frame keeps its place while it logs (#1137)', async ({ page }) => {
+  const { rosters } = await seedLeague(page);
+  await page.goto('/sources/');
+  await as(page, { switchOn: true, flag: true, owner: true });
+  await page.goto(`/trade/?league=nba&give=${rosters[0]![9]}&get=${rosters[1]![0]}`);
+  const finder = page.getByTestId('owner-preview').and(page.locator('[data-call="finder"]'));
+  const button = finder.getByTestId('find-trades');
+  // the frames above it drawn and shown, so the button stays where it is measured
+  for (const call of ['trade-verdict', 'trade-suggestions'])
+    await expect(page.getByTestId('owner-preview').and(page.locator(`[data-call="${call}"]`)).getByTestId('preview-content')).toHaveAttribute('data-shown', 'yes');
+  await page.waitForLoadState('networkidle');
+  await button.scrollIntoViewIfNeeded();
+  await expect(button).toBeVisible();
+  const box = (await button.boundingBox())!;
+  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await page.mouse.click(at.x, at.y);
+  await page.mouse.click(at.x, at.y);
+  await page.waitForTimeout(500);
+  await page.mouse.click(at.x, at.y);
+  await expect(page.locator('[data-call="trade-finder"]').getByTestId('found-trades')).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe('/trade/');
+});
+
+test("the frames keep their place while they log: the tiles below do not jump; a change shows again in well under the first wait (#1137)", async ({ page }) => {
+  await seedLeague(page);
+  await page.goto('/sources/');
+  const log = new Log();
+  await as(page, { switchOn: true, flag: true, owner: true }, log);
+  await page.goto('/team/?league=nba');
+  const roster = page.getByTestId('my-roster');
+  // where the Roster tile sits on the page, whatever the scroll
+  const rosterTop = () => roster.evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+  const contents = page.getByTestId('preview-content');
+  // every frame drawn, none shown yet
+  await expect(contents).toHaveCount(5);
+  // laid out to keep its place, but neither visible, nor reachable by keyboard or screen reader
+  for (const c of await contents.all()) {
+    await expect(c).toHaveAttribute('data-shown', 'no', { timeout: 1 });
+    await expect(c).toHaveAttribute('inert', '', { timeout: 1 });
+    await expect(c).toHaveAttribute('aria-hidden', 'true', { timeout: 1 });
+    await expect(c).not.toBeVisible({ timeout: 1 });
+  }
+  const before = await rosterTop();
+  for (const c of await contents.all()) await expect(c).toHaveAttribute('data-shown', 'yes');
+  const after = await rosterTop();
+  const reserved = await contents.evaluateAll((els) => els.reduce((sum, e) => sum + e.getBoundingClientRect().height, 0));
+  console.log(`roster moved ${Math.round(after - before)} px; the frames' content reserved ${Math.round(reserved)} px`);
+  expect(Math.abs(after - before)).toBeLessThan(2);
+  // a change he makes: the swaps frame's own unit switch, then shown again once the log holds its new calls
+  const swaps = page.getByTestId('owner-preview').and(page.locator('[data-call="swaps"]'));
+  const unit = swaps.getByRole('radio', { name: /rest of season/i }).or(swaps.getByRole('button', { name: /rest of season/i })).first();
+  await expect(unit).toBeVisible();
+  const batches = log.batches.length;
+  const top = await rosterTop();
+  const clicked = Date.now();
+  await unit.click();
+  await expect(swaps.getByTestId('preview-content')).toHaveAttribute('data-shown', 'no', { timeout: 1000 });
+  await expect(swaps.getByTestId('preview-content')).toHaveAttribute('data-shown', 'yes');
+  const shownAt = Date.now();
+  console.log(`a change shown again after ${shownAt - clicked} ms`);
+  // shown only once the log answered the change's request, and well inside the first settle
+  expect(log.batches.length).toBe(batches + 1);
+  expect(log.answeredAt.at(-1)!).toBeLessThanOrEqual(shownAt);
+  expect(shownAt - clicked).toBeLessThan(1500);
+  expect(Math.abs((await rosterTop()) - top)).toBeLessThan(2);
+});
+
+test("Trade's frames log a row for each row they show, and the trade they judge (#1137)", async ({ page }) => {
+  const { rosters } = await seedLeague(page);
+  await page.goto('/sources/');
+  const log = new Log();
+  await as(page, { switchOn: true, flag: true, owner: true }, log);
+  const give = rosters[0]![9]!;
+  const get = rosters[1]![0]!;
+  await page.goto(`/trade/?league=nba&give=${give}&get=${get}`);
+  const frame = (call: string) => page.getByTestId('owner-preview').and(page.locator(`[data-call="${call}"]`));
+  for (const call of ['trade-verdict', 'trade-suggestions']) await expect(frame(call).getByTestId('preview-content')).toHaveAttribute('data-shown', 'yes');
+  const entries = (call: string) => log.posted.filter((e) => e['call'] === call);
+  expect(entries('trade-verdict').map((e) => e['subject'])).toEqual([`${give} > ${get}`]);
+  // the suggestions: one entry a row, on whichever layout the width shows
+  const rows = frame('trade-suggestions').locator('[data-testid="trade-suggestions-list"] > li:visible, [data-testid="trade-suggestions"] tbody tr:visible');
+  const shown = await rows.count();
+  expect(entries('trade-suggestions')).toHaveLength(Math.max(shown, 1));
+  // the finder, once run: one entry a trade found
+  await frame('finder').getByTestId('find-trades').click();
+  const found = page.locator('[data-call="trade-finder"]').getByTestId('found-trades');
+  await expect(found).toBeVisible();
+  expect(entries('trade-finder')).toHaveLength(await found.locator(':scope > li').count());
+  if (await frame('sell-high').count()) {
+    await expect(frame('sell-high').getByTestId('preview-content')).toHaveAttribute('data-shown', 'yes');
+    expect(entries('sell-high')).toHaveLength(await frame('sell-high').getByTestId('sell-high').locator(':scope > li').count());
+  }
 });
