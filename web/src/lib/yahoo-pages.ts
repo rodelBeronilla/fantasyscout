@@ -7,7 +7,8 @@
  * rather than in the bookmark.
  */
 import type { Format, Tally } from './fantasy-league';
-import { type LeagueWeek, stopDetails, type WeeksStop } from './league-weeks';
+import type { LeagueWeek } from './league-weeks';
+import { stopDetails, type WeeksStop } from './yahoo-stored';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 
