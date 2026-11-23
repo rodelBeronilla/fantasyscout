@@ -48,7 +48,8 @@ const list = sources.sources as Source[];
               <dd>{s.retention}</dd>
               <dt class="text-muted">Terms</dt>
               <dd>
-                <a href={s.terms} class="underline underline-offset-4" rel="noopener">
+                {/* a long terms address wraps on a phone rather than widening the page (#1112) */}
+                <a href={s.terms} class="underline underline-offset-4 wrap-anywhere" rel="noopener">
                   {s.terms}
                 </a>
               </dd>

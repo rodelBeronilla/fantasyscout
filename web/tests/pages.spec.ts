@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { expect, test } from './fixtures';
+import { expectNoSidewaysScroll } from './viewport';
 import { SHOWS } from '../src/lib/visibility';
 
 /** ESPN's league API as recorded for the tests (#815): the views the import asks for, a made-up league. */
@@ -772,8 +773,7 @@ for (const path of ['/', '/team/', '/league/', '/streamers/', '/trade/', '/healt
     await page.goto(path);
     await page.locator('main h1, main [data-testid]').first().waitFor();
     await page.waitForTimeout(500);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-    expect(overflow).toBe(false);
+    await expectNoSidewaysScroll(page);
   });
 }
 
@@ -1702,7 +1702,7 @@ test('with an eight-team, thirteen-spot league, no main page scrolls sideways on
     await page.goto(`${path}?league=nba`);
     await ready();
     await page.waitForLoadState('networkidle');
-    expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(390);
+    await expectNoSidewaysScroll(page, path);
   }
   // the matchup's table is whole, scrolling inside its own region
   await page.goto('/team/?league=nba');
@@ -1851,7 +1851,7 @@ test("with league rosters set up, the Trade page picks from them and shows the m
     const box = (await use.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(width);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await expectNoSidewaysScroll(page);
   }
   if (SHOWS.tradeSuggestions) await page.getByRole('button', { name: 'Use this trade' }).first().click();
   await expect(page.getByTestId('picked-give').locator('li').first()).toBeVisible();
@@ -2476,7 +2476,7 @@ test('Build your team lists targets and players to let go, each with a move and 
   await expect(more).toHaveAttribute('href', new RegExp(`/trade/\\?league=wnba&give=${id}(&|$)`));
   const results = await new AxeBuilder({ page }).include('[data-testid="build-plan"]').withTags(['wcag2a', 'wcag2aa']).analyze();
   expect(results.violations).toEqual([]);
-  if (isMobile) expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+  if (isMobile) await expectNoSidewaysScroll(page);
   await more.click();
   await expect(page).toHaveURL(/\/trade\//);
   await expect(page.getByTestId('picked-give')).toContainText(name);
@@ -2633,7 +2633,7 @@ test('Pickups leads with the top three adds for the league, each with why and wh
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await expect(adds).toHaveCount(3);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+  await expectNoSidewaysScroll(page);
 });
 
 test('Pickups opens with the need chips a link names, and keeps them in the address (#818)', async ({ page }) => {
@@ -4973,7 +4973,7 @@ test('the League page shows the league week by week from the imported totals: ra
     expect(found.violations, theme).toEqual([]);
   }
   // the table scrolls inside its card; the page itself does not scroll sideways
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expectNoSidewaysScroll(page);
 });
 
 test('the week by week says in words whose row is yours, how rows run, what the tints and arrows mean, and which week a team is missing (#1064)', async ({ page }) => {
