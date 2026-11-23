@@ -9,6 +9,8 @@ only, never a board, a player or a week's result. For each Monday:
 - ESPN's listing landed that day: when it was fetched (the sidecar's ``fetched_at``), the time ESPN
   put on the answer (the file's ``timestamp``, which the morning cut reads), and how many players
   it lists out or doubtful, league-wide;
+- per mirrored season, the official reports landed and how many were published on their own day
+  before the morning cut (the only reports the morning cut adds to a build);
 - the point-in-time build as of the Monday: which ESPN landing it reads, and how many of the top
   130 by value with a game that week (S0's population) its board lists out or doubtful, how many
   of those by the official report.
@@ -19,7 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
-from datetime import date
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +33,8 @@ from ops.standings import CATS
 from ops.week_yardstick import population
 
 ESPN_OUT = ("Out", "Doubtful")
+# the morning cut, as dbt/macros/point_in_time.sql states it (#1140)
+MORNING_CUT = time(12, 0)
 
 
 def espn_landing(root: Path, league: str, season: str, day: date) -> dict[str, Any]:
@@ -77,6 +81,28 @@ def board_counts(db: Path, league: str) -> dict[str, Any]:
     }
 
 
+def early_reports(root: Path, league: str) -> dict[str, dict[str, int]]:
+    """Per mirrored season, the official reports landed and how many were published on their day
+    before the morning cut (12:00 UTC): the only reports the morning cut reads that a cut at the
+    start of the day did not."""
+    out: dict[str, dict[str, int]] = {}
+    base = root / "landing" / "league" / "injury_report" / league
+    for season in sorted(base.glob("*")) if base.exists() else []:
+        total = early = 0
+        for f in season.glob("*/*.json"):
+            if f.name.endswith(".meta.json"):
+                continue
+            published = json.loads(f.read_text(encoding="utf-8")).get("published_et")
+            if not published:
+                continue
+            total += 1
+            moment = datetime.fromisoformat(published)
+            cut = datetime.combine(moment.date(), MORNING_CUT, tzinfo=UTC)
+            early += moment < cut
+        out[season.name] = {"reports": total, "before_the_morning_cut": early}
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="ops.listing_counts")
     p.add_argument("--landing", type=Path, required=True)
@@ -98,7 +124,10 @@ def main(argv: list[str] | None = None) -> int:
             db.unlink()
             print(json.dumps(row), flush=True)
             out.append(row)
-    args.out.write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8")
+    reports = early_reports(args.landing, args.league)
+    print(json.dumps({"official_reports": reports}), flush=True)
+    result = {"mondays": out, "official_reports": reports}
+    args.out.write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")
     return 0
 
 
