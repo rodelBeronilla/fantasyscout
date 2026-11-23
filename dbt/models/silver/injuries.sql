@@ -21,5 +21,6 @@ select
     _source_file
 from {{ ref('espn_injuries') }}
 where injury_id is not null
-    and {{ known_before('cast(_ingest_date as date)') }}
+    -- the morning cut (#1140): a build as of D reads the listing the morning ingest landed on D
+    and {{ landed_by_morning('cast(_ingest_date as date)', espn_ts('report_timestamp')) }}
 {{ latest_landing(['league', 'injury_id']) }}

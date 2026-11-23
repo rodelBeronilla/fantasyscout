@@ -57,3 +57,35 @@
   {%- endif -%}
   select 1
 {%- endmacro %}
+
+{#
+  The morning cut (#1140, ADR 0018's addendum). Two feeds are read as of the build day's morning
+  instead of its start: ESPN's injury listing and the leagues' official injury reports. A build as
+  of D then holds what a manager saw on D's morning, the listing the morning ingest landed on D,
+  and none of D's games, which every other feed still cuts by date.
+
+    - morning_cut(): the instant, MORNING_CUT_UTC on the as_of date, in UTC: one time for every
+      season and both leagues. The morning ingest starts at 09:30 UTC; the cut leaves it two and a
+      half hours, and comes before any game of either league tips off (the earliest, the
+      WNBA's late-morning games, start at 11:30 Eastern, 15:30 UTC at the earliest).
+    - known_by_morning(instant): a typed UTC instant (an official report's publication) before
+      the cut.
+    - landed_by_morning(ingest_date, fetched): a landed file of an earlier day, or of the day itself
+      fetched before the cut. ``fetched`` is the fetch time the landed file records (ESPN's own
+      timestamp of the answer), so a morning ingest that ran late is read only if it ran before
+      the cut; otherwise the build reads the day before's listing.
+#}
+{% macro morning_cut() -%}
+  {%- set MORNING_CUT_UTC = '12:00:00' -%}
+  cast('{{ var('as_of') }} {{ MORNING_CUT_UTC }}+00:00' as timestamptz)
+{%- endmacro %}
+
+{% macro known_by_morning(instant) -%}
+  {%- if point_in_time() -%}{{ instant }} < {{ morning_cut() }}{%- else -%}true{%- endif -%}
+{%- endmacro %}
+
+{% macro landed_by_morning(ingest_date, fetched) -%}
+  {%- if point_in_time() -%}
+  ({{ ingest_date }} < {{ as_of_date() }} or ({{ ingest_date }} = {{ as_of_date() }} and {{ fetched }} < {{ morning_cut() }}))
+  {%- else -%}true{%- endif -%}
+{%- endmacro %}
