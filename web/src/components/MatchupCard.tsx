@@ -24,6 +24,13 @@ const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC'
 const dayName = (iso: string) => DAY.format(new Date(`${iso}T12:00:00Z`));
 const word = (cat: string) => CATEGORY_WORDS[cat] ?? CATEGORY_LABELS[cat] ?? cat;
 const link = 'font-medium text-accent underline-offset-4 hover:underline';
+/** A matchup column's heading in two lines: whose numbers, then so far or projected (#1113). */
+const head = (whose: string, when: string) => (
+  <>
+    <span className="block">{whose}</span>
+    <span className="block font-normal normal-case tracking-normal">{when}</span>
+  </>
+);
 
 /**
  * Why the week projects from the games left alone, in a line; nothing when it starts from the
@@ -169,13 +176,15 @@ export function Matchup({
           {/* each category's chance of being won passed its out-of-sample check (ADR 0026) */}
           This week&apos;s matchup
         </h2>
-        <label className="flex items-center gap-2 text-sm">
+        {/* a long team name is cut in the closed select, not the page widened: the list and the title have it whole (#1076) */}
+        <label className="flex min-w-0 max-w-full items-center gap-2 text-sm">
           <span className="text-muted">Opponent</span>
           <select
             value={setup.opponent ?? ''}
             onChange={(e) => onOpponent(e.target.value === '' ? null : Number(e.target.value))}
-            className="rounded border border-line bg-bg px-2 py-1 text-sm"
+            className="min-w-0 rounded border border-line bg-bg px-2 py-1 text-sm"
             aria-label="This week's opponent"
+            title={them ?? undefined}
           >
             <option value="">Choose a team</option>
             {setup.names.map((name, t) =>
@@ -270,40 +279,33 @@ export function Matchup({
               <span className="text-xs text-muted"> (categories you win, lose{finalTally.even || nowTally?.even ? ' and tie' : ''})</span>
             </p>
           )}
-          <div className="table-scroll mt-2 overflow-auto" tabIndex={0} role="region" aria-label="Matchup, category by category">
+          {/* the table's columns say "Them"; the opponent is named here once, and wraps (#1113) */}
+          <p className="mt-2 text-xs text-muted" data-testid="matchup-them">
+            Them: <span className="text-fg">{them}</span>
+          </p>
+          <div className="table-scroll table-snap mt-1 overflow-auto" tabIndex={0} role="region" aria-label="Matchup, category by category">
             <table className="w-full text-sm" data-testid="matchup-table">
+              {/* each number column says whose it is and whether it is so far or projected, so any
+                  scroll position on a phone reads alone (#1113) */}
               <thead>
-                {now && (
-                  <tr>
-                    <Th pin="first">{''}</Th>
-                    <Th right colSpan={2}>
-                      So far
-                    </Th>
-                    <Th right colSpan={2}>
-                      Projected final
-                    </Th>
-                    <Th>{''}</Th>
-                    <Th>{''}</Th>
-                  </tr>
-                )}
                 <tr>
                   <Th pin="first">Category</Th>
-                  {now && <Th right>You</Th>}
-                  {now && <Th right>{them}</Th>}
-                  <Th right>{now ? 'You' : 'You, projected'}</Th>
-                  <Th right>{now ? them : `${them}, projected`}</Th>
-                  <Th right>Edge</Th>
+                  {now && <Th right>{head('You', 'so far')}</Th>}
+                  {now && <Th right>{head('Them', 'so far')}</Th>}
+                  <Th right>{head('You', 'projected')}</Th>
+                  <Th right>{head('Them', 'projected')}</Th>
+                  <Th right>{head('Edge', 'projected')}</Th>
                   <Th>{''}</Th>
                 </tr>
               </thead>
               <tbody>
                 {match.cats.map((r) => (
                   <tr key={r.cat} className="border-t border-line" data-testid="matchup-row">
-                    {/* the category stays beside its numbers while they scroll sideways on a phone (#1075) */}
-                    <Td pin="first">
+                    {/* the category stays beside its numbers while they scroll sideways on a phone (#1075); it heads its row (#1113) */}
+                    <th scope="row" className="pin w-22 min-w-22 px-2 py-1.5 text-left font-normal whitespace-nowrap">
                       {CATEGORY_LABELS[r.cat] ?? r.cat}
                       {r.cat === swing && <span className="ml-1 text-xs text-muted">swing</span>}
-                    </Td>
+                    </th>
                     {now && <Td right>{now.get(r.cat) ? show(r.cat, now.get(r.cat)!.mine) : '–'}</Td>}
                     {now && <Td right>{now.get(r.cat) ? show(r.cat, now.get(r.cat)!.theirs) : '–'}</Td>}
                     <Td right>{show(r.cat, r.mine)}</Td>

@@ -1345,8 +1345,8 @@ test("the Yahoo bookmarklet brings the standings, this week's opponent and score
     await expect(matchup.getByTestId('matchup-read')).toContainText("Score so far from Yahoo at 12:00 ET, before today's");
     // the score so far beside the projected final, each labelled, with both tallies (#1022)
     await expect(matchup.getByTestId('matchup-tally')).toContainText(/^Score so far: \d–\d(–\d)? · Projected final: \d–\d(–\d)?/);
-    await expect(matchup.getByTestId('matchup-table').locator('thead')).toContainText('So far');
-    await expect(matchup.getByTestId('matchup-table').locator('thead')).toContainText('Projected final');
+    await expect(matchup.getByTestId('matchup-table').locator('thead')).toContainText('so far');
+    await expect(matchup.getByTestId('matchup-table').locator('thead')).toContainText('projected');
     // games left both ways, the lineups as set on Yahoo beside the best lineup
     await expect(matchup.getByTestId('matchup-games')).toContainText(/Games left this week, best lineup: you [\d.]+, Triple Doubles [\d.]+\. As set on Yahoo: you [\d.]+, Triple Doubles [\d.]+\./);
   }
@@ -3182,7 +3182,7 @@ test("an ESPN category league's matchup starts from the score so far and leads w
   await expect(card.getByTestId('matchup-row')).toHaveCount(9);
   // Brick City has 1,000 points so far to Third's 100: the projected final adds the games to come
   const points = card.getByTestId('matchup-row').filter({ hasText: 'PTS' });
-  expect(Number(await points.locator('td').nth(1).innerText())).toBeGreaterThanOrEqual(1000);
+  expect(Number(await points.locator('td').nth(0).innerText())).toBeGreaterThanOrEqual(1000);
   await expect(points).toContainText('win');
 });
 
@@ -4774,8 +4774,8 @@ test("My Team shows the score so far beside the projected final, games left both
   const matchup = page.getByTestId('matchup');
   await expect(matchup.getByTestId('matchup-tally')).toContainText(/^Score so far: 1–0(–8)? · Projected final: \d–\d/);
   const head = matchup.getByTestId('matchup-table').locator('thead');
-  await expect(head).toContainText('So far');
-  await expect(head).toContainText('Projected final');
+  await expect(head).toContainText('so far');
+  await expect(head).toContainText('projected');
   // the points so far, as Yahoo had them, beside the projection
   await expect(matchup.getByTestId('matchup-row').filter({ hasText: 'PTS' })).toContainText('110');
   await expect(matchup.getByTestId('matchup-row').filter({ hasText: 'PTS' })).toContainText('91');
@@ -4857,10 +4857,10 @@ test('on a phone the matchup keeps each category beside its numbers while the ta
   await expect.poll(() => region.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0);
   const left = (await region.boundingBox())!.x;
   // the category's header and every row's category stay at the region's left edge, over the numbers
-  for (const cell of [table.locator('thead tr').last().locator('th').first(), ...(await table.locator('tbody tr td:first-child').all())]) {
+  for (const cell of [table.locator('thead tr').last().locator('th').first(), ...(await table.locator('tbody tr > :first-child').all())]) {
     expect(Math.abs((await cell.boundingBox())!.x - left)).toBeLessThan(2);
   }
-  await expect(table.locator('tbody tr').first().locator('td').first()).toHaveText(/^PTS/);
+  await expect(table.locator('tbody tr').first().locator('th').first()).toHaveText(/^PTS/);
 });
 
 test('My Team and Rankings with a league pass axe in both themes (#1075)', async ({ page }) => {
