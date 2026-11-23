@@ -343,13 +343,14 @@ export default function TradeAnalyzer() {
 
   const sideCard = (side: Side, title: string, team: number | null, picked: string[]) => (
     <Card title={title} id={`trade-${side}`}>
-      <div className="grid gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {hasRosters && team !== null && team >= 0 && (
           <div>
             {side === 'get' ? (
+              // a long team name is cut in the closed select, not the page widened: the list and the title have it whole (#1076)
               <label className="mb-2 flex items-center gap-2 text-sm">
                 Trade partner{' '}
-                <select value={team} onChange={(e) => setPartner(Number(e.target.value))} className={input} aria-label="Trade partner">
+                <select value={team} onChange={(e) => setPartner(Number(e.target.value))} className={`${input} min-w-0`} aria-label="Trade partner" title={setup.names[team]}>
                   {setup.names.map((name, i) => (
                     i !== setup.mine && (
                       <option key={i} value={i}>

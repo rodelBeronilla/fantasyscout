@@ -162,7 +162,8 @@ const within = (items: readonly (readonly [string, string])[] | undefined) => !!
                     >
                       {group.label} <span aria-hidden="true" class="text-xs">▾</span>
                     </summary>
-                    <ul class="absolute left-0 z-20 mt-1 min-w-48 rounded-lg border border-line bg-card p-1.5 shadow">
+                    <!-- beside the logo (sm and up) the menu is the last item, so it opens leftward and stays on screen (#1076) -->
+                    <ul class="absolute left-0 z-20 mt-1 min-w-48 rounded-lg border border-line bg-card p-1.5 shadow sm:right-0 sm:left-auto">
                       {
                         group.items?.map(([label, path]) => (
                           <li hidden={path === OWNER_ONLY} data-owner-only={path === OWNER_ONLY || undefined}>
