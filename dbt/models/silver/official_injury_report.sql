@@ -70,5 +70,6 @@ select
     *,
     published_at_et = max(published_at_et) over (partition by league) as is_latest
 from typed
--- published before the as_of date (#752): is_latest is then the newest report known by then
-where {{ known_before('published_at_et') }}
+-- published before the morning cut of the as_of date (#752, #1140): is_latest is then the newest
+-- report known that morning
+where {{ known_by_morning('published_at') }}

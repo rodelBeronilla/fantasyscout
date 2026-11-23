@@ -86,6 +86,10 @@ on:
         description: Export S3's inputs for every mirrored season, the games played with their tracking chances (NBA only, #1081)
         type: boolean
         default: false
+      listing_counts:
+        description: Mondays of the last mirrored season to count the top 130 listed out or doubtful on, space separated (#1140; counts and fetch times only)
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -211,6 +215,26 @@ jobs:
         with:
           name: s3-chances-${{ inputs.league }}-${{ inputs.judge != '' && inputs.judge || 'history' }}
           path: s3-chances/
+          retention-days: 90
+      # The Mondays' injury listing (#1140, #1096): per Monday, the count of the top 130 its
+      # point-in-time build lists out or doubtful, and when that day's listing was fetched. Counts
+      # and fetch times only: no board, player or week is written.
+      - name: Count the Mondays' listed players
+        if: always() && inputs.listing_counts != ''
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASONS: ${{ inputs.seasons }}
+          MONDAYS: ${{ inputs.listing_counts }}
+          FS_LANDING_ROOT: ${{ runner.temp }}/landing
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2086
+          uv run python -m ops.listing_counts --landing "$FS_LANDING_ROOT" --league "$LEAGUE" --season "${SEASONS##* }" --mondays $MONDAYS --out listing-counts.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && inputs.listing_counts != ''
+        with:
+          name: listing-counts-${{ inputs.league }}
+          path: listing-counts.json
           retention-days: 90
       - name: Walk forward through the season
         if: inputs.judge != ''

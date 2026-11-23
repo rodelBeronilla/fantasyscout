@@ -6,7 +6,7 @@ from datetime import date
 
 import duckdb
 
-from ops.point_in_time_check import DATED, cut_reference, dropped, leaks
+from ops.point_in_time_check import DATED, MORNING, MORNING_INSTANTS, cut_reference, dropped, leaks
 
 AS_OF = date(2026, 1, 10)
 
@@ -19,8 +19,14 @@ def _db(games: list[str], waiver_rows: int = 0) -> duckdb.DuckDBPyConnection:
     columns: dict[str, list[str]] = {}
     for table, col in DATED:
         columns.setdefault(table, []).append(col)
+    for table, col in MORNING:
+        columns.setdefault(table, []).append(col)
+    instants = dict(MORNING_INSTANTS)
     for table, cols in columns.items():
-        con.execute(f"create table {table} ({', '.join(f'{c} date' for c in cols)})")
+        typed = [f"{c} date" for c in cols]
+        if table in instants:
+            typed.append(f"{instants[table]} timestamptz")
+        con.execute(f"create table {table} ({', '.join(typed)})")
     for d in games:
         con.execute("insert into gold.fct_player_game values (cast(? as date))", [d])
     con.execute("create table gold.fct_waiver_trend (sleeper_player_id varchar)")
@@ -74,3 +80,41 @@ def test_reference_data_cut_by_the_build_is_named() -> None:
     assert cut_reference(duckdb.connect(":memory:"), full) == [
         "silver.player_birth_dates: missing from the build"
     ]
+
+
+def test_the_injury_feeds_may_hold_the_days_morning_and_nothing_later() -> None:
+    con = _db(["2026-01-09"])
+    # the morning's listing and a report published at 6 am Eastern (11:00 UTC): known that morning
+    con.execute("insert into silver.injuries values (date '2026-01-10')")
+    con.execute(
+        "insert into silver.official_injury_report values"
+        " (date '2026-01-10', timestamptz '2026-01-10 11:00:00+00:00')"
+    )
+    assert leaks(con, AS_OF) == []
+    # a listing of the next day, and a report published after the cut (5 pm Eastern)
+    con.execute("insert into silver.injuries values (date '2026-01-11')")
+    con.execute(
+        "insert into silver.official_injury_report values"
+        " (date '2026-01-10', timestamptz '2026-01-10 22:00:00+00:00')"
+    )
+    found = leaks(con, AS_OF)
+    assert "silver.injuries: 1 rows with report_date after 2026-01-10" in found
+    assert any(
+        f.startswith("silver.official_injury_report: 1 rows with published_at") for f in found
+    )
+
+
+def test_only_the_two_injury_feeds_are_cut_at_the_morning() -> None:
+    """No input other than ESPN's listing and the official reports changed its cut (#1140): the
+    morning macros appear in their three silver models only, which no longer cut by date."""
+    from pathlib import Path
+
+    models = Path(__file__).resolve().parent.parent / "dbt" / "models"
+    morning = {
+        p.stem for p in models.rglob("*.sql") if "by_morning(" in p.read_text(encoding="utf-8")
+    }
+    assert morning == {"injuries", "injury_status_history", "official_injury_report"}
+    for name in morning:
+        sql = next(models.rglob(f"{name}.sql")).read_text(encoding="utf-8")
+        assert "known_before(" not in sql
+    assert not {t for t, _ in DATED} & {t for t, _ in MORNING}

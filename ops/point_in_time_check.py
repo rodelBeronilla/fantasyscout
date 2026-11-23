@@ -4,8 +4,9 @@
 
 Rebuilds the lakehouse from scratch twice into new DuckDB files, with ``point_in_time: true``:
 
-- as of the sample's first game day: no dated table may hold a row on or after it, and a source
-  that keeps only its newest file must be empty;
+- as of the sample's first game day: no dated table may hold a row on or after it (the injury
+  feeds, cut at that morning, none after it nor any report published after the morning cut), and
+  a source that keeps only its newest file must be empty;
 - as of the day after its last game: still no row on or after it, and every event table must
   keep every row the full build has before it, so an over-cut (a game log cut by the day a
   backfill landed it) fails too.
@@ -35,9 +36,6 @@ DBT = ROOT / "dbt"
 DATED: tuple[tuple[str, str], ...] = (
     ("silver.team_game_box", "game_date"),
     ("silver.games", "game_date"),
-    ("silver.official_injury_report", "published_at_et"),
-    ("silver.injuries", "report_date"),
-    ("silver.injury_status_history", "status_to"),
     ("silver.espn_fantasy_market", "observed_date"),
     # each season's draft order, known the day before its first game however late it landed (#847)
     ("silver.espn_preseason_adp", "known_date"),
@@ -52,7 +50,6 @@ DATED: tuple[tuple[str, str], ...] = (
     ("gold.fct_event", "game_date"),
     ("gold.fct_player_tracking", "game_date"),
     ("gold.fct_game_official", "game_date"),
-    ("gold.fct_availability", "report_date"),
     ("gold.fct_transaction", "transaction_date"),
     ("gold.fct_player_prop", "snapshot_at"),
     ("gold.int_player_game_value", "game_date"),
@@ -77,6 +74,18 @@ DATED: tuple[tuple[str, str], ...] = (
     ("silver.youtube_transcripts", "published_date"),
     ("gold.fct_player_youtube_item", "published_date"),
 )
+# The injury feeds, cut at the morning of the date (#1140, ADR 0018's addendum): a row may carry
+# the date itself, never a later one, and an official report must be published before the cut.
+MORNING: tuple[tuple[str, str], ...] = (
+    ("silver.official_injury_report", "published_at_et"),
+    ("silver.injuries", "report_date"),
+    ("silver.injury_status_history", "status_to"),
+    ("gold.fct_availability", "report_date"),
+)
+# The instant each morning-cut table records, checked against the cut itself.
+MORNING_INSTANTS: tuple[tuple[str, str], ...] = (("silver.official_injury_report", "published_at"),)
+# the morning cut, as dbt/macros/point_in_time.sql states it: 12:00 UTC on the date
+MORNING_CUT_UTC = "12:00:00"
 # Records of games, cut by the day they were played: everything before the date must survive.
 EVENTS: frozenset[str] = frozenset(
     {
@@ -126,6 +135,21 @@ def leaks(con: duckdb.DuckDBPyConnection, as_of: date) -> list[str]:
         n = _count(con, f"select count(*) from {table} where cast({col} as date) >= ?", [as_of])
         if n:
             found.append(f"{table}: {n} rows with {col} on or after {as_of}")
+    for table, col in MORNING:
+        if col not in _columns(con, table):
+            found.append(f"{table}.{col}: missing from the build")
+            continue
+        n = _count(con, f"select count(*) from {table} where cast({col} as date) > ?", [as_of])
+        if n:
+            found.append(f"{table}: {n} rows with {col} after {as_of}")
+    cut = f"{as_of.isoformat()} {MORNING_CUT_UTC}+00:00"
+    for table, col in MORNING_INSTANTS:
+        if col not in _columns(con, table):
+            found.append(f"{table}.{col}: missing from the build")
+            continue
+        sql = f"select count(*) from {table} where {col} >= cast(? as timestamptz)"
+        if n := _count(con, sql, [cut]):
+            found.append(f"{table}: {n} rows with {col} at or after the morning cut {cut}")
     for table in EMPTY:
         if not _columns(con, table):
             found.append(f"{table}: missing from the build")
@@ -167,7 +191,7 @@ def idle(full: duckdb.DuckDBPyConnection) -> list[str]:
     """Checked tables the sample leaves empty: they prove nothing either way."""
     return [
         t
-        for t in dict.fromkeys([*(t for t, _ in DATED), *REFERENCE])
+        for t in dict.fromkeys([*(t for t, _ in (*DATED, *MORNING)), *REFERENCE])
         if _count(full, f"select count(*) from {t}") == 0
     ]
 
@@ -219,7 +243,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     print(
         f"point-in-time builds as of {first} and {after_last}: nothing from on or after the date,"
-        f" every earlier game kept ({len({t for t, _ in DATED})} tables checked)"
+        f" every earlier game kept ({len({t for t, _ in (*DATED, *MORNING)})} tables checked)"
     )
     if unexercised:
         print("not exercised by the sample (no rows):", ", ".join(unexercised))

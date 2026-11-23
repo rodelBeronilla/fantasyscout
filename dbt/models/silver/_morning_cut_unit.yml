@@ -1,0 +1,108 @@
+unit_tests:
+  # The morning cut (#1140, ADR 0018's addendum): a build as of Monday 2026-11-16 reads the injury
+  # feeds as of that morning, 12:00 UTC (7 am Eastern), and every game still by date.
+
+  - name: espn_listing_as_of_monday_reads_the_mornings_landing_not_the_evenings
+    description: >
+      ESPN's listing landed on the Monday by the morning ingest (fetched 09:41 UTC) is read; one
+      landed that evening (a late run, 22:05 UTC) is not, so i2 stays Out and i3 is absent. The
+      landing of the day before stands where the Monday has nothing newer (i1).
+    model: injuries
+    overrides:
+      vars:
+        as_of: '2026-11-16'
+        point_in_time: true
+    given: &espn_landings
+      - input: ref('espn_injuries')
+        rows:
+          - {league: nba, season: '2026-27', injury_id: i1, status: Out, report_timestamp: '2026-11-15T09:35:12Z', _ingest_date: 2026-11-15, _source_file: a.json}
+          - {league: nba, season: '2026-27', injury_id: i2, status: Questionable, report_timestamp: '2026-11-15T09:35:12Z', _ingest_date: 2026-11-15, _source_file: a.json}
+          - {league: nba, season: '2026-27', injury_id: i2, status: Out, report_timestamp: '2026-11-16T09:41:03Z', _ingest_date: 2026-11-16, _source_file: b.json}
+          - {league: nba, season: '2026-27', injury_id: i2, status: Day-To-Day, report_timestamp: '2026-11-16T22:05:00Z', _ingest_date: 2026-11-16, _source_file: c.json}
+          - {league: nba, season: '2026-27', injury_id: i3, status: Doubtful, report_timestamp: '2026-11-16T22:05:00Z', _ingest_date: 2026-11-16, _source_file: c.json}
+    expect:
+      rows:
+        - {injury_id: i1, status: Out}
+        - {injury_id: i2, status: Out}
+
+  - name: espn_listing_as_of_tuesday_reads_the_mondays_evening_landing
+    description: >
+      The positive control: the build as of the Tuesday reads the Monday evening's landing (i2 is
+      Day-To-Day, i3 Doubtful).
+    model: injuries
+    overrides:
+      vars:
+        as_of: '2026-11-17'
+        point_in_time: true
+    given: *espn_landings
+    expect:
+      rows:
+        - {injury_id: i1, status: Out}
+        - {injury_id: i2, status: Day-To-Day}
+        - {injury_id: i3, status: Doubtful}
+
+  - name: official_reports_as_of_monday_stop_at_the_morning_cut
+    description: >
+      The official report published at 5:30 am Eastern on the Monday (10:30 UTC) is read and is
+      the newest known; the one published at 5:30 pm is not.
+    model: official_injury_report
+    overrides:
+      vars:
+        as_of: '2026-11-16'
+        point_in_time: true
+    given: &official_reports
+      - input: ref('league_injury_report')
+        rows:
+          - {league: nba, season: '2026-27', report: r1, published_et: '2026-11-15T17:00:00-05:00', game_date: 11/15/2026, matchup: 'AAA@BBB', team: Team A, player_name: 'One, Player', status: Out, reason: 'Injury/Illness - Knee', not_submitted: 'false', _ingest_date: 2026-11-15, _source_file: r1.json}
+          - {league: nba, season: '2026-27', report: r2, published_et: '2026-11-16T05:30:00-05:00', game_date: 11/16/2026, matchup: 'AAA@CCC', team: Team A, player_name: 'One, Player', status: Doubtful, reason: 'Injury/Illness - Knee', not_submitted: 'false', _ingest_date: 2026-11-16, _source_file: r2.json}
+          - {league: nba, season: '2026-27', report: r3, published_et: '2026-11-16T17:30:00-05:00', game_date: 11/16/2026, matchup: 'AAA@CCC', team: Team A, player_name: 'One, Player', status: Available, reason: null, not_submitted: 'false', _ingest_date: 2026-11-16, _source_file: r3.json}
+    expect:
+      rows:
+        - {report: r1, is_latest: false}
+        - {report: r2, is_latest: true}
+
+  - name: official_reports_as_of_tuesday_read_the_mondays_evening_report
+    description: The positive control, as of the Tuesday the 5:30 pm report of the Monday is read and is the newest.
+    model: official_injury_report
+    overrides:
+      vars:
+        as_of: '2026-11-17'
+        point_in_time: true
+    given: *official_reports
+    expect:
+      rows:
+        - {report: r1, is_latest: false}
+        - {report: r2, is_latest: false}
+        - {report: r3, is_latest: true}
+
+  - name: a_game_on_the_monday_stays_out_under_the_morning_cut
+    description: >
+      Games keep their cut by date: as of the Monday, Sunday's game is in and Monday's game, which
+      tips off after the morning cut, is not.
+    model: fct_player_game
+    overrides:
+      vars:
+        as_of: '2026-11-16'
+        point_in_time: true
+    given:
+      - input: ref('player_game_box')
+        rows:
+          - {league: nba, season: '2026-27', game_id: g15, player_id: p1, player_game_key: g15-p1, team_id: t1, minutes: 30, points: 10}
+          - {league: nba, season: '2026-27', game_id: g16, player_id: p1, player_game_key: g16-p1, team_id: t1, minutes: 30, points: 20}
+      - input: ref('games')
+        rows:
+          - {league: nba, game_id: g15, game_date: 2026-11-15}
+          - {league: nba, game_id: g16, game_date: 2026-11-16}
+      - input: ref('player_game_advanced')
+        rows: []
+      - input: ref('player_game_usage')
+        rows: []
+      - input: ref('player_game_misc')
+        rows: []
+      - input: ref('dim_player')
+        rows: []
+      - input: ref('player_game_reconciliation')
+        rows: []
+    expect:
+      rows:
+        - {game_id: g15, points: 10}
