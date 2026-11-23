@@ -37,6 +37,9 @@ import { usePlayerNotes } from '../lib/player-notes';
 import { SHOWS } from '../lib/visibility';
 import { addsOpen, fitList, heldBack, importOf, previewCall, type PreviewCall, useOwnerPreview, withinAdds } from '../lib/owner-preview';
 import { AddsLimit, OwnerPreview } from './OwnerPreview';
+import { LastWeekGraded } from './LastWeekGraded';
+import { soFarTally, yahooWeekOf } from '../lib/graded';
+import { logWeekChances } from '../lib/graded-log';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { addsThisWeek, staleOpponent, weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
@@ -489,6 +492,24 @@ export default function MyTeam() {
     const live = liveWeek(cats, score, rest);
     return { match: week(live.mine, live.theirs), basis: { live: true, projectedOnly: live.projectedOnly, read }, banded: banded(live.mine, live.theirs) };
   }, [h2h, setup, opponent, weekAvailable, myTeam, rows, owner, points, activeCats, scoredCats, lineupPlans, planFrom, games, byId, league, preview]);
+  // The week's chances, logged with the preview's calls for last week graded (#1058): the chances
+  // the matchup card shows, once the schedule is in, for the owner with his preview on alone
+  useEffect(() => {
+    if (!preview || !weekMatch || points || !games || opponent === null) return;
+    const monday = mondayOf(easternDate());
+    const source = setup.source;
+    return logWeekChances(
+      {
+        league,
+        monday,
+        opponent,
+        week: yahooWeekOf(source, monday, (ms) => easternDate(new Date(ms))),
+        chances: Object.fromEntries(weekMatch.match.cats.map((r) => [r.cat, r.chance])),
+        soFar: weekMatch.basis.live ? soFarTally(scoredCats, source?.scores?.[setup.mine], source?.scores?.[opponent]) : null,
+      },
+      importOf(source),
+    );
+  }, [preview, weekMatch, points, games, opponent, setup.source, setup.mine, scoredCats, league]);
   // Today's start and sit (#816): the best lineup the slots hold from today's players, by the same
   // per-game values the week's plan uses.
   const verdict = useMemo(() => {
@@ -714,6 +735,11 @@ export default function MyTeam() {
         )}
         {SHOWS.categories && !points && <Categories standings={standings} mine={setup.mine} cats={activeCats} punted={punted} h2h={h2h} totals={myTotals} />}
       </div>
+
+      {/* last week, graded (#1058): the owner's alone, with his preview on, from his log */}
+      {preview && h2h && !points && !setup.drafting && (
+        <LastWeekGraded league={league} setup={setup} today={easternDate()} dateOf={(ms) => easternDate(new Date(ms))} nameOf={name} />
+      )}
 
       {/* the owner preview (#1056): the week with the too-close band its switch hides */}
       {preview && !SHOWS.tooClose && showMatchup && weekMatch?.banded && setup.opponent !== null && (

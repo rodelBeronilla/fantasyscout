@@ -1,36 +1,20 @@
 /**
- * The owner's log, for last week graded (#1058): the week's chances recorded once a fantasy week
- * in this browser, and the log read back to grade them. Both run only once the Worker has said
- * this browser holds the owner's cookie (owner-log.ts); anyone else's browser asks nothing.
+ * The owner's log, for last week graded (#1058): the week's chances logged with the preview's
+ * calls, and the log read back to grade them. Both run only with the owner's preview on, which
+ * the Worker must confirm (owner-preview.ts); anyone else's browser asks nothing.
  */
-import { useEffect, useState } from 'react';
-
-import type { League } from './data';
-import { getLatest } from './data';
-import { type WeekChances, weekChancesCall } from './graded';
-import { logCall, OWNER_LOG_DOWNLOAD, ownerLogOn } from './owner-log';
-import { readRaw, storageKey, writeRaw } from './storage';
-
-/** Where this browser keeps the Monday of the last week whose chances it logged, per league. */
-export const chancesKey = (league: League): string => storageKey('week-chances', league);
-
-// the weeks logged or being logged on this page view: storage may be blocked
-const done = new Set<string>();
+import { type WeekChances, weekChanceCalls } from './graded';
+import { OWNER_LOG_DOWNLOAD } from './owner-log';
+import { logBeforeShowing } from './owner-preview';
 
 /**
- * Logs the week's chances once a week in this browser: false when this week's are logged
- * already, or the log refused them (they are tried again on the next visit).
+ * Logs the week's chances the matchup card shows, one entry a category, in the page's batch with
+ * the preview's calls: the log keeps each once by its key, so a second view adds nothing and a
+ * chance that moves adds its new value. `cancel` withdraws them while not yet sent, when the card
+ * comes to show other chances (its data still arriving).
  */
-export async function logWeekChances(c: Omit<WeekChances, 'date' | 'at'>, date: string): Promise<boolean> {
-  const key = chancesKey(c.league);
-  const mark = `${key}:${c.monday}`;
-  if (done.has(mark) || readRaw(key) === c.monday) return false;
-  done.add(mark);
-  const latest = await getLatest().catch(() => null);
-  const ok = await logCall({ ...weekChancesCall(c), date, build: latest?.build_id ?? 'unknown' });
-  // refused: tried again on the next visit, not on every render of this one
-  if (ok) writeRaw(key, c.monday);
-  return ok;
+export function logWeekChances(c: Pick<WeekChances, 'league' | 'monday' | 'opponent' | 'week' | 'chances' | 'soFar'>, league: string): () => void {
+  return logBeforeShowing(weekChanceCalls(c), league).cancel;
 }
 
 /** The owner's whole log, JSON Lines, read through the Worker; null when it could not be read. */
@@ -41,17 +25,4 @@ export async function readOwnerLog(): Promise<string | null> {
   } catch {
     return null;
   }
-}
-
-/** Whether this browser is the signed-in owner's, for a component: false, with no request, in any other browser. */
-export function useOwnerLogOn(): boolean {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    let live = true;
-    void ownerLogOn().then((yes) => live && setOn(yes));
-    return () => {
-      live = false;
-    };
-  }, []);
-  return on;
 }

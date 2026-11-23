@@ -1,28 +1,33 @@
 /**
- * Last week, graded (#1058): for the owner, each category's chance at the week's start against
- * what happened, and a running record over the graded weeks.
+ * Last week, graded (#1058): for the owner with his preview on, each category's chance at the
+ * week's start against what happened, and a running record over the graded weeks.
  *
- * - The chance is My Team's matchup card's (validated, ADR 0026), recorded once a fantasy week in
- *   the owner's private log (owner-log.ts) as a `week-chances` call: the first time My Team shows
- *   the matchup that week. A record made after the Monday is a mid-week one, with the score so far
- *   at that moment, and the card says so.
+ * - The chance is My Team's matchup card's (validated, ADR 0026), logged with the preview's calls
+ *   (owner-preview.ts), one entry a category, under the log's present form: the batch calls file,
+ *   each entry kept once by its key (worker/src/owner-log-event.ts). The chance at the week's
+ *   start is each category's earliest entry that week; one first logged after the Monday is a
+ *   mid-week one, and the card says so.
  * - What happened is the week's final totals as Yahoo scored them (the import's weeks, #1049),
- *   compared category by category as the matchup card compares a score so far (soFarResult).
+ *   compared category by category as the matchup card compares a score so far (soFarResult). A
+ *   category with no total for one side is named and left ungraded, never a loss.
  * - A call is the side a chance favours. A 50% chance, or a category tied, is no call. The Brier
  *   score is the mean of (chance − result)², 1 for a category won and 0 for one lost, over the
  *   categories won or lost; a coin's 50% scores 0.25 on every one.
+ * - Nothing from before the log's present form is graded: only batch entries (they carry the
+ *   league's import), from the first full week after it shipped.
  */
+import { callKey } from '../../../worker/src/owner-log-event';
 import type { League } from './data';
 import { mondayOf, type LeagueSource } from './fantasy-league';
-import { CATEGORY_LABELS } from './format';
 import type { LeagueWeek } from './league-weeks';
 import { type ScoreSoFar, soFarResult, soFarValue } from './matchup';
+import { previewCall, type PreviewCall } from './owner-preview';
 
-/** The day the owner's log shipped (#1033 merged): grading starts with the first full fantasy week after it. */
-const LOG_SHIPPED = '2026-11-17'; // def: the owner's log shipped (#1033), 2026-11-17
+/** The day the log's present form shipped (#1057 merged, Eastern): grading starts with the first full fantasy week after it. */
+const LOG_SHIPPED = '2026-11-22'; // def: #1057 merged on Sunday 2026-11-22
 
-/** The call the week's chances are logged under. */
-export const WEEK_CHANCES = 'week-chances';
+/** The call the week's chances are logged under, one entry a category. */
+export const WEEK_CHANCE = 'week-chance';
 
 /** A coin's chance, and its Brier score on any category won or lost. */
 const COIN = 1 / 2; // def: a coin flip
@@ -36,14 +41,62 @@ export function addDays(iso: string, days: number): string {
   return new Date(Date.parse(`${iso}T12:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10); // def: YYYY-MM-DD
 }
 
-/** The first week graded (its Monday: the first Monday on or after the log shipped) and the day its grade first shows (the Monday after). */
+/** The first week graded (its Monday: the first Monday on or after the log's present form shipped) and the day its grade first shows (the Monday after). */
 export function gradingStarts(shipped: string = LOG_SHIPPED): { week: string; firstGrade: string } {
   const monday = mondayOf(shipped);
   const week = monday === shipped ? monday : addDays(monday, WEEK_DAYS);
   return { week, firstGrade: addDays(week, WEEK_DAYS) };
 }
 
-/** A week's chances as the log holds them. */
+/** A call entry of the owner's log in its present form, as its download holds it, with the key the log keeps it under. */
+export interface LoggedCall {
+  key: string;
+  at: string;
+  date: string;
+  call: string;
+  subject: string;
+  value: number | string;
+  naive: number | string | null;
+  build: string;
+  /** The league's import it was made for. */
+  league: string;
+}
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The call entries in the log's download (JSON Lines, oldest first). Only the present form's: an
+ * entry from a batch, which names the league's import; an older single call, and any line that is
+ * not a call, is skipped.
+ */
+export function parseLog(text: string): LoggedCall[] {
+  const out: LoggedCall[] = [];
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const e = JSON.parse(line) as Record<string, unknown>;
+      const { call, subject, date, value, naive, league } = e;
+      if (e['kind'] !== 'call' || typeof call !== 'string' || typeof subject !== 'string' || typeof date !== 'string' || !ISO_DAY.test(date)) continue;
+      if (typeof league !== 'string' || (typeof value !== 'string' && typeof value !== 'number')) continue;
+      out.push({
+        key: callKey(e),
+        at: typeof e['at'] === 'string' ? e['at'] : '',
+        date,
+        call,
+        subject,
+        value,
+        naive: typeof naive === 'string' || typeof naive === 'number' ? naive : null,
+        build: typeof e['build'] === 'string' ? e['build'] : '',
+        league,
+      });
+    } catch {
+      // a line cut short: skipped
+    }
+  }
+  return out;
+}
+
+/** A week's chances, as its earliest entries in the log hold them. */
 export interface WeekChances {
   league: League;
   /** The week's Monday. */
@@ -54,114 +107,67 @@ export interface WeekChances {
   week: number | null;
   /** The manager's chance of winning each category, by category key (z_points...). */
   chances: Record<string, number>;
-  /** The score so far when it was recorded, in categories won, lost and tied; null without one. */
+  /** The log entry each chance is, by category: a grade is tied to its entry by this key. */
+  keys: Record<string, string>;
+  /** The score so far when it was first logged, in categories won, lost and tied; null without one. */
   soFar: [number, number, number] | null;
-  /** The Eastern date it was recorded: after the Monday, a mid-week record. */
+  /** The Eastern date the earliest chance was logged: after the Monday, a mid-week record. */
   date: string;
-  /** When the log took it, ISO; '' when the line had no time. */
+  /** When the log took it, ISO. */
   at: string;
 }
 
-const LABEL_TO_CAT = new Map(Object.entries(CATEGORY_LABELS).map(([cat, label]) => [label, cat]));
-const MAX_VALUE = 200; // def: the longest value the Worker's log takes (worker/src/owner-log.ts)
-
-/** A chance as the log keeps it: to a thousandth. */
-const keep = (p: number, digits: number) => Number(p.toFixed(digits));
-
-/**
- * The call logged for the week (a call the matchup card already shows; this only records it):
- * the subject is the league, the week's Monday and the opponent's index; the value a compact JSON
- * of each category's chance by its label, the Yahoo week and the score so far; the naive answer
- * a coin's 50%.
- */
-export function weekChancesCall(c: Omit<WeekChances, 'date' | 'at'>): { call: string; subject: string; value: string; naive: number } {
-  const encode = (digits: number) =>
-    JSON.stringify({
-      w: c.week,
-      c: Object.fromEntries(Object.entries(c.chances).map(([cat, p]) => [CATEGORY_LABELS[cat] ?? cat, keep(p, digits)])),
-      s: c.soFar,
-    });
-  const fine = encode(3); // def: a chance to a thousandth
-  return { call: WEEK_CHANCES, subject: `${c.league}:${c.monday}:${c.opponent}`, value: fine.length <= MAX_VALUE ? fine : encode(2), naive: COIN }; // def: to a hundredth when a thousandth is too long
+/** The entries for a week's chances: one a category (its chance, the naive a coin's), the Yahoo week, and the score so far when there is one. */
+export function weekChanceCalls(c: Pick<WeekChances, 'league' | 'monday' | 'opponent' | 'week' | 'chances' | 'soFar'>): PreviewCall[] {
+  const base = `${c.league} ${c.monday} vs ${c.opponent}`;
+  return [
+    ...Object.entries(c.chances).map(([cat, p]) => previewCall({ call: WEEK_CHANCE, subject: `${base} ${cat}`, value: Number(p.toFixed(3)), naive: COIN })), // def: a chance to a thousandth
+    previewCall({ call: WEEK_CHANCE, subject: `${base} yahoo-week`, value: c.week === null ? 'not known' : `week ${c.week}` }),
+    ...(c.soFar ? [previewCall({ call: WEEK_CHANCE, subject: `${base} so-far`, value: c.soFar.join('-') })] : []),
+  ];
 }
 
-/** A call event of the owner's log, as its download holds it. */
-export interface LoggedCall {
-  at: string;
-  date: string;
-  call: string;
-  subject: string;
-  value: number | string;
-  naive: number | string | null;
-  build: string;
-}
+const SUBJECT = /^(?<league>nba|wnba) (?<monday>\d{4}-\d{2}-\d{2}) vs (?<opp>\d+) (?<part>\S+)$/;
+/** A week-chance subject's parts. */
+const partsOf = (subject: string) => SUBJECT.exec(subject)?.groups as { league: string; monday: string; opp: string; part: string } | undefined;
+const earlier = (a: LoggedCall, b: LoggedCall) => a.date < b.date || (a.date === b.date && a.at < b.at);
 
-/** The call events in the log's download (JSON Lines, oldest first); a line that is not one is skipped. */
-export function parseLog(text: string): LoggedCall[] {
-  const out: LoggedCall[] = [];
-  for (const line of text.split('\n')) {
-    if (!line.trim()) continue;
-    try {
-      const e = JSON.parse(line) as Record<string, unknown>;
-      if (e['kind'] !== 'call' || typeof e['call'] !== 'string' || typeof e['subject'] !== 'string' || typeof e['date'] !== 'string') continue;
-      const value = e['value'];
-      if (typeof value !== 'string' && typeof value !== 'number') continue;
-      const naive = e['naive'];
-      out.push({
-        at: typeof e['at'] === 'string' ? e['at'] : '',
-        date: e['date'],
-        call: e['call'],
-        subject: e['subject'],
-        value,
-        naive: typeof naive === 'string' || typeof naive === 'number' ? naive : null,
-        build: typeof e['build'] === 'string' ? e['build'] : '',
-      });
-    } catch {
-      // a line cut short: skipped
-    }
+/** Each week's chances, by its Monday: each category's earliest entry, against the opponent of the week's earliest one. */
+export function weekRecords(calls: readonly LoggedCall[], league: League): Map<string, WeekChances> {
+  const byWeek = new Map<string, LoggedCall[]>();
+  for (const c of calls) {
+    const m = c.call === WEEK_CHANCE ? partsOf(c.subject) : undefined;
+    if (!m || m.league !== league || mondayOf(m.monday) !== m.monday) continue;
+    byWeek.set(m.monday, [...(byWeek.get(m.monday) ?? []), c]);
   }
-  return out;
-}
-
-const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-const isTally = (v: unknown): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => Number.isInteger(x) && x >= 0); // def: won, lost, tied
-
-/** A logged call read back as a week's chances, or null when it is not one. */
-export function readWeekChances(c: LoggedCall): WeekChances | null {
-  if (c.call !== WEEK_CHANCES || typeof c.value !== 'string') return null;
-  const [league, monday, opponent] = c.subject.split(':');
-  if ((league !== 'nba' && league !== 'wnba') || !monday || !ISO_DAY.test(monday) || mondayOf(monday) !== monday || !/^\d+$/.test(opponent ?? '')) return null;
-  try {
-    const v = JSON.parse(c.value) as { w?: unknown; c?: unknown; s?: unknown };
-    if (!v.c || typeof v.c !== 'object') return null;
-    const chances: Record<string, number> = {};
-    for (const [label, p] of Object.entries(v.c as Record<string, unknown>)) {
-      const cat = LABEL_TO_CAT.get(label);
-      if (cat && typeof p === 'number' && p >= 0 && p <= 1) chances[cat] = p;
-    }
-    if (!Object.keys(chances).length) return null;
-    return {
-      league,
-      monday,
-      opponent: Number(opponent),
-      week: typeof v.w === 'number' && Number.isInteger(v.w) && v.w > 0 ? v.w : null,
-      chances,
-      soFar: isTally(v.s) ? v.s : null,
-      date: c.date,
-      at: c.at,
-    };
-  } catch {
-    return null;
-  }
-}
-
-/** Each week's first record, by its Monday: the chance at the week's start, or the earliest one made. */
-export function firstRecords(calls: readonly LoggedCall[], league: League): Map<string, WeekChances> {
   const out = new Map<string, WeekChances>();
-  for (const r of calls.map(readWeekChances)) {
-    if (!r || r.league !== league) continue;
-    const had = out.get(r.monday);
-    if (!had || r.date < had.date || (r.date === had.date && r.at < had.at)) out.set(r.monday, r);
+  for (const [monday, entries] of byWeek) {
+    const first = entries.reduce((a, b) => (earlier(b, a) ? b : a));
+    const opponent = Number(partsOf(first.subject)!.opp);
+    const chances: Record<string, number> = {};
+    const keys: Record<string, string> = {};
+    const firstOf = new Map<string, LoggedCall>();
+    for (const c of entries) {
+      const { opp, part } = partsOf(c.subject)!;
+      if (Number(opp) !== opponent) continue;
+      const had = firstOf.get(part);
+      if (!had || earlier(c, had)) firstOf.set(part, c);
+    }
+    let week: number | null = null;
+    let soFar: [number, number, number] | null = null;
+    for (const [part, c] of firstOf) {
+      if (part === 'yahoo-week') {
+        const n = /^week (\d+)$/.exec(String(c.value));
+        week = n ? Number(n[1]) : null;
+      } else if (part === 'so-far') {
+        const t = String(c.value).split('-').map(Number);
+        soFar = t.length === 3 && t.every((x) => Number.isInteger(x) && x >= 0) ? (t as [number, number, number]) : null; // def: won, lost, tied
+      } else if (typeof c.value === 'number' && c.value >= 0 && c.value <= 1) {
+        chances[part] = c.value;
+        keys[part] = c.key;
+      }
+    }
+    if (Object.keys(chances).length) out.set(monday, { league, monday, opponent, week, chances, keys, soFar, date: first.date, at: first.at });
   }
   return out;
 }
@@ -200,11 +206,15 @@ export function soFarTally(cats: readonly string[], mine: ScoreSoFar | null | un
 
 export interface CategoryGrade {
   cat: string;
+  /** The log entry the chance is. */
+  key: string;
   chance: number;
   mine: number | null;
   theirs: number | null;
   /** What happened; null when Yahoo gave no total for one side. */
   result: 'win' | 'loss' | 'tie' | null;
+  /** Whose total is missing, when one is: the category is then named and not graded. */
+  missing: 'mine' | 'theirs' | 'both' | null;
   /** The side the chance favoured; null for a 50% chance. */
   favoured: 'mine' | 'theirs' | null;
   /** Whether the favoured side won; null when there was no call (a 50% chance, a tie, no total). */
@@ -214,6 +224,8 @@ export interface CategoryGrade {
 export interface WeekGrade {
   record: WeekChances;
   cats: CategoryGrade[];
+  /** The week's totals it was graded against. */
+  week: LeagueWeek;
 }
 
 /** One week graded: each recorded category's chance against the two teams' final totals. */
@@ -223,12 +235,13 @@ export function gradeWeek(record: WeekChances, week: LeagueWeek, mine: number): 
   const cats = Object.entries(record.chances).map(([cat, chance]): CategoryGrade => {
     const x = soFarValue(a, cat);
     const y = soFarValue(b, cat);
-    const result = x === null || y === null ? null : soFarResult(cat, x, y);
+    const missing = x === null && y === null ? 'both' : x === null ? 'mine' : y === null ? 'theirs' : null;
+    const result = missing ? null : soFarResult(cat, x!, y!);
     const favoured = chance > COIN ? 'mine' : chance < COIN ? 'theirs' : null;
     const right = favoured === null || result === null || result === 'tie' ? null : (favoured === 'mine') === (result === 'win');
-    return { cat, chance, mine: x, theirs: y, result, favoured, right };
+    return { cat, key: record.keys[cat] ?? '', chance, mine: x, theirs: y, result, missing, favoured, right };
   });
-  return { record, cats };
+  return { record, cats, week };
 }
 
 export interface Running {
@@ -265,15 +278,15 @@ export function running(grades: readonly WeekGrade[]): Running {
   return { weeks: grades.length, right, made, brier: scored ? sq / scored : null, scored };
 }
 
-/** Last week on the card: before grading starts, no record, its totals not imported yet, or graded. */
+/** Last week on the card: before grading starts, no record, its totals not imported, or graded. */
 export type LastWeek =
   | { state: 'before'; week: string; firstGrade: string }
   | { state: 'none'; monday: string }
-  | { state: 'not-imported'; monday: string; record: WeekChances }
+  | { state: 'not-imported'; monday: string; record: WeekChances; yahooWeek: number | null }
   | { state: 'graded'; monday: string; grade: WeekGrade };
 
-/** The week a record grades against: its own Yahoo week, else the one the latest import counts to. */
-function weekFor(record: WeekChances, source: LeagueSource | undefined, dateOf: (ms: number) => string): LeagueWeek | null {
+/** The week a record grades against: its own Yahoo week, else the one the latest import counts to; null when the import does not hold it final. */
+export function weekFor(record: WeekChances, source: LeagueSource | undefined, dateOf: (ms: number) => string): LeagueWeek | null {
   const n = record.week ?? yahooWeekOf(source, record.monday, dateOf);
   const w = n === null ? undefined : source?.weeks?.find((x) => x.week === n);
   return w && w.final ? w : null;
@@ -295,7 +308,11 @@ export function lastWeekGraded(
   const { week: first, firstGrade } = gradingStarts(shipped);
   if (today < firstGrade) return { last: { state: 'before', week: first, firstGrade }, running: running([]) };
   const thisMonday = mondayOf(today);
-  const records = firstRecords(calls, league);
+  // nothing from before the first graded week
+  const records = weekRecords(
+    calls.filter((c) => c.date >= first),
+    league,
+  );
   const grades: WeekGrade[] = [];
   for (const [monday, record] of [...records].sort(([a], [b]) => (a < b ? -1 : 1))) {
     if (monday < first || monday >= thisMonday) continue;
@@ -309,6 +326,6 @@ export function lastWeekGraded(
     ? { state: 'none', monday: lastMonday }
     : graded
       ? { state: 'graded', monday: lastMonday, grade: graded }
-      : { state: 'not-imported', monday: lastMonday, record };
+      : { state: 'not-imported', monday: lastMonday, record, yahooWeek: record.week ?? yahooWeekOf(source, lastMonday, dateOf) };
   return { last, running: running(grades) };
 }

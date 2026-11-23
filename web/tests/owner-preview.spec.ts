@@ -238,7 +238,9 @@ for (const p of PAGES) {
     // every frame on the page, the ones the data allows (sell high, the punt's chips) included, logged
     // once it has settled: one entry for each call it shows (a list's trades, adds or players each their own)
     const shown = await frames.evaluateAll((els) => els.map((e) => e.getAttribute('data-call')));
-    const logged = () => posted.filter((e) => e['kind'] === 'call').map((e) => e['call'] as string);
+    // the week's chances My Team logs for last week graded (#1058) are the public card's numbers, not a frame's
+    const logged = () => posted.filter((e) => e['kind'] === 'call' && e['call'] !== 'week-chance').map((e) => e['call'] as string);
+    if (p.name === 'My Team') await expect.poll(() => posted.filter((e) => e['call'] === 'week-chance').length, LOGGED).toBe(10);
     await expect.poll(() => [...new Set(logged())].sort(), LOGGED).toEqual([...new Set(shown)].sort());
     await page.waitForLoadState('networkidle');
     // the Worker would store every one of them: nothing an eight-team league's frames post is refused
@@ -250,8 +252,9 @@ for (const p of PAGES) {
     expect(new Set(calls.map((e) => callKey(e))).size).toBe(calls.length);
     for (const e of calls) {
       expect(Object.keys(e).sort()).toEqual(['build', 'call', 'date', 'kind', 'league', 'naive', 'subject', 'value']);
-      expect(e).toMatchObject({ date: '2026-11-02', subject: expect.any(String), value: expect.any(String), build: 'fixture', league: 'yahoo:99:1793631600000' });
-      expect(e['naive'] === null || typeof e['naive'] === 'string').toBe(true);
+      expect(e).toMatchObject({ date: '2026-11-02', subject: expect.any(String), build: 'fixture', league: 'yahoo:99:1793631600000' });
+      expect(['string', 'number']).toContain(typeof e['value']);
+      expect(e['naive'] === null || ['string', 'number'].includes(typeof e['naive'])).toBe(true);
     }
     for (const theme of ['dark', 'light']) {
       await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
