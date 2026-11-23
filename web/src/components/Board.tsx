@@ -430,7 +430,8 @@ export default function Board() {
           {i + 1}
         </Td>
         <Td pin="second">
-          <span className="flex items-center gap-1 whitespace-nowrap">
+          {/* on a phone the pinned player takes at most 7rem: the star and the name fill the first line, the name cut with its title; the tags wrap under it (#1114) */}
+          <span className="flex max-w-28 flex-wrap items-center gap-1 whitespace-nowrap sm:max-w-none sm:flex-nowrap">
             {SHOWS.draft && setup.drafting && !held && (
               <button
                 type="button"
@@ -443,7 +444,7 @@ export default function Board() {
               </button>
             )}
             <Star on={watched.has(row.player_id)} label={row.full_name ?? row.player_id} onToggle={() => toggleWatched(row.player_id)} />
-            <a href={href(`/p/${league}/${row.player_id}/`)} className="underline-offset-4 hover:underline">
+            <a href={href(`/p/${league}/${row.player_id}/`)} className="min-w-0 basis-[calc(100%-1.25rem)] truncate underline-offset-4 hover:underline sm:basis-auto" title={row.full_name ?? row.player_id}>
               {row.full_name ?? row.player_id}
             </a>
             {row.is_rookie && (
@@ -465,7 +466,7 @@ export default function Board() {
             />
             {held && (
               <span
-                className={`max-w-[9rem] truncate rounded border px-1 text-[10px] ${held === 'Mine' ? 'border-good text-good' : 'border-line'}`}
+                className={`max-w-full truncate rounded border px-1 text-[10px] sm:max-w-[9rem] ${held === 'Mine' ? 'border-good text-good' : 'border-line'}`}
                 title={held === 'Mine' ? 'On your team' : `On ${held}`}
                 data-testid="owner"
               >
