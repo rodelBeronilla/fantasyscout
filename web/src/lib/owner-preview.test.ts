@@ -12,7 +12,7 @@ async function load(opts: {
   owner?: boolean;
   worker?: boolean;
   /** How the log answers a batch: as the Worker would (by its own rule), refused, failed, or not as the Worker at all. */
-  answer?: 'refuse' | 'fail' | 'no-worker';
+  answer?: 'refuse' | 'fail' | 'no-worker' | 'hang';
   /** The calls the log holds already, from another view or tab. */
   have?: PreviewCall[];
 }) {
@@ -37,6 +37,8 @@ async function load(opts: {
       if (String(input).endsWith('latest.json')) return Response.json({ build_id: 'build-1' });
       if (opts.answer === 'refuse') return Response.json({ error: 'not an event' }, { status: 400 });
       if (opts.answer === 'fail') throw new TypeError('the network is down');
+      if (opts.answer === 'hang')
+        return new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))));
       if (opts.answer === 'no-worker') return new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } });
       const have = new Set((opts.have ?? []).map((c) => callKey({ ...c, date: '2026-11-20', league: LEAGUE })));
       const plan = planBatch(JSON.parse(String(init?.body)), have);
@@ -100,8 +102,8 @@ describe('the owner preview', () => {
     await vi.advanceTimersByTimeAsync(SETTLE_MS - 1);
     expect(batches(calls)).toEqual([]);
     await vi.advanceTimersByTimeAsync(1);
-    expect(await one.done).toEqual([true]);
-    expect(await two.done).toEqual([true, true]);
+    expect(await one.done).toEqual(['held']);
+    expect(await two.done).toEqual(['held', 'held']);
     expect(batches(calls)).toHaveLength(1);
     expect(batches(calls)[0]).toEqual({
       kind: 'calls',
@@ -112,7 +114,7 @@ describe('the owner preview', () => {
       ],
     });
     // shown again on this view: the log holds it, nothing is sent
-    expect(await logBeforeShowing([{ ...CALL }], LEAGUE, '2026-11-20').done).toEqual([true]);
+    expect(await logBeforeShowing([{ ...CALL }], LEAGUE, '2026-11-20').done).toEqual(['held']);
     await vi.advanceTimersByTimeAsync(SETTLE_MS);
     expect(batches(calls)).toHaveLength(1);
   });
@@ -123,7 +125,7 @@ describe('the owner preview', () => {
     await ownerPreviewOn();
     const asked = logBeforeShowing([CALL, { ...CALL, subject: 'p9' }], LEAGUE, '2026-11-20');
     await vi.advanceTimersByTimeAsync(SETTLE_MS);
-    expect(await asked.done).toEqual([true, true]);
+    expect(await asked.done).toEqual(['held', 'held']);
   });
 
   it('says false for a call refused, or not answered, and does not send it again on this view', async () => {
@@ -133,11 +135,49 @@ describe('the owner preview', () => {
       await ownerPreviewOn();
       const asked = logBeforeShowing([CALL], LEAGUE, '2026-11-20');
       await vi.advanceTimersByTimeAsync(SETTLE_MS);
-      expect(await asked.done, answer).toEqual([false]);
-      expect(await logBeforeShowing([CALL], LEAGUE, '2026-11-20').done, answer).toEqual([false]);
+      expect(await asked.done, answer).toEqual(['refused']);
+      expect(await logBeforeShowing([CALL], LEAGUE, '2026-11-20').done, answer).toEqual(['refused']);
       await vi.advanceTimersByTimeAsync(SETTLE_MS);
       expect(batches(calls).length, answer).toBeLessThanOrEqual(1);
     }
+  });
+
+  it('says a log that does not answer in time did not, and sends nothing more on this view (#1137)', async () => {
+    vi.useFakeTimers();
+    const { logBeforeShowing, ownerPreviewOn, calls, SETTLE_MS } = await load({ switchOn: true, owner: true, answer: 'hang' });
+    const { LOG_TIMEOUT_MS } = await import('./owner-log');
+    await ownerPreviewOn();
+    const asked = logBeforeShowing([CALL], LEAGUE, '2026-11-20');
+    let said: unknown = null;
+    void asked.done.then((r) => (said = r));
+    await vi.advanceTimersByTimeAsync(SETTLE_MS + LOG_TIMEOUT_MS - 1);
+    expect(said).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(said).toEqual(['timeout']);
+    expect(await logBeforeShowing([CALL], LEAGUE, '2026-11-20').done).toEqual(['timeout']);
+    expect(batches(calls)).toHaveLength(1);
+  });
+
+  it('waits the full settle for the page\'s first request, and the short one for a change after it (#1137)', async () => {
+    vi.useFakeTimers();
+    const { logBeforeShowing, ownerPreviewOn, calls, SETTLE_MS, CHANGE_SETTLE_MS } = await load({ switchOn: true, owner: true });
+    await ownerPreviewOn();
+    expect(CHANGE_SETTLE_MS).toBeLessThan(SETTLE_MS);
+    void logBeforeShowing([CALL], LEAGUE, '2026-11-20').done;
+    await vi.advanceTimersByTimeAsync(CHANGE_SETTLE_MS);
+    expect(batches(calls)).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(SETTLE_MS - CHANGE_SETTLE_MS);
+    expect(batches(calls)).toHaveLength(1);
+    // he changes something: the frame's new call goes once the change has settled, with whatever else it touched
+    const changed = logBeforeShowing([{ ...CALL, value: '13 starts' }], LEAGUE, '2026-11-20');
+    const also = logBeforeShowing([{ ...CALL, call: 'build', subject: 'category PTS' }], LEAGUE, '2026-11-20');
+    await vi.advanceTimersByTimeAsync(CHANGE_SETTLE_MS - 1);
+    expect(batches(calls)).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(await changed.done).toEqual(['held']);
+    expect(await also.done).toEqual(['held']);
+    expect(batches(calls)).toHaveLength(2);
+    expect((batches(calls)[1]!['calls'] as unknown[]).length).toBe(2);
   });
 
   it('sends nothing for a browser the Worker does not take as the owner, and holds nothing', async () => {
@@ -145,7 +185,7 @@ describe('the owner preview', () => {
     const { logBeforeShowing, calls, SETTLE_MS } = await load({ switchOn: true, remembered: false, owner: false });
     const asked = logBeforeShowing([CALL], LEAGUE, '2026-11-20');
     await vi.advanceTimersByTimeAsync(SETTLE_MS);
-    expect(await asked.done).toEqual([false]);
+    expect(await asked.done).toEqual(['refused']);
     expect(batches(calls)).toEqual([]);
   });
 });
@@ -181,6 +221,9 @@ describe("the preview's calls fit the log's rule whatever the league (#1056)", (
     // and the league's import, however long its parts
     expect(validCall({ ...entry(extremes[0]!), league: importOf({ host: 'yahoo', leagueId: long(100), syncedAt: 1 }) })).not.toBeNull();
     expect(importOf(undefined)).toBe('none');
+    expect(validCall({ ...entry(extremes[0]!), league: importOf({ host: 'yahoo', leagueId: '99', syncedAt: 1e21 }) })).not.toBeNull();
+    expect(validCall(entry(previewCall({ call: 'lineup', subject: ['', '  '], value: [''], emptySubject: 'nobody benched' })))).not.toBeNull();
+    expect(previewCall({ call: 'lineup', subject: [], value: 'v', emptySubject: 'nobody benched' }).subject).toBe('nobody benched');
     // a list cut to fit says what it left out
     expect(previewCall({ call: 'lineup', subject: ids(16), value: 'v' }).subject).toMatch(/ \(\+\d+ more\)$/);
     expect(tradeSubject(ids(8), ids(8, 1_640_000))).toMatch(/^.+ \(\+\d+ more\) > .+ \(\+\d+ more\)$/);

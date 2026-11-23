@@ -3,12 +3,15 @@
  * owner alone under "Preview: not validated", exactly as it would render with its switch on. Log
  * first, then show: the frame shows its calls only once the log has acknowledged holding them, so
  * "each one shown is logged" holds whenever the page is left. Until then it says they are being
- * logged; if the log refuses them or cannot be reached, it says so and does not show them.
+ * logged, and its content is laid out but invisible and inert (#1137): it keeps its place, so the
+ * tiles below do not jump when it shows and a second tap lands where the first did. If the log
+ * refuses the calls, or does not answer in time, the frame says so and does not show them.
  */
 import { type ReactNode, useEffect, useState } from 'react';
 
 import type { LeagueSetup } from '../lib/fantasy-league';
 import { type addsThisWeek, addsWeekLine } from '../lib/league-sync';
+import { LOG_TIMEOUT_MS } from '../lib/owner-log';
 import { limitsKnown, logBeforeShowing, type PreviewCall } from '../lib/owner-preview';
 import { href, REPO_URL } from '../lib/site';
 
@@ -39,21 +42,27 @@ export function OwnerPreview({
   const ready = call !== null;
   const calls = call === null ? [] : Array.isArray(call) ? call : [call];
   const key = JSON.stringify([league, calls]);
-  // what the log said of these calls: not yet, all held, or how many it did not take
-  const [state, setState] = useState<{ key: string; missing: number } | null>(null);
+  // what the log said of these calls: not yet, all held, or how many it did not take, and whether it did not answer in time
+  const [state, setState] = useState<{ key: string; missing: number; late: boolean } | null>(null);
   useEffect(() => {
     if (calls.length === 0) return;
     let live = true;
     const asked = logBeforeShowing(calls, league);
-    void asked.done.then((held) => live && setState({ key, missing: held.filter((ok) => !ok).length }));
+    void asked.done.then(
+      (said) => live && setState({ key, missing: said.filter((r) => r !== 'held').length, late: said.includes('timeout') }),
+    );
     return () => {
       live = false;
       asked.cancel();
     };
     // the calls are logged by what they say, not on every render
   }, [key]);
-  const answer = !ready ? null : calls.length === 0 ? { missing: 0 } : state?.key === key ? state : null;
+  const answer = !ready ? null : calls.length === 0 ? { missing: 0, late: false } : state?.key === key ? state : null;
   const one = calls.length === 1;
+  const shown = answer?.missing === 0;
+  const seconds = Math.round(LOG_TIMEOUT_MS / 1000);
+  const logging = !ready || one ? 'Logging this call before it is shown.' : `Logging these ${calls.length} calls before they are shown.`;
+  const logged = 'each one shown is logged.';
   return (
     <section
       className="min-w-0 rounded-lg border border-dashed border-line p-3"
@@ -70,26 +79,43 @@ export function OwnerPreview({
           Methodology
         </a>
         );{' '}
-        <span aria-live="polite">
+        <span className="inline-grid">
+          {/* the other wording's room, from a pseudo-element out of the page's text: the line keeps its height when the frame shows (#1137) */}
+          {(answer === null || shown) && (
+            <span aria-hidden className="invisible [grid-area:1/1] before:content-[attr(data-room)]" data-room={answer === null ? logged : logging} />
+          )}
+          <span aria-live="polite" className="[grid-area:1/1]">
           {answer === null ? (
-            <span data-testid="preview-logging">
-              {!ready || one ? 'Logging this call before it is shown.' : `Logging these ${calls.length} calls before they are shown.`}
-            </span>
+            <span data-testid="preview-logging">{logging}</span>
           ) : answer.missing === 0 ? (
-            'each one shown is logged.'
+            logged
           ) : (
             <strong data-testid="preview-not-logged">
-              {one
-                ? 'This call could not be logged, so it is not shown: it is tried again the next time this page opens.'
-                : `${answer.missing} of these ${calls.length} calls could not be logged, so none is shown: they are tried again the next time this page opens.`}
+              {answer.late
+                ? `The log did not answer within ${seconds} seconds, so ${one ? 'this call is' : 'these calls are'} not shown: ${one ? 'it is' : 'they are'} tried again the next time this page opens.`
+                : one
+                  ? 'This call could not be logged, so it is not shown: it is tried again the next time this page opens.'
+                  : `${answer.missing} of these ${calls.length} calls could not be logged, so none is shown: they are tried again the next time this page opens.`}
             </strong>
           )}
+          </span>
         </span>{' '}
         <a href={`${REPO_URL}/issues/${issue}`} target="_blank" rel="noopener" className="underline underline-offset-4">
           Issue #{issue}
         </a>
       </p>
-      {answer?.missing === 0 && <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>}
+      {/* laid out while it is logged, so it keeps its place; shown only once the log holds it; gone if it cannot be logged */}
+      {(answer === null || shown) && (
+        <div
+          className={`mt-2 grid grid-cols-[minmax(0,1fr)] gap-3 ${shown ? '' : 'invisible'}`}
+          inert={!shown}
+          aria-hidden={shown ? undefined : true}
+          data-testid="preview-content"
+          data-shown={shown ? 'yes' : 'no'}
+        >
+          {children}
+        </div>
+      )}
     </section>
   );
 }

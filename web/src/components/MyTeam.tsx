@@ -7,7 +7,7 @@ import { href } from '../lib/site';
 import { assign, categoryWeights, mondayOf, owners, toggleIl, useLeague } from '../lib/fantasy-league';
 import { scaleValue } from '../lib/league-value';
 import { acceptable, type FairnessModel, leagueState, marketMap, playerWorth } from '../lib/league-model';
-import { type BuildPlan, buildPlan } from '../lib/build-plan';
+import { type BuildPlan, buildPlan, type Move } from '../lib/build-plan';
 import { leagueStandings as tradeStandings } from '../lib/trade-impact';
 import { dropRule, type RosterReview, type Upgrade } from '../lib/roster-upgrades';
 import { teamReview, teamValues } from '../lib/team-review';
@@ -25,7 +25,7 @@ import { easternDate, gamesToCome, sitsOut, type TodayGame, todayGroups, todayVe
 import type { ModelRow } from '../lib/board-model';
 import { CategoryProfile, LeagueBar, Today, type TodayRow, Upgrades } from './LeagueParts';
 import { Matchup, type MatchupBasis, StreamCalls } from './MatchupCard';
-import { BuildYourTeam } from './BuildYourTeam';
+import { BuildYourTeam, chipText } from './BuildYourTeam';
 import { LeagueTable } from './PowerTable';
 import { Standings } from './Standings';
 import { IlMoves } from './IlMoves';
@@ -35,8 +35,11 @@ import type { TeamWeek } from '../lib/playoff-weeks';
 import { PlayerNoteLine } from './PlayerNoteLine';
 import { usePlayerNotes } from '../lib/player-notes';
 import { SHOWS } from '../lib/visibility';
-import { addsOpen, heldBack, importOf, previewCall, type PreviewCall, tradeSubject, useOwnerPreview, withinAdds } from '../lib/owner-preview';
+import { addsOpen, fitList, heldBack, importOf, previewCall, type PreviewCall, useOwnerPreview, withinAdds } from '../lib/owner-preview';
 import { AddsLimit, OwnerPreview } from './OwnerPreview';
+import { LastWeekGraded } from './LastWeekGraded';
+import { soFarTally, yahooWeekOf } from '../lib/graded';
+import { logWeekChances } from '../lib/graded-log';
 import { SyncLine, useEspnSync } from './LeagueSync';
 import { addsThisWeek, staleOpponent, weekScore } from '../lib/league-sync';
 import { InjuryTag, injuryDetail, Loading, Problem, Signed, Td, Th, Tile } from './ui';
@@ -163,44 +166,68 @@ function Categories({
 
 const DAY = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
 const dayName = (iso: string) => DAY.format(new Date(`${iso}T12:00:00Z`));
-/** The swaps frame's calls (#1056): each swap shown, those the adds left hold back, the weakest spot when there is no swap, and each "trade, don't drop" name. */
+/**
+ * The swaps frame's calls (#1056, #1137), as the frame shows them: with an add left, the verdict
+ * and who it would replace, each swap shown, those the adds left hold back, the weakest spot, and
+ * each "trade, don't drop" name; with none left the frame shows its adds line alone, and its one
+ * call says what was held back.
+ */
 function swapCalls(review: RosterReview, left: number | null, week: boolean): PreviewCall[] {
   const offered = withinAdds(review.upgrades, left);
   const held = heldBack('swaps', review.upgrades.length, offered.length, left);
+  if (!addsOpen(left)) return [held ?? previewCall({ call: 'swaps', subject: 'held back', value: 'no adds left this week: no swap shown' })];
+  const verdict = review.optimized
+    ? previewCall({ call: 'swaps', subject: 'verdict', value: 'roster optimized: no swap worth making' })
+    : previewCall({ call: 'swaps', subject: 'replace', value: [`${review.replace.length} of ${review.rostered} can be upgraded:`, ...review.replace] });
   const swaps = offered.map((u) => previewCall({ call: 'swaps', subject: `${u.add} for ${u.drop}`, value: `+${u.gain.toFixed(1)} ${week ? 'this week' : 'rest of season'}` }));
-  const none = swaps.length || held ? [] : [previewCall({ call: 'swaps', subject: 'none', value: review.optimized ? 'roster optimized: no swap worth making' : 'no swap' })];
   const weakest =
     review.optimized && review.weakest?.add && !review.chips.includes(review.weakest.drop)
       ? [previewCall({ call: 'swaps', subject: `hold ${review.weakest.drop}`, value: `weakest spot; the best free agent, ${review.weakest.add}, ${review.weakest.gap.toFixed(1)}` })]
       : [];
   const chips = review.chips.map((id) => previewCall({ call: 'swaps', subject: `keep ${id}`, value: "trade, don't drop" }));
-  return [...swaps, ...(held ? [held] : []), ...none, ...weakest, ...chips];
+  return [verdict, ...swaps, ...(held ? [held] : []), ...weakest, ...chips];
 }
 
-/** Build your team's calls (#1056): the categories, each target with its move, and each player to let go or of lowest value, as the frame lists them. */
-function buildCalls(plan: BuildPlan): PreviewCall[] {
-  const signed = (n: number, digits: number) => `${n >= 0 ? '+' : ''}${n.toFixed(digits)}`;
-  const categories = previewCall({
-    call: 'build',
-    subject: 'categories',
-    value: plan.picture.map((c) => `${c.cat} ${c.rank === null ? '' : `${c.rank}/${c.teams} `}${c.chance === null ? '-' : c.chance.toFixed(2)}`),
-  });
+/** A move as a log entry words it, with ids, as the card shows it with names: "add 1 drop 2 (+0.15 cats)", "trade 1 2 to 3 for 4 (+0.40 cats)". */
+function moveText(move: Move, unit: string): string {
+  const gain = `(${move.gain >= 0 ? '+' : ''}${move.gain.toFixed(2)} ${unit})`;
+  if (move.kind === 'pickup') return `add ${move.add} drop ${move.drop} ${gain}`;
+  return `trade ${fitList(move.give, 60, 'nothing')} to ${move.partner} for ${fitList(move.get, 60, 'nothing')} ${gain}`;
+}
+
+/**
+ * Build your team's calls (#1056, #1137), as the frame lists them: one a category, in the chip's
+ * own words, and one a row (a target, a player to let go, one of lowest value) with the move shown
+ * beside him first, then his score and the categories he moves.
+ */
+function buildCalls(plan: BuildPlan, unit: string): PreviewCall[] {
+  const signed = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}`;
+  const categories = plan.picture.map((c) => previewCall({ call: 'build', subject: `category ${c.cat}`, value: chipText(c) }));
+  const row = (kind: string, p: BuildPlan['targets'][number]) =>
+    previewCall({
+      call: 'build',
+      subject: `${kind} ${p.id}`,
+      value: [...(p.move ? [moveText(p.move, unit)] : []), `score ${signed(p.score)}`, ...p.reasons.map((r) => `${r.cat} ${signed(r.delta)}`)],
+    });
   const targets = plan.targets.length
-    ? plan.targets.map((p) =>
-        previewCall({
-          call: 'build',
-          subject: !p.move
-            ? `target ${p.id}`
-            : p.move.kind === 'pickup'
-              ? `add ${p.move.add} drop ${p.move.drop}`
-              : tradeSubject(p.move.give, p.move.get, `trade with ${p.move.partner}: `),
-          value: [`target ${p.id} ${signed(p.score, 2)}`, ...(p.move ? [`move ${signed(p.move.gain, 2)}`] : []), ...p.reasons.map((r) => `${r.cat} ${signed(r.delta, 2)}`)],
-        }),
-      )
+    ? plan.targets.map((p) => row('target', p))
     : [previewCall({ call: 'build', subject: 'no target', value: 'no player adds enough to be worth a move' })];
-  const surplus = plan.surplus.map((p) => previewCall({ call: 'build', subject: `let go ${p.id}`, value: [`surplus ${p.score.toFixed(2)}`, ...p.reasons.map((r) => `${r.cat} ${signed(r.delta, 2)}`)] }));
-  const lowest = plan.lowest.map((p) => previewCall({ call: 'build', subject: `lowest ${p.id}`, value: `rest of season ${p.score.toFixed(1)}` }));
-  return [categories, ...targets, ...surplus, ...lowest];
+  return [...categories, ...targets, ...plan.surplus.map((p) => row('let go', p)), ...plan.lowest.map((p) => row('lowest', p))];
+}
+
+/** The lineup frame's calls (#1056, #1137): the week as its summary says it, then each day as its row does, with ids. */
+function lineupCalls(plans: { mine: WeekPlan; theirs: WeekPlan | null; asSet: { mine: number } | null }, opponent: string | null): PreviewCall[] {
+  const { mine, theirs } = plans;
+  const week = previewCall({
+    call: 'lineup',
+    subject: 'week',
+    value: `${mine.started} starts${theirs && opponent ? `, against ${opponent}'s ${theirs.started}` : ''}, ${mine.lost} lost to a full lineup, ${mine.openSlots} open slots`,
+    naive: plans.asSet ? `${plans.asSet.mine} starts as set` : null,
+  });
+  const days = mine.days.map((d) =>
+    previewCall({ call: 'lineup', subject: `day ${d.date}`, value: [`${d.started.size} start;`, `open ${d.open.length ? openText(d.open) : 'none'};`, ...(d.benched.length ? ['sits', ...d.benched] : ['sits nobody'])] }),
+  );
+  return [week, ...days];
 }
 
 /** Open slots counted by kind, "3 G · 2 C · 2 Util": short enough for a phone's column. */
@@ -465,6 +492,24 @@ export default function MyTeam() {
     const live = liveWeek(cats, score, rest);
     return { match: week(live.mine, live.theirs), basis: { live: true, projectedOnly: live.projectedOnly, read }, banded: banded(live.mine, live.theirs) };
   }, [h2h, setup, opponent, weekAvailable, myTeam, rows, owner, points, activeCats, scoredCats, lineupPlans, planFrom, games, byId, league, preview]);
+  // The week's chances, logged with the preview's calls for last week graded (#1058): the chances
+  // the matchup card shows, once the schedule is in, for the owner with his preview on alone
+  useEffect(() => {
+    if (!preview || !weekMatch || points || !games || opponent === null) return;
+    const monday = mondayOf(easternDate());
+    const source = setup.source;
+    return logWeekChances(
+      {
+        league,
+        monday,
+        opponent,
+        week: yahooWeekOf(source, monday, (ms) => easternDate(new Date(ms))),
+        chances: Object.fromEntries(weekMatch.match.cats.map((r) => [r.cat, r.chance])),
+        soFar: weekMatch.basis.live ? soFarTally(scoredCats, source?.scores?.[setup.mine], source?.scores?.[opponent]) : null,
+      },
+      importOf(source),
+    );
+  }, [preview, weekMatch, points, games, opponent, setup.source, setup.mine, scoredCats, league]);
   // Today's start and sit (#816): the best lineup the slots hold from today's players, by the same
   // per-game values the week's plan uses.
   const verdict = useMemo(() => {
@@ -691,6 +736,11 @@ export default function MyTeam() {
         {SHOWS.categories && !points && <Categories standings={standings} mine={setup.mine} cats={activeCats} punted={punted} h2h={h2h} totals={myTotals} />}
       </div>
 
+      {/* last week, graded (#1058): the owner's alone, with his preview on, from his log */}
+      {preview && h2h && !points && !setup.drafting && (
+        <LastWeekGraded league={league} setup={setup} today={easternDate()} dateOf={(ms) => easternDate(new Date(ms))} nameOf={name} />
+      )}
+
       {/* the owner preview (#1056): the week with the too-close band its switch hides */}
       {preview && !SHOWS.tooClose && showMatchup && weekMatch?.banded && setup.opponent !== null && (
         <OwnerPreview
@@ -700,10 +750,10 @@ export default function MyTeam() {
           league={made}
           call={previewCall({
             call: 'too-close',
-            subject: weekMatch.banded.cats.filter((r) => r.result === 'close').map((r) => r.cat),
-            value: matchupCall(weekMatch.banded, (c) => CATEGORY_LABELS[c] ?? c),
+            // the opponent first, as the card names him: the same band against another team is another call (#1137)
+            subject: [`vs ${setup.opponent}`, ...weekMatch.banded.cats.filter((r) => r.result === 'close').map((r) => r.cat)],
+            value: `against ${setup.names[setup.opponent] ?? `Team ${setup.opponent + 1}`}: ${matchupCall(weekMatch.banded, (c) => CATEGORY_LABELS[c] ?? c)}`,
             naive: matchupCall(weekMatch.match, (c) => CATEGORY_LABELS[c] ?? c),
-            empty: 'no category too close',
           })}
         >
           <Matchup
@@ -762,13 +812,8 @@ export default function MyTeam() {
           what="this week's lineup plan"
           issue={759}
           league={made}
-          call={previewCall({
-            call: 'lineup',
-            subject: [...new Set(lineupPlans.mine.days.flatMap((d) => d.benched))],
-            value: `${lineupPlans.mine.started} starts, ${lineupPlans.mine.lost} lost to a full lineup, ${lineupPlans.mine.openSlots} open slots`,
-            naive: lineupPlans.asSet ? `${lineupPlans.asSet.mine} starts as set` : null,
-            empty: 'nobody benched',
-          })}
+          // the week as its summary says it, against the opponent's starts, and each day as its row does (#1137)
+          call={lineupCalls(lineupPlans, setup.opponent === null ? null : (setup.names[setup.opponent] ?? null))}
         >
           <AddsLimit setup={setup} adds={addsWeek} kind="slots" />
           <LineupTile
@@ -919,7 +964,7 @@ export default function MyTeam() {
           issue={886}
           league={made}
           // one entry for the categories, one a target with its move, one a player to let go or of lowest value
-          call={buildCalls(plan)}
+          call={buildCalls(plan, h2h ? 'cats' : 'roto pts')}
         >
           <AddsLimit setup={setup} adds={addsWeek} kind="lines" />
           <BuildYourTeam

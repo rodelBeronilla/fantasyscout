@@ -636,3 +636,62 @@ def test_page_json_goes_out_to_three_decimals() -> None:
     table = pa.table({"z": [0.76449, -1.23456, 2.0]})
     assert layout.JSON_DIGITS == 3
     assert rows_of(table, digits=layout.JSON_DIGITS) == [{"z": 0.764}, {"z": -1.235}, {"z": 2.0}]
+
+
+def test_player_week_file_keeps_each_league_s_last_three_weeks_of_public_numbers() -> None:
+    # #1058: the owner's graded card reads each player's last weeks; four NBA weeks and one WNBA
+    # week here, every number made up
+    import duckdb
+
+    from export import layout
+
+    con = duckdb.connect()
+    con.execute("create schema gold")
+    con.execute(
+        "create table gold.fct_player_week (player_week_sk varchar, league varchar,"
+        " season varchar, player_id varchar, team_id varchar, fantasy_week varchar,"
+        " week_start date, week_end date, games_scheduled integer, games_played integer,"
+        " minutes double, points bigint, rebounds_total bigint, assists bigint, steals bigint,"
+        " blocks bigint, three_pointers_made bigint, turnovers bigint, field_goals_made bigint,"
+        " field_goals_attempted bigint, free_throws_made bigint, free_throws_attempted bigint)"
+    )
+    weeks = [date(2026, 11, 2), date(2026, 11, 9), date(2026, 11, 16), date(2026, 11, 23)]
+    rows = [("nba", "2026-27", pid, monday) for monday in weeks for pid in ("p2", "p1")] + [
+        ("wnba", "2026", "w1", date(2026, 9, 7))
+    ]
+    for i, (league, season, pid, monday) in enumerate(rows):
+        con.execute(
+            "insert into gold.fct_player_week values (?, ?, ?, ?, 'T', 'W', ?, ?, 4, 3, 90.5,"
+            " 60, 20, 15, 4, 2, 9, 7, 22, 45, 7, 9)",
+            [f"sk{i}", league, season, pid, monday, monday + timedelta(days=6)],
+        )
+    out = rows_of(con.sql(layout.PLAYER_WEEK_SQL).to_arrow_table(), digits=layout.JSON_DIGITS)
+    con.close()
+    assert ("player_week", layout.PLAYER_WEEK_SQL) in layout.PER_LEAGUE_JSON
+    nba = [r for r in out if r["league"] == "nba"]
+    # the last three weeks, oldest first, each week's players in order
+    assert [(r["week_start"], r["player_id"]) for r in nba] == [
+        (str(monday), pid) for monday in weeks[1:] for pid in ("p1", "p2")
+    ]
+    assert [r["week_start"] for r in out if r["league"] == "wnba"] == ["2026-09-07"]
+    # the games and the nine categories, percentages as makes and attempts; nothing else
+    assert set(out[0]) == {
+        "league",
+        "season",
+        "player_id",
+        "week_start",
+        "games_scheduled",
+        "games_played",
+        "points",
+        "rebounds_total",
+        "assists",
+        "steals",
+        "blocks",
+        "three_pointers_made",
+        "turnovers",
+        "field_goals_made",
+        "field_goals_attempted",
+        "free_throws_made",
+        "free_throws_attempted",
+    }
+    assert out[0]["field_goals_made"] == 22 and out[0]["field_goals_attempted"] == 45
