@@ -210,6 +210,15 @@ figure svg {
 .table-scroll .table-pinned {
   scroll-padding-left: 11rem;
 }
+/* The matchup table rests with a column's left edge against its pinned category, which is
+   5.5rem wide: a number never shows with its heading half under the pin (#1113). */
+.table-scroll.table-snap {
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 5.5rem;
+}
+.table-snap thead th {
+  scroll-snap-align: start;
+}
 
 /* Diagrams (src/lib/diagram.ts): Graphviz and sequence SVGs carry placeholder colours, mapped
    to the theme here. CSS rules override SVG presentation attributes, so no inline styles. */
