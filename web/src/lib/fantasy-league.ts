@@ -300,8 +300,10 @@ function cleanWeeks(raw: unknown): LeagueWeek[] | undefined {
   const weeks = (raw as Partial<LeagueWeek>[])
     .filter((w, i, all): w is LeagueWeek => !!w && isPeriod(w.week) && typeof w.final === 'boolean' && Array.isArray(w.teams) && all.findIndex((o) => o?.week === w.week) === i)
     .map((w) => {
-      const left = Array.isArray(w.left) ? w.left.filter((i): i is number => typeof i === 'number' && Number.isInteger(i) && i >= 0 && i < w.teams.length) : [];
-      return { week: w.week, teams: w.teams.map(cleanScore), final: w.final, ...(left.length ? { left } : {}) };
+      const index = (xs: unknown) => (Array.isArray(xs) ? xs.filter((i): i is number => typeof i === 'number' && Number.isInteger(i) && i >= 0 && i < w.teams.length) : []);
+      const left = index(w.left);
+      const blank = index(w.blank);
+      return { week: w.week, teams: w.teams.map(cleanScore), final: w.final, ...(left.length ? { left } : {}), ...(blank.length ? { blank } : {}) };
     })
     .sort((a, b) => a.week - b.week);
   return weeks.length ? weeks : undefined;

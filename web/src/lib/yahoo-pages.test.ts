@@ -333,14 +333,15 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
 
   it('says which weeks are final and which so far, and names a page that did not answer', () => {
     const w = (week: number, final: boolean) => ({ week, final, teams: [] });
-    expect(weeksLines({ weeks: [w(1, true), w(2, true), w(3, true), w(4, true), w(5, false)] })).toEqual({ read: "Every matchup's category totals from Yahoo: weeks 1–4 final, week 5 so far.", stop: null, left: null });
+    expect(weeksLines({ weeks: [w(1, true), w(2, true), w(3, true), w(4, true), w(5, false)] })).toEqual({ read: "Every matchup's category totals from Yahoo: weeks 1–4 final, week 5 so far.", stop: null, left: null, blank: null });
     expect(weeksLines({ weeks: [w(1, true), w(3, true)] }).read).toBe("Every matchup's category totals from Yahoo: weeks 1, 3 final.");
     expect(weeksLines({ weeks: [w(1, true)], weeksStop: { week: 2, page: 'matchup?week=2&mid1=1' } })).toEqual({
       read: "Every matchup's category totals from Yahoo: week 1 final.",
       stop: "Yahoo did not answer the matchup page for week 2 (Yahoo's team 1), so that week and the ones after it were not read; run the bookmark again later.",
       left: null,
+      blank: null,
     });
-    expect(weeksLines({})).toEqual({ read: null, stop: null, left: null });
+    expect(weeksLines({})).toEqual({ read: null, stop: null, left: null, blank: null });
     // the home page failed, or showed no matchups: said, never nothing
     expect(weeksLines({ weeks: [w(1, true), w(2, false)], weeksStop: { week: 0, page: 'home' } }).stop).toContain("Yahoo's league home page did not answer");
     expect(weeksLines({ weeksStop: { week: 0, page: 'home-no-matchups' } }).stop).toContain('showed no matchups');
@@ -387,5 +388,36 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
     ]);
     expect(kept.source?.weeks?.[1]?.teams.map((t) => (t ? 'read' : null))).toEqual([null, 'read', 'read', null]);
     expect(weeksLines(kept.source!, kept.names).left).toBe("Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: Dunk Dynasty and Fourth Quarter in week 20; Fourth Quarter in week 21.");
+  });
+  it('a finished week with a blank total is named and not kept as final until the same blanks are found again from its Tuesday on; a week under way may show dashes (#1062)', () => {
+    const dashed = ['Team B', '-/-', '-', '98/120', '.817', '57', '579', '-', '114', '29', '24', '72', '4'];
+    const withBlank = { ...week(4, true), pages: [{ rows: [{ id: 1, cells: A }, { id: 2, cells: dashed }] }, week(4, true).pages[1]!] };
+    const read = yahooWeeks({ weekLabels: LABELS, weeks: [week(3, true), withBlank, { ...withBlank, week: 5, final: false }] }, ids);
+    expect(read.map((w) => [w.week, w.final, w.blank ?? null])).toEqual([
+      [3, true, null],
+      [4, false, [1]],
+      [5, false, null],
+    ]);
+    const { setup } = applyYahooImport(fresh, run([week(3, true), withBlank]), players, NOV_8);
+    const kept = normalize(JSON.parse(JSON.stringify(setup)) as typeof setup, DEFAULT_SETTINGS.nba);
+    expect(kept.source?.weeks?.map((w) => [w.week, w.final, w.blank ?? null])).toEqual([
+      [3, true, null],
+      [4, false, [1]],
+    ]);
+    const lines = weeksLines(kept.source!, kept.names);
+    expect(lines.read).toBe("Every matchup's category totals from Yahoo: week 3 final.");
+    expect(lines.blank).toBe('Week 4: Yahoo showed a blank total for Rim Reapers, so the week is not kept as final; the next run of the bookmark reads it again.');
+    // the same blanks found again from the week's Tuesday on: the bookmark says so, and the week is final with the blank named
+    const again = applyYahooImport(setup, run([{ ...withBlank, blankKept: true }]), players, NOV_8).setup;
+    const stored = normalize(JSON.parse(JSON.stringify(again)) as typeof again, DEFAULT_SETTINGS.nba).source!;
+    expect(stored.weeks?.find((w) => w.week === 4)).toMatchObject({ final: true, blank: [1] });
+    expect(weeksLines(stored, again.names).read).toBe("Every matchup's category totals from Yahoo: weeks 3–4 final.");
+    expect(weeksLines(stored, again.names).blank).toBe(
+      'Week 4: Yahoo still showed a blank total for Rim Reapers when the week was read again from its Tuesday on, so the week is kept as final with that total missing.',
+    );
+    // a flag that is not true is not read
+    expect(parseYahooHash(hash({ ...v3, weekLabels: LABELS, weeks: [{ ...withBlank, blankKept: 'yes' }] }))!.weeks?.[0]?.blankKept).toBeUndefined();
+    // the next import that reads the week whole makes it final
+    expect(applyYahooImport(setup, run([week(4, true)]), players, NOV_8).setup.source?.weeks?.find((w) => w.week === 4)).toMatchObject({ final: true });
   });
 });

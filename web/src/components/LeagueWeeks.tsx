@@ -87,7 +87,13 @@ export function LeagueWeeks({ setup, weeks }: { setup: LeagueSetup; weeks: Leagu
           </button>
         ))}
       </div>
-      {week && !week.final && <p className="mt-1 text-xs text-muted">* Week {week.week} is still being played: its totals are the score so far.</p>}
+      {week && !week.final && (
+        <p className="mt-1 text-xs text-muted">
+          {week.blank?.length
+            ? `* Week ${week.week} had a blank total on Yahoo, so it is not counted as final until the bookmark reads it again.`
+            : `* Week ${week.week} is still being played: its totals are the score so far.`}
+        </p>
+      )}
       {gapLines.map((line) => (
         <p key={line} className="mt-1 text-xs text-muted" data-testid="weeks-missing">
           {line}
