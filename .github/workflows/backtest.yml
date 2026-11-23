@@ -86,6 +86,10 @@ on:
         description: Export S3's inputs for every mirrored season, the games played with their tracking chances (NBA only, #1081)
         type: boolean
         default: false
+      listing_probe:
+        description: Mondays to probe for the morning's injury listing, space separated (#1096; counts only)
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -212,6 +216,23 @@ jobs:
           name: s3-chances-${{ inputs.league }}-${{ inputs.judge != '' && inputs.judge || 'history' }}
           path: s3-chances/
           retention-days: 90
+      - name: Probe the Mondays' injury listing
+        if: always() && inputs.listing_probe != ''
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASONS: ${{ inputs.seasons }}
+          MONDAYS: ${{ inputs.listing_probe }}
+          FS_LANDING_ROOT: ${{ runner.temp }}/landing
+        run: |
+          set -o pipefail
+          # shellcheck disable=SC2086
+          uv run python -m ops.listing_probe --landing "$FS_LANDING_ROOT" --league "$LEAGUE" --season "${SEASONS##* }" --mondays $MONDAYS --out listing-probe.json 2>&1 | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && inputs.listing_probe != ''
+        with:
+          name: listing-probe-${{ inputs.league }}
+          path: listing-probe.json
+          retention-days: 30
       - name: Walk forward through the season
         if: inputs.judge != ''
         env:
