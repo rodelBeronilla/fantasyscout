@@ -88,6 +88,7 @@ A negative number means the study had less error. The tuning seasons say the sam
 
 - **At the games played:** both forecasts' per-game lines times the games he really played. BLK on the tuning seasons, scored the same way (8,840 player-weeks): +0.063 (+0.040 to +0.088).
 - **Five moved weeks dropped:** the week's schedule in the test is the schedule as played (#1087). Leaving out the five judged weeks whose games moved: 45 weeks, 5,590 player-weeks.
+- **The Monday's schedule (#1087):** the test now counts each week's games as the Monday's schedule had them, not as they were played. The result barely moves, and it still fails in all four targets: REB +0.563 to +0.566, AST +0.694 to +0.701, STL +0.159 to +0.162, BLK +0.024 to +0.023 (−0.017 to +0.064).
 - **Weeks with nobody in them (#1090):** two of the 50 judged weeks have no player with a game (each season's opening board), so 48 weeks carry the 6,240 player-weeks. Both forecasts are scored on the same rows.
 
 **The data behind it:**

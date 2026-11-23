@@ -75,6 +75,8 @@ The frozen study is the projection (`w` 0), so the two columns are equal by cons
 | FG% | 1.628 | 1.628 | 0.000 | no worse than 0.048 | yes |
 | FT% | 0.688 | 0.688 | 0.000 | no worse than 0.024 | yes |
 
+**The Monday's schedule (#1087).** This test first counted each week's games as they were played; it now counts them as each Monday's schedule had them. The result cannot move, because the study is the projection: study minus projection is 0.000 in every category either way. The WNBA population loses 19 player-weeks (1,999 to 1,980), because the playoff Sunday in each season's last week was not yet set on its Monday.
+
 The bars are a quarter of the noise on this population. The tuning seasons' noise was 0.571 for NBA points and 0.347 for WNBA points. For comparison, S0's whole population had 0.592 and 0.325.
 
 ## What it means for your team

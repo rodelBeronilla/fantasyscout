@@ -64,6 +64,7 @@ Study minus projection, in the week's error (RMSE: made shots for FG%, threes fo
 
 - **Population:** NBA 50 weeks and 6,240 player-weeks; WNBA 37 weeks and 4,160.
 - **The other seven categories** are the projection's, unchanged, so none gets worse.
+- **The Monday's schedule (#1087):** the test now counts each week's games as the Monday's schedule had them, not as they were played. Nothing crosses its bar. NBA FG% stays −0.016 and 3PM goes from +0.009 to +0.010. WNBA FG% stays −0.027 (−0.046 to −0.007), and 3PM goes from +0.021 (+0.000 to +0.041) to +0.019 (−0.001 to +0.039), still far from its bar.
 - **Seed check** (seeds 0 to 19): WNBA FG%'s upper bound stays below zero in 20 of 20 seeds (−0.0092 to −0.0072). NBA FG%'s stays above zero in all 20 (+0.007 to +0.012).
 - **Shots cover every judged game:**
   - the shots' attempts match the box scores' to within two a season;
