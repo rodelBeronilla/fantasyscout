@@ -69,7 +69,8 @@ export function fitText(text: string, max: number, empty = 'none'): string {
  * A list within `max` characters: whole items joined by `sep`, then "(+N more)" for those left out,
  * so a cut list says what it left out; `empty` when there are none.
  */
-export function fitList(items: readonly string[], max: number, empty = 'none', sep = ' '): string {
+export function fitList(given: readonly string[], max: number, empty = 'none', sep = ' '): string {
+  const items = given.map((x) => x.trim()).filter(Boolean);
   if (items.length === 0) return fitText('', max, empty);
   for (let n = items.length; n > 0; n -= 1) {
     const text = items.slice(0, n).join(sep) + (n < items.length ? ` (+${items.length - n} more)` : '');
@@ -93,12 +94,12 @@ const fitPart = (v: Part, max: number, empty: string): string | number =>
  * Worker never refuses it. A list is cut to what fits with a count of what was left out, and an
  * empty subject or value says what it means (`empty`).
  */
-export function previewCall(c: { call: string; subject: Part; value: Part; naive?: Part | null; empty?: string }): PreviewCall {
+export function previewCall(c: { call: string; subject: Part; value: Part; naive?: Part | null; empty?: string; emptySubject?: string }): PreviewCall {
   const empty = c.empty ?? 'none';
   return {
     // a name the log takes: lower-case words and hyphens, cut without an ellipsis
     call: c.call.toLowerCase().replace(/[^a-z0-9-]/g, '-').slice(0, CALL_LIMITS.call) || 'call',
-    subject: String(fitPart(c.subject, CALL_LIMITS.subject, 'none')),
+    subject: String(fitPart(c.subject, CALL_LIMITS.subject, c.emptySubject ?? 'none')),
     value: fitPart(c.value, CALL_LIMITS.value, empty),
     naive: c.naive === undefined || c.naive === null ? null : fitPart(c.naive, CALL_LIMITS.value, 'none'),
   };
@@ -129,29 +130,39 @@ export function heldBack(call: string, found: number, shown: number, left: numbe
 export function importOf(source: { host: string; leagueId: string; syncedAt: number } | undefined): string {
   if (!source) return 'none';
   // the import time last, so a long league id is what is cut
-  const time = `:${source.syncedAt}`;
+  // an import time as a whole number of ms, never in exponent form
+  const time = `:${Number.isSafeInteger(source.syncedAt) && source.syncedAt >= 0 ? source.syncedAt : 0}`;
   return `${`${source.host}:${source.leagueId}`.replace(/[^\w.:-]/g, '-').slice(0, CALL_LIMITS.league - time.length)}${time}`;
 }
 
 /** A call as the log stores it. */
 type Entry = PreviewCall & { date: string; build: string; league: string };
 
-// def: how long the page's calls stay unchanged before they are sent, together, in one request: the
-// frames of a page appear as its data arrives, and a call drawn while its data is still coming is
-// replaced before it is ever sent, so it is never logged or shown
+// def: how long the page's first calls stay unchanged before they are sent, together, in one
+// request: the frames of a page appear as its data arrives, and a call drawn while its data is
+// still coming is replaced before it is ever sent, so it is never logged or shown
 export const SETTLE_MS = 2000;
+// def: the same after the page's first request (#1137): its data is in, and a call that changes
+// now changes because he changed something (a switch, a trade, a swap applied), so it waits only to
+// join the other frames the same change touched
+export const CHANGE_SETTLE_MS = 300;
 
-// this page view's calls: waiting to be sent, being sent, and answered (true: the log holds it)
-const waiting = new Map<string, { entry: Entry; waiters: Set<(ok: boolean) => void> }>();
-const sending = new Map<string, Promise<boolean>>();
-const answered = new Map<string, boolean>();
+/** What the log said of a call: it holds it, it refused it (or did not answer so), or it did not answer in time. */
+export type Logged = 'held' | 'refused' | 'timeout';
+
+// this page view's calls: waiting to be sent, being sent, and answered
+const waiting = new Map<string, { entry: Entry; waiters: Set<(r: Logged) => void> }>();
+const sending = new Map<string, Promise<Logged>>();
+const answered = new Map<string, Logged>();
 let timer: ReturnType<typeof setTimeout> | null = null;
+let sentOnce = false;
 
 async function send(): Promise<void> {
   timer = null;
   const batch = [...waiting.entries()];
   waiting.clear();
   if (batch.length === 0) return;
+  sentOnce = true;
   const latest = await getLatest().catch(() => null);
   const id = latest?.build_id ?? '';
   const build = /^[\w.:-]+$/.test(id) && id.length <= CALL_LIMITS.build ? id : 'unknown';
@@ -159,24 +170,29 @@ async function send(): Promise<void> {
     const chunk = batch.slice(i, i + BATCH_LIMITS.calls);
     const entries = chunk.map(([, w]) => ({ ...w.entry, build }));
     const written = logCalls(entries);
-    chunk.forEach(([key], k) => sending.set(key, written.then((results) => results?.[k] === 'stored' || results?.[k] === 'kept')));
+    chunk.forEach(([key], k) =>
+      sending.set(
+        key,
+        written.then((results): Logged => (results === 'timeout' ? 'timeout' : results?.[k] === 'stored' || results?.[k] === 'kept' ? 'held' : 'refused')),
+      ),
+    );
     for (const [key, w] of chunk) {
-      const ok = await sending.get(key)!;
-      answered.set(key, ok);
+      const r = await sending.get(key)!;
+      answered.set(key, r);
       sending.delete(key);
-      w.waiters.forEach((done) => done(ok));
+      w.waiters.forEach((done) => done(r));
     }
   }
 }
 
 /**
  * Logs a frame's calls before it shows them (#1056): they wait SETTLE_MS with the page's other
- * calls, go to the log in one request, and `done` says, call by call, whether the log holds each
- * (stored now, or already from this day's earlier view or another tab). A call refused or not
- * answered is not tried again on this page view; the next one tries again. `cancel` withdraws calls
- * not yet sent, when the frame comes to show something else.
+ * calls (CHANGE_SETTLE_MS after its first request), go to the log in one request, and `done` says,
+ * call by call, whether the log holds each (stored now, or already from this day's earlier view or
+ * another tab). A call refused or not answered in time is not tried again on this page view; the
+ * next one tries again. `cancel` withdraws calls not yet sent, when the frame comes to show something else.
  */
-export function logBeforeShowing(calls: readonly PreviewCall[], league: string, date: string = EASTERN.format(new Date())): { done: Promise<boolean[]>; cancel: () => void } {
+export function logBeforeShowing(calls: readonly PreviewCall[], league: string, date: string = EASTERN.format(new Date())): { done: Promise<Logged[]>; cancel: () => void } {
   const withdraw: (() => void)[] = [];
   const done = Promise.all(
     calls.map((c) => {
@@ -186,8 +202,8 @@ export function logBeforeShowing(calls: readonly PreviewCall[], league: string, 
       if (known !== undefined) return Promise.resolve(known);
       const inFlight = sending.get(key);
       if (inFlight) return inFlight;
-      return new Promise<boolean>((resolve) => {
-        const w = waiting.get(key) ?? { entry, waiters: new Set<(ok: boolean) => void>() };
+      return new Promise<Logged>((resolve) => {
+        const w = waiting.get(key) ?? { entry, waiters: new Set<(r: Logged) => void>() };
         w.waiters.add(resolve);
         waiting.set(key, w);
         withdraw.push(() => {
@@ -198,7 +214,7 @@ export function logBeforeShowing(calls: readonly PreviewCall[], league: string, 
     }),
   );
   if (timer !== null) clearTimeout(timer);
-  timer = setTimeout(() => void send(), SETTLE_MS);
+  timer = setTimeout(() => void send(), sentOnce ? CHANGE_SETTLE_MS : SETTLE_MS);
   return { done, cancel: () => withdraw.forEach((w) => w()) };
 }
 
