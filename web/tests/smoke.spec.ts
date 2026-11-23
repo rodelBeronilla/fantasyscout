@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+import { expectNoSidewaysScroll } from './viewport';
+
 test('home page renders', async ({ page }) => {
   const response = await page.goto('/');
   expect(response?.status()).toBe(200);
@@ -28,6 +30,5 @@ test('home page has no accessibility violations', async ({ page }) => {
 test('no horizontal scroll on a phone', async ({ page, isMobile }) => {
   test.skip(!isMobile, 'mobile project only');
   await page.goto('/');
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
-  expect(overflow).toBe(false);
+  await expectNoSidewaysScroll(page);
 });
