@@ -7,7 +7,7 @@
  * rather than in the bookmark.
  */
 import type { Format, Tally } from './fantasy-league';
-import type { LeagueWeek } from './league-weeks';
+import { type LeagueWeek, stopDetails, type WeeksStop } from './league-weeks';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 
@@ -32,15 +32,9 @@ export interface YahooPages {
    * "matchup?week=3&mid1=2"; with `why: 'not-shown'` when it answered without the team asked
    * for (#1063). Optional, so a payload without it still reads.
    */
-  weeksStop?: WeeksStop;
+  weeksStop?: Omit<WeeksStop, 'team'>;
 }
 
-/** Where the weeks' reading stopped (#1049, #1063). */
-interface WeeksStop {
-  week: number;
-  page: string;
-  why?: 'not-shown';
-}
 
 /** One week's matchup pages as the bookmark read them (#1049); `final` once the week is over. */
 interface YahooWeekRead {
@@ -121,9 +115,9 @@ function cleanWeeks(raw: { weekLabels?: unknown; weeks?: unknown; weeksStop?: un
     if (labels) out.weekLabels = labels;
     out.weeks = weeks.sort((a, b) => a.week - b.week);
   }
-  const stop = raw.weeksStop as { week?: unknown; page?: unknown; why?: unknown } | null | undefined;
+  const stop = raw.weeksStop as { week?: unknown; page?: unknown; why?: unknown; shows?: unknown; noSettings?: unknown } | null | undefined;
   if (stop && isWeek(stop.week) && typeof stop.page === 'string' && /^matchup\?week=\d{1,2}&mid1=\d{1,3}$/.test(stop.page))
-    out.weeksStop = { week: stop.week, page: stop.page, ...(stop.why === 'not-shown' ? { why: stop.why } : {}) };
+    out.weeksStop = { week: stop.week, page: stop.page, ...stopDetails(stop) };
   // the home page did not answer, or showed no matchup links: no week was read
   if (stop && stop.week === 0 && (stop.page === 'home' || stop.page === 'home-no-matchups')) out.weeksStop = { week: 0, page: stop.page };
   return out;
@@ -165,12 +159,31 @@ function weekRanges(weeks: number[]): string {
   return runs.map(([a, b]) => (a === b ? String(a) : `${a}–${b}`)).join(', ');
 }
 
+/** What a week page that stopped the reading did, in words (#1123), for the stop line. */
+function pageStop(stop: WeeksStop, team: string): string {
+  const w = stop.week;
+  switch (stop.why) {
+    case 'not-shown':
+      return stop.noSettings
+        ? `Yahoo's matchup page for week ${w} did not show ${team}, and Yahoo's settings page, which says when the playoffs begin, did not answer`
+        : `Yahoo's matchup page for week ${w} did not show ${team}`;
+    case 'not-matchup':
+      return `Yahoo answered the matchup page for week ${w} (${team}) with a page that is not a matchup page (an error page, or a page Yahoo has changed)`;
+    case 'other-week':
+      return `Yahoo answered the matchup page for week ${w} (${team}) with ${stop.shows ? `week ${stop.shows}'s` : "another week's"} matchup page`;
+    case 'no-totals':
+      return `Yahoo's matchup page for week ${w} (${team}) had no category totals the bookmark could read`;
+    default:
+      return `Yahoo did not answer the matchup page for week ${w} (${team})`;
+  }
+}
+
 /**
  * The League page's lines on the weeks the import holds (#1049): which are final and which is so
  * far, and the page that did not answer, if one did not.
  */
 export function weeksLines(
-  source: { weeks?: LeagueWeek[]; weeksStop?: { week: number; page: string; why?: 'not-shown'; team?: string } },
+  source: { weeks?: LeagueWeek[]; weeksStop?: WeeksStop },
   names: string[] = [],
 ): { read: string | null; stop: string | null; left: string | null; blank: string | null } {
   const weeks = source.weeks ?? [];
@@ -183,15 +196,18 @@ export function weeksLines(
   const team = stop?.team ?? `Yahoo's team ${(stop ? /mid1=(\d+)/.exec(stop.page)?.[1] : undefined) ?? '?'}`;
   // the weeks a home-page stop leaves are the earlier import's, and the line above says which
   const kept = weeks.length ? '; the weeks above are from the import before' : '';
+  // a page stop at week W: the weeks from W on above are the import before's, said so, so the two lines agree (#1123)
+  const after = (from: number) => {
+    const old = weeks.filter((w) => w.week >= from).map((w) => w.week);
+    return old.length ? ` this time (${named(old)} above ${old.length === 1 ? 'is' : 'are'} from the import before)` : '';
+  };
   const stopLine = !stop
     ? null
     : stop.page === 'home'
       ? `Yahoo's league home page did not answer, so no week's matchups were read this time${kept}. Run the bookmark again later.`
       : stop.page === 'home-no-matchups'
         ? `Yahoo's league home page showed no matchups (between seasons, or Yahoo changed the page), so no week's matchups were read this time${kept}. Run the bookmark again once Yahoo shows this week's matchups.`
-        : stop.why === 'not-shown'
-          ? `Yahoo's matchup page for week ${stop.week} did not show ${team}, so that week and the ones after it were not read; run the bookmark again later.`
-          : `Yahoo did not answer the matchup page for week ${stop.week} (${team}), so that week and the ones after it were not read; run the bookmark again later.`;
+        : `${pageStop(stop, team)}, so that week and the ones after it were not read${after(stop.week)}; run the bookmark again later.`;
   // the teams a playoff week's page showed other matchups for, and not them (#1063), by name: what was seen, no more
   const list = (ids: number[]) => {
     const who = ids.map((i) => names[i] || `Team ${i + 1}`);
@@ -209,7 +225,9 @@ export function weeksLines(
   return {
     read: parts.length ? `Every matchup's category totals from Yahoo: ${parts.join(', ')}.` : null,
     stop: stopLine,
-    left: left.length ? `Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: ${left.join('; ')}.` : null,
+    left: left.length
+      ? `Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: ${left.join('; ')}. If one of them is still in the playoffs, open its matchup on Yahoo and run the bookmark again; if not, there is nothing to do.`
+      : null,
     blank: blank.length ? blank.join(' ') : null,
   };
 }

@@ -10,7 +10,7 @@ import { accountStatus, loadSaved, saveSoon } from './account';
 import type { League } from './data';
 import { CATEGORIES } from './format';
 import type { GamesRead } from './game-state';
-import type { LeagueWeek } from './league-weeks';
+import { type LeagueWeek, stopDetails, type WeeksStop } from './league-weeks';
 import type { ScoreSoFar } from './matchup';
 import type { TeamRecord } from './records';
 import { readRaw, removeRaw, storageKey, writeRaw } from './storage';
@@ -147,7 +147,7 @@ export interface LeagueSource {
    * The week page the latest import stopped at (#1049): its week and its path in the league; why,
    * when the page answered without the team asked for, and that team's name at the import (#1063).
    */
-  weeksStop?: { week: number; page: string; why?: 'not-shown'; team?: string };
+  weeksStop?: WeeksStop;
 }
 
 /** The league: its settings, its teams in draft order, their rosters and a draft log. */
@@ -319,7 +319,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
   const fixtures = cleanFixtures(s.fixtures);
   const games = cleanGames(s.games);
   const weeks = cleanWeeks(s.weeks);
-  const stop = s.weeksStop as { week?: unknown; page?: unknown; why?: unknown; team?: unknown } | undefined;
+  const stop = s.weeksStop as { week?: unknown; page?: unknown; why?: unknown; shows?: unknown; noSettings?: unknown; team?: unknown } | undefined;
   return {
     host: s.host,
     leagueId: s.leagueId,
@@ -347,7 +347,7 @@ function cleanSource(raw: unknown): LeagueSource | undefined {
       : {}),
     // every week's matchup totals and the page an import stopped at (#1049)
     ...(weeks ? { weeks } : {}),
-    ...(stop && typeof stop === 'object' && isPeriod(stop.week) && typeof stop.page === 'string' ? { weeksStop: { week: stop.week, page: stop.page.slice(0, 80), ...(stop.why === 'not-shown' ? { why: stop.why } : {}), ...(typeof stop.team === 'string' ? { team: stop.team.slice(0, 60) } : {}) } } : {}), // def: a page's path and a team's name, at most
+    ...(stop && typeof stop === 'object' && isPeriod(stop.week) && typeof stop.page === 'string' ? { weeksStop: { week: stop.week, page: stop.page.slice(0, 80), ...stopDetails(stop), ...(typeof stop.team === 'string' ? { team: stop.team.slice(0, 60) } : {}) } } : {}), // def: a page's path and a team's name, at most
     // the home page failed or showed no matchups, so no week was read (#1049)
     ...(stop && typeof stop === 'object' && stop.week === 0 && (stop.page === 'home' || stop.page === 'home-no-matchups') ? { weeksStop: { week: 0, page: stop.page } } : {}),
     ...(s.slots && typeof s.slots === 'object' && !Array.isArray(s.slots)

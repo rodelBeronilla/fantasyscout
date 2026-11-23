@@ -344,9 +344,9 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
     const store = 'fantasyscout:weeks:' + leagueId;
     type Week = { week: number; final: boolean; pages: Totals[]; at?: number; left?: number[]; confirmed?: boolean; blanks?: string; blankKept?: boolean };
     const weeks: Week[] = [];
-    let weeksStop: { week: number; page: string; why?: 'not-shown' } | undefined;
+    let weeksStop: { week: number; page: string; why?: 'not-shown' | 'not-matchup' | 'other-week' | 'no-totals'; shows?: number; noSettings?: boolean } | undefined;
     // the first playoff week, from the settings page's line "6 teams - Week 20, 21 and 22 (...)" (#1063)
-    const playoffFrom = Number((/week (\d+)/i.exec(settings.playoffs || '') || [])[1]) || 0;
+    const playoffFrom = Number((/weeks?\s+(\d+)/i.exec(settings.playoffs || '') || [])[1]) || 0;
     // The week a page is Yahoo's matchup page for (#1063): every real one carries #matchup and
     // #matchupweek, whose address names the week (matchup_week=W); an error page has neither. 0 when not one.
     const weekOf = (page: Document | null) => {
@@ -408,13 +408,18 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
           // not this team's; what that means is not known (no such page has been seen yet), so the
           // League page says only what was seen. Anything else stops the reading and is named.
           const shown = !!totals && totals.rows.some((r) => r.id === t);
-          if (!shown && totals && playoffFrom && w >= playoffFrom && weekOf(page) === w) {
+          const shows = weekOf(page);
+          if (!shown && totals && playoffFrom && w >= playoffFrom && shows === w) {
             left.push(t);
             covered.add(t);
             continue;
           }
-          if (!totals || !shown) {
-            weeksStop = totals ? { week: w, page: path, why: 'not-shown' } : { week: w, page: path };
+          // a page is kept under week W only when it says it shows week W (#1123); else the reading
+          // stops, and the stop says what the page did: no answer, not a matchup page, another
+          // week's, no category table, or a table without the team
+          const why = !page ? null : !shows ? 'not-matchup' : shows !== w ? 'other-week' : !totals ? 'no-totals' : !shown ? 'not-shown' : '';
+          if (why !== '' || !totals) {
+            weeksStop = { week: w, page: path, ...(why ? { why } : {}), ...(why === 'other-week' ? { shows } : {}), ...(why === 'not-shown' && !settingsPage ? { noSettings: true } : {}) };
             break;
           }
           ofWeek.push(totals);

@@ -387,8 +387,37 @@ describe("every week's matchup totals, from the week pages (#1049)", () => {
       [21, [3]],
     ]);
     expect(kept.source?.weeks?.[1]?.teams.map((t) => (t ? 'read' : null))).toEqual([null, 'read', 'read', null]);
-    expect(weeksLines(kept.source!, kept.names).left).toBe("Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: Dunk Dynasty and Fourth Quarter in week 20; Fourth Quarter in week 21.");
+    expect(weeksLines(kept.source!, kept.names).left).toBe("Yahoo's matchup page showed other matchups and not the team asked for, so these have no totals: Dunk Dynasty and Fourth Quarter in week 20; Fourth Quarter in week 21. If one of them is still in the playoffs, open its matchup on Yahoo and run the bookmark again; if not, there is nothing to do.");
   });
+  it('a stop says in words what the page did, and never contradicts the weeks kept from the import before (#1123)', () => {
+    const stop = (extra: object) => ({ week: 3, page: 'matchup?week=3&mid1=4', team: 'Fourth Quarter', ...extra });
+    const line = (extra: object, weeks: { week: number; final: boolean; teams: [] }[] = []) => weeksLines({ weeks, weeksStop: stop(extra) }).stop;
+    const tail = ', so that week and the ones after it were not read; run the bookmark again later.';
+    expect(line({})).toBe(`Yahoo did not answer the matchup page for week 3 (Fourth Quarter)${tail}`);
+    expect(line({ why: 'not-matchup' })).toBe(`Yahoo answered the matchup page for week 3 (Fourth Quarter) with a page that is not a matchup page (an error page, or a page Yahoo has changed)${tail}`);
+    expect(line({ why: 'other-week', shows: 2 })).toBe(`Yahoo answered the matchup page for week 3 (Fourth Quarter) with week 2's matchup page${tail}`);
+    expect(line({ why: 'no-totals' })).toBe(`Yahoo's matchup page for week 3 (Fourth Quarter) had no category totals the bookmark could read${tail}`);
+    expect(line({ why: 'not-shown' })).toBe(`Yahoo's matchup page for week 3 did not show Fourth Quarter${tail}`);
+    expect(line({ why: 'not-shown', noSettings: true })).toBe(
+      `Yahoo's matchup page for week 3 did not show Fourth Quarter, and Yahoo's settings page, which says when the playoffs begin, did not answer${tail}`,
+    );
+    // weeks from the stop on that the import before had read are said to be from it, so the two lines agree
+    const w = (week: number, final: boolean) => ({ week, final, teams: [] as [] });
+    const both = weeksLines({ weeks: [w(1, true), w(2, true), w(3, true)], weeksStop: stop({}) });
+    expect(both.read).toBe("Every matchup's category totals from Yahoo: weeks 1–3 final.");
+    expect(both.stop).toBe('Yahoo did not answer the matchup page for week 3 (Fourth Quarter), so that week and the ones after it were not read this time (week 3 above is from the import before); run the bookmark again later.');
+    expect(weeksLines({ weeks: [w(1, true), w(2, true), w(3, true), w(4, false)], weeksStop: { ...stop({}), week: 3 } }).stop).toContain('(weeks 3–4 above are from the import before)');
+    // the payload and the stored copy keep each reason, and its detail only with it
+    const parsed = (x: object) => parseYahooHash(hash({ ...v3, weeksStop: { week: 3, page: 'matchup?week=3&mid1=4', ...x } }))!.weeksStop;
+    expect(parsed({ why: 'other-week', shows: 2 })).toEqual({ week: 3, page: 'matchup?week=3&mid1=4', why: 'other-week', shows: 2 });
+    expect(parsed({ why: 'not-matchup', shows: 2, noSettings: true })).toEqual({ week: 3, page: 'matchup?week=3&mid1=4', why: 'not-matchup' });
+    expect(parsed({ why: 'not-shown', noSettings: true })).toEqual({ week: 3, page: 'matchup?week=3&mid1=4', why: 'not-shown', noSettings: true });
+    expect(parsed({ why: 'nope' })).toEqual({ week: 3, page: 'matchup?week=3&mid1=4' });
+    const { setup } = applyYahooImport(fresh, run([week(1, true)], { weeksStop: { week: 2, page: 'matchup?week=2&mid1=1', why: 'other-week', shows: 1 } }), players, NOV_8);
+    const kept = normalize(JSON.parse(JSON.stringify(setup)) as typeof setup, DEFAULT_SETTINGS.nba).source!;
+    expect(kept.weeksStop).toEqual({ week: 2, page: 'matchup?week=2&mid1=1', why: 'other-week', shows: 1, team: 'Dunk Dynasty' });
+  });
+
   it('a finished week with a blank total is named and not kept as final until the same blanks are found again from its Tuesday on; a week under way may show dashes (#1062)', () => {
     const dashed = ['Team B', '-/-', '-', '98/120', '.817', '57', '579', '-', '114', '29', '24', '72', '4'];
     const withBlank = { ...week(4, true), pages: [{ rows: [{ id: 1, cells: A }, { id: 2, cells: dashed }] }, week(4, true).pages[1]!] };
