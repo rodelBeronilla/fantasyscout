@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 
 import { CATEGORIES, CATEGORY_LABELS } from '../lib/format';
-import type { addsThisWeek } from '../lib/league-sync';
+import { type addsThisWeek, addsWeekLine } from '../lib/league-sync';
 import { normalizeSlots, SLOT_KEYS, SLOT_LABEL } from '../lib/lineup';
 import {
   DEFAULT_SETTINGS,
@@ -312,7 +312,7 @@ export function LeagueBar({
         {rostered > 0 ? (
           <>
             {' · '}
-            <a href={href('/team/')} className="text-fg underline-offset-4 hover:underline">
+            <a href={href('/team/')} className="text-fg underline underline-offset-4">
               {setup.names[setup.mine]} ({myCount}/{setup.rosterSpots})
             </a>
           </>
@@ -703,7 +703,7 @@ function TodayCalls({
               no adds left this week
             </span>
           ) : (
-            <a href={pickups} className="text-accent underline-offset-4 hover:underline" data-testid="today-pickups">
+            <a href={pickups} className="text-accent underline underline-offset-4" data-testid="today-pickups">
               {addsLeft !== null && addsLeft < verdict.open.length
                 ? `stream into ${addsLeft} of them`
                 : `stream into ${verdict.open.length === 1 ? 'it' : 'them'}`}
@@ -712,13 +712,7 @@ function TodayCalls({
           {adds && (
             <span className="text-muted" data-testid="today-adds-left">
               {' '}
-              ({adds.left} of {adds.limit} {adds.limit === 1 ? 'add' : 'adds'} left this week:{' '}
-              {adds.from === 'yahoo'
-                ? `${adds.made} used: ${adds.yahoo} by Yahoo's count at your last import${adds.made > adds.yahoo ? `, ${adds.made - adds.yahoo} added since` : ''}`
-                : adds.counted
-                  ? `${adds.made} made since your first import this week; any made before it are not seen`
-                  : 'no import yet this week, so none are counted'}
-              )
+              ({addsWeekLine(adds)})
             </span>
           )}
         </p>

@@ -16,7 +16,7 @@
 x-runner: &runner
   # Pinned by digest: the runner image is the one unpinned update channel on the machine with
   # residential egress. Bump by hand (infra/runner/README.md, "Update the runner image").
-  image: ghcr.io/actions/actions-runner:2.338.2@sha256:759a1d94a15b05941aba5196974ff43fe15b4cbba29b694b35cbc32a1166b232
+  image: ghcr.io/actions/actions-runner:2.338.2@sha256:6d0b2d80d80f143f77dcb676e50920100bbb547e39e883454d57f45ab8c31300
   restart: unless-stopped
   command:
     - bash
@@ -172,7 +172,7 @@ services:
   # and Cloudflare's edge on the proxy's way out; it is started only with the `live` profile and
   # the tunnel's token (README, "Live answers").
   ai-tunnel:
-    image: cloudflare/cloudflared@sha256:4955524aeaa379e154023d5a027c250f7b35041a2e7e950cf13f144bc9b9c5ba
+    image: cloudflare/cloudflared@sha256:e613aadbc2d9511785d2e67a86b0c8ac18dd63a3f9af0d06faf04cbfdcb35f2d
     container_name: fantasyscout-ai-tunnel
     profiles: [live]
     restart: unless-stopped

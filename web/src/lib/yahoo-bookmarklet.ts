@@ -56,6 +56,31 @@ export function rosterName(text: string): boolean {
 }
 
 /**
+ * The names of teams read from their own pages (#1047), one per page in order, '' where the page
+ * does not say for certain (the team is then "Team N"). A page says its team's name in its team
+ * element and its roster's caption ("Name's Players roster for <date>.", both in `said`), and in
+ * its title, "League - Team | Fantasy Basketball | Yahoo! Sports": the title counts only in that
+ * exact shape, with the league's name, known from the league home page's title ("League | Fantasy
+ * Basketball | Yahoo! Sports"), taken off the front. The page's h1 is Yahoo's logo, never read.
+ * Every source a page has must agree; a name longer than 60, or one another team has, is not
+ * taken: a wrong name that looks right is worse than "Team N". Self-contained: the bookmarklet
+ * carries it as written, so it must not use anything else.
+ */
+export function teamPageNames(homeTitle: string, pages: { title: string; said: string[] }[], others: string[]): string[] {
+  const suffix = ' | Fantasy Basketball | Yahoo! Sports';
+  const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const home = clean(homeTitle);
+  const league = home.endsWith(suffix) ? home.slice(0, -suffix.length) : '';
+  const names = pages.map((p) => {
+    const title = clean(p.title);
+    const fromTitle = league && title.endsWith(suffix) && title.startsWith(league + ' - ') ? title.slice(league.length + 3, -suffix.length) : '';
+    const said = Array.from(new Set([...p.said, fromTitle].map(clean).filter(Boolean)));
+    return said.length === 1 && said[0]!.length <= 60 ? said[0]! : ''; // def: the 60 characters a team name is kept to
+  });
+  return names.map((n) => (n && !others.includes(n) && names.indexOf(n) === names.lastIndexOf(n) ? n : ''));
+}
+
+/**
  * Runs on a page inside a Yahoo fantasy basketball league. Self-contained: it is serialised into
  * the bookmarklet, so it must not use anything from this module.
  *
@@ -65,7 +90,7 @@ export function rosterName(text: string): boolean {
  * Util, BN, IL...): player links elsewhere on a page (news, research, suggested pickups) are not
  * the roster (#515).
  */
-function collectYahooLeague(target: string, isName: (text: string) => boolean, capture: boolean): void {
+function collectYahooLeague(target: string, isName: (text: string) => boolean, capture: boolean, pageNames: typeof teamPageNames): void {
   const doc = document;
   const anchors = Array.from(doc.querySelectorAll('a[href]')) as HTMLAnchorElement[];
   const hrefOf = (a: Element) => a.getAttribute('href') || '';
@@ -169,10 +194,12 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
   }
   (async () => {
     const teams: YahooTeam[] = [];
+    // what each team page read for its roster says the team is called, settled below (#1047)
+    const fromPages = new Map<number, { title: string; said: string[] }>();
     let misses = 0;
     for (const t of ids) {
       let players: Row[] = inPage.get(t) || [];
-      let name = names.get(t) || '';
+      const name = names.get(t) || '';
       if (!players.length) {
         try {
           const res = await fetch(base + t, { credentials: 'include' });
@@ -181,7 +208,19 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
           if (res.ok) {
             const page = new DOMParser().parseFromString(text, 'text/html');
             players = rosterOf(page);
-            if (!name) name = ((page.querySelector('h1') || {}).textContent || page.title || 'Team ' + t).replace(/\s+/g, ' ').trim().slice(0, 60);
+            // the team's element without its menu icon, and the roster's caption (#1047)
+            if (!name) {
+              const said = Array.from(page.querySelectorAll('.team-name')).map((el) => {
+                const c = el.cloneNode(true) as Element;
+                for (const icon of Array.from(c.querySelectorAll('.F-icon'))) icon.remove();
+                return textOf(c);
+              });
+              for (const c of Array.from(page.querySelectorAll('caption'))) {
+                const m = textOf(c).match(/^(.+?)['’]s? Players roster for \d{4}-\d\d-\d\d\.?$/);
+                if (m && m[1]) said.push(m[1]);
+              }
+              fromPages.set(t, { title: page.title, said });
+            }
             if (mine === null && Array.from(page.querySelectorAll('a[href]')).some((x) => /my team/i.test(x.textContent || '') && teamLink(x) === t)) mine = t;
           }
         } catch {
@@ -222,6 +261,14 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
     const headOf = (table: Element) => table.querySelector('thead tr') || table.querySelector('tr');
     const records: Record<string, [string, string]> = {};
     const home = await read('');
+    // the names read from team pages, once the league's name is known from its home page (#1047)
+    const named = teams.filter((x) => fromPages.has(x.id));
+    const settled = pageNames(
+      home ? home.title : '',
+      named.map((x) => fromPages.get(x.id)!),
+      teams.filter((x) => !fromPages.has(x.id)).map((x) => x.name),
+    );
+    named.forEach((x, i) => (x.name = settled[i] || 'Team ' + x.id));
     for (const table of home ? Array.from(home.querySelectorAll('table')) : []) {
       const head = headOf(table);
       const at = head ? cellsOf(head).findIndex((c) => /^W-L-T$/i.test(c)) : -1;
@@ -244,7 +291,8 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
           const id = teamOf(row);
           return id === null ? [] : [{ id, cells: cellsOf(row) }];
         });
-        return rows.length === 2 ? { labels, rows } : undefined;
+        // two sides; one in a playoff week where a team has a bye
+        return rows.length === 2 || rows.length === 1 ? { labels, rows } : undefined;
       }
       return undefined;
     };
@@ -260,11 +308,12 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       if (c.length === 2 && c[0] && c[1] && c[0].length < 60 && rows.length < 80) rows.push([c[0].replace(/:$/, ''), c[1].slice(0, 200)]);
     }
     if (rows.length) settings.rows = rows;
-    // the manager's team page says how many of the week's adds are used (#1028): its line as it stands
-    let adds: string | undefined;
+    // the manager's team page says how many of the week's adds are used (#1028): the two numbers
+    // only, never the page's text around them (#1061)
+    let addsCount: [number, number] | undefined;
     const own = mine !== null ? await read(String(mine)) : null;
-    const said = own ? ((own.body && own.body.textContent) || '').replace(/\s+/g, ' ').match(/[^.]{0,80}player adds?[^.]{0,60}\./i) : null;
-    if (said) adds = said[0].trim().slice(0, 200);
+    const said = own ? ((own.body && own.body.textContent) || '').replace(/\s+/g, ' ').match(/used (\d{1,2}) of (?:your )?(\d{1,2}) player adds?/i) : null;
+    if (said) addsCount = [Number(said[1]), Number(said[2])];
     // Every week's matchup totals (#1049). The home page's Matchups module links this week's
     // matchups (matchup?week=W&mid1=..&mid2=..): weeks 1 to W are read, one page at a time with a
     // pause between them, a page per matchup (each holds both sides). The first page that does not
@@ -282,15 +331,31 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       if (u.pathname === base + 'matchup' && u.searchParams.has('mid1') && Number.isInteger(w) && w > 0 && w <= 30) current = Math.max(current, w); // def: a season has fewer than thirty fantasy weeks
     }
     const store = 'fantasyscout:weeks:' + leagueId;
-    const weeks: { week: number; final: boolean; pages: Totals[] }[] = [];
-    let weeksStop: { week: number; page: string } | undefined;
+    const weeks: { week: number; final: boolean; pages: Totals[]; left?: number[]; confirmed?: boolean }[] = [];
+    let weeksStop: { week: number; page: string; why?: 'not-shown' } | undefined;
+    // the first playoff week, from the settings page's line "6 teams - Week 20, 21 and 22 (...)" (#1063)
+    const playoffFrom = Number((/week (\d+)/i.exec(settings.playoffs || '') || [])[1]) || 0;
+    // The week a page is Yahoo's matchup page for (#1063): every real one carries #matchup and
+    // #matchupweek, whose address names the week (matchup_week=W); an error page has neither. 0 when not one.
+    const weekOf = (page: Document | null) => {
+      const marker = page && page.getElementById('matchup') ? page.getElementById('matchupweek') : null;
+      const m = /[?&]matchup_week=(\d+)/.exec((marker && marker.getAttribute('data-href')) || '');
+      return m ? Number(m[1]) : 0;
+    };
+    // the teams a finished playoff week's last read did not find, until a second read agrees (#1063)
+    const unconfirmed = new Map<number, number[]>();
+    // no week is read without the home page's matchup links: say which, never nothing
+    if (!current) weeksStop = { week: 0, page: home ? 'home-no-matchups' : 'home' };
     if (current) {
       try {
         const saved: unknown = JSON.parse(localStorage.getItem(store) || '[]');
-        for (const k of Array.isArray(saved) ? (saved as { week?: unknown; pages?: unknown }[]) : []) {
-          const pages = Array.isArray(k && k.pages) ? (k.pages as Totals[]).filter((p) => p && Array.isArray(p.labels) && Array.isArray(p.rows) && p.rows.length === 2) : [];
-          if (k && typeof k.week === 'number' && Number.isInteger(k.week) && k.week > 0 && k.week < current && pages.length && !weeks.some((x) => x.week === k.week))
-            weeks.push({ week: k.week, final: true, pages });
+        for (const k of Array.isArray(saved) ? (saved as { week?: unknown; pages?: unknown; left?: unknown; confirmed?: unknown }[]) : []) {
+          const pages = Array.isArray(k && k.pages) ? (k.pages as Totals[]).filter((p) => p && Array.isArray(p.labels) && Array.isArray(p.rows) && (p.rows.length === 2 || p.rows.length === 1)) : []; // the same pages a run reads: two sides, or one in a bye
+          const left = k && Array.isArray(k.left) ? (k.left as unknown[]).filter((x): x is number => typeof x === 'number') : [];
+          if (!k || typeof k.week !== 'number' || !Number.isInteger(k.week) || k.week <= 0 || k.week >= current || !pages.length || weeks.some((x) => x.week === k.week)) continue;
+          // a week with teams not found is finished only once two reads after it ended agree: read it again
+          if (left.length && k.confirmed !== true) unconfirmed.set(k.week, left);
+          else weeks.push({ week: k.week, final: true, pages, ...(left.length ? { left, confirmed: true } : {}) });
         }
       } catch {
         // storage blocked or unreadable: every week is read
@@ -299,24 +364,42 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
         if (w < current && weeks.some((x) => x.week === w)) continue;
         const covered = new Set<number>();
         const ofWeek: Totals[] = [];
+        const left: number[] = [];
         for (const t of teams.map((x) => x.id)) {
           if (covered.has(t)) continue;
           const path = 'matchup?week=' + w + '&mid1=' + t;
           await new Promise((done) => setTimeout(done, 1000)); // def: a second between Yahoo's pages (the owner's reading rule)
-          const totals = totalsOf(await read(path));
-          if (!totals) {
-            weeksStop = { week: w, page: path };
+          const page = await read(path);
+          const totals = totalsOf(page);
+          // The page must show the team asked for (#1063). In a playoff week, the team is set aside
+          // only when the page is Yahoo's matchup page for this week and shows other teams' rows but
+          // not this team's; what that means is not known (no such page has been seen yet), so the
+          // League page says only what was seen. Anything else stops the reading and is named.
+          const shown = !!totals && totals.rows.some((r) => r.id === t);
+          if (!shown && totals && playoffFrom && w >= playoffFrom && weekOf(page) === w) {
+            left.push(t);
+            covered.add(t);
+            continue;
+          }
+          if (!totals || !shown) {
+            weeksStop = totals ? { week: w, page: path, why: 'not-shown' } : { week: w, page: path };
             break;
           }
           ofWeek.push(totals);
           covered.add(t);
           for (const r of totals.rows) covered.add(r.id);
         }
-        if (!weeksStop) weeks.push({ week: w, final: w < current, pages: ofWeek });
+        // a week no page showed is not a week read: stop at its first page
+        if (!weeksStop && !ofWeek.length) weeksStop = { week: w, page: 'matchup?week=' + w + '&mid1=' + (left[0] || 0), why: 'not-shown' };
+        // a team another page showed was not left out
+        const out = left.filter((id) => !ofWeek.some((p) => p.rows.some((r) => r.id === id)));
+        const before = unconfirmed.get(w);
+        const agrees = !!before && before.length === out.length && out.every((id) => before.includes(id));
+        if (!weeksStop) weeks.push({ week: w, final: w < current, pages: ofWeek, ...(out.length ? { left: out, confirmed: w < current && agrees } : {}) });
       }
       weeks.sort((x, y) => x.week - y.week);
       try {
-        localStorage.setItem(store, JSON.stringify(weeks.filter((x) => x.final).map((x) => ({ week: x.week, pages: x.pages }))));
+        localStorage.setItem(store, JSON.stringify(weeks.filter((x) => x.final).map((x) => ({ week: x.week, pages: x.pages, ...(x.left ? { left: x.left, confirmed: !!x.confirmed } : {}) }))));
       } catch {
         // storage blocked: the next run reads every week again
       }
@@ -324,7 +407,7 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
     // the labels once when every page has the same, else on each page that differs
     const weekLabels = weeks.length ? weeks[0]!.pages[0]!.labels : [];
     const sameLabels = (l: string[]) => l.length === weekLabels.length && l.every((x, i) => x === weekLabels[i]);
-    const weekPages = weeks.map((x) => ({ week: x.week, final: x.final, pages: x.pages.map((p) => (sameLabels(p.labels) ? { rows: p.rows } : p)) }));
+    const weekPages = weeks.map((x) => ({ week: x.week, final: x.final, pages: x.pages.map((p) => (sameLabels(p.labels) ? { rows: p.rows } : p)), ...(x.left ? { left: x.left } : {}) }));
     const taken = new Set(teams.flatMap((t) => t.players.map((p) => p.name)));
     // every player link on the page the bookmark ran on is accounted for (#1018)
     for (const a of Array.from(doc.querySelectorAll('a[href*="/nba/players/"]'))) {
@@ -342,7 +425,7 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
       records,
       ...(matchup ? { matchup } : {}),
       settings,
-      ...(adds ? { adds } : {}),
+      ...(addsCount ? { addsCount } : {}),
       ...(weeks.length ? { weekLabels, weeks: weekPages } : {}),
       ...(weeksStop ? { weeksStop } : {}),
       rejected: notTaken,
@@ -368,7 +451,7 @@ function collectYahooLeague(target: string, isName: (text: string) => boolean, c
  * also saves the Yahoo pages it read as one file on the device before the import (#1030).
  */
 export function yahooBookmarklet(target: string, capture = false): string {
-  return `javascript:(${collectYahooLeague.toString()})(${JSON.stringify(target)},${rosterName.toString()},${capture})`;
+  return `javascript:(${collectYahooLeague.toString()})(${JSON.stringify(target)},${rosterName.toString()},${capture},${teamPageNames.toString()})`;
 }
 
 /** A player entry as a bookmark sent it. */
@@ -400,7 +483,7 @@ export function parseYahooHash(hash: string): YahooPayload | null {
   const m = hash.match(/^#yahoo=(.+)$/);
   if (!m || !m[1]) return null;
   try {
-    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown; rejected?: unknown };
+    const raw = JSON.parse(decodeURIComponent(m[1])) as { v?: unknown; leagueId?: unknown; mine?: unknown; teams?: unknown; records?: unknown; matchup?: unknown; settings?: unknown; adds?: unknown; addsCount?: unknown; weekLabels?: unknown; weeks?: unknown; weeksStop?: unknown; rejected?: unknown };
     // Only the current bookmark is read (#1018): an older one dropped players silently, and the
     // League page asks for it to be added again (yahooHashVersion, YAHOO_OUTDATED).
     if (raw.v !== YAHOO_PAYLOAD_VERSION || !Array.isArray(raw.teams) || !raw.teams.length) return null;
@@ -474,9 +557,18 @@ function yahooState(payload: YahooPayload, mine: number, now: number): { source:
  * earlier import of the same league had that this one does not. A week this payload carries
  * replaces the old one; a week that was still under way is not kept.
  */
-function keptWeeks(previous: LeagueSource | undefined, leagueId: string, read: LeagueWeek[]): LeagueWeek[] {
+function keptWeeks(previous: LeagueSource | undefined, leagueId: string, read: LeagueWeek[], homeFailed = false): LeagueWeek[] {
   const old = previous?.host === 'yahoo' && previous.leagueId === leagueId ? (previous.weeks ?? []) : [];
+  // the home page failed, so no week was read: every week the last import had stays as it was
+  if (homeFailed && !read.length) return [...old];
   return [...old.filter((w) => w.final && !read.some((r) => r.week === w.week)), ...read].sort((a, b) => a.week - b.week);
+}
+
+/** The name of the team the weeks' reading stopped at (#1063), from the page's mid1, where the payload has it. */
+function stopTeam(payload: YahooPayload): { team?: string } {
+  const id = Number(/mid1=(\d+)/.exec(payload.weeksStop?.page ?? '')?.[1]);
+  const team = payload.teams.find((t) => t.id === id);
+  return team ? { team: team.name } : {};
 }
 
 /**
@@ -510,8 +602,9 @@ export function applyYahooImport(
   }
   const mine = Math.max(0, payload.teams.findIndex((t) => t.id === payload.mine));
   const state = yahooState(payload, mine, now);
-  const addsUsed = payload.adds ? yahooAddsUsed(payload.adds) : null;
-  const weeks = keptWeeks(setup.source, payload.leagueId, yahooWeeks(payload, payload.teams.map((t) => t.id)));
+  // the numbers a bookmark sends (#1061); an older bookmark's sentence still reads
+  const addsUsed = payload.addsCount ? { used: payload.addsCount[0], limit: payload.addsCount[1] } : payload.adds ? yahooAddsUsed(payload.adds) : null;
+  const weeks = keptWeeks(setup.source, payload.leagueId, yahooWeeks(payload, payload.teams.map((t) => t.id)), payload.weeksStop?.week === 0);
   const next = normalize(
     { ...setup, ...state.settings, teams: payload.teams.length, names: payload.teams.map((t) => t.name), rosters, mine, il, picks: [], drafting: false },
     DEFAULT_SETTINGS['nba'],
@@ -529,7 +622,8 @@ export function applyYahooImport(
         ...(addsUsed ? { addsUsed: { monday: mondayOf(easternDate(new Date(now))), used: addsUsed.used, roster: [...(next.rosters[next.mine] ?? [])] } } : {}),
         // every week's matchup totals, and the page this import stopped at (#1049)
         ...(weeks.length ? { weeks } : {}),
-        ...(payload.weeksStop ? { weeksStop: payload.weeksStop } : {}),
+        // with the asked team's name, for the League page's line (#1063)
+        ...(payload.weeksStop ? { weeksStop: { ...payload.weeksStop, ...stopTeam(payload) } } : {}),
       },
     },
     matched,

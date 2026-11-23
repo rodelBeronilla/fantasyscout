@@ -15,6 +15,11 @@ updates:
     schedule:
       interval: weekly
     labels: [dependencies, "release:skip"]
+    ignore:
+      # dbt-databricks 1.13 requires pydantic<2.13; a newer pydantic drags dbt, mypy and pandas
+      # back to old releases (#842, #1117). Remove this once dbt-databricks lifts the cap.
+      - dependency-name: pydantic
+        versions: [">=2.13"]
     groups:
       python-minor-patch:
         update-types: [minor, patch]

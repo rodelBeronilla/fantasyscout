@@ -390,6 +390,21 @@ export function addsThisWeek(setup: LeagueSetup, monday: string): { limit: numbe
   return { limit, made, left: Math.max(0, limit - made), counted, from: counted ? 'since' : 'none', yahoo: 0 };
 }
 
+/**
+ * This week's adds in words, with how they were counted (#1027, #1056): "3 of 4 adds left this
+ * week: no import yet this week, so none are counted". My Team's Today card and the owner
+ * preview's frames both say it from here, so the two cannot disagree.
+ */
+export function addsWeekLine(adds: NonNullable<ReturnType<typeof addsThisWeek>>): string {
+  const how =
+    adds.from === 'yahoo'
+      ? `${adds.made} used: ${adds.yahoo} by Yahoo's count at your last import${adds.made > adds.yahoo ? `, ${adds.made - adds.yahoo} added since` : ''}`
+      : adds.counted
+        ? `${adds.made} made since your first import this week; any made before it are not seen`
+        : 'no import yet this week, so none are counted';
+  return `${adds.left} of ${adds.limit} ${adds.limit === 1 ? 'add' : 'adds'} left this week: ${how}`;
+}
+
 /** Whether a league is in season: its newest published data is at most IN_SEASON_DAYS before today (Eastern dates). */
 export function inSeasonFrom(dataAsOf: string | undefined, today: string): boolean {
   if (!dataAsOf) return false;

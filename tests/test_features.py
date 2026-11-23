@@ -60,3 +60,15 @@ def test_a_bad_row_is_named(tmp_path: Path) -> None:
     ok = {**row, "page": "team", "verdict": "data", "adr": 1, "parameters": [], "dates": []}
     del ok["shown"], ok["bar"]
     assert features.problems({"pages": data["pages"], "features": [ok]}, PARAMS, tmp_path) == []
+
+
+def test_a_result_stays_in_the_registry_and_off_the_public_table() -> None:
+    """A judged feature's number is kept in features.yml with its unit and bar, and the
+    generated table the Methodology page reads does not carry it (owner, 2026-11-21)."""
+    from ops import features
+
+    data = features.load()
+    with_result = [f for f in data["features"] if "result" in f]
+    assert with_result, "the judged studies record their numbers"
+    assert all(isinstance(f["result"], str) and "bar" in f["result"] for f in with_result)
+    assert '"result"' not in features.render(data)

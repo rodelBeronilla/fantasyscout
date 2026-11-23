@@ -299,7 +299,7 @@ export function Matchup({
               <thead>
                 {now && (
                   <tr>
-                    <Th>{''}</Th>
+                    <Th pin="first">{''}</Th>
                     <Th right colSpan={2}>
                       So far
                     </Th>
@@ -311,7 +311,7 @@ export function Matchup({
                   </tr>
                 )}
                 <tr>
-                  <Th>Category</Th>
+                  <Th pin="first">Category</Th>
                   {now && <Th right>You</Th>}
                   {now && <Th right>{them}</Th>}
                   <Th right>{now ? 'You' : 'You, projected'}</Th>
@@ -323,7 +323,8 @@ export function Matchup({
               <tbody>
                 {match.cats.map((r) => (
                   <tr key={r.cat} className="border-t border-line" data-testid="matchup-row">
-                    <Td>
+                    {/* the category stays beside its numbers while they scroll sideways on a phone (#1075) */}
+                    <Td pin="first">
                       {CATEGORY_LABELS[r.cat] ?? r.cat}
                       {r.cat === swing && <span className="ml-1 text-xs text-muted">swing</span>}
                     </Td>

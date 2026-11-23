@@ -20,6 +20,10 @@ Sessions may have browser tools that act in the owner's own Chrome, with his sig
 
 These rules bind every sub-agent you start: a sub-agent's brief never asks for browser work unless the owner's task names it.
 
+## Merging
+
+The rule of 2026-11-21 is in `.sdlc/state.md`. In short: you review and merge on your own evidence. A change a manager sees, or a verdict, needs its bar on the issue before the work, every check green, a fresh review sub-agent (not its author; given only the bar, the diff and the preview; on the most capable model) that tries to break it and writes approve or block on the pull request, and a confirmed undo. A block is fixed, never overruled; a second block on the same point needs its root cause written and a different approach, reviewed by a new review agent; a third parks the pull request for Monday's digest, with a recommendation. Check the live page after merging and revert first if it fails. Stop and ask the owner before any secret, credential or paid service, anything sent or posted outside this site and repository, deleting his data or log, or any change outside this repository or to the rule. His real Yahoo pages stay in `private/` and are never committed; fixtures are written by hand. Never put his real league data into a sub-agent's brief or a test: point to the file in `private/` by its path. Every Monday, write his digest in `.sdlc/digests/`.
+
 Then the plans: the issues they name, `docs/runbook.md` for anything failing, and `docs/adr/` for why things are as they are.
 
 Update `.sdlc/state.md` after anything that changes what is in flight, what waits on the owner, or a decision.

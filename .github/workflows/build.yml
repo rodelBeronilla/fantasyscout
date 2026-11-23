@@ -165,6 +165,9 @@ jobs:
           args=(build --target databricks)
           [ "$FULL_REFRESH" = "true" ] && args+=(--full-refresh)
           [ -n "$SELECT" ] && args+=(--select "$SELECT")
+          # A light build runs no unit tests: dbt reads a unit test's input columns off the input's
+          # table, which a light build need not have built (#956). CI and every full build run them.
+          [ "${PLAN_LIGHT:-}" = "true" ] && args+=(--exclude-resource-type unit_test)
           # A season a Backfill run is still landing is left out of assert_completeness until it
           # finishes (#420); the step names each one in a notice.
           runs=$(gh run list -R "$GITHUB_REPOSITORY" -w backfill.yml -L 20 --json status,displayTitle) || runs='[]'
@@ -415,7 +418,7 @@ jobs:
           host: ${{ secrets.DATABRICKS_HOST }}
           token: ${{ secrets.DATABRICKS_TOKEN }}
           warehouse-id: ${{ vars.DATABRICKS_WAREHOUSE_ID }}
-      - uses: databricks/setup-cli@9625fdde9ba2607df0087e0d3ec7449198bf2180 # v1.23.0
+      - uses: databricks/setup-cli@12452ad4003a2dd61d5a7cee30bc068f750a2e00 # v1.27.0
       - name: Validate and deploy
         working-directory: bundles
         env:

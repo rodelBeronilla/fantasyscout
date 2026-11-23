@@ -40,17 +40,23 @@ interface Names {
   unit: string;
 }
 
-function Chip({ s }: { s: CategoryStanding }) {
-  const tone = TONE_ORDER.find(([l]) => s.labels.includes(l))?.[1] ?? 'muted';
-  const parts = [
+/** A category's chip as the card words it, "Points · 3rd of 8 · 62% · swing": the owner preview logs the same words (#1137). */
+export function chipText(s: CategoryStanding): string {
+  return [
     label(s.cat),
     s.rank !== null && s.teams !== null ? `${ordinal(s.rank)} of ${s.teams}` : null,
     s.chance !== null ? `${Math.round(s.chance * 100)}%` : null,
     s.labels.map((l) => LABEL_TEXT[l]).join(', ') || null,
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function Chip({ s }: { s: CategoryStanding }) {
+  const tone = TONE_ORDER.find(([l]) => s.labels.includes(l))?.[1] ?? 'muted';
   return (
     <li data-testid="build-cat" data-cat={s.cat}>
-      <Badge tone={tone}>{parts.join(' · ')}</Badge>
+      <Badge tone={tone}>{chipText(s)}</Badge>
     </li>
   );
 }

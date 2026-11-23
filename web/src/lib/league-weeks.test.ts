@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { type LeagueWeek, rank, seasonTable, showTotal, weekTable } from './league-weeks';
+import { type LeagueWeek, missingWeeks, rank, seasonTable, showTotal, weekTable } from './league-weeks';
 import type { ScoreSoFar } from './matchup';
 
 const CATS = ['z_points', 'z_turnovers', 'z_field_goal_pct'];
@@ -48,5 +48,37 @@ describe('the league, week by week (#1054)', () => {
     expect(a!.trend['z_points']).toBeNull();
     expect(showTotal('z_field_goal_pct', 0.4567)).toBe('45.7%');
     expect(showTotal('z_points', 500)).toBe('500');
+  });
+
+  it("the trend's half-rank edge is exact: ranks 1, 1, 6, 1, 1, 3 are rising by exactly half a rank (#1064)", () => {
+    // seven other teams on fixed points; the first team's points give it these ranks, week by week
+    const others = [700, 600, 500, 400, 300, 200, 100];
+    const pointsFor = { 1: 800, 3: 550, 6: 250 } as Record<number, number>;
+    const weeks: LeagueWeek[] = [1, 1, 6, 1, 1, 3].map((r, i) => ({ week: i + 1, final: true, teams: [pointsFor[r]!, ...others].map((p) => team(p, 50, 200, 400)) }));
+    const [a] = seasonTable(weeks, 8, ['z_points']);
+    // the season's 13/6 against the last three's 5/3 is half a rank; floating point makes it a hair less
+    expect(a!.trend['z_points']).toBeGreaterThan(-0.5);
+    expect(a!.move['z_points']).toBe('rising');
+    // a team whose ranks do not move has no arrow
+    expect(seasonTable(weeks, 8, ['z_points'])[1]!.move['z_points']).toBeNull();
+  });
+
+  it('a team Yahoo gave no totals for is named with its weeks; its season is over the weeks it has (#1064)', () => {
+    const eight = (missing: number | null) => Array.from({ length: 8 }, (_, i) => (i === missing ? null : team(400 + i, 50, 200, 400)));
+    const weeks: LeagueWeek[] = [
+      { week: 1, final: true, teams: eight(null) },
+      { week: 2, final: true, teams: eight(4) },
+      { week: 3, final: false, teams: eight(4) },
+    ];
+    expect(missingWeeks(weeks, 8)).toEqual([{ team: 4, weeks: [2, 3] }]);
+    expect(missingWeeks([weeks[0]!], 8)).toEqual([]);
+    // in week 2 the others play six teams, not seven: 54 results; the missing team has none
+    const rows = weekTable(weeks[1]!, CATS);
+    expect(rows[0]!.allPlay.won + rows[0]!.allPlay.lost + rows[0]!.allPlay.tied).toBe(6 * CATS.length);
+    expect(rows[4]!.allPlay).toEqual({ won: 0, lost: 0, tied: 0 });
+    expect(rows[4]!.ranks['z_points']).toBeNull();
+    const season = seasonTable(weeks, 8, CATS);
+    expect(season[4]!.weeks).toBe(1);
+    expect(season[0]!.weeks).toBe(2);
   });
 });

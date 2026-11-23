@@ -422,7 +422,7 @@
   },
   "fantasy_team_change": 0.25
  },
- "generic_tests": 484,
+ "generic_tests": 485,
  "landing": [
   {
    "path": "_ops/ingest_log",
@@ -9569,6 +9569,15 @@
        "type": "varchar"
       },
       {
+       "description": "True when ESPN marks either side an inactive team, as it does the sides of the All-Star and Rising Stars games (Team LeBron); false when it marks neither",
+       "meta": {},
+       "name": "exhibition",
+       "tests": [
+        "not_null"
+       ],
+       "type": "boolean"
+      },
+      {
        "description": "ESPN team id of the home competitor",
        "meta": {},
        "name": "home_team_id",
@@ -9632,7 +9641,12 @@
      "reads": [
       "espn_scoreboard"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "ESPN marks the sides of an All-Star game (Team LeBron against Team Durant) inactive teams. Either side inactive makes the event an exhibition; two league teams, or a payload without the flag, do not.",
+       "name": "an_event_between_inactive_teams_is_an_exhibition"
+      }
+     ]
     },
     {
      "checks": [],
@@ -10812,14 +10826,14 @@
        "type": "double"
       }
      ],
-     "description": "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard.",
+     "description": "The betting line per ESPN event: the home spread, the over/under and each side's implied points. A finished game's closing line from its summary wins over earlier scoreboards; an upcoming game takes the latest scoreboard. An exhibition (silver.espn_events.exhibition, such as the All-Star game) has no row.",
      "exported_as": [],
      "grain": null,
      "landing": [],
      "materialized": "table",
      "name": "game_lines",
      "notes": [
-      "The betting line for each ESPN event: the point spread from the home side (negative when the home team is favoured), the over/under, and the points each team is implied to score. Upcoming games take the line from the latest scoreboard; a finished game's summary carries the closing line, which wins over any earlier scoreboard. One row per event that has a line."
+      "The betting line for each ESPN event: the point spread from the home side (negative when the home team is favoured), the over/under, and the points each team is implied to score. Upcoming games take the line from the latest scoreboard; a finished game's summary carries the closing line, which wins over any earlier scoreboard. One row per event that has a line, leaving out exhibitions: an All-Star game's total runs past 300 points, and no fantasy week counts it."
      ],
      "read_by": [
       "fct_game_line",
@@ -10831,7 +10845,12 @@
       "espn_scoreboard_odds",
       "espn_summary_odds"
      ],
-     "unit_tests": []
+     "unit_tests": [
+      {
+       "description": "The All-Star game's line (a 324.5 total) is no game a fantasy week counts, so it has no row; a league game's line is kept.",
+       "name": "game_lines_leave_out_exhibitions"
+      }
+     ]
     },
     {
      "checks": [],
@@ -19244,7 +19263,7 @@
        "type": "varchar"
       },
       {
-       "description": "League player id, matched by name within the team's season roster or game log. Usually a dim_player stint; a listed player who never appeared and is no longer rostered has none, which the relationship reports as a warning",
+       "description": "League player id, matched by name within the team's season roster or game log. Usually a dim_player stint; a listed player who never appeared and is no longer rostered has none (dim_player's stints come from box scores and the current roster), so the relationship checks the players who appeared in the listed game or a later one of the team's season",
        "meta": {},
        "name": "player_id",
        "tests": [
@@ -23761,7 +23780,7 @@
      "notes": [
       "Who is on which team, as the build knows it (#796): what mart_player_projection projects.",
       "A normal build reads the official rosters: each league's latest roster season, each team's latest landing, and for a player on two teams' latest landings the newer one, with the age and rookie flag the roster gives.",
-      "A point-in-time build cannot. Rosters count as known only from the day they were landed (ADR 0018), and every past season's were landed by a backfill long after it, so a backtest of a past date would project nobody. It rebuilds the roster from what was known before the cut instead: each player's latest event among the games he played (this season and the last) and the league's official signings, trades (the receiving team) and waiver claims. A player whose latest event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from games alone. The roster season is the newest season on the schedule that starts within about six months of the cut, so an offseason date projects the coming season. The age is the player's age in whole years on the cut, from the stats rosters' birth date (player_birth_dates, which is reference data and not cut: a birth date is fixed before a player's first game, #918), worked out as mart_board works out its own; null when no roster gives one. The rookie flag is unknown."
+      "A point-in-time build cannot. Rosters count as known only from the day they were landed (ADR 0018), and every past season's were landed by a backfill long after it, so a backtest of a past date would project nobody. It rebuilds the roster from what was known before the cut instead: each player's latest event among the games he played (this season and the last) and the league's official signings, trades (the receiving team) and waiver claims. A player whose latest event is a waiver is on no roster. The movement feed is the NBA's, so a WNBA roster comes from games alone. A player his team's last roster landing before the cut leaves off, with no game or move for the team after that landing, has left it (retired, or released without a move the feed records) and is on no roster (#921). Only landings before the cut count, so a past season, whose rosters a backfill landed long after it, is rebuilt from games and moves alone. The roster season is the newest season on the schedule that starts within about six months of the cut, so an offseason date projects the coming season. The age is the player's age in whole years on the cut, from the stats rosters' birth date (player_birth_dates, which is reference data and not cut: a birth date is fixed before a player's first game, #918), worked out as mart_board works out its own; null when no roster gives one. The rookie flag is unknown."
      ],
      "read_by": [
       "int_player_projection_parts"
@@ -23778,6 +23797,10 @@
       {
        "description": "Without a point-in-time cut the roster is the latest roster season's latest landings; a player on two teams' latest landings belongs to the newer one, and R marks a rookie.",
        "name": "a_normal_build_reads_the_official_rosters"
+      },
+      {
+       "description": "As of 2024-01-15 team A's last roster landing before the cut (2024-01-05) lists act. It leaves off ret, who last played for A on 2023-12-01, and old, whose last game for A was in 2022-23: both have left the league and are on no roster (#921), though an earlier landing listed ret. new is not on the landing either but played for A after it, so he stays. Team B's only landing is dated after the cut, so it does not count and bee stays on B from his games.",
+       "name": "a_point_in_time_roster_drops_a_player_his_teams_last_landing_leaves_off"
       },
       {
        "description": "As of 2024-01-15 the rebuilt roster gives each player's age in whole years on the cut from the birth date (#918), the formula mart_board's age uses (age_years: whole days over 365.25, rounded down): a turns 24 on the cut, b turns 24 the day after it and is still 23, d is 28. The birth dates may come from roster landings made long after the cut, since a birth date is fixed before a player's first game. The only birth date under e's id is a WNBA player's, so e has no age.",
@@ -30028,7 +30051,7 @@
      "type": "boolean"
     }
    ],
-   "description": "Where games are played, by the arena city the league schedule gives: latitude and longitude (the arena, or the city for occasional venues), elevation in feet, and the standard UTC offset (daylight saving ignored). Covers every home city of both leagues, the neutral and occasional sites in the 2025 to 2027 schedules, and the earlier WNBA venues back to 2018 (the 2020 season in Bradenton); warn_venue_cities lists any city missing.\n",
+   "description": "Where games are played, by the arena city the league schedule gives: latitude and longitude (the arena, or the city for occasional venues), elevation in feet, and the standard UTC offset (daylight saving ignored). Covers every home city of both leagues, the neutral and occasional sites in the 2025 to 2027 schedules, and the earlier venues back to 2018: the WNBA's 2020 season in Bradenton, the Warriors' last season in Oakland (2018-19), the Raptors' season in Tampa (2020-21), and Mexico City as the NBA schedule wrote it up to 2022-23 (\"Mexico City, Mexico\"). warn_venue_cities lists any city missing.\n",
    "exported_as": [],
    "name": "venues",
    "read_by": [
@@ -30194,6 +30217,11 @@
    "name": "player_current_stint_follows_the_roster"
   },
   {
+   "description": "ESPN marks the sides of an All-Star game (Team LeBron against Team Durant) inactive teams. Either side inactive makes the event an exhibition; two league teams, or a payload without the flag, do not.",
+   "model": "espn_events",
+   "name": "an_event_between_inactive_teams_is_an_exhibition"
+  },
+  {
    "description": "A past season's ADP (#786) is known the day before the season's first regular-season game, not the day a history run landed it. A preseason game earlier in the schedule does not count. A draft position of 0 is ESPN's placeholder and is left out; the rank breaks a tie by player id.",
    "model": "espn_preseason_adp",
    "name": "preseason_adp_is_dated_to_the_first_game_and_ranked"
@@ -30354,6 +30382,11 @@
    "name": "feed_freshness_statuses"
   },
   {
+   "description": "The All-Star game's line (a 324.5 total) is no game a fantasy week counts, so it has no row; a league game's line is kept.",
+   "model": "game_lines",
+   "name": "game_lines_leave_out_exhibitions"
+  },
+  {
    "description": "Last night's game has ESPN's crew (the newest landed summary wins over an older one) and the page's: the crew chief and the referee keep their roles (\"JB DeRosa\" on the page is \"J.B. DeRosa\" on ESPN), the official only ESPN lists has none, and the page's umpire who did not work the game is left out. Tonight's games have only the page's crew, alternate included, linked by the date and the teams the page names: \"L.A. Lakers\" and \"LA Clippers\" are told apart although both play in Los Angeles. A page row for a game the schedule does not have is left out.",
    "model": "game_officials",
    "name": "game_officials_link_both_sources"
@@ -30372,6 +30405,11 @@
    "description": "Without a point-in-time cut the roster is the latest roster season's latest landings; a player on two teams' latest landings belongs to the newer one, and R marks a rookie.",
    "model": "int_known_roster",
    "name": "a_normal_build_reads_the_official_rosters"
+  },
+  {
+   "description": "As of 2024-01-15 team A's last roster landing before the cut (2024-01-05) lists act. It leaves off ret, who last played for A on 2023-12-01, and old, whose last game for A was in 2022-23: both have left the league and are on no roster (#921), though an earlier landing listed ret. new is not on the landing either but played for A after it, so he stays. Team B's only landing is dated after the cut, so it does not count and bee stays on B from his games.",
+   "model": "int_known_roster",
+   "name": "a_point_in_time_roster_drops_a_player_his_teams_last_landing_leaves_off"
   },
   {
    "description": "As of 2024-01-15 the rebuilt roster gives each player's age in whole years on the cut from the birth date (#918), the formula mart_board's age uses (age_years: whole days over 365.25, rounded down): a turns 24 on the cut, b turns 24 the day after it and is still 23, d is 28. The birth dates may come from roster landings made long after the cut, since a birth date is fixed before a player's first game. The only birth date under e's id is a WNBA player's, so e has no age.",

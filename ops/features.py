@@ -25,7 +25,9 @@ OUT = ROOT / "web" / "src" / "generated" / "features.ts"
 VERDICTS = {"validated", "failed", "open", "data"}
 SHOWN = {"shown", "badged", "hidden"}
 REQUIRED = {"id", "what", "page", "verdict", "parameters", "next"}
-FIELDS = REQUIRED | {"switch", "shown", "adr", "issue", "dates", "bar"}
+# ``result``: a judged feature's number with its unit and bar, kept in the registry and left off
+# the public table, where a bare number would not say what it is (owner, 2026-11-21)
+FIELDS = REQUIRED | {"switch", "shown", "adr", "issue", "dates", "bar", "result"}
 REPO = "https://github.com/rodelBeronilla/fantasyscout"
 
 
@@ -66,6 +68,8 @@ def _row_problems(
         yield f"{fid}: dates must be YYYY-MM-DD, in order"
     if "bar" in f and not str(f["bar"]).startswith(f"{REPO}/issues/{f.get('issue')}#issuecomment-"):
         yield f"{fid}: the bar must be a comment on its issue (#{f.get('issue')})"
+    if "result" in f and not (isinstance(f["result"], str) and f["result"].strip()):
+        yield f"{fid}: a result is the judged number in words, with its unit and bar"
 
 
 def problems(data: dict[str, Any], params: set[str], adrs: Path = ADRS) -> list[str]:
@@ -99,7 +103,8 @@ def adr_files(data: dict[str, Any], adrs: Path = ADRS) -> dict[str, str]:
 
 
 def render(data: dict[str, Any]) -> str:
-    features = [{k: _plain(v) for k, v in f.items()} for f in data["features"]]
+    # the result stays in the registry: the page does not show it (see FIELDS)
+    features = [{k: _plain(v) for k, v in f.items() if k != "result"} for f in data["features"]]
     return (
         "// Generated from methodology/features.yml by `uv run python -m ops.parameters`;"
         " do not edit (#947).\n\n"

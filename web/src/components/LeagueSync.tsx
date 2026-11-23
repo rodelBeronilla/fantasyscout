@@ -203,11 +203,23 @@ export function CopyAge({ setup, league }: { setup: LeagueSetup; league: League 
 export function YahooWeeks({ setup }: { setup: LeagueSetup }) {
   const source = setup.source;
   if (source?.host !== 'yahoo') return null;
-  const { read, stop } = weeksLines(source);
-  if (!read && !stop) return null;
+  const { read, stop, left } = weeksLines(source, setup.names);
+  if (!read && !stop) {
+    // a copy from a bookmark older than #1053 holds no weeks: say so, rather than nothing (#1070)
+    return (
+      <p className="text-sm" data-testid="yahoo-weeks-none">
+        The league week by week (every team&apos;s category totals, week by week) needs the new Yahoo bookmark: this copy was imported by an older one.{' '}
+        <a href="#yahoo" className="font-medium text-accent underline-offset-4 hover:underline">
+          Add the bookmark again
+        </a>{' '}
+        (the steps are under &ldquo;Re-import from Yahoo&rdquo;) and run it on your league.
+      </p>
+    );
+  }
   return (
     <div className="grid gap-0.5 text-sm text-muted">
       {read && <p data-testid="yahoo-weeks">{read}</p>}
+      {left && <p data-testid="yahoo-weeks-left">{left}</p>}
       {stop && <p data-testid="yahoo-weeks-stop">{stop}</p>}
     </div>
   );
