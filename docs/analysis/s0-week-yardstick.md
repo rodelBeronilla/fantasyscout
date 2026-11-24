@@ -35,6 +35,8 @@ The WNBA looks the same, with smaller numbers because its weeks are shorter: poi
 
 Every one of these gaps is far bigger than chance. Resampling the weeks a thousand times never brought any of them near zero.
 
+**What the site's guess lacks in these tests.** On the site, a player listed out or doubtful on Monday counts for no games. The rebuilt boards of past seasons almost never carry that listing: 4 of the 8,840 tuning NBA player-weeks, none in the WNBA, and 2 of the 6,240 judged NBA ones. ESPN's listing is only collected from late October 2026, and the league's official report is kept for past seasons only as the one published at 5 pm on each game day, which a board rebuilt at the start of Monday cannot use for that week's games. So in these tests the site's guess counts every scheduled game: about 0.8 games a player-week more than are played on the tuning seasons, in both leagues (0.79 NBA, 0.80 WNBA). Any study that lowers the games count gains from that alone, so each such study also reports a placebo: the same total discount taken evenly off every game (#1088).
+
 **What that means for your team.** Even the site's guess is off by about 29 points on a typical player's week. A week is short: one bad night, one rest day, one blowout moves it a lot. That is the room the studies try to win back.
 
 ## The bar every study must clear

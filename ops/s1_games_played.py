@@ -419,6 +419,7 @@ def judge(
     rows, fails = apply_bar(wy.judge(paired, seeds=1), s0[league]["categories"])
     return {
         "league": league,
+        "placebo": placebo(weeks),
         "seasons": sorted(s for _, s, _ in seasons),
         "weeks": len(weeks),
         "player_weeks": int(sum(len(m.players) for m, _ in weeks)),
@@ -437,6 +438,53 @@ def judge(
         "categories": rows,
         "pass": not fails,
         "fails": fails,
+    }
+
+
+def placebo(weeks: list[tuple[Monday, np.ndarray]]) -> dict[str, Any]:
+    """The flat-discount placebo (#1088): the study's total discount on games spread over every
+    game the projection-week counts. Per counting category, the placebo against the
+    projection-week, the study against the placebo (S0's paired bootstrap at seed 0), and the share
+    of the study's gain the placebo gets. Reported beside the verdict; no bar is applied to it."""
+    counted = [np.where(m.listed, 0.0, m.scheduled) for m, _ in weeks]
+    study = [g for _, g in weeks]
+    share, flat = wy.flat_placebo(counted, study)
+
+    def pair(a: list[np.ndarray], b: list[np.ndarray]) -> list[wy.Category]:
+        return wy.judge(
+            [
+                wy.Week(
+                    as_of=m.as_of,
+                    proj=wy.category_weeks(m.line, ga, m.real),
+                    naive=wy.category_weeks(m.line, gb, m.real),
+                    real=wy.real_weeks(m.real),
+                )
+                for (m, _), ga, gb in zip(weeks, a, b, strict=True)
+            ],
+            seeds=1,
+        )
+
+    gain = {c.category: c.diff for c in pair(study, counted)}
+    rows = [
+        {
+            "category": p.category,
+            "placebo_minus_projection": p.diff,
+            "placebo_low": p.diff_low,
+            "placebo_high": p.diff_high,
+            "share_of_gain": p.diff / gain[p.category] if gain[p.category] < 0 else None,
+            "study_minus_placebo": q.diff,
+            "study_minus_placebo_low": q.diff_low,
+            "study_minus_placebo_high": q.diff_high,
+        }
+        for p, q in zip(pair(flat, counted), pair(study, flat), strict=True)
+        if p.category in TARGETS
+    ]
+    players = sum(len(c) for c in counted)
+    games = float(sum(c.sum() for c in counted))
+    return {
+        "discount_share": share,
+        "games_off_per_player_week": share * games / players if players else 0.0,
+        "categories": rows,
     }
 
 
@@ -491,7 +539,23 @@ def table(res: dict[str, Any]) -> str:
             f"| {c['s0_noise']:.4f} | {bar} |"
         )
     verdict = "PASS" if res["pass"] else "FAIL:\n  " + "\n  ".join(res["fails"])
-    return head + "\n".join(rows) + "\n\n" + verdict + "\n"
+    pl = res["placebo"]
+    flat = [
+        f"Placebo (#1088): the study's total discount, {pl['discount_share']:.2%} of the games "
+        f"counted ({pl['games_off_per_player_week']:.3f} a player-week), spread over every game\n",
+        "| Category | Placebo - projection (95%) | Share of the study's gain "
+        "| Study - placebo (95%) |",
+        "| --- | --- | --- | --- |",
+    ]
+    for c in pl["categories"]:
+        part = "-" if c["share_of_gain"] is None else f"{c['share_of_gain']:.0%}"
+        flat.append(
+            f"| {c['category']} | {c['placebo_minus_projection']:+.4f} "
+            f"({c['placebo_low']:+.4f} to {c['placebo_high']:+.4f}) | {part} "
+            f"| {c['study_minus_placebo']:+.4f} ({c['study_minus_placebo_low']:+.4f} to "
+            f"{c['study_minus_placebo_high']:+.4f}) |"
+        )
+    return head + "\n".join(rows) + "\n\n" + verdict + "\n\n" + "\n".join(flat) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:

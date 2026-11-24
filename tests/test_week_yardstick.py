@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 import numpy as np
+import pytest
 
 from ops import week_yardstick as wy
 
@@ -53,3 +54,13 @@ def test_judge_reports_each_category_with_its_noise_and_the_bar_a_quarter_of_it(
         assert c.diff_high < 0
         assert c.bar == c.noise / 4
         assert c.seed_noise_min <= c.noise <= c.seed_noise_max
+
+
+def test_the_flat_placebo_takes_the_studys_total_discount_off_every_game_alike() -> None:
+    counted = [np.array([4.0, 3.0, 0.0]), np.array([2.0, 3.0])]
+    study = [np.array([3.5, 3.0, 0.0]), np.array([2.0, 2.5])]  # one game off in all, of 12
+    share, flat = wy.flat_placebo(counted, study)
+    assert share == pytest.approx(1 / 12)
+    assert sum(f.sum() for f in flat) == pytest.approx(sum(s.sum() for s in study))
+    for c, f in zip(counted, flat, strict=True):
+        assert f == pytest.approx(c * 11 / 12)  # the same share off each player, none for zero

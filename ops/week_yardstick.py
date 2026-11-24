@@ -82,6 +82,22 @@ def real_weeks(real: np.ndarray) -> np.ndarray:
     return np.column_stack([real[:, :7], real[:, 7], real[:, 9]])
 
 
+def flat_placebo(
+    counted: list[np.ndarray], study: list[np.ndarray]
+) -> tuple[float, list[np.ndarray]]:
+    """The placebo for a study that changes the games count (#1088).
+
+    The historical boards carry the injury listing on almost no player-week, so the
+    projection-week counts every scheduled game and any discount on games looks like a gain. The
+    placebo takes the same total discount the study takes over all its weeks and spreads it over
+    every game counted: each player's counted games times one share. ``counted`` is each week's
+    games as the projection-week counts them, ``study`` the study's; returns the share taken off
+    and each week's placebo games."""
+    total = float(sum(c.sum() for c in counted))
+    share = 1.0 - float(sum(s.sum() for s in study)) / total if total else 0.0
+    return share, [c * (1.0 - share) for c in counted]
+
+
 def population(value: np.ndarray, scheduled: np.ndarray, pool: int = POOL) -> np.ndarray:
     """The indexes of the players who matter that Monday: the top ``pool`` by board value among the
     players with a game scheduled."""
