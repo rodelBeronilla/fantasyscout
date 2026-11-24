@@ -1,6 +1,6 @@
 # Project state: FantasyScout
 
-Last rewritten: 2026-11-17, from scratch (#991); updated 2026-11-23 for the backlog push. Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
+Last rewritten: 2026-11-17, from scratch (#991); updated 2026-11-23 for the backlog push, and 2026-11-24 for the stop of the agent sessions and the rules gathered from outside the repository (sources cited inline). Update it after anything that changes what is in flight, what waits on the owner, or a decision below. History belongs in git, the ADRs and the issues, not here.
 
 Read with it: [pillars.md](pillars.md) for what wins when priorities collide, and [CONTRIBUTING.md](../CONTRIBUTING.md) for how a change is made and checked.
 
@@ -45,6 +45,10 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 - **The production model stays transparent (2026-11-08, ADR 0030).** The machine-learning challenger is a reported benchmark.
 - **The morning incident check (2026-11-16).** A cloud task reads the open issues labelled `data-incident` every morning at 7:35 Eastern and pushes them to the owner's phone. Keep that label and the incident titles stable: "Build failure: …", "Ingest failure: …", "Warehouse refuses statements: …", "Publish stale: …".
 - **Sources (2026-11-08).** No working around a bot block or a terms restriction; collect politely, stop and delete on objection. Reddit is dropped (ADR 0008 addendum). Nothing holding a source's words is ever a workflow artifact.
+- **The home machine's budgets (2026-11-16, 2026-11-18, 2026-11-21).** All agent work on the home machine shares at most eight worker processes at idle priority, two per agent; C: free space is checked before any worktree or sub-agent (under 25 GB clean first, under 15 GB start nothing); `gh` polling stays slow (one 5,000-an-hour account limit). The detail is in [docs/runbooks/local-work.md](../docs/runbooks/local-work.md). (source: cpu-budget-on-this-pc.md:11, worktree-disk-budget.md:11-16, github-api-budget.md:11-16)
+- **What the repository says (2026-10-26).** It reads as a product built in public, never names the home server's media software, and uses gender-neutral words for managers; the check before every push is in [AGENTS.md](../AGENTS.md). The personal site at the apex domain and the home server's reverse proxy are never changed for this project (ADR 0001). (source: repo-must-read-as-a-product.md:8-12, hosting-is-caddy-not-worker.md:12, handoff-fantasyscout.md:43)
+- **Stopped work stays stopped.** When the owner stops agents, their work is cancelled; it is picked up again only on his word. (source: handoff-fantasyscout.md:44; fantasyscout-2026-11-08-work.md:27)
+- **The do-not list.** What agents never do without the owner (pushes to `main`, deletes of builds or landing data, hand dispatches beyond an incident, the Windows tasks and the home runner, secrets and settings, other agents' worktrees, hidden features) is in [AGENTS.md](../AGENTS.md). (source: handoff-fantasyscout.md:60-66, as of 2026-11-22; its line "merge anything a manager sees" is superseded by the merge rule of 2026-11-21 above)
 - **Owner-only decisions on 2026-11-08** ("choose for me" on fifteen questions) are recorded as comments on each issue: #868, #867, #887, #888, #896, #903, #898, #870, #876, #771, #907, #913.
 
 ## The plan (agreed 2026-11-16)
@@ -58,6 +62,8 @@ Recorded here so they are not re-asked. The date is when the owner took them.
 The redesign epic (#936) and the methodology epic (#751) still hold the longer list. Where they conflict with [pillars.md](pillars.md), the pillars win.
 
 ## In flight
+
+**Stopped on 2026-11-24.** The long-running agent sessions were stopped at 07:27Z; their last turn had failed on a usage limit at 2026-11-23 04:06Z, so the backlog push below stopped part-way and no worker or review agent is running. Work now goes one issue per fresh session. The eleven open pull requests, what each waits on, and `preprod` (at `76413dd4`: #1125, #1134 and #1135 together, unchecked) are listed on #1153. Uncommitted work from older worktrees was saved as patches on the home machine and each has an issue: #1144 (#868), #1145 (#887), #1146 (#925), #1147 (the two unpushed commits for #938 and #939), #1148 (review scripts). Clean-up of the rest of the old worktrees and copies: #1151. (source: the factory's freeze and stop records, 2026-11-24)
 
 **The backlog push (owner, 2026-11-22): every open issue and pull request is finished, closed with its reason, or says what it waits on.** Each was triaged from its issue, the code and the registry on 2026-11-22. Workers are sub-agents on a lane each, two lanes at a time (pillars), one item per branch, each item's bar on its issue first. Agent work on the PC shares at most eight worker processes at idle priority (owner, 2026-11-16), so each agent builds and tests with two workers at most. A change a manager sees is reviewed by a fresh review agent before it merges; the preview holds one such change at a time. Backtest runs go one at a time.
 
@@ -75,7 +81,7 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 | Owner log | #1124 (a simultaneous first write of the day is lost on the single-write route) | Queued. |
 | Data | #732's two warnings that need the landing data (minutes closure, reconciliation), #1117 (pydantic held below 2.13) | Waiting on the warehouse (#1043) and on dbt-databricks. Three of #732's warnings were fixed on 2026-11-22; the next builds confirm them. |
 | Removals decided on 2026-11-08 | #868 (Fit), #887 (suggested trades), #903 (sell high), #896 (trade chips) | Held for one answer: the owner preview would show these failed calls to him, and removing them takes them out of it. Stale local work for #868 and #887 is in `agent-a1065c8b744e1b165` and `agent-a451ab15c2cba0a66`. |
-| New study | #772 contract year (needs a source for contract lengths, the owner's choice), after per-category opponent strength (declared 2026-11-21, no issue yet) | Queued last. |
+| New study | #772 contract year (needs a source for contract lengths, the owner's choice), after per-category opponent strength (declared 2026-11-21, #1150) | Queued last. |
 
 **The warehouse is down (#1043, #1044).** Databricks has refused to start the SQL warehouse since 2026-11-20 ("Cannot create the resource"). The fallback job builds on DuckDB and publishes after every ingest, so the site is current; the notes runs after each build are skipped, and nothing can be measured on the warehouse (#447). Bringing it back is done in the workspace, which is the owner's.
 
@@ -99,6 +105,12 @@ The redesign epic (#936) and the methodology epic (#751) still hold the longer l
 - A fresh copy of his league in `private/` (the one of 2026-11-17 holds no weeks, so the week-by-week view and the graded card cannot be checked against his real league); it needs a bookmark run, by his request only.
 - Recreating the runner container, when convenient: the cloudflared and runner image pins merged on 2026-11-22/23 take effect only then.
 - A source for contract lengths and signing dates, for #772.
+- **Added 2026-11-24:**
+  - **Who merges what.** The merge rule of 2026-11-21 lets agents merge, and `tools/dev/merge-pr.sh` merges with `gh pr merge --admin`, while branch protection on `main` asks for one code-owner approval that is never given (`enforce_admins` off). Either make protection real, or drop the required review and keep the review agent's verdict as a required check (#432). Also: do changes to `AGENTS.md`, `.sdlc/`, the workflows and `infra/` stay agent-mergeable on green, or become the owner's (the risk paths in `.sdlc/factory.yml`)?
+  - **A second copy of the raw landing data** and where it lives (#1149).
+  - **"No alerts"** (2026-11-17) against the morning push of `data-incident` issues to his phone and the watchdog's incidents: are those the alerts he wants, and should a failed host dispatch also reach him (#1152)?
+  - **The morning incident check**: what the cloud task runs on, and whether it is still wanted; its run of 2026-11-23 failed on the usage limit.
+  - **The saved work for the removals** (#1144, #1145) follows his answer on the removals above.
 
 ## The owner's league
 
@@ -128,7 +140,24 @@ Confirmed by the owner on 2026-11-17, every line below. A setup still on the def
 | AI notes | A local model beside the home runner (ADR 0017) | Hidden on the site until their calls are judged (#951) |
 | Deploys | `deploy-web.yml` after CI on `main` (production) and `preprod` (preview at https://fantasyscout-preview.rodel-beronilla.workers.dev) | Lighthouse gate: largest paint under 2 s on home and Schema |
 
-The runbook (`docs/runbook.md`) has a section per failure. The architecture and its phase table are in `docs/architecture.md`.
+The runbook (`docs/runbook.md`) has a section per failure. The architecture and its phase table are in `docs/architecture.md`. Deploy, verify and rollback commands: [docs/runbooks/deploy-rollback.md](../docs/runbooks/deploy-rollback.md).
+
+## Live-only settings
+
+What runs outside this repository's control. Only the owner changes these (AGENTS.md, "Do not").
+
+- **The four Windows tasks on the home machine**, each starting `ingest.yml` through `gh` (`infra/host/README.md`, #533, #816), with GitHub's crons as the fallback:
+  - `\FantasyScout morning ingest`: 04:30 Eastern, source `both` (fallback `27 9 * * *` UTC);
+  - `\FantasyScout evening reports`: 17:15 Eastern, source `reports` (fallback `41 22 * * *`);
+  - `\FantasyScout late reports 1`: 18:45 Eastern, source `reports` (fallback `47 23 * * *`);
+  - `\FantasyScout late reports 2`: 21:15 Eastern, source `reports` (fallback `17 2 * * *`).
+  - Each runs `dispatch-ingest.ps1` from `C:\Users\central\fantasyscout-host\`, which logs one line per run to `dispatch-ingest.log` beside it (`dispatched` or `FAILED`). They are still registered with the older `powershell.exe -WindowStyle Hidden` action, not the `conhost.exe --headless` one in `infra/host/` (#985, waiting on the owner). When one fails: `gh auth status` on the host, then the Ingest run it started. All four returned 0 and missed nothing as of 2026-11-23; the log's only failures were two on 2026-11-15 ("error connecting to api.github.com"), covered by the crons. (source: handoff-fantasyscout.md:53-57; factory baseline 2026-11-23)
+- **The home runner containers**: `fantasyscout-runner` and `fantasyscout-runner-2` (one per league host, label `home`, which the repository variable `STATS_RUNNER_LABEL` names), `fantasyscout-egress-proxy` (the allow-list in `infra/runner/squid.conf`, read at start) and `fantasyscout-ai` (the local model, volume `fantasyscout-ai-models`). Registration lives in the volume `runner_runner-state`, so a restart needs no token. The image pins merged on 2026-11-22/23 take effect only when the owner recreates them. (source: stats-api-blocks-github-runners.md:12; fantasyscout-2026-11-08-work.md:15)
+- **The morning incident check**: a cloud scheduled task, "FantasyScout morning watch", reads the open `data-incident` issues at 7:35 Eastern and pushes them to the owner's phone; each run is a fresh session. It is defined outside this repository; what it runs on is not recorded here (question above). Its 2026-11-23 run failed on the usage limit. (source: handoff-fantasyscout.md:58; the factory's freeze record, 2026-11-24)
+- **Branch protection on `main`** (read 2026-11-24): the five required checks in `.sdlc/factory.yml`, strict, one code-owner approval, `enforce_admins` off. `preprod` is unprotected (#432).
+- **Repository variables and secrets** are listed by name in `docs/runbook.md` ("Secrets: inventory and rotation"); `DATABRICKS_WAREHOUSE_ID` is to be set when the warehouse is recreated (#1043).
+- **Cloudflare**: the Worker `fantasyscout` (custom domain `fantasyscout.beronilla.rodeo`, env `production`), the preview Worker `fantasyscout-preview`, and the R2 bucket `fantasyscout-data`; DNS for the zone is at Cloudflare.
+- **Databricks Free Edition**: the `fantasyscout` catalog (created by the owner in the UI), the `raw.landing` volume, one SQL warehouse (refusing to start since 2026-11-20, #1043). No backup of the volume exists (#1149).
 
 ## Coverage
 
@@ -154,6 +183,9 @@ The runbook (`docs/runbook.md`) has a section per failure. The architecture and 
 - Build warnings that persist (#732).
 - Pickups' largest paint is about 3.3 s on a slow phone; reported, not enforced (#563).
 - Worker tests do not run on the owner's Windows machine (no workerd runtime); CI runs them.
+- No backup of the raw landing volume, and no restore ever tested (#1149).
+- Production has published from the DuckDB fallback since 2026-11-20; every Build lakehouse run since 2026-11-22 09:44 UTC has ended red at the warehouse step while its fallback job published (#1043, #1044; factory baseline 2026-11-23). What decides the site's freshness meanwhile is the fallback job and the watchdog.
+- Docs that no longer match the running system (#1152).
 
 ## Outcome measures
 

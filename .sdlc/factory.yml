@@ -1,0 +1,59 @@
+# .sdlc/factory.yml - manifest read by the factory collector.
+# Unknown values are null with a "# TBD:" comment; never guessed. Added 2026-11-24.
+product: fantasyscout
+owner: rodelBeronilla             # who approves Guarded and Destructive (GitHub account)
+level_target: L2
+live:
+  urls:
+    - https://fantasyscout.beronilla.rodeo/
+    - https://fantasyscout.beronilla.rodeo/data/latest.json   # build_id, data_as_of per league
+  preview: https://fantasyscout-preview.rodel-beronilla.workers.dev/   # deployed from preprod
+  branch: main                    # production deploys from main; live must equal it
+  deploy: .github/workflows/deploy-web.yml   # runs after CI on main; ships the artifact CI tested
+  rollback: "git revert <sha> (preferred), or from worker/: npx wrangler rollback --env production"
+  data_deploy: .github/workflows/build.yml   # each ingest -> build -> publish gate -> R2 fantasyscout-data
+  data_rollback: "Export data workflow, action rollback (then unpin); fs-export rollback --store r2"
+  window: null                    # TBD: deploys run on merge, with no window. Drills run in quiet hours (after 02:15Z, before 09:30Z).
+  runbook: docs/runbooks/deploy-rollback.md
+checks:
+  required:                       # branch protection on main, as read with gh api on 2026-11-24
+    - "Secrets and workflow hygiene"
+    - "Python (ruff, mypy, pytest)"
+    - "Web (check, lint, build, Playwright)"
+    - "Worker (typecheck, tests, dry-run deploy)"
+    - "dbt build on DuckDB"
+  local:                          # at most 2 workers each on the home machine (docs/runbooks/local-work.md)
+    - "uv run fs-dev check"
+    - "cd web && npm run check && npm run lint && npm run test:unit"
+    - "cd web && PUBLIC_BUILD_ID=local npm run build && npm test -- --workers=2"
+    - "cd worker && npm run typecheck && npm run check"
+backup:
+  what:
+    - "Databricks volume /Volumes/fantasyscout/raw/landing (raw landing; observed-only feeds cannot be fetched again)"
+    - "R2 fantasyscout-data builds/ (seven kept; rebuildable from the landing)"
+  max_age_hours: null             # TBD: no backup of the landing exists (#1149, question for the owner)
+  restore_tested: null            # never
+  rebuildable_from: landing       # published builds only; the landing itself is not rebuildable
+scheduled:                        # live on the home machine, not in this repo's control; see .sdlc/state.md "Live-only settings"
+  - '\FantasyScout morning ingest   04:30 ET  ingest.yml source both     fallback cron 27 9 * * * UTC'
+  - '\FantasyScout evening reports  17:15 ET  ingest.yml source reports  fallback cron 41 22 * * * UTC'
+  - '\FantasyScout late reports 1   18:45 ET  ingest.yml source reports  fallback cron 47 23 * * * UTC'
+  - '\FantasyScout late reports 2   21:15 ET  ingest.yml source reports  fallback cron 17 2 * * * UTC'
+runners: [fantasyscout-runner, fantasyscout-runner-2, fantasyscout-egress-proxy, fantasyscout-ai]   # containers on the home machine (infra/runner)
+risk_paths:                       # Guarded: the owner merges. TBD: the repo's merge rule of 2026-11-21 lets agents merge
+  - .sdlc/**                      # anything a manager cannot see on green checks, workflows included; which wins is a
+  - AGENTS.md                     # question for the owner (.sdlc/state.md "Waiting on the owner").
+  - .github/workflows/**
+  - .github/actions/**
+  - .github/CODEOWNERS
+  - infra/**                      # home runner, egress allow-list, host tasks, Databricks bundle
+  - worker/wrangler.toml          # routes, custom domain, bindings
+  - worker/src/policy.ts          # CSP and security headers
+  - tools/dev/merge-pr.sh
+destructive_paths: []             # TBD: deletion is by command, not by path: fs-export prune / delete-orphans,
+                                  # R2 object deletes, landing deletes, resettle_days sweeps (all owner-only, AGENTS.md)
+budgets:
+  discovery_findings_per_week: 5
+  default_model: null             # TBD: set in the factory's job config; no model names in this repo
+  host_workers_total: 8           # owner, 2026-11-16 (docs/runbooks/local-work.md)
+  host_workers_per_agent: 2
