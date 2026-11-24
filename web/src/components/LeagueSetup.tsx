@@ -358,7 +358,8 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
             </span>
           </p>
         </div>
-        <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {/* one column on a phone that a long team name cannot widen; the name is cut, its title whole (#1076) */}
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {setup.names.map((name, t) => {
             const roster = setup.rosters[t] ?? [];
             const mine = t === setup.mine;
@@ -373,7 +374,9 @@ export default function LeagueSetup({ mode = 'setup' }: { mode?: 'setup' | 'draf
                   data-testid="team-card-folded"
                   aria-label={`Show ${name}'s roster`}
                 >
-                  <span className="min-w-0 truncate font-medium">{name}</span>
+                  <span className="min-w-0 truncate font-medium" title={name}>
+                    {name}
+                  </span>
                   <span className="text-xs whitespace-nowrap text-muted">
                     {mine ? 'My team · ' : ''}
                     {rosterCount(setup, t).active}/{setup.rosterSpots} ▾
