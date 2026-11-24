@@ -86,6 +86,10 @@ on:
         description: Export S3's inputs for every mirrored season, the games played with their tracking chances (NBA only, #1081)
         type: boolean
         default: false
+      monday_schedule:
+        description: Export every mirrored season's schedule landings and players' teams, for the week's schedule as of each Monday (#1087)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -194,6 +198,22 @@ jobs:
         with:
           name: s1-games-${{ inputs.league }}-${{ inputs.judge != '' && inputs.judge || 'history' }}
           path: s1-games/
+          retention-days: 90
+      # The week's schedule as published on the Monday (#1087): every landing of the mirrored
+      # seasons' schedule with its ingest date, and each player's team by game day.
+      - name: Export the schedule's landings
+        if: inputs.monday_schedule
+        env:
+          LEAGUE: ${{ inputs.league }}
+          SEASONS: ${{ inputs.seasons }}
+        run: |
+          # shellcheck disable=SC2086
+          uv run python -m ops.monday_schedule export --league "$LEAGUE" --seasons $SEASONS --full-db dbt/fantasyscout.duckdb --out monday-schedule
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && inputs.monday_schedule
+        with:
+          name: monday-schedule-${{ inputs.league }}
+          path: monday-schedule/
           retention-days: 90
       # S3, opportunity before outcome (#1081): every mirrored season's regular-season games played,
       # with the box score's REB, AST, STL and BLK and the tracking chances behind them, from the

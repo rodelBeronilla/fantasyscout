@@ -229,6 +229,7 @@ def main(argv: list[str] | None = None) -> int:
     j.add_argument("--seeds", type=int, default=SEEDS)
     args = parser.parse_args(argv)
     by_league: dict[str, tuple[list[str], list[Week]]] = {}
+    schedules: dict[str, set[str]] = {}
     for folder in args.folders:
         league, season, weeks = load(folder)
         if season in JUDGED[league] or season == LOCKED[league] or season not in TUNING[league]:
@@ -237,6 +238,8 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 2
+        meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
+        schedules.setdefault(league, set()).add(meta.get("schedule", "as played"))
         seasons, all_weeks = by_league.setdefault(league, ([], []))
         seasons.append(season)
         all_weeks.extend(weeks)
@@ -247,6 +250,9 @@ def main(argv: list[str] | None = None) -> int:
         players = sum(len(w.real) for w in weeks)
         report[league] = {
             "seasons": sorted(seasons),
+            # "monday": each Monday's schedule as published that morning (ops.monday_schedule,
+            # #1087); "as played" is the build's schedule, a game on the date it was played
+            "schedule": sorted(schedules[league]),
             "weeks": len(weeks),
             "player_weeks": players,
             "categories": [asdict(c) for c in cats],
