@@ -62,7 +62,7 @@ Study minus projection, in the week's error (RMSE: made shots for FG%, threes fo
 | WNBA | FG% | 1.938 | 1.911 | −0.027 (−0.046 to −0.007) | ≤ −0.010, interval below 0 | yes |
 | WNBA | 3PM | 1.964 | 1.985 | +0.021 (+0.000 to +0.041) | ≤ −0.012, interval below 0 | no |
 
-- **Population:** NBA 50 weeks and 6,240 player-weeks; WNBA 37 weeks and 4,160.
+- **Population:** NBA 48 weeks with players and 6,240 player-weeks; WNBA 32 weeks and 4,160. The weeks with no game for anyone (each season's opening day, the WNBA's 2024 Olympic break) hold nobody and are not counted.
 - **The other seven categories** are the projection's, unchanged, so none gets worse.
 - **Seed check** (seeds 0 to 19): WNBA FG%'s upper bound stays below zero in 20 of 20 seeds (−0.0092 to −0.0072). NBA FG%'s stays above zero in all 20 (+0.007 to +0.012).
 - **Shots cover every judged game:**

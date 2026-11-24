@@ -496,6 +496,7 @@ def judge(tuning: list[wy.Week], judged: list[Season], setting: dict[str, Any]) 
     return {
         "judged": [s.season for s in judged],
         "weeks": len(weeks),
+        "weeks_with_players": sum(len(w.real) > 0 for w in weeks),
         "player_weeks": int(sum(len(w.real) for w in weeks)),
         "setting": setting,
         "shot_coverage": coverage_of(judged),
@@ -506,7 +507,8 @@ def judge(tuning: list[wy.Week], judged: list[Season], setting: dict[str, Any]) 
 
 def report(league: str, res: dict[str, Any]) -> str:
     head = (
-        f"### {league.upper()}, judged {', '.join(res['judged'])}: {res['weeks']} weeks, "
+        f"### {league.upper()}, judged {', '.join(res['judged'])}: "
+        f"{res['weeks_with_players']} weeks with players ({res['weeks']} Mondays), "
         f"{res['player_weeks']} player-weeks; {'PASS' if res['passes'] else 'FAIL'}\n\n"
     )
     rows = [

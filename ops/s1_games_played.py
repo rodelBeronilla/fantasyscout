@@ -73,7 +73,7 @@ TARGETS = ("PTS", "REB", "AST", "STL", "BLK", "3PM", "TO")
 # fit: chosen on the tuning seasons by ``fit`` and frozen here before any judged season was read
 # (2026-11-21; Backtest runs 44949661176 and 44948249988 for the game rows, S0's six exports for
 # the boards). RMSE of games played over the tuning weeks, projection -> pick: NBA 1.4943 ->
-# 1.4440 (71 weeks); WNBA 1.3974 -> 1.3964 (51 weeks). NBA's pick sits at the grid's edge.
+# 1.4440 (68 weeks with players); WNBA 1.3974 -> 1.3964 (44). NBA's pick sits at the grid's edge.
 FROZEN: dict[str, dict[str, float]] = {
     "nba": {"k": 0.0, "decay": 0.25},
     "wnba": {"k": 1.0, "decay": 1.0},
@@ -391,6 +391,7 @@ def fit(h: History, seasons: list[Any]) -> dict[str, Any]:
         "league": seasons[0][0],
         "seasons": sorted(s for _, s, _ in seasons),
         "weeks": len(weeks),
+        "weeks_with_players": sum(len(m.players) > 0 for m, _ in weeks),
         "player_weeks": int(sum(len(m.players) for m, _ in weeks)),
         "projection_games_rmse": games_rmse(weeks, projection=True),
         "grid": grid,
@@ -421,6 +422,7 @@ def judge(
         "league": league,
         "seasons": sorted(s for _, s, _ in seasons),
         "weeks": len(weeks),
+        "weeks_with_players": sum(len(m.players) > 0 for m, _ in weeks),
         "player_weeks": int(sum(len(m.players) for m, _ in weeks)),
         "settings": {"k": k, "decay": decay},
         "games_rmse": {
@@ -475,7 +477,8 @@ def table(res: dict[str, Any]) -> str:
     g = res["games_rmse"]
     head = (
         f"### {res['league'].upper()}, judged seasons {', '.join(res['seasons'])}: "
-        f"{res['weeks']} weeks, {res['player_weeks']} player-weeks; k {res['settings']['k']}, "
+        f"{res['weeks_with_players']} weeks with players ({res['weeks']} Mondays), "
+        f"{res['player_weeks']} player-weeks; k {res['settings']['k']}, "
         f"decay {res['settings']['decay']}\n\nGames played RMSE: study {g['study']:.4f}, "
         f"projection {g['projection']:.4f}\n\n"
     )

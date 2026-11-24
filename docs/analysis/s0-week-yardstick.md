@@ -13,6 +13,7 @@ The simplest alternative is what a manager does in his head: take the player's a
 - **Seasons:** the three seasons kept for tuning in each league (NBA 2020-21 to 2022-23, WNBA 2021 to 2023). The later seasons are kept back to judge the studies, and are not touched here.
 - **Each Monday:** the site rebuilt exactly as it stood that morning, with nothing from that week's games.
 - **Players:** the ones who matter in a league like yours. That is the top 104 on the board (8 teams with 13 spots), plus the next 26, the players you would pick up. Only players whose team plays that week count.
+- **How many weeks:** in the NBA, 68 weeks that had players in them and 8,840 player-weeks; in the WNBA, 44 weeks and 5,720 player-weeks. A few Mondays have no game for anyone that week, so nobody is in them and they are not counted: each season's opening day, and in the WNBA the four weeks of the 2021 Olympic break (71 Mondays in all in the NBA, 51 in the WNBA).
 - **Shooting:** FG% and FT% are scored by makes at the attempts the player really took. A miss on a player who shoots 20 times counts more than one who shoots 5, as it does in your league.
 
 ## What the data said
